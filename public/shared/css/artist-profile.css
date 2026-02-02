@@ -1,0 +1,1122 @@
+/* ============================================
+   WE OTZI - Public Artist Profile Styles
+   Extends dashboard.css for public view
+   ============================================ */
+
+/* ============================================
+   PUBLIC PROFILE VIEW OVERRIDES
+   ============================================ */
+
+.public-profile-view .top-nav-header {
+    background: var(--bg);
+}
+
+.back-to-marketplace {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--fg);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 3px solid var(--fg);
+    transition: all 0.2s ease;
+}
+
+.back-to-marketplace:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.back-to-marketplace svg {
+    transition: transform 0.2s ease;
+}
+
+.back-to-marketplace:hover svg {
+    transform: translateX(-4px);
+}
+
+/* ============================================
+   LOADING & ERROR STATES
+   ============================================ */
+
+.profile-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 1.5rem;
+    color: var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.loading-spinner-large {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--fg);
+    border-top-color: var(--primary-yellow);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.profile-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 1.5rem;
+    color: var(--fg);
+    text-align: center;
+    padding: 2rem;
+}
+
+.profile-error svg {
+    color: var(--primary-red);
+}
+
+.profile-error h2 {
+    font-weight: 900;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.profile-error p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    opacity: 0.7;
+    margin: 0;
+}
+
+.btn-back-marketplace {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--primary-yellow);
+    text-decoration: none;
+    padding: 0.75rem 1.5rem;
+    border: 3px solid var(--fg);
+    transition: all 0.2s ease;
+}
+
+.btn-back-marketplace:hover {
+    background: var(--fg);
+    color: var(--primary-yellow);
+}
+
+/* ============================================
+   PUBLIC PROFILE GRID - Unified border system like dashboard
+   ============================================ */
+
+.public-profile-grid {
+    /* Inherits from .dashboard-grid in dashboard.css */
+    /* No additional border needed - uses parent grid border */
+}
+
+/* ============================================
+   QUOTE CTA BLOCK
+   ============================================ */
+
+.block-quote-cta {
+    grid-column: 9 / 13;
+    grid-row: 1 / 2;
+    background: var(--primary-yellow);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    /* No individual border - shares grid border */
+}
+
+.quote-cta-title {
+    font-weight: 900;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    color: var(--text-on-light);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.quote-cta-description {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text-on-light);
+    opacity: 0.85;
+    margin: 0;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.quote-cta-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: var(--fg);
+    color: var(--primary-yellow);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quote-cta-btn:hover {
+    background: var(--bg);
+    transform: translateY(-2px);
+    box-shadow: 4px 4px 0 var(--fg);
+}
+
+.quote-cta-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.quote-cta-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-on-light);
+    opacity: 0.7;
+    margin: 0;
+    text-align: center;
+}
+
+/* ============================================
+   CONTACT OPTIONS BLOCK
+   Styled like dashboard's block-actions (blue background)
+   ============================================ */
+
+.block-contact-options {
+    grid-column: 1 / 5;
+    grid-row: 3 / 4;
+    background: var(--primary-blue);
+    padding: 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.contact-title {
+    font-weight: 900;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    color: var(--bg);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.contact-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 2px solid var(--bg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.contact-btn svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Cotizar Button - Primary action (Yellow like verify button) */
+.contact-btn-quote {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    border-color: var(--primary-yellow);
+}
+
+.contact-btn-quote:hover {
+    background: var(--fg);
+    color: var(--primary-yellow);
+    border-color: var(--fg);
+    transform: translateX(5px);
+}
+
+/* WhatsApp Button - Standard action button */
+.contact-btn-whatsapp {
+    background: var(--bg);
+    color: var(--fg);
+    border-color: var(--bg);
+}
+
+.contact-btn-whatsapp:hover {
+    background: var(--fg);
+    color: var(--bg);
+    transform: translateX(5px);
+}
+
+/* Instagram Button - Standard action button */
+.contact-btn-instagram {
+    background: var(--bg);
+    color: var(--fg);
+    border-color: var(--bg);
+}
+
+.contact-btn-instagram:hover {
+    background: var(--fg);
+    color: var(--bg);
+    transform: translateX(5px);
+}
+
+/* Share Button - Danger style like logout */
+.contact-btn-share {
+    background: transparent;
+    color: var(--bg);
+    border-color: var(--bg);
+}
+
+.contact-btn-share:hover {
+    background: var(--primary-yellow);
+    border-color: var(--primary-yellow);
+    color: var(--text-on-light);
+    transform: translateX(5px);
+}
+
+.contact-btn-share.copied {
+    background: var(--primary-yellow);
+    border-color: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+
+/* ============================================
+   GALLERY BLOCK (Public Profile)
+   ============================================ */
+
+.block-gallery {
+    grid-column: 5 / 9;
+    grid-row: 1 / 2;
+    background: var(--bg);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    /* No individual border - shares grid border */
+}
+
+.gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.gallery-title {
+    font-weight: 900;
+    font-size: 1rem;
+    text-transform: uppercase;
+    color: var(--fg);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.gallery-view-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: transparent;
+    color: var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    border: 2px solid var(--fg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gallery-view-all-btn:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    max-height: 240px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.gallery-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.gallery-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.gallery-grid::-webkit-scrollbar-thumb {
+    background: var(--fg);
+}
+
+.gallery-image-item {
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 2px solid var(--fg);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.gallery-image-item:hover {
+    transform: scale(1.02);
+}
+
+.gallery-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: filter 0.2s ease;
+}
+
+.gallery-image-item:hover img {
+    filter: brightness(1.1);
+}
+
+/* ============================================
+   GALLERY LIGHTBOX
+   ============================================ */
+
+.gallery-lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-lightbox.active {
+    display: flex;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    z-index: 10001;
+    transition: transform 0.2s ease;
+}
+
+.lightbox-close:hover {
+    transform: scale(1.1);
+}
+
+.lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 1rem;
+    z-index: 10001;
+    transition: background 0.2s ease;
+}
+
+.lightbox-nav:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.lightbox-prev {
+    left: 1rem;
+}
+
+.lightbox-next {
+    right: 1rem;
+}
+
+.lightbox-content {
+    max-width: 90vw;
+    max-height: 85vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox-content img {
+    max-width: 100%;
+    max-height: 85vh;
+    object-fit: contain;
+}
+
+.lightbox-counter {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 1rem;
+}
+
+/* ============================================
+   ACHIEVEMENTS BLOCK
+   ============================================ */
+
+.block-achievements {
+    grid-column: 5 / 9;
+    grid-row: 3 / 4;
+    background: var(--fg);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.achievements-title {
+    font-weight: 900;
+    font-size: 1rem;
+    text-transform: uppercase;
+    color: var(--bg);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.achievement-item {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+    background: var(--primary-yellow);
+    border: 3px solid var(--fg);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.achievement-item.unlocked {
+    display: flex;
+}
+
+.achievement-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-on-light);
+}
+
+.achievement-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Icon specific colors */
+.achievement-icon-verified {
+    color: var(--text-on-light);
+}
+
+.achievement-icon-embajador svg {
+    fill: var(--text-on-light);
+    stroke: var(--text-on-light);
+}
+
+.achievement-icon-studio {
+    color: var(--text-on-light);
+}
+
+.achievement-icon-experience {
+    color: var(--text-on-light);
+}
+
+.achievement-icon-profile {
+    color: var(--text-on-light);
+}
+
+.achievement-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--text-on-light);
+    line-height: 1.2;
+    max-width: 100%;
+}
+
+.achievements-empty {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--bg);
+    opacity: 0.7;
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+/* ============================================
+   PUBLIC PROFILE INFO (Read-only)
+   ============================================ */
+
+.public-profile-info .profile-header {
+    border-bottom: 3px solid var(--fg);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.public-profile-info .profile-title {
+    font-size: 1.25rem;
+}
+
+.public-profile-info .profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.profile-info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.profile-info-grid .form-row {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(26, 26, 26, 0.1);
+}
+
+.profile-info-grid .form-row:last-child {
+    border-bottom: none;
+}
+
+/* ============================================
+   RESPONSIVE LAYOUT OVERRIDES
+   ============================================ */
+
+/* Tablet View */
+@media (max-width: 1200px) {
+    .public-profile-grid {
+        grid-template-columns: repeat(8, 1fr);
+    }
+    
+    .back-to-marketplace span {
+        display: none;
+    }
+    
+    /* Reposition blocks for 8-column grid */
+    .public-profile-grid .block-identity {
+        grid-column: 1 / 4;
+        grid-row: 1 / 2;
+        padding: 2rem 1.5rem;
+    }
+    
+    .public-profile-grid .block-gallery {
+        grid-column: 4 / 9;
+        grid-row: 1 / 2;
+    }
+    
+    .public-profile-grid .block-quote-cta {
+        grid-column: 1 / 5;
+        grid-row: 2 / 3;
+    }
+    
+    .public-profile-grid .block-info-panel {
+        grid-column: 5 / 9;
+        grid-row: 2 / 3;
+    }
+    
+    .public-profile-grid .block-contact-options {
+        grid-column: 1 / 5;
+        grid-row: 3 / 4;
+    }
+    
+    .public-profile-grid .block-achievements {
+        grid-column: 5 / 9;
+        grid-row: 3 / 4;
+    }
+    
+    .public-profile-grid .block-profile.public-profile-info {
+        grid-column: 1 / 9;
+        grid-row: 4 / 5;
+    }
+    
+    .achievements-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+    
+    .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    /* Avatar adjustments */
+    .avatar-container {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .artist-name {
+        font-size: 1.6rem;
+    }
+}
+
+/* Mobile View */
+@media (max-width: 768px) {
+    .public-profile-grid {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% - 2rem);
+        margin: 70px auto 30px;
+        height: auto;
+        min-height: auto;
+        gap: 0;
+        padding: 0;
+    }
+    
+    /* Border bottom for each block like dashboard */
+    .public-profile-grid .block {
+        border-bottom: var(--border-width) solid var(--fg);
+        min-height: auto;
+    }
+    
+    .public-profile-grid .block:last-child {
+        border-bottom: none;
+    }
+    
+    .back-to-marketplace {
+        padding: 0.5rem;
+    }
+    
+    .back-to-marketplace span {
+        display: inline;
+    }
+    
+    /* Block order for mobile */
+    .public-profile-grid .block-quote-cta {
+        order: 1;
+    }
+    
+    .public-profile-grid .block-identity {
+        order: 2;
+    }
+    
+    .public-profile-grid .block-gallery {
+        order: 3;
+    }
+    
+    .public-profile-grid .block-info-panel {
+        order: 4;
+    }
+    
+    .public-profile-grid .block-profile.public-profile-info {
+        order: 5;
+    }
+    
+    .public-profile-grid .block-contact-options {
+        order: 6;
+    }
+    
+    .public-profile-grid .block-achievements {
+        order: 7;
+    }
+    
+    /* Block-specific mobile adjustments */
+    .block-identity {
+        padding: 1.5rem 1rem;
+    }
+    
+    /* Identity block text and element sizing for mobile - responsive with clamp */
+    .public-profile-grid .avatar-container {
+        width: clamp(70px, 20vw, 100px);
+        height: clamp(70px, 20vw, 100px);
+        margin-bottom: clamp(0.5rem, 2vw, 1rem);
+    }
+    
+    .public-profile-grid .artist-name {
+        font-size: clamp(1rem, 5vw, 1.6rem);
+        margin-bottom: 0.15rem;
+        word-break: break-word;
+        max-width: 100%;
+    }
+    
+    .public-profile-grid .artist-username {
+        font-size: clamp(0.6rem, 2.5vw, 0.85rem);
+        margin-bottom: 0.5rem;
+    }
+    
+    .public-profile-grid .artist-location {
+        font-size: clamp(0.55rem, 2vw, 0.75rem);
+        margin-bottom: 0.5rem;
+    }
+    
+    .public-profile-grid .artist-social-links {
+        margin-top: 0.5rem;
+        gap: clamp(0.3rem, 1.5vw, 0.5rem);
+    }
+    
+    .public-profile-grid .social-link-btn {
+        width: clamp(28px, 8vw, 36px);
+        height: clamp(28px, 8vw, 36px);
+    }
+    
+    .public-profile-grid .social-link-btn svg {
+        width: clamp(12px, 3.5vw, 16px);
+        height: clamp(12px, 3.5vw, 16px);
+    }
+    
+    .public-profile-grid .artist-compact-stats {
+        margin-top: clamp(0.75rem, 3vw, 1.25rem);
+        padding-top: clamp(0.75rem, 3vw, 1.25rem);
+        gap: clamp(0.5rem, 3vw, 1.5rem);
+    }
+    
+    .public-profile-grid .compact-stat-value {
+        font-size: clamp(0.85rem, 3.5vw, 1.2rem);
+    }
+    
+    .public-profile-grid .compact-stat-label {
+        font-size: clamp(0.45rem, 1.8vw, 0.65rem);
+    }
+    
+    .public-profile-grid .artist-level-badge {
+        font-size: clamp(0.45rem, 1.8vw, 0.65rem);
+        padding: 0.25rem clamp(0.5rem, 2vw, 0.85rem);
+        margin-top: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .public-profile-grid .embajador-badge {
+        margin-top: 0.5rem;
+        padding: 0.3rem clamp(0.5rem, 2vw, 0.75rem);
+        font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+    }
+    
+    .public-profile-grid .verification-badge {
+        font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+        padding: 0.25rem clamp(0.4rem, 1.5vw, 0.65rem);
+        margin-top: 0.5rem;
+    }
+    
+    .block-quote-cta {
+        padding: 1.5rem;
+    }
+    
+    .quote-cta-btn {
+        padding: 1.25rem 1.5rem;
+        font-size: 1.1rem;
+    }
+    
+    .block-gallery {
+        padding: 1.5rem;
+    }
+    
+    .block-info-panel {
+        padding: 1.5rem;
+    }
+    
+    .block-profile.public-profile-info {
+        padding: 1.5rem;
+        max-height: none;
+    }
+    
+    .block-contact-options {
+        padding: 1.5rem;
+    }
+    
+    .block-achievements {
+        padding: 1.25rem;
+    }
+    
+    .achievements-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .achievement-item {
+        padding: 0.6rem 0.4rem;
+    }
+    
+    .achievement-label {
+        font-size: 0.5rem;
+    }
+    
+    .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+        max-height: 200px;
+    }
+    
+    .gallery-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    /* Contact options mobile */
+    .contact-title {
+        font-size: 1.1rem;
+    }
+    
+    .contact-btn {
+        padding: 0.875rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    /* Lightbox mobile adjustments */
+    .lightbox-nav {
+        padding: 0.5rem;
+    }
+    
+    .lightbox-prev {
+        left: 0.5rem;
+    }
+    
+    .lightbox-next {
+        right: 0.5rem;
+    }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+    .public-profile-grid {
+        border-width: 2px;
+        width: calc(100% - 1rem);
+        margin: 60px auto 20px;
+    }
+    
+    .public-profile-grid .block {
+        border-bottom-width: 2px;
+    }
+    
+    /* Compact padding for all blocks */
+    .block-identity {
+        padding: 1.25rem 0.75rem;
+    }
+    
+    /* Identity block - clamp handles sizing, just override border */
+    .public-profile-grid .avatar-wrapper {
+        border-width: 3px;
+    }
+    
+    .public-profile-grid .artist-level-badge {
+        border-width: 2px;
+    }
+    
+    .block-quote-cta,
+    .block-gallery,
+    .block-info-panel,
+    .block-contact-options {
+        padding: 1rem;
+    }
+    
+    .block-profile.public-profile-info {
+        padding: 1rem;
+    }
+    
+    .block-achievements {
+        padding: 1rem;
+    }
+    
+    /* Quote CTA adjustments */
+    .quote-cta-title {
+        font-size: 1rem;
+    }
+    
+    .quote-cta-description {
+        font-size: 0.7rem;
+    }
+    
+    .quote-cta-btn {
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Contact options adjustments */
+    .contact-title {
+        font-size: 1rem;
+    }
+    
+    .contact-btn {
+        padding: 0.75rem 0.875rem;
+        font-size: 0.75rem;
+        gap: 0.5rem;
+    }
+    
+    .contact-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Gallery adjustments */
+    .gallery-title {
+        font-size: 0.85rem;
+    }
+    
+    .gallery-grid {
+        max-height: 150px;
+    }
+    
+    /* Achievements adjustments */
+    .achievements-title {
+        font-size: 0.85rem;
+    }
+    
+    .achievements-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.35rem;
+    }
+    
+    .achievement-item {
+        padding: 0.5rem 0.3rem;
+    }
+    
+    .achievement-icon {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .achievement-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .achievement-label {
+        font-size: 0.45rem;
+    }
+    
+    /* Profile info adjustments */
+    .public-profile-info .profile-header {
+        border-bottom-width: 2px;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+    
+    .public-profile-info .profile-title {
+        font-size: 1rem;
+    }
+    
+    .profile-info-grid .form-row {
+        padding: 0.6rem 0;
+    }
+    
+    /* Loading and error states */
+    .profile-loading,
+    .profile-error {
+        min-height: 50vh;
+    }
+    
+    /* Back to marketplace button */
+    .back-to-marketplace {
+        border-width: 2px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.65rem;
+    }
+}
+
+/* ============================================
+   STATUS MESSAGE TOAST
+   ============================================ */
+
+.status-message {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.875rem 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    border: 3px solid var(--fg);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.status-message.success {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    opacity: 1;
+    visibility: visible;
+}
+
+.status-message.error {
+    background: var(--primary-red);
+    color: white;
+    opacity: 1;
+    visibility: visible;
+}
+
+.status-message.info {
+    background: var(--fg);
+    color: var(--bg);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ============================================
+   DARK MODE OVERRIDES
+   ============================================ */
+
+.dark-mode .block-quote-cta {
+    background: var(--primary-yellow);
+}
+
+.dark-mode .block-contact-options {
+    background: var(--primary-blue);
+}
+
+.dark-mode .block-achievements {
+    background: var(--fg);
+}
+
+.dark-mode .profile-error svg {
+    color: var(--primary-red);
+}
+
+.dark-mode .back-to-marketplace {
+    color: var(--fg);
+    border-color: var(--fg);
+}
+
+.dark-mode .back-to-marketplace:hover {
+    background: var(--fg);
+    color: var(--bg);
+}

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi - Cotización de Tatuaje</title>
+    <meta name="description"
+        content="Cotiza tu próximo tatuaje con los mejores artistas del mundo a través de We Ötzi.">
+
+    <!-- Fonts - Bauhaus Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- EmailJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+    <!-- Date Picker JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+
+    <!-- Google Maps API (Places) -->
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs&libraries=places"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/feedback.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Progress Header -->
+        <header class="app-header">
+            <button id="back-btn" class="nav-btn hidden" aria-label="Volver" onclick="prevStep()">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+
+            <div class="header-logo">We Ötzi</div>
+
+            <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
+                <i id="theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+        </header>
+
+        <!-- Main Form Area -->
+        <main id="main-content">
+            <!-- Centered Progress Bar -->
+            <div class="progress-wrapper">
+                <div class="progress-info">
+                    <span id="progress-step-text" class="progress-step-info">Paso 1 de 20</span>
+                </div>
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <span id="progress-fun-message" class="progress-message">¡Vamos a empezar!</span>
+            </div>
+
+            <!-- DYNAMIC FORM CONTAINER -->
+            <div id="form-steps-container">
+                <!-- Steps will be injected here by script.js -->
+            </div>
+
+            <!-- TEMPLATES FOR COMPLEX STEPS -->
+
+            <!-- TEMPLATE: WELCOME -->
+            <template id="tmpl-welcome">
+                <div class="hero-content">
+                    <div class="hero-icon">🖤</div>
+                    <h1 class="brand-title">We Ötzi</h1>
+                    <p class="hero-text">Cotiza tu próximo tatuaje con los mejores artistas del mundo.</p>
+                    <button class="btn btn-primary btn-large" onclick="nextStep()">
+                        Comenzar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: ARTIST SEARCH -->
+            <template id="tmpl-artist-search">
+                <div class="question-container">
+                    <h2>¿Con qué artista te gustaría tatuarte?</h2>
+                    <p class="subtitle">Ingresa el usuario del artista (ej: yomicoart.wo)</p>
+
+                    <div class="input-group">
+                        <input type="text" id="artist-username" placeholder="usuario.wo" autocomplete="off">
+                        <button class="btn-icon" onclick="searchArtist()">
+                            <i class="fa-solid fa-search"></i>
+                        </button>
+                    </div>
+                    <p id="artist-error" class="error-msg hidden">Artista no encontrado. Verifica el usuario e intenta
+                        de nuevo.</p>
+
+                    <p class="hint-text">Presiona Enter para buscar</p>
+
+                    <div class="artist-search-extras">
+                        <div class="search-help">
+                            <p class="search-hint">¿No sabes el usuario?</p>
+                            <a href="/marketplace" class="btn btn-secondary" id="btn-find-artists-manual">
+                                <i class="fa-solid fa-magnifying-glass"></i> Buscar artistas
+                            </a>
+                        </div>
+                        
+                        <div class="recommendation-path">
+                            <button class="btn btn-secondary" id="btn-skip-artist" onclick="continueWithoutArtist()">
+                                Continuar sin artista
+                            </button>
+                            <p class="recommendation-promo">Prueba nuestra función de recomendación 100% personalizada</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: ARTIST CONFIRM -->
+            <template id="tmpl-artist-confirm">
+                <div class="question-container">
+                    <h2>Confirmar Artista</h2>
+
+                    <div id="artist-card" class="artist-card">
+                        <div class="artist-avatar-container">
+                            <div id="artist-avatar-default" class="artist-avatar">
+                                <i class="fa-solid fa-palette"></i>
+                            </div>
+                            <img id="artist-profile-img" src="" alt="Profile" class="artist-profile-img-large hidden">
+                        </div>
+                        <h3 class="artist-name" id="artist-name-display">—</h3>
+                        <div class="artist-meta">
+                            <span id="artist-styles-display">—</span>
+                            <span>•</span>
+                            <span id="artist-location-display">—</span>
+                        </div>
+                        <div class="artist-details">
+                            <div class="detail-item">
+                                <i class="fa-solid fa-building"></i>
+                                <span id="artist-studio-display">—</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fa-brands fa-instagram"></i>
+                                <a id="artist-instagram-link" href="#" target="_blank">Ver Portfolio</a>
+                            </div>
+                        </div>
+                        <div class="artist-price" id="artist-price-display">— / sesión</div>
+                    </div>
+
+                    <div class="actions-stack">
+                        <button class="btn btn-primary" onclick="confirmArtist()">
+                            Sí, cotizar con este artista
+                        </button>
+                        <button class="btn btn-secondary" onclick="prevStep()">
+                            Buscar otro artista
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: BODY SELECTOR (BAUHAUS EDITION) -->
+            <template id="tmpl-body-selector">
+                <div class="question-container wide">
+                    <h2>¿Dónde te gustaría el tatuaje?</h2>
+                    <p class="subtitle" id="body-subtitle">Selecciona una zona principal para ver detalles</p>
+
+                    <div class="body-selector-container">
+                        <!-- Bauhaus Navigation -->
+                        <div id="body-nav-header" class="body-nav-header hidden">
+                            <button class="btn-text" onclick="showMainBodyParts()">
+                                <i class="fa-solid fa-arrow-left"></i> Volver a zonas
+                            </button>
+                            <span id="current-body-zone" class="current-zone-title"></span>
+                        </div>
+
+                        <!-- MAIN ZONES: CREATIVE BAUHAUS GRID -->
+                        <div id="body-main-view" class="bauhaus-grid-creative">
+                            <!-- Injected via JS -->
+                        </div>
+
+                        <!-- SIDE SELECTION OVERLAY -->
+                        <div id="body-side-overlay" class="bauhaus-side-overlay hidden">
+                            <div class="side-overlay-header">
+                                <h3 class="current-zone-title">Configuración de Lado</h3>
+                            </div>
+                            <div class="side-options-container">
+                                <div class="side-option-bauhaus" onclick="handleSideChosen('left')">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                    <span>Izquierdo</span>
+                                </div>
+                                <div class="side-option-bauhaus" onclick="handleSideChosen('both')">
+                                    <i class="fa-solid fa-arrows-left-right"></i>
+                                    <span>Ambos</span>
+                                </div>
+                                <div class="side-option-bauhaus" onclick="handleSideChosen('right')">
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                    <span>Derecho</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB ZONES GRID: EQUAL CARDS -->
+                        <div id="body-sub-view" class="body-grid-view hidden">
+                            <div id="sub-parts-grid" class="bauhaus-grid-creative">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TECHNICAL SELECTION SHEET -->
+                    <div class="technical-selection-sheet">
+                        <div class="sheet-header">Manifiesto de Selección Técnica</div>
+                        <div class="sheet-content" id="selected-parts-sheet">
+                            <p class="empty-sheet-msg">Ninguna zona seleccionada en el sistema</p>
+                        </div>
+                    </div>
+
+                    <div class="actions-stack">
+                        <button class="btn btn-primary" id="body-continue-btn" onclick="confirmBodyParts()" disabled>
+                            Confirmar Selección y Continuar
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: TATTOO STYLES SELECTOR -->
+            <template id="tmpl-tattoo-styles">
+                <div class="question-container wide">
+                    <h2 id="styles-title">¿Qué estilo te gustaría?</h2>
+                    <p class="subtitle" id="styles-subtitle">Haz clic en un estilo para ver más información</p>
+
+                    <!-- Styles Grid -->
+                    <div id="styles-grid" class="styles-grid">
+                        <!-- Injected by JS -->
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="styles-loading" class="styles-loading hidden">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <p>Cargando estilos...</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: FILE UPLOAD -->
+            <template id="tmpl-file-upload">
+                <div class="question-container">
+                    <h2>Referencias visuales 📷</h2>
+                    <p class="subtitle">Sube imágenes de referencia o inspiración (Máx. 4)</p>
+
+                    <div class="upload-area" id="drop-zone">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <p>Arrastra imágenes aquí o <span class="highlight">haz clic para subir</span></p>
+                        <input type="file" id="file-input" multiple accept="image/*" class="hidden">
+                    </div>
+
+                    <div id="preview-container" class="preview-grid"></div>
+
+                    <div class="actions-row">
+                        <button class="btn btn-text" onclick="skipReferences()">Omitir este paso</button>
+                        <button class="btn btn-primary" onclick="nextStep()" id="ref-continue-btn">Continuar</button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: ARTIST RECOMMENDATIONS -->
+            <template id="tmpl-artist-recommendations">
+                <div class="question-container wide">
+                    <h2>Recomendaciones para ti ✨</h2>
+                    <p class="subtitle">Basado en tu estilo, ubicación y presupuesto, estos artistas son perfectos para tu idea</p>
+                    
+                    <div id="recommendations-grid" class="recommendations-grid">
+                        <!-- Recommended artists will be injected here -->
+                    </div>
+
+                    <div class="actions-stack">
+                        <button class="btn btn-secondary" onclick="prevStep()">
+                            Volver
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- TEMPLATE: SUMMARY -->
+            <template id="tmpl-summary">
+                <div class="question-container wide">
+                    <h2>Resumen de tu solicitud 📋</h2>
+                    <p class="subtitle">Revisa que todo esté correcto antes de enviar</p>
+
+                    <div class="summary-card" id="summary-content">
+                        <!-- Generated by JS -->
+                    </div>
+
+                    <div class="actions-stack">
+                        <button class="btn btn-primary btn-large" onclick="submitQuotation()" id="submit-btn">
+                            <span class="btn-text-content">Confirmar y Enviar</span>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+        </main>
+
+        <!-- Bauhaus Footer -->
+        <footer class="bauhaus-footer">
+            <div class="footer-content">
+                <p class="footer-text">Hecho con amor por We Ötzi, para artistas.</p>
+                <div class="footer-social">
+                    <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                        </svg>
+                    </a>
+                    <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+                        </svg>
+                    </a>
+                    <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
+                        </svg>
+                    </a>
+                    <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
+                            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
+                        </svg>
+                    </a>
+                </div>
+                <p class="footer-copyright">© 2025 We Ötzi. Todos los derechos reservados.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <p>Procesando...</p>
+    </div>
+
+    <!-- Configuration Manager -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+
+    <!-- App Logic -->
+    <script src="/shared/js/script.js"></script>
+
+    <!-- Feedback System -->
+    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <div id="feedback-modal" class="feedback-modal">
+        <div class="feedback-container">
+            <button class="feedback-close" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="feedback-header">
+                <h2 class="feedback-title">Feedback</h2>
+                <p class="feedback-subtitle">Ayúdanos a mejorar We Ötzi</p>
+            </div>
+            <form id="feedback-form">
+                <div class="feedback-form-group">
+                    <label for="feedback-reason">Motivo</label>
+                    <select id="feedback-reason" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona un motivo</option>
+                        <option value="error">Reportar un Error</option>
+                        <option value="sugerencia">Sugerencia de Mejora</option>
+                        <option value="pregunta">Pregunta / Duda</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-cause">Causa / Área</label>
+                    <select id="feedback-cause" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona el área</option>
+                        <option value="registro">Registro / Acceso</option>
+                        <option value="perfil">Perfil de Artista</option>
+                        <option value="dashboard">Dashboard</option>
+                        <option value="interfaz">Interfaz / Diseño</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-message">Mensaje</label>
+                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuéntanos más detalles..." required></textarea>
+                </div>
+                <div id="feedback-message-status" class="form-message"></div>
+                <button type="submit" class="btn-feedback-submit">
+                    Enviar Feedback
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/shared/js/feedback.js"></script>
+
+    <!-- Style Detail Modal -->
+    <div id="style-detail-overlay" class="style-detail-overlay hidden">
+        <div class="style-detail-modal">
+            <div class="style-detail-header">
+                <img id="style-detail-img" src="" alt="" class="hidden">
+                <div id="style-detail-placeholder" class="style-detail-header-placeholder">
+                    <i class="fa-solid fa-palette"></i>
+                </div>
+                <button class="style-detail-close" onclick="closeStyleDetailModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="style-detail-title-bar">
+                    <h2 id="style-detail-title">Nombre del Estilo</h2>
+                    <span id="style-detail-substyles-count" class="substyles-count hidden">0 Subestilos</span>
+                </div>
+            </div>
+            <div class="style-detail-body">
+                <p id="style-detail-description" class="style-detail-description">
+                    Descripción del estilo...
+                </p>
+                <div id="style-detail-substyles-section" class="style-detail-substyles hidden">
+                    <h3>Especialidades / Subestilos</h3>
+                    <div id="substyles-grid" class="substyles-grid">
+                        <!-- Substyles injected by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="style-detail-actions">
+                <button class="btn-cancel-style" onclick="closeStyleDetailModal()">Cancelar</button>
+                <button id="btn-select-style" class="btn-select-style" onclick="confirmStyleSelection()">
+                    <span>Seleccionar Estilo</span>
+                    <i class="fa-solid fa-check"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Body Part Detail Modal -->
+    <div id="body-part-detail-overlay" class="style-detail-overlay hidden">
+        <div class="style-detail-modal">
+            <div id="bp-detail-header" class="style-detail-header">
+                <div id="bp-detail-media" class="style-detail-header-placeholder">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <button class="style-detail-close" onclick="closeBodyPartDetailModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="style-detail-title-bar">
+                    <h2 id="body-part-detail-title">Nombre de la Zona</h2>
+                </div>
+            </div>
+            <div class="style-detail-body">
+                
+                <!-- Metrics -->
+                <div class="metric-container">
+                    <div class="metric-row">
+                        <label>Nivel de Sensibilidad</label>
+                        <span id="bp-sensitivity-val" class="metric-value">5/10</span>
+                        <div class="metric-bar-bg">
+                            <div id="bp-sensitivity-fill" class="metric-bar-fill" style="width: 50%"></div>
+                        </div>
+                        <div class="metric-labels">
+                            <span>Baja</span>
+                            <span>Media</span>
+                            <span>Alta</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-row" style="margin-top: 15px;">
+                        <label>Nivel de Dolor</label>
+                        <span id="bp-pain-val" class="metric-value">6/10</span>
+                        <div class="metric-bar-bg">
+                            <div id="bp-pain-fill" class="metric-bar-fill" style="width: 60%"></div>
+                        </div>
+                        <div class="metric-labels">
+                            <span>Soportable</span>
+                            <span>Intenso</span>
+                            <span>Extremo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="expanded-info-section">
+                    <h3>INFORMACIÓN EXPANDIDA</h3>
+                    
+                    <div class="info-block">
+                        <h4>Descripción General</h4>
+                        <div id="bp-description" class="info-text-box">
+                            <!-- Content -->
+                        </div>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Info de Tatuajes</h4>
+                        <div id="bp-tattoo-info" class="info-text-box">
+                            <!-- Content -->
+                        </div>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Experiencia de Tatuaje</h4>
+                        <div id="bp-experience-info" class="info-text-box">
+                            <!-- Content -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="style-detail-actions">
+                <button class="btn-cancel-style" onclick="closeBodyPartDetailModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DRAFT RECOVERY MODAL -->
+    <div id="draft-recovery-modal" class="draft-recovery-overlay hidden">
+        <div class="draft-recovery-modal">
+            <div class="recovery-icon">
+                <i class="fa-solid fa-bookmark"></i>
+            </div>
+            <h2>Cotizacion en progreso</h2>
+            <p class="recovery-subtitle">Encontramos una cotizacion sin enviar</p>
+            
+            <div id="draft-summary-info" class="draft-summary-info">
+                <!-- Populated by JS -->
+            </div>
+            
+            <div class="steps-progress-container">
+                <div class="steps-column steps-completed-column">
+                    <h4><i class="fa-solid fa-check-circle"></i> Completados</h4>
+                    <ul id="completed-steps-list"></ul>
+                </div>
+                <div class="steps-column steps-pending-column">
+                    <h4><i class="fa-regular fa-circle"></i> Pendientes</h4>
+                    <ul id="pending-steps-list"></ul>
+                </div>
+            </div>
+            
+            <div class="recovery-actions">
+                <button class="btn btn-primary" onclick="continueDraft()">
+                    <i class="fa-solid fa-play"></i> Continuar cotizacion
+                </button>
+                <button class="btn btn-secondary" onclick="startNewQuotation()">
+                    <i class="fa-solid fa-plus"></i> Empezar nueva
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

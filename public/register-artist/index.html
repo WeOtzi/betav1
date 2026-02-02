@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Registro de Artista</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/landing-style.css">
+    <link rel="stylesheet" href="/shared/css/register.css">
+    <link rel="stylesheet" href="/shared/css/feedback.css">
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    <!-- Google Maps Places API - Key configured in config-manager.js -->
+    <script>
+        // Load Google Maps dynamically after config is loaded
+        // Uses polling to wait for async ConfigManager initialization
+        function loadGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initGooglePlaces`;
+                script.async = true;
+                document.head.appendChild(script);
+            } else {
+                // Config not ready yet, retry in 100ms (max 50 retries = 5 seconds)
+                if (!window._googleMapsRetryCount) window._googleMapsRetryCount = 0;
+                window._googleMapsRetryCount++;
+                if (window._googleMapsRetryCount < 50) {
+                    setTimeout(loadGoogleMapsWhenReady, 100);
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadGoogleMapsWhenReady);
+    </script>
+</head>
+
+<body>
+    <header class="top-nav-header" style="justify-content: flex-start; padding-top: 1rem;">
+        <div class="header-edition-info" style="margin-left: 1rem;">
+            Edición Bauhaus | Beta Cerrada
+        </div>
+    </header>
+
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
+        O
+    </button>
+
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+        <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+    </div>
+
+    <main class="register-container">
+        <!-- Progress Bar -->
+        <header class="register-header">
+            <a href="/registerclosedbeta" class="back-to-home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="square">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>We Ötzi</span>
+            </a>
+            <div class="progress-wrapper">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <span class="progress-label" id="progress-label">01 / 12</span>
+            </div>
+        </header>
+
+        <!-- Form Container -->
+        <div class="form-wrapper">
+            <!-- Scroll Indicator - Bauhaus Style -->
+            <div class="scroll-indicator" id="scroll-indicator">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="square">
+                    <path d="M12 5v14M5 12l7 7 7-7" />
+                </svg>
+            </div>
+            <!-- Step 1: Artistic Name -->
+            <section class="form-step active" data-step="1">
+                <div class="step-indicator">01</div>
+                <h2 class="question-title">Como te llamas artisticamente?</h2>
+                <p class="question-subtitle">El nombre con el que te conocen tus clientes y seguidores.</p>
+                <div class="input-wrapper">
+                    <input type="text" id="artistic_name" class="form-input" placeholder="Tu nombre artistico"
+                        autocomplete="off">
+                </div>
+            </section>
+
+            <!-- Step 2: Full Name -->
+            <section class="form-step" data-step="2">
+                <div class="step-indicator">02</div>
+                <h2 class="question-title">Cual es tu nombre completo?</h2>
+                <p class="question-subtitle">Tu nombre legal para la documentacion oficial.</p>
+                <div class="input-wrapper">
+                    <input type="text" id="full_name" class="form-input" placeholder="Nombre y apellidos"
+                        autocomplete="new-password" data-lpignore="true" data-form-type="other">
+                </div>
+            </section>
+
+            <!-- Step 3: Email -->
+            <section class="form-step" data-step="3">
+                <div class="step-indicator">03</div>
+                <h2 class="question-title">Cual es tu email?</h2>
+                <p class="question-subtitle">Te enviaremos la confirmacion de tu registro aqui.</p>
+                <div class="input-wrapper">
+                    <input type="email" id="email" class="form-input" placeholder="tu@email.com" autocomplete="off">
+                </div>
+            </section>
+
+            <!-- Step 4: City/Location with Google Maps -->
+            <section class="form-step" data-step="4">
+                <div class="step-indicator">04</div>
+                <h2 class="question-title">Donde estas ubicado?</h2>
+                <p class="question-subtitle">Tu ubicacion principal para conectar con clientes cercanos.</p>
+                <div class="input-wrapper location-wrapper">
+                    <input type="text" id="city" class="form-input" placeholder="Localidad, Ciudad, Pais"
+                        autocomplete="off">
+                    <button type="button" class="geolocation-btn" id="geolocation-btn" onclick="getGeolocation()"
+                        aria-label="Usar mi ubicacion">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="location-hint" id="location-hint"></p>
+            </section>
+
+            <!-- Step 5: Tattoo Styles -->
+            <section class="form-step" data-step="5">
+                <div class="step-indicator">05</div>
+                <h2 class="question-title">Cuales son tus estilos?</h2>
+                <p class="question-subtitle">Selecciona todos los estilos en los que trabajas.</p>
+                <div class="styles-grid" id="styles-grid">
+                    <button type="button" class="style-option" data-style="Tradicional">Tradicional</button>
+                    <button type="button" class="style-option" data-style="Neo-tradicional">Neo-tradicional</button>
+                    <button type="button" class="style-option" data-style="Realismo">Realismo</button>
+                    <button type="button" class="style-option" data-style="Blackwork">Blackwork</button>
+                    <button type="button" class="style-option" data-style="Fine Line">Fine Line</button>
+                    <button type="button" class="style-option" data-style="Japones">Japones</button>
+                    <button type="button" class="style-option" data-style="Geometrico">Geometrico</button>
+                    <button type="button" class="style-option" data-style="Watercolor">Watercolor</button>
+                    <button type="button" class="style-option" data-style="Tribal">Tribal</button>
+                    <button type="button" class="style-option" data-style="Minimalista">Minimalista</button>
+                    <button type="button" class="style-option" data-style="Dotwork">Dotwork</button>
+                    <button type="button" class="style-option" data-style="Lettering">Lettering</button>
+                    <button type="button" class="style-option style-option-other" data-style="Otro" id="style-other-btn">+ Otro</button>
+                </div>
+                <!-- Custom Style Input -->
+                <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
+                    <div class="input-wrapper">
+                        <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribe tu estilo" autocomplete="off">
+                        <button type="button" class="add-custom-style-btn" id="add-custom-style-btn" aria-label="Agregar estilo">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 6: Experience -->
+            <section class="form-step" data-step="6">
+                <div class="step-indicator">06</div>
+                <h2 class="question-title">Cuantos anos de experiencia tienes?</h2>
+                <p class="question-subtitle">Aproximadamente, cuanto tiempo llevas tatuando profesionalmente.</p>
+                <div class="experience-options" id="experience-options">
+                    <button type="button" class="experience-option" data-years="0-1">Menos de 1 ano</button>
+                    <button type="button" class="experience-option" data-years="1-3">1 - 3 anos</button>
+                    <button type="button" class="experience-option" data-years="3-5">3 - 5 anos</button>
+                    <button type="button" class="experience-option" data-years="5-10">5 - 10 anos</button>
+                    <button type="button" class="experience-option" data-years="10+">Mas de 10 anos</button>
+                </div>
+            </section>
+
+            <!-- Step 7: Session Price -->
+            <section class="form-step" data-step="7">
+                <div class="step-indicator">07</div>
+                <h2 class="question-title">Cual es tu tarifa por sesion?</h2>
+                <p class="question-subtitle">El costo aproximado de una sesion de trabajo.</p>
+                <div class="input-wrapper price-wrapper">
+                    <input type="number" id="session_price" class="form-input price-input" placeholder="150"
+                        autocomplete="off" min="0">
+                    <select id="session_currency" class="currency-select">
+                        <!-- Americas -->
+                        <optgroup label="Americas">
+                            <option value="USD">USD - Dolar USA</option>
+                            <option value="MXN">MXN - Peso Mexicano</option>
+                            <option value="COP">COP - Peso Colombiano</option>
+                            <option value="ARS">ARS - Peso Argentino</option>
+                            <option value="CLP">CLP - Peso Chileno</option>
+                            <option value="PEN">PEN - Sol Peruano</option>
+                            <option value="BRL">BRL - Real Brasileno</option>
+                            <option value="CAD">CAD - Dolar Canadiense</option>
+                            <option value="UYU">UYU - Peso Uruguayo</option>
+                            <option value="PYG">PYG - Guarani Paraguayo</option>
+                            <option value="BOB">BOB - Boliviano</option>
+                            <option value="VES">VES - Bolivar Venezolano</option>
+                            <option value="CRC">CRC - Colon Costarricense</option>
+                            <option value="PAB">PAB - Balboa Panameno</option>
+                            <option value="DOP">DOP - Peso Dominicano</option>
+                            <option value="GTQ">GTQ - Quetzal Guatemalteco</option>
+                            <option value="HNL">HNL - Lempira Hondureno</option>
+                            <option value="NIO">NIO - Cordoba Nicaraguense</option>
+                            <option value="CUP">CUP - Peso Cubano</option>
+                            <option value="JMD">JMD - Dolar Jamaiquino</option>
+                            <option value="TTD">TTD - Dolar Trinidad</option>
+                        </optgroup>
+                        <!-- Europe -->
+                        <optgroup label="Europa">
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - Libra Esterlina</option>
+                            <option value="CHF">CHF - Franco Suizo</option>
+                            <option value="SEK">SEK - Corona Sueca</option>
+                            <option value="NOK">NOK - Corona Noruega</option>
+                            <option value="DKK">DKK - Corona Danesa</option>
+                            <option value="PLN">PLN - Zloty Polaco</option>
+                            <option value="CZK">CZK - Corona Checa</option>
+                            <option value="HUF">HUF - Forinto Hungaro</option>
+                            <option value="RON">RON - Leu Rumano</option>
+                            <option value="BGN">BGN - Lev Bulgaro</option>
+                            <option value="HRK">HRK - Kuna Croata</option>
+                            <option value="RSD">RSD - Dinar Serbio</option>
+                            <option value="UAH">UAH - Grivna Ucraniana</option>
+                            <option value="RUB">RUB - Rublo Ruso</option>
+                            <option value="ISK">ISK - Corona Islandesa</option>
+                            <option value="TRY">TRY - Lira Turca</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Step 8: Portfolio URL -->
+            <section class="form-step" data-step="8">
+                <div class="step-indicator">08</div>
+                <h2 class="question-title">Donde podemos ver tu trabajo?</h2>
+                <p class="question-subtitle">Link a tu Instagram, sitio web o portfolio online.</p>
+                <div class="input-wrapper">
+                    <input type="url" id="portfolio_url" class="form-input"
+                        placeholder="https://instagram.com/tu_perfil" autocomplete="off">
+                </div>
+            </section>
+
+            <!-- Step 9: Bio with Rich Text Editor -->
+            <section class="form-step" data-step="9">
+                <div class="step-indicator">09</div>
+                <h2 class="question-title">Cuentanos sobre ti</h2>
+                <p class="question-subtitle">Se creativo! Puedes usar emojis y dar formato a tu texto.</p>
+                
+                <div class="bio-editor-wrapper">
+                    <div class="bio-toolbar">
+                        <button type="button" class="toolbar-btn" data-command="bold" title="Negrita">
+                            <strong>B</strong>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="italic" title="Cursiva">
+                            <em>I</em>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="underline" title="Subrayado">
+                            <u>U</u>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Tachado">
+                            <s>S</s>
+                        </button>
+                        <div class="toolbar-separator"></div>
+                        <button type="button" class="toolbar-btn color-btn" data-command="foreColor" title="Color de texto">
+                            <span class="color-icon text-color"></span>
+                            <input type="color" class="color-picker" id="text-color-picker" value="#E53935">
+                        </button>
+                        <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo">
+                            <span class="color-icon bg-color"></span>
+                            <input type="color" class="color-picker" id="bg-color-picker" value="#FFEB3B">
+                        </button>
+                        <div class="toolbar-separator"></div>
+                        <button type="button" class="toolbar-btn" data-command="createLink" title="Insertar enlace">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="toolbar-btn emoji-btn" id="emoji-trigger" title="Emojis">
+                            <span>☺</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Emoji Picker -->
+                    <div class="emoji-picker" id="emoji-picker">
+                        <div class="emoji-grid">
+                            <button type="button" class="emoji-item">😀</button>
+                            <button type="button" class="emoji-item">😎</button>
+                            <button type="button" class="emoji-item">🎨</button>
+                            <button type="button" class="emoji-item">✨</button>
+                            <button type="button" class="emoji-item">🔥</button>
+                            <button type="button" class="emoji-item">💪</button>
+                            <button type="button" class="emoji-item">🖤</button>
+                            <button type="button" class="emoji-item">❤️</button>
+                            <button type="button" class="emoji-item">💫</button>
+                            <button type="button" class="emoji-item">⚡</button>
+                            <button type="button" class="emoji-item">🌟</button>
+                            <button type="button" class="emoji-item">💀</button>
+                            <button type="button" class="emoji-item">🦋</button>
+                            <button type="button" class="emoji-item">🌹</button>
+                            <button type="button" class="emoji-item">🐉</button>
+                            <button type="button" class="emoji-item">🎭</button>
+                            <button type="button" class="emoji-item">💉</button>
+                            <button type="button" class="emoji-item">🎯</button>
+                            <button type="button" class="emoji-item">🏆</button>
+                            <button type="button" class="emoji-item">📍</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Contenteditable Bio Area -->
+                    <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribe tu bio aqui... Se creativo!"></div>
+                </div>
+            </section>
+
+            <!-- Step 10: Work Type -->
+            <section class="form-step" data-step="10">
+                <div class="step-indicator">10</div>
+                <h2 class="question-title">Como trabajas actualmente?</h2>
+                <p class="question-subtitle">Tu modalidad de trabajo principal.</p>
+                <div class="work-type-options" id="work-type-options">
+                    <button type="button" class="work-type-option" data-type="studio">
+                        <div class="work-type-icon studio-icon"></div>
+                        <span class="work-type-label">Estudio</span>
+                        <span class="work-type-desc">Trabajo en un estudio establecido</span>
+                    </button>
+                    <button type="button" class="work-type-option" data-type="independent">
+                        <div class="work-type-icon independent-icon"></div>
+                        <span class="work-type-label">Independiente</span>
+                        <span class="work-type-desc">Trabajo por mi cuenta / freelance</span>
+                    </button>
+                    <button type="button" class="work-type-option" data-type="both">
+                        <div class="work-type-icon both-icon"></div>
+                        <span class="work-type-label">Ambos</span>
+                        <span class="work-type-desc">Combino ambas modalidades</span>
+                    </button>
+                </div>
+                <!-- Studio Name Input -->
+                <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
+                    <label class="studio-name-label">Nombre del estudio donde trabajas:</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="studio_name" class="form-input" placeholder="Nombre del estudio"
+                            autocomplete="off">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 11: Birth Date -->
+            <section class="form-step" data-step="11">
+                <div class="step-indicator">11</div>
+                <h2 class="question-title">Cuando es tu cumpleaños?</h2>
+                <p class="question-subtitle">Tu fecha de nacimiento para verificar tu edad.</p>
+                <div class="input-wrapper date-input-wrapper">
+                    <input type="text" id="birth_date" class="form-input date-input" 
+                        placeholder="DD/MM/AAAA" 
+                        maxlength="10"
+                        autocomplete="off"
+                        inputmode="numeric">
+                    <button type="button" class="date-picker-btn" id="date-picker-btn" aria-label="Seleccionar fecha">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 12: Newsletter -->
+            <section class="form-step" data-step="12">
+                <div class="step-indicator">12</div>
+                <h2 class="question-title">Unete a nuestra comunidad!</h2>
+                <p class="question-subtitle">Se parte del movimiento artistico mas innovador.</p>
+                <div class="newsletter-invite">
+                    <div class="newsletter-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                    </div>
+                    <h3 class="newsletter-title">Newsletter Exclusivo</h3>
+                    <p class="newsletter-text">
+                        Recibe las ultimas tendencias del mundo del tatuaje, tips profesionales, 
+                        oportunidades de colaboracion y acceso anticipado a nuevas funciones de We Ötzi.
+                        <strong>Solo contenido de valor, sin spam.</strong>
+                    </p>
+                    <div class="newsletter-options" id="newsletter-options">
+                        <button type="button" class="newsletter-option" data-subscribe="true">
+                            <span class="newsletter-option-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="3">
+                                    <path d="M20 6L9 17l-5-5" />
+                                </svg>
+                            </span>
+                            <span class="newsletter-option-text">Si, quiero unirme!</span>
+                        </button>
+                        <button type="button" class="newsletter-option newsletter-option-decline" data-subscribe="false">
+                            <span class="newsletter-option-text">Ahora no, gracias</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary Step -->
+            <section class="form-step summary-step" data-step="summary">
+                <div class="step-indicator summary-indicator">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                        stroke-linecap="square">
+                        <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                </div>
+                <h2 class="question-title">Revisa tus datos</h2>
+                <p class="question-subtitle">Confirma que todo este correcto antes de enviar.</p>
+
+                <div class="summary-card" id="summary-card">
+                    <!-- Summary content will be populated by JS -->
+                </div>
+
+                <!-- Terms and Conditions -->
+                <div class="terms-container">
+                    <label class="terms-checkbox-wrapper">
+                        <input type="checkbox" id="terms-checkbox" class="terms-checkbox">
+                        <span class="terms-checkmark"></span>
+                        <span class="terms-text">
+                            Acepto los <a href="https://weotzi.com/terms" target="_blank" class="terms-link">Terminos y Condiciones</a> 
+                            y la <a href="https://weotzi.com/privacy" target="_blank" class="terms-link">Politica de Privacidad</a>
+                        </span>
+                    </label>
+                    <p class="terms-info">
+                        Al aceptar los terminos y condiciones tambien aceptas recibir correos del sistema e informacion 
+                        acerca del programa de beta testing. Te estas uniendo a un programa de pruebas cerradas.
+                    </p>
+                    <a href="https://weotzi.com/about" target="_blank" class="btn-learn-more">
+                        Saber mas sobre We Ötzi
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                    </a>
+                </div>
+            </section>
+
+            <!-- Success Step -->
+            <section class="form-step success-step" data-step="success">
+                <div class="success-animation">
+                    <div class="success-circle"></div>
+                    <svg class="success-check" width="80" height="80" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                </div>
+                <h2 class="question-title success-title">Registro completado!</h2>
+                <p class="question-subtitle">Bienvenido a We Ötzi. Seras redirigido a tu dashboard en breve...</p>
+                <a href="/artist/dashboard" class="btn-home">Ir a mi Dashboard</a>
+            </section>
+        </div>
+
+        <!-- Navigation Footer -->
+        <footer class="register-footer">
+            <button type="button" class="nav-btn nav-btn-back" id="btn-back" style="visibility: hidden;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="square">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Atras
+            </button>
+
+            <div class="keyboard-hint">
+                <span>Presiona</span>
+                <kbd>Enter</kbd>
+                <span>para continuar</span>
+            </div>
+
+            <button type="button" class="nav-btn nav-btn-next" id="btn-next">
+                Siguiente
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="square">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </button>
+        </footer>
+    </main>
+
+    <!-- Feedback Floating Button -->
+    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="feedback-modal">
+        <div class="feedback-container">
+            <button class="feedback-close" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="feedback-header">
+                <h2 class="feedback-title">Feedback</h2>
+                <p class="feedback-subtitle">Ayudanos a mejorar We Ötzi</p>
+            </div>
+            <form id="feedback-form">
+                <div class="feedback-form-group">
+                    <label for="feedback-reason">Motivo</label>
+                    <select id="feedback-reason" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona un motivo</option>
+                        <option value="error">Reportar un Error</option>
+                        <option value="sugerencia">Sugerencia de Mejora</option>
+                        <option value="pregunta">Pregunta / Duda</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-cause">Causa / Area</label>
+                    <select id="feedback-cause" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona el area</option>
+                        <option value="registro">Registro / Acceso</option>
+                        <option value="perfil">Perfil de Artista</option>
+                        <option value="dashboard">Dashboard</option>
+                        <option value="interfaz">Interfaz / Diseño</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-message">Mensaje</label>
+                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuentanos mas detalles..." required></textarea>
+                </div>
+                <div id="feedback-message-status" class="form-message"></div>
+                <button type="submit" class="btn-feedback-submit">
+                    Enviar Feedback
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/shared/js/register.js"></script>
+    <script src="/shared/js/feedback.js"></script>
+    <script src="/shared/js/header-effects.js"></script>
+</body>
+
+</html>

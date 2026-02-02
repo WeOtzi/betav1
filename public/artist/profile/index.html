@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Perfil del Artista</title>
+    <meta name="description" content="Conoce el trabajo de este increible artista tatuador en We Otzi">
+    
+    <!-- Open Graph for sharing -->
+    <meta property="og:type" content="profile">
+    <meta property="og:title" id="og-title" content="Artista en We Otzi">
+    <meta property="og:description" id="og-description" content="Conoce el trabajo de este increible artista tatuador">
+    <meta property="og:image" id="og-image" content="">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/landing-style.css">
+    <link rel="stylesheet" href="/shared/css/dashboard.css">
+    <link rel="stylesheet" href="/shared/css/artist-profile.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+
+<body class="public-profile-view">
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edicion Bauhaus | Beta Cerrada
+        </div>
+        <div class="nav-row">
+            <div class="nav-col">
+                <a href="/marketplace" class="back-to-marketplace">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    <span>Explorar Artistas</span>
+                </a>
+            </div>
+            <div class="nav-col">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
+                    O
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Loading State -->
+    <div class="profile-loading" id="profile-loading">
+        <div class="loading-spinner-large"></div>
+        <p>Cargando perfil...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="profile-error" id="profile-error" style="display: none;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h2>Artista no encontrado</h2>
+        <p>El perfil que buscas no existe o no esta disponible.</p>
+        <a href="/marketplace" class="btn-back-marketplace">Ver todos los artistas</a>
+    </div>
+
+    <!-- Main Profile Grid -->
+    <main class="dashboard-grid public-profile-grid" id="profile-content" style="display: none;">
+        <!-- Identity Block: Avatar + Name -->
+        <section class="block block-identity">
+            <div class="avatar-container">
+                <div class="avatar-wrapper" id="avatar-wrapper">
+                    <img src="" alt="Avatar" class="avatar-image" id="avatar-image">
+                    <div class="avatar-placeholder" id="avatar-placeholder">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <!-- Artist Level Badge -->
+            <div class="artist-level-badge" id="artist-level-badge">
+                <span class="level-text" id="level-text">Nuevo</span>
+            </div>
+            <!-- Verification Badge -->
+            <div class="verification-badge" id="verification-badge" data-state="No" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span id="verification-text">Verificado</span>
+            </div>
+            <h1 class="artist-name" id="artist-name">Cargando...</h1>
+            <p class="artist-username" id="artist-username">@usuario.wo</p>
+            <p class="artist-location" id="artist-location">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span id="location-text">-</span>
+            </p>
+            <div class="artist-social-links">
+                <a href="#" id="instagram-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                    </svg>
+                </a>
+                <button type="button" id="share-profile-btn" class="social-link-btn share-btn" aria-label="Compartir perfil">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="18" cy="5" r="3"/>
+                        <circle cx="6" cy="12" r="3"/>
+                        <circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Artist Stats -->
+            <div class="artist-compact-stats">
+                <div class="compact-stat">
+                    <span class="compact-stat-value" id="stat-experience">-</span>
+                    <span class="compact-stat-label">Exp.</span>
+                </div>
+                <div class="compact-stat">
+                    <span class="compact-stat-value" id="stat-styles">-</span>
+                    <span class="compact-stat-label">Estilos</span>
+                </div>
+                <div class="compact-stat">
+                    <span class="compact-stat-value" id="stat-price">-</span>
+                    <span class="compact-stat-label">Tarifa</span>
+                </div>
+            </div>
+
+            <div class="embajador-badge" id="embajador-badge" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                <span>Embajador</span>
+            </div>
+        </section>
+
+        <!-- Quote CTA Block (Replaces Cotizaciones stats) -->
+        <section class="block block-quote-cta">
+            <h2 class="quote-cta-title">Cotiza con este Artista</h2>
+            <p class="quote-cta-description">Envia tu idea de tatuaje y recibe una cotizacion personalizada directamente del artista.</p>
+            <button class="quote-cta-btn" id="quote-cta-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                Cotizar Ahora
+            </button>
+            <p class="quote-cta-note">Respuesta en 24-48 horas</p>
+        </section>
+
+        <!-- Gallery Block -->
+        <section class="block block-gallery" id="block-gallery" style="display: none;">
+            <div class="gallery-header">
+                <h2 class="gallery-title">Trabajos</h2>
+                <button class="gallery-view-all-btn" id="gallery-view-all-btn" style="display: none;">
+                    Ver toda la galeria
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="gallery-grid" id="gallery-grid">
+                <!-- Gallery images will be inserted here -->
+            </div>
+        </section>
+
+        <!-- Info Block: Bio & Portfolio -->
+        <section class="block block-info-panel">
+            <div class="info-header">
+                <h2 class="info-title">Sobre Mi</h2>
+            </div>
+            <div class="bio-content" id="bio-content">
+                <p class="bio-text" id="bio-text">-</p>
+            </div>
+            <div class="portfolio-link">
+                <a href="#" id="portfolio-url" target="_blank" rel="noopener">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    <span>Ver Portfolio</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Profile Info Block (Read-only) -->
+        <section class="block block-profile public-profile-info">
+            <div class="profile-header">
+                <h2 class="profile-title">Mi Perfil</h2>
+            </div>
+
+            <div class="profile-info-grid">
+                <!-- Artistic Name -->
+                <div class="form-row">
+                    <label class="form-label">Nombre Artistico</label>
+                    <div class="form-value" id="display-artistic-name">-</div>
+                </div>
+
+                <!-- Full Name -->
+                <div class="form-row">
+                    <label class="form-label">Nombre Completo</label>
+                    <div class="form-value" id="display-full-name">-</div>
+                </div>
+
+                <!-- Location -->
+                <div class="form-row">
+                    <label class="form-label">Ubicacion</label>
+                    <div class="form-value" id="display-location">-</div>
+                </div>
+
+                <!-- Styles -->
+                <div class="form-row">
+                    <label class="form-label">Estilos</label>
+                    <div class="form-value styles-value" id="display-styles">-</div>
+                </div>
+
+                <!-- Experience -->
+                <div class="form-row">
+                    <label class="form-label">Experiencia</label>
+                    <div class="form-value" id="display-experience">-</div>
+                </div>
+
+                <!-- Session Price -->
+                <div class="form-row">
+                    <label class="form-label">Tarifa por Sesion</label>
+                    <div class="form-value" id="display-price">-</div>
+                </div>
+
+                <!-- Portfolio URL -->
+                <div class="form-row">
+                    <label class="form-label">Portfolio / Web</label>
+                    <div class="form-value" id="display-portfolio">-</div>
+                </div>
+
+                <!-- Work Type -->
+                <div class="form-row">
+                    <label class="form-label">Modalidad</label>
+                    <div class="form-value" id="display-work-type">-</div>
+                </div>
+
+                <!-- Studio Name -->
+                <div class="form-row" id="studio-row" style="display: none;">
+                    <label class="form-label">Nombre del Estudio</label>
+                    <div class="form-value" id="display-studio">-</div>
+                </div>
+
+                <!-- Instagram -->
+                <div class="form-row">
+                    <label class="form-label">Instagram</label>
+                    <div class="form-value" id="display-instagram">-</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Options Block (Replaces Acciones) -->
+        <section class="block block-contact-options">
+            <h3 class="contact-title">Opciones de Contacto</h3>
+            <button type="button" id="contact-quote-btn" class="contact-btn contact-btn-quote">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                Cotizar con este Artista
+            </button>
+            <a href="#" id="whatsapp-contact-btn" class="contact-btn contact-btn-whatsapp" target="_blank" rel="noopener" style="display: none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                </svg>
+                Contactar por WhatsApp
+            </a>
+            <a href="#" id="instagram-contact-btn" class="contact-btn contact-btn-instagram" target="_blank" rel="noopener" style="display: none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                </svg>
+                Ver Instagram
+            </a>
+            <button type="button" id="copy-profile-btn" class="contact-btn contact-btn-share">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copiar Enlace del Perfil
+            </button>
+        </section>
+
+        <!-- Achievements Block (Replaces Hitos y Trofeos) -->
+        <section class="block block-achievements">
+            <h3 class="achievements-title">Logros del Artista</h3>
+            <div class="achievements-grid">
+                <div class="achievement-item" id="achievement-verified" style="display: none;">
+                    <div class="achievement-icon achievement-icon-verified">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                    </div>
+                    <span class="achievement-label">Artista Verificado</span>
+                </div>
+                <div class="achievement-item" id="achievement-embajador" style="display: none;">
+                    <div class="achievement-icon achievement-icon-embajador">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </div>
+                    <span class="achievement-label">Embajador We Otzi</span>
+                </div>
+                <div class="achievement-item" id="achievement-studio" style="display: none;">
+                    <div class="achievement-icon achievement-icon-studio">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <span class="achievement-label">Estudio Profesional</span>
+                </div>
+                <div class="achievement-item" id="achievement-experience" style="display: none;">
+                    <div class="achievement-icon achievement-icon-experience">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="7"/>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+                        </svg>
+                    </div>
+                    <span class="achievement-label" id="achievement-experience-label">Experiencia</span>
+                </div>
+                <div class="achievement-item" id="achievement-complete-profile" style="display: none;">
+                    <div class="achievement-icon achievement-icon-profile">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <span class="achievement-label">Perfil Completo</span>
+                </div>
+            </div>
+            <p class="achievements-empty" id="achievements-empty" style="display: none;">Este artista aun no tiene logros desbloqueados.</p>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bauhaus-footer">
+        <div class="footer-content">
+            <p class="footer-text">Hecho con amor por We Otzi, para artistas.</p>
+            <div class="footer-social">
+                <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                    </svg>
+                </a>
+                <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+                    </svg>
+                </a>
+                <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
+                    </svg>
+                </a>
+                <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
+                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
+                    </svg>
+                </a>
+            </div>
+            <p class="footer-copyright">2025 We Otzi. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- Status Message Toast -->
+    <div class="status-message" id="status-message"></div>
+
+    <!-- Gallery Lightbox Modal -->
+    <div class="gallery-lightbox" id="gallery-lightbox">
+        <button class="lightbox-close" id="lightbox-close" aria-label="Cerrar">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <button class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Anterior">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+        </button>
+        <div class="lightbox-content">
+            <img src="" alt="Trabajo" id="lightbox-image">
+        </div>
+        <button class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Siguiente">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        </button>
+        <div class="lightbox-counter" id="lightbox-counter">1 / 1</div>
+    </div>
+
+    <script src="/shared/js/artist-profile.js"></script>
+</body>
+
+</html>

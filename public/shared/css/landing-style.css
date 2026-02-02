@@ -1,0 +1,998 @@
+/* [CH-01] START: Bauhaus design system tokens */
+/* [CH-15] Added zoom-factor variable for global zoom controls */
+:root {
+    --bg: #F2F0E9;
+    --fg: #0A0A0A;
+    --primary-red: #E23E28;
+    --primary-yellow: #F4B942;
+    --primary-blue: #1A4B8E;
+    --border-width: 3px;
+    --transition: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    --noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    --zoom-factor: 0.8;
+    --text-on-light: #0A0A0A;
+}
+
+/* [CH-15] Global zoom scaling */
+html {
+    font-size: calc(var(--zoom-factor) * 100%);
+}
+
+/* [CH-01] END */
+
+.dark-mode {
+    --bg: #0A0A0A;
+    --fg: #F2F0E9;
+    --primary-red: #FF4D35;
+    --primary-yellow: #FFC857;
+    --primary-blue: #3A86FF;
+    --text-on-light: #0A0A0A;
+}
+
+/* Global reset and box-sizing. 
+   Removes default browser margins/padding and ensures spacing is consistent across elements. */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Base Body styles. 
+   Primary container for the application. Uses 'Inter' for body copy.
+   The flex layout centers the 'monolith-grid' both vertically and horizontally. */
+body {
+    font-family: 'Inter', -apple-system, Helvetica, sans-serif;
+    background-color: var(--bg);
+    color: var(--fg);
+    overflow-x: hidden;
+    transition: background-color var(--transition), color var(--transition);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    padding-top: 75px;
+    padding-bottom: 3.5rem; /* Space for fixed footer */
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 9999;
+    background-image: var(--noise);
+}
+
+/* Main grid container for the layout.
+   Uses a 12x12 CSS Grid system on desktop to create a strict Bauhaus-inspired modular structure.
+   The borders and background colors define the 'Monolith' aesthetic. */
+.monolith-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: repeat(12, 1fr);
+    width: 100%;
+    max-width: 1400px;
+    height: 90vh;
+    max-height: 900px;
+    border: var(--border-width) solid var(--fg);
+    position: relative;
+    background: var(--bg);
+}
+
+/* Atomic building block for the grid.
+   Each block has a standard padding and a border that scales with the global border-width. */
+.block {
+    border: calc(var(--border-width) / 2) solid var(--fg);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Logo/Header Block: Main branding area.
+   Uses a bright red background [CH-01] and positions the logo text at the bottom. */
+.block-logo {
+    grid-column: 1 / 6;
+    grid-row: 1 / 5;
+    background: var(--primary-red);
+    justify-content: flex-end;
+}
+
+/* [CH-02 / CH-03 / CH-06] START: Logo text refinements: line-height, animation, unselectable text */
+.logo-text {
+    font-weight: 900;
+    font-size: clamp(3rem, 8vw, 6rem);
+    line-height: 1.15;
+    /* [CH-02] Increased spacing (+25px) */
+    text-transform: uppercase;
+    letter-spacing: -0.05em;
+    color: var(--bg);
+    animation: logoEntrance 1s var(--transition) both;
+    /* [CH-03] Entrance animation */
+    display: inline-block;
+    transition: transform 0.2s ease-out;
+    /* For subtle mouse movement */
+    user-select: none;
+    /* [CH-06] Disable text selection */
+    -webkit-user-select: none;
+}
+
+@keyframes logoEntrance {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* [CH-02 / CH-03 / CH-06] END */
+
+/* [CH-04 / CH-06] START: Secret message styling and positioning (responsive) */
+.secret-message {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    /* [CH-06] Moved to top-right */
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--bg);
+    opacity: 0;
+    transform: translateX(20px);
+    /* [CH-06] Initial state for appearance animation */
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    max-width: 120px;
+    line-height: 1.2;
+    pointer-events: none;
+    text-transform: uppercase;
+    text-align: right;
+    z-index: 10;
+}
+
+.secret-message.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+@media (max-width: 768px) {
+    .secret-message {
+        top: 1rem;
+        right: 1rem;
+        font-size: 0.6rem;
+        max-width: 100px;
+    }
+}
+
+/* [CH-04 / CH-06] END */
+
+/* Geometric Accent Block: Purely visual Bauhaus element.
+   Contains a circle that scales up when the block is hovered. */
+.block-shape {
+    grid-column: 6 / 9;
+    grid-row: 1 / 5;
+    background: var(--primary-yellow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circle {
+    width: min(150px, 20vw);
+    height: min(150px, 20vw);
+    border-radius: 50%;
+    background: var(--fg);
+    transition: transform var(--transition);
+}
+
+.block-shape:hover .circle {
+    transform: scale(1.1);
+}
+
+/* Info Block */
+.block-info {
+    grid-column: 9 / 13;
+    grid-row: 1 / 8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+/* Registration Monolith: Main interaction area.
+   Large padding and high-contrast typography focus attention on the beta signup. */
+.block-form {
+    grid-column: 1 / 9;
+    grid-row: 5 / 13;
+    background: var(--bg);
+    justify-content: center;
+    padding: 4rem;
+}
+
+/* Social Block: Connectivity section.
+   Uses blue background [CH-01] and provides a vertical list of social links. */
+.block-social {
+    grid-column: 9 / 13;
+    grid-row: 8 / 13;
+    background: var(--primary-blue);
+    gap: 10px;
+}
+
+.block-social p {
+    font-family: 'JetBrains Mono';
+    font-weight: 700;
+    color: var(--bg);
+    margin-bottom: 1rem;
+}
+
+/* Form Styling */
+.form-group {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.input-email {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 6px solid var(--fg);
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: clamp(1.5rem, 4vw, 3.5rem);
+    padding: 1rem 0;
+    color: var(--fg);
+    outline: none;
+    text-transform: uppercase;
+}
+
+.input-email::placeholder {
+    color: var(--fg);
+    opacity: 0.2;
+}
+
+.btn-register {
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    padding: 1.5rem 3rem;
+    font-weight: 900;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    width: fit-content;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+}
+
+.btn-register:hover {
+    background: var(--primary-red);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 0 var(--fg);
+}
+
+/* Social Buttons */
+.social-btn {
+    background: var(--bg);
+    color: var(--fg);
+    border: 2px solid var(--fg);
+    padding: 1rem;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    text-align: center;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.social-btn:hover {
+    background: var(--fg);
+    color: var(--bg);
+    transform: translateX(5px);
+}
+
+/* [CH-16] Top Navigation Header */
+.top-nav-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1001;
+    pointer-events: none; /* Allow clicks to pass through except for buttons */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1.25rem;
+    transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Mechanical Bauhaus Animation States */
+.header-edition-info {
+    pointer-events: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--fg);
+    opacity: 0.8;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    transform-origin: left center;
+}
+
+.nav-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 1.25rem 0;
+    pointer-events: none;
+    gap: 1.25rem; /* 20px proportional gap */
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    transform-origin: right center;
+}
+
+/* Hidden state: Deconstruction effect */
+.header-hidden .header-edition-info {
+    transform: translateX(-120%) rotate(-15deg) scale(0.8);
+    opacity: 0;
+    filter: blur(4px);
+}
+
+.header-hidden .nav-row {
+    transform: translateX(120%) rotate(15deg) scale(0.8);
+    opacity: 0;
+    filter: blur(4px);
+}
+
+/* Visible state: Pop and Snap effect */
+.header-visible .header-edition-info {
+    transform: translateX(0) rotate(0) scale(1);
+    opacity: 0.8;
+}
+
+.header-visible .nav-row {
+    transform: translateX(0) rotate(0) scale(1);
+    opacity: 1;
+}
+
+.nav-col {
+    display: flex;
+    align-items: center;
+    pointer-events: auto;
+}
+
+/* Theme Toggle */
+/* [CH-16] Updated: Improved alignment and spacing across all viewports */
+.theme-toggle {
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    width: 44px;
+    height: 44px;
+    font-weight: 900;
+    font-size: 1rem;
+    border-radius: 50%;
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color var(--transition), color var(--transition);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle:hover {
+    transform: rotate(90deg) scale(1.1);
+}
+
+/* Dark mode toggle color */
+.dark-mode .theme-toggle {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+/* Responsive Layout - Tablet View (Max 1024px)
+   Reconfigures the 12-column grid to maintain readable blocks.
+   Blocks are stacked and redistributed to fit the narrower aspect ratio. */
+@media (max-width: 1024px) {
+    body {
+        padding: 1.5rem;
+        padding-top: 75px;
+        padding-bottom: 4rem;
+    }
+
+    .monolith-grid {
+        height: auto;
+        min-height: 80vh;
+        grid-template-rows: auto;
+    }
+
+    .block-logo {
+        grid-column: 1 / 7;
+        grid-row: 1 / 4;
+    }
+
+    .block-shape {
+        grid-column: 7 / 13;
+        grid-row: 1 / 4;
+    }
+
+    .block-info {
+        grid-column: 1 / 13;
+        grid-row: 4 / 6;
+        border-top: none;
+    }
+
+    .block-form {
+        grid-column: 1 / 9;
+        grid-row: 6 / 10;
+    }
+
+    .block-social {
+        grid-column: 9 / 13;
+        grid-row: 6 / 10;
+    }
+}
+
+/* Responsive Layout - Mobile View (Max 768px)
+   Switches from Grid to Flexbox (column) for maximum flexibility.
+   Borders are simplified to only bottom-borders (except the last item) to avoid double-borders. */
+@media (max-width: 768px) {
+    body {
+        padding: 0.75rem;
+        padding-top: 75px;
+        padding-bottom: 4rem;
+    }
+
+    .monolith-grid {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        max-height: none;
+        border: var(--border-width) solid var(--fg);
+    }
+
+    .block {
+        border-bottom: var(--border-width) solid var(--fg);
+        min-height: auto;
+        padding: 2rem 1.5rem;
+    }
+
+    .block:last-child {
+        border-bottom: none;
+    }
+
+    .logo-text {
+        font-size: 4rem;
+    }
+
+    .input-email {
+        font-size: 2rem;
+    }
+
+    .block-form {
+        padding: 3rem 1.5rem;
+    }
+
+    .theme-toggle {
+        width: 36px;
+        height: 36px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Small Mobile View (Max 480px) - Body adjustments */
+@media (max-width: 480px) {
+    body {
+        padding: 0.5rem;
+        padding-top: 75px;
+        padding-bottom: 4rem;
+    }
+    
+    .block {
+        padding: 1.5rem 1rem;
+    }
+    
+    .block-form {
+        padding: 2rem 1rem;
+    }
+    
+    .logo-text {
+        font-size: 3rem;
+    }
+    
+    .input-email {
+        font-size: 1.5rem;
+        border-bottom-width: 4px;
+    }
+    
+    .btn-register {
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+}
+
+/* Form Message Area */
+.form-message {
+    margin-top: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    min-height: 1.5rem;
+    transition: all var(--transition);
+}
+
+.form-message.error {
+    color: var(--primary-red);
+}
+
+.form-message.success {
+    color: #4CAF50;
+}
+
+.form-message.info {
+    color: var(--primary-blue);
+}
+
+.form-message a {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.form-message a:hover {
+    text-decoration: none;
+}
+
+/* Login Toggle Button */
+/* [CH-16] Updated: Improved alignment with other controls */
+.login-toggle {
+    background: transparent;
+    color: var(--fg);
+    border: 2px solid var(--fg);
+    padding: 0.6rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all var(--transition);
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-toggle:hover {
+    background: var(--fg);
+    color: var(--bg);
+    transform: translateY(-3px);
+}
+
+/* Dark mode login toggle */
+.dark-mode .login-toggle {
+    border-color: var(--fg);
+    color: var(--fg);
+}
+
+.dark-mode .login-toggle:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+/* Tablet View - Navigation */
+@media (max-width: 1024px) {
+    .nav-row {
+        padding: 1rem;
+        gap: 1rem;
+    }
+}
+
+/* Mobile View - Navigation */
+@media (max-width: 768px) {
+    .nav-row {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+}
+
+/* Small Mobile View - Navigation */
+@media (max-width: 480px) {
+    .nav-row {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+}
+
+/* Tablet View - Login Toggle */
+@media (max-width: 1024px) {
+    .login-toggle {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        height: 40px;
+    }
+}
+
+/* Mobile View - Login Toggle */
+@media (max-width: 768px) {
+    .login-toggle {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.7rem;
+        height: 36px;
+    }
+}
+
+/* Small Mobile View - Login Toggle */
+@media (max-width: 480px) {
+    .login-toggle {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.65rem;
+        height: 32px;
+    }
+}
+
+/* [CH-08] START: Login Modal and Pop-up Styles
+   Bauhaus-styled overlay and container for artist authentication */
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 10, 0.85);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+/* [CH-08] END */
+
+/* Modal Container */
+.modal-container {
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    padding: 3rem;
+    width: 90%;
+    max-width: 480px;
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.active .modal-container {
+    transform: translateY(0);
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: transform var(--transition);
+}
+
+.modal-close:hover {
+    transform: rotate(90deg);
+}
+
+.modal-header {
+    margin-bottom: 2rem;
+    border-bottom: var(--border-width) solid var(--fg);
+    padding-bottom: 1.5rem;
+}
+
+.modal-title {
+    font-weight: 900;
+    font-size: 2rem;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.modal-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.modal-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.modal-form-group label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+
+.modal-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid var(--fg);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 0.8rem 0;
+    color: var(--fg);
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.modal-input::placeholder {
+    color: var(--fg);
+    opacity: 0.3;
+}
+
+.modal-input:focus {
+    border-color: var(--primary-blue);
+}
+
+.btn-modal-submit {
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    padding: 1.2rem 2rem;
+    font-weight: 900;
+    font-size: 1rem;
+    text-transform: uppercase;
+    width: 100%;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    margin-top: 1rem;
+}
+
+.btn-modal-submit:hover {
+    background: var(--primary-blue);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 0 var(--fg);
+}
+
+.modal-footer-text {
+    margin-top: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.modal-footer-text a {
+    color: var(--primary-blue);
+    text-decoration: underline;
+    font-weight: 700;
+}
+
+.modal-footer-text a:hover {
+    text-decoration: none;
+}
+
+/* [CH-14] START: Bauhaus Footer and Social Icons
+   Fixed footer at the bottom of the landing page */
+.bauhaus-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--fg);
+    color: var(--bg);
+    padding: 0.6rem 1.5rem;
+    z-index: 50;
+}
+/* [CH-14] END */
+
+.footer-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.footer-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+}
+
+.footer-social {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.social-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--bg);
+    transition: all 0.2s ease;
+}
+
+.social-icon:hover {
+    color: var(--primary-yellow);
+    transform: translateY(-2px);
+}
+
+.social-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.footer-copyright {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    opacity: 0.6;
+}
+
+/* Footer Responsive */
+@media (max-width: 768px) {
+    .bauhaus-footer {
+        padding: 0.5rem 1rem;
+    }
+
+    .footer-content {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .footer-text {
+        width: 100%;
+        font-size: 0.6rem;
+    }
+
+    .footer-social {
+        order: -1;
+    }
+
+    .footer-copyright {
+        width: 100%;
+        font-size: 0.55rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-text {
+        font-size: 0.55rem;
+    }
+
+    .social-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .social-icon svg {
+        width: 14px;
+        height: 14px;
+    }
+}
+
+/* [CH-15] START: Global Zoom Controls
+   Bauhaus-styled zoom in/out buttons */
+/* [CH-16] Updated: Improved alignment and spacing across all viewports */
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    height: 44px;
+}
+
+.zoom-btn {
+    width: 40px;
+    height: 40px;
+    background: var(--bg);
+    color: var(--fg);
+    border: none;
+    border-right: 2px solid var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-btn:last-child {
+    border-right: none;
+}
+
+.zoom-btn:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.zoom-btn:active {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+
+/* Dark mode zoom controls */
+.dark-mode .zoom-controls {
+    background: var(--bg);
+    border-color: var(--fg);
+}
+
+.dark-mode .zoom-btn {
+    background: var(--bg);
+    color: var(--fg);
+    border-color: var(--fg);
+}
+
+.dark-mode .zoom-btn:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+/* Tablet View - Zoom Controls */
+@media (max-width: 1024px) {
+    .zoom-controls {
+        height: 40px;
+    }
+
+    .zoom-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+}
+
+/* Mobile View - Zoom Controls */
+@media (max-width: 768px) {
+    .zoom-controls {
+        height: 36px;
+    }
+
+    .zoom-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Small Mobile View - Hide zoom */
+@media (max-width: 480px) {
+    .zoom-controls {
+        display: none;
+    }
+
+    .theme-toggle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+    }
+}
+/* [CH-15] END */

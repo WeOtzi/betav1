@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Calendar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/quotations.css">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+    
+    <!-- Quill.js Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    
+    <!-- Editor.js for Artist Notepad -->
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@1.9.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@1.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@1.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/image@2.9.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/marker@1.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.1.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@calumk/editorjs-columns@latest"></script>
+    
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    
+    <style>
+        .calendar-container { background: white; border: var(--border-main); padding: 2rem; margin-bottom: 2rem; }
+        .dark-mode .calendar-container { background: #1a1a1a; }
+        .fc { font-family: 'Inter', sans-serif; }
+        .fc .fc-toolbar-title { font-family: 'Space Mono', monospace; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+        .fc .fc-button { background: var(--ink) !important; border: var(--border-main) !important; border-radius: 0 !important; font-family: 'Space Mono', monospace !important; font-weight: bold !important; text-transform: uppercase !important; font-size: 0.75rem !important; padding: 8px 16px !important; }
+        .fc .fc-button:hover { background: var(--bauhaus-red) !important; }
+        .fc .fc-button-primary:not(:disabled).fc-button-active, .fc .fc-button-primary:not(:disabled):active { background: var(--bauhaus-blue) !important; }
+        .fc .fc-daygrid-day-number { font-family: 'Space Mono', monospace; font-weight: bold; color: var(--ink); }
+        .fc .fc-col-header-cell-cushion { font-family: 'Space Mono', monospace; font-weight: bold; text-transform: uppercase; color: var(--ink); }
+        .fc .fc-daygrid-day.fc-day-today { background: rgba(230, 57, 70, 0.1) !important; }
+        .fc .fc-daygrid-day:hover { background: rgba(255, 183, 3, 0.1); }
+        .fc-event { border-radius: 0 !important; border: none !important; padding: 2px 6px !important; font-family: 'Space Mono', monospace !important; font-size: 0.7rem !important; cursor: pointer !important; transition: transform 0.2s ease, box-shadow 0.2s ease !important; }
+        .fc-event:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
+        .fc-event.status-pending { background: var(--bauhaus-yellow) !important; color: #121212 !important; }
+        .fc-event.status-responded { background: var(--bauhaus-blue) !important; color: white !important; }
+        .fc-event.status-completed { background: #2ecc71 !important; color: white !important; }
+        .dark-mode .fc .fc-daygrid-day-number, .dark-mode .fc .fc-col-header-cell-cushion { color: white; }
+        .dark-mode .fc .fc-scrollgrid { border-color: rgba(255, 255, 255, 0.2); }
+        .calendar-stats { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .calendar-stat-card { background: var(--ink); color: var(--bg); padding: 1rem 1.5rem; font-family: 'Space Mono', monospace; display: flex; align-items: center; gap: 10px; border: var(--border-main); }
+        .calendar-stat-card .stat-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .calendar-stat-card .stat-dot.pending { background: var(--bauhaus-yellow); }
+        .calendar-stat-card .stat-dot.responded { background: var(--bauhaus-blue); }
+        .calendar-stat-card .stat-dot.completed { background: #2ecc71; }
+        .calendar-stat-card .stat-count { font-weight: 900; font-size: 1.5rem; }
+        .calendar-stat-card .stat-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.8; }
+        .calendar-legend { display: flex; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-family: 'Space Mono', monospace; font-size: 0.75rem; }
+        .legend-color { width: 16px; height: 16px; }
+        .legend-color.pending { background: var(--bauhaus-yellow); }
+        .legend-color.responded { background: var(--bauhaus-blue); }
+        .legend-color.completed { background: #2ecc71; }
+        .calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 2rem; margin-bottom: 1.5rem; padding: 1rem 1.5rem; background: #f5f5f5; border: var(--border-main); flex-wrap: wrap; }
+        .dark-mode .calendar-toolbar { background: #2a2a2a; }
+        .filter-group, .date-picker-group { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .filter-group label, .date-picker-group label { font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; color: var(--ink); }
+        .dark-mode .filter-group label, .dark-mode .date-picker-group label { color: white; }
+        .status-filter-btns { display: flex; gap: 0; }
+        .filter-btn { font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; padding: 8px 16px; border: var(--border-main); background: white; color: var(--ink); cursor: pointer; transition: all 0.2s ease; margin-left: -2px; }
+        .filter-btn:first-child { margin-left: 0; }
+        .dark-mode .filter-btn { background: #333; color: white; border-color: rgba(255, 255, 255, 0.3); }
+        .filter-btn:hover { background: var(--bauhaus-yellow); color: var(--ink); z-index: 1; }
+        .filter-btn.active { background: var(--ink); color: white; z-index: 2; }
+        .filter-btn.active[data-status="pending"] { background: var(--bauhaus-yellow); color: var(--ink); }
+        .filter-btn.active[data-status="responded"] { background: var(--bauhaus-blue); color: white; }
+        .filter-btn.active[data-status="completed"] { background: #2ecc71; color: white; }
+        .date-picker-group select { font-family: 'Space Mono', monospace; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; padding: 8px 12px; border: var(--border-main); border-radius: 0; background: white; color: var(--ink); cursor: pointer; min-width: 120px; }
+        .dark-mode .date-picker-group select { background: #333; color: white; border-color: rgba(255, 255, 255, 0.3); }
+    </style>
+</head>
+<body>
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edicion Bauhaus | Admin Panel
+        </div>
+        <div class="nav-row">
+            <div class="nav-col">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+                </div>
+            </div>
+            <div class="nav-col">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="monolith-wrapper">
+        <aside>
+            <div class="logo-box"></div>
+            <a href="/artist/dashboard" class="nav-item">DASHBOARD</a>
+            <a href="/calendar" class="nav-item" style="background: var(--bauhaus-red);">CALENDAR</a>
+            <a href="/my-quotations" class="nav-item">QUOTES</a>
+            <a href="/archive" class="nav-item">ARCHIVE</a>
+        </aside>
+
+        <main>
+            <header>
+                <div class="dash-title">
+                    <h1>Calendar<br>View</h1>
+                </div>
+                <div class="artist-meta">
+                    <p id="logged-as">LOGGED_AS: ...</p>
+                    <p id="status-indicator">STATUS: ONLINE</p>
+                </div>
+            </header>
+
+            <div class="calendar-stats">
+                <div class="calendar-stat-card">
+                    <span class="stat-dot pending"></span>
+                    <div>
+                        <span class="stat-count" id="stat-pending">0</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                </div>
+                <div class="calendar-stat-card">
+                    <span class="stat-dot responded"></span>
+                    <div>
+                        <span class="stat-count" id="stat-responded">0</span>
+                        <span class="stat-label">Responded</span>
+                    </div>
+                </div>
+                <div class="calendar-stat-card">
+                    <span class="stat-dot completed"></span>
+                    <div>
+                        <span class="stat-count" id="stat-completed">0</span>
+                        <span class="stat-label">Completed</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calendar-legend">
+                <div class="legend-item"><div class="legend-color pending"></div><span>Pending</span></div>
+                <div class="legend-item"><div class="legend-color responded"></div><span>Responded</span></div>
+                <div class="legend-item"><div class="legend-color completed"></div><span>Completed</span></div>
+            </div>
+
+            <div class="calendar-toolbar">
+                <div class="filter-group">
+                    <label>FILTRAR POR ESTADO:</label>
+                    <div class="status-filter-btns">
+                        <button class="filter-btn active" data-status="all" onclick="filterByStatus('all')">TODOS</button>
+                        <button class="filter-btn" data-status="pending" onclick="filterByStatus('pending')">PENDING</button>
+                        <button class="filter-btn" data-status="responded" onclick="filterByStatus('responded')">RESPONDED</button>
+                        <button class="filter-btn" data-status="completed" onclick="filterByStatus('completed')">COMPLETED</button>
+                    </div>
+                </div>
+                
+                <div class="sync-group" style="display: flex; gap: 10px;">
+                    <button class="filter-btn" style="background: var(--ink); color: white;" onclick="exportCalendarToICS()">
+                        EXPORTAR .ICS
+                    </button>
+                    <button class="filter-btn" style="background: #4285F4; color: white;" onclick="syncWithGoogleCalendar()">
+                        GOOGLE SYNC
+                    </button>
+                </div>
+
+                <div class="date-picker-group">
+                    <label>IR A:</label>
+                    <select id="month-select" onchange="goToSelectedDate()">
+                        <option value="0">Enero</option>
+                        <option value="1">Febrero</option>
+                        <option value="2">Marzo</option>
+                        <option value="3">Abril</option>
+                        <option value="4">Mayo</option>
+                        <option value="5">Junio</option>
+                        <option value="6">Julio</option>
+                        <option value="7">Agosto</option>
+                        <option value="8">Septiembre</option>
+                        <option value="9">Octubre</option>
+                        <option value="10">Noviembre</option>
+                        <option value="11">Diciembre</option>
+                    </select>
+                    <select id="year-select" onchange="goToSelectedDate()"></select>
+                </div>
+            </div>
+
+            <div class="calendar-container">
+                <div id="calendar"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Drawer -->
+    <input type="checkbox" id="drawer-toggle" class="drawer-trigger">
+    <label for="drawer-toggle" class="drawer-backdrop"></label>
+    <div class="detail-drawer">
+        <label for="drawer-toggle" class="close-drawer">&times;</label>
+        <div class="drawer-content" id="drawer-content"></div>
+    </div>
+
+    <!-- Note Modal -->
+    <div id="note-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container canvas-modal-content">
+            <div class="modal-header canvas-header">
+                <div class="canvas-title-section">
+                    <h3 id="note-modal-title">Nuevo Canvas</h3>
+                    <span class="canvas-subtitle">Artist Notepad</span>
+                </div>
+                <div class="canvas-header-actions">
+                    <button class="modal-close" onclick="closeNoteModal()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body canvas-body">
+                <div class="canvas-meta-row">
+                    <div class="form-group canvas-title-input">
+                        <label>Titulo del Canvas</label>
+                        <input type="text" id="note-title" placeholder="Sin titulo..." maxlength="150">
+                    </div>
+                    <div class="form-group canvas-date-input">
+                        <label>Fecha</label>
+                        <input type="datetime-local" id="note-date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Etiqueta</label>
+                    <div class="label-selector" id="label-selector-container">
+                        <button type="button" class="label-btn" data-label="interno" onclick="selectNoteLabel(this)">INTERNO</button>
+                        <button type="button" class="label-btn" data-label="urgente" onclick="selectNoteLabel(this)">URGENTE</button>
+                        <button type="button" class="label-btn" data-label="seguimiento" onclick="selectNoteLabel(this)">SEGUIMIENTO</button>
+                        <button type="button" class="label-btn" data-label="referencia" onclick="selectNoteLabel(this)">REFERENCIA</button>
+                        <button type="button" class="label-btn" data-label="otro" onclick="selectNoteLabel(this)">OTRO</button>
+                    </div>
+                </div>
+                <div class="form-group canvas-editor-wrapper">
+                    <label>Contenido</label>
+                    <div id="canvas-editor" class="canvas-editor"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeNoteModal()">CANCELAR</button>
+                <button class="action-btn save-btn" onclick="saveNote()">GUARDAR CANVAS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container delete-confirm-content">
+            <div class="modal-header"><h3>Confirmar Eliminacion</h3></div>
+            <div class="modal-body"><p id="delete-confirm-message">Estas seguro?</p></div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeDeleteConfirmModal()">CANCELAR</button>
+                <button class="action-btn danger-btn" onclick="confirmDeleteNote()">ELIMINAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox-modal" class="lightbox-overlay" onclick="closeLightbox(event)">
+        <button class="lightbox-close" onclick="closeLightbox(event)">&times;</button>
+        <div class="lightbox-content"><img id="lightbox-img" src="" alt="Reference Image"></div>
+        <div class="lightbox-nav">
+            <button class="lightbox-nav-btn prev" onclick="lightboxPrev(event)">&larr;</button>
+            <span class="lightbox-counter"><span id="lightbox-current">1</span> / <span id="lightbox-total">1</span></span>
+            <button class="lightbox-nav-btn next" onclick="lightboxNext(event)">&rarr;</button>
+        </div>
+    </div>
+
+    <!-- Google API Scripts -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <script src="/shared/js/shared-drawer.js"></script>
+    <script src="/shared/js/calendar.js"></script>
+    <script src="/shared/js/header-effects.js"></script>
+</body>
+</html>

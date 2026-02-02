@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Tour del Panel de Cotizaciones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bauhaus-yellow: #FFD700; --bauhaus-red: #E63946; --bauhaus-blue: #457B9D; --ink: #1D3557; --paper: #F1FAEE; --border-main: 3px solid var(--ink); }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--paper) 0%, #e0f2f1 100%); color: var(--ink); overflow-x: hidden; }
+        .tour-container { max-width: 1400px; margin: 0 auto; padding: 3rem 2rem; }
+        .tour-header { text-align: center; margin-bottom: 4rem; position: relative; }
+        .tour-header h1 { font-size: 4rem; font-weight: 900; text-transform: uppercase; line-height: 1; margin-bottom: 1rem; position: relative; display: inline-block; }
+        .tour-header h1::after { content: ''; position: absolute; bottom: -10px; left: 0; width: 100%; height: 8px; background: var(--bauhaus-yellow); transform: skewX(-10deg); }
+        .tour-subtitle { font-family: 'Space Mono', monospace; font-size: 1rem; color: var(--bauhaus-blue); margin-top: 1.5rem; text-transform: uppercase; }
+        .progress-bar { width: 100%; height: 8px; background: #ddd; border: var(--border-main); margin: 2rem 0; position: relative; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--bauhaus-red), var(--bauhaus-yellow)); transition: width 0.5s cubic-bezier(0.19, 1, 0.22, 1); width: 0; }
+        .step-counter { font-family: 'Space Mono', monospace; font-size: 0.9rem; text-align: center; margin-bottom: 1rem; color: var(--bauhaus-blue); }
+        .tour-step { display: none; opacity: 0; transform: translateY(30px); transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1); }
+        .tour-step.active { display: block; opacity: 1; transform: translateY(0); }
+        .step-card { background: white; border: var(--border-main); box-shadow: 15px 15px 0 rgba(0, 0, 0, 0.1); padding: 3rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+        .step-card::before { content: ''; position: absolute; top: 0; left: 0; width: 10px; height: 100%; background: var(--bauhaus-yellow); }
+        .step-number { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--bauhaus-red); font-weight: 700; margin-bottom: 1rem; text-transform: uppercase; }
+        .step-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 1.5rem; line-height: 1.2; }
+        .step-description { font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem; color: #555; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+        .feature-box { background: var(--paper); border: 2px solid var(--ink); padding: 1.5rem; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .feature-box:hover { transform: translateY(-5px); box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.1); }
+        .feature-icon { width: 50px; height: 50px; background: var(--bauhaus-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.5rem; margin-bottom: 1rem; border: 2px solid var(--ink); }
+        .feature-title { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .feature-text { font-size: 0.9rem; line-height: 1.6; color: #666; }
+        .tip-box { background: #FFF9E6; border-left: 6px solid var(--bauhaus-yellow); padding: 1.5rem; margin: 2rem 0; position: relative; }
+        .tip-box::before { content: '💡 TIP'; font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--ink); margin-bottom: 0.5rem; display: block; }
+        .action-list { list-style: none; margin: 2rem 0; }
+        .action-list li { padding: 1rem; margin-bottom: 1rem; background: white; border: 2px solid var(--ink); position: relative; padding-left: 3rem; }
+        .action-list li::before { content: '→'; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.5rem; color: var(--bauhaus-red); font-weight: 900; }
+        .step-navigation { display: flex; gap: 1rem; justify-content: space-between; margin-top: 3rem; flex-wrap: wrap; }
+        .nav-btn { flex: 1; min-width: 150px; padding: 1.2rem 2rem; font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; text-transform: uppercase; border: var(--border-main); background: white; color: var(--ink); cursor: pointer; transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1); position: relative; overflow: hidden; }
+        .nav-btn:hover { transform: translateY(-3px); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.2); }
+        .nav-btn.next { background: var(--bauhaus-red); color: white; }
+        .nav-btn.prev { background: var(--bauhaus-blue); color: white; }
+        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .nav-btn:disabled:hover { transform: none; box-shadow: none; }
+        .completion-badge { text-align: center; padding: 3rem; background: linear-gradient(135deg, var(--bauhaus-yellow) 0%, var(--bauhaus-red) 100%); border: var(--border-main); margin: 2rem 0; }
+        .completion-badge h2 { font-size: 3rem; color: white; text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2); margin-bottom: 1rem; }
+        .completion-badge p { font-family: 'Space Mono', monospace; color: white; font-size: 1.1rem; }
+        .visual-example { background: #f9f9f9; border: 2px solid #ddd; padding: 2rem; margin: 2rem 0; font-family: 'Space Mono', monospace; font-size: 0.9rem; position: relative; }
+        .visual-example::before { content: 'EJEMPLO'; position: absolute; top: -12px; left: 20px; background: var(--bauhaus-blue); color: white; padding: 4px 12px; font-size: 0.7rem; font-weight: 700; }
+        .quick-reference { background: white; border: var(--border-main); padding: 2rem; margin-top: 3rem; }
+        .quick-reference h3 { font-family: 'Space Mono', monospace; font-size: 1.2rem; margin-bottom: 1.5rem; color: var(--bauhaus-red); text-transform: uppercase; }
+        .quick-reference table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .quick-reference th { background: var(--ink); color: white; padding: 0.8rem; text-align: left; font-family: 'Space Mono', monospace; font-size: 0.8rem; text-transform: uppercase; }
+        .quick-reference td { padding: 0.8rem; border-bottom: 1px solid #eee; }
+        .quick-reference tr:hover { background: var(--paper); }
+        @media (max-width: 768px) { .tour-header h1 { font-size: 2.5rem; } .step-title { font-size: 1.8rem; } .step-card { padding: 2rem; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="tour-container">
+        <div class="tour-header">
+            <h1>Panel de<br>Cotizaciones</h1>
+            <p class="tour-subtitle">Recorrido Virtual Interactivo</p>
+        </div>
+
+        <div class="step-counter">PASO <span id="current-step">1</span> DE <span id="total-steps">10</span></div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="tour-step active" data-step="1">
+            <div class="step-card">
+                <div class="step-number">Paso 01 - Introducción</div>
+                <h2 class="step-title">Bienvenido al Panel de Cotizaciones</h2>
+                <p class="step-description">
+                    El Panel de Cotizaciones es tu centro de comando para gestionar todas las solicitudes de tatuajes. 
+                    Aquí podrás revisar, organizar, evaluar y responder a las cotizaciones de manera eficiente.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-box">
+                        <div class="feature-icon">📊</div>
+                        <div class="feature-title">Estadísticas en Tiempo Real</div>
+                        <p class="feature-text">Visualiza métricas clave de tus cotizaciones al instante</p>
+                    </div>
+                    <div class="feature-box">
+                        <div class="feature-icon">🔍</div>
+                        <div class="feature-title">Filtros Avanzados</div>
+                        <p class="feature-text">Encuentra cotizaciones específicas rápidamente</p>
+                    </div>
+                    <div class="feature-box">
+                        <div class="feature-icon">📝</div>
+                        <div class="feature-title">Sistema de Notas</div>
+                        <p class="feature-text">Agrega contexto y seguimiento a cada proyecto</p>
+                    </div>
+                    <div class="feature-box">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-title">Acciones Rápidas</div>
+                        <p class="feature-text">Procesa múltiples cotizaciones simultáneamente</p>
+                    </div>
+                </div>
+                <div class="tip-box">
+                    Este tour te guiará paso a paso por todas las funcionalidades del panel. 
+                    Usa los botones de navegación para avanzar o retroceder en cualquier momento.
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="tour-step" data-step="2">
+            <div class="step-card">
+                <div class="step-number">Paso 02 - Interfaz Principal</div>
+                <h2 class="step-title">Anatomía de la Interfaz</h2>
+                <p class="step-description">
+                    La interfaz está diseñada siguiendo los principios Bauhaus: funcionalidad máxima con diseño minimalista.
+                </p>
+                <ul class="action-list">
+                    <li><strong>Header Superior:</strong> Controles de zoom, tema (modo claro/oscuro) y navegación</li>
+                    <li><strong>Sidebar Lateral:</strong> Acceso rápido a Dashboard, Calendar, Quotes y Archive</li>
+                    <li><strong>Estadísticas:</strong> 4 tarjetas con métricas clave en la parte superior</li>
+                    <li><strong>Toolbar de Filtros:</strong> Búsqueda, filtros de estado, ordenamiento</li>
+                    <li><strong>Tabla de Cotizaciones:</strong> Lista completa y personalizable</li>
+                    <li><strong>Panel Lateral (Drawer):</strong> Detalles completos al seleccionar una cotización</li>
+                </ul>
+                <div class="tip-box">
+                    Puedes ajustar el zoom de toda la interfaz usando los botones <strong>+ / -</strong> en la esquina superior izquierda.
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="tour-step" data-step="3">
+            <div class="step-card">
+                <div class="step-number">Paso 03 - Estadísticas</div>
+                <h2 class="step-title">Dashboard de Métricas</h2>
+                <p class="step-description">Las 4 tarjetas de estadísticas te dan un resumen instantáneo.</p>
+                <div class="feature-grid">
+                    <div class="feature-box"><div class="feature-title">Total Quotes</div><p class="feature-text">Número total de cotizaciones recibidas</p></div>
+                    <div class="feature-box" style="background: var(--bauhaus-blue); color: white;"><div class="feature-title" style="color:white;">Pending Review</div><p class="feature-text" style="color: white;">Cotizaciones sin responder - Tu prioridad principal</p></div>
+                    <div class="feature-box"><div class="feature-title">Confirmed Revenue</div><p class="feature-text">Suma del presupuesto de cotizaciones confirmadas</p></div>
+                    <div class="feature-box"><div class="feature-title">Active Waitlist</div><p class="feature-text">Clientes esperando tu respuesta</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4-10 abbreviated for space -->
+        <div class="tour-step" data-step="4">
+            <div class="step-card">
+                <div class="step-number">Paso 04 - Filtros y Búsqueda</div>
+                <h2 class="step-title">Encuentra lo que Necesitas</h2>
+                <p class="step-description">El Toolbar de filtros te permite localizar cotizaciones específicas en segundos.</p>
+                <ul class="action-list">
+                    <li><strong>Búsqueda de Texto:</strong> Busca por nombre de cliente o ID</li>
+                    <li><strong>Filtro de Estado:</strong> ALL, PENDING, RESPONDED, COMPLETED</li>
+                    <li><strong>Ordenamiento:</strong> Por fecha o presupuesto</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tour-step" data-step="5">
+            <div class="step-card">
+                <div class="step-number">Paso 05 - Tabla de Cotizaciones</div>
+                <h2 class="step-title">Vista de Lista Maestra</h2>
+                <p class="step-description">La tabla muestra la información más relevante de cada cotización.</p>
+                <ul class="action-list">
+                    <li><strong>DATE:</strong> Fecha de recepción</li>
+                    <li><strong>ID:</strong> Identificador único</li>
+                    <li><strong>Client:</strong> Nombre y datos del cliente</li>
+                    <li><strong>Concept:</strong> Descripción del tatuaje</li>
+                    <li><strong>Value:</strong> Presupuesto</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tour-step" data-step="6">
+            <div class="step-card">
+                <div class="step-number">Paso 06 - Panel de Detalles</div>
+                <h2 class="step-title">Vista Completa de la Cotización</h2>
+                <p class="step-description">Al hacer clic en "DETALLES", se abre un panel lateral con toda la información.</p>
+                <ul class="action-list">
+                    <li><strong>Status & Priority:</strong> Cambia estado y prioridad</li>
+                    <li><strong>Quotation Details:</strong> Info completa del cliente y proyecto</li>
+                    <li><strong>Reference Assets:</strong> Imágenes adjuntas</li>
+                    <li><strong>Notas:</strong> Sistema de notas internas</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tour-step" data-step="7">
+            <div class="step-card">
+                <div class="step-number">Paso 07 - Sistema de Notas</div>
+                <h2 class="step-title">Notas Internas y Seguimiento</h2>
+                <p class="step-description">Cada cotización puede tener múltiples notas para registro interno.</p>
+                <ul class="action-list">
+                    <li><strong>Título:</strong> Describe brevemente la nota</li>
+                    <li><strong>Etiqueta:</strong> INTERNO, URGENTE, SEGUIMIENTO, REFERENCIA</li>
+                    <li><strong>Fecha:</strong> Para programar seguimientos</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tour-step" data-step="8">
+            <div class="step-card">
+                <div class="step-number">Paso 08 - Imágenes y Referencias</div>
+                <h2 class="step-title">Galería de Referencia</h2>
+                <p class="step-description">Las imágenes se muestran en una galería con visor lightbox.</p>
+                <ul class="action-list">
+                    <li>Haz clic en cualquier thumbnail para ver en pantalla completa</li>
+                    <li>Usa las flechas ← → para navegar</li>
+                    <li>Presiona Esc para cerrar</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tour-step" data-step="9">
+            <div class="step-card">
+                <div class="step-number">Paso 09 - Acciones Masivas</div>
+                <h2 class="step-title">Procesa Múltiples Cotizaciones</h2>
+                <p class="step-description">Selecciona varias cotizaciones para aplicar acciones en lote.</p>
+                <ul class="action-list">
+                    <li><strong>Complete:</strong> Marca todas como completadas</li>
+                    <li><strong>Archive:</strong> Archiva todas</li>
+                    <li><strong>Delete:</strong> Elimina permanentemente</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tour-step" data-step="10">
+            <div class="step-card">
+                <div class="step-number">Paso 10 - Finalización</div>
+                <h2 class="step-title">¡Listo para Gestionar Cotizaciones!</h2>
+                <div class="completion-badge">
+                    <h2>🎉 Tour Completado</h2>
+                    <p>Ya conoces todas las funcionalidades del Panel de Cotizaciones</p>
+                </div>
+                <div class="quick-reference">
+                    <h3>📌 Referencia Rápida</h3>
+                    <table>
+                        <thead><tr><th>Acción</th><th>Cómo Hacerlo</th></tr></thead>
+                        <tbody>
+                            <tr><td>Ver detalles</td><td>Clic en "DETALLES"</td></tr>
+                            <tr><td>Cambiar estado</td><td>Dropdown en el drawer</td></tr>
+                            <tr><td>Agregar nota</td><td>Clic en "+ NUEVA"</td></tr>
+                            <tr><td>Ver imágenes</td><td>Clic en thumbnail</td></tr>
+                            <tr><td>Filtrar</td><td>Dropdown "Status"</td></tr>
+                            <tr><td>Archivar múltiples</td><td>Checkboxes + Archive</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="text-align: center; margin-top: 3rem;">
+                    <a href="/my-quotations" style="display: inline-block; padding: 1.5rem 3rem; background: var(--bauhaus-red); color: white; text-decoration: none; font-family: 'Space Mono', monospace; font-weight: 700; border: var(--border-main); font-size: 1.1rem; text-transform: uppercase;">
+                        IR AL PANEL DE COTIZACIONES →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="step-navigation">
+            <button class="nav-btn prev" id="prev-btn" onclick="prevStep()" disabled>← Anterior</button>
+            <button class="nav-btn next" id="next-btn" onclick="nextStep()">Siguiente →</button>
+        </div>
+    </div>
+
+    <script>
+        const totalSteps = 10;
+        let currentStep = 1;
+
+        function updateUI() {
+            document.getElementById('current-step').textContent = currentStep;
+            document.getElementById('total-steps').textContent = totalSteps;
+            const progressPercent = (currentStep / totalSteps) * 100;
+            document.getElementById('progress-fill').style.width = progressPercent + '%';
+            document.querySelectorAll('.tour-step').forEach(step => step.classList.remove('active'));
+            const activeStep = document.querySelector(`.tour-step[data-step="${currentStep}"]`);
+            if (activeStep) activeStep.classList.add('active');
+            document.getElementById('prev-btn').disabled = (currentStep === 1);
+            document.getElementById('next-btn').disabled = (currentStep === totalSteps);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function nextStep() { if (currentStep < totalSteps) { currentStep++; updateUI(); } }
+        function prevStep() { if (currentStep > 1) { currentStep--; updateUI(); } }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' && currentStep < totalSteps) nextStep();
+            else if (e.key === 'ArrowLeft' && currentStep > 1) prevStep();
+        });
+
+        updateUI();
+    </script>
+</body>
+</html>

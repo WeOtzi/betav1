@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi - Buscar Artistas</title>
+    <meta name="description" content="Encuentra al artista ideal para tu próximo tatuaje en We Ötzi.">
+
+    <!-- Fonts - Bauhaus Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/marketplace.css">
+</head>
+<body data-theme="light">
+    <div class="app-container">
+        <!-- Marketplace Header -->
+        <header class="app-header">
+            <a href="/quotation" class="nav-btn" aria-label="Volver a Cotización">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+
+            <div class="header-logo">We Ötzi Marketplace</div>
+            
+            <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+        </header>
+
+        <main id="marketplace-content">
+            <!-- Hero Section with Smart Search -->
+            <section class="marketplace-hero">
+                <h1 class="brand-title">Encuentra tu Artista</h1>
+                <p class="subtitle">Busca por estilo, ciudad, nombre o presupuesto.</p>
+
+                <div class="smart-search-container">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="smart-search" placeholder="Escribe 'Realismo', 'Madrid', 'Yomico'..." autocomplete="off">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <div id="search-suggestions" class="suggestions-dropdown hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Visual Style Filters -->
+                <div class="visual-filters">
+                    <div class="filter-group">
+                        <span class="filter-label">Estilos Populares</span>
+                        <div class="filter-grid" id="style-filters">
+                            <!-- Injected by marketplace.js -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters Bar -->
+                <div class="advanced-filters-bar">
+                    <div class="filter-select-group">
+                        <label for="filter-country">País</label>
+                        <select id="filter-country" onchange="handleFilterChange('country', this.value)">
+                            <option value="">Todos los países</option>
+                        </select>
+                    </div>
+                    <div class="filter-select-group">
+                        <label for="filter-price">Rango de Precio</label>
+                        <select id="filter-price" onchange="handleFilterChange('priceRange', this.value)">
+                            <option value="">Cualquier precio</option>
+                            <option value="low">Económico (< 200 USD)</option>
+                            <option value="medium">Medio (200 - 800 USD)</option>
+                            <option value="high">Premium (> 800 USD)</option>
+                        </select>
+                    </div>
+                    <div class="filter-select-group">
+                        <label for="filter-language">Idioma</label>
+                        <select id="filter-language" onchange="handleFilterChange('language', this.value)">
+                            <option value="">Cualquier idioma</option>
+                        </select>
+                    </div>
+                    <div class="filter-select-group">
+                        <label for="filter-experience">Experiencia</label>
+                        <select id="filter-experience" onchange="handleFilterChange('experience', this.value)">
+                            <option value="">Cualquier experiencia</option>
+                            <option value="junior">Junior (1-3 años)</option>
+                            <option value="mid">Intermedio (4-7 años)</option>
+                            <option value="senior">Senior (8+ años)</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Active Filters Area -->
+            <section id="active-filters-section" class="active-filters-container hidden">
+                <div class="active-filters-header">
+                    <span class="technical-label">Filtros Activos:</span>
+                    <button class="btn-text" onclick="clearAllFilters()">Limpiar todo</button>
+                </div>
+                <div id="active-filters-list" class="active-filters-list"></div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section">
+                <div class="results-meta">
+                    <span id="results-count" class="technical-label">Cargando artistas...</span>
+                    <div class="sort-control">
+                        <label for="sort-select">Ordenar por:</label>
+                        <select id="sort-select" onchange="handleSortChange()">
+                            <option value="recommended">Recomendados</option>
+                            <option value="price-low">Precio: Menor a Mayor</option>
+                            <option value="price-high">Precio: Mayor a Menor</option>
+                            <option value="name">Nombre</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="marketplace-grid" class="marketplace-grid">
+                    <!-- Artists cards injected here -->
+                </div>
+
+                <!-- Pagination Controls -->
+                <div id="pagination-controls" class="pagination-container hidden">
+                    <button class="nav-btn" id="prev-page" onclick="changePage(-1)">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span id="page-info" class="page-info">Página 1 de 1</span>
+                    <button class="nav-btn" id="next-page" onclick="changePage(1)">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state hidden">
+                    <div class="empty-icon">🎨</div>
+                    <h2>No encontramos artistas con esos criterios</h2>
+                    <p>Prueba buscando otro estilo o ciudad, o limpia los filtros para ver todos.</p>
+                    <button class="btn btn-secondary" onclick="clearAllFilters()">Ver todos los artistas</button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="bauhaus-footer">
+            <div class="footer-content">
+                <p class="footer-text">Hecho con amor por We Ötzi, para artistas.</p>
+                <div class="footer-social">
+                    <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                        </svg>
+                    </a>
+                    <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+                        </svg>
+                    </a>
+                    <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
+                        </svg>
+                    </a>
+                    <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
+                            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
+                        </svg>
+                    </a>
+                </div>
+                <p class="footer-copyright">© 2025 We Ötzi. Todos los derechos reservados.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <p>Buscando inspiración...</p>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    <script src="/shared/js/marketplace.js"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            body.setAttribute('data-theme', newTheme);
+            const icon = document.querySelector('#theme-toggle i');
+            icon.className = newTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+            localStorage.setItem('weotzi_theme', newTheme);
+        }
+
+        // Initialize theme
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('weotzi_theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            const icon = document.querySelector('#theme-toggle i');
+            if (icon) {
+                icon.className = savedTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+            }
+        });
+    </script>
+</body>
+</html>

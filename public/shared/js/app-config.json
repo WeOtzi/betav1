@@ -1,0 +1,95 @@
+{
+    "version": "2.0.0",
+    "lastModified": "",
+    "supabase": {
+        "url": "https://flbgmlvfiejfttlawnfu.supabase.co",
+        "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888",
+        "storageBucket": "quotation-references"
+    },
+    "googleMaps": {
+        "apiKey": "AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs"
+    },
+    "weOtzi": {
+        "whatsapp": "+541162079567"
+    },
+    "registration": {
+        "presetPassword": "OtziArtist2025"
+    },
+    "n8n": {
+        "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/8bc207a6-ee21-4150-9a92-211a68b19544",
+        "driveFolderId": "1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W"
+    },
+    "googleDrive": {
+        "mainFolderId": "",
+        "folderLink": "",
+        "serviceAccountJson": ""
+    },
+    "emailjs": {
+        "serviceId": "",
+        "templateId": "",
+        "publicKey": ""
+    },
+    "app": {
+        "maxImages": 4,
+        "maxImageSizeMB": 5,
+        "defaultCurrency": "USD",
+        "acceptedImageTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+        ],
+        "totalSteps": 19
+    },
+    "features": {
+        "demoMode": false,
+        "emailNotifications": true,
+        "imageUpload": true
+    },
+    "routes": {
+        "quotation": "/quotation",
+        "marketplace": "/marketplace",
+        "dashboard": "/artist/dashboard",
+        "myQuotations": "/my-quotations",
+        "calendar": "/calendar",
+        "archive": "/archive",
+        "backoffice": "/backoffice",
+        "registerClosedBeta": "/registerclosedbeta",
+        "registerArtist": "/register-artist",
+        "supportLogin": "/support/login",
+        "supportDashboard": "/support/dashboard",
+        "tutorial": "/tutorial",
+        "clientLogin": "/client/login",
+        "clientRegister": "/client/register",
+        "clientDashboard": "/client/dashboard"
+    },
+    "infoTexts": [
+        "<p>Sabemos lo difícil que es el camino del artista porque lo vivimos contigo.<br><br>Creamos We Ötzi para que, por fin, tengas un lugar que te apoye de verdad.<br><br><strong><em>Nuestra beta es gratuita y queremos que sepas que siempre lo será para ti;</em></strong> nuestra meta es ayudarte, no ser una carga más.<br><br>¿Nos acompañas y construimos esto juntos?</p>",
+        "<p>Queremos que en We Ötzi encuentres ese respaldo que a veces falta en este oficio.<br><br>Hemos diseñado este espacio para <strong><em>facilitarte la vida y que solo tengas que preocuparte de crear.</em></strong><br><br>El acceso es y siempre será gratuito para los artistas, porque nuestro único objetivo es que crezcas.<br><br>¿Te unes a la beta y nos das tu opinión?</p>",
+        "<p>We Ötzi nace de una idea simple: <strong>cuidar al artista.</strong><br><br>Queremos ser tu red de apoyo y crecimiento de forma <strong>totalmente gratuita, ahora y siempre.</strong><br><br>Nos encantaría que formaras parte de nuestra beta cerrada para escucharte y asegurar que este espacio sea exactamente lo que necesitas.</p>",
+        "<p>Sentimos que el artista merece más apoyo y menos complicaciones.<br><br>Por eso nace We Ötzi, un lugar donde <strong>crecer y conectar completamente gratis para siempre.</strong><br><br>Únete a nuestra <strong>beta cerrada</strong> y ayúdanos a demostrar que una comunidad que realmente ayuda al artista es posible.</p>"
+    ],
+    "demoArtists": [
+        {
+            "username": "yomicoart.wo",
+            "name": "Yomico Moreno",
+            "email": "yomicoart@weotzi.com",
+            "instagram": "https://www.instagram.com/yomicoart/",
+            "styles": ["Realismo"],
+            "location": "Guadalajara, México",
+            "studio": "1983 Art Studio",
+            "sessionPrice": "9500,00 US$",
+            "userId": "demo-yomico-001"
+        },
+        {
+            "username": "kraneotattoo.wo",
+            "name": "Kraneo Rodriguez",
+            "email": "kraneotattoo@artmail.com",
+            "instagram": "https://www.instagram.com/kraneotattoo/",
+            "styles": ["Black & Grey", "New School", "Realismo"],
+            "location": "Córdoba, Argentina",
+            "studio": "Kraneo Sepultura",
+            "sessionPrice": "500,00 US$",
+            "userId": "demo-kraneo-002"
+        }
+    ]
+}

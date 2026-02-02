@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Archived Quotes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/quotations.css">
+    <!-- Quill.js Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    
+    <!-- Editor.js for Artist Notepad -->
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@1.9.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@1.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@1.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/image@2.9.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/marker@1.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.1.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@calumk/editorjs-columns@latest"></script>
+    
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+<body>
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edicion Bauhaus | Admin Panel
+        </div>
+        <div class="nav-row">
+            <div class="nav-col">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+                </div>
+            </div>
+            <div class="nav-col">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
+                    Ö
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="monolith-wrapper">
+        <aside>
+            <div class="logo-box"></div>
+            <a href="/artist/dashboard" class="nav-item">DASHBOARD</a>
+            <a href="/calendar" class="nav-item">CALENDAR</a>
+            <a href="/my-quotations" class="nav-item">QUOTES</a>
+            <a href="/archive" class="nav-item" style="background: var(--bauhaus-red);">ARCHIVE</a>
+        </aside>
+
+        <main>
+            <header>
+                <div class="dash-title">
+                    <h1>Archived<br>Quotes</h1>
+                </div>
+                <div class="artist-meta">
+                    <p id="logged-as">LOGGED_AS: ...</p>
+                    <p id="status-indicator">STATUS: ONLINE</p>
+                </div>
+            </header>
+
+            <section class="stats-strip">
+                <div class="stat-card">
+                    <span class="stat-label">Total Archived</span>
+                    <span class="stat-value" id="stat-total-quotes">0</span>
+                </div>
+                <div class="stat-card" style="background: var(--bauhaus-blue); color: white;">
+                    <span class="stat-label">Pending (Archived)</span>
+                    <span class="stat-value" id="stat-pending-quotes">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Archived Revenue</span>
+                    <span class="stat-value" id="stat-revenue">$0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Completed</span>
+                    <span class="stat-value" id="stat-completed">0</span>
+                </div>
+            </section>
+
+            <!-- Table Toolbar -->
+            <div class="table-toolbar">
+                <div class="toolbar-search">
+                    <div class="search-wrapper">
+                        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="CLIENTE O ID..." class="toolbar-input">
+                    </div>
+                </div>
+                <div class="toolbar-filters">
+                    <select id="status-filter" class="toolbar-select status-filter-red">
+                        <option value="all">ALL STATUS</option>
+                        <option value="pending">PENDING</option>
+                        <option value="responded">RESPONDED</option>
+                        <option value="client_approved">CLIENT APPROVED</option>
+                        <option value="client_rejected">CLIENT REJECTED</option>
+                        <option value="completed">COMPLETED</option>
+                    </select>
+                    <select id="list-filter" class="toolbar-select" style="border-color: var(--ink);">
+                        <option value="all">ALL LISTS</option>
+                    </select>
+                    <select id="sort-select" class="toolbar-select sort-select-blue">
+                        <option value="created_at:desc">MOST RECENT</option>
+                        <option value="created_at:asc">OLDEST</option>
+                        <option value="budget:desc">HIGHEST BUDGET</option>
+                        <option value="budget:asc">LOWEST BUDGET</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container compact-table" id="table-container">
+                <div class="table-header" id="table-header"></div>
+                <div id="quotes-table-body">
+                    <div class="loading-placeholder" style="padding: 2rem; text-align: center; font-family: 'Space Mono', monospace;">
+                        LOADING_ARCHIVED_DATA...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Action Bar -->
+            <div class="bulk-action-bar" id="bulk-action-bar">
+                <div class="bulk-info">
+                    <span id="selection-count">0 selected</span>
+                </div>
+                <div class="bulk-buttons">
+                    <button class="bulk-btn" onclick="bulkUnarchive()">Unarchive</button>
+                    <button class="bulk-btn danger" onclick="bulkDelete()">Delete</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden Drawer logic -->
+    <input type="checkbox" id="drawer-toggle" class="drawer-trigger">
+    <label for="drawer-toggle" class="drawer-backdrop"></label>
+    <div class="detail-drawer">
+        <label for="drawer-toggle" class="close-drawer">×</label>
+        <div class="drawer-content" id="drawer-content"></div>
+    </div>
+
+    <!-- Note Modal -->
+    <div id="note-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container canvas-modal-content">
+            <div class="modal-header canvas-header">
+                <div class="canvas-title-section">
+                    <h3 id="note-modal-title">Nuevo Canvas</h3>
+                    <span class="canvas-subtitle">Artist Notepad</span>
+                </div>
+                <div class="canvas-header-actions">
+                    <button class="modal-close" onclick="closeNoteModal()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body canvas-body">
+                <div class="canvas-meta-row">
+                    <div class="form-group canvas-title-input">
+                        <label>Titulo del Canvas</label>
+                        <input type="text" id="note-title" placeholder="Sin titulo..." maxlength="150">
+                    </div>
+                    <div class="form-group canvas-date-input">
+                        <label>Fecha</label>
+                        <input type="datetime-local" id="note-date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Etiqueta</label>
+                    <div class="label-selector" id="label-selector-container">
+                        <button type="button" class="label-btn" data-label="interno" onclick="selectNoteLabel(this)">INTERNO</button>
+                        <button type="button" class="label-btn" data-label="urgente" onclick="selectNoteLabel(this)">URGENTE</button>
+                        <button type="button" class="label-btn" data-label="seguimiento" onclick="selectNoteLabel(this)">SEGUIMIENTO</button>
+                        <button type="button" class="label-btn" data-label="referencia" onclick="selectNoteLabel(this)">REFERENCIA</button>
+                        <button type="button" class="label-btn" data-label="otro" onclick="selectNoteLabel(this)">OTRO</button>
+                    </div>
+                </div>
+                <div class="form-group canvas-editor-wrapper">
+                    <label>Contenido</label>
+                    <div id="canvas-editor" class="canvas-editor"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeNoteModal()">CANCELAR</button>
+                <button class="action-btn save-btn" onclick="saveNote()">GUARDAR CANVAS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container delete-confirm-content">
+            <div class="modal-header"><h3>Confirmar Eliminacion</h3></div>
+            <div class="modal-body"><p id="delete-confirm-message">¿Estas seguro de que deseas eliminar esta nota?</p></div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeDeleteConfirmModal()">CANCELAR</button>
+                <button class="action-btn danger-btn" onclick="confirmDeleteNote()">ELIMINAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox-modal" class="lightbox-overlay" onclick="closeLightbox(event)">
+        <button class="lightbox-close" onclick="closeLightbox(event)">&times;</button>
+        <div class="lightbox-content"><img id="lightbox-img" src="" alt="Reference Image"></div>
+        <div class="lightbox-nav">
+            <button class="lightbox-nav-btn prev" onclick="lightboxPrev(event)">&larr;</button>
+            <span class="lightbox-counter"><span id="lightbox-current">1</span> / <span id="lightbox-total">1</span></span>
+            <button class="lightbox-nav-btn next" onclick="lightboxNext(event)">&rarr;</button>
+        </div>
+    </div>
+
+    <script src="/shared/js/shared-drawer.js"></script>
+    <script src="/shared/js/archive.js"></script>
+    <script src="/shared/js/header-effects.js"></script>
+</body>
+</html>

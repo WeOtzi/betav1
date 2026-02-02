@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/landing-style.css">
+    <link rel="stylesheet" href="/shared/css/dashboard.css">
+    <link rel="stylesheet" href="/shared/css/feedback.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+
+<body>
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edición Bauhaus | Beta Cerrada
+        </div>
+        <div class="nav-row">
+            <div class="nav-col">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+                </div>
+            </div>
+            <div class="nav-col">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
+                    Ö
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Embajador Verification Pending Banner -->
+    <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">
+        <div class="banner-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>No cumples con los requisitos para ser Embajador. Tu verificacion de perfil esta pendiente.</span>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-grid">
+        <!-- Identity Block: Avatar + Name -->
+        <section class="block block-identity">
+            <div class="avatar-container">
+                <div class="avatar-wrapper" id="avatar-wrapper">
+                    <img src="" alt="Avatar" class="avatar-image" id="avatar-image">
+                    <div class="avatar-placeholder" id="avatar-placeholder">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div class="avatar-loading" id="avatar-loading">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+                <button class="avatar-upload-btn" id="avatar-upload-btn" type="button" aria-label="Cambiar foto">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </button>
+                <input type="file" id="avatar-input" accept="image/*" hidden>
+            </div>
+            <!-- Artist Level Badge -->
+            <div class="artist-level-badge" id="artist-level-badge">
+                <span class="level-text" id="level-text">Nuevo</span>
+            </div>
+            <!-- Verification Badge -->
+            <div class="verification-badge" id="verification-badge" data-state="No" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span id="verification-text">No Verificado</span>
+            </div>
+            <h1 class="artist-name" id="artist-name">Cargando...</h1>
+            <p class="artist-username" id="artist-username">@usuario.wo</p>
+            <p class="artist-location" id="artist-location">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span id="location-text">-</span>
+            </p>
+            <div class="artist-social-links">
+                <a href="#" id="instagram-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                    </svg>
+                </a>
+                <a href="#" id="whatsapp-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                </a>
+                <button type="button" id="copy-whatsapp-btn" class="social-link-btn copy-btn" style="display: none;" aria-label="Copiar enlace WhatsApp">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
+                <button type="button" id="share-profile-btn" class="social-link-btn share-btn" aria-label="Compartir perfil">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="18" cy="5" r="3"/>
+                        <circle cx="6" cy="12" r="3"/>
+                        <circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Moved Artist Stats -->
+            <div class="artist-compact-stats">
+                <div class="compact-stat">
+                    <span class="compact-stat-value" id="stat-experience">-</span>
+                    <span class="compact-stat-label">Exp.</span>
+                </div>
+                <div class="compact-stat">
+                    <span class="compact-stat-value" id="stat-styles">-</span>
+                    <span class="compact-stat-label">Estilos</span>
+                </div>
+                <div class="compact-stat">
+                    <span class="compact-stat-value" id="stat-price">-</span>
+                    <span class="compact-stat-label">Tarifa</span>
+                </div>
+            </div>
+
+            <div class="embajador-badge" id="embajador-badge" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                <span>Embajador</span>
+            </div>
+        </section>
+
+        <!-- Quotes Block -->
+        <section class="block block-quotes">
+            <h2 class="quotes-title">Cotizaciones</h2>
+            <div class="quotes-stats">
+                <div class="quote-stat-item">
+                    <span class="quote-stat-value" id="quote-total">0</span>
+                    <span class="quote-stat-label">Totales</span>
+                </div>
+                <div class="quote-stat-item">
+                    <span class="quote-stat-value highlight-red" id="quote-pending">0</span>
+                    <span class="quote-stat-label">Pendientes</span>
+                </div>
+                <div class="quote-stat-item">
+                    <span class="quote-stat-value" id="quote-answered">0</span>
+                    <span class="quote-stat-label">Respondidas</span>
+                </div>
+            </div>
+            <button class="quotes-admin-btn" id="go-to-quotes-btn" onclick="window.location.href='/my-quotations'">
+                Ir al Panel
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </section>
+
+        <!-- Gallery Management Block -->
+        <section class="block block-gallery-admin">
+            <div class="gallery-admin-header">
+                <h2 class="gallery-admin-title">Galeria de Trabajos</h2>
+                <label class="gallery-upload-btn" for="gallery-input">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span>Subir Fotos</span>
+                </label>
+                <input type="file" id="gallery-input" accept="image/*" multiple hidden>
+            </div>
+            <p class="gallery-admin-description">Sube imagenes de tus trabajos para mostrar en tu perfil publico (max 12 imagenes).</p>
+            <div class="gallery-admin-grid" id="gallery-admin-grid">
+                <div class="gallery-empty" id="gallery-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <p>Aun no has subido imagenes</p>
+                </div>
+            </div>
+            <div class="gallery-admin-loading" id="gallery-admin-loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <span>Subiendo imagenes...</span>
+            </div>
+        </section>
+
+        <!-- Info Block: Bio & Portfolio -->
+        <section class="block block-info-panel">
+            <div class="info-header">
+                <h2 class="info-title">Sobre Mi</h2>
+                <button class="edit-btn" id="edit-bio-btn" aria-label="Editar bio">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="bio-content" id="bio-content">
+                <p class="bio-text" id="bio-text">-</p>
+            </div>
+            <div class="bio-edit-mode" id="bio-edit-mode" style="display: none;">
+                <textarea class="bio-textarea" id="bio-textarea" placeholder="Escribe tu bio aqui..."></textarea>
+                <div class="edit-actions">
+                    <button class="btn-cancel" id="bio-cancel">Cancelar</button>
+                    <button class="btn-save" id="bio-save">Guardar</button>
+                </div>
+            </div>
+            <div class="portfolio-link">
+                <a href="#" id="portfolio-url" target="_blank" rel="noopener">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    <span>Ver Portfolio</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Profile Edit Block -->
+        <section class="block block-profile">
+            <div class="profile-header">
+                <h2 class="profile-title">Mi Perfil</h2>
+                <button class="edit-toggle-btn" id="edit-toggle-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <span>Editar</span>
+                </button>
+            </div>
+
+            <form id="profile-form" class="profile-form">
+                <!-- Artistic Name -->
+                <div class="form-row">
+                    <label class="form-label">Nombre Artistico</label>
+                    <div class="form-value" id="display-artistic-name">-</div>
+                    <input type="text" class="form-input-dashboard" id="input-artistic-name" style="display: none;">
+                </div>
+
+                <!-- Full Name -->
+                <div class="form-row">
+                    <label class="form-label">Nombre Completo</label>
+                    <div class="form-value" id="display-full-name">-</div>
+                    <input type="text" class="form-input-dashboard" id="input-full-name" style="display: none;">
+                </div>
+
+                <!-- Email (read-only) -->
+                <div class="form-row">
+                    <label class="form-label">Email</label>
+                    <div class="form-value form-value-readonly" id="display-email">-</div>
+                </div>
+
+                <!-- Location -->
+                <div class="form-row">
+                    <label class="form-label">Ubicacion</label>
+                    <div class="form-value" id="display-location">-</div>
+                    <input type="text" class="form-input-dashboard" id="input-location" style="display: none;">
+                </div>
+
+                <!-- Styles -->
+                <div class="form-row">
+                    <label class="form-label">Estilos</label>
+                    <div class="form-value styles-value" id="display-styles">-</div>
+                    <input type="text" class="form-input-dashboard" id="input-styles" placeholder="Separados por coma" style="display: none;">
+                </div>
+
+                <!-- Experience -->
+                <div class="form-row">
+                    <label class="form-label">Experiencia</label>
+                    <div class="form-value" id="display-experience">-</div>
+                    <select class="form-select-dashboard" id="input-experience" style="display: none;">
+                        <option value="0-1">Menos de 1 ano</option>
+                        <option value="1-3">1 - 3 anos</option>
+                        <option value="3-5">3 - 5 anos</option>
+                        <option value="5-10">5 - 10 anos</option>
+                        <option value="10+">Mas de 10 anos</option>
+                    </select>
+                </div>
+
+                <!-- Session Price -->
+                <div class="form-row">
+                    <label class="form-label">Tarifa por Sesion</label>
+                    <div class="form-value" id="display-price">-</div>
+                    <div class="price-input-group" id="price-input-group" style="display: none;">
+                        <input type="number" class="form-input-dashboard" id="input-price" placeholder="150" min="0">
+                        <select class="form-select-dashboard currency-select" id="input-currency">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="MXN">MXN</option>
+                            <option value="COP">COP</option>
+                            <option value="ARS">ARS</option>
+                            <option value="CLP">CLP</option>
+                            <option value="PEN">PEN</option>
+                            <option value="BRL">BRL</option>
+                            <option value="GBP">GBP</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Portfolio URL -->
+                <div class="form-row">
+                    <label class="form-label">Portfolio / Web</label>
+                    <div class="form-value" id="display-portfolio">-</div>
+                    <input type="url" class="form-input-dashboard" id="input-portfolio" placeholder="https://..." style="display: none;">
+                </div>
+
+                <!-- Work Type -->
+                <div class="form-row">
+                    <label class="form-label">Modalidad</label>
+                    <div class="form-value" id="display-work-type">-</div>
+                    <select class="form-select-dashboard" id="input-work-type" style="display: none;">
+                        <option value="independent">Independiente</option>
+                        <option value="studio">Estudio</option>
+                        <option value="both">Ambos</option>
+                    </select>
+                </div>
+
+                <!-- Studio Name -->
+                <div class="form-row" id="studio-row" style="display: none;">
+                    <label class="form-label">Nombre del Estudio</label>
+                    <div class="form-value" id="display-studio">-</div>
+                    <input type="text" class="form-input-dashboard" id="input-studio" style="display: none;">
+                </div>
+
+                <!-- Instagram -->
+                <div class="form-row">
+                    <label class="form-label">Instagram</label>
+                    <div class="form-value" id="display-instagram">-</div>
+                    <input type="text" class="form-input-dashboard" id="input-instagram" placeholder="@tuusuario" style="display: none;">
+                </div>
+
+                <!-- WhatsApp Number -->
+                <div class="form-row">
+                    <label class="form-label">WhatsApp</label>
+                    <div class="form-value" id="display-whatsapp">-</div>
+                    <input type="tel" class="form-input-dashboard" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display: none;">
+                </div>
+
+                <!-- Embajador (Managed by Support) -->
+                <div class="form-row">
+                    <label class="form-label">Embajador <span class="form-label-note">(Manejado por Soporte)</span></label>
+                    <div class="form-value form-value-readonly" id="display-embajador">-</div>
+                </div>
+
+                <!-- Birth Date -->
+                <div class="form-row">
+                    <label class="form-label">Fecha de Nacimiento</label>
+                    <div class="form-value" id="display-birthdate">-</div>
+                    <input type="date" class="form-input-dashboard" id="input-birthdate" style="display: none;">
+                </div>
+
+                <!-- Newsletter -->
+                <div class="form-row">
+                    <label class="form-label">Newsletter</label>
+                    <div class="form-value" id="display-newsletter">-</div>
+                    <label class="toggle-switch" id="toggle-newsletter" style="display: none;">
+                        <input type="checkbox" id="input-newsletter">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Gallery Upload Section (Edit Mode Only) -->
+                <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display: none;">
+                    <label class="form-label">Galeria de Trabajos</label>
+                    <div class="gallery-edit-content">
+                        <p class="gallery-edit-description">Administra las imagenes de tu portafolio (max 12 imagenes).</p>
+                        <div class="gallery-edit-preview" id="gallery-edit-preview">
+                            <!-- Thumbnails will be inserted here -->
+                        </div>
+                        <label class="gallery-edit-upload-btn" for="gallery-edit-input">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span>Subir Imagenes</span>
+                        </label>
+                        <input type="file" id="gallery-edit-input" accept="image/*" multiple hidden>
+                        <span class="gallery-edit-count" id="gallery-edit-count">0/12 imagenes</span>
+                    </div>
+                </div>
+
+                <!-- Save/Cancel Buttons -->
+                <div class="form-actions" id="form-actions" style="display: none;">
+                    <button type="button" class="btn-cancel" id="profile-cancel">Cancelar</button>
+                    <button type="submit" class="btn-save" id="profile-save">Guardar Cambios</button>
+                </div>
+            </form>
+
+            <!-- Status Message -->
+            <div class="status-message" id="status-message"></div>
+        </section>
+
+        <!-- Actions Block -->
+        <section class="block block-actions">
+            <h3 class="actions-title">Acciones</h3>
+            <button class="action-btn action-btn-preview" id="preview-profile-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Ver Mi Perfil Publico
+            </button>
+            <button class="action-btn action-btn-verify" id="request-verification-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M9 12l2 2 4-4"/>
+                </svg>
+                Verificar Perfil
+            </button>
+            <button class="action-btn" id="change-password-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Cambiar Contrasena
+            </button>
+            <button class="action-btn action-btn-danger" id="logout-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Cerrar Sesion
+            </button>
+        </section>
+
+        <!-- Milestones & Trophies Block -->
+        <section class="block block-milestones">
+            <h3 class="milestones-title">Hitos y Trofeos</h3>
+            <div class="milestones-grid">
+                <div class="milestone-item" id="milestone-profile" data-milestone="ms_profile_complete">
+                    <div class="milestone-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <span class="milestone-label">Completar Perfil</span>
+                    <div class="milestone-check">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="milestone-item" id="milestone-quote-received" data-milestone="ms_first_quote_received">
+                    <div class="milestone-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <span class="milestone-label">Recibir 1 Cotizacion</span>
+                    <div class="milestone-check">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="milestone-item" id="milestone-whatsapp-shared" data-milestone="ms_whatsapp_shared">
+                    <div class="milestone-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                        </svg>
+                    </div>
+                    <span class="milestone-label">Compartir Enlace WhatsApp</span>
+                    <div class="milestone-check">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="milestone-item" id="milestone-profile-shared" data-milestone="ms_profile_shared">
+                    <div class="milestone-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="18" cy="5" r="3"/>
+                            <circle cx="6" cy="12" r="3"/>
+                            <circle cx="18" cy="19" r="3"/>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                        </svg>
+                    </div>
+                    <span class="milestone-label">Compartir Perfil We Otzi</span>
+                    <div class="milestone-check">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="milestone-item" id="milestone-quote-completed" data-milestone="ms_first_quote_completed">
+                    <div class="milestone-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                    </div>
+                    <span class="milestone-label">Completar 1 Cotizacion</span>
+                    <div class="milestone-check">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Password Change Modal -->
+    <div id="password-modal" class="modal-overlay" onclick="closePasswordModalOnOverlay(event)">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closePasswordModal()" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <div class="modal-header">
+                <h2 class="modal-title">Cambiar Contrasena</h2>
+                <p class="modal-subtitle">Ingresa tu nueva contrasena</p>
+            </div>
+            <form id="password-form" onsubmit="handlePasswordChange(event)">
+                <div class="modal-form-group">
+                    <label for="new-password">NUEVA CONTRASENA</label>
+                    <input type="password" id="new-password" class="modal-input" placeholder="Minimo 8 caracteres" required minlength="8">
+                </div>
+                <div class="modal-form-group">
+                    <label for="confirm-password">CONFIRMAR CONTRASENA</label>
+                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repite la contrasena" required>
+                </div>
+                <div id="password-message" class="form-message"></div>
+                <button type="submit" class="btn-modal-submit">
+                    Actualizar
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Verification Request Modal -->
+    <div id="verification-modal" class="modal-overlay" onclick="closeVerificationModalOnOverlay(event)">
+        <div class="modal-container verification-modal-container">
+            <button class="modal-close" onclick="closeVerificationModal()" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <div class="modal-header">
+                <div class="verification-modal-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="M9 12l2 2 4-4"/>
+                    </svg>
+                </div>
+                <h2 class="modal-title">Verificar tu Perfil</h2>
+                <p class="modal-subtitle">Accede a funciones exclusivas</p>
+            </div>
+            <div class="verification-benefits">
+                <h4>Beneficios de la verificacion:</h4>
+                <ul class="benefits-list">
+                    <li>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Acceso anticipado a nuevas funciones</span>
+                    </li>
+                    <li>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Perfil destacado en busquedas</span>
+                    </li>
+                    <li>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Insignia de verificacion visible</span>
+                    </li>
+                    <li>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Mayor confianza de los clientes</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="verification-requirements">
+                <h4>Requisitos de verificacion:</h4>
+                <p>Para verificar tu perfil necesitaras:</p>
+                <ul class="requirements-list">
+                    <li>Documento de identidad valido</li>
+                    <li>Verificacion del estudio o local (si aplica)</li>
+                    <li>Metodo de contacto verificable</li>
+                </ul>
+            </div>
+            <div class="verification-process">
+                <p class="process-note">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    Una vez enviada tu solicitud, nuestro equipo de soporte se pondra en contacto contigo para iniciar el proceso de verificacion.
+                </p>
+            </div>
+            <div id="verification-message" class="form-message"></div>
+            <button type="button" class="btn-modal-submit btn-verification-submit" id="submit-verification-btn" onclick="submitVerificationRequest()">
+                Solicitar Verificacion
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bauhaus-footer">
+        <div class="footer-content">
+            <p class="footer-text">Hecho con amor por We Ötzi, para artistas.</p>
+            <div class="footer-social">
+                <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                    </svg>
+                </a>
+                <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+                    </svg>
+                </a>
+                <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
+                    </svg>
+                </a>
+                <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
+                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
+                    </svg>
+                </a>
+            </div>
+            <p class="footer-copyright">© 2025 We Ötzi. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- Feedback Floating Button -->
+    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
+        <span id="feedback-tooltip" class="feedback-tooltip">Ayudanos a mejorar We Ötzi, deja tus comentarios</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="feedback-modal">
+        <div class="feedback-container">
+            <button class="feedback-close" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="feedback-header">
+                <h2 class="feedback-title">Feedback</h2>
+                <p class="feedback-subtitle">Ayudanos a mejorar We Ötzi</p>
+            </div>
+            <form id="feedback-form">
+                <div class="feedback-form-group">
+                    <label for="feedback-reason">Motivo</label>
+                    <select id="feedback-reason" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona un motivo</option>
+                        <option value="error">Reportar un Error</option>
+                        <option value="sugerencia">Sugerencia de Mejora</option>
+                        <option value="pregunta">Pregunta / Duda</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-cause">Causa / Area</label>
+                    <select id="feedback-cause" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona el area</option>
+                        <option value="registro">Registro / Acceso</option>
+                        <option value="perfil">Perfil de Artista</option>
+                        <option value="dashboard">Dashboard</option>
+                        <option value="interfaz">Interfaz / Diseño</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-message">Mensaje</label>
+                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuentanos mas detalles..." required></textarea>
+                </div>
+                <div id="feedback-message-status" class="form-message"></div>
+                <button type="submit" class="btn-feedback-submit">
+                    Enviar Feedback
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/shared/js/dashboard.js"></script>
+    <script src="/shared/js/feedback.js"></script>
+    <script src="/shared/js/header-effects.js"></script>
+</body>
+
+</html>

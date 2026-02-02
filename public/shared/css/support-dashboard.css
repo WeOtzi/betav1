@@ -1,0 +1,860 @@
+/* ============================================
+   WE OTZI - Support Dashboard Styles
+   Additional styles for support admin panel
+   ============================================ */
+
+/* Nav Divider */
+.nav-divider {
+    height: 2px;
+    background: var(--fg);
+    margin: 1rem 0;
+    opacity: 0.3;
+}
+
+/* Nav Menu Items */
+.nav-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.nav-menu-item svg {
+    stroke: var(--fg);
+    transition: stroke 0.2s;
+}
+
+.nav-menu-item.active {
+    background: var(--bauhaus-blue) !important;
+    color: white !important;
+}
+
+.nav-menu-item.active svg {
+    stroke: white;
+}
+
+.nav-menu-item:hover:not(.active) {
+    background: var(--bauhaus-yellow) !important;
+}
+
+/* Nav Logout Button */
+.nav-logout {
+    background: transparent !important;
+    border: 2px solid var(--fg) !important;
+    color: var(--fg) !important;
+    cursor: pointer;
+    margin-top: auto;
+}
+
+.nav-logout:hover {
+    background: var(--bauhaus-red) !important;
+    color: white !important;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+    border: var(--border-width) solid var(--fg);
+    border-bottom: none;
+    background: var(--bg);
+}
+
+.tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg);
+    border: none;
+    border-right: var(--border-width) solid var(--fg);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    color: var(--fg);
+    opacity: 0.6;
+}
+
+.tab-btn:last-child {
+    border-right: none;
+}
+
+.tab-btn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.tab-btn.active {
+    opacity: 1;
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.tab-btn.active svg {
+    stroke: var(--bg);
+}
+
+.tab-btn svg {
+    stroke: var(--fg);
+    transition: stroke 0.3s;
+}
+
+/* Dark mode tab adjustments */
+.dark-mode .tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .tab-btn.active {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+/* Stat card clickable */
+.stat-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 2px solid var(--fg);
+}
+
+.status-badge.verified {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+.status-badge.not-verified {
+    background: transparent;
+    color: var(--fg);
+}
+
+.status-badge.requested {
+    background: var(--bauhaus-yellow);
+    color: var(--fg);
+    border-color: var(--bauhaus-yellow);
+}
+
+.status-badge.in-progress,
+.status-badge.in-analysis {
+    background: var(--bauhaus-blue);
+    color: white;
+    border-color: var(--bauhaus-blue);
+}
+
+.status-badge.denied,
+.status-badge.canceled {
+    background: var(--bauhaus-red);
+    color: white;
+    border-color: var(--bauhaus-red);
+}
+
+.status-badge.ambassador {
+    background: var(--bauhaus-blue);
+    color: white;
+    border-color: var(--bauhaus-blue);
+}
+
+.status-badge.pending {
+    background: var(--bauhaus-yellow);
+    color: var(--fg);
+    border-color: var(--bauhaus-yellow);
+}
+
+.status-badge.none {
+    background: transparent;
+    color: var(--fg);
+    opacity: 0.5;
+}
+
+/* Ticket status badges */
+.status-badge.open {
+    background: var(--bauhaus-red);
+    color: white;
+    border-color: var(--bauhaus-red);
+}
+
+.status-badge.in-review {
+    background: var(--bauhaus-yellow);
+    color: var(--fg);
+    border-color: var(--bauhaus-yellow);
+}
+
+.status-badge.resolved {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+.status-badge.closed {
+    background: #666;
+    color: white;
+    border-color: #666;
+}
+
+/* Quote status badges */
+.status-badge.quote-pending {
+    background: var(--bauhaus-yellow);
+    color: var(--fg);
+    border-color: var(--bauhaus-yellow);
+}
+
+.status-badge.quote-responded {
+    background: var(--bauhaus-blue);
+    color: white;
+    border-color: var(--bauhaus-blue);
+}
+
+.status-badge.quote-completed {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+.status-badge.quote-archived {
+    background: #666;
+    color: white;
+    border-color: #666;
+}
+
+/* Drawer Edit Form Styles */
+.drawer-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.drawer-form-group label {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.drawer-form-group input,
+.drawer-form-group select,
+.drawer-form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+}
+
+.drawer-form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.drawer-form-group input:focus,
+.drawer-form-group select:focus,
+.drawer-form-group textarea:focus {
+    outline: none;
+    border-color: var(--bauhaus-blue);
+}
+
+/* Drawer Section Divider */
+.drawer-section {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border: 2px solid var(--fg);
+}
+
+.drawer-section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--fg);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--fg);
+    opacity: 0.7;
+}
+
+/* Action Buttons in Drawer */
+.drawer-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--fg);
+}
+
+.drawer-actions .action-btn {
+    flex: 1;
+}
+
+.drawer-actions .action-btn.delete-btn {
+    background: var(--bauhaus-red);
+    color: white;
+}
+
+.drawer-actions .action-btn.delete-btn:hover {
+    background: #c62828;
+}
+
+/* Info Grid in Drawer */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.info-block {
+    padding: 0.5rem 0;
+}
+
+.info-block label {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.info-block p {
+    font-weight: 500;
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+/* Ticket metadata display */
+.metadata-display {
+    background: #f5f5f5;
+    padding: 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.dark-mode .metadata-display {
+    background: #1a1a1a;
+}
+
+/* Empty state */
+.empty-state {
+    padding: 4rem 2rem;
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    opacity: 0.5;
+}
+
+.empty-state svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+/* Row hover state */
+.data-row {
+    transition: background 0.2s;
+}
+
+.data-row:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.dark-mode .data-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Create Button */
+.create-btn {
+    background: var(--bauhaus-blue) !important;
+    color: white !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    padding: 0.75rem 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.create-btn svg {
+    stroke: white;
+}
+
+.create-btn:hover {
+    background: #1565c0 !important;
+    transform: translateY(-1px);
+}
+
+/* Create Modal Styles */
+.create-modal-container {
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.create-modal-container .modal-header {
+    background: var(--bauhaus-blue);
+    color: white;
+}
+
+.create-modal-container .modal-body {
+    padding: 1.5rem;
+}
+
+.create-modal-container .modal-footer {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-top: 2px solid var(--fg);
+}
+
+.create-modal-container .save-btn {
+    background: var(--bauhaus-blue) !important;
+    color: white !important;
+    flex: 1;
+}
+
+.create-modal-container .save-btn:hover {
+    background: #1565c0 !important;
+}
+
+/* Create Form Styles */
+.create-form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.create-form-row.full-width {
+    grid-template-columns: 1fr;
+}
+
+.create-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.create-form-group label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--fg);
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.create-form-group label.required::after {
+    content: ' *';
+    color: var(--bauhaus-red);
+}
+
+.create-form-group input,
+.create-form-group select,
+.create-form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    transition: border-color 0.2s;
+}
+
+.create-form-group input:focus,
+.create-form-group select:focus,
+.create-form-group textarea:focus {
+    outline: none;
+    border-color: var(--bauhaus-blue);
+}
+
+.create-form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.create-form-group input::placeholder,
+.create-form-group textarea::placeholder {
+    color: #999;
+    opacity: 0.6;
+}
+
+/* Form Section Divider */
+.create-form-section {
+    margin: 1.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--fg);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--fg);
+    opacity: 0.6;
+}
+
+/* Error message in form */
+.form-error-message {
+    background: var(--bauhaus-red);
+    color: white;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Success message in form */
+.form-success-message {
+    background: #4CAF50;
+    color: white;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Form loading state */
+.create-form-loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.create-form-loading .save-btn::after {
+    content: '...';
+    animation: loading-dots 1s infinite;
+}
+
+@keyframes loading-dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+
+/* ============================================
+   CHECKBOX STYLES
+   ============================================ */
+
+.checkbox-row {
+    margin: 0.75rem 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    color: var(--fg);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--bauhaus-blue);
+}
+
+.checkbox-label span {
+    user-select: none;
+}
+
+/* ============================================
+   READONLY FIELD STYLES
+   ============================================ */
+
+.readonly-field {
+    background: #f5f5f5 !important;
+    color: #666 !important;
+    cursor: not-allowed;
+}
+
+.dark-mode .readonly-field {
+    background: #2a2a2a !important;
+    color: #888 !important;
+}
+
+/* ============================================
+   FIELD LINKS
+   ============================================ */
+
+.field-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--bauhaus-blue);
+    text-decoration: none;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--bauhaus-blue);
+    transition: all 0.2s;
+}
+
+.field-link:hover {
+    color: var(--bauhaus-red);
+    border-color: var(--bauhaus-red);
+}
+
+/* ============================================
+   MONOSPACE TEXT
+   ============================================ */
+
+.monospace-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    word-break: break-all;
+}
+
+/* ============================================
+   METRIC VALUES
+   ============================================ */
+
+.metric-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--bauhaus-blue);
+}
+
+/* ============================================
+   METADATA DISPLAY STYLES
+   ============================================ */
+
+.metadata-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.metadata-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.metadata-item:last-child {
+    border-bottom: none;
+}
+
+.metadata-item label {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.metadata-value {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    word-break: break-all;
+    margin: 0;
+}
+
+.metadata-value.small {
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.metadata-raw {
+    margin-top: 1rem;
+    cursor: pointer;
+}
+
+.metadata-raw summary {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--bauhaus-blue);
+    padding: 0.5rem 0;
+}
+
+.metadata-raw summary:hover {
+    color: var(--bauhaus-red);
+}
+
+.metadata-raw pre {
+    margin-top: 0.5rem;
+    padding: 1rem;
+    font-size: 0.7rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.dark-mode .metadata-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .metadata-value.small {
+    color: #aaa;
+}
+
+/* ============================================
+   PRIORITY BADGE STYLES
+   ============================================ */
+
+.priority-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 2px solid;
+}
+
+.priority-badge.low {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-color: #2e7d32;
+}
+
+.priority-badge.medium {
+    background: #fff3e0;
+    color: #ef6c00;
+    border-color: #ef6c00;
+}
+
+.priority-badge.high {
+    background: #ffebee;
+    color: #c62828;
+    border-color: #c62828;
+}
+
+.priority-badge.critical {
+    background: #c62828;
+    color: white;
+    border-color: #c62828;
+}
+
+/* ============================================
+   DRAWER SCROLLABLE CONTENT
+   ============================================ */
+
+.detail-drawer {
+    overflow-y: auto;
+    max-height: 100vh;
+}
+
+.drawer-content {
+    padding-bottom: 2rem;
+}
+
+/* ============================================
+   SECTION COLORS FOR DARK MODE
+   ============================================ */
+
+.dark-mode .drawer-section {
+    background: #1e1e1e !important;
+}
+
+.dark-mode .drawer-section[style*="background: #f0f8ff"] {
+    background: #1a2634 !important;
+}
+
+.dark-mode .drawer-section[style*="background: #f9f9f9"],
+.dark-mode .drawer-section[style*="background: #f5f5f5"] {
+    background: #252525 !important;
+}
+
+.dark-mode .drawer-section[style*="background: #fffaf0"],
+.dark-mode .drawer-section[style*="background: #fff5e6"] {
+    background: #2a2518 !important;
+}
+
+.dark-mode .drawer-section[style*="background: #f0f4ff"] {
+    background: #1a1e2e !important;
+}
+
+.dark-mode .drawer-section[style*="background: #f0fff0"] {
+    background: #1a2a1a !important;
+}
+
+.dark-mode .drawer-section[style*="background: #fff0f5"] {
+    background: #2a1a20 !important;
+}
+
+.dark-mode .drawer-section[style*="background: #fff0f0"] {
+    background: #2a1a1a !important;
+}
+
+.dark-mode .drawer-section[style*="background: #fffbf0"] {
+    background: #2a2618 !important;
+}
+
+.dark-mode .drawer-section[style*="background: #f0f0f0"] {
+    background: #202020 !important;
+}
+
+/* ============================================
+   INFO BLOCK IMPROVEMENTS
+   ============================================ */
+
+.info-block p {
+    margin: 0;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+    .tab-navigation {
+        flex-direction: column;
+    }
+    
+    .tab-btn {
+        border-right: none;
+        border-bottom: var(--border-width) solid var(--fg);
+    }
+    
+    .tab-btn:last-child {
+        border-bottom: none;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .create-form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .create-modal-container {
+        width: 95%;
+        max-height: 95vh;
+    }
+    
+    .checkbox-label {
+        font-size: 0.8rem;
+    }
+    
+    .metadata-value {
+        font-size: 0.75rem;
+    }
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Support Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    <style>
+        :root { --bg: #FFFDF5; --fg: #1A1A1A; --bauhaus-red: #E23E28; --bauhaus-yellow: #F4B942; --bauhaus-blue: #1A4B8E; --border-width: 3px; --zoom-factor: 0.85; }
+        .dark-mode { --bg: #1A1A1A; --fg: #FFFDF5; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: calc(16px * var(--zoom-factor)); }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg); min-height: 100vh; display: flex; flex-direction: column; transition: background 0.3s, color 0.3s; }
+        .top-nav-header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; background: var(--bg); border-bottom: var(--border-width) solid var(--fg); }
+        .header-edition-info { font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+        .nav-row { display: flex; align-items: center; gap: 1rem; }
+        .zoom-controls { display: flex; gap: 0.25rem; }
+        .zoom-btn, .theme-toggle { width: 2rem; height: 2rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); font-family: 'Space Mono', monospace; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .zoom-btn:hover, .theme-toggle:hover { background: var(--fg); color: var(--bg); }
+        .login-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; margin-top: 60px; min-height: calc(100vh - 60px); }
+        .branding-panel { background: var(--bauhaus-blue); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; position: relative; overflow: hidden; }
+        .branding-panel::before { content: ''; position: absolute; width: 300px; height: 300px; background: var(--bauhaus-yellow); border-radius: 50%; top: -100px; left: -100px; opacity: 0.3; }
+        .branding-panel::after { content: ''; position: absolute; width: 200px; height: 200px; background: var(--bauhaus-red); bottom: -50px; right: -50px; opacity: 0.5; }
+        .branding-content { position: relative; z-index: 1; text-align: center; color: white; }
+        .branding-logo { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 4rem; line-height: 1; margin-bottom: 2rem; letter-spacing: -0.05em; }
+        .branding-subtitle { font-family: 'Space Mono', monospace; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.9; }
+        .branding-badge { margin-top: 3rem; padding: 1rem 2rem; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); font-family: 'Space Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .login-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; background: var(--bg); }
+        .login-box { width: 100%; max-width: 400px; }
+        .login-header { margin-bottom: 2.5rem; }
+        .login-title { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 2.5rem; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+        .login-subtitle { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--fg); opacity: 0.6; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; color: var(--fg); }
+        .form-group input { width: 100%; padding: 1rem; font-family: 'Inter', sans-serif; font-size: 1rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); transition: all 0.2s; }
+        .form-group input:focus { outline: none; border-color: var(--bauhaus-blue); box-shadow: 4px 4px 0 var(--bauhaus-blue); }
+        .form-group input::placeholder { color: var(--fg); opacity: 0.4; }
+        .btn-login { width: 100%; padding: 1.25rem 2rem; font-family: 'Inter', sans-serif; font-weight: 900; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; border: var(--border-width) solid var(--fg); background: var(--bauhaus-red); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); }
+        .btn-login:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--fg); }
+        .btn-login:active { transform: translate(0, 0); box-shadow: none; }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        .form-message { margin-top: 1rem; padding: 1rem; font-family: 'Space Mono', monospace; font-size: 0.8rem; text-align: center; display: none; }
+        .form-message.error { display: block; background: var(--bauhaus-red); color: white; border: var(--border-width) solid var(--fg); }
+        .form-message.success { display: block; background: var(--bauhaus-blue); color: white; border: var(--border-width) solid var(--fg); }
+        .login-footer { margin-top: 2rem; text-align: center; }
+        .login-footer a { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--bauhaus-blue); text-decoration: none; border-bottom: 2px solid var(--bauhaus-blue); transition: all 0.2s; }
+        .login-footer a:hover { color: var(--bauhaus-red); border-color: var(--bauhaus-red); }
+        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        .btn-login.loading .spinner { display: block; }
+        .btn-login.loading .btn-text { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) { .login-container { grid-template-columns: 1fr; } .branding-panel { display: none; } .login-panel { padding: 2rem; } .login-title { font-size: 2rem; } }
+    </style>
+</head>
+<body>
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edicion Bauhaus | Support Portal
+        </div>
+        <div class="nav-row">
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
+        </div>
+    </header>
+
+    <div class="login-container">
+        <div class="branding-panel">
+            <div class="branding-content">
+                <div class="branding-logo">We<br>Otzi</div>
+                <div class="branding-subtitle">Support Team Portal</div>
+                <div class="branding-badge">Internal Access Only</div>
+            </div>
+        </div>
+
+        <div class="login-panel">
+            <div class="login-box">
+                <div class="login-header">
+                    <h1 class="login-title">Support<br>Login</h1>
+                    <p class="login-subtitle">Acceso exclusivo para el equipo de soporte</p>
+                </div>
+
+                <form id="login-form" onsubmit="handleSupportLogin(event)">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="tu@weotzi.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Tu contrasena" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn-login" id="btn-login">
+                        <span class="btn-text">Iniciar Sesion</span>
+                        <div class="spinner"></div>
+                        <svg class="btn-text" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </form>
+
+                <div id="form-message" class="form-message"></div>
+
+                <div class="login-footer">
+                    <a href="/registerclosedbeta">Volver al sitio principal</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shared/js/support-login.js"></script>
+</body>
+</html>

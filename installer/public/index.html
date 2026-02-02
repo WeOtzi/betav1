@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Otzi - System Installer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="installer-container">
+        <!-- Header -->
+        <header class="installer-header">
+            <div class="logo">
+                <h1>We Otzi</h1>
+                <span class="badge">Installer</span>
+            </div>
+            <div class="session-info">
+                <span id="session-id">Session: ---</span>
+            </div>
+        </header>
+
+        <!-- Progress Steps -->
+        <nav class="progress-steps">
+            <div class="step active" data-step="1">
+                <div class="step-number">1</div>
+                <span>Auditoria</span>
+            </div>
+            <div class="step" data-step="2">
+                <div class="step-number">2</div>
+                <span>Configuracion</span>
+            </div>
+            <div class="step" data-step="3">
+                <div class="step-number">3</div>
+                <span>Seleccion</span>
+            </div>
+            <div class="step" data-step="4">
+                <div class="step-number">4</div>
+                <span>Instalacion</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="installer-main">
+            <!-- Step 1: System Audit -->
+            <section id="step-1" class="step-content active">
+                <div class="step-header">
+                    <h2><i class="fa-solid fa-magnifying-glass-chart"></i> Auditoria del Sistema</h2>
+                    <p>Verificando el entorno antes de la instalacion...</p>
+                </div>
+
+                <div class="audit-loading" id="audit-loading">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <span>Analizando sistema...</span>
+                </div>
+
+                <div class="audit-results hidden" id="audit-results">
+                    <!-- System Info Card -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fa-solid fa-server"></i>
+                            <h3>Informacion del Servidor</h3>
+                        </div>
+                        <div class="info-grid" id="system-info-grid">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Network Info Card -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fa-solid fa-network-wired"></i>
+                            <h3>Red</h3>
+                        </div>
+                        <div class="info-grid" id="network-info-grid">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Permissions Card -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <h3>Permisos</h3>
+                        </div>
+                        <div class="permissions-list" id="permissions-list">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Backup Info Card -->
+                    <div class="info-card highlight">
+                        <div class="info-card-header">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <h3>Backup a Restaurar</h3>
+                        </div>
+                        <div class="info-grid" id="backup-info-grid">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+
+                    <div class="audit-status" id="audit-status">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Registro de auditoria creado correctamente</span>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button class="btn btn-primary" id="btn-next-1" disabled onclick="goToStep(2)">
+                        Continuar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 2: Configuration -->
+            <section id="step-2" class="step-content">
+                <div class="step-header">
+                    <h2><i class="fa-solid fa-gear"></i> Configuracion</h2>
+                    <p>Configura el nuevo dominio, IP y credenciales de API</p>
+                </div>
+
+                <div class="config-grid">
+                    <!-- Domain Configuration -->
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <i class="fa-solid fa-globe"></i>
+                            <h3>Dominio y Servidor</h3>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="form-group">
+                                <label for="target-domain">Nuevo Dominio</label>
+                                <input type="text" id="target-domain" placeholder="https://midominio.com">
+                                <small>El dominio donde se ejecutara la aplicacion</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="target-ip">IP del Servidor</label>
+                                <input type="text" id="target-ip" placeholder="192.168.1.100">
+                                <small>IP publica o privada del servidor</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="server-port">Puerto del Servidor</label>
+                                <input type="number" id="server-port" value="3000" min="1" max="65535">
+                                <small>Puerto donde correra la aplicacion</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supabase Configuration -->
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <i class="fa-solid fa-database"></i>
+                            <h3>Supabase</h3>
+                            <button class="btn btn-sm btn-secondary" onclick="testSupabase()">
+                                <i class="fa-solid fa-plug"></i> Probar
+                            </button>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="form-group">
+                                <label for="supabase-url">Project URL</label>
+                                <input type="url" id="supabase-url" placeholder="https://xxxxx.supabase.co">
+                            </div>
+                            <div class="form-group">
+                                <label for="supabase-anon-key">Anon Key</label>
+                                <div class="input-password">
+                                    <input type="password" id="supabase-anon-key" placeholder="eyJhbGciOiJIUzI1NiIs...">
+                                    <button type="button" onclick="togglePassword('supabase-anon-key')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="supabase-service-key">Service Role Key (Admin)</label>
+                                <div class="input-password">
+                                    <input type="password" id="supabase-service-key" placeholder="eyJhbGciOiJIUzI1NiIs...">
+                                    <button type="button" onclick="togglePassword('supabase-service-key')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small>Requerido para operaciones administrativas</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="supabase-bucket">Storage Bucket</label>
+                                <input type="text" id="supabase-bucket" placeholder="quotation-references">
+                            </div>
+                            <div class="connection-status" id="supabase-status">
+                                <i class="fa-solid fa-circle"></i> Sin verificar
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Keys -->
+                    <div class="config-card full-width">
+                        <div class="config-card-header">
+                            <i class="fa-solid fa-key"></i>
+                            <h3>Claves de API</h3>
+                            <button class="btn btn-sm btn-secondary" onclick="toggleAllApiKeys()">
+                                <i class="fa-solid fa-eye"></i> Mostrar/Ocultar
+                            </button>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="api-keys-grid" id="api-keys-grid">
+                                <!-- Dynamically filled -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button class="btn btn-secondary" onclick="goToStep(1)">
+                        <i class="fa-solid fa-arrow-left"></i> Atras
+                    </button>
+                    <button class="btn btn-primary" onclick="goToStep(3)">
+                        Continuar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 3: Selection -->
+            <section id="step-3" class="step-content">
+                <div class="step-header">
+                    <h2><i class="fa-solid fa-list-check"></i> Seleccion de Restauracion</h2>
+                    <p>Selecciona que elementos deseas restaurar</p>
+                </div>
+
+                <!-- Link Scanner -->
+                <div class="scanner-card">
+                    <div class="scanner-header">
+                        <h3><i class="fa-solid fa-link"></i> Escaner de Enlaces</h3>
+                        <button class="btn btn-sm btn-primary" onclick="scanLinks()">
+                            <i class="fa-solid fa-magnifying-glass"></i> Escanear
+                        </button>
+                    </div>
+                    <div class="scanner-body">
+                        <p>Busca referencias al dominio original en los datos del backup.</p>
+                        <div class="form-group inline">
+                            <label>Dominio a buscar:</label>
+                            <input type="text" id="scan-domain" placeholder="dominio-original.com">
+                        </div>
+                        <div class="scan-results hidden" id="scan-results">
+                            <h4>Resultados del escaneo:</h4>
+                            <div id="scan-results-content"></div>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="replace-links" checked>
+                                <span>Reemplazar automaticamente el dominio original por el nuevo</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="selection-grid">
+                    <!-- Database Tables -->
+                    <div class="selection-card">
+                        <div class="selection-card-header">
+                            <label class="select-all">
+                                <input type="checkbox" id="select-all-tables" onchange="toggleAllTables(this.checked)">
+                                <span><i class="fa-solid fa-database"></i> Tablas de Base de Datos</span>
+                            </label>
+                        </div>
+                        <div class="selection-card-body">
+                            <div class="table-list" id="tables-list">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Items -->
+                    <div class="selection-card">
+                        <div class="selection-card-header">
+                            <label class="select-all">
+                                <input type="checkbox" id="select-all-config" onchange="toggleAllConfig(this.checked)">
+                                <span><i class="fa-solid fa-sliders"></i> Configuracion</span>
+                            </label>
+                        </div>
+                        <div class="selection-card-body">
+                            <div class="config-list" id="config-list">
+                                <label class="selection-item">
+                                    <input type="checkbox" name="config-item" value="supabase" checked>
+                                    <span>Credenciales Supabase</span>
+                                </label>
+                                <label class="selection-item">
+                                    <input type="checkbox" name="config-item" value="apis" checked>
+                                    <span>Claves de API</span>
+                                </label>
+                                <label class="selection-item">
+                                    <input type="checkbox" name="config-item" value="settings" checked>
+                                    <span>Configuracion de la App</span>
+                                </label>
+                                <label class="selection-item">
+                                    <input type="checkbox" name="config-item" value="routes">
+                                    <span>Rutas personalizadas</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button class="btn btn-secondary" onclick="goToStep(2)">
+                        <i class="fa-solid fa-arrow-left"></i> Atras
+                    </button>
+                    <button class="btn btn-primary" onclick="goToStep(4)">
+                        Continuar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 4: Installation -->
+            <section id="step-4" class="step-content">
+                <div class="step-header">
+                    <h2><i class="fa-solid fa-rocket"></i> Instalacion</h2>
+                    <p>Revisa y ejecuta la restauracion</p>
+                </div>
+
+                <!-- Summary -->
+                <div class="summary-card">
+                    <h3><i class="fa-solid fa-clipboard-list"></i> Resumen de la Instalacion</h3>
+                    <div class="summary-grid" id="install-summary">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+
+                <!-- Warning -->
+                <div class="warning-card">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <strong>Atencion:</strong> Este proceso modificara archivos de configuracion y datos en la base de datos.
+                        Asegurate de tener un backup del estado actual si es necesario.
+                    </div>
+                </div>
+
+                <!-- Progress -->
+                <div class="install-progress hidden" id="install-progress">
+                    <div class="progress-header">
+                        <span id="progress-status">Iniciando...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Logs -->
+                <div class="logs-card">
+                    <div class="logs-header">
+                        <h3><i class="fa-solid fa-terminal"></i> Registro de Actividad</h3>
+                        <button class="btn btn-sm btn-secondary" onclick="refreshLogs()">
+                            <i class="fa-solid fa-rotate"></i>
+                        </button>
+                    </div>
+                    <div class="logs-body" id="logs-container">
+                        <div class="log-entry info">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-message">Esperando inicio de instalacion...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button class="btn btn-secondary" onclick="goToStep(3)" id="btn-back-4">
+                        <i class="fa-solid fa-arrow-left"></i> Atras
+                    </button>
+                    <button class="btn btn-danger" id="btn-install" onclick="startInstallation()">
+                        <i class="fa-solid fa-play"></i> Iniciar Instalacion
+                    </button>
+                </div>
+
+                <!-- Completion -->
+                <div class="completion-card hidden" id="completion-card">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <h3>Instalacion Completada</h3>
+                    <p>La restauracion se ha completado exitosamente.</p>
+                    <div class="completion-actions">
+                        <button class="btn btn-primary" onclick="shutdownInstaller()">
+                            <i class="fa-solid fa-power-off"></i> Finalizar Instalador
+                        </button>
+                        <a class="btn btn-secondary" id="open-app-link" href="/" target="_blank">
+                            <i class="fa-solid fa-external-link"></i> Abrir Aplicacion
+                        </a>
+                    </div>
+                    <p class="completion-hint">
+                        Despues de cerrar el instalador, inicia la aplicacion con: <code>npm start</code>
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="installer-footer">
+            <span>We Otzi System Installer v1.0</span>
+            <span id="current-time"></span>
+        </footer>
+    </div>
+
+    <script src="installer.js"></script>
+</body>
+</html>

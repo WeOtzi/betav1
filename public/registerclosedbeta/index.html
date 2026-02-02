@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | BETA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/landing-style.css">
+    <link rel="stylesheet" href="/shared/css/feedback.css">
+    <style>
+        /* Page-specific layout with CSS custom properties */
+        :root {
+            --footer-height: 90px;
+            --header-height: 60px;
+            --margin-horizontal: 15%;
+            --margin-vertical: 10vh;
+        }
+
+        body {
+            padding-left: var(--margin-horizontal);
+            padding-right: var(--margin-horizontal);
+            padding-top: calc(var(--margin-vertical) + var(--header-height));
+            padding-bottom: calc(var(--margin-vertical) + var(--footer-height));
+            min-height: 100vh;
+        }
+
+        .monolith-grid {
+            max-height: none;
+            height: auto;
+        }
+
+        /* Tablet */
+        @media (max-width: 1024px) {
+            :root {
+                --margin-vertical: 8vh;
+            }
+        }
+
+        /* Mobile - half horizontal margin, account for footer */
+        @media (max-width: 768px) {
+            :root {
+                --margin-horizontal: 7.5%;
+                --margin-vertical: 5vh;
+                --footer-height: 100px;
+            }
+        }
+
+        /* Small mobile */
+        @media (max-width: 480px) {
+            :root {
+                --margin-horizontal: 5%;
+                --margin-vertical: 3vh;
+                --footer-height: 110px;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+
+<body>
+
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edición Bauhaus | Beta Cerrada
+        </div>
+        <div class="nav-row">
+            <div class="nav-col">
+                <button class="login-toggle" onclick="openLoginModal()" aria-label="Iniciar sesion">
+                    LOG IN
+                </button>
+            </div>
+            <div class="nav-col">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+                </div>
+            </div>
+            <div class="nav-col">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
+                    Ö
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-overlay" onclick="closeLoginModalOnOverlay(event)">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeLoginModal()" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="modal-header">
+                <h2 class="modal-title">Iniciar Sesion</h2>
+                <p class="modal-subtitle">Accede a tu cuenta de artista</p>
+            </div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="modal-form-group">
+                    <label for="login-email">EMAIL</label>
+                    <input type="email" id="login-email" class="modal-input" placeholder="tu@email.com" required>
+                </div>
+                <div class="modal-form-group">
+                    <label for="login-password">CONTRASENA</label>
+                    <input type="password" id="login-password" class="modal-input" placeholder="Tu contrasena" required>
+                </div>
+                <div id="login-message" class="form-message"></div>
+                <button type="submit" class="btn-modal-submit">
+                    Entrar
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                        stroke-linecap="square">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </form>
+            <p class="modal-footer-text">
+                No tienes cuenta? <a href="#" onclick="closeLoginModal()">Registrate arriba</a>
+            </p>
+        </div>
+    </div>
+
+    <main class="monolith-grid">
+        <section class="block block-logo">
+            <div id="logo-secret-message" class="secret-message">Bauhaus, first edition. For artists worldwide. We love
+                you</div>
+            <span class="logo-text">We<br>Ötzi</span>
+        </section>
+
+        <section class="block block-shape">
+            <div class="circle"></div>
+        </section>
+
+        <section class="block block-info">
+            <p style="margin-bottom: 2rem; font-size: 16px; font-weight: 800;">[ PHASE_01: CLOSED BETA ]</p>
+            <p>We Ötzi is a modular ecosystem for digital nomads. Form follows utility. Data follows ethics.</p>
+            <div style="margin-top: auto;">
+                <p>Status: <span style="color: var(--primary-red)">REC_READY</span></p>
+                <p>Build: 0.9.4-Bauhaus</p>
+            </div>
+        </section>
+
+        <section class="block block-form">
+            <h2
+                style="font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 2rem; font-size: 2rem;">
+                Acceso Anticipado</h2>
+            <form id="beta-form" onsubmit="handleRegistration(event)">
+                <div class="form-group">
+                    <input type="email" class="input-email" placeholder="TU@EMAIL.COM" required>
+                </div>
+                <button type="submit" class="btn-register">
+                    Registrarse
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                        stroke-linecap="square" stroke-linejoin="arcs">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                </button>
+                <div id="form-message" class="form-message"></div>
+            </form>
+        </section>
+
+        <section class="block block-social">
+            <p style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--bg); margin-bottom: 1rem;">O CONECTA
+                CON:</p>
+            <button onclick="handleSocialLogin('google')" class="social-btn">Google</button>
+            <button onclick="handleSocialLogin('instagram')" class="social-btn">Instagram</button>
+            <button onclick="handleSocialLogin('apple')" class="social-btn">Apple ID</button>
+        </section>
+    </main>
+
+    <footer class="bauhaus-footer">
+        <div class="footer-content">
+            <p class="footer-text">Hecho con amor por We Ötzi, para artistas.</p>
+            <div class="footer-social">
+                <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                    </svg>
+                </a>
+                <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+                    </svg>
+                </a>
+                <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
+                    </svg>
+                </a>
+                <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
+                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
+                    </svg>
+                </a>
+            </div>
+            <p class="footer-copyright">© 2025 We Ötzi. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- Feedback Floating Button -->
+    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
+        <span id="feedback-tooltip" class="feedback-tooltip">Ayudanos a mejorar We Ötzi, deja tus comentarios</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="feedback-modal">
+        <div class="feedback-container">
+            <button class="feedback-close" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="feedback-header">
+                <h2 class="feedback-title">Feedback</h2>
+                <p class="feedback-subtitle">Ayudanos a mejorar We Ötzi</p>
+            </div>
+            <form id="feedback-form">
+                <div class="feedback-form-group">
+                    <label for="feedback-reason">Motivo</label>
+                    <select id="feedback-reason" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona un motivo</option>
+                        <option value="error">Reportar un Error</option>
+                        <option value="sugerencia">Sugerencia de Mejora</option>
+                        <option value="pregunta">Pregunta / Duda</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-cause">Causa / Area</label>
+                    <select id="feedback-cause" class="feedback-select" required>
+                        <option value="" disabled selected>Selecciona el area</option>
+                        <option value="registro">Registro / Acceso</option>
+                        <option value="perfil">Perfil de Artista</option>
+                        <option value="dashboard">Dashboard</option>
+                        <option value="interfaz">Interfaz / Diseño</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="feedback-form-group">
+                    <label for="feedback-message">Mensaje</label>
+                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuentanos mas detalles..." required></textarea>
+                </div>
+                <div id="feedback-message-status" class="form-message"></div>
+                <button type="submit" class="btn-feedback-submit">
+                    Enviar Feedback
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/shared/js/main.js"></script>
+    <script src="/shared/js/feedback.js"></script>
+    <script src="/shared/js/header-effects.js"></script>
+</body>
+
+</html>

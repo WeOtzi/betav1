@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Crear Cuenta</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    <style>
+        :root { --bg: #FFFDF5; --fg: #1A1A1A; --bauhaus-red: #E23E28; --bauhaus-yellow: #F4B942; --bauhaus-blue: #1A4B8E; --bauhaus-green: #2E7D32; --border-width: 3px; --zoom-factor: 0.85; }
+        .dark-mode { --bg: #1A1A1A; --fg: #FFFDF5; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: calc(16px * var(--zoom-factor)); }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg); min-height: 100vh; display: flex; flex-direction: column; transition: background 0.3s, color 0.3s; }
+        
+        /* Header */
+        .top-nav-header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; background: var(--bg); border-bottom: var(--border-width) solid var(--fg); }
+        .header-edition-info { font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+        .nav-row { display: flex; align-items: center; gap: 1rem; }
+        .zoom-controls { display: flex; gap: 0.25rem; }
+        .zoom-btn, .theme-toggle { width: 2rem; height: 2rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); font-family: 'Space Mono', monospace; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .zoom-btn:hover, .theme-toggle:hover { background: var(--fg); color: var(--bg); }
+        
+        /* Layout */
+        .register-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; margin-top: 60px; min-height: calc(100vh - 60px); }
+        
+        /* Branding Panel */
+        .branding-panel { background: var(--bauhaus-green); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; position: relative; overflow: hidden; }
+        .branding-panel::before { content: ''; position: absolute; width: 300px; height: 300px; background: var(--bauhaus-yellow); border-radius: 50%; top: -100px; left: -100px; opacity: 0.3; }
+        .branding-panel::after { content: ''; position: absolute; width: 200px; height: 200px; background: var(--bauhaus-blue); bottom: -50px; right: -50px; opacity: 0.5; }
+        .branding-content { position: relative; z-index: 1; text-align: center; color: white; }
+        .branding-logo { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 4rem; line-height: 1; margin-bottom: 2rem; letter-spacing: -0.05em; }
+        .branding-subtitle { font-family: 'Space Mono', monospace; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.9; }
+        .branding-features { margin-top: 2rem; text-align: left; }
+        .branding-features li { font-family: 'Space Mono', monospace; font-size: 0.8rem; margin-bottom: 0.75rem; opacity: 0.9; list-style: none; padding-left: 1.5rem; position: relative; }
+        .branding-features li::before { content: '+'; position: absolute; left: 0; font-weight: 700; }
+        .branding-badge { margin-top: 3rem; padding: 1rem 2rem; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); font-family: 'Space Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        
+        /* Register Panel */
+        .register-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; background: var(--bg); overflow-y: auto; }
+        .register-box { width: 100%; max-width: 450px; }
+        .register-header { margin-bottom: 2rem; }
+        .register-title { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 2.5rem; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+        .register-subtitle { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--fg); opacity: 0.6; }
+        
+        /* Form */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; color: var(--fg); }
+        .form-group label .optional { font-weight: 400; opacity: 0.5; text-transform: lowercase; }
+        .form-group input { width: 100%; padding: 0.875rem; font-family: 'Inter', sans-serif; font-size: 1rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); transition: all 0.2s; }
+        .form-group input:focus { outline: none; border-color: var(--bauhaus-green); box-shadow: 4px 4px 0 var(--bauhaus-green); }
+        .form-group input::placeholder { color: var(--fg); opacity: 0.4; }
+        .form-group input:read-only { background: rgba(0,0,0,0.05); cursor: not-allowed; }
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        
+        /* Buttons */
+        .btn-register { width: 100%; padding: 1.25rem 2rem; font-family: 'Inter', sans-serif; font-weight: 900; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; border: var(--border-width) solid var(--fg); background: var(--bauhaus-green); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); margin-top: 1.5rem; }
+        .btn-register:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--fg); }
+        .btn-register:active { transform: translate(0, 0); box-shadow: none; }
+        .btn-register:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .btn-google { width: 100%; padding: 1rem 2rem; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 0.9rem; border: var(--border-width) solid var(--fg); background: white; color: var(--fg); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s; margin-bottom: 1.5rem; }
+        .btn-google:hover { background: #f5f5f5; transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--fg); }
+        .btn-google svg { width: 20px; height: 20px; }
+        
+        .divider { display: flex; align-items: center; margin: 1.5rem 0; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 2px; background: var(--fg); opacity: 0.2; }
+        .divider span { padding: 0 1rem; font-family: 'Space Mono', monospace; font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; }
+        
+        /* Messages */
+        .form-message { margin-top: 1rem; padding: 1rem; font-family: 'Space Mono', monospace; font-size: 0.8rem; text-align: center; display: none; }
+        .form-message.error { display: block; background: var(--bauhaus-red); color: white; border: var(--border-width) solid var(--fg); }
+        .form-message.success { display: block; background: var(--bauhaus-green); color: white; border: var(--border-width) solid var(--fg); }
+        .form-message.info { display: block; background: var(--bauhaus-blue); color: white; border: var(--border-width) solid var(--fg); }
+        .form-message a { color: white; text-decoration: underline; }
+        
+        /* Footer Links */
+        .register-footer { margin-top: 2rem; text-align: center; }
+        .register-footer a { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--bauhaus-green); text-decoration: none; border-bottom: 2px solid var(--bauhaus-green); transition: all 0.2s; }
+        .register-footer a:hover { color: var(--bauhaus-red); border-color: var(--bauhaus-red); }
+        .register-footer p { margin-top: 1rem; font-family: 'Space Mono', monospace; font-size: 0.7rem; opacity: 0.6; }
+        .register-footer p a { border-bottom: none; }
+        
+        /* Spinner */
+        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        .btn-register.loading .spinner { display: block; }
+        .btn-register.loading .btn-text { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Pre-filled notice */
+        .prefilled-notice { background: var(--bauhaus-yellow); color: var(--fg); padding: 1rem; margin-bottom: 1.5rem; font-family: 'Space Mono', monospace; font-size: 0.75rem; border: var(--border-width) solid var(--fg); }
+        .prefilled-notice strong { display: block; margin-bottom: 0.25rem; }
+        
+        /* Responsive */
+        @media (max-width: 768px) { 
+            .register-container { grid-template-columns: 1fr; } 
+            .branding-panel { display: none; } 
+            .register-panel { padding: 2rem; } 
+            .register-title { font-size: 2rem; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            We Otzi | Portal de Clientes
+        </div>
+        <div class="nav-row">
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
+        </div>
+    </header>
+
+    <div class="register-container">
+        <div class="branding-panel">
+            <div class="branding-content">
+                <div class="branding-logo">We<br>Otzi</div>
+                <div class="branding-subtitle">Crea tu Cuenta</div>
+                <ul class="branding-features">
+                    <li>Guarda tus cotizaciones</li>
+                    <li>Chatea directo con artistas</li>
+                    <li>Recibe notificaciones</li>
+                    <li>Historial de proyectos</li>
+                    <li>Gratis para siempre</li>
+                </ul>
+                <div class="branding-badge">100% Gratuito</div>
+            </div>
+        </div>
+
+        <div class="register-panel">
+            <div class="register-box">
+                <div class="register-header">
+                    <h1 class="register-title">Crear<br>Cuenta</h1>
+                    <p class="register-subtitle">Registrate para gestionar tus cotizaciones</p>
+                </div>
+
+                <div id="prefilled-notice" class="prefilled-notice" style="display: none;">
+                    <strong>Datos de tu cotizacion</strong>
+                    Hemos pre-llenado algunos campos con la informacion de tu cotizacion. Puedes modificarlos si lo deseas.
+                </div>
+
+                <button type="button" class="btn-google" onclick="handleGoogleLogin()">
+                    <svg viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Registrarse con Google
+                </button>
+
+                <div class="divider">
+                    <span>o con email</span>
+                </div>
+
+                <form id="register-form" onsubmit="handleClientRegistration(event)">
+                    <div class="form-group">
+                        <label for="register-name">Nombre Completo *</label>
+                        <input type="text" id="register-name" placeholder="Tu nombre y apellido" required autocomplete="name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-email">Email *</label>
+                        <input type="email" id="register-email" placeholder="tu@email.com" required autocomplete="email">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="register-password">Contrasena *</label>
+                            <input type="password" id="register-password" placeholder="Min. 6 caracteres" required autocomplete="new-password" minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="register-confirm-password">Confirmar *</label>
+                            <input type="password" id="register-confirm-password" placeholder="Repetir contrasena" required autocomplete="new-password">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="register-whatsapp">WhatsApp <span class="optional">(opcional)</span></label>
+                            <input type="tel" id="register-whatsapp" placeholder="+54 11 1234 5678" autocomplete="tel">
+                        </div>
+                        <div class="form-group">
+                            <label for="register-birthdate">Fecha Nacimiento <span class="optional">(opcional)</span></label>
+                            <input type="date" id="register-birthdate" autocomplete="bday">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="register-instagram">Instagram <span class="optional">(opcional)</span></label>
+                            <input type="text" id="register-instagram" placeholder="@tu_usuario" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="register-city">Ciudad <span class="optional">(opcional)</span></label>
+                            <input type="text" id="register-city" placeholder="Tu ciudad" autocomplete="address-level2">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-register" id="btn-register">
+                        <span class="btn-text">Crear Cuenta</span>
+                        <div class="spinner"></div>
+                        <svg class="btn-text" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </form>
+
+                <div id="form-message" class="form-message"></div>
+
+                <div class="register-footer">
+                    <p>Ya tienes cuenta? <a href="/client/login">Iniciar sesion</a></p>
+                    <p style="margin-top: 1.5rem;"><a href="/registerclosedbeta">Eres artista? Registrate aqui</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shared/js/client-auth.js"></script>
+    <script>
+        // Show prefilled notice if data exists
+        document.addEventListener('DOMContentLoaded', () => {
+            const quotationData = localStorage.getItem('weotzi_client_registration_data');
+            if (quotationData) {
+                document.getElementById('prefilled-notice').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

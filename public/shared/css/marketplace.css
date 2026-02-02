@@ -1,0 +1,663 @@
+/* ============================================
+   WE ÖTZI - MARKETPLACE SPECIFIC STYLES
+   Bauhaus Design System Extension
+   ============================================ */
+
+/* APP CONTAINER - FULL WIDTH FOR GLOBAL SCROLLBAR */
+.app-container {
+    max-width: none;
+    padding: 0;
+}
+
+/* HEADER SPACING - Using padding-top since header is position:fixed */
+#marketplace-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 1520px;
+    margin: 0 auto;
+    padding: 0;
+    padding-top: 140px; /* 80px header height + 60px extra spacing */
+}
+
+.marketplace-hero {
+    width: 100%;
+    max-width: 1520px;
+    margin: 0 auto 4rem;
+    text-align: center;
+}
+
+.marketplace-hero .brand-title {
+    font-size: clamp(3rem, 8vw, 6rem);
+    margin-bottom: 1rem;
+    letter-spacing: -4px;
+}
+
+/* SMART SEARCH */
+.smart-search-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 2rem auto;
+    position: relative;
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#smart-search {
+    width: 100%;
+    padding: 2rem 4rem 2rem 0;
+    font-size: 2rem;
+    border: none;
+    border-bottom: 8px solid var(--fg);
+    margin-bottom: 0;
+    background: transparent;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -1px;
+}
+
+#smart-search::placeholder {
+    color: rgba(10, 10, 10, 0.2);
+    font-weight: 400;
+}
+
+.search-icon {
+    position: absolute;
+    right: 0;
+    font-size: 2.5rem;
+    color: var(--fg);
+    pointer-events: none;
+}
+
+/* ADVANCED FILTER BAR */
+.advanced-filters-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto 2rem;
+    padding: 1rem 1.5rem; /* Reduced padding */
+    border: var(--border-width) solid var(--fg);
+    background: var(--bg);
+    box-shadow: 6px 6px 0 var(--fg); /* Slightly smaller shadow */
+}
+
+.filter-select-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px; /* Reduced min-width */
+}
+
+.filter-select-group label {
+    font-family: var(--font-technical);
+    font-size: 0.6rem; /* Smaller label */
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--fg);
+    letter-spacing: 1px;
+}
+
+.filter-select-group select {
+    border: none;
+    border-bottom: 3px solid var(--fg); /* Thinner border */
+    padding: 6px 0; /* Reduced padding */
+    font-size: 0.85rem; /* Smaller font */
+    font-weight: 900;
+    margin-bottom: 0;
+    cursor: pointer;
+    background: transparent;
+    text-transform: uppercase;
+}
+
+.results-section {
+    width: 100%;
+    max-width: 1520px;
+    margin: 0 auto;
+}
+
+/* RESULTS GRID - STRICT 5 COLUMNS ON DESKTOP */
+.marketplace-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 30px;
+    width: 100%;
+    max-width: 1520px;
+    margin: 0 auto 4rem;
+}
+
+.results-meta {
+    max-width: 1520px;
+    margin: 0 auto 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 4px solid var(--fg);
+    padding-bottom: 1rem;
+}
+
+/* BAUHAUS CREATIVE CARD */
+.marketplace-card {
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all var(--transition);
+    cursor: pointer;
+    overflow: hidden;
+    height: 100%;
+    transform: rotate(var(--card-rot, 0deg));
+}
+
+.marketplace-card:hover {
+    transform: translate(-8px, -8px) rotate(0deg);
+    box-shadow: 12px 12px 0 var(--fg);
+    border-color: var(--primary-red);
+    z-index: 5;
+}
+
+/* Geometric Ribbon for Recommendations */
+.recommendation-badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    padding: 5px 15px;
+    font-family: var(--font-technical);
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    border-right: var(--border-width) solid var(--fg);
+    border-bottom: var(--border-width) solid var(--fg);
+    z-index: 10;
+    letter-spacing: 1px;
+}
+
+.card-img-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: var(--fg);
+    border-bottom: var(--border-width) solid var(--fg);
+    overflow: hidden;
+}
+
+/* Abstract Bauhaus Fallback Pattern */
+.card-img-wrapper.no-image {
+    background: var(--bg);
+    background-image: 
+        radial-gradient(circle at 30% 30%, var(--primary-red) 20%, transparent 20.5%),
+        linear-gradient(135deg, var(--primary-blue) 25%, transparent 25.5%),
+        linear-gradient(225deg, var(--primary-yellow) 20%, transparent 20.5%);
+    background-size: 100% 100%, 50% 50%, 40% 40%;
+    background-position: center, top left, bottom right;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.card-img-wrapper.no-image::after {
+    content: 'WE ÖTZI';
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-family: var(--font-technical);
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    opacity: 0.5;
+}
+
+.card-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s var(--transition);
+    filter: grayscale(0.2);
+}
+
+.marketplace-card:hover .card-img-wrapper img {
+    transform: scale(1.05);
+    filter: grayscale(0);
+}
+
+.card-content {
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    background-image: 
+        linear-gradient(rgba(10, 10, 10, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(10, 10, 10, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-color: var(--bg);
+}
+
+.card-styles-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 0.8rem;
+    overflow: hidden;
+}
+
+.tag-mini {
+    font-family: var(--font-technical);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 2px 6px;
+    white-space: nowrap;
+}
+
+.artist-name-block {
+    background: var(--fg);
+    color: var(--bg);
+    padding: 10px;
+    margin: 0 -1.2rem 0.8rem -1.2rem;
+    transform: rotate(-1.5deg);
+    transition: all var(--transition);
+    border-top: var(--border-width) solid var(--fg);
+    border-bottom: var(--border-width) solid var(--fg);
+}
+
+.marketplace-card:hover .artist-name-block {
+    transform: rotate(0deg);
+    background: var(--primary-red);
+}
+
+.card-artist-name {
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    text-align: center;
+    letter-spacing: -0.5px;
+    margin-bottom: 0;
+}
+
+.card-meta {
+    font-family: var(--font-technical);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 1.2rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.meta-item i {
+    color: var(--primary-red);
+    width: 14px;
+    text-align: center;
+}
+
+.card-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    border-top: var(--border-width) solid var(--fg);
+    margin: 0 -1.2rem -1.2rem -1.2rem;
+}
+
+.footer-top-row {
+    display: flex;
+    width: 100%;
+    border-bottom: var(--border-width) solid var(--fg);
+}
+
+.price-box {
+    padding: 0.6rem;
+    background: var(--primary-yellow);
+    border-right: var(--border-width) solid var(--fg);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+}
+
+.price-label {
+    font-family: var(--font-technical);
+    font-size: 0.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.price-val {
+    font-family: var(--font-primary);
+    font-size: 0.85rem;
+    font-weight: 900;
+}
+
+.profile-btn {
+    background: var(--bg);
+    color: var(--fg);
+    border: none;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0.6rem;
+    flex: 1;
+}
+
+.profile-btn:hover {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+
+.quote-btn {
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 1rem;
+    width: 100%;
+}
+
+.quote-btn:hover, .marketplace-card:hover .quote-btn {
+    background: var(--primary-blue);
+    color: white;
+}
+
+/* SUGGESTIONS DROPDOWN */
+.suggestions-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    z-index: 1000;
+    max-height: 400px;
+    overflow-y: auto;
+    box-shadow: 15px 15px 0 var(--fg);
+    animation: slideDown 0.3s var(--transition);
+}
+
+.suggestion-item {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .suggestion-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.suggestion-item:hover {
+    background: var(--primary-red);
+    color: var(--bg);
+}
+
+.suggestion-label {
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.suggestion-category {
+    font-family: var(--font-technical);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    opacity: 0.7;
+    background: var(--fg);
+    color: var(--bg);
+    padding: 2px 8px;
+}
+
+/* VISUAL FILTERS */
+.visual-filters {
+    margin-top: 3rem;
+}
+
+.filter-group {
+    margin-bottom: 2rem;
+}
+
+.filter-label {
+    display: block;
+    font-family: var(--font-technical);
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+}
+
+.filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+}
+
+.filter-btn {
+    min-width: 140px;
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    color: var(--fg);
+    padding: 1.2rem;
+    text-transform: uppercase;
+    font-weight: 900;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 4px 4px 0 var(--fg);
+}
+
+.filter-btn:hover {
+    background: var(--primary-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--fg);
+}
+
+.filter-btn.active {
+    background: var(--primary-red);
+    color: var(--bg);
+    box-shadow: inset 4px 4px 0 rgba(0,0,0,0.2);
+}
+
+/* ACTIVE FILTERS CHIPS - FLOATING CARD */
+.active-filters-container {
+    position: fixed;
+    bottom: 100px;
+    right: 40px;
+    width: auto;
+    min-width: 200px;
+    max-width: 350px;
+    padding: 1.2rem;
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    box-shadow: 10px 10px 0 var(--primary-yellow);
+    z-index: 1000;
+    animation: slideUp 0.4s var(--transition);
+}
+
+.active-filters-container:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 14px 14px 0 var(--primary-red);
+}
+
+.active-filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.technical-label {
+    font-family: var(--font-technical);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.active-filters-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-chip {
+    background: var(--fg);
+    color: var(--bg);
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-technical);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.filter-chip button {
+    background: none;
+    border: none;
+    color: var(--primary-red);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0;
+}
+
+.sort-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-technical);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.sort-control select {
+    border: none;
+    border-bottom: 3px solid var(--fg);
+    font-size: 0.8rem;
+    font-weight: 900;
+    padding: 4px 0;
+    margin-bottom: 0;
+    width: auto;
+    text-transform: uppercase;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* PAGINATION */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin: 4rem auto;
+    max-width: 1520px;
+}
+
+.page-info {
+    font-family: var(--font-technical);
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+/* EMPTY STATE */
+.empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1600px) {
+    .marketplace-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 1200px) {
+    .marketplace-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 1024px) {
+    #marketplace-content { padding-top: 130px; } /* 80px header + 50px spacing */
+    .marketplace-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .advanced-filters-bar { padding: 1rem; gap: 10px; }
+    .filter-select-group { min-width: 140px; }
+}
+
+@media (max-width: 900px) {
+    #marketplace-content { padding-top: 130px; } /* 80px header + 50px spacing */
+    .marketplace-grid { grid-template-columns: repeat(2, 1fr); }
+    .app-container { padding: 20px; }
+    .active-filters-container {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        left: 20px;
+        width: auto;
+        max-width: none;
+        box-shadow: 6px 6px 0 var(--primary-yellow);
+    }
+}
+
+@media (max-width: 768px) {
+    #marketplace-content { padding-top: 125px; } /* 80px header + 45px spacing */
+    .marketplace-grid { gap: 15px; }
+    .advanced-filters-bar { padding: 1rem; }
+}
+
+@media (max-width: 600px) {
+    #marketplace-content { padding-top: 100px; } /* 60px header (smaller) + 40px spacing */
+    .marketplace-grid { grid-template-columns: 1fr; }
+    #smart-search { font-size: 1.5rem; padding: 1.5rem 3rem 1.5rem 0; }
+    .results-meta { flex-direction: column; gap: 1rem; align-items: flex-start; }
+}
+
+@media (max-width: 400px) {
+    #marketplace-content { padding-top: 95px; } /* 60px header + 35px spacing */
+    #smart-search { font-size: 1.2rem; }
+}

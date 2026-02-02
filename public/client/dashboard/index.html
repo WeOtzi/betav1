@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Mi Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    <link rel="stylesheet" href="/shared/css/client.css">
+</head>
+<body>
+    <div class="bauhaus-shape shape-circle"></div>
+    <div class="bauhaus-shape shape-square"></div>
+    <div class="bauhaus-shape shape-triangle"></div>
+
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            We Otzi | Mi Dashboard <span class="coordinate-label" style="margin-left: 10px;">X: 42 | Y: 108</span>
+        </div>
+        <div class="nav-row">
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
+            <button class="btn-icon btn-logout" onclick="handleLogout()" aria-label="Cerrar sesion" title="Cerrar sesion">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="client-dashboard">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Mi Dashboard</h1>
+            <p class="dashboard-subtitle">Gestiona tus cotizaciones y chatea con artistas <span class="coordinate-label">ID: WO-C-001</span></p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Profile Sidebar - Bauhaus Grid Composition -->
+            <aside class="profile-sidebar">
+                <div class="profile-card">
+                    <!-- Avatar Block with Primary Color -->
+                    <div class="profile-avatar-block">
+                        <div class="profile-avatar" id="profile-avatar">
+                            <span class="profile-avatar-placeholder">??</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Name Block - Full Width Black -->
+                    <div class="profile-name-block">
+                        <h2 class="profile-name" id="profile-name">Cargando...</h2>
+                        <span class="profile-id-badge">WO-C</span>
+                    </div>
+                    
+                    <!-- Email Block with Tertiary Color -->
+                    <div class="profile-email-block">
+                        <p class="profile-email" id="profile-email"></p>
+                    </div>
+                    
+                    <!-- Stats Grid - Multicolor Blocks -->
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-total">0</div>
+                            <div class="stat-label">Total<br>Cotizaciones</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-active">0</div>
+                            <div class="stat-label">Activas<br>En Proceso</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-pending">0</div>
+                            <div class="stat-label">Pendientes<br>Respuesta</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-completed">0</div>
+                            <div class="stat-label">Completadas<br>Exitosamente</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Profile Button -->
+                    <button class="btn-edit-profile" onclick="openEditProfileModal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        <span>Editar Perfil</span>
+                    </button>
+                </div>
+
+                <div class="quick-actions-card">
+                    <h3 class="card-title">Acciones Rapidas</h3>
+                    <a href="/quotation" class="action-btn primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Nueva Cotizacion
+                    </a>
+                    <a href="/marketplace" class="action-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        Buscar Artistas
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Quotations Section -->
+            <section class="quotations-section">
+                <div class="section-header">
+                    <h2 class="section-title">Mis Cotizaciones</h2>
+                    <div class="tabs">
+                        <button class="tab-btn active" data-filter="all" onclick="filterQuotations('all')">Todas</button>
+                        <button class="tab-btn" data-filter="active" onclick="filterQuotations('active')">Activas</button>
+                        <button class="tab-btn" data-filter="pending" onclick="filterQuotations('pending')">Pendientes</button>
+                        <button class="tab-btn" data-filter="completed" onclick="filterQuotations('completed')">Completadas</button>
+                    </div>
+                </div>
+
+                <div class="quotations-list" id="quotations-list">
+                    <!-- Quotations will be loaded here -->
+                    <div class="loading-skeleton" style="height: 150px;"></div>
+                    <div class="loading-skeleton" style="height: 150px;"></div>
+                    <div class="loading-skeleton" style="height: 150px;"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Quotation Detail Modal -->
+    <div class="modal-overlay" id="quotation-modal" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Cotizacion <span id="modal-quote-id"></span></h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="quotation-detail" id="quotation-detail-content">
+                    <!-- Detail content loaded dynamically -->
+                </div>
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <h3>Chat con Artista</h3>
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-empty">
+                            <p>Inicia una conversacion con el artista</p>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <textarea 
+                            class="chat-input" 
+                            id="chat-input" 
+                            placeholder="Escribe tu mensaje..." 
+                            rows="2"
+                        ></textarea>
+                        <button class="chat-send" id="chat-send-btn" onclick="sendChatMessage()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div class="modal-overlay edit-profile-modal" id="edit-profile-modal" onclick="if(event.target === this) closeEditProfileModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Editar Perfil</h2>
+                <button class="modal-close" onclick="closeEditProfileModal()">&times;</button>
+            </div>
+            <form class="edit-profile-form" id="edit-profile-form" onsubmit="handleProfileUpdate(event)">
+                <div class="form-scrollable-content">
+                <!-- Profile Photo Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Foto de Perfil</h3>
+                    <div class="avatar-upload-container">
+                        <div class="avatar-preview" id="avatar-preview">
+                            <span class="avatar-preview-placeholder" id="avatar-preview-placeholder">??</span>
+                            <div class="avatar-loading" id="avatar-loading">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                        <button type="button" class="avatar-upload-btn" onclick="document.getElementById('avatar-input').click()">
+                            Cambiar Foto
+                        </button>
+                        <input type="file" id="avatar-input" class="avatar-upload-input" accept="image/*" onchange="handleAvatarPreview(event)">
+                    </div>
+                </div>
+
+                <!-- Personal Info Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Informacion Personal</h3>
+                    <div class="form-field">
+                        <label for="edit-full-name">Nombre Completo</label>
+                        <input type="text" id="edit-full-name" name="full_name" placeholder="Tu nombre completo">
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-whatsapp">WhatsApp</label>
+                        <input type="tel" id="edit-whatsapp" name="whatsapp" placeholder="+52 123 456 7890">
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-city">Ciudad</label>
+                        <input type="text" id="edit-city" name="city_residence" placeholder="Tu ciudad">
+                    </div>
+                </div>
+
+                <!-- Color Scheme Section - Advanced -->
+                <div class="form-section color-scheme-section">
+                    <h3 class="form-section-title">Esquema de Colores</h3>
+                    
+                    <!-- Preset Schemes -->
+                    <div class="preset-schemes">
+                        <h4 class="subsection-title">Esquemas Predefinidos</h4>
+                        <div class="scheme-presets" id="scheme-presets">
+                            <button type="button" class="scheme-preset active" data-scheme="bauhaus" onclick="selectPresetScheme('bauhaus')">
+                                <div class="scheme-preview">
+                                    <span style="background:#E23E28"></span>
+                                    <span style="background:#1A4B8E"></span>
+                                    <span style="background:#F4B942"></span>
+                                </div>
+                                <span class="scheme-name">Bauhaus</span>
+                            </button>
+                            <button type="button" class="scheme-preset" data-scheme="mondrian" onclick="selectPresetScheme('mondrian')">
+                                <div class="scheme-preview">
+                                    <span style="background:#DD1C1A"></span>
+                                    <span style="background:#034078"></span>
+                                    <span style="background:#FECB00"></span>
+                                </div>
+                                <span class="scheme-name">Mondrian</span>
+                            </button>
+                            <button type="button" class="scheme-preset" data-scheme="ocean" onclick="selectPresetScheme('ocean')">
+                                <div class="scheme-preview">
+                                    <span style="background:#0077B6"></span>
+                                    <span style="background:#00B4D8"></span>
+                                    <span style="background:#90E0EF"></span>
+                                </div>
+                                <span class="scheme-name">Oceano</span>
+                            </button>
+                            <button type="button" class="scheme-preset" data-scheme="sunset" onclick="selectPresetScheme('sunset')">
+                                <div class="scheme-preview">
+                                    <span style="background:#E63946"></span>
+                                    <span style="background:#F77F00"></span>
+                                    <span style="background:#FCBF49"></span>
+                                </div>
+                                <span class="scheme-name">Atardecer</span>
+                            </button>
+                            <button type="button" class="scheme-preset" data-scheme="forest" onclick="selectPresetScheme('forest')">
+                                <div class="scheme-preview">
+                                    <span style="background:#2D6A4F"></span>
+                                    <span style="background:#40916C"></span>
+                                    <span style="background:#95D5B2"></span>
+                                </div>
+                                <span class="scheme-name">Bosque</span>
+                            </button>
+                            <button type="button" class="scheme-preset" data-scheme="minimal" onclick="selectPresetScheme('minimal')">
+                                <div class="scheme-preview">
+                                    <span style="background:#1A1A1A"></span>
+                                    <span style="background:#6B6B6B"></span>
+                                    <span style="background:#EBEBEB"></span>
+                                </div>
+                                <span class="scheme-name">Minimal</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Colors -->
+                    <div class="custom-colors">
+                        <h4 class="subsection-title">Colores Personalizados</h4>
+                        <div class="color-pickers">
+                            <div class="color-picker-item">
+                                <label>Primario</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="color-primary" value="#E23E28" onchange="updateCustomColor('primary', this.value)">
+                                    <span class="color-hex" id="hex-primary">#E23E28</span>
+                                </div>
+                            </div>
+                            <div class="color-picker-item">
+                                <label>Secundario</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="color-secondary" value="#1A4B8E" onchange="updateCustomColor('secondary', this.value)">
+                                    <span class="color-hex" id="hex-secondary">#1A4B8E</span>
+                                </div>
+                            </div>
+                            <div class="color-picker-item">
+                                <label>Terciario <span class="optional-label">(opcional)</span></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="color-tertiary" value="#F4B942" onchange="updateCustomColor('tertiary', this.value)">
+                                    <span class="color-hex" id="hex-tertiary">#F4B942</span>
+                                </div>
+                                <label class="checkbox-wrapper">
+                                    <input type="checkbox" id="use-tertiary" checked onchange="toggleTertiaryColor()">
+                                    <span>Usar tercer color</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Preview -->
+                    <div class="color-preview-section">
+                        <h4 class="subsection-title">Vista Previa</h4>
+                        <div class="color-preview-grid" id="color-preview-grid">
+                            <div class="preview-block primary-preview"></div>
+                            <div class="preview-block secondary-preview"></div>
+                            <div class="preview-block tertiary-preview"></div>
+                            <div class="preview-block dark-preview"></div>
+                        </div>
+                    </div>
+                </div>
+                </div><!-- End form-scrollable-content -->
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEditProfileModal()">Cancelar</button>
+                    <button type="submit" class="btn-save" id="btn-save-profile">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/shared/js/client-dashboard.js"></script>
+</body>
+</html>

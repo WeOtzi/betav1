@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Statistics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/quotations.css">
+    <link rel="stylesheet" href="/shared/css/statistics.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+<body>
+    <header class="top-nav-header">
+        <div class="header-edition-info">
+            Edición Bauhaus | Admin Panel
+        </div>
+        <div class="nav-row">
+            <div class="nav-col">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
+                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
+                </div>
+            </div>
+            <div class="nav-col">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
+                    Ö
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="monolith-wrapper">
+        <aside>
+            <div class="logo-box"></div>
+            <a href="/artist/dashboard" class="nav-item">DASHBOARD</a>
+            <a href="/calendar" class="nav-item">CALENDAR</a>
+            <a href="/my-quotations" class="nav-item">QUOTES</a>
+            <a href="/my-quotations/statistics" class="nav-item" style="background: var(--bauhaus-red);">STATS</a>
+            <a href="/archive" class="nav-item">ARCHIVE</a>
+        </aside>
+
+        <main>
+            <header>
+                <div class="dash-title">
+                    <h1>Artist<br>Analytics</h1>
+                </div>
+                <div class="artist-meta">
+                    <p id="logged-as">LOGGED_AS: LOADING...</p>
+                    <p id="status-indicator">STATUS: ONLINE</p>
+                </div>
+            </header>
+
+            <div class="stats-container">
+                <!-- KPI Row -->
+                <div class="kpi-row">
+                    <div class="kpi-card">
+                        <span class="kpi-title">Total Revenue</span>
+                        <span class="kpi-value" id="kpi-revenue">$0</span>
+                        <span class="kpi-trend trend-up">
+                            ▲ Lifetime
+                        </span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">Total Quotes</span>
+                        <span class="kpi-value" id="kpi-quotes">0</span>
+                        <span class="kpi-trend trend-neutral">
+                            All time
+                        </span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">Conversion Rate</span>
+                        <span class="kpi-value" id="kpi-conversion">0%</span>
+                        <span class="kpi-trend trend-up">
+                            Completed / Total
+                        </span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">Avg. Ticket</span>
+                        <span class="kpi-value" id="kpi-avg-ticket">$0</span>
+                        <span class="kpi-trend trend-neutral">
+                            Per Completed Quote
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div class="chart-container revenue-chart-box">
+                    <div class="chart-header">
+                        <span class="chart-title">Revenue Overview</span>
+                        <div class="chart-actions">
+                            <select id="time-range-select">
+                                <option value="year">This Year</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="flex-grow: 1; position: relative;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container style-chart-box">
+                    <div class="chart-header">
+                        <span class="chart-title">Top Styles</span>
+                    </div>
+                    <div style="flex-grow: 1; position: relative;">
+                        <canvas id="stylesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2 -->
+                <div class="chart-container conversion-chart-box">
+                    <div class="chart-header">
+                        <span class="chart-title">Quote Status Distribution</span>
+                    </div>
+                    <div style="flex-grow: 1; position: relative;">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container demographics-box">
+                    <div class="chart-header">
+                        <span class="chart-title">Top Clients (By Revenue)</span>
+                    </div>
+                    <div style="overflow-y: auto; flex-grow: 1;">
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Quotes</th>
+                                    <th>Total Spent</th>
+                                    <th>Last Active</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-clients-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/shared/js/header-effects.js"></script>
+    <script src="/shared/js/statistics.js"></script>
+    <script>
+        // Simple theme toggle reuse
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            // Redraw charts if needed for dark mode colors
+        }
+        function zoomIn() {
+            document.body.style.zoom = (parseFloat(document.body.style.zoom || 1) + 0.1);
+        }
+        function zoomOut() {
+            document.body.style.zoom = (parseFloat(document.body.style.zoom || 1) - 0.1);
+        }
+    </script>
+</body>
+</html>

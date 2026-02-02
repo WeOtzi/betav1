@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi - Admin Panel</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Export Utilities -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/shared/css/admin-styles.css">
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">We Ötzi</h1>
+                <span class="badge">Admin</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-section="quotations">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span>Cotizaciones</span>
+                </a>
+                <a href="#" class="nav-item" data-section="artists">
+                    <i class="fa-solid fa-palette"></i>
+                    <span>Artistas</span>
+                </a>
+                <a href="#" class="nav-item" data-section="questions">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Preguntas</span>
+                </a>
+                <a href="#" class="nav-item" data-section="styles">
+                    <i class="fa-solid fa-brush"></i>
+                    <span>Estilos</span>
+                </a>
+                <a href="#" class="nav-item" data-section="settings">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Configuracion</span>
+                </a>
+                <a href="#" class="nav-item" data-section="content">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Contenido</span>
+                </a>
+
+                <!-- Super Admin Divider -->
+                <div class="nav-divider">
+                    <span>Super Admin</span>
+                </div>
+
+                <a href="#" class="nav-item" data-section="apis">
+                    <i class="fa-solid fa-plug"></i>
+                    <span>APIs</span>
+                </a>
+                <a href="#" class="nav-item" data-section="database">
+                    <i class="fa-solid fa-server"></i>
+                    <span>Base de Datos</span>
+                </a>
+                <a href="#" class="nav-item" data-section="routes">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Rutas</span>
+                </a>
+                <a href="#" class="nav-item" data-section="backup">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>Backup</span>
+                </a>
+                <a href="#" class="nav-item" data-section="support">
+                    <i class="fa-solid fa-headset"></i>
+                    <span>Usuarios Soporte</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/quotation" class="nav-item" target="_blank">
+                    <i class="fa-solid fa-external-link"></i>
+                    <span>Ver Formulario</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h2 id="section-title">Dashboard</h2>
+                </div>
+                <div class="header-actions">
+                    <span class="connection-status" id="connection-status">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Desconectado</span>
+                    </span>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-file-invoice"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-total">—</span>
+                            <span class="stat-label">Total Cotizaciones</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon pending-artist">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-pending-artist">—</span>
+                            <span class="stat-label">Pendientes Artista</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon responded">
+                            <i class="fa-solid fa-check-double"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-responded">—</span>
+                            <span class="stat-label">Respondidas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon in-progress">
+                            <i class="fa-solid fa-spinner fa-spin-pulse"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-in-progress">—</span>
+                            <span class="stat-label">En Progreso (Cliente)</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon artists">
+                            <i class="fa-solid fa-palette"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-artists">—</span>
+                            <span class="stat-label">Total Artistas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Últimas Cotizaciones</h3>
+                            <a href="#" class="btn-link" onclick="showSection('quotations')">Ver todas</a>
+                        </div>
+                        <div class="card-body">
+                            <div id="recent-quotations" class="recent-list">
+                                <p class="empty-state">Conecta Supabase para ver cotizaciones</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Estado de Servicios</h3>
+                            <button class="btn-icon" onclick="refreshServiceHealth()" title="Actualizar">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="health-cards-grid">
+                                <div class="health-card" onclick="showSection('apis')">
+                                    <div class="health-icon" style="background: rgba(62, 207, 142, 0.15); color: #3ecf8e;">
+                                        <i class="fa-solid fa-database"></i>
+                                    </div>
+                                    <div class="health-info">
+                                        <span class="health-name">Supabase</span>
+                                        <span class="health-status" id="supabase-status">
+                                            <i class="fa-solid fa-circle"></i> Sin verificar
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="health-card" onclick="showSection('apis')">
+                                    <div class="health-icon" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;">
+                                        <i class="fa-solid fa-webhook"></i>
+                                    </div>
+                                    <div class="health-info">
+                                        <span class="health-name">n8n</span>
+                                        <span class="health-status" id="n8n-status">
+                                            <i class="fa-solid fa-circle"></i> Sin verificar
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="health-card" onclick="showSection('apis')">
+                                    <div class="health-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                                        <i class="fa-solid fa-envelope"></i>
+                                    </div>
+                                    <div class="health-info">
+                                        <span class="health-name">EmailJS</span>
+                                        <span class="health-status" id="emailjs-status">
+                                            <i class="fa-solid fa-circle"></i> Sin verificar
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="health-card" onclick="showSection('apis')">
+                                    <div class="health-icon" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;">
+                                        <i class="fa-solid fa-map-location-dot"></i>
+                                    </div>
+                                    <div class="health-info">
+                                        <span class="health-name">Google Maps</span>
+                                        <span class="health-status" id="gmaps-status">
+                                            <i class="fa-solid fa-circle"></i> Sin verificar
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btn-group" style="margin-top: 16px;">
+                                <button class="btn btn-secondary btn-sm" onclick="showSection('apis')">
+                                    <i class="fa-solid fa-plug"></i> Gestionar APIs
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="showSection('backup')">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Backup
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quotations Section -->
+            <section id="section-quotations" class="content-section">
+                <div class="section-toolbar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="search-quotations" placeholder="Buscar por ID, cliente o artista...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-status">
+                            <option value="">Todos los estados</option>
+                            <option value="pending">Pendientes</option>
+                            <option value="responded">Respondidas</option>
+                            <option value="in_progress">En progreso (Cliente)</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadQuotations()">
+                            <i class="fa-solid fa-refresh"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions Toolbar -->
+                <div class="bulk-actions hidden" id="quotations-bulk-actions">
+                    <span class="selected-count">0 seleccionados</span>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary btn-sm" onclick="exportSelectedQuotations()">
+                            <i class="fa-solid fa-file-zipper"></i> Exportar ZIP
+                        </button>
+                        <button class="btn btn-secondary btn-sm danger-hover" onclick="deleteSelectedQuotations()">
+                            <i class="fa-solid fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="quotations-table">
+                        <thead>
+                            <tr>
+                                <th class="w-checkbox"><input type="checkbox" id="select-all-quotations"
+                                        onclick="toggleSelectAllQuotations()"></th>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Artista</th>
+                                <th>Estilo</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quotations-tbody">
+                            <tr>
+                                <td colspan="8" class="empty-state">
+                                    Conecta Supabase para ver cotizaciones
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="quotations-pagination">
+                    <!-- Pagination generated by JS -->
+                </div>
+            </section>
+
+            <!-- Artists Section -->
+            <section id="section-artists" class="content-section">
+                <div class="section-toolbar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="search-artists" placeholder="Buscar por nombre, usuario o ciudad...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="artists-per-page" onchange="changeItemsPerPage(this.value)">
+                            <option value="15">15 por página</option>
+                            <option value="25">25 por página</option>
+                            <option value="50">50 por página</option>
+                            <option value="100">100 por página</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadArtists()">
+                            <i class="fa-solid fa-refresh"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="artists-table">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Nombre</th>
+                                <th>Ciudad</th>
+                                <th>Estilos</th>
+                                <th>Precio/Sesión</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="artists-tbody">
+                            <tr>
+                                <td colspan="6" class="empty-state">
+                                    Conecta Supabase para ver artistas
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="artists-pagination">
+                    <!-- Pagination generated by JS -->
+                </div>
+            </section>
+
+            <!-- Questions Section -->
+            <section id="section-questions" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Configura las preguntas y opciones del formulario de cotización. Las preguntas se sincronizan con Supabase.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="syncQuestionsFromDB()">
+                            <i class="fa-solid fa-refresh"></i> Refrescar
+                        </button>
+                        <button class="btn btn-primary" onclick="addQuestion()">
+                            <i class="fa-solid fa-plus"></i> Nueva Pregunta
+                        </button>
+                    </div>
+                </div>
+
+                <div class="questions-list" id="questions-list">
+                    <!-- Questions loaded by JS -->
+                </div>
+            </section>
+
+            <!-- Styles Section -->
+            <section id="section-styles" class="content-section">
+                <div class="section-toolbar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="search-styles" placeholder="Buscar estilos...">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadTattooStyles()">
+                            <i class="fa-solid fa-refresh"></i> Refrescar
+                        </button>
+                        <button class="btn btn-primary" onclick="addTattooStyle()">
+                            <i class="fa-solid fa-plus"></i> Nuevo Estilo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="alert info mb-3" style="padding: 12px 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); font-size: 0.9em;">
+                    <i class="fa-solid fa-database"></i> Los estilos se guardan directamente en Supabase (tabla <code>tattoo_styles</code>). 
+                    Los subestilos se muestran de forma jerárquica.
+                </div>
+
+                <div id="tattoo-styles-tree" class="styles-tree-container">
+                    <div class="empty-state">Cargando estilos...</div>
+                </div>
+
+                <div class="styles-stats" id="styles-stats" style="margin-top: 20px; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                    <span class="text-muted">Total de estilos: <strong id="styles-count">0</strong></span>
+                    <span class="text-muted" style="margin-left: 20px;">Subestilos: <strong id="substyles-count">0</strong></span>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="section-settings" class="content-section">
+                <div class="settings-grid">
+                    <!-- Supabase Settings -->
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-database"></i> Supabase</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="supabase-url">Project URL</label>
+                                <input type="url" id="supabase-url" placeholder="https://xxxxx.supabase.co">
+                            </div>
+                            <div class="form-group">
+                                <label for="supabase-key">Anon Key</label>
+                                <input type="password" id="supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6...">
+                                <button class="btn-icon toggle-password" onclick="togglePassword('supabase-key')">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <button class="btn btn-primary" onclick="testSupabaseConnection()">
+                                <i class="fa-solid fa-plug"></i> Probar Conexión
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- EmailJS Settings -->
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-envelope"></i> EmailJS</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="emailjs-service">Service ID</label>
+                                <input type="text" id="emailjs-service" placeholder="service_xxxxx">
+                            </div>
+                            <div class="form-group">
+                                <label for="emailjs-template">Template ID</label>
+                                <input type="text" id="emailjs-template" placeholder="template_xxxxx">
+                            </div>
+                            <div class="form-group">
+                                <label for="emailjs-key">Public Key</label>
+                                <input type="password" id="emailjs-key" placeholder="YOUR_PUBLIC_KEY">
+                                <button class="btn-icon toggle-password" onclick="togglePassword('emailjs-key')">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <button class="btn btn-primary" onclick="saveEmailJSSettings()">
+                                <i class="fa-solid fa-save"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- App Settings -->
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-sliders"></i> Configuración de la App</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group toggle-group">
+                                <label class="toggle-label">
+                                    <span>Modo Demo</span>
+                                    <span class="toggle-hint">Usa artistas de prueba en lugar de Supabase</span>
+                                </label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="setting-demo-mode" onchange="toggleDemoMode()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-max-images">Máximo de imágenes de referencia</label>
+                                <input type="number" id="setting-max-images" min="1" max="10" value="4">
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-max-image-size">Tamaño máximo por imagen (MB)</label>
+                                <input type="number" id="setting-max-image-size" min="1" max="20" value="5">
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-default-currency">Moneda por defecto</label>
+                                <select id="setting-default-currency">
+                                    <option value="USD">USD - Dólar</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                    <option value="MXN">MXN - Peso Mexicano</option>
+                                    <option value="ARS">ARS - Peso Argentino</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="saveAppSettings()">
+                                <i class="fa-solid fa-save"></i> Guardar Configuración
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Export/Import -->
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-file-export"></i> Exportar / Importar</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="settings-description">
+                                Exporta la configuración actual o importa una configuración existente.
+                            </p>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary" onclick="exportConfig()">
+                                    <i class="fa-solid fa-download"></i> Exportar Config
+                                </button>
+                                <button class="btn btn-secondary" onclick="importConfig()">
+                                    <i class="fa-solid fa-upload"></i> Importar Config
+                                </button>
+                            </div>
+                            <input type="file" id="import-file" accept=".json" class="hidden"
+                                onchange="handleImport(event)">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Content Section - App Settings -->
+            <section id="section-content" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Edita el contenido que se muestra en la aplicacion. Los cambios se guardan en Supabase.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadAppContent()">
+                            <i class="fa-solid fa-refresh"></i> Refrescar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <!-- Success Page - Next Steps -->
+                    <div class="card content-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-list-check"></i> Proximos Pasos (Pagina de Exito)</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="settings-description">
+                                Este contenido se muestra en la pagina de exito despues de enviar una cotizacion.
+                                Puedes usar HTML basico para formatear el texto.
+                            </p>
+                            <div class="form-group">
+                                <label for="content-next-steps">Contenido HTML</label>
+                                <textarea id="content-next-steps" rows="8" placeholder="<p><strong>1. Paso uno</strong><br>Descripcion...</p>"></textarea>
+                                <small class="form-hint">
+                                    Usa &lt;p&gt;, &lt;strong&gt;, &lt;br&gt;, &lt;em&gt; para formatear.
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label>Vista Previa</label>
+                                <div class="content-preview" id="preview-next-steps">
+                                    <!-- Preview will be rendered here -->
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" onclick="saveNextStepsContent()">
+                                <i class="fa-solid fa-save"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Website URL -->
+                    <div class="card content-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-globe"></i> URL del Sitio Web</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="settings-description">
+                                URL a la que redirige el boton "Conocer We Otzi" en la pagina de exito.
+                            </p>
+                            <div class="form-group">
+                                <label for="content-website-url">URL del Sitio</label>
+                                <input type="url" id="content-website-url" placeholder="https://weotzi.com">
+                            </div>
+                            <button class="btn btn-primary" onclick="saveWebsiteUrl()">
+                                <i class="fa-solid fa-save"></i> Guardar URL
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- APIs Section (Super Admin) -->
+            <section id="section-apis" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Gestiona las conexiones con servicios externos. Configura y prueba cada API.
+                    </p>
+                    <button class="btn btn-secondary" onclick="testAllConnections()">
+                        <i class="fa-solid fa-rotate"></i> Probar Todas
+                    </button>
+                </div>
+
+                <div class="api-cards-grid">
+                    <!-- Supabase Card -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon supabase">
+                                    <i class="fa-solid fa-database"></i>
+                                </div>
+                                <div>
+                                    <h3>Supabase</h3>
+                                    <span class="api-status" id="api-supabase-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Project URL</label>
+                                <input type="url" id="api-supabase-url" placeholder="https://xxxxx.supabase.co">
+                            </div>
+                            <div class="form-group">
+                                <label>Anon Key</label>
+                                <div class="input-with-toggle">
+                                    <input type="password" id="api-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIs...">
+                                    <button type="button" class="btn-icon" onclick="togglePassword('api-supabase-key')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Storage Bucket</label>
+                                <input type="text" id="api-supabase-bucket" placeholder="quotation-references">
+                            </div>
+                            <div class="form-group">
+                                <label>Service Role Key (Admin)</label>
+                                <div class="input-with-toggle">
+                                    <input type="password" id="api-supabase-service-key" placeholder="eyJhbGciOiJIUzI1NiIs... (service_role)">
+                                    <button type="button" class="btn-icon" onclick="togglePassword('api-supabase-service-key')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small style="color: #888; font-size: 11px;">Requerido para cambiar contrasenas de usuarios. Encontrar en Supabase > Settings > API > service_role</small>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testSupabaseAPI()">
+                                    <i class="fa-solid fa-plug"></i> Probar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveSupabaseAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gemini AI Card -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon gemini" style="background: linear-gradient(135deg, #1e88e5, #d81b60);">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                </div>
+                                <div>
+                                    <h3>Gemini AI (Imágenes)</h3>
+                                    <span class="api-status" id="api-gemini-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="api-gemini-enabled"> Habilitar IA Generativa
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>API Key</label>
+                                <div class="input-with-toggle">
+                                    <input type="password" id="api-gemini-key" placeholder="AIzaSy...">
+                                    <button type="button" class="btn-icon" onclick="togglePassword('api-gemini-key')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Modelo</label>
+                                <select id="api-gemini-model">
+                                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Preview)</option>
+                                    <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                                </select>
+                            </div>
+                            <div class="row-group">
+                                <div class="form-group">
+                                    <label>Estilo Base</label>
+                                    <input type="text" id="api-gemini-style" placeholder="Minimalist line art">
+                                </div>
+                                <div class="form-group">
+                                    <label>Color Fondo</label>
+                                    <input type="text" id="api-gemini-bg" placeholder="White">
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testGeminiAPI()">
+                                    <i class="fa-solid fa-plug"></i> Probar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveGeminiAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- n8n Card -->
+                    <!-- Google Drive API Card -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon gdrive" style="background: linear-gradient(135deg, #4285F4, #34A853);">
+                                    <i class="fa-brands fa-google-drive"></i>
+                                </div>
+                                <div>
+                                    <h3>Google Drive (Cotizaciones)</h3>
+                                    <span class="api-status" id="api-gdrive-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Credenciales de Cuenta de Servicio (JSON)</label>
+                                <textarea id="api-gdrive-credentials" rows="6" placeholder='Pega aqui el contenido del archivo JSON de la cuenta de servicio de Google Cloud...' style="font-family: monospace; font-size: 11px;"></textarea>
+                                <small style="color: #888; font-size: 12px;">
+                                    <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" style="color: #4285F4;">Crear cuenta de servicio</a> > 
+                                    Crear clave JSON > Pegar aqui el contenido
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label>Email de la Cuenta de Servicio</label>
+                                <input type="text" id="api-gdrive-service-email" placeholder="Se extraera automaticamente del JSON" readonly style="background: #2a2a2a; color: #888;">
+                                <small style="color: #888; font-size: 12px;">Comparte la carpeta de Google Drive con este email (permisos de Editor)</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Carpeta Principal de Cotizaciones</label>
+                                <input type="text" id="api-gdrive-folder-link" placeholder="https://drive.google.com/drive/folders/1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W">
+                                <small style="color: #888; font-size: 12px;">Pega el enlace de la carpeta de Google Drive donde se guardaran las imagenes de referencia</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Folder ID (extraido automaticamente)</label>
+                                <input type="text" id="api-gdrive-folder-id" placeholder="Se extraera del enlace" readonly style="background: #2a2a2a; color: #888;">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testGoogleDriveAPI()">
+                                    <i class="fa-solid fa-plug"></i> Probar Conexion
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveGoogleDriveAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Google Calendar API Card -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon gcalendar" style="background: linear-gradient(135deg, #4285F4, #EA4335);">
+                                    <i class="fa-solid fa-calendar"></i>
+                                </div>
+                                <div>
+                                    <h3>Google Calendar (Sync)</h3>
+                                    <span class="api-status" id="api-gcalendar-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p style="color: #888; font-size: 12px; margin-bottom: 15px;">
+                                Permite a los artistas sincronizar sus cotizaciones completadas con Google Calendar.
+                                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color: #4285F4;">Configurar en Google Cloud Console</a>
+                            </p>
+                            <div class="form-group">
+                                <label>OAuth 2.0 Client ID</label>
+                                <input type="text" id="api-gcalendar-client-id" placeholder="xxxxx.apps.googleusercontent.com">
+                                <small style="color: #888; font-size: 12px;">
+                                    APIs & Services > Credentials > Create OAuth Client ID (Web application)
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label>API Key</label>
+                                <input type="text" id="api-gcalendar-api-key" placeholder="AIzaSy...">
+                                <small style="color: #888; font-size: 12px;">
+                                    APIs & Services > Credentials > Create API Key (restringir a Calendar API)
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="api-gcalendar-enabled" class="toggle-checkbox">
+                                    <span class="toggle-switch"></span>
+                                    Habilitar sincronizacion con Google Calendar
+                                </label>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testGoogleCalendarAPI()">
+                                    <i class="fa-solid fa-plug"></i> Validar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveGoogleCalendarAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- n8n Webhooks Card (Legacy) -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon n8n">
+                                    <i class="fa-solid fa-webhook"></i>
+                                </div>
+                                <div>
+                                    <h3>n8n Webhooks (Legacy)</h3>
+                                    <span class="api-status" id="api-n8n-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Webhook URL</label>
+                                <input type="url" id="api-n8n-webhook" placeholder="https://n8n.example.com/webhook/...">
+                            </div>
+                            <div class="form-group">
+                                <label>Google Drive Folder ID (Legacy)</label>
+                                <input type="text" id="api-n8n-drive-folder" placeholder="1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testN8NAPI()">
+                                    <i class="fa-solid fa-plug"></i> Probar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveN8NAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EmailJS Card -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon emailjs">
+                                    <i class="fa-solid fa-envelope"></i>
+                                </div>
+                                <div>
+                                    <h3>EmailJS</h3>
+                                    <span class="api-status" id="api-emailjs-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Service ID</label>
+                                <input type="text" id="api-emailjs-service" placeholder="service_xxxxx">
+                            </div>
+                            <div class="form-group">
+                                <label>Template ID</label>
+                                <input type="text" id="api-emailjs-template" placeholder="template_xxxxx">
+                            </div>
+                            <div class="form-group">
+                                <label>Public Key</label>
+                                <div class="input-with-toggle">
+                                    <input type="password" id="api-emailjs-pubkey" placeholder="YOUR_PUBLIC_KEY">
+                                    <button type="button" class="btn-icon" onclick="togglePassword('api-emailjs-pubkey')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testEmailJSAPI()">
+                                    <i class="fa-solid fa-plug"></i> Probar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveEmailJSAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Google Maps Card -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="api-header-info">
+                                <div class="api-icon gmaps">
+                                    <i class="fa-solid fa-map-location-dot"></i>
+                                </div>
+                                <div>
+                                    <h3>Google Maps</h3>
+                                    <span class="api-status" id="api-gmaps-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>API Key</label>
+                                <div class="input-with-toggle">
+                                    <input type="password" id="api-gmaps-key" placeholder="AIzaSy...">
+                                    <button type="button" class="btn-icon" onclick="togglePassword('api-gmaps-key')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary btn-sm" onclick="testGoogleMapsAPI()">
+                                    <i class="fa-solid fa-plug"></i> Probar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveGoogleMapsAPI()">
+                                    <i class="fa-solid fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Database Section (Super Admin) -->
+            <section id="section-database" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Explora las tablas de la base de datos. Visualiza registros y exporta datos.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadDatabaseStats()">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                        <button class="btn btn-primary" onclick="exportAllTables()">
+                            <i class="fa-solid fa-download"></i> Exportar Todo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Database Health -->
+                <div class="db-health-card">
+                    <div class="db-health-indicator" id="db-health-indicator">
+                        <i class="fa-solid fa-database"></i>
+                        <span>Verificando conexión...</span>
+                    </div>
+                    <div class="db-health-stats" id="db-health-stats">
+                        <span class="db-stat">
+                            <strong id="db-total-tables">-</strong> tablas
+                        </span>
+                        <span class="db-stat">
+                            <strong id="db-total-rows">-</strong> registros totales
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Tables Grid -->
+                <div class="tables-grid" id="tables-grid">
+                    <!-- Tables loaded by JS -->
+                    <div class="empty-state">Cargando tablas...</div>
+                </div>
+            </section>
+
+            <!-- Routes Section (Super Admin) -->
+            <section id="section-routes" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Gestiona las rutas de la aplicación. Verifica que todas las páginas sean accesibles.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadRoutesConfig()">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                        <button class="btn btn-primary" onclick="testAllRoutes()">
+                            <i class="fa-solid fa-stethoscope"></i> Verificar Todas
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Routes Health Summary -->
+                <div class="routes-summary" id="routes-summary">
+                    <div class="route-stat healthy">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span id="routes-healthy">-</span> OK
+                    </div>
+                    <div class="route-stat warning">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span id="routes-warning">-</span> Advertencias
+                    </div>
+                    <div class="route-stat error">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                        <span id="routes-error">-</span> Errores
+                    </div>
+                </div>
+
+                <!-- Routes Table -->
+                <div class="table-container">
+                    <table class="data-table" id="routes-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Ruta</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="routes-tbody">
+                            <tr>
+                                <td colspan="4" class="empty-state">Cargando rutas...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Backup Section (Super Admin) -->
+            <section id="section-backup" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Crea copias de seguridad de la base de datos y configuración. Restaura desde archivos anteriores.
+                    </p>
+                </div>
+
+                <!-- System Backup (Main Feature) -->
+                <div class="card backup-card system-backup-card" style="margin-bottom: 24px; border: 2px solid var(--accent-color); background: linear-gradient(135deg, rgba(244, 208, 63, 0.05), rgba(244, 208, 63, 0.02));">
+                    <div class="card-header" style="background: rgba(244, 208, 63, 0.1);">
+                        <h3><i class="fa-solid fa-hard-drive"></i> Backup del Sistema Completo</h3>
+                        <span class="badge" style="background: var(--accent-color); color: #000; margin-left: auto;">Recomendado</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="backup-description" style="margin-bottom: 16px;">
+                            Genera un paquete completo con todos los archivos de la aplicacion, base de datos, configuracion y un <strong>instalador web inteligente</strong> para restaurar en cualquier servidor.
+                        </p>
+                        
+                        <div class="backup-includes" style="flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+                            <span class="backup-tag"><i class="fa-solid fa-code"></i> Codigo fuente</span>
+                            <span class="backup-tag"><i class="fa-solid fa-database"></i> Base de datos</span>
+                            <span class="backup-tag"><i class="fa-solid fa-key"></i> Claves API</span>
+                            <span class="backup-tag"><i class="fa-solid fa-gear"></i> Configuracion</span>
+                            <span class="backup-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Instalador</span>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label for="system-backup-domain">Dominio actual (para reemplazo de enlaces)</label>
+                            <input type="text" id="system-backup-domain" placeholder="https://midominio.com" style="max-width: 400px;">
+                            <small style="color: #888;">El instalador podra reemplazar este dominio por uno nuevo</small>
+                        </div>
+                        
+                        <div class="backup-options" style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+                            <label class="checkbox-item" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="backup-include-db" checked> 
+                                <span>Incluir Base de Datos</span>
+                            </label>
+                            <label class="checkbox-item" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="backup-include-config" checked> 
+                                <span>Incluir Configuracion</span>
+                            </label>
+                            <label class="checkbox-item" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="backup-include-installer" checked> 
+                                <span>Incluir Instalador</span>
+                            </label>
+                        </div>
+                        
+                        <div class="backup-progress hidden" id="system-backup-progress" style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span id="system-backup-status">Preparando...</span>
+                                <span id="system-backup-percent">0%</span>
+                            </div>
+                            <div style="height: 8px; background: var(--border-color); border-radius: 4px; overflow: hidden;">
+                                <div id="system-backup-bar" style="height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary" id="btn-system-backup" onclick="createSystemBackup()" style="background: var(--accent-color); color: #000;">
+                            <i class="fa-solid fa-download"></i> Generar Backup del Sistema
+                        </button>
+                    </div>
+                </div>
+
+                <div class="backup-grid">
+                    <!-- Full Backup Card (DB Only) -->
+                    <div class="card backup-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-box-archive"></i> Backup de Datos</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="backup-description">
+                                Exporta todas las tablas de la base de datos y la configuración en un archivo ZIP (sin codigo fuente).
+                            </p>
+                            <div class="backup-includes">
+                                <span class="backup-tag"><i class="fa-solid fa-table"></i> Todas las tablas</span>
+                                <span class="backup-tag"><i class="fa-solid fa-gear"></i> Configuración</span>
+                                <span class="backup-tag"><i class="fa-solid fa-clock"></i> Con timestamp</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="createFullBackup()">
+                                <i class="fa-solid fa-download"></i> Crear Backup de Datos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selective Backup Card -->
+                    <div class="card backup-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-list-check"></i> Backup Selectivo</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="backup-description">
+                                Selecciona las tablas específicas que deseas exportar.
+                            </p>
+                            <div class="backup-checkboxes" id="backup-tables-list">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="artists_db" checked> artists_db
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="quotations_db" checked> quotations_db
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="tattoo_styles" checked> tattoo_styles
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="body_parts" checked> body_parts
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="quotation_flow_config"> quotation_flow_config
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="support_users_db"> support_users_db
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="feedback_tickets"> feedback_tickets
+                                </label>
+                            </div>
+                            <button class="btn btn-primary" onclick="createSelectiveBackup()">
+                                <i class="fa-solid fa-download"></i> Exportar Seleccionados
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Config Backup Card -->
+                    <div class="card backup-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-sliders"></i> Backup de Configuración</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="backup-description">
+                                Exporta solo la configuración de la aplicación (sin datos de BD).
+                            </p>
+                            <div class="backup-includes">
+                                <span class="backup-tag"><i class="fa-solid fa-file-code"></i> app-config.json</span>
+                                <span class="backup-tag"><i class="fa-solid fa-database"></i> localStorage</span>
+                            </div>
+                            <button class="btn btn-secondary" onclick="createConfigBackup()">
+                                <i class="fa-solid fa-download"></i> Exportar Configuración
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Restore Card -->
+                    <div class="card backup-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-upload"></i> Restaurar</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="backup-description">
+                                Importa una configuración desde un archivo JSON exportado anteriormente.
+                            </p>
+                            <div class="restore-warning">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span>Esta acción sobrescribirá la configuración actual.</span>
+                            </div>
+                            <button class="btn btn-secondary" onclick="restoreConfig()">
+                                <i class="fa-solid fa-upload"></i> Importar Configuración
+                            </button>
+                            <input type="file" id="restore-file" accept=".json,.zip" class="hidden" onchange="handleRestore(event)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backup History -->
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> Historial de Backups</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="backup-history" class="backup-history">
+                            <p class="empty-state">No hay backups registrados</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Support Users Section (Super Admin) -->
+            <section id="section-support" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Gestiona los usuarios con acceso al panel de soporte. Estos usuarios pueden ver y gestionar cotizaciones y tickets.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadSupportUsers()">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                        <button class="btn btn-primary" onclick="addSupportUser()">
+                            <i class="fa-solid fa-user-plus"></i> Nuevo Usuario
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="support-users-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Creado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="support-users-tbody">
+                            <tr>
+                                <td colspan="6" class="empty-state">
+                                    Conecta Supabase para ver usuarios de soporte
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Quotation Detail Modal -->
+    <div class="modal" id="quotation-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Detalle de Cotización</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="quotation-detail">
+                <!-- Content loaded by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Question Edit Modal -->
+    <div class="modal" id="question-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Pregunta</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="question-edit-form">
+                <!-- Content loaded by JS -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveQuestion()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Artist Edit Modal -->
+    <div class="modal" id="artist-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="artist-modal-title">Editar Artista</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="artist-form" onsubmit="saveArtist(event)">
+                    <input type="hidden" id="artist-id">
+
+                    <div class="form-group">
+                        <label>Nombre Artístico *</label>
+                        <input type="text" id="artist-name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Usuario (ID único) *</label>
+                        <input type="text" id="artist-username" required>
+                        <small class="form-hint">Ej: yomicoart.wo</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="artist-email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Instagram URL</label>
+                        <input type="url" id="artist-instagram" placeholder="https://instagram.com/...">
+                    </div>
+
+                    <div class="row-group">
+                        <div class="form-group">
+                            <label>Ciudad</label>
+                            <input type="text" id="artist-city">
+                        </div>
+                        <div class="form-group">
+                            <label>Estudio</label>
+                            <input type="text" id="artist-studio">
+                        </div>
+                    </div>
+
+                    <div class="row-group">
+                        <div class="form-group">
+                            <label>Precio por Sesión</label>
+                            <input type="text" id="artist-price" placeholder="Ej: 500 USD">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Estilos (separados por coma)</label>
+                        <textarea id="artist-styles" rows="2" placeholder="Realismo, Blackwork, Tradicional"></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Body Parts Manager Modal -->
+    <div class="modal" id="body-parts-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content large-modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Gestionar Partes del Cuerpo</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="body-parts-manager">
+                    <!-- Dynamic content will be injected here by admin.js -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="cancelBodyPartsConfig()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveBodyPartsConfig()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tattoo Style Edit Modal -->
+    <div class="modal" id="style-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 id="style-modal-title">Nuevo Estilo</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="style-form" onsubmit="saveTattooStyle(event)">
+                    <input type="hidden" id="style-id">
+                    <input type="hidden" id="style-parent-id">
+
+                    <div class="form-group">
+                        <label for="style-name">Nombre del Estilo *</label>
+                        <input type="text" id="style-name" required placeholder="Ej: Realismo">
+                        <small class="form-hint">El nombre que verán los usuarios en el formulario</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style-slug">Slug (ID único)</label>
+                        <input type="text" id="style-slug" placeholder="Ej: realismo">
+                        <small class="form-hint">Se genera automáticamente si se deja vacío. Sin espacios ni caracteres especiales.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style-description">Descripción</label>
+                        <textarea id="style-description" rows="3" placeholder="Descripción del estilo para el usuario..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style-cover-image">Imagen de Portada (URL)</label>
+                        <input type="url" id="style-cover-image" placeholder="https://example.com/imagen.jpg">
+                        <small class="form-hint">URL de la imagen principal del estilo</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style-reference-images">Imágenes de Referencia (1 URL por línea)</label>
+                        <textarea id="style-reference-images" rows="4" placeholder="https://example.com/ref1.jpg&#10;https://example.com/ref2.jpg"></textarea>
+                        <small class="form-hint">URLs de imágenes de ejemplo, una por línea</small>
+                    </div>
+
+                    <div class="form-group" id="display-mode-group">
+                        <label for="style-display-mode">Modo de Subestilos</label>
+                        <select id="style-display-mode">
+                            <option value="grouped">Agrupado (2 pasos: estilo, luego subestilo)</option>
+                            <option value="related">Relacionado (lista plana con subestilos etiquetados)</option>
+                        </select>
+                        <small class="form-hint">Como se muestran los subestilos en el formulario</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style-sort-order">Orden</label>
+                        <input type="number" id="style-sort-order" value="0" min="0">
+                        <small class="form-hint">Orden de aparición (menor = primero)</small>
+                    </div>
+
+                    <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-database"></i> Guardar en BD
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Inspector Modal -->
+    <div class="modal" id="table-inspector-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content large-modal" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h3 id="table-inspector-title">Inspeccionar Tabla</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="table-inspector-toolbar">
+                    <div class="table-inspector-info">
+                        <span id="table-inspector-count">0 registros</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary btn-sm" onclick="exportTableJSON()">
+                            <i class="fa-solid fa-file-code"></i> JSON
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportTableCSV()">
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container" style="max-height: 400px; overflow: auto;">
+                    <table class="data-table" id="table-inspector-data">
+                        <thead id="table-inspector-head">
+                            <!-- Headers loaded by JS -->
+                        </thead>
+                        <tbody id="table-inspector-body">
+                            <!-- Data loaded by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="table-inspector-pagination">
+                    <!-- Pagination generated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Route Edit Modal -->
+    <div class="modal" id="route-edit-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Editar Ruta</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="route-edit-form" onsubmit="saveRouteEdit(event)">
+                    <input type="hidden" id="route-edit-key">
+                    <div class="form-group">
+                        <label>Nombre de la Ruta</label>
+                        <input type="text" id="route-edit-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Path</label>
+                        <input type="text" id="route-edit-path" placeholder="/mi-ruta">
+                        <small class="form-hint">Debe comenzar con /</small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support User Modal -->
+    <div class="modal" id="support-user-modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="support-user-modal-title">Nuevo Usuario de Soporte</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="support-user-form" onsubmit="saveSupportUser(event)">
+                    <input type="hidden" id="support-user-id">
+
+                    <div class="form-group">
+                        <label for="support-user-name">Nombre Completo *</label>
+                        <input type="text" id="support-user-name" required placeholder="Juan Perez">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="support-user-email">Email *</label>
+                        <input type="email" id="support-user-email" required placeholder="soporte@weotzi.com">
+                        <small class="form-hint">Se usara para iniciar sesion en el panel de soporte</small>
+                    </div>
+
+                    <div class="form-group" id="support-user-password-group">
+                        <label for="support-user-password">Contrasena *</label>
+                        <div class="input-with-toggle">
+                            <input type="password" id="support-user-password" placeholder="Minimo 6 caracteres">
+                            <button type="button" class="btn-icon" onclick="togglePassword('support-user-password')">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-hint">Se requiere solo al crear el usuario</small>
+                    </div>
+
+                    <div class="form-group" id="support-user-change-password-group" style="display: none;">
+                        <label for="support-user-new-password">Nueva Contrasena (opcional)</label>
+                        <div class="input-with-toggle">
+                            <input type="password" id="support-user-new-password" placeholder="Dejar vacio para no cambiar">
+                            <button type="button" class="btn-icon" onclick="togglePassword('support-user-new-password')">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-hint">Minimo 6 caracteres. Dejar vacio si no quieres cambiar la contrasena.</small>
+                        <button type="button" class="btn btn-secondary btn-sm" style="margin-top: 8px;" onclick="sendPasswordResetEmail()">
+                            <i class="fa-solid fa-envelope"></i> Enviar Email de Restablecimiento
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="support-user-role">Rol *</label>
+                        <select id="support-user-role" required>
+                            <option value="support">Soporte</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <small class="form-hint">Define los permisos del usuario en el panel</small>
+                    </div>
+
+                    <div class="form-group" id="support-user-active-group" style="display: none;">
+                        <label class="toggle-label">
+                            <span>Usuario Activo</span>
+                            <span class="toggle-hint">Desactivar impide el acceso al panel</span>
+                        </label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="support-user-active" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-save"></i> Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Configuration Manager -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+
+    <!-- Admin Panel Logic -->
+    <script src="/shared/js/admin.js"></script>
+</body>
+
+</html>
