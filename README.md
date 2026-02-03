@@ -54,3 +54,6 @@ La aplicación se conecta a:
 
 ---
 *Desarrollado por el equipo de We Ötzi. v1.0.0*
+
+---
+**Última sincronización:** 2026-02-03
