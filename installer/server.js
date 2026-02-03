@@ -592,6 +592,7 @@ app.listen(PORT, () => {
     console.log('╚════════════════════════════════════════════════════════════╝');
     console.log('');
     console.log(`  URL: http://localhost:${PORT}`);
+    console.log(`  Domain:  http://weotzi.com`);
     console.log('');
     console.log('  Waiting for installation to begin...');
     console.log('  Press Ctrl+C to stop the installer.');

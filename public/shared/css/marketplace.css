@@ -120,6 +120,7 @@
     width: 100%;
     max-width: 1520px;
     margin: 0 auto;
+    padding-bottom: 4rem;
 }
 
 /* RESULTS GRID - STRICT 5 COLUMNS ON DESKTOP */
@@ -129,7 +130,7 @@
     gap: 30px;
     width: 100%;
     max-width: 1520px;
-    margin: 0 auto 4rem;
+    margin: 0 auto 8rem;
 }
 
 .results-meta {

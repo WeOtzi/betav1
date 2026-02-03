@@ -12,7 +12,7 @@ const archiver = require('archiver');
 const fs = require('fs-extra');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4545;
 
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
@@ -698,6 +698,11 @@ app.get('/api/admin/backup-tables', (req, res) => {
     res.json({ success: true, tables });
 });
 
+// Redirect root to quotation page
+app.get('/', (req, res) => {
+    res.redirect('/quotation');
+});
+
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -766,6 +771,7 @@ app.listen(PORT, () => {
     console.log('╚════════════════════════════════════════════╝');
     console.log('');
     console.log(`  Local:   http://localhost:${PORT}`);
+    console.log(`  Domain:  https://beta.weotzi.com`);
     console.log('');
     console.log('  Routes available:');
     console.log('  ─────────────────────────────────────────');

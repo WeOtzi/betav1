@@ -3291,7 +3291,7 @@ async function submitQuotation() {
 
         // 3. Fetch Next Steps content from app_settings
         let nextStepsContent = '<p><strong>1. Revisa tu correo</strong><br>El artista recibira tu solicitud y te contactara pronto.</p><p><strong>2. Prepara tus referencias</strong><br>Si tienes mas imagenes de inspiracion, tenlas listas para compartir.</p><p><strong>3. Agenda tu cita</strong><br>Una vez confirmes los detalles con el artista, agenda tu sesion.</p>';
-        let websiteUrl = 'https://weotzi.com';
+        let websiteUrl = 'https://beta.weotzi.com';
         
         if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
             try {
@@ -3423,7 +3423,7 @@ function goToClientRegistration() {
 async function showSuccessWithoutAccount() {
     // Fetch Next Steps content from app_settings
     let nextStepsContent = '<p><strong>1. Revisa tu correo</strong><br>El artista recibira tu solicitud y te contactara pronto.</p><p><strong>2. Prepara tus referencias</strong><br>Si tienes mas imagenes de inspiracion, tenlas listas para compartir.</p><p><strong>3. Agenda tu cita</strong><br>Una vez confirmes los detalles con el artista, agenda tu sesion.</p>';
-    let websiteUrl = 'https://weotzi.com';
+    let websiteUrl = 'https://beta.weotzi.com';
     
     if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
         try {

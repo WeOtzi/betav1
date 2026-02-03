@@ -39,10 +39,9 @@ echo   Git repository initialized successfully!
 echo ============================================
 echo.
 echo Next steps:
-echo 1. Go to https://github.com/new and create a new empty repository
-echo 2. Run these commands (replace YOUR_USERNAME and YOUR_REPO_NAME):
+echo Run these commands to push to GitHub:
 echo.
-echo    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+echo    git remote add origin https://github.com/WeOtzi/betav1.git
 echo    git branch -M main
 echo    git push -u origin main
 echo.
