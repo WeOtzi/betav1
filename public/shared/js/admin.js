@@ -114,7 +114,8 @@ function showSection(sectionId) {
         'database': 'Base de Datos',
         'routes': 'Gestion de Rutas',
         'backup': 'Backup y Restauracion',
-        'support': 'Usuarios de Soporte'
+        'support': 'Usuarios de Soporte',
+        'events': 'Eventos y Webhooks'
     };
     document.getElementById('section-title').textContent = titles[sectionId];
 
@@ -137,6 +138,8 @@ function showSection(sectionId) {
         loadBackupSection();
     } else if (sectionId === 'support') {
         loadSupportUsers();
+    } else if (sectionId === 'events') {
+        loadN8NEvents();
     }
 }
 
@@ -4579,6 +4582,208 @@ window.editSupportUser = editSupportUser;
 window.saveSupportUser = saveSupportUser;
 window.toggleSupportUserStatus = toggleSupportUserStatus;
 window.sendPasswordResetEmail = sendPasswordResetEmail;
+
+// ============ N8N EVENTS / WEBHOOKS SECTION ============
+
+/**
+ * Load n8n events configuration and render the table
+ */
+async function loadN8NEvents() {
+    const tbody = document.getElementById('events-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Cargando eventos...</td></tr>';
+
+    try {
+        // Wait for ConfigManager to be ready
+        if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') {
+            await window.ConfigManager.ready();
+        }
+
+        // Load events from DB or config
+        const events = await window.ConfigManager.getN8NEvents(true); // Force refresh
+
+        if (!events || events.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay eventos configurados</td></tr>';
+            return;
+        }
+
+        // Render events table
+        tbody.innerHTML = events.map(event => {
+            const statusClass = event.enabled ? 'success' : 'error';
+            const statusText = event.enabled ? 'Activo' : 'Inactivo';
+            const statusIcon = event.enabled ? 'fa-circle-check' : 'fa-circle-xmark';
+            const webhookUrlDisplay = event.webhookUrl 
+                ? `<code style="font-size: 0.75rem; word-break: break-all;">${escapeHtml(event.webhookUrl)}</code>` 
+                : '<span style="opacity: 0.5;">Sin configurar</span>';
+
+            return `
+                <tr data-event-id="${event.id}">
+                    <td>
+                        <strong>${escapeHtml(event.name)}</strong>
+                        <br><small style="opacity: 0.6;">${event.id}</small>
+                    </td>
+                    <td>${escapeHtml(event.description || '-')}</td>
+                    <td style="max-width: 300px;">
+                        <div class="webhook-url-container">
+                            <input type="text" 
+                                class="form-input webhook-url-input" 
+                                id="webhook-url-${event.id}"
+                                value="${escapeHtml(event.webhookUrl || '')}"
+                                placeholder="https://n8n.example.com/webhook/..."
+                                style="font-size: 0.8rem; padding: 6px 8px;">
+                            <button class="btn btn-sm btn-secondary" 
+                                onclick="saveEventWebhookUrl('${event.id}')" 
+                                title="Guardar URL"
+                                style="padding: 6px 8px; margin-left: 4px;">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            <i class="fa-solid ${statusIcon}"></i> ${statusText}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <label class="toggle-switch" title="${event.enabled ? 'Desactivar' : 'Activar'}">
+                                <input type="checkbox" 
+                                    ${event.enabled ? 'checked' : ''} 
+                                    onchange="toggleEventEnabled('${event.id}', this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <button class="btn-icon" 
+                                onclick="testEventWebhook('${event.id}')" 
+                                title="Probar Webhook"
+                                ${!event.webhookUrl ? 'disabled' : ''}>
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error('Error loading n8n events:', err);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="empty-state" style="color: var(--error-color);">
+                    Error al cargar eventos: ${err.message}
+                </td>
+            </tr>
+        `;
+        showToast('Error al cargar eventos', 'error');
+    }
+}
+
+/**
+ * Save webhook URL for a specific event
+ * @param {string} eventId - The event ID
+ */
+async function saveEventWebhookUrl(eventId) {
+    const input = document.getElementById(`webhook-url-${eventId}`);
+    if (!input) return;
+
+    const webhookUrl = input.value.trim();
+
+    // Basic URL validation if not empty
+    if (webhookUrl && !webhookUrl.startsWith('http')) {
+        showToast('La URL debe comenzar con http:// o https://', 'error');
+        return;
+    }
+
+    showToast('Guardando...', 'info');
+
+    const result = await window.ConfigManager.updateN8NEvent(eventId, { webhookUrl });
+
+    if (result.error) {
+        showToast('Error: ' + result.error, 'error');
+    } else {
+        showToast('URL de webhook guardada', 'success');
+        // Refresh the row to update button states
+        loadN8NEvents();
+    }
+}
+
+/**
+ * Toggle event enabled/disabled status
+ * @param {string} eventId - The event ID
+ * @param {boolean} enabled - New enabled status
+ */
+async function toggleEventEnabled(eventId, enabled) {
+    showToast(enabled ? 'Activando evento...' : 'Desactivando evento...', 'info');
+
+    const result = await window.ConfigManager.updateN8NEvent(eventId, { enabled });
+
+    if (result.error) {
+        showToast('Error: ' + result.error, 'error');
+        // Revert checkbox
+        loadN8NEvents();
+    } else {
+        showToast(`Evento ${enabled ? 'activado' : 'desactivado'}`, 'success');
+        // Refresh to update status badge
+        loadN8NEvents();
+    }
+}
+
+/**
+ * Test a webhook by sending a test payload
+ * @param {string} eventId - The event ID
+ */
+async function testEventWebhook(eventId) {
+    const event = await window.ConfigManager.getN8NEvent(eventId);
+
+    if (!event) {
+        showToast('Evento no encontrado', 'error');
+        return;
+    }
+
+    if (!event.webhookUrl) {
+        showToast('No hay URL de webhook configurada', 'error');
+        return;
+    }
+
+    showToast('Enviando prueba...', 'info');
+
+    try {
+        const testPayload = {
+            test: true,
+            event_id: eventId,
+            event_name: event.name,
+            timestamp: new Date().toISOString(),
+            source: 'weotzi-admin-test',
+            data: {
+                message: 'Este es un mensaje de prueba desde el panel de administracion de We Otzi',
+                test_field: 'valor_de_prueba'
+            }
+        };
+
+        const response = await fetch(event.webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testPayload)
+        });
+
+        if (response.ok) {
+            showToast('Webhook enviado exitosamente', 'success');
+        } else {
+            showToast(`Error HTTP ${response.status}: ${response.statusText}`, 'error');
+        }
+    } catch (err) {
+        console.error('Error testing webhook:', err);
+        showToast('Error al enviar: ' + err.message, 'error');
+    }
+}
+
+// ============ N8N EVENTS EXPORTS ============
+window.loadN8NEvents = loadN8NEvents;
+window.saveEventWebhookUrl = saveEventWebhookUrl;
+window.toggleEventEnabled = toggleEventEnabled;
+window.testEventWebhook = testEventWebhook;
 
 // ============ APP CONTENT EXPORTS ============
 window.loadAppContent = loadAppContent;

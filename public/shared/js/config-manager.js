@@ -23,7 +23,37 @@ const ConfigManager = (function () {
 
         n8n: {
             webhookUrl: '',
-            driveFolderId: '1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W'
+            driveFolderId: '1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W',
+            events: [
+                {
+                    id: 'artist_registration_completed',
+                    name: 'Registro de Artista Completado',
+                    description: 'Se dispara cuando un artista completa su registro y perfil',
+                    webhookUrl: '',
+                    enabled: false
+                },
+                {
+                    id: 'client_registration_completed',
+                    name: 'Registro de Cliente Completado',
+                    description: 'Se dispara cuando un cliente crea su cuenta',
+                    webhookUrl: '',
+                    enabled: false
+                },
+                {
+                    id: 'password_reset_temp',
+                    name: 'Restablecimiento de Contrasena',
+                    description: 'Se dispara cuando un usuario solicita restablecer su contrasena (envia contrasena temporal)',
+                    webhookUrl: '',
+                    enabled: false
+                },
+                {
+                    id: 'client_quotation_submitted',
+                    name: 'Cotizacion de Cliente Enviada',
+                    description: 'Se dispara cuando un cliente completa y envia una cotizacion',
+                    webhookUrl: '',
+                    enabled: false
+                }
+            ]
         },
 
         googleDrive: {
@@ -128,6 +158,15 @@ const ConfigManager = (function () {
     // Current configuration in memory
     let currentConfig = null;
 
+    // ConfigManagerReady promise - resolves when init() completes
+    let configManagerReadyResolve;
+    const configManagerReadyPromise = new Promise(resolve => {
+        configManagerReadyResolve = resolve;
+    });
+
+    // Cached n8n events (loaded from DB or config)
+    let cachedN8NEvents = null;
+
     // ========== INITIALIZATION ==========
 
     /**
@@ -154,12 +193,29 @@ const ConfigManager = (function () {
                 console.log('✅ Configuration merged with localStorage');
             }
 
+            // Resolve the ready promise
+            if (configManagerReadyResolve) {
+                configManagerReadyResolve(currentConfig);
+            }
+
             return currentConfig;
         } catch (error) {
             console.error('❌ Error loading configuration:', error);
             currentConfig = { ...defaultConfig };
+            // Still resolve on error with default config
+            if (configManagerReadyResolve) {
+                configManagerReadyResolve(currentConfig);
+            }
             return currentConfig;
         }
+    }
+
+    /**
+     * Returns a promise that resolves when ConfigManager is ready
+     * @returns {Promise<Object>} Resolves with the current config
+     */
+    function ready() {
+        return configManagerReadyPromise;
     }
 
     /**
@@ -1279,11 +1335,209 @@ const ConfigManager = (function () {
         }
     }
 
+    // ========== N8N EVENTS - WEBHOOK DISPATCH ==========
+
+    /**
+     * Get default n8n events from config
+     * @returns {Array} Array of event objects
+     */
+    function getDefaultN8NEvents() {
+        return getValue('n8n.events', defaultConfig.n8n.events);
+    }
+
+    /**
+     * Load n8n events from Supabase app_settings
+     * Falls back to config defaults if not available
+     * @returns {Promise<Array>} Array of event objects
+     */
+    async function loadN8NEventsFromDB() {
+        // Return cached if available
+        if (cachedN8NEvents) {
+            return cachedN8NEvents;
+        }
+
+        const client = getSupabaseClient();
+        if (!client) {
+            console.warn('⚠️ Supabase not available for n8n events, using config defaults');
+            cachedN8NEvents = getDefaultN8NEvents();
+            return cachedN8NEvents;
+        }
+
+        try {
+            const { data, error } = await client
+                .from('app_settings')
+                .select('setting_value')
+                .eq('setting_key', 'n8n_events')
+                .single();
+
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    // No rows returned, use defaults
+                    console.log('ℹ️ No n8n events in DB, using config defaults');
+                    cachedN8NEvents = getDefaultN8NEvents();
+                    return cachedN8NEvents;
+                }
+                throw error;
+            }
+
+            // Parse JSON from setting_value
+            const events = JSON.parse(data.setting_value);
+            console.log('✅ n8n events loaded from DB:', events.length, 'events');
+            cachedN8NEvents = events;
+            return events;
+        } catch (err) {
+            console.error('❌ Error loading n8n events from DB:', err);
+            cachedN8NEvents = getDefaultN8NEvents();
+            return cachedN8NEvents;
+        }
+    }
+
+    /**
+     * Save n8n events to Supabase app_settings
+     * @param {Array} events - Array of event objects
+     * @returns {Promise<{error: string|null}>}
+     */
+    async function saveN8NEventsInDB(events) {
+        const client = getSupabaseClient();
+        if (!client) return { error: 'Supabase not configured' };
+
+        try {
+            const { error } = await client
+                .from('app_settings')
+                .upsert([{
+                    setting_key: 'n8n_events',
+                    setting_value: JSON.stringify(events),
+                    setting_type: 'json',
+                    description: 'n8n webhook events configuration for email notifications',
+                    is_public: true,
+                    updated_at: new Date().toISOString()
+                }], { onConflict: 'setting_key' });
+
+            if (error) throw error;
+
+            // Update cache
+            cachedN8NEvents = events;
+            console.log('✅ n8n events saved to DB');
+            return { error: null };
+        } catch (err) {
+            console.error('❌ Error saving n8n events to DB:', err);
+            return { error: err.message };
+        }
+    }
+
+    /**
+     * Get all n8n events (from cache, DB, or config)
+     * @param {boolean} forceRefresh - Force reload from DB
+     * @returns {Promise<Array>} Array of event objects
+     */
+    async function getN8NEvents(forceRefresh = false) {
+        if (forceRefresh) {
+            cachedN8NEvents = null;
+        }
+        return await loadN8NEventsFromDB();
+    }
+
+    /**
+     * Get a single n8n event by ID
+     * @param {string} eventId - The event ID
+     * @returns {Promise<Object|null>} Event object or null
+     */
+    async function getN8NEvent(eventId) {
+        const events = await getN8NEvents();
+        return events.find(e => e.id === eventId) || null;
+    }
+
+    /**
+     * Update a single n8n event and save to DB
+     * @param {string} eventId - The event ID
+     * @param {Object} updates - Object with properties to update (webhookUrl, enabled, etc.)
+     * @returns {Promise<{error: string|null}>}
+     */
+    async function updateN8NEvent(eventId, updates) {
+        const events = await getN8NEvents();
+        const eventIndex = events.findIndex(e => e.id === eventId);
+
+        if (eventIndex === -1) {
+            return { error: `Event not found: ${eventId}` };
+        }
+
+        // Merge updates
+        events[eventIndex] = { ...events[eventIndex], ...updates };
+
+        // Save to DB
+        return await saveN8NEventsInDB(events);
+    }
+
+    /**
+     * Clear the cached n8n events (forces reload on next access)
+     */
+    function clearN8NEventsCache() {
+        cachedN8NEvents = null;
+    }
+
+    /**
+     * Send an n8n webhook event
+     * Checks if event is enabled and has a webhook URL before sending
+     * @param {string} eventId - The event ID (e.g., 'artist_registration_completed')
+     * @param {Object} payload - The data payload to send
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async function sendN8NEvent(eventId, payload) {
+        try {
+            const event = await getN8NEvent(eventId);
+
+            if (!event) {
+                console.warn(`⚠️ n8n event not found: ${eventId}`);
+                return { success: false, error: `Event not found: ${eventId}` };
+            }
+
+            if (!event.enabled) {
+                console.log(`ℹ️ n8n event disabled, skipping: ${eventId}`);
+                return { success: true, skipped: true, reason: 'Event disabled' };
+            }
+
+            if (!event.webhookUrl || event.webhookUrl.trim() === '') {
+                console.warn(`⚠️ n8n event has no webhook URL: ${eventId}`);
+                return { success: false, error: 'No webhook URL configured' };
+            }
+
+            // Build the full payload with metadata
+            const fullPayload = {
+                event_id: eventId,
+                event_name: event.name,
+                timestamp: new Date().toISOString(),
+                source: 'weotzi-app',
+                data: payload
+            };
+
+            console.log(`📡 Sending n8n event: ${eventId}...`);
+
+            const response = await fetch(event.webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(fullPayload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            console.log(`✅ n8n event sent successfully: ${eventId}`);
+            return { success: true };
+        } catch (err) {
+            console.error(`❌ Error sending n8n event ${eventId}:`, err);
+            return { success: false, error: err.message };
+        }
+    }
+
     // ========== PUBLIC API ==========
 
     return {
         // Lifecycle
         init,
+        ready,
 
         // Getters
         get,
@@ -1334,6 +1588,16 @@ const ConfigManager = (function () {
         getAppSettingFromDB,
         setAppSettingInDB,
         deleteAppSettingFromDB,
+
+        // n8n Events - Webhook Dispatch
+        getDefaultN8NEvents,
+        loadN8NEventsFromDB,
+        saveN8NEventsInDB,
+        getN8NEvents,
+        getN8NEvent,
+        updateN8NEvent,
+        clearN8NEventsCache,
+        sendN8NEvent,
 
         // Reset
         reset,

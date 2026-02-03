@@ -3309,6 +3309,84 @@ async function submitQuotation() {
         // 4. Save client data for registration (before showing success)
         saveClientDataForRegistration();
 
+        // 4.5 Trigger n8n webhook to send quotation summary email to client
+        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+            try {
+                await window.ConfigManager.sendN8NEvent('client_quotation_submitted', {
+                    // Quotation info
+                    quote_id: formData.quote_id,
+                    quote_status: formData.quote_status || 'completed',
+                    created_at: new Date().toISOString(),
+                    
+                    // Client info
+                    client_name: formData.client_full_name,
+                    client_email: formData.client_email,
+                    client_whatsapp: formData.client_whatsapp || null,
+                    client_instagram: formData.client_instagram || null,
+                    client_age: formData.client_age || null,
+                    client_birth_date: formData.client_birth_date || null,
+                    client_city: formData.client_city_residence || null,
+                    client_country: formData.client_country || null,
+                    client_contact_preference: formData.client_contact_preference || null,
+                    
+                    // Artist info
+                    artist_id: formData.artist_id || null,
+                    artist_name: formData.artist_name,
+                    artist_email: formData.artist_email || null,
+                    artist_instagram: formData.artist_instagram || null,
+                    artist_styles: formData.artist_styles || [],
+                    artist_city: formData.artist_current_city || null,
+                    artist_studio: formData.artist_studio_name || null,
+                    artist_session_cost: formData.artist_session_cost_amount || null,
+                    artist_portfolio: formData.artist_portfolio || null,
+                    
+                    // Tattoo details - Location
+                    tattoo_body_part: formData.tattoo_body_part || null,
+                    tattoo_body_side: formData.tattoo_body_side || null,
+                    
+                    // Tattoo details - Design
+                    tattoo_description: formData.tattoo_idea_description || 'N/A',
+                    tattoo_size: formData.tattoo_size || null,
+                    tattoo_style: formData.tattoo_style || null,
+                    tattoo_color_type: formData.tattoo_color_type || null,
+                    
+                    // Tattoo details - References
+                    tattoo_references: formData.tattoo_references || null,
+                    reference_images_count: formData.reference_images_count || 0,
+                    
+                    // Tattoo details - Experience
+                    tattoo_is_first_tattoo: formData.tattoo_is_first_tattoo || null,
+                    tattoo_is_cover_up: formData.tattoo_is_cover_up || null,
+                    
+                    // Client preferences - Budget
+                    client_budget: formData.client_budget_amount ? `${formData.client_budget_amount} ${formData.client_budget_currency || ''}`.trim() : null,
+                    client_budget_amount: formData.client_budget_amount || null,
+                    client_budget_currency: formData.client_budget_currency || null,
+                    
+                    // Client preferences - Dates
+                    client_preferred_date: formData.client_preferred_date || null,
+                    client_flexible_dates: formData.client_flexible_dates || null,
+                    
+                    // Client preferences - Travel
+                    client_travel_willing: formData.client_travel_willing || false,
+                    city_mismatch: formData.city_mismatch_acknowledged || false,
+                    style_mismatch: formData.style_mismatch_acknowledged || false,
+                    
+                    // Medical info
+                    has_medical_conditions: formData.client_medical_boolean || false,
+                    medical_details: formData.client_medical_boolean ? formData.client_medical_details : null,
+                    client_allergies: formData.client_allergies || null,
+                    
+                    // URLs
+                    register_url: window.location.origin + '/client/register',
+                    login_url: window.location.origin + '/client/login'
+                });
+                console.log('n8n event sent: client_quotation_submitted');
+            } catch (webhookErr) {
+                console.warn('Could not send client_quotation_submitted event:', webhookErr);
+            }
+        }
+
         // 5. Show Success
         const container = document.getElementById('form-steps-container');
         // Clear history to prevent back nav

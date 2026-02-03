@@ -259,6 +259,37 @@ async function handleClientRegistration(e) {
                 console.warn('Could not auto-login:', signInError.message);
             }
             
+            // Trigger n8n webhook for client registration completed
+            if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+                try {
+                    await window.ConfigManager.sendN8NEvent('client_registration_completed', {
+                        // Account info
+                        email: email,
+                        password: password, // Included per user request
+                        user_id: authData.user?.id || null,
+                        // Profile summary
+                        full_name: name,
+                        whatsapp: whatsapp || null,
+                        birth_date: birthdate || null,
+                        age: age,
+                        instagram: instagram || null,
+                        city: city || null,
+                        // Health info
+                        health_conditions: currentClientData?.client_health_conditions || null,
+                        allergies: currentClientData?.client_allergies || null,
+                        // Quotation info if available
+                        quote_id: currentClientData?.quote_id || null,
+                        artist_name: currentClientData?.artist_name || null,
+                        // URLs
+                        dashboard_url: window.location.origin + '/client/dashboard',
+                        login_url: window.location.origin + '/client/login'
+                    });
+                    console.log('n8n event sent: client_registration_completed');
+                } catch (webhookErr) {
+                    console.warn('Could not send client_registration_completed event:', webhookErr);
+                }
+            }
+            
             // Clear quotation data from localStorage
             localStorage.removeItem('weotzi_client_registration_data');
             
@@ -488,6 +519,18 @@ async function handleGoogleLogin() {
 // Password Recovery Handler
 // ============================================
 
+/**
+ * Generate a random temporary password
+ */
+function generateTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
 async function handlePasswordRecovery(e) {
     if (e) e.preventDefault();
     
@@ -499,18 +542,54 @@ async function handlePasswordRecovery(e) {
         return;
     }
     
+    showFormMessage('Procesando solicitud...', 'info');
+    
     try {
-        const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/client/reset-password'
+        // Generate a temporary password
+        const tempPassword = generateTempPassword();
+        
+        // Call backend to reset password
+        const response = await fetch('/api/auth/reset-temp-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email,
+                userType: 'client',
+                tempPassword: tempPassword
+            })
         });
         
-        if (error) throw error;
+        const result = await response.json();
         
-        showFormMessage('Te hemos enviado un email para restablecer tu contrasena.', 'success');
+        if (!response.ok || !result.success) {
+            if (response.status === 404) {
+                throw new Error('No encontramos una cuenta con ese email.');
+            }
+            throw new Error(result.error || 'Error al procesar la solicitud');
+        }
+        
+        // Trigger n8n webhook to send email with temp password
+        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+            try {
+                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
+                    email: email,
+                    temp_password: tempPassword,
+                    user_type: 'client',
+                    login_url: window.location.origin + '/client/login'
+                });
+                console.log('n8n event sent: password_reset_temp (client)');
+            } catch (webhookErr) {
+                console.warn('Could not send password_reset_temp event:', webhookErr);
+            }
+        }
+        
+        showFormMessage('Te hemos enviado un email con tu nueva contrasena temporal.', 'success');
         
     } catch (error) {
         console.error('Password recovery error:', error);
-        showFormMessage('Error al enviar el email de recuperacion.', 'error');
+        showFormMessage(error.message || 'Error al procesar la solicitud.', 'error');
     }
 }
 

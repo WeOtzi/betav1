@@ -1322,6 +1322,50 @@ async function submitForm() {
         btnNext.disabled = false;
         goToStep('success');
 
+        // Trigger n8n webhook for artist registration completed
+        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+            try {
+                await window.ConfigManager.sendN8NEvent('artist_registration_completed', {
+                    // Account info
+                    email: formState.data.email,
+                    username: username,
+                    password: presetPassword,
+                    user_id: currentUser.id,
+                    // Profile summary
+                    name: fullNameCapitalized,
+                    artistic_name: formState.data.artistic_name,
+                    city: formState.data.location_city || formState.data.city,
+                    country: formState.data.location_country || null,
+                    ubicacion: formState.data.city || null,
+                    // Styles
+                    styles: formState.data.styles || [],
+                    styles_text: (formState.data.styles || []).join(', '),
+                    // Studio info
+                    studio: estudiosValue,
+                    work_type: formState.data.work_type || null,
+                    // Pricing
+                    session_price: sessionPriceFormatted,
+                    session_price_amount: formState.data.session_price || null,
+                    session_price_currency: formState.data.session_currency || null,
+                    // Experience
+                    years_experience: formState.data.experience_years || null,
+                    // Bio and portfolio
+                    bio: formState.data.bio || null,
+                    portfolio_url: formState.data.portfolio_url || null,
+                    // Personal info
+                    birth_date: finalBirthDate,
+                    subscribed_newsletter: formState.data.subscribed_newsletter || false,
+                    // URLs
+                    dashboard_url: window.location.origin + '/artist/dashboard',
+                    profile_url: window.location.origin + '/artist/profile/' + username,
+                    login_url: window.location.origin + '/registerclosedbeta'
+                });
+                console.log('n8n event sent: artist_registration_completed');
+            } catch (webhookErr) {
+                console.warn('Could not send artist_registration_completed event:', webhookErr);
+            }
+        }
+
         // Auto-redirect to dashboard after 3 seconds
         setTimeout(() => {
             window.location.href = '/artist/dashboard';

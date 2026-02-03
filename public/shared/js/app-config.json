@@ -17,7 +17,37 @@
     },
     "n8n": {
         "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/8bc207a6-ee21-4150-9a92-211a68b19544",
-        "driveFolderId": "1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W"
+        "driveFolderId": "1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W",
+        "events": [
+            {
+                "id": "artist_registration_completed",
+                "name": "Registro de Artista Completado",
+                "description": "Se dispara cuando un artista completa su registro y perfil",
+                "webhookUrl": "",
+                "enabled": false
+            },
+            {
+                "id": "client_registration_completed",
+                "name": "Registro de Cliente Completado",
+                "description": "Se dispara cuando un cliente crea su cuenta",
+                "webhookUrl": "",
+                "enabled": false
+            },
+            {
+                "id": "password_reset_temp",
+                "name": "Restablecimiento de Contrasena",
+                "description": "Se dispara cuando un usuario solicita restablecer su contrasena (envia contrasena temporal)",
+                "webhookUrl": "",
+                "enabled": false
+            },
+            {
+                "id": "client_quotation_submitted",
+                "name": "Cotizacion de Cliente Enviada",
+                "description": "Se dispara cuando un cliente completa y envia una cotizacion",
+                "webhookUrl": "",
+                "enabled": false
+            }
+        ]
     },
     "googleDrive": {
         "mainFolderId": "",

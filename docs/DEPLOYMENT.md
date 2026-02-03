@@ -38,6 +38,11 @@ Esta guía detalla los pasos para desplegar la aplicación en un nuevo servidor 
 1.  **Variables de Entorno**:
     Crea un archivo `.env` en la raíz si es necesario, o configura las variables en tu proveedor de hosting.
     *   `PORT`: Puerto del servidor (Defecto: 3000).
+    *   `SUPABASE_URL`: URL del proyecto Supabase.
+    *   `SUPABASE_ANON_KEY`: Clave anonima de Supabase.
+    *   `SUPABASE_SERVICE_ROLE_KEY`: Clave de servicio para Admin API (requerida para flujo de reset de contrasena).
+
+    Para configuracion de n8n webhooks, ver [N8N_EMAIL_WEBHOOKS.md](./N8N_EMAIL_WEBHOOKS.md).
 
 2.  **Credenciales de Google**:
     Asegúrate de tener el archivo JSON de la cuenta de servicio de Google (Service Account) disponible si el despliegue lo requiere como archivo, o ten a mano las credenciales para ingresarlas en el panel de administración.

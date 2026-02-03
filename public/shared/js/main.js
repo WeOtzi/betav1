@@ -434,6 +434,18 @@ async function handleSocialLogin(provider) {
 // Password Recovery Handler
 // ============================================
 
+/**
+ * Generate a random temporary password
+ */
+function generateTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
 async function handlePasswordRecovery(e) {
     e.preventDefault();
     const emailInput = document.querySelector('.input-email');
@@ -444,20 +456,53 @@ async function handlePasswordRecovery(e) {
         return;
     }
 
+    showFormMessage('Procesando solicitud...', 'info');
+
     try {
-        // Get base URL for redirects (handles subdirectory deployments)
-        const baseUrl = window.location.origin;
-
-        const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: baseUrl + '/reset-password'
+        // Generate a temporary password
+        const tempPassword = generateTempPassword();
+        
+        // Call backend to reset password
+        const response = await fetch('/api/auth/reset-temp-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email,
+                userType: 'artist',
+                tempPassword: tempPassword
+            })
         });
+        
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+            if (response.status === 404) {
+                throw new Error('No encontramos una cuenta con ese email.');
+            }
+            throw new Error(result.error || 'Error al procesar la solicitud');
+        }
+        
+        // Trigger n8n webhook to send email with temp password
+        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+            try {
+                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
+                    email: email,
+                    temp_password: tempPassword,
+                    user_type: 'artist',
+                    login_url: window.location.origin + '/registerclosedbeta'
+                });
+                console.log('n8n event sent: password_reset_temp (artist)');
+            } catch (webhookErr) {
+                console.warn('Could not send password_reset_temp event:', webhookErr);
+            }
+        }
 
-        if (error) throw error;
-
-        showFormMessage('Te hemos enviado un email para restablecer tu contrasena.', 'success');
+        showFormMessage('Te hemos enviado un email con tu nueva contrasena temporal.', 'success');
     } catch (error) {
         console.error('Password recovery error:', error.message);
-        showFormMessage('Error al enviar el email de recuperacion.', 'error');
+        showFormMessage(error.message || 'Error al enviar el email de recuperacion.', 'error');
     }
 }
 

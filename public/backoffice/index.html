@@ -89,6 +89,10 @@
                     <i class="fa-solid fa-headset"></i>
                     <span>Usuarios Soporte</span>
                 </a>
+                <a href="#" class="nav-item" data-section="events">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Eventos/Webhooks</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -1233,6 +1237,54 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- Events/Webhooks Section (Super Admin) -->
+            <section id="section-events" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Configura los webhooks de n8n para notificaciones por email. Cada evento puede tener su propia URL de webhook y puede activarse o desactivarse individualmente.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadN8NEvents()">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="events-table">
+                        <thead>
+                            <tr>
+                                <th>Evento</th>
+                                <th>Descripcion</th>
+                                <th>Webhook URL</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-tbody">
+                            <tr>
+                                <td colspan="5" class="empty-state">
+                                    Cargando eventos...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info-card" style="margin-top: 20px;">
+                    <h4><i class="fa-solid fa-circle-info"></i> Informacion</h4>
+                    <p>Los webhooks envian datos a n8n donde puedes configurar plantillas de email personalizadas para cada evento.</p>
+                    <p>El email del remitente se configura en n8n: <strong>isai@weotzi.com</strong></p>
+                    <p style="margin-top: 10px;"><strong>Eventos disponibles:</strong></p>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li><strong>Registro de Artista Completado:</strong> Bienvenida + datos de cuenta al artista</li>
+                        <li><strong>Registro de Cliente Completado:</strong> Bienvenida + datos de cuenta al cliente</li>
+                        <li><strong>Restablecimiento de Contrasena:</strong> Contrasena temporal al usuario</li>
+                        <li><strong>Cotizacion de Cliente Enviada:</strong> Resumen de la cotizacion al cliente</li>
+                    </ul>
                 </div>
             </section>
         </main>

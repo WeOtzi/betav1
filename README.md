@@ -1,32 +1,41 @@
 # We Ötzi - Unified Web Application
 
-Aplicación web unificada para la gestión de estudios de tatuaje, combinando registro de artistas, marketplace, cotizaciones y herramientas de IA.
+Aplicacion web unificada para la gestion de estudios de tatuaje, combinando registro de artistas, marketplace, cotizaciones y herramientas de IA.
 
-## 📚 Documentación
+## Documentacion
 
-*   [**CHANGELOG.md**](docs/CHANGELOG.md): Historial de cambios y nuevas características (v1.0.0).
-*   [**TECHNICAL.md**](docs/TECHNICAL.md): Arquitectura, API y detalles técnicos.
-*   [**DEPLOYMENT.md**](docs/DEPLOYMENT.md): Guía paso a paso para desplegar en nuevos servidores.
-*   [**GOOGLE_OAUTH_SETUP.md**](docs/GOOGLE_OAUTH_SETUP.md): Configuración de Google OAuth y Drive API.
+*   [**CHANGELOG.md**](docs/CHANGELOG.md): Historial de cambios y nuevas caracteristicas (v1.0.0).
+*   [**TECHNICAL.md**](docs/TECHNICAL.md): Arquitectura, API y detalles tecnicos.
+*   [**DEPLOYMENT.md**](docs/DEPLOYMENT.md): Guia paso a paso para desplegar en nuevos servidores.
+*   [**EASYPANEL_DEPLOYMENT.md**](docs/EASYPANEL_DEPLOYMENT.md): Guia de despliegue en Easypanel (VPS con Docker).
+*   [**GOOGLE_OAUTH_SETUP.md**](docs/GOOGLE_OAUTH_SETUP.md): Configuracion de Google OAuth y Drive API.
+*   [**N8N_EMAIL_WEBHOOKS.md**](docs/N8N_EMAIL_WEBHOOKS.md): Integracion con n8n para envio de emails (registro, reset password, cotizaciones).
 
-## 🚀 Inicio Rápido
+## Inicio Rapido
 
 ### Requisitos
-*   Node.js 18+
+*   Node.js 20+
 *   npm
 
-### Instalación
+### Instalacion Local
 
 ```bash
 npm install
-```
-
-### Ejecución Local
-
-```bash
 npm start
 ```
-El servidor estará disponible en `http://localhost:3000`.
+El servidor estara disponible en `http://localhost:4545`.
+
+### Despliegue con Docker (Easypanel)
+
+```bash
+# Build de la imagen
+docker build -t weotzi-app .
+
+# Ejecutar contenedor
+docker run -p 4545:4545 -e NODE_ENV=production weotzi-app
+```
+
+Ver [EASYPANEL_DEPLOYMENT.md](docs/EASYPANEL_DEPLOYMENT.md) para instrucciones completas de despliegue en Easypanel.
 
 ## 🌟 Características Principales
 

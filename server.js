@@ -559,6 +559,154 @@ app.post('/api/admin/update-user-password', async (req, res) => {
 });
 
 // ============================================
+// TEMPORARY PASSWORD RESET FOR N8N EMAIL FLOW
+// ============================================
+
+/**
+ * Reset user password to a temporary password for n8n email flow
+ * This endpoint is used when users request password reset via the app
+ * POST /api/auth/reset-temp-password
+ * Body: { email, userType ('artist' | 'client'), tempPassword }
+ * 
+ * Flow:
+ * 1. Lookup user by email in artists_db or clients_db
+ * 2. Update auth password via Supabase Admin API
+ * 3. For artists, also update artists_db.password
+ * 4. Return success (caller then triggers n8n webhook)
+ */
+app.post('/api/auth/reset-temp-password', async (req, res) => {
+    const { email, userType, tempPassword } = req.body;
+    
+    // Validation
+    if (!email || !userType || !tempPassword) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Faltan parametros requeridos (email, userType, tempPassword)' 
+        });
+    }
+    
+    if (!['artist', 'client'].includes(userType)) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'userType debe ser "artist" o "client"' 
+        });
+    }
+    
+    if (tempPassword.length < 6) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'La contrasena temporal debe tener al menos 6 caracteres' 
+        });
+    }
+    
+    // Get Supabase credentials from environment
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+        console.error('[Auth] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Configuracion de servidor incompleta. Contacta al administrador.' 
+        });
+    }
+    
+    try {
+        // Determine which table to query
+        const tableName = userType === 'artist' ? 'artists_db' : 'clients_db';
+        
+        // Step 1: Lookup user by email
+        const lookupResponse = await fetch(`${supabaseUrl}/rest/v1/${tableName}?email=eq.${encodeURIComponent(email)}&select=user_id,email`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': serviceRoleKey,
+                'Authorization': `Bearer ${serviceRoleKey}`
+            }
+        });
+        
+        if (!lookupResponse.ok) {
+            const errorData = await lookupResponse.json();
+            console.error('[Auth] Error looking up user:', errorData);
+            throw new Error('Error al buscar usuario');
+        }
+        
+        const users = await lookupResponse.json();
+        
+        if (!users || users.length === 0) {
+            console.log(`[Auth] User not found: ${email} (type: ${userType})`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Usuario no encontrado' 
+            });
+        }
+        
+        const userId = users[0].user_id;
+        console.log(`[Auth] Found user ${email} with user_id: ${userId}`);
+        
+        // Step 2: Update auth password via Admin API
+        const authUpdateResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': serviceRoleKey,
+                'Authorization': `Bearer ${serviceRoleKey}`
+            },
+            body: JSON.stringify({
+                password: tempPassword
+            })
+        });
+        
+        const authData = await authUpdateResponse.json();
+        
+        if (!authUpdateResponse.ok) {
+            console.error('[Auth] Error updating auth password:', authData);
+            throw new Error(authData.message || authData.error || 'Error al actualizar contrasena en auth');
+        }
+        
+        console.log(`[Auth] Auth password updated for user: ${userId}`);
+        
+        // Step 3: For artists, also update artists_db.password column
+        if (userType === 'artist') {
+            const dbUpdateResponse = await fetch(`${supabaseUrl}/rest/v1/artists_db?user_id=eq.${userId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': serviceRoleKey,
+                    'Authorization': `Bearer ${serviceRoleKey}`,
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({
+                    password: tempPassword
+                })
+            });
+            
+            if (!dbUpdateResponse.ok) {
+                // Log but don't fail - auth update succeeded
+                console.warn('[Auth] Warning: Could not update artists_db.password');
+            } else {
+                console.log(`[Auth] artists_db.password updated for user: ${userId}`);
+            }
+        }
+        
+        console.log(`[Auth] Temporary password reset complete for: ${email}`);
+        
+        return res.json({
+            success: true,
+            message: 'Contrasena temporal establecida correctamente',
+            userType: userType
+        });
+        
+    } catch (error) {
+        console.error('[Auth] Error in reset-temp-password:', error.message);
+        return res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// ============================================
 // SYSTEM BACKUP - FULL BACKUP WITH INSTALLER
 // ============================================
 
@@ -698,6 +846,122 @@ app.get('/api/admin/backup-tables', (req, res) => {
     res.json({ success: true, tables });
 });
 
+// ============================================
+// DYNAMIC CONFIGURATION ENDPOINT
+// Serves app-config.json with environment variable overrides
+// This allows Easypanel to manage configuration
+// ============================================
+
+/**
+ * Serve dynamic configuration
+ * GET /shared/js/app-config.json
+ * Reads base config and overrides with environment variables
+ */
+app.get('/shared/js/app-config.json', async (req, res) => {
+    try {
+        // Read base configuration file
+        const configPath = path.join(__dirname, 'public', 'shared', 'js', 'app-config.json');
+        let config = {};
+        
+        if (await fs.pathExists(configPath)) {
+            const fileContent = await fs.readFile(configPath, 'utf8');
+            config = JSON.parse(fileContent);
+        }
+        
+        // Override with environment variables if they exist
+        // Supabase configuration
+        if (process.env.SUPABASE_URL) {
+            config.supabase = config.supabase || {};
+            config.supabase.url = process.env.SUPABASE_URL;
+        }
+        if (process.env.SUPABASE_ANON_KEY) {
+            config.supabase = config.supabase || {};
+            config.supabase.anonKey = process.env.SUPABASE_ANON_KEY;
+        }
+        if (process.env.SUPABASE_STORAGE_BUCKET) {
+            config.supabase = config.supabase || {};
+            config.supabase.storageBucket = process.env.SUPABASE_STORAGE_BUCKET;
+        }
+        
+        // Google Maps configuration
+        if (process.env.GOOGLE_MAPS_API_KEY) {
+            config.googleMaps = config.googleMaps || {};
+            config.googleMaps.apiKey = process.env.GOOGLE_MAPS_API_KEY;
+        }
+        
+        // n8n configuration
+        if (process.env.N8N_WEBHOOK_URL) {
+            config.n8n = config.n8n || {};
+            config.n8n.webhookUrl = process.env.N8N_WEBHOOK_URL;
+        }
+        if (process.env.N8N_DRIVE_FOLDER_ID) {
+            config.n8n = config.n8n || {};
+            config.n8n.driveFolderId = process.env.N8N_DRIVE_FOLDER_ID;
+        }
+        
+        // Google Drive configuration
+        if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
+            config.googleDrive = config.googleDrive || {};
+            config.googleDrive.mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+        }
+        if (process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT) {
+            config.googleDrive = config.googleDrive || {};
+            config.googleDrive.serviceAccountJson = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT;
+        }
+        
+        // EmailJS configuration
+        if (process.env.EMAILJS_SERVICE_ID) {
+            config.emailjs = config.emailjs || {};
+            config.emailjs.serviceId = process.env.EMAILJS_SERVICE_ID;
+        }
+        if (process.env.EMAILJS_TEMPLATE_ID) {
+            config.emailjs = config.emailjs || {};
+            config.emailjs.templateId = process.env.EMAILJS_TEMPLATE_ID;
+        }
+        if (process.env.EMAILJS_PUBLIC_KEY) {
+            config.emailjs = config.emailjs || {};
+            config.emailjs.publicKey = process.env.EMAILJS_PUBLIC_KEY;
+        }
+        
+        // Gemini AI configuration
+        if (process.env.GEMINI_API_KEY) {
+            config.gemini = config.gemini || {};
+            config.gemini.apiKey = process.env.GEMINI_API_KEY;
+            config.gemini.enabled = true;
+        }
+        
+        // WeOtzi configuration
+        if (process.env.WHATSAPP_NUMBER) {
+            config.weOtzi = config.weOtzi || {};
+            config.weOtzi.whatsapp = process.env.WHATSAPP_NUMBER;
+        }
+        
+        // Registration configuration
+        if (process.env.PRESET_PASSWORD) {
+            config.registration = config.registration || {};
+            config.registration.presetPassword = process.env.PRESET_PASSWORD;
+        }
+        
+        // Feature flags from environment
+        if (process.env.DEMO_MODE !== undefined) {
+            config.features = config.features || {};
+            config.features.demoMode = process.env.DEMO_MODE === 'true';
+        }
+        
+        // Set last modified timestamp
+        config.lastModified = new Date().toISOString();
+        
+        // Send JSON response with cache headers
+        res.set('Content-Type', 'application/json');
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.json(config);
+        
+    } catch (error) {
+        console.error('[Config] Error serving dynamic config:', error.message);
+        res.status(500).json({ error: 'Failed to load configuration' });
+    }
+});
+
 // Redirect root to quotation page
 app.get('/', (req, res) => {
     res.redirect('/quotation');
@@ -770,9 +1034,20 @@ app.listen(PORT, () => {
     console.log('║     WE ÖTZI - Unified Server Running       ║');
     console.log('╚════════════════════════════════════════════╝');
     console.log('');
-    console.log(`  Local:   http://localhost:${PORT}`);
-    console.log(`  Domain:  https://beta.weotzi.com`);
+    console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`  Port:        ${PORT}`);
+    console.log(`  Local:       http://localhost:${PORT}`);
     console.log('');
+    
+    // Log configuration status
+    console.log('  Configuration Status:');
+    console.log('  ─────────────────────────────────────────');
+    console.log(`  Supabase:     ${process.env.SUPABASE_URL ? 'Configured (env)' : 'Using file config'}`);
+    console.log(`  Google Maps:  ${process.env.GOOGLE_MAPS_API_KEY ? 'Configured (env)' : 'Using file config'}`);
+    console.log(`  n8n Webhook:  ${process.env.N8N_WEBHOOK_URL ? 'Configured (env)' : 'Using file config'}`);
+    console.log(`  Demo Mode:    ${process.env.DEMO_MODE || 'Not set (check file)'}`);
+    console.log('');
+    
     console.log('  Routes available:');
     console.log('  ─────────────────────────────────────────');
     console.log(`  /registerclosedbeta    - Landing & Registration`);
