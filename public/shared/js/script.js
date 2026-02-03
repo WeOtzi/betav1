@@ -3388,6 +3388,7 @@ async function submitQuotation() {
         }
 
         // 5. Show Success
+        hideToastMessage(); // Hide any city mismatch or other toast notifications
         const container = document.getElementById('form-steps-container');
         // Clear history to prevent back nav
         historyStack = [];
