@@ -15,6 +15,7 @@
 
 /* [CH-15] Global zoom scaling */
 html {
+    height: 100%;
     font-size: calc(var(--zoom-factor) * 100%);
 }
 
@@ -47,12 +48,14 @@ body {
     overflow-x: hidden;
     transition: background-color var(--transition), color var(--transition);
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     padding: 2rem;
     padding-top: 75px;
-    padding-bottom: 3.5rem; /* Space for fixed footer */
+    padding-bottom: 0;
 }
 
 body::before {
@@ -82,6 +85,7 @@ body::before {
     border: var(--border-width) solid var(--fg);
     position: relative;
     background: var(--bg);
+    margin-bottom: 10vh;
 }
 
 /* Atomic building block for the grid.
@@ -403,7 +407,7 @@ body::before {
     body {
         padding: 1.5rem;
         padding-top: 75px;
-        padding-bottom: 4rem;
+        padding-bottom: 0;
     }
 
     .monolith-grid {
@@ -446,7 +450,7 @@ body::before {
     body {
         padding: 0.75rem;
         padding-top: 75px;
-        padding-bottom: 4rem;
+        padding-bottom: 0;
     }
 
     .monolith-grid {
@@ -491,7 +495,7 @@ body::before {
     body {
         padding: 0.5rem;
         padding-top: 75px;
-        padding-bottom: 4rem;
+        padding-bottom: 0;
     }
     
     .block {
@@ -796,10 +800,9 @@ body::before {
 /* [CH-14] START: Bauhaus Footer and Social Icons
    Fixed footer at the bottom of the landing page */
 .bauhaus-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: relative;
+    width: 100%;
+    margin-top: auto;
     background: var(--fg);
     color: var(--bg);
     padding: 0.6rem 1.5rem;
@@ -862,7 +865,9 @@ body::before {
     }
 
     .footer-content {
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
         text-align: center;
     }
 

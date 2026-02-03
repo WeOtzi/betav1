@@ -264,8 +264,7 @@ main {
     width: 100%;
     max-width: var(--container-width);
     margin: 0 auto;
-    min-height: 100vh;
-    min-height: 100dvh;
+    min-height: auto;
     padding: 105px 40px 70px 40px; /* 80px header + 25px gap */
 }
 
@@ -1886,9 +1885,8 @@ textarea:focus {
     height: 50px;
     background: var(--bg);
     border-top: var(--border-width) solid var(--fg);
-    position: absolute;
-    bottom: 0;
-    left: 0;
+    position: relative;
+    margin-top: 10vh;
     z-index: 100;
     display: flex;
     align-items: center;
