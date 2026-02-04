@@ -4099,6 +4099,9 @@ async function loadAppContent() {
             websiteUrlEl.value = websiteUrl;
         }
 
+        // Load AI Profile Picture settings
+        loadAIProfileSettings();
+
         showToast('Contenido cargado', 'success');
     } catch (err) {
         console.error('Error loading app content:', err);
@@ -4180,6 +4183,70 @@ async function saveWebsiteUrl() {
     } else {
         showToast('URL guardada exitosamente', 'success');
     }
+}
+
+/**
+ * Load AI Profile Picture settings from ConfigManager
+ */
+function loadAIProfileSettings() {
+    const config = window.ConfigManager?.get();
+    if (!config || !config.aiProfilePicture) return;
+
+    const settings = config.aiProfilePicture;
+    
+    if (document.getElementById('ai-profile-enabled')) {
+        document.getElementById('ai-profile-enabled').checked = settings.enabled;
+    }
+    if (document.getElementById('ai-profile-model')) {
+        document.getElementById('ai-profile-model').value = settings.model || 'gemini-3-pro-image-preview';
+    }
+    if (document.getElementById('ai-profile-temp')) {
+        document.getElementById('ai-profile-temp').value = settings.temperature || 0.7;
+    }
+    if (document.getElementById('ai-profile-tokens')) {
+        document.getElementById('ai-profile-tokens').value = settings.maxTokens || 512;
+    }
+    if (document.getElementById('ai-profile-res')) {
+        document.getElementById('ai-profile-res').value = settings.resolution || '1K';
+    }
+    if (document.getElementById('ai-profile-filters')) {
+        document.getElementById('ai-profile-filters').value = settings.filters || 'Standard';
+    }
+    if (document.getElementById('ai-profile-prompt')) {
+        document.getElementById('ai-profile-prompt').value = settings.defaultPrompt || '';
+    }
+}
+
+/**
+ * Save AI Profile Picture settings to ConfigManager
+ */
+function saveAIProfileSettings() {
+    if (!window.ConfigManager) {
+        showToast('ConfigManager no disponible', 'error');
+        return;
+    }
+
+    const enabled = document.getElementById('ai-profile-enabled').checked;
+    const model = document.getElementById('ai-profile-model').value;
+    const temperature = parseFloat(document.getElementById('ai-profile-temp').value);
+    const maxTokens = parseInt(document.getElementById('ai-profile-tokens').value);
+    const resolution = document.getElementById('ai-profile-res').value;
+    const filters = document.getElementById('ai-profile-filters').value;
+    const defaultPrompt = document.getElementById('ai-profile-prompt').value.trim();
+
+    window.ConfigManager.update({
+        aiProfilePicture: {
+            enabled,
+            model,
+            temperature,
+            maxTokens,
+            resolution,
+            filters,
+            defaultPrompt
+        }
+    });
+
+    showToast('Configuración de IA Profile guardada', 'success');
 }
 
 /**
@@ -4789,6 +4856,8 @@ window.testEventWebhook = testEventWebhook;
 window.loadAppContent = loadAppContent;
 window.saveNextStepsContent = saveNextStepsContent;
 window.saveWebsiteUrl = saveWebsiteUrl;
+window.loadAIProfileSettings = loadAIProfileSettings;
+window.saveAIProfileSettings = saveAIProfileSettings;
 window.initContentSection = initContentSection;
 
 // ============ SUPER ADMIN EXPORTS ============

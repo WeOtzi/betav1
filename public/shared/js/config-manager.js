@@ -83,6 +83,16 @@ const ConfigManager = (function () {
             enabled: false
         },
 
+        aiProfilePicture: {
+            enabled: true,
+            model: 'gemini-3-pro-image-preview',
+            temperature: 0.7,
+            maxTokens: 512,
+            resolution: '1K',
+            filters: 'Standard',
+            defaultPrompt: 'Professional profile picture for a tattoo artist, minimalist style'
+        },
+
         app: {
             maxImages: 4,
             maxImageSizeMB: 5,

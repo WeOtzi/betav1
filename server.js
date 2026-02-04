@@ -14,6 +14,33 @@ const fs = require('fs-extra');
 const app = express();
 const PORT = process.env.PORT || 4545;
 
+// ============================================
+// STABILITY & ERROR HANDLING
+// ============================================
+
+// Global error handlers to prevent silent crashes
+process.on('uncaughtException', (err) => {
+    console.error(' [CRITICAL] Uncaught Exception:', err.message);
+    console.error(err.stack);
+    // Give PM2 a chance to restart the process cleanly
+    setTimeout(() => process.exit(1), 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error(' [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Memory monitoring
+setInterval(() => {
+    const used = process.memoryUsage();
+    if (used.heapUsed > 250 * 1024 * 1024) { // 250MB
+        console.warn(` [WARN] High memory usage: ${Math.round(used.heapUsed / 1024 / 1024)}MB. Triggering manual GC if available.`);
+        if (global.gc) {
+            global.gc();
+        }
+    }
+}, 30000);
+
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -28,7 +55,16 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
  * Body: { prompt, apiKey, model, aspectRatio, imageSize }
  */
 app.post('/api/gemini/generate-image', async (req, res) => {
-    const { prompt, apiKey, model, aspectRatio, imageSize } = req.body;
+    const { 
+        prompt, 
+        apiKey, 
+        model, 
+        aspectRatio, 
+        imageSize, 
+        temperature, 
+        maxOutputTokens, 
+        safetySettings 
+    } = req.body;
 
     if (!prompt) {
         return res.status(400).json({ success: false, error: 'Prompt is required' });
@@ -42,18 +78,28 @@ app.post('/api/gemini/generate-image', async (req, res) => {
         const targetModel = model || 'gemini-3-pro-image-preview';
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
 
+        // Note: maxOutputTokens should NOT be set for image generation
+        // Images are returned as base64 which requires many tokens
+        // Setting a low limit causes finishReason: MAX_TOKENS with empty content
         const requestBody = {
             contents: [{
                 parts: [{ text: prompt }]
             }],
             generationConfig: {
                 responseModalities: ["IMAGE"],
+                temperature: temperature !== undefined ? temperature : 0.7,
+                // Removed maxOutputTokens - not applicable for image generation
                 imageConfig: {
                     aspectRatio: aspectRatio || "1:1",
                     imageSize: imageSize || "1K" // "1K", "2K", "4K" allowed for Gemini 3 Pro
                 }
             }
         };
+
+        // Add safety settings if provided
+        if (safetySettings) {
+            requestBody.safetySettings = safetySettings;
+        }
 
         const response = await fetch(url, {
             method: 'POST',
@@ -74,6 +120,11 @@ app.post('/api/gemini/generate-image', async (req, res) => {
         const candidates = data.candidates;
         if (!candidates || candidates.length === 0) {
             throw new Error('No image candidates returned');
+        }
+
+        // Handle case where parts might be undefined (API returned different structure)
+        if (!candidates[0].content?.parts) {
+            throw new Error('API response missing image parts. The model may not support image generation or returned text instead.');
         }
 
         const part = candidates[0].content.parts.find(p => p.inlineData);

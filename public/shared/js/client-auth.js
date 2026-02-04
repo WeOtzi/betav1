@@ -683,7 +683,20 @@ async function handleOAuthCallback() {
             .maybeSingle();
         
         if (!client) {
-            // Create client profile from OAuth data
+            // Check if user is an artist first - artists should not get client profiles
+            const { data: artist } = await _supabase
+                .from('artists_db')
+                .select('user_id')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+            
+            if (artist) {
+                // User is an artist, redirect to artist dashboard
+                window.location.href = '/artist/dashboard';
+                return;
+            }
+            
+            // Not an artist - create client profile from OAuth data
             const { error: createError } = await _supabase
                 .from('clients_db')
                 .insert({

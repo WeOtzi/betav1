@@ -370,6 +370,12 @@ function setupEventListeners() {
     avatarUploadBtn.addEventListener('click', () => avatarInput.click());
     avatarInput.addEventListener('change', handleAvatarUpload);
 
+    // AI Avatar Generator
+    const avatarAiBtn = document.getElementById('avatar-ai-btn');
+    if (avatarAiBtn) {
+        avatarAiBtn.addEventListener('click', openAIAvatarModal);
+    }
+
     // Action buttons
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn.addEventListener('click', handleLogout);
@@ -697,6 +703,180 @@ async function handleProfileSave(e) {
 
 // ============================================
 // AVATAR UPLOAD
+// ============================================
+
+// ============================================
+// AI AVATAR GENERATOR
+// ============================================
+
+function openAIAvatarModal() {
+    const modal = document.getElementById('ai-avatar-modal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeAIAvatarModal() {
+    const modal = document.getElementById('ai-avatar-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        // Clear state
+        document.getElementById('ai-avatar-preview-container').style.display = 'none';
+        document.getElementById('use-ai-avatar-btn').style.display = 'none';
+        document.getElementById('ai-avatar-message').textContent = '';
+        document.getElementById('ai-avatar-prompt').value = '';
+    }
+}
+
+function closeAIAvatarModalOnOverlay(e) {
+    if (e.target.id === 'ai-avatar-modal') {
+        closeAIAvatarModal();
+    }
+}
+
+async function generateAIAvatar() {
+    const promptInput = document.getElementById('ai-avatar-prompt');
+    const prompt = promptInput.value.trim();
+    const messageEl = document.getElementById('ai-avatar-message');
+    const generateBtn = document.getElementById('generate-ai-avatar-btn');
+    const previewContainer = document.getElementById('ai-avatar-preview-container');
+    const previewImg = document.getElementById('ai-avatar-preview');
+    const useBtn = document.getElementById('use-ai-avatar-btn');
+
+    if (!prompt) {
+        messageEl.textContent = 'Por favor ingresa una descripción.';
+        messageEl.className = 'form-message error';
+        return;
+    }
+
+    const config = window.ConfigManager?.get();
+    if (!config || !config.gemini?.apiKey) {
+        messageEl.textContent = 'La configuración de IA no está disponible.';
+        messageEl.className = 'form-message error';
+        return;
+    }
+
+    messageEl.textContent = 'Generando imagen, esto puede tardar unos segundos...';
+    messageEl.className = 'form-message info';
+    generateBtn.disabled = true;
+    previewContainer.style.display = 'none';
+    useBtn.style.display = 'none';
+
+    try {
+        const aiSettings = config.aiProfilePicture || {};
+        const fullPrompt = `${aiSettings.defaultPrompt || ''}\n\nUser request: ${prompt}`;
+
+        const response = await fetch('/api/gemini/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: fullPrompt,
+                apiKey: config.gemini.apiKey,
+                model: aiSettings.model || config.gemini.model,
+                aspectRatio: "1:1",
+                imageSize: aiSettings.resolution || "1K",
+                temperature: aiSettings.temperature || 0.7,
+                maxOutputTokens: aiSettings.maxTokens || 1024,
+                safetySettings: aiSettings.filters === 'High' ? [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_LOW_AND_ABOVE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_LOW_AND_ABOVE" }
+                ] : undefined
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.error || 'Error al generar imagen');
+
+        previewImg.src = data.image;
+        previewContainer.style.display = 'block';
+        useBtn.style.display = 'block';
+        messageEl.textContent = '¡Imagen generada con éxito!';
+        messageEl.className = 'form-message success';
+
+    } catch (error) {
+        console.error('AI Generation Error:', error);
+        messageEl.textContent = 'Error: ' + error.message;
+        messageEl.className = 'form-message error';
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
+
+async function useAIAvatar() {
+    const previewImg = document.getElementById('ai-avatar-preview');
+    const base64Data = previewImg.src;
+    
+    if (!base64Data.startsWith('data:image/')) return;
+
+    const messageEl = document.getElementById('ai-avatar-message');
+    const useBtn = document.getElementById('use-ai-avatar-btn');
+    
+    messageEl.textContent = 'Subiendo imagen a tu perfil...';
+    messageEl.className = 'form-message info';
+    useBtn.disabled = true;
+
+    try {
+        // Convert base64 to blob
+        const res = await fetch(base64Data);
+        const blob = await res.blob();
+        
+        // Generate unique filename
+        const fileName = `ai-avatar-${Date.now()}.png`;
+        const filePath = `${currentUser.id}/${fileName}`;
+
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await _supabase.storage
+            .from('profile-pictures')
+            .upload(filePath, blob, {
+                cacheControl: '3600',
+                upsert: true,
+                contentType: 'image/png'
+            });
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: urlData } = _supabase.storage
+            .from('profile-pictures')
+            .getPublicUrl(filePath);
+
+        const publicUrl = urlData.publicUrl;
+
+        // Update artist record
+        const { error: updateError } = await _supabase
+            .from('artists_db')
+            .update({ profile_picture: publicUrl })
+            .eq('user_id', currentUser.id);
+
+        if (updateError) throw updateError;
+
+        // Update UI
+        const avatarImg = document.getElementById('avatar-image');
+        avatarImg.src = publicUrl;
+        avatarImg.classList.add('loaded');
+        artistData.profile_picture = publicUrl;
+
+        showStatusMessage('Foto de perfil actualizada con IA.', 'success');
+        closeAIAvatarModal();
+        
+        if (typeof checkProfileCompletion === 'function') {
+            checkProfileCompletion();
+        }
+
+    } catch (error) {
+        console.error('Error saving AI avatar:', error);
+        messageEl.textContent = 'Error al guardar la imagen: ' + error.message;
+        messageEl.className = 'form-message error';
+    } finally {
+        useBtn.disabled = false;
+    }
+}
+
 // ============================================
 
 async function handleAvatarUpload(e) {
@@ -1631,3 +1811,10 @@ async function deleteGalleryEditImage(index) {
         showStatusMessage('Error al eliminar la imagen.', 'error');
     }
 }
+
+// Global exports
+window.openAIAvatarModal = openAIAvatarModal;
+window.closeAIAvatarModal = closeAIAvatarModal;
+window.closeAIAvatarModalOnOverlay = closeAIAvatarModalOnOverlay;
+window.generateAIAvatar = generateAIAvatar;
+window.useAIAvatar = useAIAvatar;

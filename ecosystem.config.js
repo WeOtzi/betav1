@@ -13,15 +13,19 @@ module.exports = {
       NODE_ENV: 'production'
     },
     
-    // Restart behavior
+    // Restart behavior - MORE RESILIENT
     autorestart: true,
-    max_restarts: 3,           // Max 3 restarts before stopping
-    min_uptime: '10s',         // Consider app "started" after 10s
-    restart_delay: 5000,       // Wait 5s between restarts
+    max_restarts: 50,              // Allow many more restarts before giving up
+    min_uptime: '5s',              // Consider app "started" after 5s
+    restart_delay: 3000,           // Wait 3s between restarts
+    exp_backoff_restart_delay: 100, // Exponential backoff starting at 100ms
     
-    // Logging configuration
-    error_file: '/home/u795331143/.pm2-beta/logs/weotzi-beta-error.log',
-    out_file: '/home/u795331143/.pm2-beta/logs/weotzi-beta-out.log',
+    // Memory management - restart if memory exceeds limit
+    max_memory_restart: '300M',    // Restart if memory exceeds 300MB
+    
+    // Logging configuration - use default .pm2 directory
+    error_file: '/home/u795331143/.pm2/logs/weotzi-beta-error.log',
+    out_file: '/home/u795331143/.pm2/logs/weotzi-beta-out.log',
     log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     merge_logs: true,
     
@@ -30,6 +34,12 @@ module.exports = {
     
     // Instance settings
     instances: 1,
-    exec_mode: 'fork'
+    exec_mode: 'fork',
+    
+    // Kill timeout - wait longer before force kill
+    kill_timeout: 5000,
+    
+    // Listen timeout
+    listen_timeout: 10000
   }]
 };

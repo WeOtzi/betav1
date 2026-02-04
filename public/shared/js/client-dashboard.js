@@ -115,7 +115,20 @@ async function checkDashboardAuth() {
             .maybeSingle();
         
         if (!client) {
-            // Maybe they logged in via OAuth and need a profile
+            // Check if user is an artist first - artists should not access client dashboard
+            const { data: artist } = await _supabase
+                .from('artists_db')
+                .select('user_id')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+            
+            if (artist) {
+                // User is an artist, redirect to artist dashboard
+                window.location.href = '/artist/dashboard';
+                return;
+            }
+            
+            // Not an artist - maybe they logged in via OAuth and need a profile
             const { error: createError } = await _supabase
                 .from('clients_db')
                 .insert({
