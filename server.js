@@ -3,9 +3,11 @@
 // Express server for local development
 // ============================================
 
+// Load environment variables from .env file
+try { require('dotenv').config(); } catch (e) { /* dotenv not installed, using system env */ }
+
 const express = require('express');
 const path = require('path');
-const { google } = require('googleapis');
 const fetch = require('node-fetch');
 const { Readable } = require('stream');
 const archiver = require('archiver');
@@ -13,6 +15,15 @@ const fs = require('fs-extra');
 
 const app = express();
 const PORT = process.env.PORT || 4545;
+let googleApiModule = null;
+
+function getGoogleApisModule() {
+    if (!googleApiModule) {
+        // Lazy-load to avoid blocking server boot on heavy module initialization.
+        googleApiModule = require('googleapis');
+    }
+    return googleApiModule;
+}
 
 // ============================================
 // STABILITY & ERROR HANDLING
@@ -167,6 +178,8 @@ function getGoogleDriveClient(credentials) {
             console.error('Invalid credentials: missing client_email or private_key');
             return null;
         }
+
+        const { google } = getGoogleApisModule();
         
         const auth = new google.auth.GoogleAuth({
             credentials,
@@ -758,6 +771,106 @@ app.post('/api/auth/reset-temp-password', async (req, res) => {
 });
 
 // ============================================
+// TATTOO STYLES - ENSURE / CREATE
+// ============================================
+
+/**
+ * Ensure a tattoo style exists in tattoo_styles.
+ * If a matching row (accent/case-insensitive) already exists, return it.
+ * Otherwise insert a new top-level style and return it.
+ * POST /api/tattoo-styles/ensure
+ * Body: { name: string }
+ */
+app.post('/api/tattoo-styles/ensure', async (req, res) => {
+    const { name } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ success: false, error: 'name is required' });
+    }
+
+    const trimmed = name.trim();
+    if (trimmed.length > 100) {
+        return res.status(400).json({ success: false, error: 'name must be 100 characters or fewer' });
+    }
+
+    let supabaseUrl = process.env.SUPABASE_URL;
+    let apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !apiKey) {
+        try {
+            const configPath = path.join(__dirname, 'public', 'shared', 'js', 'app-config.json');
+            if (fs.pathExistsSync(configPath)) {
+                const cfg = fs.readJsonSync(configPath);
+                supabaseUrl = supabaseUrl || cfg.supabase?.url;
+                apiKey = apiKey || cfg.supabase?.anonKey;
+            }
+        } catch (_) { /* ignore */ }
+    }
+
+    if (!supabaseUrl || !apiKey) {
+        console.error('[Styles] Missing Supabase credentials');
+        return res.status(500).json({ success: false, error: 'Server configuration incomplete' });
+    }
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'apikey': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
+        'Prefer': 'return=representation'
+    };
+
+    try {
+        const allRes = await fetch(
+            `${supabaseUrl}/rest/v1/tattoo_styles?parent_id=is.null&select=id,name,slug,sort_order`,
+            { method: 'GET', headers }
+        );
+        if (!allRes.ok) throw new Error('Failed to fetch existing styles');
+        const existing = await allRes.json();
+
+        const normalize = (s) => s.trim().toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        const normalizedInput = normalize(trimmed);
+        const match = existing.find(s => normalize(s.name) === normalizedInput);
+
+        if (match) {
+            return res.json({ success: true, style: match, created: false });
+        }
+
+        const slug = trimmed.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+        const maxSort = existing.reduce((max, s) => Math.max(max, s.sort_order || 0), 0);
+
+        const insertRes = await fetch(`${supabaseUrl}/rest/v1/tattoo_styles`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                name: trimmed,
+                slug: slug,
+                parent_id: null,
+                sort_order: maxSort + 1,
+                substyles_display_mode: 'grouped'
+            })
+        });
+
+        if (!insertRes.ok) {
+            const err = await insertRes.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to insert style');
+        }
+
+        const [created] = await insertRes.json();
+        console.log(`[Styles] Created new style: ${created.name} (${created.id})`);
+        return res.json({ success: true, style: created, created: true });
+
+    } catch (error) {
+        console.error('[Styles] Error in ensure:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================
 // SYSTEM BACKUP - FULL BACKUP WITH INSTALLER
 // ============================================
 
@@ -1013,6 +1126,399 @@ app.get('/shared/js/app-config.json', async (req, res) => {
     }
 });
 
+// ============================================
+// JOB BOARD - ACCEPT APPLICATION ENDPOINT
+// ============================================
+
+/**
+ * Accept an artist's application to a job board request
+ * Creates a quotation in quotations_db and updates statuses
+ * POST /api/job-board/accept-application
+ * Body: { applicationId, requestId }
+ */
+app.post('/api/job-board/accept-application', async (req, res) => {
+    const { applicationId, requestId } = req.body;
+
+    if (!applicationId || !requestId) {
+        return res.status(400).json({
+            success: false,
+            error: 'applicationId and requestId are required'
+        });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({
+            success: false,
+            error: 'Server configuration incomplete'
+        });
+    }
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Prefer': 'return=representation'
+    };
+
+    try {
+        console.log(`[Job Board] Accepting application ${applicationId} for request ${requestId}`);
+
+        // 0. Authenticate: extract caller identity from Authorization header
+        const authHeader = req.headers['authorization'];
+        let callerUserId = null;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.replace('Bearer ', '');
+            try {
+                const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+                    headers: {
+                        'apikey': serviceRoleKey,
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    callerUserId = userData?.id || null;
+                }
+            } catch (authErr) {
+                console.warn('[Job Board] Auth check failed:', authErr.message);
+            }
+        }
+
+        if (!callerUserId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        // 1. Fetch the application with artist data
+        const appResponse = await fetch(
+            `${supabaseUrl}/rest/v1/job_board_applications?id=eq.${applicationId}&select=*`,
+            { headers }
+        );
+        const appData = await appResponse.json();
+        if (!appData || appData.length === 0) {
+            throw new Error('Application not found');
+        }
+        const application = appData[0];
+
+        // 1b. Race condition guard: application must still be pending
+        if (application.status !== 'pending' && application.status !== 'viewed') {
+            return res.status(409).json({
+                success: false,
+                error: `Application already ${application.status}`
+            });
+        }
+
+        // 2. Fetch the request with client data
+        const reqResponse = await fetch(
+            `${supabaseUrl}/rest/v1/job_board_requests?id=eq.${requestId}&select=*`,
+            { headers }
+        );
+        const reqData = await reqResponse.json();
+        if (!reqData || reqData.length === 0) {
+            throw new Error('Request not found');
+        }
+        const request = reqData[0];
+
+        // 2b. Verify caller owns this request
+        if (request.client_user_id !== callerUserId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Only the request owner can accept applications'
+            });
+        }
+
+        // 2c. Race condition guard: request must still be open
+        if (request.status !== 'open' && request.status !== 'in_review') {
+            return res.status(409).json({
+                success: false,
+                error: `Request already ${request.status}`
+            });
+        }
+
+        // 3. Fetch artist details
+        const artistResponse = await fetch(
+            `${supabaseUrl}/rest/v1/artists_db?user_id=eq.${application.artist_id}&select=*`,
+            { headers }
+        );
+        const artistData = await artistResponse.json();
+        const artist = artistData?.[0] || {};
+
+        // 4. Fetch client details
+        const clientResponse = await fetch(
+            `${supabaseUrl}/rest/v1/clients_db?user_id=eq.${request.client_user_id}&select=*`,
+            { headers }
+        );
+        const clientData = await clientResponse.json();
+        const client = clientData?.[0] || {};
+
+        // 5. Generate quote ID
+        const quoteId = 'QN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+        // 6. Create quotation in quotations_db
+        const quotationPayload = {
+            quote_id: quoteId,
+            quote_status: 'pending',
+            source: 'job_board',
+            job_board_request_id: request.id,
+
+            // Tattoo data from request
+            tattoo_body_part: request.tattoo_body_part,
+            tattoo_body_side: request.tattoo_body_side,
+            tattoo_idea_description: request.tattoo_idea_description,
+            tattoo_size: request.tattoo_size,
+            tattoo_style: request.tattoo_style,
+            tattoo_color_type: request.tattoo_color_type,
+            tattoo_is_first_tattoo: !!request.tattoo_is_first_tattoo,
+            tattoo_is_cover_up: !!request.tattoo_is_cover_up,
+
+            // Client data
+            client_full_name: client.full_name || '',
+            client_email: client.email || '',
+            client_whatsapp: client.whatsapp || '',
+            client_age: client.age ? String(client.age) : '',
+            client_city_residence: request.client_city || client.city_residence || '',
+            client_preferred_date: request.client_preferred_date || '',
+            client_flexible_dates: request.client_flexible_dates || '',
+            client_travel_willing: request.client_travel_willing ? 'true' : 'false',
+            client_budget_amount: request.client_budget_max ? String(request.client_budget_max) : '',
+            client_budget_currency: request.client_budget_currency || 'USD',
+            client_user_id: request.client_user_id,
+            client_instagram: client.instagram || '',
+
+            // Artist data
+            artist_id: application.artist_id,
+            artist_name: artist.name || artist.username || '',
+            artist_email: artist.email || '',
+            artist_instagram: artist.instagram || '',
+            artist_session_cost_amount: artist.session_price || '',
+            artist_styles: artist.styles_array || [],
+            artist_current_city: artist.ubicacion || artist.city || '',
+            artist_studio_name: artist.estudios || '',
+
+            // Accepted application offer
+            artist_budget_amount: application.estimated_price ? String(application.estimated_price) : '',
+            artist_budget_currency: request.client_budget_currency || 'USD',
+            tattoo_estimated_sessions: application.estimated_sessions || null,
+
+            created_at: new Date().toISOString()
+        };
+
+        const createQuoteResponse = await fetch(
+            `${supabaseUrl}/rest/v1/quotations_db`,
+            {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(quotationPayload)
+            }
+        );
+
+        if (!createQuoteResponse.ok) {
+            const err = await createQuoteResponse.json();
+            console.error('[Job Board] Error creating quotation:', err);
+            throw new Error('Failed to create quotation: ' + (err.message || JSON.stringify(err)));
+        }
+
+        console.log(`[Job Board] Created quotation ${quoteId}`);
+
+        // 7. Update accepted application
+        const updateAppResponse = await fetch(
+            `${supabaseUrl}/rest/v1/job_board_applications?id=eq.${applicationId}`,
+            {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({
+                    status: 'accepted',
+                    decided_at: new Date().toISOString()
+                })
+            }
+        );
+
+        if (!updateAppResponse.ok) {
+            console.warn('[Job Board] Warning: Could not update application status');
+        }
+
+        // 8. Reject all other pending applications
+        const rejectResponse = await fetch(
+            `${supabaseUrl}/rest/v1/job_board_applications?request_id=eq.${requestId}&id=neq.${applicationId}&status=in.(pending,viewed)`,
+            {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({
+                    status: 'rejected',
+                    decided_at: new Date().toISOString()
+                })
+            }
+        );
+
+        if (!rejectResponse.ok) {
+            console.warn('[Job Board] Warning: Could not reject other applications');
+        }
+
+        // 9. Update request status
+        const updateReqResponse = await fetch(
+            `${supabaseUrl}/rest/v1/job_board_requests?id=eq.${requestId}`,
+            {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({
+                    status: 'accepted',
+                    accepted_at: new Date().toISOString(),
+                    accepted_artist_id: application.artist_id,
+                    accepted_application_id: applicationId,
+                    resulting_quote_id: quoteId,
+                    is_public: false
+                })
+            }
+        );
+
+        if (!updateReqResponse.ok) {
+            console.warn('[Job Board] Warning: Could not update request status');
+        }
+
+        console.log(`[Job Board] Accept flow complete: application=${applicationId}, quote=${quoteId}`);
+
+        return res.json({
+            success: true,
+            quoteId,
+            message: 'Application accepted and quotation created'
+        });
+
+    } catch (error) {
+        console.error('[Job Board] Error in accept-application:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ============================================
+// CLIENT - HIDE QUOTATION ENDPOINT
+// ============================================
+
+/**
+ * Hide a quotation from the client's dashboard (soft-delete for client only).
+ * Sets client_deleted_at on the quotation row after verifying ownership.
+ * POST /api/client/quotations/:quoteId/hide
+ * Headers: Authorization: Bearer <supabase_access_token>
+ */
+app.post('/api/client/quotations/:quoteId/hide', async (req, res) => {
+    const { quoteId } = req.params;
+
+    if (!quoteId) {
+        return res.status(400).json({ success: false, error: 'quoteId is required' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ success: false, error: 'Server configuration incomplete' });
+    }
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Prefer': 'return=representation'
+    };
+
+    try {
+        // 1. Authenticate caller from Bearer token
+        const authHeader = req.headers['authorization'];
+        let callerUserId = null;
+        let callerEmail = null;
+
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.replace('Bearer ', '');
+            try {
+                const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+                    headers: {
+                        'apikey': serviceRoleKey,
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    callerUserId = userData?.id || null;
+                    callerEmail = userData?.email || null;
+                }
+            } catch (authErr) {
+                console.warn('[Client Hide] Auth check failed:', authErr.message);
+            }
+        }
+
+        if (!callerUserId) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        // 2. Fetch the quotation by quote_id
+        const quoteResponse = await fetch(
+            `${supabaseUrl}/rest/v1/quotations_db?quote_id=eq.${encodeURIComponent(quoteId)}&select=id,quote_id,client_user_id,client_email,client_deleted_at`,
+            { headers }
+        );
+        const quoteData = await quoteResponse.json();
+
+        if (!quoteData || quoteData.length === 0) {
+            return res.status(404).json({ success: false, error: 'Quotation not found' });
+        }
+
+        const quotation = quoteData[0];
+
+        // 3. Verify ownership: client_user_id must match, or client_email must match
+        let isOwner = quotation.client_user_id === callerUserId;
+
+        if (!isOwner && callerEmail && quotation.client_email &&
+            quotation.client_email.toLowerCase() === callerEmail.toLowerCase()) {
+            // Link the quotation to this client before hiding
+            await fetch(
+                `${supabaseUrl}/rest/v1/quotations_db?id=eq.${quotation.id}`,
+                {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ client_user_id: callerUserId })
+                }
+            );
+            isOwner = true;
+        }
+
+        if (!isOwner) {
+            return res.status(403).json({ success: false, error: 'You do not own this quotation' });
+        }
+
+        if (quotation.client_deleted_at) {
+            return res.json({ success: true, quoteId, message: 'Already hidden' });
+        }
+
+        // 4. Set client_deleted_at
+        const patchResponse = await fetch(
+            `${supabaseUrl}/rest/v1/quotations_db?id=eq.${quotation.id}`,
+            {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ client_deleted_at: new Date().toISOString() })
+            }
+        );
+
+        if (!patchResponse.ok) {
+            const errBody = await patchResponse.text();
+            throw new Error(`Failed to hide quotation: ${errBody}`);
+        }
+
+        console.log(`[Client Hide] Client ${callerUserId} hid quotation ${quoteId}`);
+        return res.json({ success: true, quoteId });
+
+    } catch (error) {
+        console.error('[Client Hide] Error:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Redirect root to quotation page
 app.get('/', (req, res) => {
     res.redirect('/quotation');
@@ -1120,5 +1626,10 @@ app.listen(PORT, () => {
     console.log(`  /client/login          - Client Login`);
     console.log(`  /client/register       - Client Registration`);
     console.log(`  /client/dashboard      - Client Dashboard`);
+    console.log('');
+    console.log('  Job Board:');
+    console.log('  ─────────────────────────────────────────');
+    console.log('  /job-board             - Job Board (Public Feed)');
+    console.log('  /job-board/request     - Publish Tattoo Request');
     console.log('');
 });

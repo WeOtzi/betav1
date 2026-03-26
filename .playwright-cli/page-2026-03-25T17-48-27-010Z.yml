@@ -1,0 +1,63 @@
+- generic [active] [ref=e1]:
+  - banner:
+    - generic [ref=e2]: Edición Bauhaus | Beta Cerrada
+    - generic:
+      - button "Iniciar sesion" [ref=e4] [cursor=pointer]: LOG IN
+      - generic [ref=e6]:
+        - button "Reducir zoom" [ref=e7] [cursor=pointer]: "-"
+        - button "Aumentar zoom" [ref=e8] [cursor=pointer]: +
+      - button "Cambiar modo" [ref=e10] [cursor=pointer]: Ö
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic: Bauhaus, first edition. For artists worldwide. We love you
+      - generic [ref=e13]:
+        - text: We
+        - text: Ötzi
+    - generic [ref=e16]:
+      - paragraph [ref=e17]: "[ PHASE_01: CLOSED BETA ]"
+      - paragraph [ref=e18]: We Ötzi is a modular ecosystem for digital nomads. Form follows utility. Data follows ethics.
+      - generic [ref=e19]:
+        - paragraph [ref=e20]: "Status: REC_READY"
+        - paragraph [ref=e21]: "Build: 0.9.4-Bauhaus"
+    - generic [ref=e22]:
+      - heading "Acceso Anticipado" [level=2] [ref=e23]
+      - generic [ref=e24]:
+        - textbox "TU@EMAIL.COM" [ref=e26]
+        - button "Registrarse" [ref=e27] [cursor=pointer]:
+          - text: Registrarse
+          - img [ref=e28]
+    - generic [ref=e31]:
+      - paragraph [ref=e32]: "O CONECTA CON:"
+      - button "Google" [ref=e33]
+      - button "Instagram" [ref=e34]
+      - button "Apple ID" [ref=e35]
+  - contentinfo [ref=e36]:
+    - generic [ref=e37]:
+      - paragraph [ref=e38]: Hecho con amor por We Ötzi, para artistas.
+      - generic [ref=e39]:
+        - link "Instagram" [ref=e40] [cursor=pointer]:
+          - /url: https://instagram.com/weotzi
+          - img [ref=e41]
+        - link "TikTok" [ref=e44] [cursor=pointer]:
+          - /url: https://tiktok.com/@weotzi
+          - img [ref=e45]
+        - link "X/Twitter" [ref=e47] [cursor=pointer]:
+          - /url: https://twitter.com/weotzi
+          - img [ref=e48]
+        - link "YouTube" [ref=e50] [cursor=pointer]:
+          - /url: https://youtube.com/@weotzi
+          - img [ref=e51]
+      - paragraph [ref=e54]: © 2025 We Ötzi. Todos los derechos reservados.
+  - button "Reportar problema o sugerencia" [ref=e55] [cursor=pointer]:
+    - img [ref=e56]
+  - option "Selecciona un motivo" [disabled] [selected]
+  - option "Reportar un Error"
+  - option "Sugerencia de Mejora"
+  - option "Pregunta / Duda"
+  - option "Otro"
+  - option "Selecciona el area" [disabled] [selected]
+  - option "Registro / Acceso"
+  - option "Perfil de Artista"
+  - option "Dashboard"
+  - option "Interfaz / Diseño"
+  - option "Otro"

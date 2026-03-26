@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Publica tu Solicitud de Tatuaje</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/shared/css/job-board-request.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+
+    <!-- Config & Logging -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+
+    <!-- Google Maps Places API - loaded dynamically from config -->
+    <script>
+        // Define the callback that Google Maps API expects
+        window.initGooglePlaces = function() {
+            console.log('[Job Board] Google Places API loaded');
+        };
+        function loadGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initGooglePlaces`;
+                script.async = true;
+                document.head.appendChild(script);
+            } else {
+                if (!window._googleMapsRetryCount) window._googleMapsRetryCount = 0;
+                window._googleMapsRetryCount++;
+                if (window._googleMapsRetryCount < 50) {
+                    setTimeout(loadGoogleMapsWhenReady, 100);
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadGoogleMapsWhenReady);
+    </script>
+</head>
+
+<body>
+    <!-- Bauhaus Background Shapes -->
+    <div class="bauhaus-shape shape-circle"></div>
+    <div class="bauhaus-shape shape-square"></div>
+    <div class="bauhaus-shape shape-triangle"></div>
+
+    <!-- Main Container -->
+    <main class="jb-request-container">
+
+        <!-- Header with Progress -->
+        <header class="jb-request-header">
+            <a href="/" class="jb-back-home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="3" stroke-linecap="square">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>We Otzi</span>
+            </a>
+            <div class="jb-progress-wrapper">
+                <div class="jb-progress-bar">
+                    <div class="jb-progress-fill" id="jb-progress-fill"></div>
+                </div>
+                <span class="jb-progress-label" id="jb-progress-label">01 / 05</span>
+            </div>
+        </header>
+
+        <!-- Back Button -->
+        <button type="button" class="jb-btn-back" id="jb-btn-back" style="display: none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="3" stroke-linecap="square">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Atras
+        </button>
+
+        <!-- Steps Container (rendered dynamically by JS) -->
+        <div id="steps-container" class="jb-steps-container"></div>
+
+        <!-- Navigation Footer -->
+        <footer class="jb-request-footer">
+            <div class="jb-keyboard-hint">
+                <span>Presiona</span>
+                <kbd>Enter</kbd>
+                <span>para continuar</span>
+            </div>
+            <button type="button" class="jb-btn-next" id="jb-btn-next">
+                Siguiente
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="3" stroke-linecap="square">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </button>
+        </footer>
+
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="jb-loading-overlay hidden">
+        <div class="jb-loader"></div>
+        <p>Publicando solicitud...</p>
+    </div>
+
+    <!-- Main Script -->
+    <script src="/shared/js/heic-converter.js"></script>
+    <script src="/shared/js/job-board-request.js"></script>
+</body>
+
+</html>

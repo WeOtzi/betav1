@@ -10,7 +10,7 @@
         "apiKey": "AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs"
     },
     "weOtzi": {
-        "whatsapp": "+541162079567"
+        "whatsapp": "+541127015926"
     },
     "registration": {
         "presetPassword": "OtziArtist2025"
@@ -22,30 +22,152 @@
             {
                 "id": "artist_registration_completed",
                 "name": "Registro de Artista Completado",
-                "description": "Se dispara cuando un artista completa su registro y perfil",
-                "webhookUrl": "",
-                "enabled": false
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-artist-registration",
+                "enabled": true
             },
             {
                 "id": "client_registration_completed",
                 "name": "Registro de Cliente Completado",
-                "description": "Se dispara cuando un cliente crea su cuenta",
-                "webhookUrl": "",
-                "enabled": false
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-client-registration",
+                "enabled": true
             },
             {
                 "id": "password_reset_temp",
                 "name": "Restablecimiento de Contrasena",
-                "description": "Se dispara cuando un usuario solicita restablecer su contrasena (envia contrasena temporal)",
-                "webhookUrl": "",
-                "enabled": false
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-password-reset",
+                "enabled": true
             },
             {
                 "id": "client_quotation_submitted",
                 "name": "Cotizacion de Cliente Enviada",
-                "description": "Se dispara cuando un cliente completa y envia una cotizacion",
-                "webhookUrl": "",
-                "enabled": false
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-quotation-submitted",
+                "enabled": true
+            },
+            {
+                "id": "artist_responded_quotation",
+                "name": "Artista Respondio Cotizacion",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-artist-responded",
+                "enabled": true
+            },
+            {
+                "id": "client_approved_quotation",
+                "name": "Cotizacion Aprobada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-quotation-approved",
+                "enabled": true
+            },
+            {
+                "id": "client_rejected_quotation",
+                "name": "Cotizacion Rechazada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-quotation-rejected",
+                "enabled": true
+            },
+            {
+                "id": "quotation_completed_summary",
+                "name": "Cotizacion Completada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-quotation-completed",
+                "enabled": true
+            },
+            {
+                "id": "job_board_request_created",
+                "name": "Solicitud de Job Board Creada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-job-board-confirmed",
+                "enabled": true
+            },
+            {
+                "id": "job_board_application_received",
+                "name": "Postulacion de Artista Recibida",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-job-board-application",
+                "enabled": true
+            },
+            {
+                "id": "job_board_application_accepted",
+                "name": "Postulacion Aceptada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-application-accepted",
+                "enabled": true
+            },
+            {
+                "id": "job_board_application_rejected",
+                "name": "Postulacion Rechazada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-application-rejected",
+                "enabled": true
+            },
+            {
+                "id": "chat_message_to_artist",
+                "name": "Mensaje de Chat para Artista",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-chat-artist",
+                "enabled": true
+            },
+            {
+                "id": "chat_message_to_client",
+                "name": "Mensaje de Chat para Cliente",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-chat-client",
+                "enabled": true
+            },
+            {
+                "id": "session_scheduled",
+                "name": "Sesion Agendada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-session-scheduled",
+                "enabled": true
+            },
+            {
+                "id": "session_completed",
+                "name": "Sesion Completada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-session-completed",
+                "enabled": true
+            },
+            {
+                "id": "session_rescheduled",
+                "name": "Sesion Reprogramada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-session-rescheduled",
+                "enabled": true
+            },
+            {
+                "id": "session_cancelled",
+                "name": "Sesion Cancelada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-session-cancelled",
+                "enabled": true
+            },
+            {
+                "id": "profile_verified",
+                "name": "Perfil Verificado",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-profile-verified",
+                "enabled": true
+            },
+            {
+                "id": "profile_verification_denied",
+                "name": "Verificacion Denegada",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-verification-denied",
+                "enabled": true
+            },
+            {
+                "id": "ambassador_status_updated",
+                "name": "Estado Embajador Actualizado",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-ambassador-updated",
+                "enabled": true
+            },
+            {
+                "id": "client_left_rating",
+                "name": "Cliente Califico",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-client-rating",
+                "enabled": true
+            },
+            {
+                "id": "request_rating",
+                "name": "Solicitar Calificacion",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-request-rating",
+                "enabled": true
+            },
+            {
+                "id": "admin_new_feedback",
+                "name": "Admin Nuevo Feedback",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-admin-feedback",
+                "enabled": true
+            },
+            {
+                "id": "platform_update",
+                "name": "Actualizacion de Plataforma",
+                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-platform-update",
+                "enabled": true
             }
         ]
     },
@@ -90,7 +212,9 @@
         "tutorial": "/tutorial",
         "clientLogin": "/client/login",
         "clientRegister": "/client/register",
-        "clientDashboard": "/client/dashboard"
+        "clientDashboard": "/client/dashboard",
+        "jobBoard": "/job-board",
+        "jobBoardRequest": "/job-board/request"
     },
     "infoTexts": [
         "<p>Sabemos lo difícil que es el camino del artista porque lo vivimos contigo.<br><br>Creamos We Ötzi para que, por fin, tengas un lugar que te apoye de verdad.<br><br><strong><em>Nuestra beta es gratuita y queremos que sepas que siempre lo será para ti;</em></strong> nuestra meta es ayudarte, no ser una carga más.<br><br>¿Nos acompañas y construimos esto juntos?</p>",

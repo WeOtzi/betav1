@@ -11,12 +11,10 @@ $SECURITY_TOKEN = 'Abnerisai24.';
 
 // Server paths
 $NODE_PATH = '/opt/alt/alt-nodejs22/root/usr/bin/node';
-$PM2_PATH = '/home/u795331143/node_modules/pm2/bin/pm2';
 $APP_DIR = '/home/u795331143/domains/weotzi.com/public_html/beta';
-
-// BOTH PM2 homes that might be running
-$PM2_HOME_BETA = '/home/u795331143/.pm2-beta';
-$PM2_HOME_DEFAULT = '/home/u795331143/.pm2';
+$PM2_PATH = $APP_DIR . '/node_modules/.bin/pm2';
+$PM2_HOME = '/home/u795331143/.pm2';
+$PM2_HOME_LEGACY = '/home/u795331143/.pm2-beta';
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -46,43 +44,44 @@ function runCommand($cmd, $appDir, $env = []) {
 }
 
 $results = [];
+$pathExport = "export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH";
 
-// Step 1: Delete from .pm2-beta
+// Step 1: Delete from legacy .pm2-beta (cleanup)
 $results['delete_beta'] = runCommand(
-    "PM2_HOME=$PM2_HOME_BETA $NODE_PATH $PM2_PATH delete weotzi-beta 2>&1",
+    "cd $APP_DIR && $pathExport && PM2_HOME=$PM2_HOME_LEGACY $NODE_PATH $PM2_PATH delete weotzi-beta 2>&1",
     $APP_DIR,
-    ['PM2_HOME' => $PM2_HOME_BETA]
+    ['PM2_HOME' => $PM2_HOME_LEGACY]
 );
 
-// Step 2: Kill .pm2-beta daemon
+// Step 2: Kill legacy .pm2-beta daemon
 $results['kill_beta'] = runCommand(
-    "PM2_HOME=$PM2_HOME_BETA $NODE_PATH $PM2_PATH kill 2>&1",
+    "cd $APP_DIR && $pathExport && PM2_HOME=$PM2_HOME_LEGACY $NODE_PATH $PM2_PATH kill 2>&1",
     $APP_DIR,
-    ['PM2_HOME' => $PM2_HOME_BETA]
+    ['PM2_HOME' => $PM2_HOME_LEGACY]
 );
 
-// Step 3: Delete from .pm2 (default)
+// Step 3: Delete weotzi-beta from .pm2
 $results['delete_default'] = runCommand(
-    "PM2_HOME=$PM2_HOME_DEFAULT $NODE_PATH $PM2_PATH delete weotzi-beta 2>&1",
+    "cd $APP_DIR && $pathExport && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH delete weotzi-beta 2>&1",
     $APP_DIR,
-    ['PM2_HOME' => $PM2_HOME_DEFAULT]
+    ['PM2_HOME' => $PM2_HOME]
 );
 
-// Step 4: Delete ALL from .pm2 (default)
+// Step 4: Delete ALL from .pm2
 $results['delete_all_default'] = runCommand(
-    "PM2_HOME=$PM2_HOME_DEFAULT $NODE_PATH $PM2_PATH delete all 2>&1",
+    "cd $APP_DIR && $pathExport && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH delete all 2>&1",
     $APP_DIR,
-    ['PM2_HOME' => $PM2_HOME_DEFAULT]
+    ['PM2_HOME' => $PM2_HOME]
 );
 
-// Step 5: Kill .pm2 (default) daemon
+// Step 5: Kill .pm2 daemon
 $results['kill_default'] = runCommand(
-    "PM2_HOME=$PM2_HOME_DEFAULT $NODE_PATH $PM2_PATH kill 2>&1",
+    "cd $APP_DIR && $pathExport && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH kill 2>&1",
     $APP_DIR,
-    ['PM2_HOME' => $PM2_HOME_DEFAULT]
+    ['PM2_HOME' => $PM2_HOME]
 );
 
-// Step 6: Also try to kill any remaining node server.js processes directly
+// Step 6: Kill any remaining node server.js processes directly
 $results['pkill'] = runCommand(
     "pkill -f 'node.*server.js' 2>&1 || echo 'pkill not available or no processes'",
     $APP_DIR,

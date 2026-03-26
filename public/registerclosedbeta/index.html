@@ -73,15 +73,9 @@
         </div>
         <div class="nav-row">
             <div class="nav-col">
-                <button class="login-toggle" onclick="openLoginModal()" aria-label="Iniciar sesion">
+                <button id="login-btn" class="login-toggle" onclick="openLoginModal()" aria-label="Iniciar sesion">
                     LOG IN
                 </button>
-            </div>
-            <div class="nav-col">
-                <div class="zoom-controls">
-                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-                </div>
             </div>
             <div class="nav-col">
                 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
@@ -122,6 +116,9 @@
                     </svg>
                 </button>
             </form>
+            <p class="modal-footer-text">
+                <a href="#" onclick="handlePasswordRecovery(event); return false;">Olvide mi contrasena</a>
+            </p>
             <p class="modal-footer-text">
                 No tienes cuenta? <a href="#" onclick="closeLoginModal()">Registrate arriba</a>
             </p>
@@ -265,6 +262,7 @@
         </div>
     </div>
 
+    <script src="/shared/js/artist-auth.js"></script>
     <script src="/shared/js/main.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>

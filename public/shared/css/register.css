@@ -787,6 +787,104 @@ html {
     opacity: 1;
 }
 
+/* ============================================
+   PORTFOLIO SOURCE SELECTOR
+   ============================================ */
+
+.portfolio-source-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.portfolio-source-option {
+    background: transparent;
+    border: 3px solid var(--fg);
+    padding: 1.25rem 1.5rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.portfolio-source-option::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--fg);
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.portfolio-source-option:hover {
+    background: var(--fg);
+    color: var(--bg);
+    transform: translateX(10px);
+}
+
+.portfolio-source-option:hover::before {
+    border-color: var(--bg);
+}
+
+.portfolio-source-option.selected {
+    background: var(--primary-yellow);
+    border-color: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+
+.portfolio-source-option.selected::before {
+    background: var(--fg);
+    border-color: var(--fg);
+}
+
+.portfolio-conditional-input {
+    width: 100%;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--fg);
+    animation: slideDown 0.3s ease forwards;
+}
+
+.conditional-input-label {
+    display: block;
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg);
+    margin-bottom: 0.75rem;
+}
+
+.instagram-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.instagram-prefix {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--fg);
+    padding: 0.75rem 0 0.75rem 0;
+    border-bottom: 3px solid var(--fg);
+    line-height: 1;
+}
+
+.instagram-input-row .form-input {
+    flex: 1;
+}
+
 /* Studio Name Input - Conditional Field */
 .studio-name-wrapper {
     width: 100%;
@@ -830,6 +928,78 @@ html {
 .studio-name-wrapper .form-input.error {
     border-color: var(--primary-red);
     animation: shake 0.5s ease;
+}
+
+/* Studio Autocomplete Suggestions */
+.studio-autocomplete-wrapper {
+    position: relative;
+}
+
+.studio-suggestions {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    border: 3px solid var(--fg);
+    border-top: none;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 200;
+    box-shadow: 4px 4px 0 var(--fg);
+}
+
+.studio-suggestions.visible {
+    display: block;
+}
+
+.studio-suggestion-item {
+    padding: 0.75rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--fg);
+    cursor: pointer;
+    border-bottom: 1px solid var(--fg);
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.studio-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.studio-suggestion-item:hover,
+.studio-suggestion-item.active {
+    background: var(--primary-blue);
+    color: var(--bg);
+}
+
+.studio-suggestion-item::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: var(--primary-red);
+    flex-shrink: 0;
+}
+
+.studio-suggestion-item:hover::before,
+.studio-suggestion-item.active::before {
+    background: var(--bg);
+}
+
+.studio-suggestion-new {
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.studio-suggestion-new::before {
+    background: var(--primary-yellow);
+    border-radius: 50%;
 }
 
 /* ============================================
@@ -1237,6 +1407,32 @@ kbd {
         border-width: 2px;
     }
 
+    .portfolio-source-options {
+        gap: 0.5rem;
+    }
+
+    .portfolio-source-option {
+        padding: 1rem;
+        font-size: 0.9rem;
+        border-width: 2px;
+    }
+
+    .portfolio-source-option::before {
+        width: 16px;
+        height: 16px;
+        border-width: 2px;
+    }
+
+    .portfolio-conditional-input {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+    }
+
+    .instagram-prefix {
+        font-size: 1.2rem;
+        border-bottom-width: 2px;
+    }
+
     .experience-options {
         gap: 0.5rem;
     }
@@ -1432,6 +1628,12 @@ kbd {
         font-size: 0.65rem;
     }
 
+    .portfolio-source-option {
+        padding: 0.875rem;
+        font-size: 0.85rem;
+        gap: 0.75rem;
+    }
+
     .experience-option {
         padding: 0.875rem;
         font-size: 0.85rem;
@@ -1584,60 +1786,72 @@ kbd {
 }
 
 /* ============================================
-   DATE INPUT - Bauhaus Style
+   BIRTH DATE SELECTS - Bauhaus Style
    ============================================ */
 
-.date-input-wrapper {
-    position: relative;
+.birth-date-selects {
     display: flex;
-    align-items: flex-end;
     gap: 1rem;
+    width: 100%;
 }
 
-.date-input-wrapper .date-input {
+.birth-select-group {
     flex: 1;
-    letter-spacing: 0.1em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
-.date-picker-btn {
-    flex-shrink: 0;
-    width: 56px;
+.birth-select-group:nth-child(2) {
+    flex: 1.4;
+}
+
+.birth-select-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--fg);
+    opacity: 0.5;
+}
+
+.birth-select {
+    width: 100%;
     height: 56px;
     background: var(--fg);
     color: var(--bg);
     border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0 2rem 0 1rem;
     cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23F2F0E9' stroke-width='2'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
     transition: all var(--transition);
 }
 
-.date-picker-btn:hover {
-    background: var(--primary-blue);
-    transform: scale(1.05);
+.dark-mode .birth-select {
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%230A0A0A' stroke-width='2'/%3E%3C/svg%3E");
 }
 
-.date-picker-btn:active {
-    transform: scale(0.98);
+.birth-select:focus {
+    outline: 3px solid var(--primary-red);
+    outline-offset: -3px;
 }
 
-/* Native date picker fallback styling */
-input[type="date"].date-input {
-    color-scheme: light;
+.birth-select.error {
+    outline: 3px solid var(--primary-red);
+    outline-offset: -3px;
 }
 
-.dark-mode input[type="date"].date-input {
-    color-scheme: dark;
-}
-
-input[type="date"].date-input::-webkit-calendar-picker-indicator {
-    filter: invert(0);
-    cursor: pointer;
-}
-
-.dark-mode input[type="date"].date-input::-webkit-calendar-picker-indicator {
-    filter: invert(1);
+.birth-select option {
+    font-weight: 400;
+    padding: 0.5rem;
 }
 
 /* ============================================
@@ -1879,13 +2093,15 @@ input[type="date"].date-input::-webkit-calendar-picker-indicator {
         height: 48px;
     }
 
-    .date-input-wrapper {
+    .birth-date-selects {
         flex-direction: column;
-        align-items: stretch;
     }
 
-    .date-picker-btn {
-        width: 100%;
+    .birth-select-group:nth-child(2) {
+        flex: 1;
+    }
+
+    .birth-select {
         height: 48px;
     }
 
@@ -2113,270 +2329,43 @@ input[type="date"].date-input::-webkit-calendar-picker-indicator {
 }
 
 /* ============================================
-   FLATPICKR DATE PICKER - Bauhaus Style
+   MOBILE CONTINUE BUTTON
+   Inline continue button visible only on mobile
+   for better step-by-step UX
    ============================================ */
 
-.flatpickr-calendar {
-    background: var(--bg);
-    border: 3px solid var(--fg);
-    border-radius: 0;
-    box-shadow: 8px 8px 0 var(--fg);
-    font-family: 'Inter', sans-serif;
-    width: 320px;
-}
-
-.flatpickr-calendar.arrowTop::before,
-.flatpickr-calendar.arrowTop::after,
-.flatpickr-calendar.arrowBottom::before,
-.flatpickr-calendar.arrowBottom::after {
+.mobile-continue-btn {
     display: none;
 }
 
-/* Month Navigation */
-.flatpickr-months {
-    background: var(--primary-red);
-    border-bottom: 3px solid var(--fg);
-}
-
-.flatpickr-months .flatpickr-month {
-    background: transparent;
-    color: var(--bg);
-    fill: var(--bg);
-    height: 44px;
-}
-
-.flatpickr-current-month {
-    font-weight: 900;
-    font-size: 1.1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding-top: 10px;
-}
-
-.flatpickr-current-month .flatpickr-monthDropdown-months {
-    background: transparent;
-    font-weight: 900;
-    color: var(--bg);
-    appearance: none;
-    -webkit-appearance: none;
-}
-
-.flatpickr-current-month .flatpickr-monthDropdown-months:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.flatpickr-current-month input.cur-year {
-    font-weight: 900;
-    color: var(--bg);
-}
-
-.flatpickr-months .flatpickr-prev-month,
-.flatpickr-months .flatpickr-next-month {
-    fill: var(--bg);
-    color: var(--bg);
-    padding: 10px 12px;
-}
-
-.flatpickr-months .flatpickr-prev-month:hover,
-.flatpickr-months .flatpickr-next-month:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.flatpickr-months .flatpickr-prev-month svg,
-.flatpickr-months .flatpickr-next-month svg {
-    fill: var(--bg);
-}
-
-/* Weekdays */
-.flatpickr-weekdays {
-    background: var(--bg);
-    border-bottom: 2px solid var(--fg);
-    height: 36px;
-}
-
-.flatpickr-weekday {
-    color: var(--fg);
-    font-weight: 900;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    background: transparent;
-}
-
-/* Days */
-.flatpickr-days {
-    border: none;
-}
-
-.dayContainer {
-    min-width: 100%;
-    max-width: 100%;
-}
-
-.flatpickr-day {
-    color: var(--fg);
-    font-weight: 700;
-    border-radius: 0;
-    border: 2px solid transparent;
-    max-width: 40px;
-    height: 40px;
-    line-height: 36px;
-    margin: 2px;
-}
-
-.flatpickr-day:hover {
-    background: var(--primary-blue);
-    border-color: var(--primary-blue);
-    color: var(--bg);
-}
-
-.flatpickr-day.today {
-    border-color: var(--primary-blue);
-    background: transparent;
-    color: var(--fg);
-}
-
-.flatpickr-day.today:hover {
-    background: var(--primary-blue);
-    color: var(--bg);
-}
-
-.flatpickr-day.selected,
-.flatpickr-day.selected:hover {
-    background: var(--primary-yellow);
-    border-color: var(--primary-yellow);
-    color: var(--text-on-light);
-    font-weight: 900;
-}
-
-.flatpickr-day.prevMonthDay,
-.flatpickr-day.nextMonthDay {
-    color: var(--fg);
-    opacity: 0.3;
-}
-
-.flatpickr-day.prevMonthDay:hover,
-.flatpickr-day.nextMonthDay:hover {
-    background: var(--fg);
-    color: var(--bg);
-    opacity: 1;
-}
-
-.flatpickr-day.flatpickr-disabled,
-.flatpickr-day.flatpickr-disabled:hover {
-    color: var(--fg);
-    opacity: 0.2;
-    background: transparent;
-    border-color: transparent;
-    cursor: not-allowed;
-}
-
-/* Time picker (if used) */
-.flatpickr-time {
-    border-top: 2px solid var(--fg);
-    background: var(--bg);
-}
-
-.flatpickr-time input {
-    color: var(--fg);
-    font-weight: 700;
-}
-
-.flatpickr-time .flatpickr-am-pm {
-    color: var(--fg);
-    font-weight: 700;
-}
-
-/* ============================================
-   FLATPICKR - Dark Mode
-   ============================================ */
-
-.dark-mode .flatpickr-calendar {
-    background: var(--bg);
-    border-color: var(--fg);
-    box-shadow: 8px 8px 0 var(--fg);
-}
-
-.dark-mode .flatpickr-months {
-    background: var(--primary-red);
-    border-bottom-color: var(--fg);
-}
-
-.dark-mode .flatpickr-months .flatpickr-month {
-    color: var(--bg);
-    fill: var(--bg);
-}
-
-.dark-mode .flatpickr-current-month .flatpickr-monthDropdown-months {
-    color: var(--bg);
-}
-
-.dark-mode .flatpickr-current-month input.cur-year {
-    color: var(--bg);
-}
-
-.dark-mode .flatpickr-months .flatpickr-prev-month,
-.dark-mode .flatpickr-months .flatpickr-next-month {
-    fill: var(--bg);
-    color: var(--bg);
-}
-
-.dark-mode .flatpickr-months .flatpickr-prev-month svg,
-.dark-mode .flatpickr-months .flatpickr-next-month svg {
-    fill: var(--bg);
-}
-
-.dark-mode .flatpickr-weekdays {
-    background: var(--bg);
-    border-bottom-color: var(--fg);
-}
-
-.dark-mode .flatpickr-weekday {
-    color: var(--fg);
-}
-
-.dark-mode .flatpickr-day {
-    color: var(--fg);
-}
-
-.dark-mode .flatpickr-day:hover {
-    background: var(--primary-blue);
-    border-color: var(--primary-blue);
-    color: var(--bg);
-}
-
-.dark-mode .flatpickr-day.today {
-    border-color: var(--primary-blue);
-    color: var(--fg);
-}
-
-.dark-mode .flatpickr-day.selected,
-.dark-mode .flatpickr-day.selected:hover {
-    background: var(--primary-yellow);
-    border-color: var(--primary-yellow);
-    color: var(--text-on-light);
-}
-
-.dark-mode .flatpickr-day.prevMonthDay,
-.dark-mode .flatpickr-day.nextMonthDay {
-    color: var(--fg);
-    opacity: 0.3;
-}
-
-/* Mobile adjustments for flatpickr */
 @media (max-width: 768px) {
-    .flatpickr-calendar {
-        width: 280px;
-        box-shadow: 4px 4px 0 var(--fg);
-    }
-
-    .flatpickr-day {
-        max-width: 34px;
-        height: 34px;
-        line-height: 30px;
-        margin: 1px;
-    }
-
-    .flatpickr-current-month {
+    .mobile-continue-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        width: 100%;
+        margin-top: 2rem;
+        padding: 1.1rem 2rem;
+        background: var(--primary-red);
+        color: var(--bg);
+        border: none;
+        font-family: 'Inter', sans-serif;
+        font-weight: 900;
         font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .mobile-continue-btn:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+    }
+
+    .mobile-continue-btn.submit-btn {
+        background: var(--primary-blue);
     }
 }
+

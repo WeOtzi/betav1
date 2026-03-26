@@ -6,7 +6,7 @@
     <title>WE ÖTZI | Tattoo Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/quotations.css">
     <!-- Quill.js Rich Text Editor -->
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
@@ -40,10 +40,14 @@
         </div>
         <div class="nav-row">
             <div class="nav-col">
-                <div class="zoom-controls">
-                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-                </div>
+                <button class="admin-mobile-menu-toggle" id="admin-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-mobile-menu">
+                    Menu
+                </button>
+            </div>
+            <div class="nav-col">
+                <button class="login-toggle" onclick="handleLogout()" aria-label="Cerrar sesion">
+                    LOG OUT
+                </button>
             </div>
             <div class="nav-col">
                 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
@@ -52,6 +56,13 @@
             </div>
         </div>
     </header>
+    <nav class="admin-mobile-menu" id="admin-mobile-menu" aria-label="Navegacion movil del admin panel" hidden>
+        <a href="/artist/dashboard" class="admin-mobile-menu-link">Dashboard</a>
+        <a href="/my-quotations" class="admin-mobile-menu-link is-active">Cotizaciones</a>
+        <a href="/calendar" class="admin-mobile-menu-link">Calendario</a>
+        <a href="/archive" class="admin-mobile-menu-link">Archivo</a>
+        <a href="/my-quotations/statistics" class="admin-mobile-menu-link">Estadisticas</a>
+    </nav>
 
     <div class="monolith-wrapper">
         <aside>
@@ -61,6 +72,7 @@
             <a href="/my-quotations" class="nav-item" style="background: var(--bauhaus-red);">QUOTES</a>
             <a href="/my-quotations/statistics" class="nav-item">STATS</a>
             <a href="/archive" class="nav-item">ARCHIVE</a>
+            <a href="#" class="nav-item" id="nav-applications" onclick="event.preventDefault(); showApplicationsView();">POSTULACIONES</a>
         </aside>
 
         <main>
@@ -132,6 +144,17 @@
                     <div class="loading-placeholder" style="padding: 2rem; text-align: center; font-family: 'Space Mono', monospace;">
                         LOADING_DATA...
                     </div>
+                </div>
+            </div>
+
+            <!-- Job Board Applications View -->
+            <div id="applications-view" style="display: none; padding: 2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+                    <h2 style="font-weight:900; text-transform:uppercase; font-size:1.2rem;">Mis Postulaciones</h2>
+                    <a href="/job-board" style="padding:10px 20px; background:var(--bauhaus-red,#E23E28); color:white; text-decoration:none; font-weight:900; text-transform:uppercase; font-size:0.8rem;">Ver Job Board</a>
+                </div>
+                <div id="applications-table-body">
+                    <div style="text-align:center; padding:2rem; opacity:0.5;">Cargando postulaciones...</div>
                 </div>
             </div>
 
@@ -347,6 +370,7 @@
     </div>
 
     <script src="/shared/js/shared-drawer.js"></script>
+    <script src="/shared/js/admin-mobile-menu.js"></script>
     <script src="/shared/js/quotations.js"></script>
     <script src="/shared/js/header-effects.js"></script>
 </body>

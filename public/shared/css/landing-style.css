@@ -597,49 +597,6 @@ body::before {
     }
 }
 
-/* Mobile View - Navigation */
-@media (max-width: 768px) {
-    .nav-row {
-        padding: 0.75rem;
-        gap: 0.75rem;
-    }
-}
-
-/* Small Mobile View - Navigation */
-@media (max-width: 480px) {
-    .nav-row {
-        padding: 0.5rem;
-        gap: 0.5rem;
-    }
-}
-
-/* Tablet View - Login Toggle */
-@media (max-width: 1024px) {
-    .login-toggle {
-        padding: 0.5rem 1rem;
-        font-size: 0.75rem;
-        height: 40px;
-    }
-}
-
-/* Mobile View - Login Toggle */
-@media (max-width: 768px) {
-    .login-toggle {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.7rem;
-        height: 36px;
-    }
-}
-
-/* Small Mobile View - Login Toggle */
-@media (max-width: 480px) {
-    .login-toggle {
-        padding: 0.3rem 0.6rem;
-        font-size: 0.65rem;
-        height: 32px;
-    }
-}
-
 /* [CH-08] START: Login Modal and Pop-up Styles
    Bauhaus-styled overlay and container for artist authentication */
 /* Modal Overlay */
@@ -988,16 +945,167 @@ body::before {
     }
 }
 
-/* Small Mobile View - Hide zoom */
+/* Small Mobile View */
 @media (max-width: 480px) {
-    .zoom-controls {
+    .theme-toggle {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+}
+
+/* ============================================
+   MOBILE BOTTOM NAV BAR — Bauhaus Edition
+   Reemplaza el header superior en móvil con
+   una barra inferior de bloques de color.
+   ============================================ */
+@media (max-width: 768px) {
+    /* Colapsar header superior visualmente */
+    .top-nav-header {
+        background: transparent !important;
+        border-bottom: none !important;
+        pointer-events: none;
+        padding: 0;
+        height: 0;
+        overflow: visible;
+    }
+
+    .header-edition-info {
         display: none;
     }
 
+    /* Neutralizar animaciones de scroll en móvil */
+    .header-hidden .nav-row,
+    .header-visible .nav-row {
+        transform: none !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    /* ─── Barra inferior ─── */
+    .nav-row {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: 60px;
+        padding: 0 !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        gap: 0 !important;
+        background: var(--fg);
+        border-top: 4px solid var(--fg);
+        justify-content: stretch !important;
+        align-items: stretch !important;
+        pointer-events: auto;
+        z-index: 1002;
+        transform: none !important;
+        filter: none !important;
+        opacity: 1 !important;
+    }
+
+    /* Columnas: bloques iguales con separador */
+    .nav-col {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-right: 2px solid rgba(128, 128, 128, 0.25);
+    }
+
+    .nav-col:last-child {
+        border-right: none;
+    }
+
+    /* Zoom: ocupa todo el nav-col, dividido en - y + */
+    .zoom-controls {
+        display: flex !important;
+        width: 100%;
+        height: 100%;
+        gap: 0;
+    }
+
+    .zoom-btn {
+        flex: 1;
+        height: 100%;
+        width: auto !important;
+        border: none !important;
+        border-right: 1px solid rgba(128, 128, 128, 0.25) !important;
+        background: transparent;
+        color: var(--bg);
+        font-size: 1.2rem;
+        font-weight: 900;
+        font-family: 'JetBrains Mono', monospace;
+        padding: 0;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .zoom-btn:last-child {
+        border-right: none !important;
+    }
+
+    .zoom-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Toggle de tema: círculo amarillo Bauhaus */
     .theme-toggle {
-        width: 32px;
-        height: 32px;
-        font-size: 0.8rem;
+        background: #F4B942 !important;
+        color: #1A1A1A !important;
+        border: none !important;
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 50%;
+        font-size: 1.1rem;
+    }
+
+    .theme-toggle:hover {
+        transform: rotate(90deg) scale(1.08);
+    }
+
+    /* Botón logout: bloque rojo Bauhaus */
+    .login-toggle {
+        width: 100% !important;
+        height: 100% !important;
+        background: #E23E28 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .login-toggle:hover {
+        transform: none !important;
+        background: #c0392b !important;
+    }
+
+    /* Ajustar body: quitar padding-top, agregar padding-bottom */
+    body {
+        padding-top: 0.75rem !important;
+        padding-bottom: 70px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding-top: 0.5rem !important;
+        padding-bottom: 70px !important;
+    }
+
+    .theme-toggle {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 1rem;
     }
 }
 /* [CH-15] END */

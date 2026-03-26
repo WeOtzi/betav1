@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WE ÖTZI — Nav Mockup × 3 Opciones</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F2F0E9;
+  --fg: #0A0A0A;
+  --red: #E23E28;
+  --yellow: #F4B942;
+  --blue: #1A4B8E;
+  --border: 3px;
+  --font: 'Inter', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+}
+
+/* ── CONTROLS PANEL ── */
+.controls {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  gap: 12px;
+  background: var(--fg);
+  padding: 12px 20px;
+  border: 3px solid var(--fg);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.ctrl-btn {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--bg);
+  color: var(--fg);
+  border: 2px solid var(--bg);
+  padding: 8px 14px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+.ctrl-btn:hover { background: var(--yellow); border-color: var(--yellow); }
+.ctrl-btn.active { background: var(--red); color: var(--bg); border-color: var(--red); }
+.ctrl-sep {
+  width: 2px; background: rgba(255,255,255,0.2); margin: 0 4px;
+}
+.ctrl-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: rgba(242,240,233,0.5);
+  text-transform: uppercase;
+  align-self: center;
+  letter-spacing: 0.1em;
+}
+
+/* ── LAYOUT ── */
+.page {
+  padding-top: 80px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Simulación de contenido de página */
+.fake-content {
+  flex: 1;
+  padding: 40px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.fake-block {
+  border: 3px solid var(--fg);
+  padding: 40px 24px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  opacity: 0.25;
+}
+.fake-block.red { background: var(--red); opacity: 1; }
+.fake-block.yellow { background: var(--yellow); opacity: 1; }
+.fake-block.blue { background: var(--blue); color: var(--bg); opacity: 1; }
+
+/* ── OPTION DESCRIPTION ── */
+.option-label {
+  position: fixed;
+  top: 80px;
+  left: 0;
+  right: 0;
+  background: var(--yellow);
+  border-bottom: 3px solid var(--fg);
+  padding: 10px 24px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.option-tag {
+  background: var(--fg);
+  color: var(--bg);
+  padding: 3px 10px;
+  font-size: 0.7rem;
+}
+.option-desc { opacity: 0.7; font-weight: 400; }
+
+/* ═══════════════════════════════════════════
+   OPCIÓN A — "Stark Bauhaus"
+   Botones planos tipo estampilla, inline en nav
+   ═══════════════════════════════════════════ */
+.nav-a {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 68px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--bg);
+  border-bottom: 3px solid var(--fg);
+}
+.nav-a .brand {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+.nav-a .right {
+  display: flex;
+  align-items: center;
+  gap: 0; /* Sin gap — botones comparten borde */
+}
+
+/* Botón LOG IN — relleno rojo */
+.btn-login-a {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--red);
+  color: var(--bg);
+  border: 3px solid var(--fg);
+  padding: 0 20px;
+  height: 44px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.btn-login-a:hover { background: var(--fg); transform: translateY(-2px); }
+
+/* Botón DASHBOARD — borde azul, fondo azul */
+.btn-dash-a {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--blue);
+  color: var(--bg);
+  border: 3px solid var(--fg);
+  border-right: none;
+  padding: 0 20px;
+  height: 44px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+.btn-dash-a:hover { background: var(--fg); }
+
+/* Botón LOG OUT — fondo transparente */
+.btn-logout-a {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: transparent;
+  color: var(--fg);
+  border: 3px solid var(--fg);
+  padding: 0 20px;
+  height: 44px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.btn-logout-a:hover { background: var(--fg); color: var(--bg); }
+
+/* Zoom + Theme */
+.zoom-a {
+  display: flex;
+  align-items: center;
+  border: 3px solid var(--fg);
+  margin-right: 0;
+}
+.zoom-a button {
+  font-family: var(--mono);
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-right: 2px solid var(--fg);
+  width: 36px;
+  height: 44px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+.zoom-a button:last-child { border-right: none; }
+.zoom-a button:hover { background: var(--fg); color: var(--bg); }
+.theme-a {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--bg);
+  border: none;
+  font-weight: 900;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-left: 12px;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.theme-a:hover { transform: rotate(90deg) scale(1.1); }
+
+/* Hamburger A */
+.hamburger-a {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  background: none;
+  border: 3px solid var(--fg);
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+.hamburger-a span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--fg);
+  transition: all 0.3s;
+}
+
+/* Drawer A — overlay lateral */
+.drawer-a {
+  position: fixed;
+  top: 0; right: 0;
+  width: 280px;
+  height: 100%;
+  background: var(--bg);
+  border-left: 3px solid var(--fg);
+  z-index: 2000;
+  transform: translateX(100%);
+  transition: transform 0.4s var(--ease);
+  display: flex;
+  flex-direction: column;
+}
+.drawer-a.open { transform: translateX(0); }
+.drawer-a-header {
+  padding: 24px;
+  border-bottom: 3px solid var(--fg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.drawer-a-header span {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.drawer-close {
+  background: none;
+  border: 2px solid var(--fg);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.drawer-a-body { display: flex; flex-direction: column; flex: 1; }
+.drawer-item-a {
+  display: block;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--fg);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  color: var(--fg);
+  text-align: left;
+  text-decoration: none;
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
+}
+.drawer-item-a:hover { background: var(--fg); color: var(--bg); padding-left: 32px; }
+.drawer-item-a.red { border-left: 6px solid var(--red); }
+.drawer-item-a.blue { border-left: 6px solid var(--blue); }
+.drawer-item-a.dash { border-left: 6px solid var(--blue); background: var(--blue); color: var(--bg); }
+.drawer-item-a.dash:hover { background: var(--fg); }
+.drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,10,0.5);
+  z-index: 1999;
+  backdrop-filter: blur(2px);
+}
+.drawer-overlay.open { display: block; }
+.drawer-a-footer {
+  padding: 16px 24px;
+  border-top: 3px solid var(--fg);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  opacity: 0.4;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════
+   OPCIÓN B — "Bauhaus Modular"
+   Auth en bloque geométrico separado con acento de color
+   ═══════════════════════════════════════════ */
+.nav-b {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 68px;
+  z-index: 1000;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+  border-bottom: 3px solid var(--fg);
+}
+.nav-b-brand {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-right: 3px solid var(--fg);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+.nav-b-spacer { flex: 1; }
+.nav-b-auth {
+  display: flex;
+  align-items: stretch;
+  border-left: 3px solid var(--fg);
+}
+.nav-b-auth-label {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.4;
+  border-right: 2px solid rgba(10,10,10,0.15);
+  letter-spacing: 0.1em;
+}
+.btn-b {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  border-right: 3px solid var(--fg);
+  transition: all 0.2s var(--ease);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+.btn-b::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s var(--ease);
+}
+.btn-b:hover { background: var(--fg); color: var(--bg); }
+.btn-b:hover::after { transform: scaleX(1); }
+.btn-b.login { background: var(--red); color: var(--bg); }
+.btn-b.login:hover { background: var(--fg); }
+.btn-b.dash { background: var(--blue); color: var(--bg); }
+.btn-b.dash:hover { background: var(--fg); }
+.btn-b.last { border-right: none; }
+
+.nav-b-tools {
+  display: flex;
+  align-items: stretch;
+  border-left: 3px solid var(--fg);
+}
+.zoom-b {
+  display: flex;
+  align-items: stretch;
+}
+.zoom-b button {
+  font-family: var(--mono);
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-right: 2px solid var(--fg);
+  width: 36px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+.zoom-b button:hover { background: var(--fg); color: var(--bg); }
+.theme-b {
+  width: 44px;
+  background: var(--fg);
+  color: var(--bg);
+  border: none;
+  font-weight: 900;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-left: 3px solid var(--fg);
+}
+.theme-b:hover { transform: rotate(90deg); }
+
+/* Hamburger B */
+.hamburger-b {
+  display: none;
+  width: 68px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-left: 3px solid var(--fg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px;
+}
+.hamburger-b span {
+  display: block;
+  width: 22px;
+  height: 3px;
+  background: var(--fg);
+  transition: all 0.3s;
+}
+
+/* Panel B — slide down */
+.panel-b {
+  position: fixed;
+  top: 68px; left: 0; right: 0;
+  background: var(--bg);
+  border-bottom: 3px solid var(--fg);
+  z-index: 1998;
+  transform: translateY(-105%);
+  transition: transform 0.4s var(--ease);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.panel-b.open { transform: translateY(0); }
+.panel-b-item {
+  padding: 24px;
+  border-right: 3px solid var(--fg);
+  border-bottom: 3px solid var(--fg);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  color: var(--fg);
+  text-align: left;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.15s;
+  border-top: none;
+  border-left: none;
+}
+.panel-b-item:last-child { border-right: none; }
+.panel-b-item:hover { background: var(--fg); color: var(--bg); }
+.panel-b-item.dash-item { background: var(--blue); color: var(--bg); }
+.panel-b-item.dash-item:hover { background: var(--fg); }
+.panel-b-item.login-item { background: var(--red); color: var(--bg); }
+.panel-b-item.login-item:hover { background: var(--fg); }
+.panel-b-dot {
+  width: 10px; height: 10px;
+  background: currentColor;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   OPCIÓN C — "Bauhaus Identity Block"
+   Área de usuario expandible con nombre/avatar geométrico
+   ═══════════════════════════════════════════ */
+.nav-c {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 68px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  background: var(--bg);
+  border-bottom: 3px solid var(--fg);
+}
+.nav-c-left {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+.nav-c-accent {
+  width: 8px;
+  background: var(--red);
+  flex-shrink: 0;
+}
+.nav-c-brand {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+.nav-c-right {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+/* Auth trigger — zona de identidad clicable */
+.nav-c-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  border-left: 3px solid var(--fg);
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+.nav-c-identity:hover { background: var(--surface, rgba(10,10,10,0.04)); }
+
+/* Avatar geométrico — cuadrado de color */
+.identity-avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--blue);
+  border: 2px solid var(--fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--bg);
+  flex-shrink: 0;
+}
+.identity-avatar.guest {
+  background: transparent;
+  border-style: dashed;
+  color: var(--fg);
+}
+.identity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.identity-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.identity-role {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  opacity: 0.5;
+  letter-spacing: 0.08em;
+}
+.identity-caret {
+  width: 8px; height: 8px;
+  border-right: 2px solid var(--fg);
+  border-bottom: 2px solid var(--fg);
+  transform: rotate(45deg);
+  transition: transform 0.3s;
+  margin-top: -4px;
+}
+.nav-c-identity.open .identity-caret { transform: rotate(-135deg); margin-top: 4px; }
+
+/* Dropdown C */
+.dropdown-c {
+  position: absolute;
+  top: calc(100% + 3px);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg);
+  border: 3px solid var(--fg);
+  z-index: 2000;
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.25s var(--ease);
+  pointer-events: none;
+}
+.nav-c-identity.open .dropdown-c {
+  transform: scaleY(1);
+  pointer-events: auto;
+}
+.dropdown-c-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid var(--fg);
+  color: var(--fg);
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.dropdown-c-item:last-child { border-bottom: none; }
+.dropdown-c-item:hover { background: var(--fg); color: var(--bg); padding-left: 28px; }
+.dropdown-c-item .icon {
+  width: 20px; height: 20px;
+  border: 2px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem;
+  flex-shrink: 0;
+}
+
+.nav-c-tools {
+  display: flex;
+  align-items: stretch;
+}
+.zoom-c {
+  display: flex;
+  align-items: stretch;
+  border-left: 3px solid var(--fg);
+}
+.zoom-c button {
+  font-family: var(--mono);
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-right: 2px solid var(--fg);
+  width: 36px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+.zoom-c button:last-child { border-right: none; }
+.zoom-c button:hover { background: var(--fg); color: var(--bg); }
+.theme-c {
+  width: 44px;
+  background: var(--fg);
+  color: var(--bg);
+  border: none;
+  font-weight: 900;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-left: 3px solid var(--fg);
+}
+.theme-c:hover { transform: rotate(90deg); }
+
+/* Hamburger C */
+.hamburger-c {
+  display: none;
+  width: 68px;
+  height: 100%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-left: 3px solid var(--fg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px;
+}
+.hamburger-c span {
+  display: block;
+  width: 22px;
+  height: 3px;
+  background: var(--fg);
+  transition: all 0.3s;
+}
+
+/* Drawer C — lateral con info de usuario */
+.drawer-c {
+  position: fixed;
+  top: 0; right: 0;
+  width: 300px;
+  height: 100%;
+  background: var(--bg);
+  border-left: 3px solid var(--fg);
+  z-index: 2000;
+  transform: translateX(100%);
+  transition: transform 0.4s var(--ease);
+  display: flex;
+  flex-direction: column;
+}
+.drawer-c.open { transform: translateX(0); }
+
+/* Header del drawer con identidad */
+.drawer-c-id {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 3px solid var(--fg);
+  background: var(--blue);
+  color: var(--bg);
+}
+.drawer-c-id .identity-avatar { background: var(--bg); color: var(--blue); border-color: var(--bg); }
+.drawer-c-id .identity-name, .drawer-c-id .identity-role { color: var(--bg); }
+.drawer-c-id .identity-role { opacity: 0.7; }
+.drawer-c-close {
+  margin-left: auto;
+  background: none;
+  border: 2px solid rgba(255,255,255,0.5);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  color: var(--bg);
+  font-size: 1rem;
+  font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+}
+.drawer-c-body { display: flex; flex-direction: column; flex: 1; }
+.drawer-c-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--fg);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  color: var(--fg);
+  text-align: left;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.drawer-c-item:hover { background: var(--fg); color: var(--bg); }
+.drawer-c-item .bar {
+  width: 4px;
+  height: 24px;
+  background: var(--red);
+  flex-shrink: 0;
+}
+.drawer-c-item.dash-c .bar { background: var(--blue); }
+.drawer-c-item.logout-c .bar { background: var(--red); }
+.drawer-c-sep {
+  height: 3px;
+  background: var(--fg);
+  margin: 8px 0;
+}
+.drawer-c-footer {
+  padding: 16px 24px;
+  border-top: 3px solid var(--fg);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  opacity: 0.4;
+  text-transform: uppercase;
+}
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 768px) {
+  /* Opción A mobile */
+  .nav-a .right .btn-login-a,
+  .nav-a .right .btn-logout-a,
+  .nav-a .right .btn-dash-a,
+  .nav-a .right .zoom-a { display: none; }
+  .hamburger-a { display: flex; }
+
+  /* Opción B mobile */
+  .nav-b-auth, .nav-b-spacer, .nav-b-tools .zoom-b { display: none; }
+  .hamburger-b { display: flex; }
+  .theme-b { border-left: 3px solid var(--fg); }
+
+  /* Opción C mobile */
+  .nav-c-identity .identity-info,
+  .nav-c-identity .identity-caret,
+  .nav-c-tools .zoom-c { display: none; }
+  .hamburger-c { display: flex; }
+  .nav-c-identity { padding: 0 16px; }
+}
+
+/* ── FAKE CONTENT ── */
+.sim-page {
+  display: none;
+}
+.sim-page.active { display: block; }
+.sim-content {
+  padding: 120px 40px 80px;
+}
+.sim-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  border: 3px solid var(--fg);
+}
+.sim-cell {
+  border: 1.5px solid rgba(10,10,10,0.15);
+  padding: 48px 24px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.2;
+}
+.sim-cell.red { background: var(--red); opacity: 1; color: var(--bg); }
+.sim-cell.yellow { background: var(--yellow); opacity: 1; }
+.sim-cell.blue { background: var(--blue); opacity: 1; color: var(--bg); }
+@media (max-width: 768px) {
+  .sim-grid { grid-template-columns: 1fr; }
+  .sim-content { padding: 100px 16px 80px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ CONTROLES ══════════════ -->
+<div class="controls">
+  <span class="ctrl-label">Opción →</span>
+  <button class="ctrl-btn active" onclick="showOption('a')">A — Stark</button>
+  <button class="ctrl-btn" onclick="showOption('b')">B — Modular</button>
+  <button class="ctrl-btn" onclick="showOption('c')">C — Identity</button>
+  <div class="ctrl-sep"></div>
+  <span class="ctrl-label">Estado →</span>
+  <button class="ctrl-btn active" onclick="setAuthState('guest')" id="state-guest">Sin sesión</button>
+  <button class="ctrl-btn" onclick="setAuthState('artist')" id="state-artist">Artista</button>
+  <button class="ctrl-btn" onclick="setAuthState('client')" id="state-client">Cliente</button>
+</div>
+
+<!-- ══════════════ OPCIÓN A — STARK BAUHAUS ══════════════ -->
+<div class="sim-page active" id="page-a">
+
+  <!-- Nav A -->
+  <nav class="nav-a">
+    <div class="brand">Edición Bauhaus | Beta Cerrada</div>
+    <div class="right" id="nav-a-right">
+      <!-- JS lo llena según auth state -->
+    </div>
+  </nav>
+
+  <!-- Drawer A -->
+  <div class="drawer-overlay" id="overlay-a" onclick="closeDrawerA()"></div>
+  <div class="drawer-a" id="drawer-a">
+    <div class="drawer-a-header">
+      <span>Menú</span>
+      <button class="drawer-close" onclick="closeDrawerA()">✕</button>
+    </div>
+    <div class="drawer-a-body" id="drawer-a-body"></div>
+    <div class="drawer-a-footer">We Ötzi · Beta Cerrada 2025</div>
+  </div>
+
+  <!-- Label -->
+  <div class="option-label">
+    <span class="option-tag">Opción A</span>
+    <strong>Stark Bauhaus</strong>
+    <span class="option-desc">— Botones planos tipo estampilla, inline en barra. Drawer lateral en mobile. Sin ornamentos.</span>
+  </div>
+
+  <!-- Fake content -->
+  <div class="sim-content">
+    <div class="sim-grid">
+      <div class="sim-cell red">We Ötzi</div>
+      <div class="sim-cell yellow">◯</div>
+      <div class="sim-cell">Artistas en tu ciudad</div>
+      <div class="sim-cell">Categorías</div>
+      <div class="sim-cell blue">Conecta con el artista</div>
+      <div class="sim-cell">Galería</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ OPCIÓN B — MODULAR ══════════════ -->
+<div class="sim-page" id="page-b">
+
+  <nav class="nav-b">
+    <div class="nav-b-brand">Edición Bauhaus | Beta Cerrada</div>
+    <div class="nav-b-spacer"></div>
+    <div class="nav-b-auth" id="nav-b-auth">
+      <!-- JS llena -->
+    </div>
+    <div class="nav-b-tools">
+      <div class="zoom-b">
+        <button>−</button>
+        <button>+</button>
+      </div>
+      <button class="theme-b">Ö</button>
+    </div>
+    <button class="hamburger-b" onclick="togglePanelB()" id="ham-b">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- Panel slide-down B -->
+  <div class="panel-b" id="panel-b"></div>
+
+  <!-- Label -->
+  <div class="option-label">
+    <span class="option-tag">Opción B</span>
+    <strong>Bauhaus Modular</strong>
+    <span class="option-desc">— Auth en bloque geométrico propio, separado de herramientas. Panel grid 2×N en mobile.</span>
+  </div>
+
+  <div class="sim-content">
+    <div class="sim-grid">
+      <div class="sim-cell red">We Ötzi</div>
+      <div class="sim-cell yellow">◯</div>
+      <div class="sim-cell">Artistas en tu ciudad</div>
+      <div class="sim-cell">Categorías</div>
+      <div class="sim-cell blue">Conecta con el artista</div>
+      <div class="sim-cell">Galería</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ OPCIÓN C — IDENTITY BLOCK ══════════════ -->
+<div class="sim-page" id="page-c">
+
+  <nav class="nav-c">
+    <div class="nav-c-left">
+      <div class="nav-c-accent"></div>
+      <div class="nav-c-brand">Edición Bauhaus | Beta Cerrada</div>
+    </div>
+    <div class="nav-c-right">
+      <div class="nav-c-tools">
+        <div class="zoom-c">
+          <button>−</button>
+          <button>+</button>
+        </div>
+        <button class="theme-c">Ö</button>
+      </div>
+      <!-- Identity block -->
+      <div class="nav-c-identity" id="identity-c" onclick="toggleDropdownC(this)">
+        <div class="identity-avatar guest" id="avatar-c">?</div>
+        <div class="identity-info" id="identity-info-c">
+          <span class="identity-name">Sin sesión</span>
+          <span class="identity-role">Invitado</span>
+        </div>
+        <div class="identity-caret"></div>
+        <!-- Dropdown -->
+        <div class="dropdown-c" id="dropdown-c"></div>
+      </div>
+      <!-- Hamburger mobile -->
+      <button class="hamburger-c" onclick="toggleDrawerC()" id="ham-c">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Drawer C lateral -->
+  <div class="drawer-overlay" id="overlay-c" onclick="closeDrawerC()"></div>
+  <div class="drawer-c" id="drawer-c">
+    <div class="drawer-c-id" id="drawer-c-id">
+      <!-- JS llena -->
+    </div>
+    <div class="drawer-c-body" id="drawer-c-body"></div>
+    <div class="drawer-c-footer">We Ötzi · Beta Cerrada 2025</div>
+  </div>
+
+  <!-- Label -->
+  <div class="option-label">
+    <span class="option-tag">Opción C</span>
+    <strong>Identity Block</strong>
+    <span class="option-desc">— Bloque de identidad clicable con avatar geométrico, nombre y rol. Dropdown en desktop, drawer con header de usuario en mobile.</span>
+  </div>
+
+  <div class="sim-content">
+    <div class="sim-grid">
+      <div class="sim-cell red">We Ötzi</div>
+      <div class="sim-cell yellow">◯</div>
+      <div class="sim-cell">Artistas en tu ciudad</div>
+      <div class="sim-cell">Categorías</div>
+      <div class="sim-cell blue">Conecta con el artista</div>
+      <div class="sim-cell">Galería</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── AUTH STATE ──
+let currentAuth = 'guest';
+let currentOption = 'a';
+
+const AUTH_STATES = {
+  guest: { label: 'Sin sesión', role: 'Invitado', initial: '?', color: 'guest' },
+  artist: { label: 'Maria A.', role: 'Artista · Dashboard', initial: 'M', color: 'artist' },
+  client: { label: 'Carlos R.', role: 'Cliente · Mis citas', initial: 'C', color: 'client' },
+};
+
+function setAuthState(state) {
+  currentAuth = state;
+  document.querySelectorAll('[id^="state-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('state-' + state).classList.add('active');
+  renderAll();
+}
+
+function showOption(opt) {
+  currentOption = opt;
+  document.querySelectorAll('.sim-page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + opt).classList.add('active');
+  document.querySelectorAll('.ctrl-btn').forEach((b,i) => {
+    if (i < 3) b.classList.remove('active');
+  });
+  document.querySelector(`.ctrl-btn[onclick="showOption('${opt}')"]`).classList.add('active');
+  closeAll();
+  renderAll();
+}
+
+function closeAll() {
+  closeDrawerA(); closePanelB(); closeDrawerC();
+}
+
+// ── RENDER A ──
+function renderNavA() {
+  const right = document.getElementById('nav-a-right');
+  const body  = document.getElementById('drawer-a-body');
+  const state = AUTH_STATES[currentAuth];
+
+  // Desktop right buttons
+  let html = '';
+  let drawerHtml = '';
+
+  if (currentAuth === 'guest') {
+    html = `
+      <div class="zoom-a">
+        <button>−</button><button>+</button>
+      </div>
+      <button class="btn-login-a">Log In</button>
+      <button class="theme-a">Ö</button>
+      <button class="hamburger-a" onclick="openDrawerA()">
+        <span></span><span></span><span></span>
+      </button>`;
+    drawerHtml = `
+      <button class="drawer-item-a red">Log In</button>
+      <button class="drawer-item-a">Explorar Artistas</button>`;
+  } else if (currentAuth === 'artist') {
+    html = `
+      <div class="zoom-a">
+        <button>−</button><button>+</button>
+      </div>
+      <a href="#" class="btn-dash-a">◼ Dashboard</a>
+      <button class="btn-logout-a">Log Out</button>
+      <button class="theme-a">Ö</button>
+      <button class="hamburger-a" onclick="openDrawerA()">
+        <span></span><span></span><span></span>
+      </button>`;
+    drawerHtml = `
+      <a href="#" class="drawer-item-a dash blue">◼ Ir al Dashboard</a>
+      <button class="drawer-item-a">Explorar Artistas</button>
+      <button class="drawer-item-a red">Log Out</button>`;
+  } else {
+    html = `
+      <div class="zoom-a">
+        <button>−</button><button>+</button>
+      </div>
+      <a href="#" class="btn-dash-a" style="background:var(--yellow);color:var(--fg)">◼ Mis Citas</a>
+      <button class="btn-logout-a">Log Out</button>
+      <button class="theme-a">Ö</button>
+      <button class="hamburger-a" onclick="openDrawerA()">
+        <span></span><span></span><span></span>
+      </button>`;
+    drawerHtml = `
+      <a href="#" class="drawer-item-a" style="border-left:6px solid var(--yellow)">◼ Mis Citas</a>
+      <button class="drawer-item-a">Explorar Artistas</button>
+      <button class="drawer-item-a red">Log Out</button>`;
+  }
+
+  right.innerHTML = html;
+  body.innerHTML = drawerHtml;
+}
+
+function openDrawerA() {
+  document.getElementById('drawer-a').classList.add('open');
+  document.getElementById('overlay-a').classList.add('open');
+}
+function closeDrawerA() {
+  document.getElementById('drawer-a').classList.remove('open');
+  document.getElementById('overlay-a').classList.remove('open');
+}
+
+// ── RENDER B ──
+function renderNavB() {
+  const auth = document.getElementById('nav-b-auth');
+  const panel = document.getElementById('panel-b');
+
+  let authHtml = '';
+  let panelHtml = '';
+
+  if (currentAuth === 'guest') {
+    authHtml = `
+      <div class="nav-b-auth-label">Cuenta</div>
+      <button class="btn-b login last">Log In</button>`;
+    panelHtml = `
+      <button class="panel-b-item login-item"><div class="panel-b-dot"></div>Log In</button>
+      <div class="panel-b-item"><div class="panel-b-dot"></div>Explorar</div>`;
+  } else if (currentAuth === 'artist') {
+    authHtml = `
+      <div class="nav-b-auth-label">Artista</div>
+      <a href="#" class="btn-b dash">Dashboard</a>
+      <button class="btn-b last">Log Out</button>`;
+    panelHtml = `
+      <a href="#" class="panel-b-item dash-item"><div class="panel-b-dot"></div>Dashboard</a>
+      <button class="panel-b-item login-item"><div class="panel-b-dot"></div>Log Out</button>`;
+  } else {
+    authHtml = `
+      <div class="nav-b-auth-label">Cliente</div>
+      <a href="#" class="btn-b" style="background:var(--yellow)">Mis Citas</a>
+      <button class="btn-b last">Log Out</button>`;
+    panelHtml = `
+      <a href="#" class="panel-b-item" style="background:var(--yellow)"><div class="panel-b-dot"></div>Mis Citas</a>
+      <button class="panel-b-item login-item"><div class="panel-b-dot"></div>Log Out</button>`;
+  }
+  auth.innerHTML = authHtml;
+  panel.innerHTML = panelHtml;
+}
+
+let panelBOpen = false;
+function togglePanelB() {
+  panelBOpen = !panelBOpen;
+  document.getElementById('panel-b').classList.toggle('open', panelBOpen);
+}
+function closePanelB() {
+  panelBOpen = false;
+  document.getElementById('panel-b').classList.remove('open');
+}
+
+// ── RENDER C ──
+function renderNavC() {
+  const avatarEl = document.getElementById('avatar-c');
+  const infoEl   = document.getElementById('identity-info-c');
+  const dropEl   = document.getElementById('dropdown-c');
+  const drawerIdEl   = document.getElementById('drawer-c-id');
+  const drawerBodyEl = document.getElementById('drawer-c-body');
+
+  const state = AUTH_STATES[currentAuth];
+
+  // Avatar
+  avatarEl.textContent = state.initial;
+  avatarEl.className = 'identity-avatar' + (currentAuth === 'guest' ? ' guest' : '');
+  if (currentAuth === 'artist') avatarEl.style.background = 'var(--blue)';
+  else if (currentAuth === 'client') avatarEl.style.background = 'var(--yellow)';
+  else avatarEl.style.background = '';
+
+  // Info
+  infoEl.innerHTML = `
+    <span class="identity-name">${state.label}</span>
+    <span class="identity-role">${state.role}</span>`;
+
+  // Dropdown desktop
+  let dropHtml = '';
+  let drawerHtml = '';
+  let drawerHeaderHtml = '';
+
+  if (currentAuth === 'guest') {
+    dropHtml = `
+      <a href="#" class="dropdown-c-item"><div class="icon">→</div>Iniciar Sesión</a>`;
+    drawerHeaderHtml = `
+      <div class="identity-avatar guest" style="background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.5)">?</div>
+      <div class="identity-info">
+        <span class="identity-name" style="color:white">Sin Sesión</span>
+        <span class="identity-role">Invitado</span>
+      </div>
+      <button class="drawer-c-close" onclick="closeDrawerC()">✕</button>`;
+    drawerHtml = `<a href="#" class="drawer-c-item"><div class="bar"></div>Iniciar Sesión</a>`;
+  } else if (currentAuth === 'artist') {
+    dropHtml = `
+      <a href="#" class="dropdown-c-item"><div class="icon" style="background:var(--blue);color:white;border-color:var(--blue)">▣</div>Ir al Dashboard</a>
+      <button class="dropdown-c-item"><div class="icon">✕</div>Cerrar Sesión</button>`;
+    drawerHeaderHtml = `
+      <div class="identity-avatar" style="background:white;color:var(--blue);">M</div>
+      <div class="identity-info">
+        <span class="identity-name" style="color:white">Maria A.</span>
+        <span class="identity-role">Artista</span>
+      </div>
+      <button class="drawer-c-close" onclick="closeDrawerC()">✕</button>`;
+    drawerHtml = `
+      <a href="#" class="drawer-c-item dash-c"><div class="bar"></div>Ir al Dashboard</a>
+      <button class="drawer-c-item logout-c"><div class="bar"></div>Cerrar Sesión</button>`;
+  } else {
+    dropHtml = `
+      <a href="#" class="dropdown-c-item"><div class="icon" style="background:var(--yellow);border-color:var(--yellow)">◼</div>Mis Citas</a>
+      <button class="dropdown-c-item"><div class="icon">✕</div>Cerrar Sesión</button>`;
+    drawerHeaderHtml = `
+      <div class="identity-avatar" style="background:var(--yellow);color:var(--fg);border-color:var(--fg)">C</div>
+      <div class="identity-info">
+        <span class="identity-name" style="color:white">Carlos R.</span>
+        <span class="identity-role">Cliente</span>
+      </div>
+      <button class="drawer-c-close" onclick="closeDrawerC()">✕</button>`;
+    drawerHtml = `
+      <a href="#" class="drawer-c-item" style="border-left-color:var(--yellow)"><div class="bar" style="background:var(--yellow)"></div>Mis Citas</a>
+      <button class="drawer-c-item logout-c"><div class="bar"></div>Cerrar Sesión</button>`;
+  }
+
+  dropEl.innerHTML = dropHtml;
+  drawerIdEl.innerHTML = drawerHeaderHtml;
+  drawerBodyEl.innerHTML = drawerHtml;
+}
+
+function toggleDropdownC(el) {
+  el.classList.toggle('open');
+}
+
+let drawerCOpen = false;
+function toggleDrawerC() {
+  drawerCOpen = !drawerCOpen;
+  document.getElementById('drawer-c').classList.toggle('open', drawerCOpen);
+  document.getElementById('overlay-c').classList.toggle('open', drawerCOpen);
+}
+function closeDrawerC() {
+  drawerCOpen = false;
+  document.getElementById('drawer-c').classList.remove('open');
+  document.getElementById('overlay-c').classList.remove('open');
+}
+
+// Cerrar dropdown C si click fuera
+document.addEventListener('click', e => {
+  const id = document.getElementById('identity-c');
+  if (id && !id.contains(e.target)) id.classList.remove('open');
+});
+
+// ── RENDER ALL ──
+function renderAll() {
+  renderNavA();
+  renderNavB();
+  renderNavC();
+}
+
+// INIT
+renderAll();
+</script>
+</body>
+</html>

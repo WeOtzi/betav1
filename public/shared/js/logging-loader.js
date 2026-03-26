@@ -26,9 +26,8 @@
     errorReporterScript.async = false;
     document.head.appendChild(errorReporterScript);
 
-    // Log that the logging system was loaded
     loggingScript.onload = function() {
-        if (window.LoggingService) {
+        if (window.LoggingService && window.__WEOTZI_DEBUG) {
             console.log('[LoggingLoader] Logging system initialized');
         }
     };

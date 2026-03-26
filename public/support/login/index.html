@@ -22,7 +22,7 @@
         .zoom-controls { display: flex; gap: 0.25rem; }
         .zoom-btn, .theme-toggle { width: 2rem; height: 2rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); font-family: 'Space Mono', monospace; font-weight: 700; cursor: pointer; transition: all 0.2s; }
         .zoom-btn:hover, .theme-toggle:hover { background: var(--fg); color: var(--bg); }
-        .login-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; margin-top: 60px; min-height: calc(100vh - 60px); }
+        .login-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; margin-top: 0.75rem; min-height: calc(100vh - 60px); }
         .branding-panel { background: var(--bauhaus-blue); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; position: relative; overflow: hidden; }
         .branding-panel::before { content: ''; position: absolute; width: 300px; height: 300px; background: var(--bauhaus-yellow); border-radius: 50%; top: -100px; left: -100px; opacity: 0.3; }
         .branding-panel::after { content: ''; position: absolute; width: 200px; height: 200px; background: var(--bauhaus-red); bottom: -50px; right: -50px; opacity: 0.5; }
@@ -54,7 +54,22 @@
         .btn-login.loading .spinner { display: block; }
         .btn-login.loading .btn-text { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 768px) { .login-container { grid-template-columns: 1fr; } .branding-panel { display: none; } .login-panel { padding: 2rem; } .login-title { font-size: 2rem; } }
+        @media (max-width: 768px) {
+            .login-container { grid-template-columns: 1fr; margin-top: 0.75rem; padding-bottom: 80px; }
+            .branding-panel { display: none; }
+            .login-panel { padding: 2rem; }
+            .login-title { font-size: 2rem; }
+            /* Bottom nav Bauhaus */
+            .top-nav-header { background: transparent !important; border-bottom: none !important; pointer-events: none; padding: 0; height: 0; overflow: visible; }
+            .header-edition-info { display: none; }
+            .nav-row { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; width: 100% !important; height: 60px; padding: 0 !important; padding-bottom: env(safe-area-inset-bottom) !important; gap: 0 !important; background: var(--fg); border-top: 4px solid var(--fg); justify-content: stretch !important; align-items: stretch !important; pointer-events: auto; z-index: 200; }
+            .nav-row > * { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; border-right: 2px solid rgba(128,128,128,0.25); }
+            .nav-row > *:last-child { border-right: none; }
+            .zoom-controls { display: flex !important; width: 100%; height: 100%; gap: 0; flex: 1; }
+            .zoom-btn { flex: 1; height: 100%; width: auto !important; border: none !important; border-right: 1px solid rgba(128,128,128,0.25) !important; background: transparent; color: var(--bg); font-size: 1.2rem; font-weight: 700; padding: 0; }
+            .zoom-btn:last-child { border-right: none !important; }
+            .theme-toggle { background: #F4B942 !important; color: #1A1A1A !important; border: none !important; width: 40px !important; height: 40px !important; border-radius: 50%; font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>
@@ -63,10 +78,6 @@
             Edicion Bauhaus | Support Portal
         </div>
         <div class="nav-row">
-            <div class="zoom-controls">
-                <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-                <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-            </div>
             <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
         </div>
     </header>

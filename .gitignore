@@ -1,5 +1,6 @@
 node_modules/
 .env
+.server-credentials
 .DS_Store
 Thumbs.db
 coverage/

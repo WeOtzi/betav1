@@ -869,11 +869,11 @@ function viewQuotation(quoteId) {
             </div>
             <div class="detail-row">
                 <span class="detail-label">Primer tatuaje:</span>
-                <span class="detail-value">${quotation.tattoo_is_first_tattoo ? 'Sí' : 'No'}</span>
+                <span class="detail-value">${quotation.tattoo_is_first_tattoo === true ? 'Sí' : 'No'}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Cover-up:</span>
-                <span class="detail-value">${quotation.tattoo_is_cover_up ? 'Sí' : 'No'}</span>
+                <span class="detail-value">${quotation.tattoo_is_cover_up === true ? 'Sí' : 'No'}</span>
             </div>
         </div>
         

@@ -2429,3 +2429,317 @@ header {
         padding: 5px 8px;
     }
 }
+
+/* Header Logout Button - Bauhaus Style */
+.login-toggle {
+    background: transparent;
+    color: var(--fg);
+    border: 2px solid var(--fg);
+    padding: 0.6rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+}
+
+.login-toggle:hover {
+    background: var(--fg);
+    color: var(--bg);
+    transform: translateY(-2px);
+}
+
+.dark-mode .login-toggle {
+    border-color: var(--fg);
+    color: var(--fg);
+}
+
+.dark-mode .login-toggle:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.admin-mobile-menu-toggle {
+    display: none;
+}
+
+.admin-mobile-menu {
+    display: none;
+}
+
+.admin-mobile-menu[hidden] {
+    display: none !important;
+}
+
+@keyframes admin-mobile-menu-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   MOBILE BOTTOM NAV BAR — Bauhaus Edition
+   ============================================ */
+@media (max-width: 768px) {
+    /* Colapsar header superior */
+    .top-nav-header {
+        background: transparent !important;
+        border-bottom: none !important;
+        pointer-events: none;
+        padding: 0;
+        height: 0;
+        overflow: visible;
+    }
+
+    .header-edition-info {
+        display: none;
+    }
+
+    /* Neutralizar animaciones de scroll en móvil */
+    .header-hidden .nav-row,
+    .header-visible .nav-row {
+        transform: none !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    /* ─── Barra inferior ─── */
+    .nav-row {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        width: auto !important;
+        height: 60px;
+        padding: 0 !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        gap: 0 !important;
+        background: var(--ink);
+        border-top: 4px solid var(--ink);
+        border-left: 3px solid var(--ink);
+        border-right: 3px solid var(--ink);
+        justify-content: stretch !important;
+        align-items: stretch !important;
+        pointer-events: auto;
+        z-index: 1006;
+        transform: none !important;
+        filter: none !important;
+        opacity: 1 !important;
+    }
+
+    /* Columnas: bloques iguales con separador */
+    .nav-col {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        border-right: 2px solid rgba(128, 128, 128, 0.25);
+    }
+
+    .nav-col:last-child {
+        border-right: none;
+    }
+
+    .admin-mobile-menu-toggle {
+        width: 100% !important;
+        height: 100% !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none !important;
+        background: var(--bg) !important;
+        color: var(--ink) !important;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px !important;
+        letter-spacing: 0.11em !important;
+        text-transform: uppercase;
+        font-weight: 800;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .admin-mobile-menu-toggle:hover,
+    .admin-mobile-menu-toggle[aria-expanded="true"] {
+        background: var(--bauhaus-yellow) !important;
+        color: #1A1A1A !important;
+    }
+
+    .admin-mobile-menu {
+        position: fixed;
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: calc(60px + env(safe-area-inset-bottom));
+        z-index: 1100;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        border: 3px solid var(--ink);
+        background: var(--ink);
+        animation: admin-mobile-menu-reveal 0.2s ease;
+    }
+
+    .admin-mobile-menu-link {
+        min-height: 56px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--ink);
+        background: var(--bg);
+        border-right: 2px solid var(--ink);
+        border-bottom: 2px solid var(--ink);
+        transition: background 0.16s ease, color 0.16s ease;
+    }
+
+    .admin-mobile-menu-link:nth-child(2n) {
+        border-right: none;
+    }
+
+    .admin-mobile-menu-link:nth-last-child(-n + 2) {
+        border-bottom: none;
+    }
+
+    .admin-mobile-menu-link:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+        border-right: none;
+        border-bottom: none;
+    }
+
+    .admin-mobile-menu:has(.admin-mobile-menu-link:last-child:nth-child(odd)) .admin-mobile-menu-link:nth-last-child(2) {
+        border-bottom: 2px solid var(--ink);
+    }
+
+    .admin-mobile-menu-link:hover {
+        background: var(--ink);
+        color: var(--bg);
+    }
+
+    .admin-mobile-menu-link.is-active {
+        background: var(--bauhaus-red);
+        color: #fff;
+    }
+
+    .nav-row .login-toggle {
+        font-size: 14px !important;
+        letter-spacing: 0.12em !important;
+        font-weight: 800 !important;
+    }
+
+    /* Zoom: ocupa todo el nav-col, dividido en - y + */
+    .zoom-controls {
+        display: flex !important;
+        width: 100%;
+        height: 100%;
+        gap: 0;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    .zoom-btn {
+        flex: 1;
+        height: 100%;
+        width: auto !important;
+        border: none !important;
+        border-right: 1px solid rgba(128, 128, 128, 0.25) !important;
+        background: transparent;
+        color: var(--bg);
+        font-size: 1.2rem;
+        font-weight: 700;
+        font-family: 'Space Mono', monospace;
+        padding: 0;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .zoom-btn:last-child {
+        border-right: none !important;
+    }
+
+    .zoom-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--bg);
+    }
+
+    /* Toggle de tema: círculo amarillo Bauhaus */
+    .theme-toggle {
+        background: #F4B942 !important;
+        color: #1A1A1A !important;
+        border: none !important;
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 50%;
+        font-size: 1.1rem;
+    }
+
+    .theme-toggle:hover {
+        transform: rotate(90deg) scale(1.08);
+    }
+
+    /* Botón logout: bloque rojo Bauhaus */
+    .login-toggle {
+        width: 100% !important;
+        height: 100% !important;
+        background: #E23E28 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .login-toggle:hover {
+        transform: none !important;
+        background: #c0392b !important;
+    }
+
+    /* Padding inferior del contenido principal */
+    main {
+        padding-bottom: 80px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-row {
+        left: 0.5rem !important;
+        right: 0.5rem !important;
+    }
+
+    .admin-mobile-menu {
+        left: 0.5rem;
+        right: 0.5rem;
+    }
+
+    .admin-mobile-menu-toggle {
+        font-size: 13px !important;
+    }
+
+    .admin-mobile-menu-link {
+        min-height: 52px;
+        font-size: 13px !important;
+    }
+}

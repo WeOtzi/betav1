@@ -543,6 +543,18 @@ window.saveRating = async function(quoteId, rating, reason) {
         if (error) throw error;
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (quote) { quote.rating = rating; quote.rating_reason = reason; quote.rating_comment = comment; }
+        
+        try {
+            window.ConfigManager.sendN8NEvent('client_left_rating', {
+                quote_id: quote ? quote.quote_id : quoteId,
+                artist_name: quote ? (quote.artist_name || '') : '',
+                artist_email: quote ? (quote.artist_email || '') : '',
+                client_name: quote ? (quote.client_full_name || '') : '',
+                rating: rating,
+                rating_comment: comment || ''
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
+        
         inspectQuote(quoteId);
     } catch (err) { alert('Error saving rating: ' + err.message); }
 };
@@ -557,6 +569,33 @@ window.updateQuoteStatus = async function(quoteId, newStatus) {
         if (error) throw error;
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (quote) quote.quote_status = newStatus;
+        
+        try {
+            if (newStatus === 'client_approved' && quote) {
+                window.ConfigManager.sendN8NEvent('client_approved_quotation', {
+                    quote_id: quote.quote_id,
+                    artist_name: quote.artist_name || '',
+                    artist_email: quote.artist_email || '',
+                    client_name: quote.client_full_name || '',
+                    artist_budget_amount: quote.artist_budget_amount || '',
+                    artist_budget_currency: quote.artist_budget_currency || '',
+                    tattoo_style: quote.tattoo_style || '',
+                    tattoo_size: quote.tattoo_size || '',
+                    tattoo_body_part: quote.tattoo_body_part || ''
+                });
+            } else if (newStatus === 'client_rejected' && quote) {
+                window.ConfigManager.sendN8NEvent('client_rejected_quotation', {
+                    quote_id: quote.quote_id,
+                    artist_name: quote.artist_name || '',
+                    artist_email: quote.artist_email || '',
+                    client_name: quote.client_full_name || '',
+                    tattoo_style: quote.tattoo_style || '',
+                    tattoo_size: quote.tattoo_size || '',
+                    tattoo_body_part: quote.tattoo_body_part || ''
+                });
+            }
+        } catch (e) { /* n8n notification failure should not break main flow */ }
+        
         if (typeof applyFiltersAndSort === 'function') applyFiltersAndSort();
         if (typeof updateStats === 'function') updateStats();
         inspectQuote(quoteId);
@@ -989,6 +1028,21 @@ window.saveSession = async function(quoteId) {
                 .insert([sessionData]);
             
             if (error) throw error;
+            
+            try {
+                const currentQuote = typeof quotations !== 'undefined' ? quotations.find(q => q.id.toString() === quoteId.toString()) : null;
+                if (currentQuote) {
+                    window.ConfigManager.sendN8NEvent('session_scheduled', {
+                        quote_id: currentQuote.quote_id,
+                        client_name: currentQuote.client_full_name || '',
+                        client_email: currentQuote.client_email || '',
+                        artist_name: currentQuote.artist_name || '',
+                        session_date: sessionData.session_date,
+                        session_number: String(sessionData.session_number || '1'),
+                        duration_hours: sessionData.duration_hours || ''
+                    });
+                }
+            } catch (e) { /* n8n notification failure should not break main flow */ }
         }
         
         closeSessionModal();
@@ -1012,6 +1066,41 @@ window.updateSessionStatus = async function(sessionId, newStatus, quoteId) {
         // Update local state
         const session = currentQuoteSessions.find(s => s.id === sessionId);
         if (session) session.status = newStatus;
+        
+        try {
+            const currentQuote = typeof quotations !== 'undefined' ? quotations.find(q => q.id.toString() === quoteId.toString()) : null;
+            if (currentQuote) {
+                if (newStatus === 'completed') {
+                    window.ConfigManager.sendN8NEvent('session_completed', {
+                        quote_id: currentQuote.quote_id,
+                        client_name: currentQuote.client_full_name || '',
+                        client_email: currentQuote.client_email || '',
+                        artist_name: currentQuote.artist_name || '',
+                        session_number: session ? (session.session_number || '') : '',
+                        session_date: session ? (session.session_date || '') : ''
+                    });
+                } else if (newStatus === 'rescheduled') {
+                    window.ConfigManager.sendN8NEvent('session_rescheduled', {
+                        quote_id: currentQuote.quote_id,
+                        client_name: currentQuote.client_full_name || '',
+                        client_email: currentQuote.client_email || '',
+                        artist_name: currentQuote.artist_name || '',
+                        session_date: session ? (session.session_date || '') : '',
+                        session_number: session ? (session.session_number || '') : ''
+                    });
+                } else if (newStatus === 'cancelled') {
+                    window.ConfigManager.sendN8NEvent('session_cancelled', {
+                        quote_id: currentQuote.quote_id,
+                        recipient_name: currentQuote.client_full_name || '',
+                        recipient_email: currentQuote.client_email || '',
+                        artist_name: currentQuote.artist_name || '',
+                        client_name: currentQuote.client_full_name || '',
+                        session_date: session ? (session.session_date || '') : '',
+                        session_number: session ? (session.session_number || '') : ''
+                    });
+                }
+            }
+        } catch (e) { /* n8n notification failure should not break main flow */ }
         
         await inspectQuote(quoteId);
         
@@ -1302,6 +1391,16 @@ window.sendDrawerChatMessage = async function(quoteId) {
         
         // Clear input
         input.value = '';
+        
+        try {
+            window.ConfigManager.sendN8NEvent('chat_message_to_client', {
+                quote_id: quote.quote_id,
+                client_name: quote.client_full_name || '',
+                client_email: quote.client_email || '',
+                artist_name: quote.artist_name || '',
+                message_preview: message.substring(0, 100)
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
         
         // Reload messages
         const messages = await loadChatMessages(quoteId);
@@ -1658,6 +1757,23 @@ window.submitConfirmation = async function(quoteId) {
             quote.quote_status = 'completed';
         }
 
+        try {
+            window.ConfigManager.sendN8NEvent('quotation_completed_summary', {
+                quote_id: quote ? quote.quote_id : quoteId,
+                client_name: quote ? (quote.client_full_name || '') : '',
+                client_email: quote ? (quote.client_email || '') : '',
+                artist_name: quote ? (quote.artist_name || '') : '',
+                final_budget_amount: amount || '',
+                final_budget_currency: currency || '',
+                final_sessions: sessions || '',
+                first_session_date: firstSessionDate || '',
+                final_comment: comment || '',
+                tattoo_style: quote ? quote.tattoo_style : '',
+                tattoo_size: quote ? (quote.tattoo_size || '') : '',
+                tattoo_body_part: quote ? (quote.tattoo_body_part || '') : ''
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
+
         closeConfirmModal();
         
         // Refresh UI
@@ -1882,6 +1998,22 @@ window.submitResponse = async function(quoteId) {
             quote.artist_responded_at = updateData.artist_responded_at;
         }
 
+        try {
+            window.ConfigManager.sendN8NEvent('artist_responded_quotation', {
+                quote_id: quote ? quote.quote_id : quoteId,
+                client_name: quote ? (quote.client_full_name || '') : '',
+                client_email: quote ? (quote.client_email || '') : '',
+                artist_name: quote ? (quote.artist_name || '') : '',
+                artist_budget_amount: price || '',
+                artist_budget_currency: currency || '',
+                estimated_sessions: sessions || '',
+                client_budget: ((quote ? quote.client_budget_amount : '') || '') + ' ' + ((quote ? quote.client_budget_currency : '') || ''),
+                tattoo_style: quote ? quote.tattoo_style : '',
+                tattoo_size: quote ? (quote.tattoo_size || '') : '',
+                tattoo_body_part: quote ? (quote.tattoo_body_part || '') : ''
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
+
         closeResponseModal();
         
         // Refresh UI
@@ -2024,8 +2156,8 @@ window.inspectQuote = async function(quoteId, options = {}) {
             <div class="info-block" style="margin-top: 1.5rem;"><label>Alergias</label><p>${quote.client_allergies || 'Ninguna'}</p></div>
             <div class="info-block" style="margin-top: 1rem;"><label>Condiciones de Salud</label><p>${quote.client_health_conditions || 'Ninguna'}</p></div>
             <div class="info-grid" style="margin-top: 1.5rem; gap: 1.5rem;">
-                <div class="info-block"><label>Primer Tatuaje</label><p>${quote.tattoo_is_first_tattoo ? 'Si' : 'No'}</p></div>
-                <div class="info-block"><label>Es Cover-up</label><p>${quote.tattoo_is_cover_up ? 'Si' : 'No'}</p></div>
+                <div class="info-block"><label>Primer Tatuaje</label><p>${quote.tattoo_is_first_tattoo === true ? 'Si' : 'No'}</p></div>
+                <div class="info-block"><label>Es Cover-up</label><p>${quote.tattoo_is_cover_up === true ? 'Si' : 'No'}</p></div>
                 <div class="info-block"><label>Color</label><p>${quote.tattoo_color_type || '-'}</p></div>
                 <div class="info-block"><label>Tamano</label><p>${quote.tattoo_size || '-'}</p></div>
             </div>

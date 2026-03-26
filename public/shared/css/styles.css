@@ -4174,3 +4174,362 @@ span.flatpickr-weekday {
         max-height: 100px;
     }
 }
+
+/* ============================================
+   EMAIL REUSE MODAL
+   Shares base styles with .draft-recovery-modal
+   ============================================ */
+
+.reuse-icon {
+    background: var(--primary-red) !important;
+    color: var(--bg) !important;
+}
+
+.reuse-question {
+    font-family: var(--font-primary);
+    font-size: 0.95rem;
+    color: var(--fg);
+    margin: 0 0 1.5rem;
+    font-weight: 700;
+}
+
+#reuse-summary-info .reuse-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+#reuse-summary-info .reuse-detail:last-child {
+    border-bottom: none;
+}
+
+#reuse-summary-info .reuse-label {
+    font-family: var(--font-technical);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+#reuse-summary-info .reuse-value {
+    font-family: var(--font-primary);
+    font-weight: 900;
+    color: var(--fg);
+    font-size: 0.95rem;
+}
+
+#reuse-summary-info .reuse-value.highlight {
+    color: var(--primary-red);
+}
+
+/* ============================================
+   QUOTATION LOGIN MODAL - BAUHAUS
+   ============================================ */
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-btn-login,
+.nav-btn-logged {
+    position: relative;
+}
+
+.nav-btn-logged {
+    color: var(--primary-yellow);
+    border-color: var(--primary-yellow);
+}
+
+.nav-btn-logged:hover {
+    background: var(--primary-yellow);
+    color: var(--fg);
+}
+
+/* Overlay */
+.q-login-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.q-login-overlay.hidden {
+    display: none;
+}
+
+/* Modal container */
+.q-login-modal {
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    width: 100%;
+    max-width: 420px;
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    animation: slideUp 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 12px 12px 0 rgba(0, 0, 0, 0.3);
+}
+
+.q-login-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: var(--border-width) solid var(--fg);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--fg);
+    font-size: 1rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.q-login-close:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+/* Header */
+.q-login-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.q-login-icon {
+    width: 56px;
+    height: 56px;
+    background: var(--primary-blue);
+    border: var(--border-width) solid var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+    color: #fff;
+}
+
+.q-login-icon-success {
+    background: var(--primary-yellow);
+    color: var(--fg);
+}
+
+.q-login-header h2 {
+    font-family: var(--font-primary);
+    font-weight: 900;
+    font-size: 1.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.25rem;
+    color: var(--fg);
+}
+
+.q-login-subtitle {
+    font-family: var(--font-technical);
+    font-size: 0.78rem;
+    color: var(--text-muted, #888);
+    margin: 0;
+}
+
+/* Form */
+.q-form-group {
+    margin-bottom: 1rem;
+}
+
+.q-form-group label {
+    display: block;
+    font-family: var(--font-technical);
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg);
+    margin-bottom: 4px;
+}
+
+.q-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    border-radius: 0;
+    font-family: var(--font-primary);
+    font-size: 0.95rem;
+    color: var(--fg);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+}
+
+.q-input:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 4px 4px 0 var(--primary-blue);
+}
+
+.q-input::placeholder {
+    color: var(--text-muted, #999);
+    font-family: var(--font-technical);
+    font-size: 0.82rem;
+}
+
+/* Message */
+.q-form-message {
+    font-family: var(--font-technical);
+    font-size: 0.78rem;
+    padding: 0;
+    margin-bottom: 0.75rem;
+    min-height: 1.2em;
+    text-align: center;
+}
+
+.q-form-message:empty {
+    display: none;
+}
+
+.q-msg-error {
+    color: var(--primary-red);
+}
+
+.q-msg-success {
+    color: #4CAF50;
+}
+
+.q-msg-info {
+    color: var(--primary-blue);
+}
+
+/* Submit button */
+.q-btn-submit {
+    width: 100%;
+    padding: 12px;
+    background: var(--fg);
+    color: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    font-family: var(--font-primary);
+    font-weight: 900;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.q-btn-submit:hover:not(:disabled) {
+    background: var(--primary-red);
+    border-color: var(--primary-red);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 0 var(--fg);
+}
+
+.q-btn-submit:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.q-spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Footer links */
+.q-login-footer {
+    text-align: center;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--fg);
+}
+
+.q-login-footer a {
+    font-family: var(--font-technical);
+    font-size: 0.78rem;
+    color: var(--primary-red);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+}
+
+.q-login-footer a:hover {
+    text-decoration: underline;
+}
+
+.q-login-back {
+    margin-top: 0.75rem;
+}
+
+.q-login-back a {
+    color: var(--fg);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.q-login-back a:hover {
+    color: var(--primary-blue);
+}
+
+/* Post-login decision */
+.q-decision-text {
+    font-family: var(--font-technical);
+    font-size: 0.85rem;
+    text-align: center;
+    margin-bottom: 1.25rem;
+    color: var(--fg);
+}
+
+.q-decision-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.q-decision-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-primary) !important;
+    font-weight: 900 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 14px 16px;
+}
+
+/* View toggle */
+.q-login-view.hidden {
+    display: none;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .q-login-modal {
+        max-width: 100%;
+        padding: 2rem 1.25rem 1.5rem;
+    }
+
+    .q-login-header h2 {
+        font-size: 1.2rem;
+    }
+}

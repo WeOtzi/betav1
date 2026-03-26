@@ -732,3 +732,107 @@ document.addEventListener('DOMContentLoaded', () => {
         handleOAuthCallback();
     }
 });
+
+// ============================================
+// Reusable Client Auth API (DOM-agnostic)
+// Used by /quotation modal and any page that needs inline auth
+// ============================================
+
+window.ClientAuth = {
+    async getSession() {
+        try {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) return { session: null, client: null };
+
+            const { data: client } = await _supabase
+                .from('clients_db')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+
+            return { session, client };
+        } catch (err) {
+            console.error('ClientAuth.getSession error:', err);
+            return { session: null, client: null };
+        }
+    },
+
+    async login(email, password) {
+        const { data, error } = await _supabase.auth.signInWithPassword({
+            email, password
+        });
+        if (error) throw error;
+
+        const { data: client } = await _supabase
+            .from('clients_db')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+        if (!client) {
+            const { data: artist } = await _supabase
+                .from('artists_db')
+                .select('user_id, name')
+                .eq('user_id', data.user.id)
+                .maybeSingle();
+
+            if (artist) {
+                return { user: data.user, client: null, isArtist: true, artistName: artist.name };
+            }
+
+            await _supabase.from('clients_db').insert({
+                user_id: data.user.id,
+                email: email,
+                full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+                email_verified: data.user.email_confirmed_at ? true : false
+            });
+
+            const { data: newClient } = await _supabase
+                .from('clients_db')
+                .select('*')
+                .eq('user_id', data.user.id)
+                .maybeSingle();
+
+            return { user: data.user, client: newClient, isArtist: false };
+        }
+
+        return { user: data.user, client, isArtist: false };
+    },
+
+    async linkQuotations(userId, email, quoteId) {
+        await linkQuotationsByEmail(userId, email);
+        if (quoteId) await linkQuotationById(userId, quoteId);
+    },
+
+    async resetPassword(email) {
+        const tempPassword = generateTempPassword();
+
+        const response = await fetch('/api/auth/reset-temp-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, userType: 'client', tempPassword })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            if (response.status === 404) throw new Error('No encontramos una cuenta con ese email.');
+            throw new Error(result.error || 'Error al procesar la solicitud');
+        }
+
+        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+            try {
+                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
+                    email,
+                    temp_password: tempPassword,
+                    user_type: 'client',
+                    login_url: window.location.origin + '/client/login'
+                });
+            } catch (webhookErr) {
+                console.warn('Could not send password_reset_temp event:', webhookErr);
+            }
+        }
+
+        return { success: true };
+    }
+};

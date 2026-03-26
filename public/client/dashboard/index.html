@@ -11,6 +11,22 @@
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
     <link rel="stylesheet" href="/shared/css/client.css">
+    <style>
+        .jb-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #E23E28;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 900;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            padding: 0 4px;
+            margin-left: 6px;
+        }
+    </style>
 </head>
 <body>
     <div class="bauhaus-shape shape-circle"></div>
@@ -22,10 +38,6 @@
             We Otzi | Mi Dashboard <span class="coordinate-label" style="margin-left: 10px;">X: 42 | Y: 108</span>
         </div>
         <div class="nav-row">
-            <div class="zoom-controls">
-                <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-                <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-            </div>
             <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
             <button class="btn-icon btn-logout" onclick="handleLogout()" aria-label="Cerrar sesion" title="Cerrar sesion">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
@@ -111,6 +123,14 @@
                         </svg>
                         Buscar Artistas
                     </a>
+                    <a href="/job-board/request" class="action-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="12" y1="8" x2="12" y2="16"/>
+                            <line x1="8" y1="12" x2="16" y2="12"/>
+                        </svg>
+                        Publicar Solicitud
+                    </a>
                 </div>
             </aside>
 
@@ -123,6 +143,7 @@
                         <button class="tab-btn" data-filter="active" onclick="filterQuotations('active')">Activas</button>
                         <button class="tab-btn" data-filter="pending" onclick="filterQuotations('pending')">Pendientes</button>
                         <button class="tab-btn" data-filter="completed" onclick="filterQuotations('completed')">Completadas</button>
+                        <button class="tab-btn" data-filter="job-board" onclick="switchToJobBoard()">Solicitudes <span class="jb-badge" id="jb-requests-count" style="display:none;">0</span></button>
                     </div>
                 </div>
 
@@ -130,6 +151,11 @@
                     <!-- Quotations will be loaded here -->
                     <div class="loading-skeleton" style="height: 150px;"></div>
                     <div class="loading-skeleton" style="height: 150px;"></div>
+                    <div class="loading-skeleton" style="height: 150px;"></div>
+                </div>
+
+                <!-- Job Board Section -->
+                <div class="jb-requests-list" id="jb-requests-list" style="display: none;">
                     <div class="loading-skeleton" style="height: 150px;"></div>
                 </div>
             </section>
@@ -328,6 +354,19 @@
                     <button type="submit" class="btn-save" id="btn-save-profile">Guardar Cambios</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Job Board Applications Review Modal -->
+    <div class="modal-overlay" id="jb-applications-modal" onclick="if(event.target === this) closeJBModal()">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Postulaciones - <span id="jb-modal-code"></span></h2>
+                <button class="modal-close" onclick="closeJBModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="jb-applications-content">
+                <!-- Applications loaded dynamically -->
+            </div>
         </div>
     </div>
 

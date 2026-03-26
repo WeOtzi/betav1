@@ -6,7 +6,7 @@
     <title>WE OTZI | Calendar</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/quotations.css">
     
     <!-- FullCalendar CSS -->
@@ -98,16 +98,22 @@
         </div>
         <div class="nav-row">
             <div class="nav-col">
-                <div class="zoom-controls">
-                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-                </div>
+                <button class="admin-mobile-menu-toggle" id="admin-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-mobile-menu">
+                    Menu
+                </button>
             </div>
             <div class="nav-col">
                 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
             </div>
         </div>
     </header>
+    <nav class="admin-mobile-menu" id="admin-mobile-menu" aria-label="Navegacion movil del admin panel" hidden>
+        <a href="/artist/dashboard" class="admin-mobile-menu-link">Dashboard</a>
+        <a href="/my-quotations" class="admin-mobile-menu-link">Cotizaciones</a>
+        <a href="/calendar" class="admin-mobile-menu-link is-active">Calendario</a>
+        <a href="/archive" class="admin-mobile-menu-link">Archivo</a>
+        <a href="/my-quotations/statistics" class="admin-mobile-menu-link">Estadisticas</a>
+    </nav>
 
     <div class="monolith-wrapper">
         <aside>
@@ -286,6 +292,7 @@
     <script src="https://apis.google.com/js/api.js"></script>
     
     <script src="/shared/js/shared-drawer.js"></script>
+    <script src="/shared/js/admin-mobile-menu.js"></script>
     <script src="/shared/js/calendar.js"></script>
     <script src="/shared/js/header-effects.js"></script>
 </body>

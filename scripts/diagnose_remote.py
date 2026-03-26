@@ -16,16 +16,16 @@ def diagnose():
         ssh.connect(HOST, port=PORT, username=USERNAME, password=PASSWORD)
         print("Connected successfully.")
 
+        node_path = "/opt/alt/alt-nodejs22/root/usr/bin"
+        node_bin = f"{node_path}/node"
+        env_setup = f"export PATH={node_path}:$PATH && export PM2_HOME=/home/u795331143/.pm2"
+        pm2_cmd = "./node_modules/.bin/pm2"
+
         commands = [
-            # Check PM2 status
-            "export PATH=/opt/alt/alt-nodejs20/root/bin:$PATH && export PM2_HOME=/home/u795331143/.pm2-beta && ./node_modules/.bin/pm2 list",
-            # Check PM2 logs
-            "export PATH=/opt/alt/alt-nodejs20/root/bin:$PATH && export PM2_HOME=/home/u795331143/.pm2-beta && ./node_modules/.bin/pm2 logs weotzi-beta --lines 20 --nostream",
-            # Check if app responds locally
-            "curl -v http://127.0.0.1:3005/ || echo 'Curl failed'",
-            # Check .htaccess content
+            f"{env_setup} && {node_bin} {pm2_cmd} list",
+            f"{env_setup} && {node_bin} {pm2_cmd} logs weotzi-beta --lines 20 --nostream",
+            "curl -v http://127.0.0.1:4545/ || echo 'Curl failed'",
             f"cat {REMOTE_DIR}/.htaccess",
-            # Check directory permissions/content
             f"ls -la {REMOTE_DIR}"
         ]
 

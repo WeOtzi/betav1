@@ -39,6 +39,24 @@ let sortConfig = { field: 'created_at', direction: 'desc' };
 let filterConfig = { status: 'all', search: '' };
 
 // ============================================
+// AUTH & LOGOUT
+// ============================================
+
+async function handleLogout() {
+    try {
+        const { error } = await _supabase.auth.signOut();
+        if (error) throw error;
+        
+        window.location.href = 'https://beta.weotzi.com/registerclosedbeta/';
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}
+
+// Global exports
+window.handleLogout = handleLogout;
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -54,7 +72,7 @@ async function initializeAdmin() {
         
         if (authError || !session) {
             console.log('No authenticated session. Redirecting...');
-            window.location.href = 'index.html';
+            window.location.href = 'https://beta.weotzi.com/registerclosedbeta/';
             return;
         }
 
@@ -84,6 +102,11 @@ async function initializeAdmin() {
 
         // 3. Load Quotations & Attachments
         await loadQuotations();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('tab') === 'applications') {
+            showApplicationsView();
+        }
 
     } catch (err) {
         console.error('Initialization error:', err);
@@ -509,3 +532,134 @@ let startX, startWidth, resizerColIndex;
 function initResize(e) { e.preventDefault(); e.stopPropagation(); const resizer = e.target; const headerCell = resizer.closest('.header-cell'); resizerColIndex = headerCell.dataset.index; startX = e.clientX; startWidth = headerCell.offsetWidth; document.documentElement.addEventListener('mousemove', doResize); document.documentElement.addEventListener('mouseup', stopResize); document.body.style.cursor = 'col-resize'; }
 function doResize(e) { const newWidth = startWidth + (e.clientX - startX); if (newWidth > 50) { tableColumns[resizerColIndex].width = `${newWidth}px`; updateGridStyles(); } }
 function stopResize() { document.documentElement.removeEventListener('mousemove', doResize); document.documentElement.removeEventListener('mouseup', stopResize); document.body.style.cursor = ''; saveColumnConfig(); }
+
+// ============================================
+// JOB BOARD - ARTIST APPLICATIONS VIEW
+// ============================================
+
+let myApplications = [];
+
+function showApplicationsView() {
+    // Hide main quotations content, show applications
+    const mainContent = document.querySelector('main > *:not(#applications-view)');
+    // Actually, let's hide everything in main except applications-view
+    const mainEl = document.querySelector('main');
+    Array.from(mainEl.children).forEach(child => {
+        if (child.id === 'applications-view') {
+            child.style.display = 'block';
+        } else {
+            child.style.display = 'none';
+        }
+    });
+
+    // Update nav active states
+    document.querySelectorAll('.nav-item').forEach(n => n.style.background = '');
+    const navApp = document.getElementById('nav-applications');
+    if (navApp) navApp.style.background = 'var(--bauhaus-red, #E23E28)';
+
+    loadMyApplications();
+}
+
+function showQuotationsView() {
+    const mainEl = document.querySelector('main');
+    Array.from(mainEl.children).forEach(child => {
+        if (child.id === 'applications-view') {
+            child.style.display = 'none';
+        } else {
+            child.style.display = '';
+        }
+    });
+
+    // Reset nav
+    document.querySelectorAll('.nav-item').forEach(n => n.style.background = '');
+    const quotesNav = document.querySelector('a.nav-item[href="/my-quotations"]');
+    if (quotesNav) quotesNav.style.background = 'var(--bauhaus-red, #E23E28)';
+}
+
+// Make existing nav items restore quotations view
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.nav-item:not(#nav-applications)').forEach(nav => {
+        if (nav.getAttribute('href') === '/my-quotations') {
+            nav.addEventListener('click', (e) => {
+                e.preventDefault();
+                showQuotationsView();
+            });
+        }
+    });
+});
+
+async function loadMyApplications() {
+    if (!_supabase || !currentUser) return;
+
+    const container = document.getElementById('applications-table-body');
+
+    try {
+        const { data, error } = await _supabase
+            .from('job_board_applications')
+            .select('*, job_board_requests(id, request_code, tattoo_idea_description, tattoo_body_part, tattoo_size, tattoo_style, client_city, client_budget_min, client_budget_max, client_budget_currency, status, resulting_quote_id)')
+            .eq('artist_id', currentUser.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        myApplications = data || [];
+        renderApplicationsView();
+    } catch (err) {
+        console.error('Error loading applications:', err);
+        container.innerHTML = '<div style="text-align:center; padding:2rem;">Error al cargar postulaciones</div>';
+    }
+}
+
+function renderApplicationsView() {
+    const container = document.getElementById('applications-table-body');
+
+    if (myApplications.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:3rem; border:2px dashed rgba(0,0,0,0.2);">
+                <p style="font-weight:700; margin-bottom:0.5rem;">No tienes postulaciones aun</p>
+                <p style="font-size:0.85rem; color:var(--text-secondary, #6b6b75); margin-bottom:1rem;">Visita el Job Board para encontrar solicitudes de tatuaje</p>
+                <a href="/job-board" style="display:inline-block; padding:12px 24px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9); text-decoration:none; font-weight:900; text-transform:uppercase; font-size:0.85rem;">Explorar Job Board</a>
+            </div>`;
+        return;
+    }
+
+    const statusLabels = { pending: 'Pendiente', viewed: 'Vista', accepted: 'Aceptada', rejected: 'Rechazada', withdrawn: 'Retirada' };
+    const statusColors = { pending: '#F4B942', viewed: '#1A4B8E', accepted: '#22c55e', rejected: '#E23E28', withdrawn: '#6b6b75' };
+
+    let html = '';
+
+    myApplications.forEach(app => {
+        const req = app.job_board_requests || {};
+        const date = new Date(app.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+        const idea = (req.tattoo_idea_description || '').substring(0, 60) + ((req.tattoo_idea_description || '').length > 60 ? '...' : '');
+        const budget = req.client_budget_min && req.client_budget_max
+            ? `$${req.client_budget_min}-$${req.client_budget_max} ${req.client_budget_currency || 'USD'}`
+            : '-';
+        const isAccepted = app.status === 'accepted';
+        const msgPreview = (app.message || '').substring(0, 80) + ((app.message || '').length > 80 ? '...' : '');
+
+        html += `
+        <div style="border:2px solid var(--fg,#0A0A0A); margin-bottom:1rem; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9);">
+                <span style="font-weight:900; font-size:0.85rem; font-family:'JetBrains Mono',monospace;">${req.request_code || ''}</span>
+                <span style="background:${statusColors[app.status]}; color:white; padding:2px 8px; font-size:0.7rem; font-weight:700; text-transform:uppercase;">${statusLabels[app.status]}</span>
+            </div>
+            <div style="padding:1rem;">
+                <p style="font-weight:600; margin-bottom:0.5rem; font-size:0.9rem;">${idea || 'Sin descripcion'}</p>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; font-size:0.8rem; color:var(--text-secondary,#6b6b75); margin-bottom:0.8rem;">
+                    ${req.client_city ? '<span><i class="fa-solid fa-location-dot"></i> ' + req.client_city + '</span>' : ''}
+                    ${req.tattoo_body_part ? '<span><i class="fa-solid fa-hand"></i> ' + req.tattoo_body_part + '</span>' : ''}
+                    <span><i class="fa-solid fa-calendar"></i> ${date}</span>
+                </div>
+                <div style="display:flex; gap:1.5rem; flex-wrap:wrap; font-size:0.85rem; padding:10px 12px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.08);">
+                    <div><strong>Presup. cliente:</strong> ${budget}</div>
+                    <div><strong>Mi precio:</strong> ${app.estimated_price ? '$' + app.estimated_price : '-'}</div>
+                    <div><strong>Sesiones:</strong> ${app.estimated_sessions || '-'}</div>
+                </div>
+                ${msgPreview ? `<div style="margin-top:0.8rem; padding:10px 12px; border-left:3px solid var(--fg,#0A0A0A); font-size:0.85rem; color:var(--text-secondary,#6b6b75); line-height:1.5;"><strong>Mi mensaje:</strong> ${msgPreview}</div>` : ''}
+            </div>
+            ${isAccepted && req.resulting_quote_id ? '<div style="padding:0.8rem 1rem; background:var(--primary-blue,#1A4B8E); color:white; text-align:center;"><a href="/my-quotations" style="color:white; font-weight:700; text-transform:uppercase; font-size:0.85rem;">Ver Cotizacion Creada</a></div>' : ''}
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}

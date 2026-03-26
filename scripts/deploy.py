@@ -10,7 +10,7 @@ HOST = "92.112.189.44"
 PORT = 65002
 USERNAME = "u795331143"
 PASSWORD = "Abnerisai24."
-REMOTE_DIR = "/home/u795331143/domains/weotzi.com/public_html/app"
+REMOTE_DIR = "/home/u795331143/domains/weotzi.com/public_html/beta"
 LOCAL_ZIP = "deploy_package.zip"
 
 def create_zip():
@@ -57,19 +57,18 @@ def deploy():
 
         # 3. Remote Commands
         # Add Node.js path explicitly
-        node_path = "/opt/alt/alt-nodejs20/root/bin"
-        env_setup = f"export PATH={node_path}:$PATH"
+        node_path = "/opt/alt/alt-nodejs22/root/usr/bin"
+        node_bin = f"{node_path}/node"
+        env_setup = f"export PATH={node_path}:$PATH && export PM2_HOME=/home/u795331143/.pm2"
         pm2_cmd = "./node_modules/.bin/pm2"
         
         commands = [
             f"cd {REMOTE_DIR} && unzip -o {LOCAL_ZIP}",
             f"rm {REMOTE_DIR}/{LOCAL_ZIP}",
-            # Install dependencies
             f"{env_setup} && cd {REMOTE_DIR} && npm install --production",
-            # Install PM2 locally since global is restricted
             f"{env_setup} && cd {REMOTE_DIR} && npm install pm2",
-            # Start/Restart app using local PM2
-            f"{env_setup} && cd {REMOTE_DIR} && ({pm2_cmd} restart weotzi-app || {pm2_cmd} start server.js --name 'weotzi-app')"
+            f"{env_setup} && cd {REMOTE_DIR} && ({node_bin} {pm2_cmd} delete weotzi-beta || echo 'Process not found, skipping delete')",
+            f"{env_setup} && cd {REMOTE_DIR} && {node_bin} {pm2_cmd} start ecosystem.config.js --update-env"
         ]
 
         for cmd in commands:
@@ -100,7 +99,7 @@ def deploy():
                     return
 
         print("\nDeployment completed successfully!")
-        print(f"App should be running at http://weotzi.com")
+        print(f"App should be running at https://beta.weotzi.com")
 
     except Exception as e:
         print(f"Deployment failed: {e}")

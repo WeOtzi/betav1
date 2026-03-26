@@ -30,15 +30,22 @@ const formState = {
         experience_years: '',
         session_price: '',
         session_currency: 'USD',
+        portfolio_source: '',
         portfolio_url: '',
+        instagram_handle: '',
         bio: '',
         work_type: '',
         studio_name: '',
+        studio_id: null,
         birth_date: '',
         subscribed_newsletter: false,
         terms_accepted: false
     }
 };
+
+// Studio autocomplete state
+let studioSearchTimeout = null;
+let studioSuggestionsCache = [];
 
 // DOM Elements
 const formSteps = document.querySelectorAll('.form-step');
@@ -284,143 +291,95 @@ async function checkUsernameAvailability(username, currentUserId) {
 }
 
 // ============================================
-// Date Formatting Helpers (DD/MM/YYYY)
+// Birth Date Selects (Day / Month / Year)
 // ============================================
 
-// Parse DD/MM/YYYY string to Date object
-function parseDateDDMMYYYY(dateStr) {
-    if (!dateStr) return null;
-    
-    // Match DD/MM/YYYY pattern
-    const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!match) return null;
-    
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
-    const year = parseInt(match[3], 10);
-    
-    // Validate ranges
-    if (day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) {
-        return null;
+const MONTH_NAMES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function setupBirthDateSelects() {
+    const daySel = document.getElementById('birth_day');
+    const monthSel = document.getElementById('birth_month');
+    const yearSel = document.getElementById('birth_year');
+    if (!daySel || !monthSel || !yearSel) return;
+
+    for (let d = 1; d <= 31; d++) {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = String(d).padStart(2, '0');
+        daySel.appendChild(opt);
     }
-    
-    const date = new Date(year, month, day);
-    
-    // Check if date is valid (handles cases like 31/02/2000)
-    if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
-        return null;
+
+    MONTH_NAMES.forEach((name, i) => {
+        const opt = document.createElement('option');
+        opt.value = i + 1;
+        opt.textContent = name;
+        monthSel.appendChild(opt);
+    });
+
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= 1920; y--) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        yearSel.appendChild(opt);
     }
-    
-    return date;
+
+    function syncBirthDateState() {
+        const d = daySel.value;
+        const m = monthSel.value;
+        const y = yearSel.value;
+        if (d && m && y) {
+            formState.data.birth_date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        } else {
+            formState.data.birth_date = '';
+        }
+    }
+
+    daySel.addEventListener('change', syncBirthDateState);
+    monthSel.addEventListener('change', syncBirthDateState);
+    yearSel.addEventListener('change', syncBirthDateState);
 }
 
-// Format Date object to DD/MM/YYYY string
-function formatDateDDMMYYYY(date) {
-    if (!date || !(date instanceof Date) || isNaN(date)) return '';
-    
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    
-    return `${day}/${month}/${year}`;
+function prefillBirthDateSelects() {
+    const iso = formState.data.birth_date;
+    if (!iso || !iso.includes('-')) return;
+    const [y, m, d] = iso.split('-');
+    const daySel = document.getElementById('birth_day');
+    const monthSel = document.getElementById('birth_month');
+    const yearSel = document.getElementById('birth_year');
+    if (daySel) daySel.value = parseInt(d, 10);
+    if (monthSel) monthSel.value = parseInt(m, 10);
+    if (yearSel) yearSel.value = parseInt(y, 10);
 }
 
-// Flatpickr instance reference
-let birthDatePicker = null;
+function validateBirthDateSelects() {
+    const daySel = document.getElementById('birth_day');
+    const monthSel = document.getElementById('birth_month');
+    const yearSel = document.getElementById('birth_year');
+    const d = parseInt(daySel?.value, 10);
+    const m = parseInt(monthSel?.value, 10);
+    const y = parseInt(yearSel?.value, 10);
 
-// Initialize Flatpickr date picker with Bauhaus styling
-function setupDateInputFormatting() {
-    const dateInput = document.getElementById('birth_date');
-    const datePickerBtn = document.getElementById('date-picker-btn');
-    
-    if (!dateInput || typeof flatpickr === 'undefined') return;
-    
-    // Initialize Flatpickr
-    birthDatePicker = flatpickr(dateInput, {
-        dateFormat: 'd/m/Y',
-        allowInput: true,
-        locale: 'es',
-        maxDate: 'today',
-        disableMobile: false,
-        clickOpens: true,
-        // Set default date if we have one stored
-        defaultDate: formState.data.birth_date ? new Date(formState.data.birth_date + 'T00:00:00') : null,
-        onChange: function(selectedDates, dateStr, instance) {
-            if (selectedDates.length > 0) {
-                const d = selectedDates[0];
-                // Store in ISO format (YYYY-MM-DD) without timezone shifts
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                formState.data.birth_date = `${year}-${month}-${day}`;
-            }
-        },
-        onReady: function(selectedDates, dateStr, instance) {
-            // Add Bauhaus class to calendar container (with safety check)
-            if (instance && instance.calendarContainer) {
-                instance.calendarContainer.classList.add('bauhaus-datepicker');
-            }
-        }
-    });
-    
-    // Connect the calendar button to open the picker
-    if (datePickerBtn) {
-        datePickerBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (birthDatePicker) {
-                birthDatePicker.open();
-            }
-        });
+    if (!d || !m || !y) return { valid: false, message: 'Selecciona dia, mes y ano.', errorElement: daySel };
+
+    const date = new Date(y, m - 1, d);
+    if (date.getDate() !== d || date.getMonth() !== m - 1 || date.getFullYear() !== y) {
+        return { valid: false, message: 'Fecha invalida. Revisa el dia seleccionado.', errorElement: daySel };
     }
 
-    // Auto-format date input with slashes (DD/MM/YYYY) as user types
-    dateInput.addEventListener('input', (e) => {
-        // Only format if it's a manual input (not from flatpickr)
-        if (e.inputType === 'deleteContentBackward') return;
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    const monthDiff = today.getMonth() - (m - 1);
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) age--;
+    if (age < 18) {
+        return { valid: false, message: 'Debes ser mayor de 18 anos para registrarte.', errorElement: yearSel };
+    }
 
-        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-        if (value.length > 8) value = value.slice(0, 8);
-        
-        let formatted = value;
-        if (value.length > 2) {
-            formatted = value.slice(0, 2) + '/' + value.slice(2);
-        }
-        if (value.length > 4) {
-            formatted = formatted.slice(0, 5) + '/' + formatted.slice(5);
-        }
-        
-        e.target.value = formatted;
-        
-        // If complete, sync with flatpickr and formState
-        if (formatted.length === 10) {
-            const parsed = parseDateDDMMYYYY(formatted);
-            if (parsed) {
-                const year = parsed.getFullYear();
-                const month = String(parsed.getMonth() + 1).padStart(2, '0');
-                const day = String(parsed.getDate()).padStart(2, '0');
-                formState.data.birth_date = `${year}-${month}-${day}`;
-                if (birthDatePicker) birthDatePicker.setDate(parsed, false);
-            }
-        }
-    });
-    
-    // Handle manual input validation
-    dateInput.addEventListener('blur', (e) => {
-        const value = e.target.value;
-        if (value && value.length === 10) {
-            const parsed = parseDateDDMMYYYY(value);
-            if (parsed) {
-                const year = parsed.getFullYear();
-                const month = String(parsed.getMonth() + 1).padStart(2, '0');
-                const day = String(parsed.getDate()).padStart(2, '0');
-                formState.data.birth_date = `${year}-${month}-${day}`;
-                // Update flatpickr with the parsed date
-                if (birthDatePicker) {
-                    birthDatePicker.setDate(parsed, false);
-                }
-            }
-        }
-    });
+    formState.data.birth_date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return { valid: true };
 }
 
 // ============================================
@@ -429,13 +388,17 @@ function setupDateInputFormatting() {
 
 async function initializeAuth() {
     try {
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            login: requestedReturnTo ? `/registerclosedbeta?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/registerclosedbeta'
+        };
         const { data: { session }, error } = await _supabase.auth.getSession();
         
         if (error) throw error;
 
         if (!session) {
             console.log('No authenticated session found. Redirecting to login...');
-            window.location.href = '/registerclosedbeta';
+            window.location.href = authUrls.login;
             return;
         }
 
@@ -451,10 +414,11 @@ async function initializeAuth() {
         }
 
         await loadExistingArtistData();
+        await loadAndRenderStylesFromDB();
 
         initializeForm();
         setupEventListeners();
-        setupDateInputFormatting();
+        setupBirthDateSelects();
         updateUI();
 
         // Initialize Google Places if API is loaded
@@ -464,7 +428,11 @@ async function initializeAuth() {
 
     } catch (error) {
         console.error('Auth initialization error:', error);
-        window.location.href = '/registerclosedbeta';
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            login: requestedReturnTo ? `/registerclosedbeta?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/registerclosedbeta'
+        };
+        window.location.href = authUrls.login;
     }
 }
 
@@ -491,28 +459,83 @@ async function loadExistingArtistData() {
             formState.data.city = artist.ubicacion || '';
             formState.data.styles = artist.styles_array || [];
             formState.data.portfolio_url = artist.portafolio || '';
+            formState.data.instagram_handle = (artist.instagram || '').replace(/^@/, '');
+            if (artist.instagram) {
+                formState.data.portfolio_source = 'instagram';
+            } else if (artist.portafolio) {
+                formState.data.portfolio_source = 'website';
+            }
             formState.data.bio = artist.bio_description || '';
             formState.data.session_price = artist.session_price || '';
             formState.data.birth_date = artist.birth_date || '';
             formState.data.subscribed_newsletter = artist.subscribed_newsletter || false;
             formState.data.experience_years = artist.years_experience || '';
             
-            // Determine work_type and studio_name from estudios field
-            if (artist.estudios === 'Sin estudio/Independiente') {
+            // Hydrate work_type from persisted column; fall back to old heuristic
+            if (artist.work_type) {
+                formState.data.work_type = artist.work_type;
+            } else if (artist.estudios === 'Sin estudio/Independiente') {
                 formState.data.work_type = 'independent';
-                formState.data.studio_name = '';
             } else if (artist.estudios) {
-                // Assume it's a studio name - could be studio or both
-                formState.data.studio_name = artist.estudios;
-                // Default to 'studio' if we have a studio name
                 formState.data.work_type = 'studio';
             }
+
+            formState.data.studio_id = artist.studio_id || null;
+            formState.data.studio_name = (artist.studio_id && artist.estudios && artist.estudios !== 'Sin estudio/Independiente')
+                ? artist.estudios
+                : (artist.estudios && artist.estudios !== 'Sin estudio/Independiente' ? artist.estudios : '');
 
             prefillFormInputs();
         }
     } catch (error) {
         console.error('Error loading existing data:', error);
     }
+}
+
+// Cached flat list of style objects loaded from tattoo_styles
+let _loadedDbStyles = [];
+
+function normalizeStyleName(name) {
+    return (name || '').trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+async function loadAndRenderStylesFromDB() {
+    const grid = document.getElementById('styles-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '<span class="styles-loading" style="opacity:0.5;font-size:0.85rem;">Cargando estilos...</span>';
+
+    try {
+        if (window.ConfigManager && typeof window.ConfigManager.loadTattooStylesFlatFromDB === 'function') {
+            _loadedDbStyles = await window.ConfigManager.loadTattooStylesFlatFromDB();
+        }
+    } catch (err) {
+        console.error('Error loading tattoo styles from DB:', err);
+    }
+
+    const parentStyles = (_loadedDbStyles || [])
+        .filter(s => !s.parent_id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    grid.innerHTML = '';
+
+    parentStyles.forEach(style => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'style-option';
+        btn.dataset.style = style.name;
+        btn.textContent = style.name;
+        grid.appendChild(btn);
+    });
+
+    const otherBtn = document.createElement('button');
+    otherBtn.type = 'button';
+    otherBtn.className = 'style-option style-option-other';
+    otherBtn.dataset.style = 'Otro';
+    otherBtn.id = 'style-other-btn';
+    otherBtn.textContent = '+ Otro';
+    grid.appendChild(otherBtn);
 }
 
 function prefillFormInputs() {
@@ -523,7 +546,6 @@ function prefillFormInputs() {
         'full_name': data.full_name,
         'email': data.email,
         'city': data.city,
-        'portfolio_url': data.portfolio_url,
         'session_price': data.session_price
     };
 
@@ -534,19 +556,7 @@ function prefillFormInputs() {
         }
     });
     
-    // Prefill birth_date using flatpickr
-    if (data.birth_date && birthDatePicker) {
-        birthDatePicker.setDate(new Date(data.birth_date), true);
-    } else if (data.birth_date) {
-        // Fallback: set input value directly if flatpickr not yet initialized
-        const birthDateInput = document.getElementById('birth_date');
-        if (birthDateInput) {
-            const dateParts = data.birth_date.split('-');
-            if (dateParts.length === 3) {
-                birthDateInput.value = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-            }
-        }
-    }
+    prefillBirthDateSelects();
 
     // Prefill bio (contenteditable div)
     const bioEditor = document.getElementById('bio');
@@ -555,12 +565,35 @@ function prefillFormInputs() {
     }
 
     if (data.styles && data.styles.length > 0) {
-        data.styles.forEach(style => {
-            const styleBtn = document.querySelector(`.style-option[data-style="${style}"]`);
-            if (styleBtn) {
-                styleBtn.classList.add('selected');
+        const gridBtns = document.querySelectorAll('#styles-grid .style-option:not(.style-option-other)');
+        const normalizedMap = {};
+        gridBtns.forEach(btn => {
+            normalizedMap[normalizeStyleName(btn.dataset.style)] = btn;
+        });
+
+        const stylesGrid = document.getElementById('styles-grid');
+        const otherBtn = document.getElementById('style-other-btn');
+        const canonicalized = [];
+
+        data.styles.forEach(savedStyle => {
+            const norm = normalizeStyleName(savedStyle);
+            const matchBtn = normalizedMap[norm];
+            if (matchBtn) {
+                matchBtn.classList.add('selected');
+                canonicalized.push(matchBtn.dataset.style);
+            } else if (stylesGrid && otherBtn) {
+                const newBtn = document.createElement('button');
+                newBtn.type = 'button';
+                newBtn.className = 'style-option selected custom-added';
+                newBtn.dataset.style = savedStyle;
+                newBtn.textContent = savedStyle;
+                newBtn.addEventListener('click', () => toggleStyleOption(newBtn));
+                stylesGrid.insertBefore(newBtn, otherBtn);
+                canonicalized.push(savedStyle);
             }
         });
+
+        formState.data.styles = canonicalized;
     }
 
     if (data.work_type) {
@@ -569,11 +602,14 @@ function prefillFormInputs() {
             workTypeBtn.classList.add('selected');
         }
         
-        // Show studio name input if work_type is studio or both
         const studioNameWrapper = document.getElementById('studio-name-wrapper');
         const studioNameInput = document.getElementById('studio_name');
         if (studioNameWrapper && (data.work_type === 'studio' || data.work_type === 'both')) {
             studioNameWrapper.style.display = 'block';
+            if (!studioAutocompleteInitialized) {
+                initStudioAutocomplete();
+                studioAutocompleteInitialized = true;
+            }
             if (studioNameInput && data.studio_name) {
                 studioNameInput.value = data.studio_name;
             }
@@ -591,6 +627,22 @@ function prefillFormInputs() {
         const newsletterBtn = document.querySelector('.newsletter-option[data-subscribe="true"]');
         if (newsletterBtn) {
             newsletterBtn.classList.add('selected');
+        }
+    }
+
+    if (data.portfolio_source) {
+        const sourceBtn = document.querySelector(`.portfolio-source-option[data-source="${data.portfolio_source}"]`);
+        if (sourceBtn) {
+            sourceBtn.classList.add('selected');
+            selectPortfolioSource(sourceBtn);
+        }
+        if ((data.portfolio_source === 'website' || data.portfolio_source === 'other') && data.portfolio_url) {
+            const urlInput = document.getElementById('portfolio_url');
+            if (urlInput) urlInput.value = data.portfolio_url;
+        }
+        if (data.portfolio_source === 'instagram' && data.instagram_handle) {
+            const igInput = document.getElementById('instagram_handle');
+            if (igInput) igInput.value = data.instagram_handle;
         }
     }
 }
@@ -636,6 +688,12 @@ function initializeForm() {
         btn.addEventListener('click', () => selectWorkTypeOption(btn));
     });
 
+    // Portfolio source options (single-select)
+    const portfolioSourceButtons = document.querySelectorAll('.portfolio-source-option');
+    portfolioSourceButtons.forEach(btn => {
+        btn.addEventListener('click', () => selectPortfolioSource(btn));
+    });
+
     // Newsletter options (single-select)
     const newsletterButtons = document.querySelectorAll('.newsletter-option');
     newsletterButtons.forEach(btn => {
@@ -666,7 +724,8 @@ function setupEventListeners() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             const activeElement = document.activeElement;
-            if (activeElement.tagName !== 'TEXTAREA') {
+            // Exclude textarea AND contenteditable elements (e.g. bio editor)
+            if (activeElement.tagName !== 'TEXTAREA' && !activeElement.isContentEditable) {
                 e.preventDefault();
                 handleNext();
             }
@@ -717,32 +776,61 @@ function toggleStyleOption(btn) {
     }
 }
 
-// [CH-15] Add custom style to the list
-function addCustomStyle() {
+async function addCustomStyle() {
     const customInput = document.getElementById('custom_style');
-    const customStyle = customInput?.value.trim();
-    
-    if (customStyle && !formState.data.styles.includes(customStyle)) {
-        formState.data.styles.push(customStyle);
-        
-        // Create a new style tag to show the added custom style
-        const stylesGrid = document.getElementById('styles-grid');
-        const otherBtn = document.getElementById('style-other-btn');
-        
-        if (stylesGrid && otherBtn) {
-            const newBtn = document.createElement('button');
-            newBtn.type = 'button';
-            newBtn.className = 'style-option selected custom-added';
-            newBtn.dataset.style = customStyle;
-            newBtn.textContent = customStyle;
-            newBtn.addEventListener('click', () => toggleStyleOption(newBtn));
-            
-            // Insert before the "Otro" button
-            stylesGrid.insertBefore(newBtn, otherBtn);
+    const rawValue = customInput?.value.trim();
+    if (!rawValue) return;
+
+    const addBtn = document.getElementById('add-custom-style-btn');
+    if (addBtn) addBtn.disabled = true;
+
+    try {
+        const res = await fetch('/api/tattoo-styles/ensure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: rawValue })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error('Error ensuring style:', err);
+            return;
         }
-        
-        // Clear input
+
+        const { style } = await res.json();
+        const canonicalName = style?.name || rawValue;
+
+        if (formState.data.styles.includes(canonicalName)) {
+            customInput.value = '';
+            return;
+        }
+
+        const existingBtn = document.querySelector(`#styles-grid .style-option[data-style="${CSS.escape(canonicalName)}"]`);
+        if (existingBtn) {
+            if (!existingBtn.classList.contains('selected')) {
+                existingBtn.classList.add('selected');
+                formState.data.styles.push(canonicalName);
+            }
+        } else {
+            formState.data.styles.push(canonicalName);
+            const stylesGrid = document.getElementById('styles-grid');
+            const otherBtn = document.getElementById('style-other-btn');
+            if (stylesGrid && otherBtn) {
+                const newBtn = document.createElement('button');
+                newBtn.type = 'button';
+                newBtn.className = 'style-option selected custom-added';
+                newBtn.dataset.style = canonicalName;
+                newBtn.textContent = canonicalName;
+                newBtn.addEventListener('click', () => toggleStyleOption(newBtn));
+                stylesGrid.insertBefore(newBtn, otherBtn);
+            }
+        }
+
         customInput.value = '';
+    } catch (err) {
+        console.error('addCustomStyle network error:', err);
+    } finally {
+        if (addBtn) addBtn.disabled = false;
     }
 }
 
@@ -752,22 +840,208 @@ function selectExperienceOption(btn) {
     formState.data.experience_years = btn.dataset.years;
 }
 
+// ============================================
+// Studio Autocomplete
+// ============================================
+
+function initStudioAutocomplete() {
+    const studioInput = document.getElementById('studio_name');
+    const suggestionsEl = document.getElementById('studio-suggestions');
+    if (!studioInput || !suggestionsEl) return;
+
+    studioInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        formState.data.studio_name = query;
+        formState.data.studio_id = null;
+
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+        clearTimeout(studioSearchTimeout);
+        studioSearchTimeout = setTimeout(() => searchStudios(query), 250);
+    });
+
+    studioInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            const active = suggestionsEl.querySelector('.studio-suggestion-item.active');
+            if (active) active.click();
+            else hideSuggestions();
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            navigateSuggestions(e.key === 'ArrowDown' ? 1 : -1);
+        }
+        if (e.key === 'Escape') hideSuggestions();
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!studioInput.contains(e.target) && !suggestionsEl.contains(e.target)) {
+            hideSuggestions();
+        }
+    });
+}
+
+async function searchStudios(query) {
+    const suggestionsEl = document.getElementById('studio-suggestions');
+    if (!suggestionsEl) return;
+
+    try {
+        const normalizedQuery = query.toUpperCase();
+        const { data, error } = await _supabase
+            .from('studios')
+            .select('id, name, normalized_name')
+            .ilike('normalized_name', `%${normalizedQuery}%`)
+            .order('name')
+            .limit(8);
+
+        if (error) {
+            console.error('Studio search error:', error);
+            hideSuggestions();
+            return;
+        }
+
+        studioSuggestionsCache = data || [];
+        renderSuggestions(query);
+    } catch (err) {
+        console.error('Studio search failed:', err);
+        hideSuggestions();
+    }
+}
+
+function renderSuggestions(query) {
+    const suggestionsEl = document.getElementById('studio-suggestions');
+    if (!suggestionsEl) return;
+
+    if (studioSuggestionsCache.length === 0) {
+        suggestionsEl.innerHTML = `
+            <div class="studio-suggestion-item studio-suggestion-new" data-action="create">
+                Crear: "${query}"
+            </div>`;
+    } else {
+        const exactMatch = studioSuggestionsCache.some(
+            s => s.normalized_name === query.toUpperCase()
+        );
+        let html = studioSuggestionsCache.map(s => `
+            <div class="studio-suggestion-item" data-id="${s.id}" data-name="${s.name}">
+                ${s.name}
+            </div>
+        `).join('');
+
+        if (!exactMatch) {
+            html += `
+                <div class="studio-suggestion-item studio-suggestion-new" data-action="create">
+                    Crear: "${query}"
+                </div>`;
+        }
+        suggestionsEl.innerHTML = html;
+    }
+
+    suggestionsEl.querySelectorAll('.studio-suggestion-item').forEach(item => {
+        item.addEventListener('click', () => selectStudioSuggestion(item));
+    });
+    suggestionsEl.classList.add('visible');
+}
+
+function selectStudioSuggestion(item) {
+    const studioInput = document.getElementById('studio_name');
+    if (item.dataset.action === 'create') {
+        formState.data.studio_id = null;
+    } else {
+        formState.data.studio_id = item.dataset.id;
+        formState.data.studio_name = item.dataset.name;
+        if (studioInput) studioInput.value = item.dataset.name;
+    }
+    hideSuggestions();
+}
+
+function hideSuggestions() {
+    const el = document.getElementById('studio-suggestions');
+    if (el) {
+        el.classList.remove('visible');
+        el.innerHTML = '';
+    }
+}
+
+function navigateSuggestions(direction) {
+    const el = document.getElementById('studio-suggestions');
+    if (!el) return;
+    const items = Array.from(el.querySelectorAll('.studio-suggestion-item'));
+    if (!items.length) return;
+    const activeIdx = items.findIndex(i => i.classList.contains('active'));
+    items.forEach(i => i.classList.remove('active'));
+    let nextIdx = activeIdx + direction;
+    if (nextIdx < 0) nextIdx = items.length - 1;
+    if (nextIdx >= items.length) nextIdx = 0;
+    items[nextIdx].classList.add('active');
+    items[nextIdx].scrollIntoView({ block: 'nearest' });
+}
+
+async function findOrCreateStudio(studioName) {
+    if (!studioName) return null;
+    const normalized = studioName.toUpperCase().trim();
+
+    if (formState.data.studio_id) {
+        return formState.data.studio_id;
+    }
+
+    const { data: existing, error: findErr } = await _supabase
+        .from('studios')
+        .select('id')
+        .eq('normalized_name', normalized)
+        .maybeSingle();
+
+    if (findErr) {
+        console.error('Error finding studio:', findErr);
+        return null;
+    }
+    if (existing) return existing.id;
+
+    const { data: created, error: createErr } = await _supabase
+        .from('studios')
+        .insert({ name: studioName.trim(), normalized_name: normalized })
+        .select('id')
+        .single();
+
+    if (createErr) {
+        if (createErr.code === '23505') {
+            const { data: retry } = await _supabase
+                .from('studios')
+                .select('id')
+                .eq('normalized_name', normalized)
+                .single();
+            return retry?.id || null;
+        }
+        console.error('Error creating studio:', createErr);
+        return null;
+    }
+    return created.id;
+}
+
+let studioAutocompleteInitialized = false;
+
 function selectWorkTypeOption(btn) {
     document.querySelectorAll('.work-type-option').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     formState.data.work_type = btn.dataset.type;
     
-    // Show/hide studio name input based on selection
     const studioNameWrapper = document.getElementById('studio-name-wrapper');
     const studioNameInput = document.getElementById('studio_name');
     
     if (studioNameWrapper) {
         if (btn.dataset.type === 'studio' || btn.dataset.type === 'both') {
             studioNameWrapper.style.display = 'block';
+            if (!studioAutocompleteInitialized) {
+                initStudioAutocomplete();
+                studioAutocompleteInitialized = true;
+            }
             setTimeout(() => studioNameInput?.focus(), 100);
         } else {
             studioNameWrapper.style.display = 'none';
             formState.data.studio_name = '';
+            formState.data.studio_id = null;
             if (studioNameInput) studioNameInput.value = '';
         }
     }
@@ -777,6 +1051,37 @@ function selectNewsletterOption(btn) {
     document.querySelectorAll('.newsletter-option').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     formState.data.subscribed_newsletter = btn.dataset.subscribe === 'true';
+}
+
+function selectPortfolioSource(btn) {
+    document.querySelectorAll('.portfolio-source-option').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const source = btn.dataset.source;
+    formState.data.portfolio_source = source;
+
+    const urlWrapper = document.getElementById('portfolio-url-wrapper');
+    const igWrapper = document.getElementById('portfolio-ig-wrapper');
+    const urlLabel = document.getElementById('portfolio-url-label');
+    const urlInput = document.getElementById('portfolio_url');
+    const igInput = document.getElementById('instagram_handle');
+
+    urlWrapper.style.display = 'none';
+    igWrapper.style.display = 'none';
+
+    if (source === 'website') {
+        urlWrapper.style.display = 'block';
+        urlLabel.textContent = 'URL de tu sitio web';
+        urlInput.placeholder = 'https://tusitio.com';
+        setTimeout(() => urlInput.focus(), 100);
+    } else if (source === 'instagram') {
+        igWrapper.style.display = 'block';
+        setTimeout(() => igInput.focus(), 100);
+    } else if (source === 'other') {
+        urlWrapper.style.display = 'block';
+        urlLabel.textContent = 'URL de tu portfolio o trabajo';
+        urlInput.placeholder = 'https://...';
+        setTimeout(() => urlInput.focus(), 100);
+    }
 }
 
 // ============================================
@@ -821,20 +1126,21 @@ function saveCurrentStepData() {
     const currentStepEl = document.querySelector(`.form-step[data-step="${formState.currentStep}"]`);
     if (!currentStepEl) return;
 
+    if (formState.currentStep === 8) {
+        const urlInput = document.getElementById('portfolio_url');
+        const igInput = document.getElementById('instagram_handle');
+        const source = formState.data.portfolio_source;
+        if (source === 'website' || source === 'other') {
+            formState.data.portfolio_url = urlInput ? urlInput.value : '';
+        } else if (source === 'instagram') {
+            formState.data.instagram_handle = igInput ? igInput.value.replace(/^@/, '') : '';
+        }
+        return;
+    }
+
     const input = currentStepEl.querySelector('.form-input');
     if (input) {
-        // Special handling for birth_date to prevent overwriting ISO format with raw text
-        if (input.id === 'birth_date') {
-            const parsed = parseDateDDMMYYYY(input.value);
-            if (parsed) {
-                const year = parsed.getFullYear();
-                const month = String(parsed.getMonth() + 1).padStart(2, '0');
-                const day = String(parsed.getDate()).padStart(2, '0');
-                formState.data.birth_date = `${year}-${month}-${day}`;
-            }
-        } else {
-            formState.data[input.id] = input.value;
-        }
+        formState.data[input.id] = input.value;
     }
 }
 
@@ -907,17 +1213,37 @@ function validateCurrentStep() {
             }
             break;
 
-        case 8:
-            const portfolioUrl = document.getElementById('portfolio_url');
-            if (portfolioUrl.value.trim()) {
-                try {
-                    new URL(portfolioUrl.value);
-                } catch {
+        case 8: {
+            const source = formState.data.portfolio_source;
+            if (!source) {
+                isValid = false;
+                const options = document.getElementById('portfolio-source-options');
+                options.style.animation = 'shake 0.5s ease';
+                setTimeout(() => options.style.animation = '', 500);
+                break;
+            }
+            if (source === 'website' || source === 'other') {
+                const portfolioUrl = document.getElementById('portfolio_url');
+                if (!portfolioUrl.value.trim()) {
                     isValid = false;
                     errorElement = portfolioUrl;
+                } else {
+                    try {
+                        new URL(portfolioUrl.value);
+                    } catch {
+                        isValid = false;
+                        errorElement = portfolioUrl;
+                    }
+                }
+            } else if (source === 'instagram') {
+                const igInput = document.getElementById('instagram_handle');
+                if (!igInput.value.trim()) {
+                    isValid = false;
+                    errorElement = igInput;
                 }
             }
             break;
+        }
 
         case 9:
             // Bio is optional
@@ -943,38 +1269,11 @@ function validateCurrentStep() {
             break;
 
         case 11:
-            const birthDateInput = document.getElementById('birth_date');
-            const birthDateValue = birthDateInput.value;
-            if (!birthDateValue) {
+            const birthResult = validateBirthDateSelects();
+            if (!birthResult.valid) {
                 isValid = false;
-                errorElement = birthDateInput;
-            } else {
-                // Parse DD/MM/YYYY format
-                const parsedDate = parseDateDDMMYYYY(birthDateValue);
-                if (!parsedDate) {
-                    isValid = false;
-                    errorElement = birthDateInput;
-                    alert('Formato de fecha invalido. Usa DD/MM/AAAA');
-                } else {
-                    // Check if user is at least 18
-                    const today = new Date();
-                    let age = today.getFullYear() - parsedDate.getFullYear();
-                    const monthDiff = today.getMonth() - parsedDate.getMonth();
-                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsedDate.getDate())) {
-                        age--;
-                    }
-                    if (age < 18) {
-                        isValid = false;
-                        errorElement = birthDateInput;
-                        alert('Debes ser mayor de 18 anos para registrarte.');
-                    } else {
-                        // Store in ISO format (YYYY-MM-DD) for database
-                        const year = parsedDate.getFullYear();
-                        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-                        const day = String(parsedDate.getDate()).padStart(2, '0');
-                        formState.data.birth_date = `${year}-${month}-${day}`;
-                    }
-                }
+                errorElement = birthResult.errorElement;
+                alert(birthResult.message);
             }
             break;
 
@@ -1023,9 +1322,9 @@ function goToStep(step) {
         if (newStepEl) {
             newStepEl.classList.add('active');
 
-            const input = newStepEl.querySelector('.form-input');
-            if (input) {
-                setTimeout(() => input.focus(), 100);
+            const focusTarget = newStepEl.querySelector('.form-input') || newStepEl.querySelector('.birth-select');
+            if (focusTarget) {
+                setTimeout(() => focusTarget.focus(), 100);
             }
         }
 
@@ -1035,6 +1334,36 @@ function goToStep(step) {
             populateSummary();
         }
     }, 100);
+}
+
+function injectMobileContinueBtn(stepEl) {
+    document.querySelectorAll('.mobile-continue-btn').forEach(b => b.remove());
+    if (!stepEl) return;
+
+    const stepValue = stepEl.dataset.step;
+    if (stepValue === 'success') return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mobile-continue-btn';
+
+    if (stepValue === 'summary') {
+        btn.classList.add('submit-btn');
+        btn.innerHTML = `
+            Confirmar
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                <path d="M20 6L9 17l-5-5"/>
+            </svg>`;
+    } else {
+        btn.innerHTML = `
+            Continuar
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>`;
+    }
+
+    btn.addEventListener('click', handleNext);
+    stepEl.appendChild(btn);
 }
 
 function updateUI() {
@@ -1087,6 +1416,38 @@ function updateUI() {
         `;
         btnNext.classList.remove('submit-btn');
     }
+
+    const activeStep = document.querySelector('.form-step.active');
+    if (activeStep) {
+        injectMobileContinueBtn(activeStep);
+    }
+}
+
+// ============================================
+// Portfolio Link Resolver
+// ============================================
+
+function resolvePortfolioLinks(username) {
+    const source = formState.data.portfolio_source;
+    const profileUrl = window.location.origin + '/artist/profile?artist=' + encodeURIComponent(username);
+    let portafolio = null;
+    let instagram = null;
+    let displayLabel = '';
+
+    if (source === 'website' || source === 'other') {
+        portafolio = formState.data.portfolio_url || null;
+        displayLabel = portafolio || 'No especificado';
+    } else if (source === 'instagram') {
+        const handle = (formState.data.instagram_handle || '').replace(/^@/, '');
+        instagram = '@' + handle;
+        portafolio = 'https://www.instagram.com/' + handle + '/';
+        displayLabel = '@' + handle + ' (Instagram)';
+    } else if (source === 'none') {
+        portafolio = profileUrl;
+        displayLabel = 'Perfil We Otzi';
+    }
+
+    return { portafolio, instagram, profileUrl, displayLabel };
 }
 
 // ============================================
@@ -1174,11 +1535,11 @@ function populateSummary() {
         </div>
         <div class="summary-row">
             <div class="summary-label">Portfolio</div>
-            <div class="summary-value">${data.portfolio_url || '<span style="opacity: 0.5;">No especificado</span>'}</div>
+            <div class="summary-value">${resolvePortfolioLinks(usernamePreview).displayLabel || '<span style="opacity: 0.5;">No especificado</span>'}</div>
         </div>
         <div class="summary-row">
             <div class="summary-label">Bio</div>
-            <div class="summary-value bio-value">${data.bio || '<span style="opacity: 0.5;">No especificado</span>'}</div>
+            <div class="summary-value bio-value">${window.BioFormatting ? window.BioFormatting.sanitizeBioHtml(data.bio) || '<span style="opacity: 0.5;">No especificado</span>' : data.bio || '<span style="opacity: 0.5;">No especificado</span>'}</div>
         </div>
         <div class="summary-row">
             <div class="summary-label">Modalidad</div>
@@ -1219,6 +1580,11 @@ async function submitForm() {
     btnNext.innerHTML = `<span>Guardando...</span>`;
 
     try {
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            registerClosedBeta: '/registerclosedbeta',
+            dashboard: '/artist/dashboard'
+        };
         const username = formatUsername(formState.data.artistic_name);
         const fullNameCapitalized = capitalizeWords(formState.data.full_name);
 
@@ -1243,13 +1609,16 @@ async function submitForm() {
             ? `${formState.data.session_price} ${formState.data.session_currency}`
             : null;
 
-        // Determine estudios value based on work type
+        // Resolve studio_id via find-or-create if needed
+        let resolvedStudioId = null;
         let estudiosValue;
         if (formState.data.work_type === 'independent') {
             estudiosValue = 'Sin estudio/Independiente';
+        } else if (formState.data.studio_name) {
+            resolvedStudioId = await findOrCreateStudio(formState.data.studio_name);
+            estudiosValue = formState.data.studio_name.toUpperCase();
         } else {
-            // For 'studio' or 'both', use the studio name (normalized to uppercase)
-            estudiosValue = formState.data.studio_name ? formState.data.studio_name.toUpperCase() : null;
+            estudiosValue = null;
         }
 
         // [CH-16] Get preset password from config for storage in artists_db
@@ -1261,6 +1630,8 @@ async function submitForm() {
             finalBirthDate = formState.data.birth_date;
         }
 
+        const resolved = resolvePortfolioLinks(username);
+
         const artistData = {
             user_id: currentUser.id,
             email: formState.data.email,
@@ -1271,9 +1642,14 @@ async function submitForm() {
             country: formState.data.location_country || null,
             styles_array: formState.data.styles,
             estilo: formState.data.styles.join(', '),
-            portafolio: formState.data.portfolio_url || null,
-            bio_description: formState.data.bio || null,
+            portafolio: resolved.portafolio,
+            instagram: resolved.instagram,
+            bio_description: window.BioFormatting
+                ? (window.BioFormatting.sanitizeBioHtml(formState.data.bio) || null)
+                : (formState.data.bio || null),
             estudios: estudiosValue,
+            studio_id: resolvedStudioId,
+            work_type: formState.data.work_type || null,
             session_price: sessionPriceFormatted,
             birth_date: finalBirthDate,
             subscribed_newsletter: formState.data.subscribed_newsletter,
@@ -1351,14 +1727,16 @@ async function submitForm() {
                     years_experience: formState.data.experience_years || null,
                     // Bio and portfolio
                     bio: formState.data.bio || null,
-                    portfolio_url: formState.data.portfolio_url || null,
+                    portfolio_url: resolved.portafolio,
+                    instagram: resolved.instagram,
+                    portfolio_source: formState.data.portfolio_source || null,
                     // Personal info
                     birth_date: finalBirthDate,
                     subscribed_newsletter: formState.data.subscribed_newsletter || false,
                     // URLs
-                    dashboard_url: window.location.origin + '/artist/dashboard',
-                    profile_url: window.location.origin + '/artist/profile/' + username,
-                    login_url: window.location.origin + '/registerclosedbeta'
+                    dashboard_url: window.location.origin + authUrls.dashboard,
+                    profile_url: resolved.profileUrl,
+                    login_url: window.location.origin + authUrls.registerClosedBeta
                 });
                 console.log('n8n event sent: artist_registration_completed');
             } catch (webhookErr) {
@@ -1368,7 +1746,7 @@ async function submitForm() {
 
         // Auto-redirect to dashboard after 3 seconds
         setTimeout(() => {
-            window.location.href = '/artist/dashboard';
+            window.location.href = requestedReturnTo || authUrls.dashboard;
         }, 3000);
 
     } catch (error) {
@@ -1441,7 +1819,22 @@ function initRichTextEditor() {
     const emojiTrigger = document.getElementById('emoji-trigger');
     
     if (!bioEditor || !toolbar) return;
-    
+
+    // Preserve selection on iOS Safari: prevent focus loss when tapping toolbar buttons.
+    // mousedown fires before the contenteditable loses focus, so preventDefault here
+    // keeps the selection intact for execCommand to work correctly.
+    toolbar.addEventListener('mousedown', (e) => {
+        const btn = e.target.closest('.toolbar-btn');
+        if (btn) e.preventDefault();
+    });
+    toolbar.addEventListener('touchstart', (e) => {
+        const btn = e.target.closest('.toolbar-btn');
+        // Don't preventDefault on color-btn: the native color picker needs the touch
+        if (btn && !btn.classList.contains('color-btn')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
     // Handle toolbar button clicks
     toolbar.addEventListener('click', (e) => {
         const btn = e.target.closest('.toolbar-btn');
@@ -1473,24 +1866,52 @@ function initRichTextEditor() {
     });
     
     // Handle color picker changes
+    // We save/restore the selection because opening a color input steals focus
+    // from the contenteditable, clearing the selection on iOS Safari.
     const textColorPicker = document.getElementById('text-color-picker');
     const bgColorPicker = document.getElementById('bg-color-picker');
-    
+    let savedSelection = null;
+
+    function saveSelection() {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            savedSelection = sel.getRangeAt(0).cloneRange();
+        }
+    }
+
+    function restoreSelection() {
+        if (savedSelection) {
+            bioEditor.focus();
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(savedSelection);
+        }
+    }
+
+    // Save selection when color button is focused (before picker opens)
     if (textColorPicker) {
+        textColorPicker.addEventListener('focus', saveSelection);
         textColorPicker.addEventListener('input', (e) => {
+            restoreSelection();
             document.execCommand('foreColor', false, e.target.value);
             syncBioContent();
-            bioEditor.focus();
         });
     }
-    
+
     if (bgColorPicker) {
+        bgColorPicker.addEventListener('focus', saveSelection);
         bgColorPicker.addEventListener('input', (e) => {
-            document.execCommand('hiliteColor', false, e.target.value);
+            restoreSelection();
+            // iOS Safari uses 'backColor'; other browsers use 'hiliteColor'
+            const cmd = document.queryCommandSupported
+                && document.queryCommandSupported('hiliteColor') ? 'hiliteColor' : 'backColor';
+            document.execCommand(cmd, false, e.target.value);
             syncBioContent();
-            bioEditor.focus();
         });
     }
+
+    // Also save selection whenever the bio editor loses focus
+    bioEditor.addEventListener('blur', saveSelection);
     
     // Handle emoji picker toggle
     if (emojiTrigger && emojiPicker) {
@@ -1548,11 +1969,14 @@ function insertTextAtCaret(text) {
     }
 }
 
-// Sync bio content to form state
+// Sync bio content to form state (sanitized)
 function syncBioContent() {
     const bioEditor = document.getElementById('bio');
     if (bioEditor) {
-        formState.data.bio = bioEditor.innerHTML;
+        const raw = bioEditor.innerHTML;
+        formState.data.bio = window.BioFormatting
+            ? window.BioFormatting.sanitizeBioHtml(raw)
+            : raw;
     }
 }
 // [CH-11] END

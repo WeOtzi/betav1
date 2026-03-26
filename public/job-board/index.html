@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Job Board - Solicitudes de Tatuajes</title>
+    <meta name="description" content="Explora solicitudes de tatuaje abiertas y postulate como artista en We Otzi.">
+
+    <!-- Fonts - Bauhaus Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Config & Logging -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/shared/css/job-board-feed.css">
+</head>
+<body data-theme="light">
+    <div class="app-container">
+
+        <!-- Fixed Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <span class="header-logo">WE OTZI</span>
+                <span class="header-divider">|</span>
+                <span class="header-section">JOB BOARD</span>
+            </div>
+            <nav class="header-nav">
+                <a href="/marketplace" class="nav-link">Artistas</a>
+                <a href="/quotation" class="nav-link">Cotizar</a>
+                <a href="#" id="auth-nav-btn" class="nav-link nav-link--accent">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span id="auth-nav-label">Iniciar Sesion</span>
+                </a>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main id="marketplace-content">
+
+            <!-- Hero / Search Section -->
+            <section class="marketplace-hero">
+                <h1 class="brand-title">Solicitudes Abiertas</h1>
+                <p class="subtitle">Encuentra solicitudes de tatuaje y postulate como artista.</p>
+
+                <div class="smart-search-container">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="smart-search" placeholder="Busca por estilo, zona del cuerpo, ciudad..." autocomplete="off">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    </div>
+                </div>
+
+                <!-- Style Filter Buttons -->
+                <div class="visual-filters">
+                    <div class="filter-group">
+                        <span class="filter-label">Estilos</span>
+                        <div class="filter-grid" id="style-filters">
+                            <!-- Injected by job-board-feed.js -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters Bar -->
+                <div class="advanced-filters-bar">
+                    <div class="filter-select-group">
+                        <label for="filter-city">Ciudad</label>
+                        <select id="filter-city">
+                            <option value="">Todas las ciudades</option>
+                        </select>
+                    </div>
+                    <div class="filter-select-group">
+                        <label for="filter-size">Tamano</label>
+                        <select id="filter-size">
+                            <option value="">Cualquier tamano</option>
+                            <option value="small">Pequeno (< 10 cm)</option>
+                            <option value="medium">Mediano (10-20 cm)</option>
+                            <option value="large">Grande (20-40 cm)</option>
+                            <option value="xlarge">Muy Grande (40+ cm)</option>
+                        </select>
+                    </div>
+                    <div class="filter-select-group">
+                        <label for="filter-budget">Presupuesto</label>
+                        <select id="filter-budget">
+                            <option value="">Cualquier presupuesto</option>
+                            <option value="low">Hasta $200 USD</option>
+                            <option value="medium">$200 - $800 USD</option>
+                            <option value="high">$800+ USD</option>
+                        </select>
+                    </div>
+                    <div class="filter-select-group">
+                        <label for="sort-select">Ordenar</label>
+                        <select id="sort-select">
+                            <option value="newest">Mas recientes</option>
+                            <option value="budget-high">Presupuesto: Mayor</option>
+                            <option value="budget-low">Presupuesto: Menor</option>
+                            <option value="deadline">Fecha limite</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Meta & Active Filters -->
+            <section class="results-section">
+                <div class="results-meta">
+                    <span id="results-count" class="technical-label">Cargando solicitudes...</span>
+                    <div id="active-filters-display" class="active-filters-list"></div>
+                </div>
+
+                <!-- Job Board Grid -->
+                <div id="job-board-grid" class="marketplace-grid">
+                    <!-- Request cards injected by job-board-feed.js -->
+                </div>
+
+                <!-- Pagination -->
+                <div id="pagination-controls" class="pagination-container hidden">
+                    <button class="nav-btn" id="prev-page" aria-label="Pagina anterior">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span id="page-info" class="page-info">Pagina 1 de 1</span>
+                    <button class="nav-btn" id="next-page" aria-label="Pagina siguiente">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state hidden">
+                    <div class="empty-icon"><i class="fa-solid fa-inbox"></i></div>
+                    <h2>No hay solicitudes con esos criterios</h2>
+                    <p>Prueba con otros filtros o vuelve mas tarde para nuevas solicitudes.</p>
+                    <button class="btn btn-secondary" id="btn-clear-filters">Ver todas las solicitudes</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bauhaus-footer">
+            <div class="footer-content">
+                <p class="footer-text">Hecho con amor por We Otzi, para artistas.</p>
+                <p class="footer-copyright">&copy; 2025 We Otzi. Todos los derechos reservados.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Application Modal -->
+    <div id="application-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 class="modal-title">Postularse a solicitud</h2>
+                <span id="modal-request-code" class="technical-label"></span>
+                <button class="modal-close" id="btn-close-application" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modal-request-summary" class="modal-summary">
+                <!-- Request details injected by JS -->
+            </div>
+            <form id="application-form" class="modal-form">
+                <div class="form-group">
+                    <label for="app-message">Mensaje al cliente <span class="required">*</span></label>
+                    <textarea id="app-message" name="message" rows="4" required
+                        placeholder="Describe tu vision para este tatuaje y por que eres el artista ideal..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="app-price">Precio estimado (USD) <span class="required">*</span></label>
+                        <input type="number" id="app-price" name="estimated_price" min="1" step="any" required placeholder="Ej: 350">
+                    </div>
+                    <div class="form-group">
+                        <label for="app-sessions">Sesiones estimadas <span class="required">*</span></label>
+                        <input type="number" id="app-sessions" name="estimated_sessions" min="1" max="20" required placeholder="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="app-availability">Disponibilidad</label>
+                    <input type="text" id="app-availability" name="availability_note" placeholder="Ej: Disponible a partir de marzo, L-V">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="btn-submit-application">
+                    <i class="fa-solid fa-paper-plane"></i> Enviar postulacion
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Prompt Modal -->
+    <div id="login-modal" class="modal-overlay hidden">
+        <div class="modal-container modal-container--sm">
+            <button class="modal-close" id="btn-close-login" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="modal-body-centered">
+                <i class="fa-solid fa-lock modal-lock-icon"></i>
+                <h2>Inicia sesion como artista para postularte</h2>
+                <p>Necesitas una cuenta de artista verificada para enviar postulaciones.</p>
+                <div class="modal-actions">
+                    <a href="/registerclosedbeta?returnTo=%2Fjob-board" class="btn btn-primary">Iniciar Sesion</a>
+                    <a href="/register-artist?returnTo=%2Fjob-board" class="btn btn-secondary">Registrarme como Artista</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <p>Cargando solicitudes...</p>
+    </div>
+
+    <!-- Job Board Script -->
+    <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/job-board-feed.js"></script>
+</body>
+</html>

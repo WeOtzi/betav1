@@ -11,9 +11,9 @@ $SECURITY_TOKEN = 'Abnerisai24.';
 
 // Server paths
 $NODE_PATH = '/opt/alt/alt-nodejs22/root/usr/bin/node';
-$PM2_PATH = '/home/u795331143/node_modules/pm2/bin/pm2';
 $APP_DIR = '/home/u795331143/domains/weotzi.com/public_html/beta';
-$PM2_HOME = '/home/u795331143/.pm2';  // Use default PM2 home
+$PM2_PATH = $APP_DIR . '/node_modules/.bin/pm2';
+$PM2_HOME = '/home/u795331143/.pm2';
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -43,12 +43,12 @@ function runCommand($cmd, $appDir, $env = []) {
 }
 
 // Start the server
-$command = "cd $APP_DIR && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH start ecosystem.config.js 2>&1";
+$command = "cd $APP_DIR && export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH start ecosystem.config.js 2>&1";
 $output = runCommand($command, $APP_DIR, ['PM2_HOME' => $PM2_HOME]);
 
 // Get status
 $statusOutput = runCommand(
-    "PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH list 2>&1",
+    "cd $APP_DIR && export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH list 2>&1",
     $APP_DIR,
     ['PM2_HOME' => $PM2_HOME]
 );

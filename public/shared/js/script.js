@@ -2,6 +2,8 @@
 // WE ÖTZI - DYNAMIC QUOTATION APP SCRIPT
 // ============================================
 
+const _dbg = (...args) => { if (window.__WEOTZI_DEBUG) console.log(...args); };
+
 // ============ CONFIGURATION ============
 // DEFAULT_QUESTIONS_CONFIG - Synced with admin.js questionsConfig
 // This is the fallback if no localStorage config exists
@@ -100,6 +102,9 @@ let BODY_PARTS_DATA = [];
 let currentBodyZone = null;
 let currentBodySide = null; // New state for side selection flow
 
+// Authenticated client state (populated when user logs in via modal or has active session)
+let _authenticatedUserId = null;
+
 // ============ DRAFT PERSISTENCE (LocalStorage) ============
 const DRAFT_STORAGE_KEY = 'weotzi_quotation_draft';
 
@@ -117,7 +122,7 @@ function saveDraftToLocalStorage() {
     };
     try {
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-        console.log('📝 Draft saved to localStorage');
+        _dbg('Draft saved to localStorage');
     } catch (e) {
         console.warn('Could not save draft to localStorage:', e);
     }
@@ -143,7 +148,7 @@ function loadDraftFromLocalStorage() {
 function clearDraftFromLocalStorage() {
     try {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
-        console.log('🗑️ Draft cleared from localStorage');
+        _dbg('Draft cleared from localStorage');
     } catch (e) {
         console.warn('Could not clear draft from localStorage:', e);
     }
@@ -247,7 +252,7 @@ function continueDraft() {
         selectedBodyParts = draft.selectedBodyParts || [];
         summaryReached = draft.summaryReached || false;
         
-        console.log('✅ Draft restored:', formData.quote_id);
+        _dbg('Draft restored:', formData.quote_id);
     }
     
     // Hide modal
@@ -349,7 +354,7 @@ async function loadConfig() {
     if (window.ConfigManager && typeof window.ConfigManager.loadBodyPartsFromDB === 'function') {
         try {
             BODY_PARTS_DATA = await window.ConfigManager.loadBodyPartsFromDB();
-            console.log('✅ Body parts loaded from Supabase:', BODY_PARTS_DATA.length, 'zones');
+            _dbg('Body parts loaded from Supabase:', BODY_PARTS_DATA.length, 'zones');
         } catch (err) {
             console.error('Error loading body parts:', err);
             BODY_PARTS_DATA = window.ConfigManager.getBodyParts() || [];
@@ -366,7 +371,7 @@ async function loadConfig() {
             if (dbQuestions && dbQuestions.length > 0) {
                 questionsConfig = dbQuestions;
                 localStorage.setItem('weotzi_questions_config', JSON.stringify(questionsConfig));
-                console.log('✅ Questions loaded from Supabase:', questionsConfig.length);
+                _dbg('Questions loaded from Supabase:', questionsConfig.length);
             } else {
                 useFallbackQuestions();
             }
@@ -383,15 +388,18 @@ function useFallbackQuestions() {
     const saved = localStorage.getItem('weotzi_questions_config');
     if (saved) {
         questionsConfig = JSON.parse(saved);
-        console.log('ℹ️ Using questions from localStorage fallback');
+        _dbg('Using questions from localStorage fallback');
     } else {
         questionsConfig = DEFAULT_QUESTIONS_CONFIG;
         localStorage.setItem('weotzi_questions_config', JSON.stringify(questionsConfig));
-        console.log('ℹ️ Using DEFAULT_QUESTIONS_CONFIG fallback');
+        _dbg('Using DEFAULT_QUESTIONS_CONFIG fallback');
     }
 }
 
 function initApp() {
+    // Detect existing client session for header state
+    _detectClientSession();
+
     // Check for saved draft FIRST (before URL params)
     const draft = loadDraftFromLocalStorage();
     
@@ -405,7 +413,7 @@ function initApp() {
             // No URL artist, show recovery modal
             showDraftRecoveryModal(draft);
             setupKeyboardNavigation();
-            console.log('📋 Found draft quotation:', draft.formData.quote_id);
+            _dbg('Found draft quotation:', draft.formData.quote_id);
             return; // Wait for user choice
         }
         // If URL has artist, proceed normally (user likely wants a new quote with that artist)
@@ -425,7 +433,7 @@ function initApp() {
     // Global Listeners
     setupKeyboardNavigation();
 
-    console.log('🚀 Dynamic App Initialized with', questionsConfig.length, 'steps');
+    _dbg('Dynamic App Initialized with', questionsConfig.length, 'steps');
 }
 
 async function handleUrlArtist(username) {
@@ -557,7 +565,10 @@ function renderCurrentStep() {
         if (btn) {
             btn.onclick = () => handleCitySelection();
         }
-        // Initialize Google Maps Autocomplete
+        const secondaryBtn = stepEl.querySelector('.btn-secondary');
+        if (secondaryBtn) {
+            secondaryBtn.onclick = () => handleCitySelection();
+        }
         setupCityAutocomplete(question);
     }
 
@@ -584,155 +595,167 @@ function setupTextareaCounter(question) {
     });
 }
 
-// Google Maps Autocomplete for City
+// Extract city name from address_components, accepting locality or admin_area_level_2
+function extractCityFromComponents(components) {
+    let cityName = '';
+    let province = '';
+    let countryName = '';
+
+    for (const c of components) {
+        const t = c.types;
+        if (!cityName && (t.includes('locality') || t.includes('administrative_area_level_2'))) {
+            cityName = c.long_name;
+        }
+        if (t.includes('administrative_area_level_1')) {
+            province = c.long_name;
+        }
+        if (t.includes('country')) {
+            countryName = c.long_name;
+        }
+    }
+
+    return { cityName, province, countryName };
+}
+
+// Google Maps Autocomplete for City (retries if Maps loads late)
 function setupCityAutocomplete(question) {
     const inputId = `field-${question.id}`;
     const input = document.getElementById(inputId);
+    if (!input) return;
 
-    if (!input || !window.google || !window.google.maps || !window.google.maps.places) {
-        console.warn('Google Maps API not available for city autocomplete');
-        return;
+    function attach() {
+        if (!window.google || !window.google.maps || !window.google.maps.places) return false;
+
+        if (input._autocompleteAttached) return true;
+        input._autocompleteAttached = true;
+
+        const autocomplete = new google.maps.places.Autocomplete(input, {
+            types: ['(cities)'],
+            fields: ['formatted_address', 'address_components', 'geometry']
+        });
+
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place && place.formatted_address) {
+                input.value = place.formatted_address;
+                formData.client_city_residence = place.formatted_address;
+
+                if (place.address_components) {
+                    const { cityName, countryName } = extractCityFromComponents(place.address_components);
+                    formData.client_city_name = cityName;
+                    formData.client_country = countryName;
+                }
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') e.preventDefault();
+        });
+
+        return true;
     }
 
-    const autocomplete = new google.maps.places.Autocomplete(input, {
-        types: ['(cities)'],
-        fields: ['formatted_address', 'address_components', 'geometry']
-    });
+    if (attach()) return;
 
-    autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place && place.formatted_address) {
-            input.value = place.formatted_address;
-            formData.client_city_residence = place.formatted_address;
-
-            // Extract city and country for better data
-            if (place.address_components) {
-                const city = place.address_components.find(c => c.types.includes('locality'));
-                const country = place.address_components.find(c => c.types.includes('country'));
-                formData.client_city_name = city ? city.long_name : '';
-                formData.client_country = country ? country.long_name : '';
-            }
-        }
-    });
-
-    // Prevent form submission on Enter when autocomplete is open
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-        }
-    });
+    // Maps not ready yet (loaded dynamically) -- poll until available
+    let retries = 0;
+    const timer = setInterval(() => {
+        retries++;
+        if (attach() || retries >= 40) clearInterval(timer);
+    }, 250);
 }
 
 // GPS Location for City
 function useGpsLocation(questionId) {
     const input = document.getElementById(`field-${questionId}`);
     const btn = document.querySelector('.btn-gps');
-    
+
     if (!input) return;
 
-    // Check if geolocation is available
+    function resetBtn() {
+        if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+    }
+
+    if (window.isSecureContext === false) {
+        showToastMessage('La geolocalización requiere una conexión segura (HTTPS)');
+        return;
+    }
+
     if (!navigator.geolocation) {
         showToastMessage('Tu navegador no soporta geolocalización');
         return;
     }
 
-    // Check if Google Maps Geocoder is available
     if (!window.google || !window.google.maps || !window.google.maps.Geocoder) {
-        showToastMessage('El servicio de ubicación no está disponible');
+        showToastMessage('El mapa aún está cargando. Intenta de nuevo en unos segundos.');
         return;
     }
 
-    // Show loading state
-    if (btn) {
-        btn.classList.add('loading');
-        btn.disabled = true;
-    }
+    if (btn) { btn.classList.add('loading'); btn.disabled = true; }
 
     navigator.geolocation.getCurrentPosition(
-        async (position) => {
+        (position) => {
             const { latitude, longitude } = position.coords;
-            
+
             try {
                 const geocoder = new google.maps.Geocoder();
-                const latlng = { lat: latitude, lng: longitude };
-                
-                geocoder.geocode({ location: latlng }, (results, status) => {
-                    // Remove loading state
-                    if (btn) {
-                        btn.classList.remove('loading');
-                        btn.disabled = false;
+                geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+                    resetBtn();
+
+                    if (status !== 'OK' || !results || !results.length) {
+                        showToastMessage('Error al obtener la ubicación');
+                        return;
                     }
 
-                    if (status === 'OK' && results[0]) {
-                        // Find city and country from results
-                        let cityName = '';
-                        let countryName = '';
-                        let formattedAddress = '';
+                    let cityName = '';
+                    let province = '';
+                    let countryName = '';
+                    let formattedAddress = '';
 
-                        for (const result of results) {
-                            const addressComponents = result.address_components;
-                            
-                            const locality = addressComponents.find(c => c.types.includes('locality'));
-                            const adminArea = addressComponents.find(c => c.types.includes('administrative_area_level_1'));
-                            const country = addressComponents.find(c => c.types.includes('country'));
-
-                            if (locality && country) {
-                                cityName = locality.long_name;
-                                countryName = country.long_name;
-                                formattedAddress = `${cityName}, ${adminArea ? adminArea.long_name + ', ' : ''}${countryName}`;
-                                break;
-                            }
+                    for (const result of results) {
+                        const parsed = extractCityFromComponents(result.address_components);
+                        if (parsed.cityName && parsed.countryName) {
+                            cityName = parsed.cityName;
+                            province = parsed.province;
+                            countryName = parsed.countryName;
+                            formattedAddress = [cityName, province, countryName].filter(Boolean).join(', ');
+                            break;
                         }
+                    }
 
-                        if (formattedAddress) {
-                            input.value = formattedAddress;
-                            formData.client_city_residence = formattedAddress;
-                            formData.client_city_name = cityName;
-                            formData.client_country = countryName;
-                            showToastMessage('Ubicación detectada correctamente');
-                        } else {
-                            showToastMessage('No se pudo determinar tu ciudad');
-                        }
+                    if (formattedAddress) {
+                        input.value = formattedAddress;
+                        formData.client_city_residence = formattedAddress;
+                        formData.client_city_name = cityName;
+                        formData.client_country = countryName;
+                        showToastMessage('Ubicación detectada correctamente');
                     } else {
-                        showToastMessage('Error al obtener la ubicación');
+                        showToastMessage('No se pudo determinar tu ciudad. Ingrésala manualmente.');
                     }
                 });
-            } catch (error) {
-                // Remove loading state
-                if (btn) {
-                    btn.classList.remove('loading');
-                    btn.disabled = false;
-                }
-                console.error('Geocoding error:', error);
+            } catch (err) {
+                resetBtn();
+                console.error('Geocoding error:', err);
                 showToastMessage('Error al procesar tu ubicación');
             }
         },
         (error) => {
-            // Remove loading state
-            if (btn) {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-            }
-
+            resetBtn();
             switch (error.code) {
                 case error.PERMISSION_DENIED:
-                    showToastMessage('Permiso de ubicación denegado');
+                    showToastMessage('Permiso de ubicación denegado. Ingresa tu ciudad manualmente.');
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    showToastMessage('Ubicación no disponible');
+                    showToastMessage('Ubicación no disponible. Ingresa tu ciudad manualmente.');
                     break;
                 case error.TIMEOUT:
-                    showToastMessage('Tiempo de espera agotado');
+                    showToastMessage('Tiempo de espera agotado. Ingresa tu ciudad manualmente.');
                     break;
                 default:
                     showToastMessage('Error al obtener tu ubicación');
             }
         },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        }
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
     );
 }
 
@@ -1230,36 +1253,35 @@ function generateQuoteId() {
     return 'QN' + (((timestamp % 100000) + random) % 100000).toString().padStart(5, '0');
 }
 
+let _autoSaveInFlight = false;
+let _autoSavePending = false;
+
 async function autoSaveQuotation() {
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (!supabaseClient || window.ConfigManager.isDemoMode()) return;
 
+    if (_autoSaveInFlight) {
+        _autoSavePending = true;
+        return;
+    }
+
+    _autoSaveInFlight = true;
     try {
         const payload = preparePayload();
-        
-        // Try INSERT first, if conflict (duplicate) then UPDATE
-        let error = null;
-        const { error: insertError } = await supabaseClient
+
+        const { error } = await supabaseClient
             .from('quotations_db')
-            .insert([payload]);
-        
-        if (insertError) {
-            // If duplicate key error (23505), try update instead
-            if (insertError.code === '23505') {
-                const { error: updateError } = await supabaseClient
-                    .from('quotations_db')
-                    .update(payload)
-                    .eq('quote_id', payload.quote_id);
-                error = updateError;
-            } else {
-                error = insertError;
-            }
-        }
+            .upsert([payload], { onConflict: 'quote_id' });
 
         if (error) throw error;
-        console.log('💾 Progress auto-saved:', formData.quote_id);
     } catch (error) {
         console.error('Auto-save error:', error);
+    } finally {
+        _autoSaveInFlight = false;
+        if (_autoSavePending) {
+            _autoSavePending = false;
+            autoSaveQuotation();
+        }
     }
 }
 
@@ -1325,6 +1347,8 @@ function preparePayload() {
         client_age: formData.client_age,
         client_health_conditions: formData.client_medical_boolean ? formData.client_medical_details : 'Ninguna',
         client_allergies: formData.client_allergies || 'Ninguna',
+        client_user_id: _authenticatedUserId || null,
+        quotation_medium: 'web',
         updated_at: new Date().toISOString()
     };
 }
@@ -1385,22 +1409,27 @@ function validateAndNext(field, id, type) {
     }
 
     if (type === 'email' && val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-        return; // Validation failed, just return
+        return;
     }
 
     const currentQ = questionsConfig[currentStepIndex];
     const isOptional = currentQ.optional || (currentQ.step === 'whatsapp' && !formData.client_contact_preference?.includes('WhatsApp'));
 
     if (!val && !isOptional) {
-        return; // Validation failed, just return
+        return;
     }
 
-    // Normalize text if applicable - skip for Instagram handles
     if (type === 'text' && val && field !== 'client_instagram') {
         val = toTitleCase(val);
     }
 
     formData[field] = val || null;
+
+    if (type === 'email' && val) {
+        checkEmailReuse(val);
+        return;
+    }
+
     nextStep();
 }
 
@@ -1465,6 +1494,132 @@ function hideToastMessage() {
         }
     }
 }
+
+// ============ EMAIL REUSE (Lookup previous quotation by email) ============
+
+let _emailReusePendingData = null;
+
+async function checkEmailReuse(email) {
+    try {
+        const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
+        if (!supabaseClient || (window.ConfigManager.isDemoMode && window.ConfigManager.isDemoMode())) {
+            nextStep();
+            return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const { data, error } = await supabaseClient
+            .from('quotations_db')
+            .select('quote_id, client_full_name, client_whatsapp, client_birth_date, client_instagram, client_city_residence, client_contact_preference, client_health_conditions, client_allergies')
+            .ilike('client_email', normalizedEmail)
+            .neq('quote_status', 'in_progress')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            _dbg('Email reuse lookup error:', error.message);
+            nextStep();
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            nextStep();
+            return;
+        }
+
+        const row = data[0];
+
+        _emailReusePendingData = {
+            client_full_name: row.client_full_name || null,
+            client_whatsapp: row.client_whatsapp || null,
+            client_birth_date: row.client_birth_date || null,
+            client_instagram: row.client_instagram || null,
+            client_city_residence: row.client_city_residence || null,
+            client_contact_preference: row.client_contact_preference || null,
+            client_health_conditions: row.client_health_conditions || null,
+            client_allergies: row.client_allergies || null
+        };
+
+        showEmailReuseModal({
+            quote_id: row.quote_id,
+            client_full_name: row.client_full_name
+        });
+    } catch (err) {
+        console.warn('Email reuse check error:', err);
+        nextStep();
+    }
+}
+
+function showEmailReuseModal(preview) {
+    const summaryEl = document.getElementById('reuse-summary-info');
+    if (summaryEl) {
+        summaryEl.innerHTML = `
+            <div class="reuse-detail">
+                <span class="reuse-label">Cotizacion</span>
+                <span class="reuse-value highlight">${preview.quote_id || '-'}</span>
+            </div>
+            <div class="reuse-detail">
+                <span class="reuse-label">Cliente</span>
+                <span class="reuse-value">${preview.client_full_name || '-'}</span>
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById('email-reuse-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function hideEmailReuseModal() {
+    const modal = document.getElementById('email-reuse-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function acceptEmailReuse() {
+    if (_emailReusePendingData) {
+        applyReusedClientData(_emailReusePendingData);
+    }
+    _emailReusePendingData = null;
+    hideEmailReuseModal();
+    nextStep();
+}
+
+function declineEmailReuse() {
+    _emailReusePendingData = null;
+    hideEmailReuseModal();
+    nextStep();
+}
+
+function applyReusedClientData(data) {
+    if (data.client_full_name) formData.client_full_name = data.client_full_name;
+    if (data.client_whatsapp) formData.client_whatsapp = data.client_whatsapp;
+    if (data.client_birth_date) formData.client_birth_date = data.client_birth_date;
+    if (data.client_instagram) formData.client_instagram = data.client_instagram;
+    if (data.client_city_residence) formData.client_city_residence = data.client_city_residence;
+    if (data.client_contact_preference) formData.client_contact_preference = data.client_contact_preference;
+    if (data.client_allergies && data.client_allergies !== 'Ninguna') {
+        formData.client_allergies = data.client_allergies;
+    }
+
+    if (data.client_health_conditions && data.client_health_conditions !== 'Ninguna') {
+        formData.client_medical_boolean = true;
+        formData.client_medical_details = data.client_health_conditions;
+    } else {
+        formData.client_medical_boolean = false;
+        formData.client_medical_details = null;
+    }
+
+    _dbg('Client data reused from previous quotation');
+}
+
+window.acceptEmailReuse = acceptEmailReuse;
+window.declineEmailReuse = declineEmailReuse;
+
+// ============ END EMAIL REUSE ============
 
 function handleOptionSelect(field, value) {
     let finalValue = value;
@@ -1624,12 +1779,9 @@ async function searchArtist() {
         formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram); // Use instagram as fallback
         formData.no_artist = false; // We found an artist
 
-        // Trigger immediate auto-save after artist selection
-        autoSaveQuotation();
-
         hideLoading();
         
-        // Go to confirmation step
+        // Go to confirmation step (commitStepChange triggers autosave)
         const confirmIdx = questionsConfig.findIndex(q => q.step === 'artist-confirm');
         if (confirmIdx !== -1) commitStepChange(confirmIdx);
         else nextStep();
@@ -1962,10 +2114,8 @@ function selectRecommendedArtist(artistId) {
             formData.artist_session_cost_amount = artist.session_price;
             formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram);
             formData.no_artist = false; // Now we have one
-
-            autoSaveQuotation();
             
-            // Find next incomplete step - if form is complete, go to summary; otherwise continue flow
+            // Find next incomplete step (commitStepChange triggers autosave)
             const bodyPartIdx = questionsConfig.findIndex(q => q.step === 'body-part');
             const nextIncomplete = findNextIncompleteStepIndex(bodyPartIdx !== -1 ? bodyPartIdx : 0);
             
@@ -2640,7 +2790,7 @@ function confirmStyleSelection() {
         substyle_name: substyle ? substyle.name : null
     };
     
-    console.log('Selected tattoo style:', formData.tattoo_style);
+    _dbg('Selected tattoo style:', formData.tattoo_style);
     
     // Close modal
     closeStyleDetailModal();
@@ -2669,7 +2819,7 @@ function setupFileUpload() {
     input.onchange = (e) => handleFiles(e.target.files);
     // Drag/Drop events (simplified for brevity)
 }
-function handleFiles(files) {
+async function handleFiles(files) {
     const remainingSlots = 4 - uploadedFiles.length;
     if (remainingSlots <= 0) {
         showToastMessage("Máximo 4 imágenes de referencia permitidas.");
@@ -2681,7 +2831,16 @@ function handleFiles(files) {
         showToastMessage("Solo se agregaron las primeras 4 imágenes.");
     }
 
-    uploadedFiles = [...uploadedFiles, ...filesArray];
+    // Convertir y comprimir cada archivo antes de agregar a la lista.
+    // handleFiles es async — el caller (input.onchange) no necesita awaitar.
+    const processedFiles = [];
+    for (const file of filesArray) {
+        const converted = await convertIfHEIC(file);
+        const compressed = await compressImage(converted);
+        processedFiles.push(compressed);
+    }
+
+    uploadedFiles = [...uploadedFiles, ...processedFiles];
     formData.reference_images_count = uploadedFiles.length;
     renderPreviews();
 }
@@ -2741,7 +2900,7 @@ function skipReferences() {
  */
 async function uploadReferencesToStorage(quoteId) {
     if (!uploadedFiles || uploadedFiles.length === 0) {
-        console.log('ℹ️ No reference images to upload');
+        _dbg('No reference images to upload');
         return { success: true, files: [] };
     }
 
@@ -2756,7 +2915,7 @@ async function uploadReferencesToStorage(quoteId) {
     const uploadedUrls = [];
     const errors = [];
 
-    console.log(`📤 Uploading ${uploadedFiles.length} reference images to ${bucketName}/${quoteId}/`);
+    _dbg(`Uploading ${uploadedFiles.length} reference images to ${bucketName}/${quoteId}/`);
 
     for (let i = 0; i < uploadedFiles.length; i++) {
         const file = uploadedFiles[i];
@@ -2795,7 +2954,7 @@ async function uploadReferencesToStorage(quoteId) {
                 size: file.size
             });
 
-            console.log(`✅ Uploaded: ${fileName}`);
+            _dbg(`Uploaded: ${fileName}`);
         } catch (err) {
             console.error(`❌ Exception uploading ${fileName}:`, err);
             errors.push({ file: fileName, error: err.message });
@@ -2829,7 +2988,7 @@ async function notifyN8NWebhook(quoteId, files) {
     }
 
     if (!files || files.length === 0) {
-        console.log('ℹ️ No files to notify n8n about');
+        _dbg('No files to notify n8n about');
         return { success: true };
     }
 
@@ -2849,7 +3008,7 @@ async function notifyN8NWebhook(quoteId, files) {
     };
 
     try {
-        console.log(`📡 Notifying n8n webhook for ${files.length} files...`);
+        _dbg(`Notifying n8n webhook for ${files.length} files...`);
         
         const response = await fetch(webhookUrl, {
             method: 'POST',
@@ -2863,10 +3022,22 @@ async function notifyN8NWebhook(quoteId, files) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        console.log('✅ n8n webhook notified successfully');
-        return { success: true };
+        let responseData = {};
+        try {
+            responseData = await response.json();
+        } catch (_) {
+            _dbg('n8n webhook returned non-JSON response');
+        }
+
+        _dbg('n8n webhook notified successfully');
+        return {
+            success: responseData.success !== false,
+            driveFolderUrl: responseData.drive_folder_url || null,
+            filesProcessed: responseData.files_processed || 0,
+            quoteId: responseData.quote_id || quoteId
+        };
     } catch (err) {
-        console.error('❌ Error notifying n8n webhook:', err);
+        console.error('Error notifying n8n webhook:', err);
         return { success: false, error: err.message };
     }
 }
@@ -2903,12 +3074,12 @@ async function uploadToGoogleDrive(quoteId, files) {
     }
     
     if (!files || files.length === 0) {
-        console.log('No files to upload to Google Drive');
+        _dbg('No files to upload to Google Drive');
         return { success: true, uploadedFiles: [] };
     }
     
     try {
-        console.log(`Uploading ${files.length} files to Google Drive folder for ${quoteId}...`);
+        _dbg(`Uploading ${files.length} files to Google Drive folder for ${quoteId}...`);
         
         const response = await fetch('/api/google-drive/create-quote-folder', {
             method: 'POST',
@@ -2934,8 +3105,8 @@ async function uploadToGoogleDrive(quoteId, files) {
             throw new Error(result.error || 'Failed to upload to Google Drive');
         }
         
-        console.log(`Google Drive folder created: ${result.quoteFolderLink}`);
-        console.log(`Uploaded ${result.uploadedCount} files successfully`);
+        _dbg(`Google Drive folder created: ${result.quoteFolderLink}`);
+        _dbg(`Uploaded ${result.uploadedCount} files successfully`);
         
         // Log any upload errors for debugging
         if (result.uploadErrors && result.uploadErrors.length > 0) {
@@ -2970,7 +3141,7 @@ async function uploadToGoogleDrive(quoteId, files) {
  */
 async function saveAttachmentRecords(quoteId, uploadedFiles, originalFiles) {
     if (!uploadedFiles || uploadedFiles.length === 0) {
-        console.log('No attachment records to save');
+        _dbg('No attachment records to save');
         return { success: true };
     }
     
@@ -2981,7 +3152,7 @@ async function saveAttachmentRecords(quoteId, uploadedFiles, originalFiles) {
     }
     
     try {
-        console.log(`Saving ${uploadedFiles.length} attachment records for ${quoteId}...`);
+        _dbg(`Saving ${uploadedFiles.length} attachment records for ${quoteId}...`);
         
         // Map uploaded files to attachment records
         const attachmentRecords = uploadedFiles.map((file, index) => {
@@ -3011,7 +3182,7 @@ async function saveAttachmentRecords(quoteId, uploadedFiles, originalFiles) {
             return { success: false, error: error.message };
         }
         
-        console.log(`Successfully saved ${attachmentRecords.length} attachment records`);
+        _dbg(`Successfully saved ${attachmentRecords.length} attachment records`);
         return { success: true, records: data };
     } catch (err) {
         console.error('Exception saving attachment records:', err);
@@ -3047,7 +3218,7 @@ async function processReferenceImages(quoteId) {
             if (driveResult.success && driveResult.quoteFolderLink) {
                 driveUrl = driveResult.quoteFolderLink;
                 uploadedDriveFiles = driveResult.uploadedFiles || [];
-                console.log(`Google Drive folder for ${quoteId}: ${driveUrl}`);
+                _dbg(`Google Drive folder for ${quoteId}: ${driveUrl}`);
                 
                 // Step 3: Save attachment records to database
                 if (uploadedDriveFiles.length > 0) {
@@ -3071,17 +3242,17 @@ async function processReferenceImages(quoteId) {
                 console.warn('Google Drive upload failed, using Supabase storage only');
             }
         } else {
-            // Fallback: Try legacy n8n webhook if Google Drive API not configured
+            // Use n8n webhook for Google Drive upload (authoritative path)
             const webhookUrl = config.n8n?.webhookUrl;
             if (webhookUrl) {
-                console.log('Using legacy n8n webhook for Google Drive transfer...');
                 const notifyResult = await notifyN8NWebhook(quoteId, uploadResult.files);
                 
-                if (notifyResult.success) {
-                    const legacyFolderId = config.n8n?.driveFolderId;
-                    driveUrl = legacyFolderId 
-                        ? `https://drive.google.com/drive/folders/${legacyFolderId}` 
-                        : null;
+                if (notifyResult.success && notifyResult.driveFolderUrl) {
+                    driveUrl = notifyResult.driveFolderUrl;
+                    uploadedDriveFiles = new Array(notifyResult.filesProcessed || 0);
+                    _dbg(`n8n Drive folder for ${quoteId}: ${driveUrl}`);
+                } else if (notifyResult.success) {
+                    console.warn('n8n returned success but no Drive folder URL');
                 }
             }
         }
@@ -3195,7 +3366,15 @@ function goToStepByField(fieldName) {
 window.goToStepByField = goToStepByField;
 
 // Submit
+let _isSubmittingQuotation = false;
+
 async function submitQuotation() {
+    if (_isSubmittingQuotation) return;
+    _isSubmittingQuotation = true;
+
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.disabled = true;
+
     showLoading();
 
     // Track warnings for user feedback
@@ -3208,19 +3387,17 @@ async function submitQuotation() {
         // 1. Upload reference images to Storage and notify n8n for Google Drive transfer
         let referenceImagesResult = null;
         if (uploadedFiles && uploadedFiles.length > 0) {
-            console.log('Processing reference images...');
+            _dbg('Processing reference images...');
             referenceImagesResult = await processReferenceImages(formData.quote_id);
             
             if (referenceImagesResult.success) {
                 // Log detailed results
-                console.log(`Reference images processed:`);
-                console.log(`  - Uploaded to Supabase: ${referenceImagesResult.filesUploaded || 0} files`);
-                console.log(`  - Uploaded to Google Drive: ${referenceImagesResult.filesUploadedToDrive || 0} files`);
+                _dbg(`Reference images processed: Supabase=${referenceImagesResult.filesUploaded || 0}, Drive=${referenceImagesResult.filesUploadedToDrive || 0}`);
                 
                 if (referenceImagesResult.driveUrl) {
                     // Store the expected Google Drive folder URL
                     formData.tattoo_references = referenceImagesResult.driveUrl;
-                    console.log(`  - Drive folder: ${referenceImagesResult.driveUrl}`);
+                    _dbg(`Drive folder: ${referenceImagesResult.driveUrl}`);
                 }
                 
                 // Check if some files failed to upload to Google Drive
@@ -3262,30 +3439,8 @@ async function submitQuotation() {
             if (error) throw error;
         }
 
-        // 3. Send Email via EmailJS
-        if (typeof emailjs !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.emailjs) {
-            await emailjs.send(
-                window.APP_CONFIG.emailjs.serviceId,
-                window.APP_CONFIG.emailjs.templateId,
-                {
-                    to_email: formData.artist_email,
-                    artist_name: formData.artist_name,
-                    client_name: formData.client_full_name,
-                    client_email: formData.client_email,
-                    client_whatsapp: formData.client_whatsapp,
-                    client_age: formData.client_age,
-                    quote_id: formData.quote_id,
-                    tattoo_description: formData.tattoo_idea_description || 'N/A',
-                    tattoo_location: formData.tattoo_body_part,
-                    tattoo_size: formData.tattoo_size,
-                    tattoo_style: formData.tattoo_style,
-                    client_budget: `${formData.client_budget_amount} ${formData.client_budget_currency}`,
-                    client_date: formData.client_preferred_date,
-                    medical_conditions: formData.client_medical_boolean ? formData.client_medical_details : 'Ninguna'
-                }
-            );
-        } else if (!supabaseClient) {
-            // Fallback for purely local demo
+        // 3. Email is now handled by n8n webhook (triggered in step 4.5 below)
+        if (!supabaseClient) {
             await new Promise(r => setTimeout(r, 1500));
         }
 
@@ -3355,8 +3510,8 @@ async function submitQuotation() {
                     reference_images_count: formData.reference_images_count || 0,
                     
                     // Tattoo details - Experience
-                    tattoo_is_first_tattoo: formData.tattoo_is_first_tattoo || null,
-                    tattoo_is_cover_up: formData.tattoo_is_cover_up || null,
+                    tattoo_is_first_tattoo: formData.tattoo_is_first_tattoo ?? null,
+                    tattoo_is_cover_up: formData.tattoo_is_cover_up ?? null,
                     
                     // Client preferences - Budget
                     client_budget: formData.client_budget_amount ? `${formData.client_budget_amount} ${formData.client_budget_currency || ''}`.trim() : null,
@@ -3381,7 +3536,7 @@ async function submitQuotation() {
                     register_url: window.location.origin + '/client/register',
                     login_url: window.location.origin + '/client/login'
                 });
-                console.log('n8n event sent: client_quotation_submitted');
+                _dbg('n8n event sent: client_quotation_submitted');
             } catch (webhookErr) {
                 console.warn('Could not send client_quotation_submitted event:', webhookErr);
             }
@@ -3452,9 +3607,11 @@ async function submitQuotation() {
         clearDraftFromLocalStorage();
 
         hideLoading();
-        console.log('✅ Quotation submitted:', formData);
+        _dbg('Quotation submitted:', formData.quote_id);
 
     } catch (error) {
+        _isSubmittingQuotation = false;
+        if (submitBtn) submitBtn.disabled = false;
         hideLoading();
         console.error('Submit error:', error);
         alert('Hubo un error al enviar la solicitud. Por favor intenta de nuevo.');
@@ -3603,7 +3760,7 @@ function resetQuotation() {
     renderCurrentStep();
     updateBackButton();
     
-    console.log('✅ Quotation form reset');
+    _dbg('Quotation form reset');
 }
 
 function setupKeyboardNavigation() {
@@ -3678,3 +3835,178 @@ window.handleSideChosen = handleSideChosen;
 window.showSubBodyParts = showSubBodyParts;
 window.toggleSubPart = toggleSubPart;
 window.toggleWholeZone = toggleWholeZone;
+
+// ============ QUOTATION LOGIN MODAL ============
+
+async function _detectClientSession() {
+    if (!window.ClientAuth) return;
+    try {
+        const { session, client } = await window.ClientAuth.getSession();
+        if (session && client) {
+            _authenticatedUserId = session.user.id;
+            _setHeaderLoggedIn(client.full_name || client.email);
+        }
+    } catch (e) {
+        console.warn('Session detection skipped:', e.message);
+    }
+}
+
+function _setHeaderLoggedIn(name) {
+    const loginBtn = document.getElementById('header-login-btn');
+    const userBtn = document.getElementById('header-user-btn');
+    if (loginBtn) loginBtn.classList.add('hidden');
+    if (userBtn) {
+        userBtn.classList.remove('hidden');
+        userBtn.title = name || 'Mi cuenta';
+    }
+}
+
+function _setHeaderLoggedOut() {
+    const loginBtn = document.getElementById('header-login-btn');
+    const userBtn = document.getElementById('header-user-btn');
+    if (loginBtn) loginBtn.classList.remove('hidden');
+    if (userBtn) userBtn.classList.add('hidden');
+}
+
+function openQuotationLoginModal() {
+    if (_authenticatedUserId) {
+        _showLoginSuccessView();
+    } else {
+        _showLoginFormView();
+    }
+    const overlay = document.getElementById('quotation-login-overlay');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        const emailInput = document.getElementById('q-login-email');
+        if (emailInput && !_authenticatedUserId) setTimeout(() => emailInput.focus(), 200);
+    }
+}
+
+function closeQuotationLoginModal() {
+    const overlay = document.getElementById('quotation-login-overlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
+
+function _showLoginFormView() {
+    const formView = document.getElementById('q-login-form-view');
+    const successView = document.getElementById('q-login-success-view');
+    if (formView) formView.classList.remove('hidden');
+    if (successView) successView.classList.add('hidden');
+    _clearLoginMessage();
+}
+
+function _showLoginSuccessView(name) {
+    const formView = document.getElementById('q-login-form-view');
+    const successView = document.getElementById('q-login-success-view');
+    if (formView) formView.classList.add('hidden');
+    if (successView) successView.classList.remove('hidden');
+    const nameEl = document.getElementById('q-welcome-name');
+    if (nameEl) nameEl.textContent = name || '';
+}
+
+function _showLoginMessage(msg, type) {
+    const el = document.getElementById('q-login-message');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'q-form-message q-msg-' + type;
+}
+
+function _clearLoginMessage() {
+    const el = document.getElementById('q-login-message');
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'q-form-message';
+}
+
+function _setLoginLoading(loading) {
+    const btn = document.getElementById('q-btn-login');
+    const textEl = btn?.querySelector('.q-btn-text');
+    const spinnerEl = btn?.querySelector('.q-spinner');
+    if (!btn) return;
+    btn.disabled = loading;
+    if (textEl) textEl.classList.toggle('hidden', loading);
+    if (spinnerEl) spinnerEl.classList.toggle('hidden', !loading);
+}
+
+async function handleQuotationLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('q-login-email')?.value.trim().toLowerCase();
+    const password = document.getElementById('q-login-password')?.value;
+
+    _clearLoginMessage();
+
+    if (!email || !password) {
+        _showLoginMessage('Ingresa tu email y contrasena.', 'error');
+        return;
+    }
+
+    _setLoginLoading(true);
+    saveDraftToLocalStorage();
+
+    try {
+        const result = await window.ClientAuth.login(email, password);
+
+        if (result.isArtist) {
+            _showLoginMessage('Esta cuenta es de artista.', 'error');
+            _setLoginLoading(false);
+            return;
+        }
+
+        _authenticatedUserId = result.user.id;
+
+        await window.ClientAuth.linkQuotations(
+            result.user.id,
+            email,
+            formData.quote_id || null
+        );
+
+        _setHeaderLoggedIn(result.client?.full_name || email);
+        _showLoginSuccessView(result.client?.full_name || email.split('@')[0]);
+
+    } catch (error) {
+        console.error('Quotation login error:', error);
+        let msg = 'Error al iniciar sesion.';
+        if (error.message?.includes('Invalid login credentials')) {
+            msg = 'Email o contrasena incorrectos.';
+        }
+        _showLoginMessage(msg, 'error');
+    } finally {
+        _setLoginLoading(false);
+    }
+}
+
+async function handleQuotationPasswordRecovery(e) {
+    if (e) e.preventDefault();
+    const email = document.getElementById('q-login-email')?.value.trim().toLowerCase();
+
+    if (!email) {
+        _showLoginMessage('Ingresa tu email para recuperar tu contrasena.', 'info');
+        return;
+    }
+
+    _showLoginMessage('Procesando...', 'info');
+
+    try {
+        await window.ClientAuth.resetPassword(email);
+        _showLoginMessage('Te enviamos un email con tu contrasena temporal.', 'success');
+    } catch (error) {
+        _showLoginMessage(error.message || 'Error al procesar la solicitud.', 'error');
+    }
+}
+
+// Close modal on Escape key and overlay click
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeQuotationLoginModal();
+});
+document.addEventListener('click', (e) => {
+    if (e.target?.id === 'quotation-login-overlay') closeQuotationLoginModal();
+});
+
+window.openQuotationLoginModal = openQuotationLoginModal;
+window.closeQuotationLoginModal = closeQuotationLoginModal;
+window.handleQuotationLogin = handleQuotationLogin;
+window.handleQuotationPasswordRecovery = handleQuotationPasswordRecovery;

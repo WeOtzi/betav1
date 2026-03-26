@@ -9,8 +9,8 @@ $SECURITY_TOKEN = 'Abnerisai24.';
 
 // Paths
 $NODE_PATH = '/opt/alt/alt-nodejs22/root/usr/bin/node';
-$PM2_PATH = '/home/u795331143/node_modules/pm2/bin/pm2';
 $APP_DIR = '/home/u795331143/domains/weotzi.com/public_html/beta';
+$PM2_PATH = $APP_DIR . '/node_modules/.bin/pm2';
 $PM2_HOME = '/home/u795331143/.pm2';
 
 // Log files
@@ -68,14 +68,14 @@ function getLastLines($file, $lines = 100) {
 
 // Get PM2 status
 $pm2Status = runCommand(
-    "PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH list 2>&1",
+    "cd $APP_DIR && export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH list 2>&1",
     $APP_DIR,
     ['PM2_HOME' => $PM2_HOME]
 );
 
 // Get PM2 info for restart count
 $pm2Info = runCommand(
-    "PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH describe weotzi-beta 2>&1",
+    "cd $APP_DIR && export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH && PM2_HOME=$PM2_HOME $NODE_PATH $PM2_PATH describe weotzi-beta 2>&1",
     $APP_DIR,
     ['PM2_HOME' => $PM2_HOME]
 );

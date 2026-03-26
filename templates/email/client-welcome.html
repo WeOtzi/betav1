@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Tu Cuenta Esta Lista - We Otzi</title>
+<!--[if mso]>
+<noscript>
+<xml>
+<o:OfficeDocumentSettings>
+<o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings>
+</xml>
+</noscript>
+<![endif]-->
+</head>
+<body style="margin:0; padding:0; background-color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#FFFFFF;">
+<tr>
+<td align="center" style="padding:20px 10px;">
+
+<!--[if mso]>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center"><tr><td>
+<![endif]-->
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px; width:100%; background-color:#F2F0E9;">
+
+
+<!-- ====== HEADER ====== -->
+<tr>
+<td style="background-color:#0A0A0A; padding:40px 40px 28px 40px; text-align:center;">
+<p style="margin:0 0 16px 0; font-family:Arial, Helvetica, sans-serif; font-size:32px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:8px; line-height:1;">WE OTZI</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; color:#E23E28; text-transform:uppercase; letter-spacing:3px; line-height:1;">TU CUENTA ESTA LISTA</p>
+</td>
+</tr>
+
+<!-- Red accent line -->
+<tr>
+<td style="background-color:#E23E28; height:4px; font-size:0; line-height:0;">&nbsp;</td>
+</tr>
+
+
+<!-- ====== GREETING ====== -->
+<tr>
+<td style="padding:32px 40px 24px 40px;">
+<p style="margin:0 0 12px 0; font-family:Arial, Helvetica, sans-serif; font-size:22px; font-weight:700; color:#0A0A0A; line-height:1.3;">Hola {{ $json.body.data.full_name }},</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A; line-height:1.6;">Tu cuenta de cliente ha sido creada exitosamente.</p>
+</td>
+</tr>
+
+
+<!-- ====== ACCOUNT DATA BLOCK ====== -->
+<tr>
+<td style="padding:0 40px 24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">DATOS DE ACCESO</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:14px;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">EMAIL</p>
+<p style="margin:0;"><a href="mailto:{{ $json.body.data.email }}" style="font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#1A4B8E; text-decoration:none;">{{ $json.body.data.email }}</a></p>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:14px;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">CONTRASENA</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:18px; font-weight:700; color:#E23E28;">{{ $json.body.data.password }}</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#F2F0E9; padding:10px 14px; border-left:3px solid #F4B942;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#0A0A0A; line-height:1.5;">Guarda este correo. Contiene tu contrasena de acceso.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Red accent divider -->
+<tr>
+<td style="padding:0 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr><td style="background-color:#E23E28; height:3px; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== CONTACT INFO BLOCK ====== -->
+<tr>
+<td style="padding:24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">TU INFORMACION</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:14px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">WHATSAPP</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{ $json.body.data.whatsapp || 'No proporcionado' }}</p>
+</td>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">INSTAGRAM</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#1A4B8E;">{{ $json.body.data.instagram || 'No proporcionado' }}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">CIUDAD</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{ $json.body.data.city || 'No proporcionado' }}</p>
+</td>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">EDAD</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{ $json.body.data.age || 'No proporcionado' }}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== QUOTATION BLOCK ====== -->
+<tr>
+<td style="padding:0 40px 24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A; border-left:4px solid #F4B942;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#F4B942; text-transform:uppercase; letter-spacing:2px;">TU COTIZACION</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:14px;">
+<p style="margin:0 0 8px 0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A; line-height:1.5;">Tienes una cotizacion pendiente.</p>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:14px;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ID DE COTIZACION</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="border:2px solid #333333; padding:6px 16px;">
+<p style="margin:0; font-family:'Courier New', Courier, monospace; font-size:13px; color:#0A0A0A; letter-spacing:1px;">{{ $json.body.data.quote_id }}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ARTISTA</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{ $json.body.data.artist_name }}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Red accent divider -->
+<tr>
+<td style="padding:0 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr><td style="background-color:#E23E28; height:3px; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== WHAT YOU CAN DO BLOCK ====== -->
+<tr>
+<td style="padding:24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">QUE PUEDES HACER</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:18px;">
+<p style="margin:0 0 4px 0; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; color:#0A0A0A; text-transform:uppercase; letter-spacing:1px;">SEGUIR TU COTIZACION</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#0A0A0A; line-height:1.5;">Revisa el estado de tus solicitudes de cotizacion en tiempo real.</p>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:18px;">
+<p style="margin:0 0 4px 0; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; color:#0A0A0A; text-transform:uppercase; letter-spacing:1px;">CONECTAR CON ARTISTAS</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#0A0A0A; line-height:1.5;">Comunicate directamente con los artistas para tu proximo tatuaje.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p style="margin:0 0 4px 0; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; color:#0A0A0A; text-transform:uppercase; letter-spacing:1px;">HISTORIAL COMPLETO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#0A0A0A; line-height:1.5;">Guarda y consulta el historial de todas tus cotizaciones.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== CTA SECTION ====== -->
+<tr>
+<td style="padding:12px 40px 36px 40px; text-align:center;">
+
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $json.body.data.dashboard_url }}" style="height:52px; v-text-anchor:middle; width:400px;" fill="t" stroke="t" strokecolor="#0A0A0A" strokeweight="3px">
+<v:fill type="tile" color="#0A0A0A"/>
+<w:anchorlock/>
+<center style="color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; text-transform:uppercase; letter-spacing:2px;">IR A MI DASHBOARD</center>
+</v:roundrect>
+<![endif]-->
+
+<!--[if !mso]><!-->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+<tr>
+<td style="background-color:#0A0A0A; border:3px solid #0A0A0A; padding:16px 44px; text-align:center;">
+<a href="{{ $json.body.data.dashboard_url }}" target="_blank" style="font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px; text-decoration:none; display:inline-block;">IR A MI DASHBOARD</a>
+</td>
+</tr>
+</table>
+<!--<![endif]-->
+
+</td>
+</tr>
+
+
+<!-- ====== FOOTER ====== -->
+<tr>
+<td style="background-color:#0A0A0A; padding:32px 40px; text-align:center;">
+<p style="margin:0 0 10px 0; font-family:Arial, Helvetica, sans-serif; font-size:20px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:6px; line-height:1;">WE OTZI</p>
+<p style="margin:0 0 16px 0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#888888; font-style:italic;">Hecho con amor, para artistas.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="60" align="center">
+<tr><td style="background-color:#E23E28; height:2px; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+<p style="margin:16px 0 0 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#555555;">&copy; 2025 We Otzi. Todos los derechos reservados.</p>
+</td>
+</tr>
+
+
+</table>
+
+<!--[if mso]>
+</td></tr></table>
+<![endif]-->
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>

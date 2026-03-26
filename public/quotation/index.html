@@ -24,6 +24,8 @@
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
     <!-- EmailJS -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -32,9 +34,25 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 
-    <!-- Google Maps API (Places) -->
-    <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs&libraries=places"></script>
+    <!-- Google Maps API (Places) - loaded dynamically from config -->
+    <script>
+        function loadGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                var s = document.createElement('script');
+                s.src = 'https://maps.googleapis.com/maps/api/js?key=' +
+                    window.CONFIG.googleMaps.apiKey + '&libraries=places&loading=async';
+                s.async = true;
+                document.head.appendChild(s);
+            } else {
+                if (!window._googleMapsRetryCount) window._googleMapsRetryCount = 0;
+                window._googleMapsRetryCount++;
+                if (window._googleMapsRetryCount < 50) {
+                    setTimeout(loadGoogleMapsWhenReady, 100);
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadGoogleMapsWhenReady);
+    </script>
 
     <!-- Styles -->
     <link rel="stylesheet" href="/shared/css/styles.css">
@@ -51,9 +69,17 @@
 
             <div class="header-logo">We Ötzi</div>
 
-            <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
-                <i id="theme-icon" class="fa-solid fa-moon"></i>
-            </button>
+            <div class="header-actions">
+                <button id="header-login-btn" class="nav-btn nav-btn-login" aria-label="Iniciar sesion" onclick="openQuotationLoginModal()">
+                    <i class="fa-solid fa-user"></i>
+                </button>
+                <button id="header-user-btn" class="nav-btn nav-btn-logged hidden" aria-label="Mi cuenta" onclick="openQuotationLoginModal()">
+                    <i class="fa-solid fa-user-check"></i>
+                </button>
+                <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Main Form Area -->
@@ -258,7 +284,7 @@
                     <div class="upload-area" id="drop-zone">
                         <i class="fa-solid fa-cloud-arrow-up"></i>
                         <p>Arrastra imágenes aquí o <span class="highlight">haz clic para subir</span></p>
-                        <input type="file" id="file-input" multiple accept="image/*" class="hidden">
+                        <input type="file" id="file-input" multiple accept="image/*,image/heic,image/heif" class="hidden">
                     </div>
 
                     <div id="preview-container" class="preview-grid"></div>
@@ -352,6 +378,10 @@
     <!-- Configuration Manager -->
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
+
+    <!-- Client Auth (provides window.ClientAuth for inline login modal) -->
+    <script src="/shared/js/client-auth.js"></script>
+    <script src="/shared/js/heic-converter.js"></script>
 
     <!-- App Logic -->
     <script src="/shared/js/script.js"></script>
@@ -527,6 +557,32 @@
         </div>
     </div>
 
+    <!-- EMAIL REUSE MODAL -->
+    <div id="email-reuse-modal" class="draft-recovery-overlay hidden">
+        <div class="draft-recovery-modal">
+            <div class="recovery-icon reuse-icon">
+                <i class="fa-solid fa-envelope-open-text"></i>
+            </div>
+            <h2>Cotizacion encontrada</h2>
+            <p class="recovery-subtitle">Ya existe una cotizacion con este correo</p>
+
+            <div id="reuse-summary-info" class="draft-summary-info">
+                <!-- Populated by JS -->
+            </div>
+
+            <p class="reuse-question">¿Deseas usar los mismos datos de cliente en esta nueva cotizacion?</p>
+
+            <div class="recovery-actions">
+                <button class="btn btn-primary" id="btn-reuse-accept" onclick="acceptEmailReuse()">
+                    <i class="fa-solid fa-check"></i> Usar los mismos datos
+                </button>
+                <button class="btn btn-secondary" id="btn-reuse-decline" onclick="declineEmailReuse()">
+                    <i class="fa-solid fa-pen"></i> Continuar con datos nuevos
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- DRAFT RECOVERY MODAL -->
     <div id="draft-recovery-modal" class="draft-recovery-overlay hidden">
         <div class="draft-recovery-modal">
@@ -558,6 +614,75 @@
                 <button class="btn btn-secondary" onclick="startNewQuotation()">
                     <i class="fa-solid fa-plus"></i> Empezar nueva
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIENT LOGIN MODAL -->
+    <div id="quotation-login-overlay" class="q-login-overlay hidden">
+        <div class="q-login-modal">
+            <button class="q-login-close" onclick="closeQuotationLoginModal()" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- VIEW: Login Form -->
+            <div id="q-login-form-view" class="q-login-view">
+                <div class="q-login-header">
+                    <div class="q-login-icon">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <h2>Iniciar Sesion</h2>
+                    <p class="q-login-subtitle">Accede a tu cuenta de cliente</p>
+                </div>
+
+                <form id="q-login-form" onsubmit="handleQuotationLogin(event)">
+                    <div class="q-form-group">
+                        <label for="q-login-email">EMAIL</label>
+                        <input type="email" id="q-login-email" class="q-input" placeholder="tu@email.com" required autocomplete="email">
+                    </div>
+                    <div class="q-form-group">
+                        <label for="q-login-password">CONTRASENA</label>
+                        <input type="password" id="q-login-password" class="q-input" placeholder="Tu contrasena" required autocomplete="current-password">
+                    </div>
+
+                    <div id="q-login-message" class="q-form-message"></div>
+
+                    <button type="submit" id="q-btn-login" class="q-btn-submit">
+                        <span class="q-btn-text">Entrar</span>
+                        <div class="q-spinner hidden"></div>
+                    </button>
+                </form>
+
+                <div class="q-login-footer">
+                    <a href="#" onclick="handleQuotationPasswordRecovery(event); return false;">Olvide mi contrasena</a>
+                    <p class="q-login-back">
+                        <a href="#" onclick="closeQuotationLoginModal(); return false;">
+                            <i class="fa-solid fa-arrow-left"></i> Volver a cotizacion
+                        </a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- VIEW: Post-Login Decision -->
+            <div id="q-login-success-view" class="q-login-view hidden">
+                <div class="q-login-header">
+                    <div class="q-login-icon q-login-icon-success">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <h2>Bienvenido</h2>
+                    <p class="q-login-subtitle" id="q-welcome-name"></p>
+                </div>
+
+                <p class="q-decision-text">¿Que te gustaria hacer?</p>
+
+                <div class="q-decision-actions">
+                    <button class="btn btn-primary q-decision-btn" onclick="closeQuotationLoginModal()">
+                        <i class="fa-solid fa-pen-ruler"></i> Continuar cotizacion
+                    </button>
+                    <button class="btn btn-secondary q-decision-btn" onclick="window.location.href='/client/dashboard'">
+                        <i class="fa-solid fa-grid-2"></i> Ir al dashboard
+                    </button>
+                </div>
             </div>
         </div>
     </div>

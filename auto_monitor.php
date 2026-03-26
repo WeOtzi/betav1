@@ -7,8 +7,8 @@
 
 // Paths
 $NODE_PATH = '/opt/alt/alt-nodejs22/root/usr/bin/node';
-$PM2_PATH = '/home/u795331143/node_modules/pm2/bin/pm2';
 $APP_DIR = '/home/u795331143/domains/weotzi.com/public_html/beta';
+$PM2_PATH = $APP_DIR . '/node_modules/.bin/pm2';
 $PM2_HOME = '/home/u795331143/.pm2';
 $PORT = 4545;
 
@@ -24,7 +24,7 @@ function isServerAlive($port) {
 }
 
 function restartServer($node, $pm2, $dir, $pm2Home) {
-    $cmd = "cd $dir && PM2_HOME=$pm2Home $node $pm2 start ecosystem.config.js --update-env 2>&1";
+    $cmd = "cd $dir && export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH && PM2_HOME=$pm2Home $node $pm2 start ecosystem.config.js --update-env 2>&1";
     $descriptors = [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],

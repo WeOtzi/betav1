@@ -72,15 +72,44 @@ function initRandomInfoText() {
 
 // [CH-07] START: Check authentication state on page load
 async function checkAuthState() {
-    // Don't redirect if already on landing page - let users browse freely
     const currentPath = window.location.pathname;
+    const isLandingPage = currentPath.includes('/registerclosedbeta');
+    const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+    const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+        registerClosedBeta: '/registerclosedbeta',
+        login: '/registerclosedbeta',
+        registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist',
+        dashboard: '/artist/dashboard',
+        jobBoard: '/job-board'
+    };
     
+    const { data: { session } } = await _supabase.auth.getSession();
+    
+    // Always toggle the login button if it exists
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+        if (session) {
+            loginBtn.innerHTML = 'LOG OUT';
+            loginBtn.onclick = (e) => {
+                e.preventDefault();
+                handleLogout();
+            };
+            loginBtn.setAttribute('aria-label', 'Cerrar sesion');
+        } else {
+            loginBtn.innerHTML = 'LOG IN';
+            loginBtn.onclick = (e) => {
+                e.preventDefault();
+                openLoginModal();
+            };
+            loginBtn.setAttribute('aria-label', 'Iniciar sesion');
+        }
+    }
+
     // Skip redirect logic if on landing page - users should be able to stay there
-    if (currentPath.includes('/registerclosedbeta')) {
+    if (isLandingPage) {
         return;
     }
     
-    const { data: { session } } = await _supabase.auth.getSession();
     if (session) {
         // User is logged in, check if profile is complete
         // Use maybeSingle() instead of single() to handle 0 rows gracefully (prevents 406 error)
@@ -97,10 +126,30 @@ async function checkAuthState() {
         
         // If no artist record exists OR profile is incomplete, redirect to complete it
         if (!artist || !artist.name) {
-            window.location.href = '/register-artist';
+            window.location.href = authUrls.registerArtist;
         }
     }
 }
+
+/**
+ * Handle user logout and redirect
+ */
+async function handleLogout() {
+    try {
+        const { error } = await _supabase.auth.signOut();
+        if (error) throw error;
+
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, '') || {
+            registerClosedBeta: '/registerclosedbeta'
+        };
+        window.location.href = authUrls.registerClosedBeta;
+    } catch (error) {
+        console.error('Logout error:', error.message);
+    }
+}
+
+// Global export
+window.handleLogout = handleLogout;
 // [CH-07] END
 
 // Theme toggle function
@@ -220,6 +269,11 @@ async function handleRegistration(e) {
     btn.disabled = true;
 
     try {
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist'
+        };
+
         // Check if email already exists
         const emailExists = await checkEmailExists(email);
 
@@ -248,7 +302,7 @@ async function handleRegistration(e) {
         const tempUsername = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '') + '.wo';
         
         // [CH-16] Generate WhatsApp link with username
-        const weOtziWA = window.CONFIG?.weOtzi?.whatsapp || '+541162079567';
+        const weOtziWA = window.CONFIG?.weOtzi?.whatsapp || '+541127015926';
         const whatsappMessage = encodeURIComponent(`Hola Ötzi, quiero cotizar con ${tempUsername}`);
         const whatsappLink = `https://api.whatsapp.com/send?phone=${weOtziWA.replace(/\+/g, '')}&text=${whatsappMessage}`;
 
@@ -256,7 +310,7 @@ async function handleRegistration(e) {
             email: email,
             password: PRESET_PASSWORD,
             options: {
-                emailRedirectTo: baseUrl + '/register-artist',
+                emailRedirectTo: baseUrl + authUrls.registerArtist,
                 data: {
                     username: tempUsername,
                     temp_password: PRESET_PASSWORD,
@@ -308,7 +362,7 @@ async function handleRegistration(e) {
 
             // Auto-redirect after a moment
             setTimeout(() => {
-                window.location.href = '/register-artist';
+                window.location.href = authUrls.registerArtist;
             }, 2500);
         }
 
@@ -354,6 +408,12 @@ async function handleLogin(e) {
     btn.disabled = true;
 
     try {
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist',
+            dashboard: '/artist/dashboard'
+        };
+
         const { data, error } = await _supabase.auth.signInWithPassword({
             email: email,
             password: password
@@ -381,14 +441,14 @@ async function handleLogin(e) {
         if (!artist || !artist.name) {
             showLoginMessage('Redirigiendo para completar tu perfil...', 'success');
             setTimeout(() => {
-                window.location.href = '/register-artist';
+                window.location.href = authUrls.registerArtist;
             }, 1500);
         } else {
             showLoginMessage('Sesion iniciada correctamente.', 'success');
             setTimeout(() => {
                 closeLoginModal();
                 // Redirect to dashboard
-                window.location.href = '/artist/dashboard';
+                window.location.href = requestedReturnTo || authUrls.dashboard;
             }, 1500);
         }
 
@@ -414,11 +474,15 @@ async function handleSocialLogin(provider) {
     try {
         // Get base URL for redirects (handles subdirectory deployments)
         const baseUrl = window.location.origin;
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist'
+        };
 
         const { data, error } = await _supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
-                redirectTo: baseUrl + '/register-artist',
+                redirectTo: baseUrl + authUrls.registerArtist,
                 scopes: provider === 'instagram' ? 'user_profile,user_media' : undefined
             }
         });

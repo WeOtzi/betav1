@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo de Cotización — We Otzi</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#060610}
+body{color:#e8e6f0;font-family:'DM Mono','Courier New',monospace;display:flex;flex-direction:column;user-select:none}
+.header{flex-shrink:0;padding:12px 20px 8px;text-align:center;background:#08081099;backdrop-filter:blur(8px);z-index:10;border-bottom:1px solid #151525}
+h1{font-family:'DM Serif Display',Georgia,serif;font-size:1.5rem;color:#fff;letter-spacing:-.02em;margin-bottom:2px}
+.subtitle{font-size:.58rem;color:#444;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+.controls{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap}
+.legend{display:flex;gap:10px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:.55rem;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.btn{background:#12121e;border:1px solid #282840;color:#7778aa;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;cursor:pointer;transition:border-color .15s,color .15s}
+.btn:hover{border-color:#7c6cff;color:#c4beff}
+.zoom-group{display:flex;align-items:center;gap:5px;background:#0a0a18;border:1px solid #1e1e30;border-radius:5px;padding:3px 8px}
+.zoom-btn{background:none;border:1px solid #282840;color:#7778aa;font-family:'DM Mono',monospace;font-size:.8rem;width:22px;height:22px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s;padding:0}
+.zoom-btn:hover{border-color:#7c6cff;color:#c4beff}
+.zoom-slider{-webkit-appearance:none;appearance:none;width:100px;height:3px;background:#1a1a2e;border-radius:2px;outline:none;cursor:pointer}
+.zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#7c6cff;border:2px solid #9b95ff;cursor:pointer}
+.zoom-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#7c6cff;border:2px solid #9b95ff;cursor:pointer}
+.zoom-label{font-size:.58rem;color:#7c6cff;min-width:34px;text-align:center}
+.hint{font-size:.5rem;color:#222238;letter-spacing:.04em}
+.canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:grab}
+.canvas-wrap.panning{cursor:grabbing}
+.canvas-wrap.dragging{cursor:grabbing}
+svg{width:100%;height:100%;display:block}
+.tooltip{position:fixed;background:#10101f;border:1px solid#252538;padding:8px 12px;border-radius:6px;font-size:.65rem;color:#aaa;pointer-events:none;z-index:100;opacity:0;transition:opacity .12s;max-width:220px;line-height:1.5;font-family:'DM Mono',monospace}
+.tooltip b{color:#fff}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Flujo de Cotización Web</h1>
+  <p class="subtitle">beta.weotzi.com/quotation · mapa de flujo continuo · 27 pasos</p>
+  <div class="controls">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#7c6cff"></div>Sistema</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e86c3a"></div>Tatuaje</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2a9dbf"></div>Cliente</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>Decisión</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c9951a"></div>Opcional</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div>Validación</div>
+    </div>
+    <button class="btn" id="btnReset">Restablecer</button>
+    <button class="btn" id="btnFit">Ajustar vista</button>
+    <div class="zoom-group">
+      <button class="zoom-btn" id="zoomOut">−</button>
+      <input type="range" class="zoom-slider" id="zoomSlider" min="1" max="300" value="100">
+      <button class="zoom-btn" id="zoomIn">+</button>
+      <span class="zoom-label" id="zoomLabel">100%</span>
+    </div>
+    <span class="hint">Arrastra nodos | Pan: fondo | Zoom: scroll / slider</span>
+  </div>
+</div>
+<div id="tooltip" class="tooltip"></div>
+<div class="canvas-wrap" id="canvasWrap"><svg id="chart"></svg></div>
+
+<script>
+// ━━━ LAYOUT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const NW=224, NH=94, HG=100, VG=150;
+const PITCH=NW+HG;   // 324
+const ROW_H=NH+VG;   // 244
+const COLS=4;
+const X_LR=[220,544,868,1192]; // L→R column centers
+const X_RL=[1192,868,544,220]; // R→L column centers
+const Y_ROW=[100,344,588,832,1076,1320];
+const DIR=[1,-1,1,-1,1,-1]; // row directions
+
+// ━━━ STEP DATA ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const STEPS=[
+{id:'s1',  name:'Bienvenida',         sub:'Pantalla de inicio del formulario',        cat:'system',  shape:'pill',   input:'Pantalla',    response:'Clic',       opt:false,hidden:false},
+{id:'s2',  name:'Buscar Artista',      sub:'¿Con qué artista quieres cotizar?',        cat:'system',  shape:'rect',   input:'Búsqueda',    response:'Artista',    opt:false,hidden:false, err:'No encontrado'},
+{id:'s3',  name:'Confirmar Artista',   sub:'Ver perfil del artista y confirmar',       cat:'system',  shape:'rect',   input:'Tarjeta',     response:'Sí / No',    opt:false,hidden:false},
+{id:'s4',  name:'Zona del Cuerpo',     sub:'¿En qué parte del cuerpo?',               cat:'tattoo',  shape:'rect',   input:'Selección',   response:'Texto',      opt:false,hidden:false},
+{id:'s5',  name:'Descripción Idea',    sub:'Describe la idea de tu tatuaje',           cat:'tattoo',  shape:'rect',   input:'Textarea',    response:'Texto largo',opt:false,hidden:false},
+{id:'s6',  name:'Tamaño',             sub:'¿Qué tamaño aproximado?',                  cat:'tattoo',  shape:'rect',   input:'Slider',      response:'Medida cm',  opt:false,hidden:false},
+{id:'s7',  name:'Estilo',             sub:'¿Qué estilo de tatuaje prefieres?',         cat:'tattoo',  shape:'rect',   input:'Chips',       response:'Estilo(s)',  opt:false,hidden:false},
+{id:'s8',  name:'Color',              sub:'¿Color o blanco y negro?',                  cat:'tattoo',  shape:'rect',   input:'Toggle',      response:'Opción',     opt:false,hidden:false},
+{id:'s9',  name:'Referencias',        sub:'Sube imágenes de referencia visual',        cat:'tattoo',  shape:'rect',   input:'Upload',      response:'Imagen(es)', opt:true, hidden:false, err:'Formato inválido'},
+{id:'s10', name:'¿Primer Tatuaje?',   sub:'¿Es tu primer tatuaje?',                   cat:'decision',shape:'diamond',input:'Toggle',      response:'Sí / No',    opt:false,hidden:false},
+{id:'s11', name:'¿Es Cover-up?',      sub:'¿Quieres tapar un tatuaje existente?',     cat:'decision',shape:'diamond',input:'Toggle',      response:'Sí / No',    opt:false,hidden:false, branch:true,parentId:'s10'},
+{id:'s12', name:'Nombre Completo',    sub:'¿Cómo te llamas?',                         cat:'client',  shape:'rect',   input:'Input texto',  response:'Texto',     opt:false,hidden:false},
+{id:'s13', name:'Email',              sub:'Tu correo electrónico de contacto',         cat:'client',  shape:'rect',   input:'Input email', response:'Email',      opt:false,hidden:false, err:'Email inválido'},
+{id:'s13b',name:'WhatsApp',           sub:'Tu número de WhatsApp con código país',     cat:'client',  shape:'rect',   input:'Input tel',   response:'Teléfono',   opt:false,hidden:false, err:'Formato inválido'},
+{id:'s13c',name:'Fecha Nacimiento',   sub:'¿Cuándo naciste?',                         cat:'client',  shape:'rect',   input:'Date picker', response:'Fecha',      opt:false,hidden:false, err:'Fecha inválida'},
+{id:'s14', name:'Instagram',          sub:'Tu usuario de Instagram (si tienes)',       cat:'client',  shape:'rect',   input:'Input texto',  response:'@usuario',  opt:true, hidden:false},
+{id:'s14b',name:'¿Condición Médica?', sub:'¿Tienes alguna condición médica?',         cat:'decision',shape:'diamond',input:'Toggle',      response:'Sí / No',    opt:false,hidden:false},
+{id:'s14c',name:'Detalle Médico',     sub:'Describe tu condición médica',             cat:'client',  shape:'rect',   input:'Textarea',    response:'Texto largo',opt:false,hidden:true, branch:true,parentId:'s14b'},
+{id:'s14d',name:'Alergias',           sub:'¿Tienes alergias relevantes?',             cat:'client',  shape:'rect',   input:'Textarea',    response:'Texto',      opt:true, hidden:false},
+{id:'s15', name:'Ciudad',             sub:'¿En qué ciudad vives actualmente?',        cat:'client',  shape:'rect',   input:'Autocompletar',response:'Ubicación', opt:false,hidden:false, err:'No encontrada'},
+{id:'s15b',name:'Disponib. Viaje',    sub:'¿Estás dispuesto/a a viajar?',             cat:'client',  shape:'rect',   input:'Toggle',      response:'Sí / No',    opt:false,hidden:true, branch:true,parentId:'s15'},
+{id:'s16', name:'Fecha Planificada',  sub:'¿Para cuándo planeas el tatuaje?',         cat:'client',  shape:'rect',   input:'Date picker', response:'Fecha',      opt:false,hidden:false},
+{id:'s17', name:'Presupuesto',        sub:'¿Cuánto presupuesto tienes?',              cat:'client',  shape:'rect',   input:'Input + $',   response:'Monto',      opt:false,hidden:false, err:'Monto inválido'},
+{id:'s18', name:'Pref. Contacto',     sub:'¿Cómo prefieres que te contacten?',        cat:'client',  shape:'rect',   input:'Selección',   response:'Medio',      opt:false,hidden:false},
+{id:'s18b',name:'¿Recomendaciones?',  sub:'¿Quieres ver otros artistas similares?',   cat:'decision',shape:'diamond',input:'Sistema',     response:'Sí / No',    opt:false,hidden:true},
+{id:'s18c',name:'Recomendaciones',    sub:'Artistas sugeridos por el sistema',        cat:'system',  shape:'rect',   input:'Pantalla',    response:'Selección',  opt:false,hidden:false, branch:true,parentId:'s18b'},
+{id:'s19', name:'Resumen Final',      sub:'Revisa y confirma tu cotización',          cat:'system',  shape:'pill',   input:'Resumen',     response:'Confirmar',  opt:false,hidden:false},
+];
+
+// Main sequential flow (happy path)
+const MAIN=['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s12','s13','s13b','s13c','s14','s14b','s14d','s15','s16','s17','s18','s18b','s19'];
+
+// Sections (list all node IDs to compute bounds correctly across snake rows)
+const SECTIONS=[
+  {label:'INICIO',           color:'#7c6cff', ids:['s1','s2','s3']},
+  {label:'DETALLES TATUAJE', color:'#e86c3a', ids:['s4','s5','s6','s7','s8','s9','s10','s11']},
+  {label:'DATOS PERSONALES', color:'#2a9dbf', ids:['s12','s13','s13b','s13c','s14','s14b','s14c','s14d']},
+  {label:'LOGÍSTICA',        color:'#c9951a', ids:['s15','s15b','s16','s17']},
+  {label:'CIERRE',           color:'#7c6cff', ids:['s18','s18b','s18c','s19']},
+];
+
+// Colors
+const COLORS={
+  system:  {bg:'#131328',border:'#7c6cff',text:'#c4beff',accent:'#7c6cff'},
+  tattoo:  {bg:'#1e120e',border:'#e86c3a',text:'#f5b99a',accent:'#e86c3a'},
+  client:  {bg:'#0a1820',border:'#2a9dbf',text:'#9ad8f0',accent:'#2a9dbf'},
+  decision:{bg:'#0c180c',border:'#4ade80',text:'#a8f0b0',accent:'#4ade80'},
+  optional:{bg:'#1a1400',border:'#c9951a',text:'#f5d080',accent:'#c9951a'},
+  hidden:  {bg:'#0e0e18',border:'#3a3a55',text:'#666680',accent:'#444460'},
+};
+function getC(s){if(s.hidden)return COLORS.hidden;if(s.opt)return COLORS.optional;return COLORS[s.cat]||COLORS.system}
+
+// Response type badge colors
+const RES_COLORS={
+  'Texto':'#1a5070','Texto largo':'#1a5070','Email':'#107070','Teléfono':'#10606a',
+  'Fecha':'#1a5a1a','Imagen(es)':'#5a1a6a','Sí / No':'#1a5a3a','Opción':'#5a5a10',
+  'Estilo(s)':'#5a4a10','Medida cm':'#4a3a20','@usuario':'#5a1a4a','Ubicación':'#5a3a10',
+  'Monto':'#5a4a00','Medio':'#3a3a4a','Clic':'#2a2a3a','Artista':'#4a2a5a',
+  'Selección':'#3a3a5a','Confirmar':'#1a5a2a','Navegación':'#2a2a3a'
+};
+
+// ━━━ POSITIONS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const pos={},defaultPos={};
+
+function computeDefaults(){
+  MAIN.forEach((id,i)=>{
+    const row=Math.floor(i/COLS), col=i%COLS;
+    const xs=DIR[row]===1?X_LR:X_RL;
+    defaultPos[id]={x:xs[col],y:Y_ROW[row]};
+  });
+  // Branch positions (below and between parent and next main node)
+  const s10p=defaultPos.s10, s12p=defaultPos.s12;
+  defaultPos.s11={x:(s10p.x+s12p.x)/2+60, y:s10p.y+(ROW_H*0.52)};
+  const s14bp=defaultPos.s14b, s14dp=defaultPos.s14d;
+  defaultPos.s14c={x:s14bp.x-60, y:s14bp.y+(ROW_H*0.52)};
+  const s15p=defaultPos.s15;
+  defaultPos.s15b={x:s15p.x+PITCH*0.55, y:s15p.y+(ROW_H*0.52)};
+  const s18bp=defaultPos.s18b, s19p=defaultPos.s19;
+  defaultPos.s18c={x:(s18bp.x+s19p.x)/2, y:s18bp.y+(ROW_H*0.52)};
+}
+computeDefaults();
+function resetPos(){STEPS.forEach(s=>{pos[s.id]={...defaultPos[s.id]}})}
+resetPos();
+
+// ━━━ VIEWBOX ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const view={x:0,y:0,w:1500,h:900};
+const MIN_Z=1,MAX_Z=300;
+let baseW;
+const svg=document.getElementById('chart');
+const wrap=document.getElementById('canvasWrap');
+
+function initView(){const a=wrap.clientWidth/wrap.clientHeight;baseW=1500;view.w=baseW;view.h=baseW/a}
+function getZP(){return Math.round(baseW/view.w*100)}
+function applyV(){svg.setAttribute('viewBox',`${view.x} ${view.y} ${view.w} ${view.h}`);const p=getZP();document.getElementById('zoomLabel').textContent=p+'%';document.getElementById('zoomSlider').value=Math.max(MIN_Z,Math.min(MAX_Z,p))}
+function setZC(pct){pct=Math.max(MIN_Z,Math.min(MAX_Z,pct));const r=svg.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,b=s2svg(cx,cy),a=view.w/view.h;view.w=baseW/(pct/100);view.h=view.w/a;const af=s2svg(cx,cy);view.x+=b.x-af.x;view.y+=b.y-af.y;applyV()}
+function fitAll(){const pad=90;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;STEPS.forEach(s=>{const p=pos[s.id],hw=NW/2,hh=NH/2;x0=Math.min(x0,p.x-hw);y0=Math.min(y0,p.y-hh);x1=Math.max(x1,p.x+hw);y1=Math.max(y1,p.y+hh)});const cw=x1-x0+pad*2,ch=y1-y0+pad*2,a=wrap.clientWidth/wrap.clientHeight;if(cw/ch>a){view.w=cw;view.h=cw/a}else{view.h=ch;view.w=ch*a}view.x=(x0-pad)-(view.w-cw)/2;view.y=(y0-pad)-(view.h-ch)/2;applyV()}
+
+// ━━━ GEOMETRY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const DW=180,DH=62;
+function nW(s){return s.shape==='diamond'?DW:NW}
+function nH(s){return s.shape==='diamond'?DH:NH}
+function bot(id){const s=STEPS.find(x=>x.id===id),p=pos[id];return{x:p.x,y:p.y+nH(s)/2}}
+function top_(id){const s=STEPS.find(x=>x.id===id),p=pos[id];return{x:p.x,y:p.y-nH(s)/2}}
+function rgt(id){const s=STEPS.find(x=>x.id===id),p=pos[id];return{x:p.x+nW(s)/2,y:p.y}}
+function lft(id){const s=STEPS.find(x=>x.id===id),p=pos[id];return{x:p.x-nW(s)/2,y:p.y}}
+function s2svg(cx,cy){const r=svg.getBoundingClientRect();return{x:view.x+(cx-r.left)/r.width*view.w,y:view.y+(cy-r.top)/r.height*view.h}}
+function cXY(e){return e.touches&&e.touches.length?{cx:e.touches[0].clientX,cy:e.touches[0].clientY}:{cx:e.clientX,cy:e.clientY}}
+
+// ━━━ SVG PRIMITIVES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function mkLine(x1,y1,x2,y2,c,d,m){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="1.6"${d?` stroke-dasharray="${d}"`:``}${m?` marker-end="url(#${m})"`:``}/>`}
+function mkPath(d,c,da,m,w){return `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w||1.6}"${da?` stroke-dasharray="${da}"`:``}${m?` marker-end="url(#${m})"`:``}/>`}
+function mkBadge(x,y,txt,tc,bc){const w=txt.length*5.2+14;return `<rect x="${x-w/2}" y="${y-8}" width="${w}" height="16" rx="4" fill="#060610" stroke="${bc}" stroke-width="1"/><text x="${x}" y="${y+4}" text-anchor="middle" fill="${tc}" font-size="7.5" font-family="DM Mono,monospace">${txt}</text>`}
+
+// ━━━ CONNECTIONS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function buildConns(){
+  let o='';
+  // Decisions that alter the main flow
+  const SKIP_MAIN=new Set(['s10→s12','s14b→s14d','s18b→s19']);
+
+  // Sequential main flow
+  for(let i=0;i<MAIN.length-1;i++){
+    const a=MAIN[i],b=MAIN[i+1];
+    const key=a+'→'+b;
+    const pa=pos[a],pb=pos[b];
+    const sa=STEPS.find(s=>s.id===a);
+    const col=getC(STEPS.find(s=>s.id===b));
+
+    if(SKIP_MAIN.has(key)){
+      // Decision: main path is labeled
+      const label=a==='s10'?'SÍ (1er tattoo)':a==='s14b'?'NO (sin condición)':'NO (omitir)';
+      const lc=a==='s10'?'#4ade80':'#f87171';
+      const mk=a==='s10'?'arr-g':'arr-r';
+      if(Math.abs(pa.x-pb.x)<20){
+        // Vertical: bypass curve to the side
+        const side=a==='s10'?-1:1;
+        const bx=pa.x+side*80;
+        o+=mkPath(`M${pa.x},${pa.y+nH(sa)/2} C${bx},${pa.y+nH(sa)/2+40} ${bx},${pb.y-nH(STEPS.find(s=>s.id===b))/2-40} ${pb.x},${pb.y-nH(STEPS.find(s=>s.id===b))/2}`,lc,'5,3',mk);
+        o+=mkBadge(bx+side*5,(pa.y+pb.y)/2,label,lc,lc);
+      } else {
+        // Horizontal
+        const my=(pa.y+pb.y)/2;
+        o+=mkPath(`M${pa.x+(pa.x<pb.x?nW(sa)/2:-nW(sa)/2)},${pa.y} Q${(pa.x+pb.x)/2},${my-20} ${pb.x+(pa.x<pb.x?-nW(STEPS.find(s=>s.id===b))/2:nW(STEPS.find(s=>s.id===b))/2)},${pb.y}`,lc,'5,3',mk);
+        o+=mkBadge((pa.x+pb.x)/2,my-30,label,lc,lc);
+      }
+      continue;
+    }
+
+    // Normal sequential
+    const sameRow=Math.abs(pa.y-pb.y)<30;
+    if(sameRow){
+      const x1=pa.x<pb.x?pa.x+nW(sa)/2:pa.x-nW(sa)/2;
+      const x2=pa.x<pb.x?pb.x-nW(STEPS.find(s=>s.id===b))/2:pb.x+nW(STEPS.find(s=>s.id===b))/2;
+      const arcY=pa.y-12;
+      o+=mkPath(`M${x1},${pa.y} Q${(x1+x2)/2},${arcY} ${x2},${pb.y}`,col.border+'66',null,'arr');
+    } else {
+      // Vertical U-turn
+      const y1=pa.y+nH(sa)/2;
+      const sb=STEPS.find(s=>s.id===b);
+      const y2=pb.y-nH(sb)/2;
+      const cx_=pa.x+(pa.x<500?35:-35);
+      o+=mkPath(`M${pa.x},${y1} C${cx_},${y1+45} ${cx_},${y2-45} ${pb.x},${y2}`,col.border+'66',null,'arr');
+    }
+  }
+
+  // Branch: s10 NO → s11 → s12
+  {
+    const p10=pos.s10,p11=pos.s11,p12=pos.s12;
+    o+=mkPath(`M${p10.x+DW/2},${p10.y} Q${(p10.x+p11.x)/2+30},${p10.y+20} ${p11.x},${p11.y-DH/2}`,'#f87171',null,'arr-r');
+    o+=mkBadge((p10.x+p11.x)/2+35,p10.y+10,'NO','#f87171','#f87171');
+    o+=mkPath(`M${p11.x},${p11.y+DH/2} Q${(p11.x+p12.x)/2-20},${p11.y+40} ${p12.x},${p12.y-NH/2}`,'#666680','4,3','arr');
+  }
+
+  // Branch: s14b SÍ → s14c → s14d
+  {
+    const p=pos.s14b,pc=pos.s14c,pd=pos.s14d;
+    o+=mkPath(`M${p.x},${p.y+DH/2} Q${(p.x+pc.x)/2},${p.y+DH/2+30} ${pc.x},${pc.y-NH/2}`,'#4ade80',null,'arr-g');
+    o+=mkBadge((p.x+pc.x)/2-10,p.y+DH/2+20,'SÍ','#4ade80','#4ade80');
+    o+=mkPath(`M${pc.x},${pc.y+NH/2} Q${(pc.x+pd.x)/2},${pc.y+NH/2+20} ${pd.x},${pd.y+NH/2}`,'#666680','4,3','arr');
+  }
+
+  // Branch: s15 → s15b → s16 (conditional)
+  {
+    const p=pos.s15,pb_=pos.s15b,p16=pos.s16;
+    o+=mkPath(`M${p.x+NW/2},${p.y} Q${(p.x+pb_.x)/2},${p.y+30} ${pb_.x},${pb_.y-NH/2}`,'#c9951a','4,2','arr-y');
+    o+=mkBadge((p.x+pb_.x)/2+20,p.y+20,'≠ ciudad','#c9951a','#c9951a');
+    o+=mkPath(`M${pb_.x},${pb_.y+NH/2} Q${(pb_.x+p16.x)/2},${pb_.y+NH/2+20} ${p16.x+(p16.x<pb_.x?NW/2:-NW/2)},${p16.y}`,'#666680','4,3','arr');
+  }
+
+  // Branch: s18b SÍ → s18c → s19
+  {
+    const p=pos.s18b,pc=pos.s18c,p19=pos.s19;
+    o+=mkPath(`M${p.x},${p.y+DH/2} Q${(p.x+pc.x)/2},${p.y+DH/2+30} ${pc.x},${pc.y-NH/2}`,'#4ade80',null,'arr-g');
+    o+=mkBadge((p.x+pc.x)/2-10,p.y+DH/2+20,'SÍ','#4ade80','#4ade80');
+    o+=mkPath(`M${pc.x+NW/2},${pc.y} Q${(pc.x+p19.x)/2+30},${pc.y-30} ${p19.x},${p19.y+NH/2}`,'#666680','4,3','arr');
+  }
+
+  // Validation/error retry loops
+  STEPS.filter(s=>s.err).forEach(s=>{
+    const p=pos[s.id];
+    const ex=p.x+nW(s)/2-5, ey=p.y-nH(s)/2-4;
+    o+=`<circle cx="${ex}" cy="${ey}" r="7" fill="#2a0a0a" stroke="#f87171" stroke-width="1"/>`;
+    o+=`<text x="${ex}" y="${ey+3.5}" text-anchor="middle" fill="#f87171" font-size="9" font-weight="bold" font-family="DM Mono,monospace">!</text>`;
+    // Retry arc
+    o+=mkPath(`M${ex+7},${ey} A 12,12 0 1,1 ${ex},${ey-7}`,'#f8717155','2,2',null,0.8);
+    // Error label
+    o+=`<text x="${ex+12}" y="${ey+3}" fill="#f87171" font-size="6.5" font-family="DM Mono,monospace" opacity="0.7">${s.err}</text>`;
+  });
+
+  return o;
+}
+
+// ━━━ SECTION LABELS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function buildSections(){
+  let o='';
+  // Floating section badges at the first node of each section
+  const badges=[
+    {label:'INICIO',           color:'#7c6cff',id:'s1',  side:'top'},
+    {label:'DETALLES TATUAJE', color:'#e86c3a',id:'s4',  side:'top'},
+    {label:'DATOS PERSONALES', color:'#2a9dbf',id:'s12', side:'top'},
+    {label:'LOGÍSTICA',        color:'#c9951a',id:'s15', side:'top'},
+    {label:'CIERRE',           color:'#7c6cff',id:'s18', side:'top'},
+  ];
+  badges.forEach(b=>{
+    const p=pos[b.id];if(!p)return;
+    const tw=b.label.length*6.5+20;
+    const bx=p.x-NW/2-2, by=p.y-NH/2-22;
+    o+=`<rect x="${bx}" y="${by}" width="${tw}" height="16" rx="4" fill="${b.color}18" stroke="${b.color}40" stroke-width="0.8"/>`;
+    o+=`<text x="${bx+tw/2}" y="${by+11.5}" text-anchor="middle" fill="${b.color}" font-size="7.5" font-family="DM Mono,monospace" letter-spacing="1.5" font-weight="500" opacity="0.7">${b.label}</text>`;
+  });
+  // Section connectors: vertical dashes between sections at row transitions
+  const transitions=[
+    {from:'s4', to:'s5', color:'#e86c3a'},   // row 0→1 (TATUAJE continues)
+    {from:'s8', to:'s9', color:'#e86c3a'},   // row 1→2 (TATUAJE continues)
+    {from:'s13',to:'s13b',color:'#2a9dbf'},  // row 2→3 (DATOS continues)
+    {from:'s14b',to:'s14d',color:'#2a9dbf'}, // row 3→4 (DATOS continues)
+    {from:'s17',to:'s18',color:'#7c6cff'},   // row 4→5 (to CIERRE)
+  ];
+  transitions.forEach(t=>{
+    const pf=pos[t.from],pt=pos[t.to];
+    if(!pf||!pt||Math.abs(pf.x-pt.x)>30)return;
+    const mx=pf.x,my=(pf.y+pt.y)/2;
+    o+=`<line x1="${mx}" y1="${pf.y+NH/2+8}" x2="${mx}" y2="${pt.y-NH/2-8}" stroke="${t.color}20" stroke-width="1" stroke-dasharray="4,4"/>`;
+  });
+  return o;
+}
+
+// ━━━ NODE RENDERER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function nodeInner(step){
+  const p=pos[step.id],c=getC(step),w=step.branch?NW-10:NW,h=nH(step);
+
+  if(step.shape==='diamond'){
+    const hw=DW/2,hh=DH/2;
+    return `<polygon points="${p.x},${p.y-hh} ${p.x+hw},${p.y} ${p.x},${p.y+hh} ${p.x-hw},${p.y}" fill="${c.bg}" stroke="${c.border}" stroke-width="1.8" filter="url(#glow)"/>
+      <text x="${p.x}" y="${p.y-6}" text-anchor="middle" fill="${c.text}" font-size="9.5" font-family="DM Mono,monospace" font-weight="500">${step.name}</text>
+      <text x="${p.x}" y="${p.y+8}" text-anchor="middle" fill="${c.accent}88" font-size="7" font-family="DM Mono,monospace">${step.input} → ${step.response}</text>
+      <text x="${p.x-hw+12}" y="${p.y+2}" fill="${c.border}" font-size="7" font-family="DM Mono,monospace" opacity="0.5">${step.id.replace('s','')}</text>`;
+  }
+
+  const rx=p.x-w/2,ry=p.y-h/2,rad=step.shape==='pill'?h/2:8;
+  // Input badge
+  const ibW=step.input.length*5.2+10, ibX=rx+6, ibY=ry+h-16;
+  const ibC='#15253a';
+  // Response badge
+  const rbW=step.response.length*5.2+10, rbX=rx+w-6-rbW, rbY=ry+h-16;
+  const rbC=RES_COLORS[step.response]||'#2a2a3a';
+  const tagLabel=step.opt?' opt':step.hidden?' cond':'';
+
+  return `<rect x="${rx}" y="${ry}" width="${w}" height="${h}" rx="${rad}" fill="${c.bg}" stroke="${c.border}" stroke-width="1.8" filter="url(#glow)"/>
+    <rect x="${rx+1}" y="${ry+3}" width="3" height="${h-6}" rx="1.5" fill="${c.border}" opacity="0.8"/>
+    <text x="${rx+14}" y="${ry+12}" fill="${c.border}" font-size="7" font-family="DM Mono,monospace" opacity="0.5">${step.id.replace('s','')}</text>
+    ${tagLabel?`<text x="${rx+w-8}" y="${ry+12}" text-anchor="end" fill="${c.accent}88" font-size="6.5" font-family="DM Mono,monospace">${tagLabel}</text>`:''}
+    <text x="${p.x+2}" y="${ry+28}" text-anchor="middle" fill="${c.text}" font-size="10" font-family="DM Mono,monospace" font-weight="500">${step.name}</text>
+    <text x="${p.x+2}" y="${ry+42}" text-anchor="middle" fill="${c.accent}55" font-size="7" font-family="DM Mono,monospace">${step.sub.length>38?step.sub.slice(0,36)+'…':step.sub}</text>
+    <rect x="${ibX}" y="${ibY}" width="${ibW}" height="14" rx="3" fill="${ibC}" stroke="#1a3a5a" stroke-width="0.6"/>
+    <text x="${ibX+ibW/2}" y="${ibY+10}" text-anchor="middle" fill="#6ab0d8" font-size="6.5" font-family="DM Mono,monospace">${step.input}</text>
+    <text x="${p.x}" y="${ibY+10}" text-anchor="middle" fill="#444460" font-size="8" font-family="DM Mono,monospace">→</text>
+    <rect x="${rbX}" y="${rbY}" width="${rbW}" height="14" rx="3" fill="${rbC}" stroke="${rbC}aa" stroke-width="0.6"/>
+    <text x="${rbX+rbW/2}" y="${rbY+10}" text-anchor="middle" fill="#e0d0c0" font-size="6.5" font-family="DM Mono,monospace">${step.response}</text>`;
+}
+
+// ━━━ BUILD SVG ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let html_=`<defs>
+  <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#444460"/></marker>
+  <marker id="arr-g" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#4ade80"/></marker>
+  <marker id="arr-r" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#f87171"/></marker>
+  <marker id="arr-y" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#c9951a"/></marker>
+  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="glow-drag" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="0.6" fill="#ffffff06"/></pattern>
+</defs>
+<rect x="-50000" y="-50000" width="100000" height="100000" fill="#060610"/>
+<rect x="-50000" y="-50000" width="100000" height="100000" fill="url(#grid)"/>`;
+
+html_+=`<g id="sections">${buildSections()}</g>`;
+html_+=`<g id="conns">${buildConns()}</g>`;
+
+let nodesH='';
+STEPS.forEach(s=>{nodesH+=`<g class="ng" data-id="${s.id}" style="cursor:grab">${nodeInner(s)}</g>`});
+html_+=`<g id="nodes">${nodesH}</g>`;
+
+svg.innerHTML=html_;
+initView();
+applyV();
+function renderConns(){document.getElementById('conns').innerHTML=buildConns();document.getElementById('sections').innerHTML=buildSections()}
+
+// ━━━ INTERACTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let drag=null,pan_=null;
+
+function startND(e){const g=e.target.closest('.ng');if(!g)return false;const id=g.dataset.id,step=STEPS.find(s=>s.id===id),{cx:mx,cy:my}=cXY(e),sp=s2svg(mx,my);drag={id,step,g,ox:sp.x-pos[id].x,oy:sp.y-pos[id].y};g.style.cursor='grabbing';wrap.classList.add('dragging');document.getElementById('nodes').appendChild(g);g.querySelectorAll('[filter]').forEach(el=>el.setAttribute('filter','url(#glow-drag)'));tooltip.style.opacity='0';return true}
+function moveND(e){const{cx,cy}=cXY(e),sp=s2svg(cx,cy);pos[drag.id].x=sp.x-drag.ox;pos[drag.id].y=sp.y-drag.oy;drag.g.innerHTML=nodeInner(drag.step);drag.g.querySelectorAll('[filter]').forEach(el=>el.setAttribute('filter','url(#glow-drag)'));renderConns()}
+function endND(){drag.g.style.cursor='grab';drag.g.innerHTML=nodeInner(drag.step);wrap.classList.remove('dragging');renderConns();drag=null}
+function startP(e){const{cx,cy}=cXY(e);pan_={sx:cx,sy:cy,vx:view.x,vy:view.y};wrap.classList.add('panning')}
+function moveP(e){const{cx,cy}=cXY(e),r=svg.getBoundingClientRect();view.x=pan_.vx-(cx-pan_.sx)/r.width*view.w;view.y=pan_.vy-(cy-pan_.sy)/r.height*view.h;applyV()}
+function endP(){wrap.classList.remove('panning');pan_=null}
+function zoomAt(cx,cy,f){const b=s2svg(cx,cy),mnW=baseW/(MAX_Z/100),mxW=baseW/(MIN_Z/100),nw=Math.max(mnW,Math.min(mxW,view.w*f)),a=view.w/view.h;view.w=nw;view.h=nw/a;const af=s2svg(cx,cy);view.x+=b.x-af.x;view.y+=b.y-af.y;applyV()}
+
+svg.addEventListener('mousedown',e=>{e.preventDefault();if(!startND(e))startP(e)});
+svg.addEventListener('touchstart',e=>{e.preventDefault();if(!startND(e))startP(e)},{passive:false});
+window.addEventListener('mousemove',e=>{if(drag)moveND(e);else if(pan_)moveP(e)});
+window.addEventListener('touchmove',e=>{if(drag){e.preventDefault();moveND(e)}else if(pan_){e.preventDefault();moveP(e)}},{passive:false});
+window.addEventListener('mouseup',()=>{if(drag)endND();if(pan_)endP()});
+window.addEventListener('touchend',()=>{if(drag)endND();if(pan_)endP()});
+wrap.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY>0?1.1:1/1.1)},{passive:false});
+
+// Buttons
+function fullRebuild(){const ng=document.getElementById('nodes');ng.innerHTML='';STEPS.forEach(s=>{const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('class','ng');g.setAttribute('data-id',s.id);g.style.cursor='grab';g.innerHTML=nodeInner(s);ng.appendChild(g)});renderConns();attachHover()}
+document.getElementById('btnReset').addEventListener('click',()=>{resetPos();fullRebuild();fitAll()});
+document.getElementById('btnFit').addEventListener('click',()=>fitAll());
+document.getElementById('zoomSlider').addEventListener('input',function(){setZC(parseInt(this.value,10))});
+document.getElementById('zoomOut').addEventListener('click',()=>setZC(Math.max(MIN_Z,getZP()-10)));
+document.getElementById('zoomIn').addEventListener('click',()=>setZC(Math.min(MAX_Z,getZP()+10)));
+
+// Tooltip
+const tooltip=document.getElementById('tooltip');
+svg.addEventListener('mousemove',e=>{if(drag||pan_){tooltip.style.opacity='0';return}const g=e.target.closest('.ng');if(g){const s=STEPS.find(x=>x.id===g.dataset.id);if(s){const c=getC(s);const tags=[s.cat,s.opt?'opcional':'',s.hidden?'condicional':'',s.err?'validación: '+s.err:''].filter(Boolean);tooltip.innerHTML=`<b>${s.name}</b><br>${s.sub}<br><span style="color:${c.border};font-size:.58rem">Paso ${s.id.replace('s','')} · ${tags.join(' · ')}</span><br><span style="color:#6ab0d8">Input: ${s.input}</span> → <span style="color:#e0c090">Output: ${s.response}</span>`;tooltip.style.opacity='1';tooltip.style.left=(e.clientX+16)+'px';tooltip.style.top=(e.clientY-10)+'px'}}else tooltip.style.opacity='0'});
+svg.addEventListener('mouseleave',()=>tooltip.style.opacity='0');
+
+function attachHover(){svg.querySelectorAll('.ng').forEach(g=>{g.addEventListener('mouseenter',function(){if(!drag)this.style.filter='brightness(1.3)'});g.addEventListener('mouseleave',function(){this.style.filter=''})})}
+attachHover();
+window.addEventListener('resize',()=>{const a=wrap.clientWidth/wrap.clientHeight;view.h=view.w/a;applyV()});
+fitAll();
+</script>
+</body>
+</html>

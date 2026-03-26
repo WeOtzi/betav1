@@ -1168,13 +1168,13 @@ function renderQuoteDrawer(quote) {
             <div class="drawer-section-title">Tattoo Flags & Budget</div>
             <div class="checkbox-row">
                 <label class="checkbox-label">
-                    <input type="checkbox" ${quote.tattoo_is_first_tattoo ? 'checked' : ''} onchange="updateQuoteField('${quote.id}', 'tattoo_is_first_tattoo', this.checked)">
+                    <input type="checkbox" ${quote.tattoo_is_first_tattoo === true ? 'checked' : ''} onchange="updateQuoteField('${quote.id}', 'tattoo_is_first_tattoo', this.checked)">
                     <span>Is First Tattoo</span>
                 </label>
             </div>
             <div class="checkbox-row">
                 <label class="checkbox-label">
-                    <input type="checkbox" ${quote.tattoo_is_cover_up ? 'checked' : ''} onchange="updateQuoteField('${quote.id}', 'tattoo_is_cover_up', this.checked)">
+                    <input type="checkbox" ${quote.tattoo_is_cover_up === true ? 'checked' : ''} onchange="updateQuoteField('${quote.id}', 'tattoo_is_cover_up', this.checked)">
                     <span>Is Cover Up</span>
                 </label>
             </div>

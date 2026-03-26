@@ -48,6 +48,12 @@ El archivo `server.js` expone los siguientes endpoints API:
 *   `POST /api/google-drive/create-quote-folder`: Crea carpeta para cotización y sube archivos.
     *   Lógica: Busca carpeta existente -> Si no, crea nueva -> Descarga archivos de URL -> Sube a Drive.
 
+### Cliente
+*   `POST /api/client/quotations/:quoteId/hide`: Oculta una cotización del dashboard del cliente (soft-delete solo para el cliente).
+    *   Headers: `Authorization: Bearer <supabase_access_token>`
+    *   Lógica: Verifica identidad del cliente -> Confirma propiedad por `client_user_id` o `client_email` -> Establece `client_deleted_at` en la fila. No afecta la vista del artista ni del admin.
+    *   Campo DB: `quotations_db.client_deleted_at` (timestamptz, null = visible).
+
 ### Administración & Sistema
 *   `POST /api/admin/update-user-password`: Actualiza contraseñas de usuarios (Supabase Admin).
 *   `POST /api/admin/generate-backup`: Genera un ZIP completo del sistema (Código + DB + Config).

@@ -14,21 +14,59 @@
     <link rel="stylesheet" href="/shared/css/dashboard.css">
     <link rel="stylesheet" href="/shared/css/feedback.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <script src="/shared/js/qrcode-generator.js"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
+    <!-- Google Maps Places API - Key configured in config-manager.js -->
+    <script>
+        // Define callback before loading the script to avoid "callback not defined" errors
+        window.initDashboardGooglePlaces = function() {
+            // Will be overridden by dashboard.js once it loads
+            // This prevents "callback not defined" errors from Google Maps
+        };
+        function loadDashboardGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initDashboardGooglePlaces`;
+                script.async = true;
+                document.head.appendChild(script);
+            } else {
+                if (!window._dashboardGMapsRetry) window._dashboardGMapsRetry = 0;
+                window._dashboardGMapsRetry++;
+                if (window._dashboardGMapsRetry < 50) {
+                    setTimeout(loadDashboardGoogleMapsWhenReady, 100);
+                } else {
+                    console.warn('[Dashboard] Google Maps API key not available after 50 retries; Places autocomplete disabled.');
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadDashboardGoogleMapsWhenReady);
+    </script>
 </head>
 
-<body>
+<body class="artist-dashboard-page">
     <header class="top-nav-header">
         <div class="header-edition-info">
             Edición Bauhaus | Beta Cerrada
         </div>
         <div class="nav-row">
+            <div class="nav-col nav-col-dashboard-links">
+                <nav class="dashboard-quick-nav" aria-label="Navegacion principal de artista">
+                    <a href="/my-quotations" class="dashboard-quick-link">Cotizaciones</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/calendar" class="dashboard-quick-link">Calendario</a>
+                    <a href="/my-quotations/statistics" class="dashboard-quick-link">Estadisticas</a>
+                </nav>
+                <button class="mobile-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
+                    Menu
+                </button>
+            </div>
             <div class="nav-col">
-                <div class="zoom-controls">
-                    <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-                    <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-                </div>
+                <button class="login-toggle" onclick="handleLogout()" aria-label="Cerrar sesion">
+                    LOG OUT
+                </button>
             </div>
             <div class="nav-col">
                 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
@@ -37,72 +75,130 @@
             </div>
         </div>
     </header>
+    <nav class="dashboard-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegacion movil de artista" hidden>
+        <a href="/my-quotations" class="dashboard-mobile-menu-link">Cotizaciones</a>
+        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+        <a href="/calendar" class="dashboard-mobile-menu-link">Calendario</a>
+        <a href="/my-quotations/statistics" class="dashboard-mobile-menu-link">Estadisticas</a>
+    </nav>
 
-    <!-- Embajador Verification Pending Banner -->
+    <!-- Top Progress Banner (Expandable + Rotatable Notices) -->
     <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">
-        <div class="banner-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <span>No cumples con los requisitos para ser Embajador. Tu verificacion de perfil esta pendiente.</span>
+        <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">
+            <div class="banner-top-row">
+                <div class="banner-notice-switch" role="tablist" aria-label="Avisos del dashboard">
+                    <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">
+                        Inicio
+                    </button>
+                    <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">
+                        Verificacion
+                    </button>
+                </div>
+                <div class="banner-actions">
+                    <button class="banner-nav-btn" id="banner-prev-btn" type="button" aria-label="Aviso anterior">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                    </button>
+                    <button class="banner-nav-btn" id="banner-next-btn" type="button" aria-label="Siguiente aviso">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </button>
+                    <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button" aria-expanded="false" aria-controls="banner-expanded-content">
+                        <span id="banner-toggle-label">Ver tareas</span>
+                        <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="banner-summary" id="banner-summary">
+                <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE OTZI</p>
+                <p class="banner-summary-meta" id="banner-summary-meta">0/4 TAREAS</p>
+                <p class="banner-summary-note" id="banner-summary-note">Un perfil sólido te ayuda a destacarte y atraer mejores oportunidades.</p>
+                <div class="banner-progress-track">
+                    <div class="banner-progress-fill" id="banner-progress-fill"></div>
+                </div>
+            </div>
+            <div class="banner-expanded-content" id="banner-expanded-content" hidden>
+                <section class="banner-panel banner-panel-onboarding" id="banner-panel-onboarding">
+                    <ul class="banner-checklist" id="banner-onboarding-checklist"></ul>
+                </section>
+                <section class="banner-panel banner-panel-verification" id="banner-panel-verification" hidden>
+                    <ul class="banner-checklist" id="banner-verification-checklist"></ul>
+                </section>
+            </div>
         </div>
     </div>
 
     <!-- Main Dashboard Grid -->
-    <main class="dashboard-grid">
+    <main class="dashboard-layout">
         <!-- Identity Block: Avatar + Name -->
-        <section class="block block-identity">
-            <div class="avatar-container">
-                <div class="avatar-wrapper" id="avatar-wrapper">
-                    <img src="" alt="Avatar" class="avatar-image" id="avatar-image">
-                    <div class="avatar-placeholder" id="avatar-placeholder">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
+            <section class="dashboard-card block-identity block">
+            <div class="identity-main-row">
+                <div class="avatar-container">
+                    <div class="avatar-wrapper" id="avatar-wrapper">
+                        <img src="" alt="Avatar" class="avatar-image" id="avatar-image">
+                        <div class="avatar-placeholder" id="avatar-placeholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="avatar-loading" id="avatar-loading">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                    <button class="avatar-upload-btn" id="avatar-upload-btn" type="button" aria-label="Cambiar foto">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
                         </svg>
-                    </div>
-                    <div class="avatar-loading" id="avatar-loading">
-                        <div class="loading-spinner"></div>
-                    </div>
+                    </button>
+                    <button class="avatar-ai-btn" id="avatar-ai-btn" type="button" aria-label="Generar con IA" title="Generar con IA">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="2" x2="12" y2="22"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                            <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
+                        </svg>
+                    </button>
+                    <input type="file" id="avatar-input" accept="image/*,image/heic,image/heif" hidden>
                 </div>
-                <button class="avatar-upload-btn" id="avatar-upload-btn" type="button" aria-label="Cambiar foto">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                        <circle cx="12" cy="13" r="4"/>
+                <div class="identity-copy">
+                    <h1 class="artist-name" id="artist-name">Cargando...</h1>
+                    <p class="artist-username" id="artist-username">@usuario.wo</p>
+                </div>
+            </div>
+            <div class="identity-status-row">
+                <!-- Verification Badge -->
+                <div class="verification-badge" id="verification-badge" data-state="No" style="display: none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
                     </svg>
-                </button>
-                <button class="avatar-ai-btn" id="avatar-ai-btn" type="button" aria-label="Generar con IA" title="Generar con IA">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="2" x2="12" y2="22"/>
-                        <line x1="2" y1="12" x2="22" y2="12"/>
-                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                        <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
+                    <span id="verification-text">No Verificado</span>
+                </div>
+                <!-- Artist Level Badge -->
+                <div class="artist-level-badge" id="artist-level-badge">
+                    <span class="level-text" id="level-text">Nuevo</span>
+                </div>
+                <div class="embajador-badge" id="embajador-badge" style="display: none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>
-                </button>
-                <input type="file" id="avatar-input" accept="image/*" hidden>
+                    <span>Embajador</span>
+                </div>
             </div>
-            <!-- Artist Level Badge -->
-            <div class="artist-level-badge" id="artist-level-badge">
-                <span class="level-text" id="level-text">Nuevo</span>
-            </div>
-            <!-- Verification Badge -->
-            <div class="verification-badge" id="verification-badge" data-state="No" style="display: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <span id="verification-text">No Verificado</span>
-            </div>
-            <h1 class="artist-name" id="artist-name">Cargando...</h1>
-            <p class="artist-username" id="artist-username">@usuario.wo</p>
             <p class="artist-location" id="artist-location">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                 </svg>
-                <span id="location-text">-</span>
+                <a id="location-link" class="artist-location-link" href="#" target="_blank" rel="noopener noreferrer">
+                    <span id="location-text">-</span>
+                </a>
             </p>
             <div class="artist-social-links">
                 <a href="#" id="instagram-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
@@ -132,6 +228,21 @@
                         <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                     </svg>
                 </button>
+                <button type="button" id="qr-profile-btn" class="social-link-btn" onclick="openQRModal()" aria-label="Generar código QR">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <rect x="5" y="5" width="3" height="3" fill="currentColor"/>
+                        <rect x="16" y="5" width="3" height="3" fill="currentColor"/>
+                        <rect x="5" y="16" width="3" height="3" fill="currentColor"/>
+                        <rect x="14" y="14" width="2" height="2" fill="currentColor"/>
+                        <rect x="17" y="14" width="2" height="2" fill="currentColor"/>
+                        <rect x="20" y="14" width="2" height="2" fill="currentColor"/>
+                        <rect x="14" y="17" width="2" height="2" fill="currentColor"/>
+                        <rect x="20" y="20" width="2" height="2" fill="currentColor"/>
+                    </svg>
+                </button>
             </div>
 
             <!-- Moved Artist Stats -->
@@ -149,73 +260,9 @@
                     <span class="compact-stat-label">Tarifa</span>
                 </div>
             </div>
-
-            <div class="embajador-badge" id="embajador-badge" style="display: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-                <span>Embajador</span>
-            </div>
         </section>
-
-        <!-- Quotes Block -->
-        <section class="block block-quotes">
-            <h2 class="quotes-title">Cotizaciones</h2>
-            <div class="quotes-stats">
-                <div class="quote-stat-item">
-                    <span class="quote-stat-value" id="quote-total">0</span>
-                    <span class="quote-stat-label">Totales</span>
-                </div>
-                <div class="quote-stat-item">
-                    <span class="quote-stat-value highlight-red" id="quote-pending">0</span>
-                    <span class="quote-stat-label">Pendientes</span>
-                </div>
-                <div class="quote-stat-item">
-                    <span class="quote-stat-value" id="quote-answered">0</span>
-                    <span class="quote-stat-label">Respondidas</span>
-                </div>
-            </div>
-            <button class="quotes-admin-btn" id="go-to-quotes-btn" onclick="window.location.href='/my-quotations'">
-                Ir al Panel
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-            </button>
-        </section>
-
-        <!-- Gallery Management Block -->
-        <section class="block block-gallery-admin">
-            <div class="gallery-admin-header">
-                <h2 class="gallery-admin-title">Galeria de Trabajos</h2>
-                <label class="gallery-upload-btn" for="gallery-input">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    <span>Subir Fotos</span>
-                </label>
-                <input type="file" id="gallery-input" accept="image/*" multiple hidden>
-            </div>
-            <p class="gallery-admin-description">Sube imagenes de tus trabajos para mostrar en tu perfil publico (max 12 imagenes).</p>
-            <div class="gallery-admin-grid" id="gallery-admin-grid">
-                <div class="gallery-empty" id="gallery-empty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                    <p>Aun no has subido imagenes</p>
-                </div>
-            </div>
-            <div class="gallery-admin-loading" id="gallery-admin-loading" style="display: none;">
-                <div class="loading-spinner"></div>
-                <span>Subiendo imagenes...</span>
-            </div>
-        </section>
-
         <!-- Info Block: Bio & Portfolio -->
-        <section class="block block-info-panel">
+        <section class="dashboard-card block-info-panel block">
             <div class="info-header">
                 <h2 class="info-title">Sobre Mi</h2>
                 <button class="edit-btn" id="edit-bio-btn" aria-label="Editar bio">
@@ -226,10 +273,34 @@
                 </button>
             </div>
             <div class="bio-content" id="bio-content">
-                <p class="bio-text" id="bio-text">-</p>
+                <div class="bio-text" id="bio-text" data-empty-message="Sin bio aun. Edita tu perfil para agregar una descripcion.">-</div>
             </div>
             <div class="bio-edit-mode" id="bio-edit-mode" style="display: none;">
-                <textarea class="bio-textarea" id="bio-textarea" placeholder="Escribe tu bio aqui..."></textarea>
+                <div class="bio-editor-wrapper bio-editor-wrapper--dashboard">
+                    <div class="bio-toolbar" id="dashboard-bio-toolbar">
+                        <button type="button" class="toolbar-btn" data-command="bold" title="Negrita"><strong>B</strong></button>
+                        <button type="button" class="toolbar-btn" data-command="italic" title="Cursiva"><em>I</em></button>
+                        <button type="button" class="toolbar-btn" data-command="underline" title="Subrayado"><u>U</u></button>
+                        <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Tachado"><s>S</s></button>
+                        <div class="toolbar-separator"></div>
+                        <button type="button" class="toolbar-btn color-btn" data-command="foreColor" title="Color de texto">
+                            <span class="color-icon text-color"></span>
+                            <input type="color" class="color-picker" id="dash-text-color-picker" value="#E53935">
+                        </button>
+                        <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo">
+                            <span class="color-icon bg-color"></span>
+                            <input type="color" class="color-picker" id="dash-bg-color-picker" value="#FFEB3B">
+                        </button>
+                        <div class="toolbar-separator"></div>
+                        <button type="button" class="toolbar-btn" data-command="createLink" title="Insertar enlace">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="bio-editor" class="bio-editor" contenteditable="true" data-placeholder="Escribe tu bio aqui... Se creativo!"></div>
+                </div>
                 <div class="edit-actions">
                     <button class="btn-cancel" id="bio-cancel">Cancelar</button>
                     <button class="btn-save" id="bio-save">Guardar</button>
@@ -246,18 +317,131 @@
                 </a>
             </div>
         </section>
+        <!-- Actions Block -->
+        <section class="dashboard-card block-actions block">
+            <h3 class="actions-title">Acciones</h3>
+            <button class="action-btn action-btn-preview" id="preview-profile-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Ver Mi Perfil Publico
+            </button>
+            <button class="action-btn action-btn-verify" id="request-verification-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M9 12l2 2 4-4"/>
+                </svg>
+                Verificar Perfil
+            </button>
+            <button class="action-btn" id="change-password-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Cambiar Contrasena
+            </button>
+            <button class="action-btn action-btn-danger" id="logout-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Cerrar Sesion
+            </button>
+        </section>
 
+        <!-- Quotes Block -->
+        <section class="dashboard-card block-quotes block">
+            <h2 class="quotes-title">Cotizaciones</h2>
+            <div class="quotes-stats">
+                <div class="quote-stat-item">
+                    <span class="quote-stat-value" id="quote-total">0</span>
+                    <span class="quote-stat-label">Totales</span>
+                </div>
+                <div class="quote-stat-item">
+                    <span class="quote-stat-value highlight-red" id="quote-pending">0</span>
+                    <span class="quote-stat-label">Pendientes</span>
+                </div>
+                <div class="quote-stat-item">
+                    <span class="quote-stat-value" id="quote-answered">0</span>
+                    <span class="quote-stat-label">Respondidas</span>
+                </div>
+                <div class="quote-stat-item" style="cursor:pointer;" onclick="window.location.href='/my-quotations?tab=applications'" title="Ver mis postulaciones">
+                    <span class="quote-stat-value" id="quote-applications">0</span>
+                    <span class="quote-stat-label">Postulaciones</span>
+                </div>
+            </div>
+            <div class="quotes-admin-actions">
+                <button class="quotes-admin-btn" id="go-to-quotes-btn" onclick="window.location.href='/my-quotations'">
+                    Ir al Panel
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+                <a href="/job-board" class="quotes-admin-btn">
+                    Job Board
+                </a>
+            </div>
+        </section>
+        <!-- Gallery Management Block -->
+        <section class="block-gallery-admin dashboard-card block">
+            <div class="gallery-admin-header">
+                <h2 class="gallery-admin-title">Galeria de Trabajos</h2>
+                <label class="gallery-upload-btn" for="gallery-input">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span>Subir Fotos/Videos</span>
+                </label>
+                <input type="file" id="gallery-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+            </div>
+            <p class="gallery-admin-description">Sube fotos o videos de tus trabajos para mostrar en tu perfil publico (max 12 archivos, hasta 2 videos MP4/MOV de 30s).</p>
+            <div class="gallery-admin-grid" id="gallery-admin-grid">
+                <div class="gallery-empty" id="gallery-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <p>Aun no has subido archivos</p>
+                </div>
+            </div>
+            <div class="gallery-admin-loading" id="gallery-admin-loading" style="display: none;">
+                <div class="gallery-upload-progress">
+                    <div class="gallery-upload-progress-header">
+                        <span class="gallery-upload-label">Subiendo archivos</span>
+                        <span class="gallery-upload-counter" id="gallery-upload-counter">0 / 0</span>
+                    </div>
+                    <div class="gallery-progress-track">
+                        <div class="gallery-progress-fill" id="gallery-progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
         <!-- Profile Edit Block -->
-        <section class="block block-profile">
+        <section class="block-profile dashboard-card block">
             <div class="profile-header">
                 <h2 class="profile-title">Mi Perfil</h2>
-                <button class="edit-toggle-btn" id="edit-toggle-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                    <span>Editar</span>
-                </button>
+                <div class="profile-header-actions">
+                    <button class="profile-gallery-upload-btn" id="profile-gallery-upload-btn" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>Subir Fotos</span>
+                    </button>
+                    <button class="edit-toggle-btn" id="edit-toggle-btn" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        <span>Editar</span>
+                    </button>
+                </div>
             </div>
 
             <form id="profile-form" class="profile-form">
@@ -285,14 +469,38 @@
                 <div class="form-row">
                     <label class="form-label">Ubicacion</label>
                     <div class="form-value" id="display-location">-</div>
-                    <input type="text" class="form-input-dashboard" id="input-location" style="display: none;">
+                    <div class="dashboard-location-group" id="location-input-group" style="display: none;">
+                        <div class="dashboard-location-wrapper">
+                            <input type="text" class="form-input-dashboard" id="input-location"
+                                placeholder="Ciudad, Pais" autocomplete="off">
+                            <button type="button" class="dashboard-geolocation-btn"
+                                id="dashboard-geolocation-btn"
+                                onclick="getDashboardGeolocation()"
+                                aria-label="Detectar mi ubicacion automaticamente"
+                                title="Detectar ubicacion">
+                                <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="dashboard-location-hint" id="dashboard-location-hint" aria-live="polite"></p>
+                    </div>
                 </div>
 
                 <!-- Styles -->
                 <div class="form-row">
                     <label class="form-label">Estilos</label>
                     <div class="form-value styles-value" id="display-styles">-</div>
-                    <input type="text" class="form-input-dashboard" id="input-styles" placeholder="Separados por coma" style="display: none;">
+                    <button type="button" class="styles-edit-trigger" id="styles-edit-trigger" style="display: none;" onclick="openStylesModal()">
+                        <div class="styles-trigger-tags" id="styles-trigger-tags">
+                            <span class="styles-trigger-placeholder">Seleccionar estilos...</span>
+                        </div>
+                        <svg class="styles-trigger-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Experience -->
@@ -350,7 +558,10 @@
                 <div class="form-row" id="studio-row" style="display: none;">
                     <label class="form-label">Nombre del Estudio</label>
                     <div class="form-value" id="display-studio">-</div>
-                    <input type="text" class="form-input-dashboard" id="input-studio" style="display: none;">
+                    <div class="dashboard-studio-autocomplete" style="position:relative;">
+                        <input type="text" class="form-input-dashboard" id="input-studio" style="display: none;" autocomplete="off">
+                        <div class="studio-suggestions" id="dashboard-studio-suggestions"></div>
+                    </div>
                 </div>
 
                 <!-- Instagram -->
@@ -394,7 +605,7 @@
                 <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display: none;">
                     <label class="form-label">Galeria de Trabajos</label>
                     <div class="gallery-edit-content">
-                        <p class="gallery-edit-description">Administra las imagenes de tu portafolio (max 12 imagenes).</p>
+                        <p class="gallery-edit-description">Administra las fotos y videos de tu portafolio (max 12 archivos, hasta 2 videos MP4/MOV de 30s).</p>
                         <div class="gallery-edit-preview" id="gallery-edit-preview">
                             <!-- Thumbnails will be inserted here -->
                         </div>
@@ -404,10 +615,21 @@
                                 <polyline points="17 8 12 3 7 8"/>
                                 <line x1="12" y1="3" x2="12" y2="15"/>
                             </svg>
-                            <span>Subir Imagenes</span>
+                            <span>Subir Fotos/Videos</span>
                         </label>
-                        <input type="file" id="gallery-edit-input" accept="image/*" multiple hidden>
-                        <span class="gallery-edit-count" id="gallery-edit-count">0/12 imagenes</span>
+                        <input type="file" id="gallery-edit-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+                        <div class="gallery-edit-loading" id="gallery-edit-loading" style="display: none;">
+                            <div class="gallery-upload-progress">
+                                <div class="gallery-upload-progress-header">
+                                    <span class="gallery-upload-label">Subiendo archivos</span>
+                                    <span class="gallery-upload-counter" id="gallery-edit-upload-counter">0 / 0</span>
+                                </div>
+                                <div class="gallery-progress-track">
+                                    <div class="gallery-progress-fill" id="gallery-edit-progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="gallery-edit-count" id="gallery-edit-count">0/12 archivos</span>
                     </div>
                 </div>
 
@@ -420,121 +642,6 @@
 
             <!-- Status Message -->
             <div class="status-message" id="status-message"></div>
-        </section>
-
-        <!-- Actions Block -->
-        <section class="block block-actions">
-            <h3 class="actions-title">Acciones</h3>
-            <button class="action-btn action-btn-preview" id="preview-profile-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>
-                Ver Mi Perfil Publico
-            </button>
-            <button class="action-btn action-btn-verify" id="request-verification-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <path d="M9 12l2 2 4-4"/>
-                </svg>
-                Verificar Perfil
-            </button>
-            <button class="action-btn" id="change-password-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                Cambiar Contrasena
-            </button>
-            <button class="action-btn action-btn-danger" id="logout-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-                Cerrar Sesion
-            </button>
-        </section>
-
-        <!-- Milestones & Trophies Block -->
-        <section class="block block-milestones">
-            <h3 class="milestones-title">Hitos y Trofeos</h3>
-            <div class="milestones-grid">
-                <div class="milestone-item" id="milestone-profile" data-milestone="ms_profile_complete">
-                    <div class="milestone-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                    </div>
-                    <span class="milestone-label">Completar Perfil</span>
-                    <div class="milestone-check">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="milestone-item" id="milestone-quote-received" data-milestone="ms_first_quote_received">
-                    <div class="milestone-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                        </svg>
-                    </div>
-                    <span class="milestone-label">Recibir 1 Cotizacion</span>
-                    <div class="milestone-check">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="milestone-item" id="milestone-whatsapp-shared" data-milestone="ms_whatsapp_shared">
-                    <div class="milestone-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                        </svg>
-                    </div>
-                    <span class="milestone-label">Compartir Enlace WhatsApp</span>
-                    <div class="milestone-check">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="milestone-item" id="milestone-profile-shared" data-milestone="ms_profile_shared">
-                    <div class="milestone-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="18" cy="5" r="3"/>
-                            <circle cx="6" cy="12" r="3"/>
-                            <circle cx="18" cy="19" r="3"/>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                        </svg>
-                    </div>
-                    <span class="milestone-label">Compartir Perfil We Otzi</span>
-                    <div class="milestone-check">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="milestone-item" id="milestone-quote-completed" data-milestone="ms_first_quote_completed">
-                    <div class="milestone-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                            <polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                    </div>
-                    <span class="milestone-label">Completar 1 Cotizacion</span>
-                    <div class="milestone-check">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                    </div>
-                </div>
-            </div>
         </section>
     </main>
 
@@ -784,6 +891,85 @@
         </div>
     </div>
 
+    <!-- Styles Selector Modal -->
+    <div id="styles-modal" class="modal-overlay" onclick="closeStylesModalOnOverlay(event)">
+        <div class="modal-container styles-modal-container">
+            <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <div class="modal-header">
+                <h2 class="modal-title">Estilos</h2>
+                <p class="modal-subtitle">Selecciona los estilos que manejas</p>
+            </div>
+            <div id="dashboard-styles-grid" class="dashboard-styles-grid">
+                <span style="opacity:0.5;font-size:0.85rem;">Cargando estilos...</span>
+            </div>
+            <div class="dashboard-custom-style-row">
+                <input type="text" id="dashboard-custom-style-input" class="modal-input" placeholder="Agregar estilo personalizado..." onkeydown="if(event.key==='Enter'){event.preventDefault();addDashboardCustomStyle();}">
+                <button type="button" class="dashboard-custom-style-add-btn" onclick="addDashboardCustomStyle()">+</button>
+            </div>
+            <div class="styles-modal-actions">
+                <button type="button" class="styles-modal-btn styles-modal-btn-cancel" onclick="closeStylesModal()">Cancelar</button>
+                <button type="button" class="styles-modal-btn styles-modal-btn-confirm" onclick="confirmStylesSelection()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="modal-overlay" onclick="closeQRModalOnOverlay(event)">
+        <div class="modal-container qr-modal-container">
+            <button class="modal-close" onclick="closeQRModal()" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <h2 class="qr-modal-title">QR DE PERFIL</h2>
+            <div class="qr-destination-tabs">
+                <button class="qr-tab active" data-dest="profile">PERFIL</button>
+                <button class="qr-tab" data-dest="gallery">GALERÍA</button>
+            </div>
+            <div class="qr-canvas-wrapper">
+                <canvas id="qr-canvas"></canvas>
+            </div>
+            <p class="qr-url-display" id="qr-url-display"></p>
+            <div class="qr-actions">
+                <button type="button" class="qr-action-btn qr-action-primary" onclick="downloadQRPNG()">↓ Descargar PNG</button>
+                <button type="button" class="qr-action-btn" onclick="downloadQRSVG()">↓ Descargar SVG</button>
+                <button type="button" class="qr-action-btn" id="qr-copy-btn" onclick="copyQRUrl()">⎘ Copiar URL</button>
+                <button type="button" class="qr-action-btn qr-action-share" id="qr-share-btn" onclick="shareQRUrl()" style="display:none">↗ Compartir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Gallery Lightbox -->
+    <div class="dashboard-gallery-lightbox" id="dashboard-gallery-lightbox" aria-hidden="true">
+        <button class="dashboard-lightbox-close" id="dashboard-lightbox-close" aria-label="Cerrar visor">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <button class="dashboard-lightbox-nav dashboard-lightbox-prev" id="dashboard-lightbox-prev" aria-label="Anterior">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+        </button>
+        <div class="dashboard-lightbox-content">
+            <img src="" alt="Trabajo" id="dashboard-lightbox-image">
+            <video id="dashboard-lightbox-video" controls playsinline preload="metadata"></video>
+        </div>
+        <button class="dashboard-lightbox-nav dashboard-lightbox-next" id="dashboard-lightbox-next" aria-label="Siguiente">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        </button>
+        <div class="dashboard-lightbox-counter" id="dashboard-lightbox-counter">1 / 1</div>
+    </div>
+
+    <script src="/shared/js/bio-formatting.js"></script>
+    <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/heic-converter.js"></script>
     <script src="/shared/js/dashboard.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>

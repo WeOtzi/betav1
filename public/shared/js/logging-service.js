@@ -182,32 +182,30 @@ const LoggingService = (function() {
 
     async function fetchProfileData(supabase, userId) {
         try {
-            // Try artists_db first
             const { data: artist } = await supabase
                 .from('artists_db')
-                .select('email, phone')
+                .select('email, whatsapp_number')
                 .eq('user_id', userId)
-                .single();
-            
+                .maybeSingle();
+
             if (artist) {
                 userIdentifiers.email = userIdentifiers.email || artist.email;
-                userIdentifiers.phone = userIdentifiers.phone || artist.phone;
+                userIdentifiers.phone = userIdentifiers.phone || artist.whatsapp_number;
                 return;
             }
 
-            // Try clients_db
             const { data: client } = await supabase
                 .from('clients_db')
-                .select('email, phone')
+                .select('email, whatsapp')
                 .eq('user_id', userId)
-                .single();
-            
+                .maybeSingle();
+
             if (client) {
                 userIdentifiers.email = userIdentifiers.email || client.email;
-                userIdentifiers.phone = userIdentifiers.phone || client.phone;
+                userIdentifiers.phone = userIdentifiers.phone || client.whatsapp;
             }
         } catch (err) {
-            // Silent fail
+            // Silent fail - user identification is optional
         }
     }
 

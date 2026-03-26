@@ -223,11 +223,12 @@ async function loadQuotations() {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
         
-        // Get quotations by client_user_id or by email
+        // Get quotations by client_user_id or by email, excluding client-hidden ones
         const { data: quotations, error } = await _supabase
             .from('quotations_db')
             .select('*')
             .or(`client_user_id.eq.${session.user.id},client_email.ilike.${currentClient.email}`)
+            .is('client_deleted_at', null)
             .order('created_at', { ascending: false });
         
         if (error) {
@@ -359,9 +360,53 @@ function renderQuotationCard(quotation) {
                 <button class="quotation-btn chat" onclick="openChat('${quotation.quote_id}')">
                     Chat <span class="unread-badge" id="unread-${quotation.quote_id}" style="display: none;">0</span>
                 </button>
+                <button class="quotation-btn danger" onclick="hideQuotation('${quotation.quote_id}')">
+                    Borrar
+                </button>
             </div>
         </div>
     `;
+}
+
+// ============================================
+// Hide Quotation (client-only soft delete)
+// ============================================
+
+async function hideQuotation(quoteId) {
+    if (!confirm('¿Estas seguro de que quieres borrar esta cotizacion?')) {
+        return;
+    }
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) return;
+
+        const response = await fetch(`/api/client/quotations/${encodeURIComponent(quoteId)}/hide`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Error al ocultar la cotizacion');
+        }
+
+        currentQuotations = currentQuotations.filter(q => q.quote_id !== quoteId);
+        updateStats();
+        renderQuotations();
+
+        if (currentQuotationId === quoteId) {
+            closeModal();
+        }
+
+    } catch (error) {
+        console.error('Error hiding quotation:', error);
+        alert('No se pudo borrar la cotizacion: ' + error.message);
+    }
 }
 
 // ============================================
@@ -624,6 +669,17 @@ async function sendChatMessage() {
         
         // Clear input
         input.value = '';
+        
+        try {
+            const currentQuote = currentQuotations.find(q => q.quote_id === currentQuotationId);
+            window.ConfigManager.sendN8NEvent('chat_message_to_artist', {
+                quote_id: currentQuotationId,
+                artist_name: currentQuote ? (currentQuote.artist_name || '') : '',
+                artist_email: currentQuote ? (currentQuote.artist_email || '') : '',
+                client_name: currentClient ? (currentClient.full_name || '') : '',
+                message_preview: message.substring(0, 100)
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
         
         // The realtime subscription will handle adding the message to the UI
         
@@ -1252,3 +1308,369 @@ document.addEventListener('keydown', (e) => {
         closeEditProfileModal();
     }
 });
+
+// ============================================
+// JOB BOARD - CLIENT REQUESTS & APPLICATIONS
+// ============================================
+
+let jbRequests = [];
+let jbCurrentRequest = null;
+
+// Switch to Job Board tab
+function switchToJobBoard() {
+    // Update tab active states
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector('[data-filter="job-board"]').classList.add('active');
+
+    // Hide quotations, show JB
+    document.getElementById('quotations-list').style.display = 'none';
+    document.getElementById('jb-requests-list').style.display = 'block';
+
+    loadJobBoardRequests();
+}
+
+// Switch back to quotations
+function switchToQuotations(filter) {
+    document.getElementById('quotations-list').style.display = 'block';
+    document.getElementById('jb-requests-list').style.display = 'none';
+    filterQuotations(filter);
+}
+
+// Override filterQuotations to handle JB tab switching
+const _originalFilterQuotations = typeof filterQuotations === 'function' ? filterQuotations : null;
+function filterQuotationsOverride(filter) {
+    if (filter === 'job-board') {
+        switchToJobBoard();
+        return;
+    }
+    // Show quotations, hide JB
+    document.getElementById('quotations-list').style.display = 'block';
+    document.getElementById('jb-requests-list').style.display = 'none';
+    if (_originalFilterQuotations) _originalFilterQuotations(filter);
+}
+// Re-wire if original exists
+if (_originalFilterQuotations) {
+    window.filterQuotations = filterQuotationsOverride;
+}
+
+async function loadJobBoardRequests() {
+    if (!_supabase) return;
+
+    const container = document.getElementById('jb-requests-list');
+    container.innerHTML = '<div class="loading-skeleton" style="height: 150px;"></div>';
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) return;
+
+        const { data, error } = await _supabase
+            .from('job_board_requests')
+            .select('*, job_board_applications(id, artist_id, status, message, estimated_price, estimated_sessions, availability_note, created_at), job_board_attachments(id, file_url)')
+            .eq('client_user_id', session.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        jbRequests = data || [];
+
+        // Update badge
+        const badge = document.getElementById('jb-requests-count');
+        if (badge && jbRequests.length > 0) {
+            badge.textContent = jbRequests.length;
+            badge.style.display = 'inline-flex';
+        }
+
+        renderJobBoardRequests();
+    } catch (err) {
+        console.error('Error loading JB requests:', err);
+        container.innerHTML = '<div class="empty-state"><p>Error al cargar solicitudes</p></div>';
+    }
+}
+
+function renderJobBoardRequests() {
+    const container = document.getElementById('jb-requests-list');
+
+    if (jbRequests.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>No tienes solicitudes en el Job Board</p>
+                <a href="/job-board/request" style="display:inline-block; margin-top:1rem; padding:12px 24px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9); text-decoration:none; font-weight:700; text-transform:uppercase; font-size:0.85rem;">Publicar Solicitud</a>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = jbRequests.map(req => {
+        const statusLabels = {
+            'draft': 'Borrador',
+            'open': 'Abierta',
+            'in_review': 'En Revision',
+            'accepted': 'Aceptada',
+            'closed': 'Cerrada',
+            'expired': 'Expirada'
+        };
+        const statusColors = {
+            'draft': '#6b6b75',
+            'open': '#22c55e',
+            'in_review': '#F4B942',
+            'accepted': '#1A4B8E',
+            'closed': '#6b6b75',
+            'expired': '#E23E28'
+        };
+        const pendingApps = (req.job_board_applications || []).filter(a => a.status === 'pending' || a.status === 'viewed').length;
+        const totalApps = (req.job_board_applications || []).length;
+        const thumbnail = req.job_board_attachments?.[0]?.file_url;
+        const styles = req.tattoo_style ? (Array.isArray(req.tattoo_style) ? req.tattoo_style.join(', ') : String(req.tattoo_style)) : '';
+
+        return `
+        <div class="quotation-card" data-request-id="${req.id}" onclick="viewJBRequestDetail('${req.id}')">
+            <div class="quotation-header">
+                <span class="quotation-id">${req.request_code}</span>
+                <span class="quotation-status" style="background:${statusColors[req.status] || '#6b6b75'}; color:white; padding:2px 8px; font-size:0.7rem;">${statusLabels[req.status] || req.status}</span>
+            </div>
+            <div class="quotation-body">
+                <div class="quotation-artist">
+                    ${thumbnail ? `<img src="${thumbnail}" style="width:48px;height:48px;object-fit:cover;border:2px solid var(--fg,#0A0A0A);" alt="">` : '<div class="artist-avatar" style="background:var(--primary-yellow,#F4B942);color:var(--fg,#0A0A0A);">JB</div>'}
+                    <div class="artist-info">
+                        <h4>${req.tattoo_idea_description ? req.tattoo_idea_description.substring(0, 60) + (req.tattoo_idea_description.length > 60 ? '...' : '') : 'Sin descripcion'}</h4>
+                        <p>${req.tattoo_body_part || ''} ${styles ? '· ' + styles : ''}</p>
+                    </div>
+                </div>
+                <div class="quotation-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Zona</div>
+                        <div class="detail-value">${req.tattoo_body_part || '-'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Presupuesto</div>
+                        <div class="detail-value">${req.client_budget_min && req.client_budget_max ? '$' + req.client_budget_min + '-$' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD') : 'Sin definir'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Postulaciones</div>
+                        <div class="detail-value">${totalApps} (${pendingApps} nuevas)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="quotation-footer">
+                <button class="quotation-btn" onclick="event.stopPropagation(); viewJBRequestDetail('${req.id}')">
+                    Ver Postulaciones
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function viewJBRequestDetail(requestId) {
+    const req = jbRequests.find(r => r.id === requestId);
+    if (!req) return;
+    jbCurrentRequest = req;
+
+    const modal = document.getElementById('jb-applications-modal');
+    const codeEl = document.getElementById('jb-modal-code');
+    const contentEl = document.getElementById('jb-applications-content');
+
+    codeEl.textContent = req.request_code;
+
+    const applications = req.job_board_applications || [];
+
+    if (applications.length === 0) {
+        contentEl.innerHTML = '<div style="text-align:center; padding:2rem; opacity:0.6;"><p>Aun no hay postulaciones para esta solicitud.</p><p style="margin-top:0.5rem; font-size:0.85rem;">Comparte el enlace del Job Board para atraer mas artistas.</p></div>';
+        modal.style.display = 'flex';
+        return;
+    }
+
+    // Fetch artist data for all applications
+    const artistIds = applications.map(a => a.artist_id);
+    let artistsMap = {};
+    try {
+        const { data: artists } = await _supabase
+            .from('artists_db')
+            .select('user_id, username, name, profile_picture, styles_array, ubicacion, session_price, years_experience')
+            .in('user_id', artistIds);
+        if (artists) {
+            artists.forEach(a => { artistsMap[a.user_id] = a; });
+        }
+    } catch (e) {
+        console.error('Error fetching artists:', e);
+    }
+
+    contentEl.innerHTML = applications.map(app => {
+        const artist = artistsMap[app.artist_id] || {};
+        const statusLabels = { pending: 'Pendiente', viewed: 'Vista', accepted: 'Aceptada', rejected: 'Rechazada', withdrawn: 'Retirada' };
+        const statusColors = { pending: '#F4B942', viewed: '#1A4B8E', accepted: '#22c55e', rejected: '#E23E28', withdrawn: '#6b6b75' };
+        const isPending = app.status === 'pending' || app.status === 'viewed';
+        const styles = artist.styles_array ? artist.styles_array.slice(0, 3).join(', ') : '';
+
+        return `
+        <div style="border:2px solid var(--fg,#0A0A0A); margin-bottom:1rem; overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:1rem; border-bottom:1px solid rgba(0,0,0,0.1);">
+                ${artist.profile_picture ? `<img src="${artist.profile_picture}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--fg,#0A0A0A);" alt="">` : '<div style="width:48px;height:48px;border-radius:50%;background:var(--fg,#0A0A0A);color:var(--bg,#F2F0E9);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.8rem;">' + (artist.name || 'A').charAt(0).toUpperCase() + '</div>'}
+                <div style="flex:1;">
+                    <div style="font-weight:900; font-size:0.95rem;">${artist.name || artist.username || 'Artista'}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary,#6b6b75);">${artist.ubicacion || ''} ${styles ? '· ' + styles : ''}</div>
+                </div>
+                <span style="background:${statusColors[app.status]}; color:white; padding:2px 10px; font-size:0.7rem; font-weight:700; text-transform:uppercase;">${statusLabels[app.status]}</span>
+            </div>
+            <div style="padding:1rem;">
+                <p style="margin-bottom:0.8rem; line-height:1.5;">${app.message || 'Sin mensaje'}</p>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; font-size:0.85rem; color:var(--text-secondary,#6b6b75);">
+                    ${app.estimated_price ? '<span><strong>Precio est.:</strong> ' + app.estimated_price + '</span>' : ''}
+                    ${app.estimated_sessions ? '<span><strong>Sesiones:</strong> ' + app.estimated_sessions + '</span>' : ''}
+                    ${app.availability_note ? '<span><strong>Disponibilidad:</strong> ' + app.availability_note + '</span>' : ''}
+                </div>
+                ${artist.username ? '<a href="/artist/profile?u=' + artist.username + '" target="_blank" style="display:inline-block; margin-top:0.8rem; font-size:0.8rem; color:var(--primary-blue,#1A4B8E); font-weight:700; text-transform:uppercase;">Ver Perfil del Artista</a>' : ''}
+            </div>
+            ${isPending ? `
+            <div style="display:flex; border-top:2px solid var(--fg,#0A0A0A);">
+                <button onclick="acceptApplication('${app.id}', '${req.id}')" style="flex:1; padding:12px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9); border:none; font-weight:900; text-transform:uppercase; font-size:0.85rem; cursor:pointer;">Aceptar</button>
+                <button onclick="rejectApplication('${app.id}', '${req.id}')" style="flex:1; padding:12px; background:transparent; border:none; border-left:2px solid var(--fg,#0A0A0A); font-weight:700; text-transform:uppercase; font-size:0.85rem; cursor:pointer; color:var(--primary-red,#E23E28);">Rechazar</button>
+            </div>` : ''}
+            ${app.status === 'accepted' && req.resulting_quote_id ? '<div style="padding:0.8rem 1rem; background:var(--primary-blue,#1A4B8E); color:white; text-align:center;"><a href="/my-quotations" style="color:white; font-weight:700; text-transform:uppercase; font-size:0.85rem;">Ver Cotizacion Creada</a></div>' : ''}
+        </div>`;
+    }).join('');
+
+    modal.style.display = 'flex';
+}
+
+async function acceptApplication(applicationId, requestId) {
+    if (!confirm('¿Aceptar esta postulacion? Se creara una cotizacion con este artista y las demas postulaciones seran rechazadas.')) return;
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session?.access_token) {
+            alert('Tu sesion expiro. Recarga la pagina e inicia sesion de nuevo.');
+            return;
+        }
+
+        const response = await fetch('/api/job-board/accept-application', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                applicationId,
+                requestId
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        try {
+            const request = jbRequests.find(r => r.id === requestId) || jbCurrentRequest;
+            const application = request ? (request.job_board_applications || []).find(a => a.id === applicationId) : null;
+            window.ConfigManager.sendN8NEvent('job_board_application_accepted', {
+                artist_name: application ? (application.artist_name || '') : '',
+                artist_email: application ? (application.artist_email || '') : '',
+                client_name: currentClient ? (currentClient.full_name || '') : '',
+                request_code: request ? (request.request_code || '') : '',
+                quote_id: result.quote_id || '',
+                tattoo_style: request ? (request.tattoo_style || '') : '',
+                tattoo_size: request ? (request.tattoo_size || '') : '',
+                tattoo_body_part: request ? (request.tattoo_body_part || '') : ''
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
+
+        alert('Artista aceptado. Se ha creado una cotizacion.');
+        closeJBModal();
+        loadJobBoardRequests();
+    } catch (err) {
+        console.error('Error accepting application:', err);
+        alert('Error al aceptar: ' + err.message);
+    }
+}
+
+async function rejectApplication(applicationId, requestId) {
+    if (!confirm('¿Rechazar esta postulacion?')) return;
+
+    try {
+        const { error } = await _supabase
+            .from('job_board_applications')
+            .update({ status: 'rejected', decided_at: new Date().toISOString() })
+            .eq('id', applicationId);
+
+        if (error) throw error;
+
+        try {
+            const request = jbRequests.find(r => r.id === requestId) || jbCurrentRequest;
+            const application = request ? (request.job_board_applications || []).find(a => a.id === applicationId) : null;
+            window.ConfigManager.sendN8NEvent('job_board_application_rejected', {
+                artist_name: application ? (application.artist_name || '') : '',
+                artist_email: application ? (application.artist_email || '') : '',
+                request_code: request ? (request.request_code || '') : ''
+            });
+        } catch (e) { /* n8n notification failure should not break main flow */ }
+
+        // Refresh
+        await loadJobBoardRequests();
+        viewJBRequestDetail(requestId);
+    } catch (err) {
+        console.error('Error rejecting:', err);
+        alert('Error al rechazar: ' + err.message);
+    }
+}
+
+function closeJBModal() {
+    document.getElementById('jb-applications-modal').style.display = 'none';
+}
+
+// Load JB count on init (after quotations load)
+(async function initJobBoardTab() {
+    // Wait for supabase to be ready
+    let tries = 0;
+    while (!_supabase && tries < 50) {
+        await new Promise(r => setTimeout(r, 100));
+        tries++;
+    }
+    if (!_supabase) return;
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) return;
+
+        const { count, error } = await _supabase
+            .from('job_board_requests')
+            .select('*', { count: 'exact', head: true })
+            .eq('client_user_id', session.user.id);
+
+        if (!error && count > 0) {
+            const badge = document.getElementById('jb-requests-count');
+            if (badge) {
+                badge.textContent = count;
+                badge.style.display = 'inline-flex';
+            }
+        }
+
+        // Check URL params for tab switching
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'solicitudes') {
+            switchToJobBoard();
+        }
+    } catch (e) {
+        console.error('Error init JB tab:', e);
+    }
+})();
+
+// Setup Realtime subscription for new applications
+(async function setupJBRealtime() {
+    let tries = 0;
+    while (!_supabase && tries < 50) {
+        await new Promise(r => setTimeout(r, 100));
+        tries++;
+    }
+    if (!_supabase) return;
+
+    _supabase
+        .channel('jb-applications-updates')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'job_board_applications'
+        }, () => {
+            // Refresh JB requests if on that tab
+            const jbList = document.getElementById('jb-requests-list');
+            if (jbList && jbList.style.display !== 'none') {
+                loadJobBoardRequests();
+            }
+        })
+        .subscribe();
+})();

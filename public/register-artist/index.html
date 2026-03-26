@@ -13,10 +13,6 @@
     <link rel="stylesheet" href="/shared/css/landing-style.css">
     <link rel="stylesheet" href="/shared/css/register.css">
     <link rel="stylesheet" href="/shared/css/feedback.css">
-    <!-- Flatpickr Date Picker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
@@ -53,11 +49,6 @@
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
         O
     </button>
-
-    <div class="zoom-controls">
-        <button class="zoom-btn" onclick="zoomOut()" aria-label="Reducir zoom">-</button>
-        <button class="zoom-btn" onclick="zoomIn()" aria-label="Aumentar zoom">+</button>
-    </div>
 
     <main class="register-container">
         <!-- Progress Bar -->
@@ -144,19 +135,7 @@
                 <h2 class="question-title">Cuales son tus estilos?</h2>
                 <p class="question-subtitle">Selecciona todos los estilos en los que trabajas.</p>
                 <div class="styles-grid" id="styles-grid">
-                    <button type="button" class="style-option" data-style="Tradicional">Tradicional</button>
-                    <button type="button" class="style-option" data-style="Neo-tradicional">Neo-tradicional</button>
-                    <button type="button" class="style-option" data-style="Realismo">Realismo</button>
-                    <button type="button" class="style-option" data-style="Blackwork">Blackwork</button>
-                    <button type="button" class="style-option" data-style="Fine Line">Fine Line</button>
-                    <button type="button" class="style-option" data-style="Japones">Japones</button>
-                    <button type="button" class="style-option" data-style="Geometrico">Geometrico</button>
-                    <button type="button" class="style-option" data-style="Watercolor">Watercolor</button>
-                    <button type="button" class="style-option" data-style="Tribal">Tribal</button>
-                    <button type="button" class="style-option" data-style="Minimalista">Minimalista</button>
-                    <button type="button" class="style-option" data-style="Dotwork">Dotwork</button>
-                    <button type="button" class="style-option" data-style="Lettering">Lettering</button>
-                    <button type="button" class="style-option style-option-other" data-style="Otro" id="style-other-btn">+ Otro</button>
+                    <!-- Populated dynamically from tattoo_styles DB by register.js -->
                 </div>
                 <!-- Custom Style Input -->
                 <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
@@ -242,14 +221,29 @@
                 </div>
             </section>
 
-            <!-- Step 8: Portfolio URL -->
+            <!-- Step 8: Portfolio Source Selector -->
             <section class="form-step" data-step="8">
                 <div class="step-indicator">08</div>
                 <h2 class="question-title">Donde podemos ver tu trabajo?</h2>
-                <p class="question-subtitle">Link a tu Instagram, sitio web o portfolio online.</p>
-                <div class="input-wrapper">
+                <p class="question-subtitle">Selecciona donde compartes tu portfolio o trabajo.</p>
+                <div class="portfolio-source-options" id="portfolio-source-options">
+                    <button type="button" class="portfolio-source-option" data-source="website">Sitio web</button>
+                    <button type="button" class="portfolio-source-option" data-source="instagram">Instagram</button>
+                    <button type="button" class="portfolio-source-option" data-source="other">Otro</button>
+                    <button type="button" class="portfolio-source-option" data-source="none">No tengo, usare esto como Portfolio</button>
+                </div>
+                <div class="portfolio-conditional-input" id="portfolio-url-wrapper" style="display: none;">
+                    <label class="conditional-input-label" id="portfolio-url-label">URL de tu sitio web</label>
                     <input type="url" id="portfolio_url" class="form-input"
-                        placeholder="https://instagram.com/tu_perfil" autocomplete="off">
+                        placeholder="https://tusitio.com" autocomplete="off">
+                </div>
+                <div class="portfolio-conditional-input" id="portfolio-ig-wrapper" style="display: none;">
+                    <label class="conditional-input-label">Tu nombre de usuario en Instagram</label>
+                    <div class="instagram-input-row">
+                        <span class="instagram-prefix">@</span>
+                        <input type="text" id="instagram_handle" class="form-input"
+                            placeholder="tu_usuario" autocomplete="off">
+                    </div>
                 </div>
             </section>
 
@@ -347,35 +341,41 @@
                         <span class="work-type-desc">Combino ambas modalidades</span>
                     </button>
                 </div>
-                <!-- Studio Name Input -->
+                <!-- Studio Name Input with Autocomplete -->
                 <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
                     <label class="studio-name-label">Nombre del estudio donde trabajas:</label>
-                    <div class="input-wrapper">
+                    <div class="input-wrapper studio-autocomplete-wrapper">
                         <input type="text" id="studio_name" class="form-input" placeholder="Nombre del estudio"
                             autocomplete="off">
+                        <div class="studio-suggestions" id="studio-suggestions"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- Step 11: Birth Date -->
+            <!-- Step 11: Birth Date (three selects) -->
             <section class="form-step" data-step="11">
                 <div class="step-indicator">11</div>
                 <h2 class="question-title">Cuando es tu cumpleaños?</h2>
                 <p class="question-subtitle">Tu fecha de nacimiento para verificar tu edad.</p>
-                <div class="input-wrapper date-input-wrapper">
-                    <input type="text" id="birth_date" class="form-input date-input" 
-                        placeholder="DD/MM/AAAA" 
-                        maxlength="10"
-                        autocomplete="off"
-                        inputmode="numeric">
-                    <button type="button" class="date-picker-btn" id="date-picker-btn" aria-label="Seleccionar fecha">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                            <line x1="16" y1="2" x2="16" y2="6"/>
-                            <line x1="8" y1="2" x2="8" y2="6"/>
-                            <line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                    </button>
+                <div class="birth-date-selects">
+                    <div class="birth-select-group">
+                        <label class="birth-select-label" for="birth_day">Dia</label>
+                        <select id="birth_day" class="birth-select">
+                            <option value="" disabled selected>--</option>
+                        </select>
+                    </div>
+                    <div class="birth-select-group">
+                        <label class="birth-select-label" for="birth_month">Mes</label>
+                        <select id="birth_month" class="birth-select">
+                            <option value="" disabled selected>--</option>
+                        </select>
+                    </div>
+                    <div class="birth-select-group">
+                        <label class="birth-select-label" for="birth_year">Ano</label>
+                        <select id="birth_year" class="birth-select">
+                            <option value="" disabled selected>--</option>
+                        </select>
+                    </div>
                 </div>
             </section>
 
@@ -552,6 +552,8 @@
         </div>
     </div>
 
+    <script src="/shared/js/bio-formatting.js"></script>
+    <script src="/shared/js/artist-auth.js"></script>
     <script src="/shared/js/register.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>

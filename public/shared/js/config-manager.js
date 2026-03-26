@@ -3,8 +3,14 @@
 // Centralized configuration with secure storage
 // ============================================
 
+window.__WEOTZI_DEBUG = (
+    typeof localStorage !== 'undefined' && localStorage.getItem('weotzi_debug') === '1'
+) || new URLSearchParams(window.location.search).has('debug');
+
 const ConfigManager = (function () {
     'use strict';
+
+    const _dbg = (...args) => { if (window.__WEOTZI_DEBUG) console.log(...args); };
 
     // Storage keys
     const STORAGE_KEY = 'weotzi_config';
@@ -50,6 +56,27 @@ const ConfigManager = (function () {
                     id: 'client_quotation_submitted',
                     name: 'Cotizacion de Cliente Enviada',
                     description: 'Se dispara cuando un cliente completa y envia una cotizacion',
+                    webhookUrl: '',
+                    enabled: false
+                },
+                {
+                    id: 'job_board_request_created',
+                    name: 'Solicitud de Job Board Creada',
+                    description: 'Se dispara cuando un cliente publica una nueva solicitud de tatuaje en el Job Board',
+                    webhookUrl: '',
+                    enabled: false
+                },
+                {
+                    id: 'job_board_application_received',
+                    name: 'Postulacion de Artista Recibida',
+                    description: 'Se dispara cuando un artista se postula a una solicitud del Job Board',
+                    webhookUrl: '',
+                    enabled: false
+                },
+                {
+                    id: 'job_board_artist_accepted',
+                    name: 'Artista Aceptado en Job Board',
+                    description: 'Se dispara cuando un cliente acepta la postulacion de un artista',
                     webhookUrl: '',
                     enabled: false
                 }
@@ -194,13 +221,13 @@ const ConfigManager = (function () {
 
             if (fileConfig) {
                 currentConfig = mergeConfig(currentConfig, fileConfig);
-                console.log('✅ Configuration loaded from file');
+                _dbg('Configuration loaded from file');
             }
 
             if (storedConfig) {
                 // Merge stored config on top of file config to preserve user changes
                 currentConfig = mergeConfig(currentConfig, storedConfig);
-                console.log('✅ Configuration merged with localStorage');
+                _dbg('Configuration merged with localStorage');
             }
 
             // Resolve the ready promise
@@ -485,7 +512,7 @@ const ConfigManager = (function () {
 
         try {
             supabaseInstance = window.supabase.createClient(url, key);
-            console.log('✅ Supabase client initialized (Singleton)');
+            _dbg('Supabase client initialized');
             return supabaseInstance;
         } catch (err) {
             console.error('❌ Error creating Supabase client:', err);
@@ -516,7 +543,7 @@ const ConfigManager = (function () {
 
             // Convert flat data to hierarchical tree
             const tree = buildBodyPartsTree(data);
-            console.log('✅ Body parts loaded from Supabase:', data.length, 'items');
+            _dbg('Body parts loaded from Supabase:', data.length, 'items');
             return tree;
         } catch (err) {
             console.error('❌ Error loading body parts from DB:', err);
@@ -607,7 +634,7 @@ const ConfigManager = (function () {
                 .single();
 
             if (error) throw error;
-            console.log('✅ Body part created:', data.part_id);
+            _dbg('Body part created:', data.part_id);
             return { data, error: null };
         } catch (err) {
             console.error('❌ Error creating body part:', err);
@@ -648,7 +675,7 @@ const ConfigManager = (function () {
                 .single();
 
             if (error) throw error;
-            console.log('✅ Body part updated:', data.part_id);
+            _dbg('Body part updated:', data.part_id);
             return { data, error: null };
         } catch (err) {
             console.error('❌ Error updating body part:', err);
@@ -670,7 +697,7 @@ const ConfigManager = (function () {
                 .eq('id', dbId);
 
             if (error) throw error;
-            console.log('✅ Body part deleted:', dbId);
+            _dbg('Body part deleted:', dbId);
             return { error: null };
         } catch (err) {
             console.error('❌ Error deleting body part:', err);
@@ -717,7 +744,7 @@ const ConfigManager = (function () {
                 subtitle: row.subtitle_text
             }));
 
-            console.log('✅ Questions loaded from Supabase:', questions.length, 'items');
+            _dbg('Questions loaded from Supabase:', questions.length, 'items');
             return questions;
         } catch (err) {
             console.error('❌ Error loading questions from DB:', err);
@@ -767,7 +794,7 @@ const ConfigManager = (function () {
 
             if (insertError) throw insertError;
 
-            console.log('✅ Questions synced to Supabase:', rows.length, 'items');
+            _dbg('Questions synced to Supabase:', rows.length, 'items');
             return { error: null };
         } catch (err) {
             console.error('❌ Error syncing questions to DB:', err);
@@ -836,7 +863,7 @@ const ConfigManager = (function () {
 
             // Convert flat data to hierarchical tree
             const tree = buildTattooStylesTree(data);
-            console.log('✅ Tattoo styles loaded from Supabase:', data.length, 'items');
+            _dbg('Tattoo styles loaded from Supabase:', data.length, 'items');
             return tree;
         } catch (err) {
             console.error('❌ Error loading tattoo styles from DB:', err);
@@ -953,7 +980,7 @@ const ConfigManager = (function () {
                 .single();
 
             if (error) throw error;
-            console.log('✅ Tattoo style created:', data.name);
+            _dbg('Tattoo style created:', data.name);
             return { data, error: null };
         } catch (err) {
             console.error('❌ Error creating tattoo style:', err);
@@ -994,7 +1021,7 @@ const ConfigManager = (function () {
                 .single();
 
             if (error) throw error;
-            console.log('✅ Tattoo style updated:', data.name);
+            _dbg('Tattoo style updated:', data.name);
             return { data, error: null };
         } catch (err) {
             console.error('❌ Error updating tattoo style:', err);
@@ -1017,7 +1044,7 @@ const ConfigManager = (function () {
                 .eq('id', id);
 
             if (error) throw error;
-            console.log('✅ Tattoo style deleted:', id);
+            _dbg('Tattoo style deleted:', id);
             return { error: null };
         } catch (err) {
             console.error('❌ Error deleting tattoo style:', err);
@@ -1064,7 +1091,7 @@ const ConfigManager = (function () {
 
         const publicKey = getValue('emailjs.publicKey');
         window.emailjs.init(publicKey);
-        console.log('✅ EmailJS initialized');
+        _dbg('EmailJS initialized');
         return true;
     }
 
@@ -1254,7 +1281,7 @@ const ConfigManager = (function () {
                 };
             });
 
-            console.log('✅ App settings loaded from Supabase:', Object.keys(settings).length, 'items');
+            _dbg('App settings loaded from Supabase:', Object.keys(settings).length, 'items');
             return settings;
         } catch (err) {
             console.error('❌ Error loading app settings from DB:', err);
@@ -1313,7 +1340,7 @@ const ConfigManager = (function () {
                 }], { onConflict: 'setting_key' });
 
             if (error) throw error;
-            console.log('✅ App setting saved:', key);
+            _dbg('App setting saved:', key);
             return { error: null };
         } catch (err) {
             console.error('❌ Error saving app setting:', err);
@@ -1337,7 +1364,7 @@ const ConfigManager = (function () {
                 .eq('setting_key', key);
 
             if (error) throw error;
-            console.log('✅ App setting deleted:', key);
+            _dbg('App setting deleted:', key);
             return { error: null };
         } catch (err) {
             console.error('❌ Error deleting app setting:', err);
@@ -1383,7 +1410,7 @@ const ConfigManager = (function () {
             if (error) {
                 if (error.code === 'PGRST116') {
                     // No rows returned, use defaults
-                    console.log('ℹ️ No n8n events in DB, using config defaults');
+                    _dbg('No n8n events in DB, using config defaults');
                     cachedN8NEvents = getDefaultN8NEvents();
                     return cachedN8NEvents;
                 }
@@ -1392,7 +1419,7 @@ const ConfigManager = (function () {
 
             // Parse JSON from setting_value
             const events = JSON.parse(data.setting_value);
-            console.log('✅ n8n events loaded from DB:', events.length, 'events');
+            _dbg('n8n events loaded from DB:', events.length, 'events');
             cachedN8NEvents = events;
             return events;
         } catch (err) {
@@ -1427,7 +1454,7 @@ const ConfigManager = (function () {
 
             // Update cache
             cachedN8NEvents = events;
-            console.log('✅ n8n events saved to DB');
+            _dbg('n8n events saved to DB');
             return { error: null };
         } catch (err) {
             console.error('❌ Error saving n8n events to DB:', err);
@@ -1502,7 +1529,7 @@ const ConfigManager = (function () {
             }
 
             if (!event.enabled) {
-                console.log(`ℹ️ n8n event disabled, skipping: ${eventId}`);
+                _dbg(`n8n event disabled, skipping: ${eventId}`);
                 return { success: true, skipped: true, reason: 'Event disabled' };
             }
 
@@ -1520,7 +1547,7 @@ const ConfigManager = (function () {
                 data: payload
             };
 
-            console.log(`📡 Sending n8n event: ${eventId}...`);
+            _dbg(`Sending n8n event: ${eventId}...`);
 
             const response = await fetch(event.webhookUrl, {
                 method: 'POST',
@@ -1534,7 +1561,7 @@ const ConfigManager = (function () {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            console.log(`✅ n8n event sent successfully: ${eventId}`);
+            _dbg(`n8n event sent successfully: ${eventId}`);
             return { success: true };
         } catch (err) {
             console.error(`❌ Error sending n8n event ${eventId}:`, err);
@@ -1648,7 +1675,7 @@ const ConfigManager = (function () {
             url: config.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co',
             anonKey: config.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888'
         },
-        weOtzi: config.weOtzi || { whatsapp: '+541162079567' },
+        weOtzi: config.weOtzi || { whatsapp: '+541127015926' },
         googleMaps: config.googleMaps || { apiKey: 'AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs' },
         googleCalendar: config.googleCalendar || { clientId: '', apiKey: '', enabled: false },
         registration: config.registration || { presetPassword: 'OtziArtist2025' },
@@ -1656,10 +1683,7 @@ const ConfigManager = (function () {
         routes: config.routes || {}
     };
 
-    // Log status
-    console.log('ConfigManager ready');
-    console.log('   Supabase:', ConfigManager.isSupabaseConfigured() ? 'OK' : 'Not configured');
-    console.log('   EmailJS:', ConfigManager.isEmailJSConfigured() ? 'OK' : 'Not configured');
-    console.log('   Demo Mode:', ConfigManager.isDemoMode() ? 'ON' : 'OFF');
-    console.log('   window.CONFIG:', window.CONFIG ? 'OK (compatibility layer)' : 'Not available');
+    if (window.__WEOTZI_DEBUG) console.log('ConfigManager ready',
+        '| Supabase:', ConfigManager.isSupabaseConfigured() ? 'OK' : 'N/A',
+        '| Demo:', ConfigManager.isDemoMode() ? 'ON' : 'OFF');
 })();

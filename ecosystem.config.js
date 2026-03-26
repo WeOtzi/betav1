@@ -10,7 +10,10 @@ module.exports = {
     // Environment variables
     env: {
       PORT: 4545,
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      SUPABASE_URL: 'https://flbgmlvfiejfttlawnfu.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888',
+      // SUPABASE_SERVICE_ROLE_KEY: '' // Set from Supabase Dashboard > Settings > API > service_role key
     },
     
     // Restart behavior - MORE RESILIENT

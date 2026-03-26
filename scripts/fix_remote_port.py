@@ -28,8 +28,9 @@ def fix_remote_port():
         print("Connected successfully.")
 
         # Environment setup for Node.js and PM2
-        node_path = "/opt/alt/alt-nodejs22/root/bin"
-        env_setup = f"export PATH={node_path}:$PATH && export PM2_HOME=/home/u795331143/.pm2-beta"
+        node_path = "/opt/alt/alt-nodejs22/root/usr/bin"
+        node_bin = f"{node_path}/node"
+        env_setup = f"export PATH={node_path}:$PATH && export PM2_HOME=/home/u795331143/.pm2"
         pm2_cmd = "./node_modules/.bin/pm2"
 
         # Step 1: Upload updated configuration files
@@ -65,7 +66,7 @@ def fix_remote_port():
 
         # Step 2: Stop all existing PM2 processes for this app
         print("\n[Step 2] Stopping existing PM2 processes...")
-        stop_cmd = f"{env_setup} && cd {REMOTE_DIR} && {pm2_cmd} delete all || echo 'No processes to delete'"
+        stop_cmd = f"{env_setup} && cd {REMOTE_DIR} && {node_bin} {pm2_cmd} delete all || echo 'No processes to delete'"
         stdin, stdout, stderr = ssh.exec_command(stop_cmd)
         exit_status = stdout.channel.recv_exit_status()
         stop_out = stdout.read().decode('utf-8', errors='replace').strip()
@@ -88,7 +89,7 @@ def fix_remote_port():
 
         # Step 4: Start the application using ecosystem.config.js
         print(f"\n[Step 4] Starting application on port {NEW_APP_PORT} using ecosystem.config.js...")
-        start_cmd = f"{env_setup} && cd {REMOTE_DIR} && {pm2_cmd} start ecosystem.config.js"
+        start_cmd = f"{env_setup} && cd {REMOTE_DIR} && {node_bin} {pm2_cmd} start ecosystem.config.js"
         stdin, stdout, stderr = ssh.exec_command(start_cmd)
         exit_status = stdout.channel.recv_exit_status()
         out = stdout.read().decode('utf-8', errors='replace').strip()
@@ -103,7 +104,7 @@ def fix_remote_port():
 
         # Step 4b: Save PM2 process list for persistence
         print("\n[Step 4b] Saving PM2 configuration for persistence...")
-        save_cmd = f"{env_setup} && cd {REMOTE_DIR} && {pm2_cmd} save"
+        save_cmd = f"{env_setup} && cd {REMOTE_DIR} && {node_bin} {pm2_cmd} save"
         stdin, stdout, stderr = ssh.exec_command(save_cmd)
         stdout.channel.recv_exit_status()
         save_out = stdout.read().decode('utf-8', errors='replace').strip()
@@ -111,7 +112,7 @@ def fix_remote_port():
 
         # Step 5: Verify PM2 status
         print("\n[Step 5] Checking PM2 status...")
-        status_cmd = f"{env_setup} && cd {REMOTE_DIR} && {pm2_cmd} list"
+        status_cmd = f"{env_setup} && cd {REMOTE_DIR} && {node_bin} {pm2_cmd} list"
         stdin, stdout, stderr = ssh.exec_command(status_cmd)
         stdout.channel.recv_exit_status()
         status_out = stdout.read().decode('utf-8', errors='replace')
@@ -129,7 +130,7 @@ def fix_remote_port():
             print(f"\nSUCCESS: Application is running on port {NEW_APP_PORT}")
         else:
             print(f"\nWARNING: Unexpected HTTP code {http_code}. Checking PM2 logs...")
-            log_cmd = f"{env_setup} && cd {REMOTE_DIR} && {pm2_cmd} logs weotzi-beta --lines 30 --nostream"
+            log_cmd = f"{env_setup} && cd {REMOTE_DIR} && {node_bin} {pm2_cmd} logs weotzi-beta --lines 30 --nostream"
             stdin, stdout, stderr = ssh.exec_command(log_cmd)
             stdout.channel.recv_exit_status()
             log_out = stdout.read().decode('utf-8', errors='replace')
