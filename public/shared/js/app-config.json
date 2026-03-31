@@ -7,13 +7,13 @@
         "storageBucket": "quotation-references"
     },
     "googleMaps": {
-        "apiKey": "AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs"
+        "apiKey": ""
     },
     "weOtzi": {
         "whatsapp": "+541127015926"
     },
     "registration": {
-        "presetPassword": "OtziArtist2025"
+        "presetPassword": ""
     },
     "n8n": {
         "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/8bc207a6-ee21-4150-9a92-211a68b19544",

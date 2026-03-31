@@ -3,185 +3,514 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WE OTZI | Iniciar Sesion</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <title>WE OTZI | Acceder Cliente</title>
+    <link rel="stylesheet" href="/shared/css/landing-style.css">
+    <link rel="stylesheet" href="/shared/css/dashboard.css">
+    <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
     <style>
-        :root { --bg: #FFFDF5; --fg: #1A1A1A; --bauhaus-red: #E23E28; --bauhaus-yellow: #F4B942; --bauhaus-blue: #1A4B8E; --bauhaus-green: #2E7D32; --border-width: 3px; --zoom-factor: 0.85; }
-        .dark-mode { --bg: #1A1A1A; --fg: #FFFDF5; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { font-size: calc(16px * var(--zoom-factor)); }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg); min-height: 100vh; display: flex; flex-direction: column; transition: background 0.3s, color 0.3s; }
-        
-        /* Header */
-        .top-nav-header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; background: var(--bg); border-bottom: var(--border-width) solid var(--fg); }
-        .header-edition-info { font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
-        .nav-row { display: flex; align-items: center; gap: 1rem; }
-        .zoom-controls { display: flex; gap: 0.25rem; }
-        .zoom-btn, .theme-toggle { width: 2rem; height: 2rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); font-family: 'Space Mono', monospace; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-        .zoom-btn:hover, .theme-toggle:hover { background: var(--fg); color: var(--bg); }
-        
-        /* Layout */
-        .login-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; margin-top: 0.75rem; min-height: calc(100vh - 60px); }
-        
-        /* Branding Panel */
-        .branding-panel { background: var(--bauhaus-green); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; position: relative; overflow: hidden; }
-        .branding-panel::before { content: ''; position: absolute; width: 300px; height: 300px; background: var(--bauhaus-yellow); border-radius: 50%; top: -100px; left: -100px; opacity: 0.3; }
-        .branding-panel::after { content: ''; position: absolute; width: 200px; height: 200px; background: var(--bauhaus-red); bottom: -50px; right: -50px; opacity: 0.5; }
-        .branding-content { position: relative; z-index: 1; text-align: center; color: white; }
-        .branding-logo { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 4rem; line-height: 1; margin-bottom: 2rem; letter-spacing: -0.05em; }
-        .branding-subtitle { font-family: 'Space Mono', monospace; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.9; }
-        .branding-badge { margin-top: 3rem; padding: 1rem 2rem; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); font-family: 'Space Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
-        .branding-features { margin-top: 2rem; text-align: left; }
-        .branding-features li { font-family: 'Space Mono', monospace; font-size: 0.8rem; margin-bottom: 0.75rem; opacity: 0.9; list-style: none; padding-left: 1.5rem; position: relative; }
-        .branding-features li::before { content: '+'; position: absolute; left: 0; font-weight: 700; }
-        
-        /* Login Panel */
-        .login-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; background: var(--bg); }
-        .login-box { width: 100%; max-width: 400px; }
-        .login-header { margin-bottom: 2.5rem; }
-        .login-title { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 2.5rem; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-        .login-subtitle { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--fg); opacity: 0.6; }
-        
-        /* Form */
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; color: var(--fg); }
-        .form-group input { width: 100%; padding: 1rem; font-family: 'Inter', sans-serif; font-size: 1rem; border: var(--border-width) solid var(--fg); background: var(--bg); color: var(--fg); transition: all 0.2s; }
-        .form-group input:focus { outline: none; border-color: var(--bauhaus-green); box-shadow: 4px 4px 0 var(--bauhaus-green); }
-        .form-group input::placeholder { color: var(--fg); opacity: 0.4; }
-        
-        /* Buttons */
-        .btn-login { width: 100%; padding: 1.25rem 2rem; font-family: 'Inter', sans-serif; font-weight: 900; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; border: var(--border-width) solid var(--fg); background: var(--bauhaus-green); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); margin-bottom: 1rem; }
-        .btn-login:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--fg); }
-        .btn-login:active { transform: translate(0, 0); box-shadow: none; }
-        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
-        
-        .btn-google { width: 100%; padding: 1rem 2rem; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 0.9rem; border: var(--border-width) solid var(--fg); background: white; color: var(--fg); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s; margin-bottom: 1.5rem; }
-        .btn-google:hover { background: #f5f5f5; transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--fg); }
-        .btn-google svg { width: 20px; height: 20px; }
-        
-        .divider { display: flex; align-items: center; margin: 1.5rem 0; }
-        .divider::before, .divider::after { content: ''; flex: 1; height: 2px; background: var(--fg); opacity: 0.2; }
-        .divider span { padding: 0 1rem; font-family: 'Space Mono', monospace; font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; }
-        
-        /* Messages */
-        .form-message { margin-top: 1rem; padding: 1rem; font-family: 'Space Mono', monospace; font-size: 0.8rem; text-align: center; display: none; }
-        .form-message.error { display: block; background: var(--bauhaus-red); color: white; border: var(--border-width) solid var(--fg); }
-        .form-message.success { display: block; background: var(--bauhaus-green); color: white; border: var(--border-width) solid var(--fg); }
-        .form-message.info { display: block; background: var(--bauhaus-blue); color: white; border: var(--border-width) solid var(--fg); }
-        .form-message a { color: white; text-decoration: underline; }
-        
-        /* Footer Links */
-        .login-footer { margin-top: 2rem; text-align: center; }
-        .login-footer a { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--bauhaus-green); text-decoration: none; border-bottom: 2px solid var(--bauhaus-green); transition: all 0.2s; }
-        .login-footer a:hover { color: var(--bauhaus-red); border-color: var(--bauhaus-red); }
-        .login-footer p { margin-top: 1rem; font-family: 'Space Mono', monospace; font-size: 0.7rem; opacity: 0.6; }
-        .login-footer p a { border-bottom: none; }
-        
-        /* Spinner */
-        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
-        .btn-login.loading .spinner { display: block; }
-        .btn-login.loading .btn-text { display: none; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        /* Responsive */
+        :root {
+            --zoom-factor: 0.85;
+        }
+
+        .client-login-view {
+            padding: 0 !important;
+            min-height: 100vh;
+            align-items: stretch;
+            justify-content: flex-start;
+            background: var(--paper);
+        }
+
+        .client-login-view .header-edition-info {
+            white-space: nowrap;
+        }
+
+        .client-login-shell {
+            margin-top: 154px;
+            margin-bottom: 72px;
+            gap: 0;
+            min-height: calc(100vh - 330px);
+        }
+
+        .client-login-panel {
+            padding: clamp(28px, 4vw, 44px);
+        }
+
+        .client-login-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+            gap: 26px;
+            align-items: stretch;
+        }
+
+        .client-login-brand,
+        .client-login-form-wrap {
+            border: 2px solid var(--ink);
+            background: var(--paper-strong);
+            padding: clamp(20px, 2.8vw, 30px);
+            min-width: 0;
+        }
+
+        .client-login-brand {
+            position: relative;
+            display: grid;
+            align-content: space-between;
+            gap: 22px;
+        }
+
+        .client-login-brand::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 18%, rgba(242, 183, 5, 0.16) 0 17%, transparent 18%),
+                radial-gradient(circle at 84% 82%, rgba(230, 58, 46, 0.17) 0 20%, transparent 21%);
+            pointer-events: none;
+        }
+
+        .client-login-brand > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .client-login-brand-title {
+            margin: 0;
+            color: var(--ink);
+            font-size: clamp(2rem, 4.6vw, 3.7rem);
+            line-height: 0.96;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+        }
+
+        .client-login-brand-subtitle {
+            margin: 0;
+            color: var(--ink-soft);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .client-login-benefits {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 10px;
+        }
+
+        .client-login-benefits li {
+            position: relative;
+            margin: 0;
+            padding-left: 16px;
+            color: var(--ink-soft);
+            font-size: 0.86rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .client-login-benefits li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.62em;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: var(--accent-red);
+        }
+
+        .client-login-form-wrap {
+            display: grid;
+            gap: 18px;
+            align-content: start;
+        }
+
+        .client-login-title {
+            margin: 0;
+            color: var(--ink);
+            font-size: clamp(1.9rem, 4.2vw, 3.1rem);
+            line-height: 1;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }
+
+        .client-login-subcopy {
+            margin: 0;
+            color: var(--ink-soft);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .client-login-google-btn {
+            width: 100%;
+            min-height: 54px;
+            justify-content: center;
+            gap: 0.65rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .client-login-google-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .client-login-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--ink-soft);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-size: 0.64rem;
+            font-weight: 700;
+        }
+
+        .client-login-divider::before,
+        .client-login-divider::after {
+            content: "";
+            flex: 1;
+            height: 2px;
+            background: var(--line);
+        }
+
+        #login-form {
+            display: grid;
+            gap: 14px;
+        }
+
+        .client-login-group {
+            display: grid;
+            gap: 8px;
+        }
+
+        .client-login-group label {
+            color: var(--ink-soft);
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .client-login-group input {
+            width: 100%;
+            min-height: 50px;
+            border: 2px solid var(--ink);
+            background: var(--paper-strong);
+            color: var(--ink);
+            padding: 0.75rem 0.9rem;
+            font-size: 0.98rem;
+            transition: border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .client-login-group input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(30, 78, 216, 0.16);
+        }
+
+        .client-login-group input::placeholder {
+            color: var(--ink-soft);
+            opacity: 0.62;
+        }
+
+        .client-login-submit {
+            min-height: 56px;
+            width: 100%;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            border: 2px solid var(--ink);
+        }
+
+        .client-login-submit[disabled] {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .form-message {
+            display: none;
+            border: 2px solid var(--ink);
+            padding: 0.85rem 1rem;
+            font-size: 0.74rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            line-height: 1.45;
+        }
+
+        .form-message.error {
+            display: block;
+            background: rgba(230, 58, 46, 0.18);
+            color: var(--ink);
+        }
+
+        .form-message.success {
+            display: block;
+            background: rgba(46, 125, 50, 0.22);
+            color: var(--ink);
+        }
+
+        .form-message.info {
+            display: block;
+            background: rgba(30, 78, 216, 0.18);
+            color: var(--ink);
+        }
+
+        .form-message a {
+            color: inherit;
+            text-decoration: underline;
+            font-weight: 700;
+        }
+
+        .client-login-links {
+            display: grid;
+            gap: 12px;
+        }
+
+        .client-login-links a {
+            color: var(--ink);
+            text-decoration: underline;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            font-size: 0.67rem;
+            font-weight: 700;
+        }
+
+        .client-login-links p {
+            margin: 0;
+            color: var(--ink-soft);
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            font-size: 0.62rem;
+            line-height: 1.7;
+        }
+
+        .client-login-links p a {
+            color: var(--ink);
+            font-size: 0.65rem;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid rgba(255, 255, 255, 0.36);
+            border-top-color: #ffffff;
+            animation: clientSpin 0.8s linear infinite;
+        }
+
+        .profile-footer {
+            margin-top: auto;
+        }
+
+        @keyframes clientSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .client-login-shell {
+                margin-top: 138px;
+            }
+
+            .client-login-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .client-login-brand {
+                gap: 14px;
+            }
+        }
+
         @media (max-width: 768px) {
-            .login-container { grid-template-columns: 1fr; margin-top: 0.75rem; padding-bottom: 80px; }
-            .branding-panel { display: none; }
-            .login-panel { padding: 2rem; }
-            .login-title { font-size: 2rem; }
-            /* Bottom nav Bauhaus */
-            .top-nav-header { background: transparent !important; border-bottom: none !important; pointer-events: none; padding: 0; height: 0; overflow: visible; }
-            .header-edition-info { display: none; }
-            .nav-row { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; width: 100% !important; height: 60px; padding: 0 !important; padding-bottom: env(safe-area-inset-bottom) !important; gap: 0 !important; background: var(--fg); border-top: 4px solid var(--fg); justify-content: stretch !important; align-items: stretch !important; pointer-events: auto; z-index: 200; }
-            .nav-row > * { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; border-right: 2px solid rgba(128,128,128,0.25); }
-            .nav-row > *:last-child { border-right: none; }
-            .zoom-controls { display: flex !important; width: 100%; height: 100%; gap: 0; flex: 1; }
-            .zoom-btn { flex: 1; height: 100%; width: auto !important; border: none !important; border-right: 1px solid rgba(128,128,128,0.25) !important; background: transparent; color: var(--bg); font-size: 1.2rem; font-weight: 700; padding: 0; }
-            .zoom-btn:last-child { border-right: none !important; }
-            .theme-toggle { background: #F4B942 !important; color: #1A1A1A !important; border: none !important; width: 40px !important; height: 40px !important; border-radius: 50%; font-size: 1.1rem; }
+            .client-login-shell {
+                margin-top: 34px;
+                margin-bottom: 108px;
+                min-height: auto;
+                padding-inline: 12px;
+            }
+
+            .client-login-panel {
+                padding: 18px 14px;
+            }
+
+            .client-login-brand,
+            .client-login-form-wrap {
+                padding: 18px 14px;
+            }
+
+            .client-login-brand-title {
+                font-size: clamp(1.6rem, 8vw, 2.3rem);
+            }
+
+            .profile-footer.bauhaus-footer--full-width {
+                padding-inline: 12px;
+            }
         }
     </style>
 </head>
-<body>
-    <header class="top-nav-header">
-        <div class="header-edition-info">
-            We Otzi | Portal de Clientes
-        </div>
-        <div class="nav-row">
-            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
+<body class="public-profile-view client-login-view">
+    <a class="skip-link" href="#login-content">Saltar al contenido</a>
+
+    <header class="top-nav-header profile-nav-header">
+        <div class="header-edition-info">Edicion Bauhaus | Perfil Publico</div>
+        <div class="nav-row profile-nav-row">
+            <div class="nav-col nav-col-dashboard-links">
+                <nav class="dashboard-quick-nav" aria-label="Navegacion principal">
+                    <a href="/marketplace" class="dashboard-quick-link">Marketplace</a>
+                    <a href="/quotations" class="dashboard-quick-link">Cotizar</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/client/login" class="dashboard-quick-link">Acceder</a>
+                </nav>
+                <button class="mobile-menu-toggle" id="login-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="login-mobile-menu">
+                    Menu
+                </button>
+            </div>
+            <div class="nav-col">
+                <a href="/marketplace" class="login-toggle profile-login-link" aria-label="Volver al marketplace">
+                    Explorar
+                </a>
+            </div>
+            <div class="nav-col profile-nav-actions">
+                <button class="theme-toggle profile-theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo visual">Ö</button>
+            </div>
         </div>
     </header>
 
-    <div class="login-container">
-        <div class="branding-panel">
-            <div class="branding-content">
-                <div class="branding-logo">We<br>Otzi</div>
-                <div class="branding-subtitle">Tu Siguiente Tatuaje</div>
-                <ul class="branding-features">
-                    <li>Gestiona tus cotizaciones</li>
-                    <li>Chatea con artistas</li>
-                    <li>Encuentra tu estilo perfecto</li>
-                    <li>Historial de proyectos</li>
-                </ul>
-                <div class="branding-badge">Acceso Clientes</div>
-            </div>
-        </div>
+    <nav class="dashboard-mobile-menu" id="login-mobile-menu" aria-label="Navegacion movil" hidden>
+        <a href="/marketplace" class="dashboard-mobile-menu-link">Marketplace</a>
+        <a href="/quotations" class="dashboard-mobile-menu-link">Cotizar</a>
+        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+        <a href="/client/login" class="dashboard-mobile-menu-link">Acceder</a>
+    </nav>
 
-        <div class="login-panel">
-            <div class="login-box">
-                <div class="login-header">
-                    <h1 class="login-title">Iniciar<br>Sesion</h1>
-                    <p class="login-subtitle">Accede a tu cuenta de cliente</p>
-                </div>
-
-                <button type="button" class="btn-google" onclick="handleGoogleLogin()">
-                    <svg viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Continuar con Google
-                </button>
-
-                <div class="divider">
-                    <span>o con email</span>
-                </div>
-
-                <form id="login-form" onsubmit="handleClientLogin(event)">
-                    <div class="form-group">
-                        <label for="login-email">Email</label>
-                        <input type="email" id="login-email" placeholder="tu@email.com" required autocomplete="email">
+    <main class="artist-profile-shell client-login-shell" id="login-content" tabindex="-1">
+        <section class="profile-panel client-login-panel reveal-block" aria-labelledby="client-login-title">
+            <div class="client-login-grid">
+                <aside class="client-login-brand">
+                    <div>
+                        <p class="section-kicker">Cuenta cliente</p>
+                        <h1 class="client-login-brand-title">We<br>Otzi</h1>
+                        <p class="client-login-brand-subtitle">
+                            Tu panel para cotizar, conversar con artistas y seguir tus proyectos en un solo flujo.
+                        </p>
                     </div>
-                    <div class="form-group">
-                        <label for="login-password">Contrasena</label>
-                        <input type="password" id="login-password" placeholder="Tu contrasena" required autocomplete="current-password">
-                    </div>
-                    <button type="submit" class="btn-login" id="btn-login">
-                        <span class="btn-text">Iniciar Sesion</span>
-                        <div class="spinner"></div>
-                        <svg class="btn-text" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
+                    <ul class="client-login-benefits">
+                        <li>Gestion de cotizaciones</li>
+                        <li>Chat directo con artistas</li>
+                        <li>Historial de proyectos</li>
+                        <li>Seguimiento en tiempo real</li>
+                    </ul>
+                </aside>
+
+                <section class="client-login-form-wrap" aria-labelledby="client-login-title">
+                    <p class="section-kicker">Acceso</p>
+                    <h2 class="client-login-title" id="client-login-title">Iniciar sesion</h2>
+                    <p class="client-login-subcopy">Ingresa con Google o con tu correo para entrar al dashboard de cliente.</p>
+
+                    <button type="button" class="action-btn client-login-google-btn" onclick="handleGoogleLogin()">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path>
                         </svg>
+                        Continuar con Google
                     </button>
-                </form>
 
-                <div id="form-message" class="form-message"></div>
+                    <div class="client-login-divider">o con email</div>
 
-                <div class="login-footer">
-                    <a href="#" onclick="handlePasswordRecovery(event); return false;">Olvide mi contrasena</a>
-                    <p>No tienes cuenta? <a href="/client/register">Registrate aqui</a></p>
-                    <p style="margin-top: 1.5rem;"><a href="/registerclosedbeta">Eres artista? Accede aqui</a></p>
-                </div>
+                    <form id="login-form" onsubmit="handleClientLogin(event)">
+                        <div class="client-login-group">
+                            <label for="login-email">Email</label>
+                            <input type="email" id="login-email" placeholder="tu@email.com" required autocomplete="email">
+                        </div>
+                        <div class="client-login-group">
+                            <label for="login-password">Contrasena</label>
+                            <input type="password" id="login-password" placeholder="Tu contrasena" required autocomplete="current-password">
+                        </div>
+                        <button type="submit" class="quote-cta-btn client-login-submit" id="btn-login">
+                            <span class="btn-text">Iniciar sesion</span>
+                        </button>
+                    </form>
+
+                    <div id="form-message" class="form-message"></div>
+
+                    <div class="client-login-links">
+                        <a href="#" onclick="handlePasswordRecovery(event); return false;">Olvide mi contrasena</a>
+                        <p>No tienes cuenta? <a href="/client/register">Registrate aqui</a></p>
+                        <p>Eres artista? <a href="/registerclosedbeta">Accede aqui</a></p>
+                    </div>
+                </section>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
+    <footer
+        class="profile-footer"
+        data-bauhaus-footer
+        data-footer-variant="dashboard"
+        data-footer-width="full"
+    ></footer>
+
+    <script src="/shared/js/bauhaus-footer.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleBtn = document.getElementById('login-mobile-menu-toggle');
+            const mobileMenu = document.getElementById('login-mobile-menu');
+            if (!toggleBtn || !mobileMenu) return;
+
+            const closeMenu = function () {
+                mobileMenu.hidden = true;
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            };
+
+            const openMenu = function () {
+                mobileMenu.hidden = false;
+                toggleBtn.setAttribute('aria-expanded', 'true');
+            };
+
+            toggleBtn.addEventListener('click', function (event) {
+                event.stopPropagation();
+                const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+                if (expanded) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            });
+
+            mobileMenu.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', closeMenu);
+            });
+
+            document.addEventListener('click', function (event) {
+                if (mobileMenu.hidden) return;
+                if (!mobileMenu.contains(event.target) && !toggleBtn.contains(event.target)) {
+                    closeMenu();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                }
+            });
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 768) {
+                    closeMenu();
+                }
+            });
+        });
+    </script>
     <script src="/shared/js/client-auth.js"></script>
 </body>
 </html>

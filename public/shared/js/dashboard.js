@@ -19,11 +19,24 @@ let artistData = null;
 let isEditMode = false;
 let dashboardStudioId = null;
 let dashboardSelectedStyles = [];
+let artistTattooLocations = [];
+let tattooLocationDrafts = [];
 let dashboardStudioSearchTimeout = null;
 let dashboardStudioAutocompleteInit = false;
 let placesAutocompleteDashboard = null;
 let currentQRUrl = '';         // URL actualmente mostrada en el modal QR
 let currentQRDest = 'profile'; // Destino activo del QR: 'profile' | 'gallery'
+let upcomingTravelModalEditIndex = null;
+let upcomingTravelStudioAutocompleteInit = false;
+let upcomingTravelCityAutocompleteInit = false;
+let upcomingTravelStudioSearchTimeout = null;
+let upcomingTravelCitySearchTimeout = null;
+const currentLocationAutocompleteTimers = new Map();
+
+const AGENDA_STATUS_LABELS = {
+    open: 'Abierta',
+    closed: 'Cerrada'
+};
 
 const ONBOARDING_MILESTONES = [
     { field: 'ms_profile_complete', label: 'Completa tu perfil' },
@@ -434,6 +447,8 @@ async function loadArtistData() {
         }
 
         artistData = artist;
+        syncDashboardGalleryFromFeed(normalizeDashboardGalleryFeedItems());
+        await loadArtistTattooLocations();
         populateDashboard();
         populateQuotes();
         updateLevelBadge();
@@ -446,8 +461,770 @@ async function loadArtistData() {
     }
 }
 
+async function loadArtistTattooLocations() {
+    if (!currentUser || !_supabase) return;
+
+    try {
+        const { data, error } = await _supabase
+            .from('artist_tattoo_locations')
+            .select('*')
+            .eq('artist_user_id', currentUser.id)
+            .order('sort_order', { ascending: true })
+            .order('start_date', { ascending: true, nullsFirst: true });
+
+        if (error) {
+            console.error('Error loading artist tattoo locations:', error);
+            artistTattooLocations = [];
+            tattooLocationDrafts = [];
+            return;
+        }
+
+        const list = Array.isArray(data) ? data : [];
+        list.sort((a, b) => {
+            const aTypeRank = a.period_type === 'current' ? 0 : 1;
+            const bTypeRank = b.period_type === 'current' ? 0 : 1;
+            if (aTypeRank !== bTypeRank) return aTypeRank - bTypeRank;
+            const aOrder = Number.isFinite(a.sort_order) ? a.sort_order : 0;
+            const bOrder = Number.isFinite(b.sort_order) ? b.sort_order : 0;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            const aDate = a.start_date || '';
+            const bDate = b.start_date || '';
+            return aDate.localeCompare(bDate);
+        });
+
+        artistTattooLocations = list;
+        tattooLocationDrafts = list.map(normalizeTattooLocationRecord);
+    } catch (error) {
+        console.error('Error loading artist tattoo locations:', error);
+        artistTattooLocations = [];
+        tattooLocationDrafts = [];
+    }
+}
+
+function normalizeTattooLocationRecord(record) {
+    return {
+        id: record?.id || null,
+        period_type: record?.period_type === 'upcoming' ? 'upcoming' : 'current',
+        studio_id: record?.studio_id || null,
+        studio_name: (record?.studio_name || '').trim(),
+        city: (record?.city || '').trim(),
+        agenda_status: record?.agenda_status === 'closed' ? 'closed' : 'open',
+        start_date: record?.start_date || '',
+        end_date: record?.end_date || '',
+        sort_order: Number.isFinite(record?.sort_order) ? record.sort_order : 0
+    };
+}
+
+function formatTattooRange(startDate, endDate) {
+    if (!startDate || !endDate) return '-';
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '-';
+    const startLabel = start.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    const endLabel = end.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    return `${startLabel} - ${endLabel}`;
+}
+
+function escapeHtml(value) {
+    return (value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderTattooPresenceGroup(containerId, locations, isUpcoming) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!locations.length) {
+        container.innerHTML = '<p class="tattoo-presence-empty">Sin estudios cargados.</p>';
+        return;
+    }
+
+    container.innerHTML = locations.map((location) => {
+        const cityLine = location.city
+            ? `<p class="tattoo-presence-line"><span class="tattoo-presence-key">Ciudad:</span><span class="tattoo-presence-value">${escapeHtml(location.city)}</span></p>`
+            : '';
+        const dateLine = isUpcoming
+            ? `<p class="tattoo-presence-line"><span class="tattoo-presence-key">Fecha:</span><span class="tattoo-presence-value">${escapeHtml(formatTattooRange(location.start_date, location.end_date))}</span></p>`
+            : '';
+
+        return `
+            <article class="tattoo-presence-item">
+                <p class="tattoo-presence-line"><span class="tattoo-presence-key">Estudio:</span><span class="tattoo-presence-value">${escapeHtml(location.studio_name || '-')}</span></p>
+                ${cityLine}
+                ${dateLine}
+                <p class="tattoo-presence-line"><span class="tattoo-presence-key">Estado de agenda:</span><span class="tattoo-presence-value">${escapeHtml(AGENDA_STATUS_LABELS[location.agenda_status] || AGENDA_STATUS_LABELS.open)}</span></p>
+            </article>
+        `;
+    }).join('');
+}
+
+function buildTattooScheduleSummary() {
+    const currentCount = artistTattooLocations.filter((item) => item.period_type === 'current').length;
+    const upcomingCount = artistTattooLocations.filter((item) => item.period_type === 'upcoming').length;
+
+    if (!currentCount && !upcomingCount) return '-';
+
+    const parts = [];
+    if (currentCount) parts.push(`${currentCount} actual${currentCount > 1 ? 'es' : ''}`);
+    if (upcomingCount) parts.push(`${upcomingCount} proximo${upcomingCount > 1 ? 's' : ''}`);
+    return parts.join(' · ');
+}
+
+function renderTattooLocationsEditor() {
+    const currentListEl = document.getElementById('current-tattoo-location-editor-list');
+    const upcomingListEl = document.getElementById('upcoming-tattoo-location-editor-list');
+    if (!currentListEl || !upcomingListEl) return;
+
+    const renderList = (type) => {
+        const rows = tattooLocationDrafts
+            .map((item, index) => ({ item, index }))
+            .filter((entry) => entry.item.period_type === type);
+
+        if (!rows.length) {
+            return '<p class="tattoo-location-editor-empty">Sin estudios cargados.</p>';
+        }
+
+        if (type === 'upcoming') {
+            return rows.map(({ item, index }) => `
+                <div class="tattoo-location-editor-item tattoo-location-editor-item-upcoming" data-index="${index}" data-type="${type}">
+                    <div class="tattoo-upcoming-summary-grid">
+                        <div class="tattoo-upcoming-cell">
+                            <p class="tattoo-upcoming-key">Estudio</p>
+                            <p class="tattoo-upcoming-value">${escapeHtml(item.studio_name || '-')}</p>
+                        </div>
+                        <div class="tattoo-upcoming-cell">
+                            <p class="tattoo-upcoming-key">Ciudad</p>
+                            <p class="tattoo-upcoming-value">${escapeHtml(item.city || '-')}</p>
+                        </div>
+                        <div class="tattoo-upcoming-cell">
+                            <p class="tattoo-upcoming-key">Rango de fechas</p>
+                            <p class="tattoo-upcoming-value">${escapeHtml(formatTattooRange(item.start_date, item.end_date))}</p>
+                        </div>
+                        <div class="tattoo-upcoming-cell">
+                            <p class="tattoo-upcoming-key">Estado de agenda</p>
+                            <p class="tattoo-upcoming-value">${escapeHtml(AGENDA_STATUS_LABELS[item.agenda_status] || AGENDA_STATUS_LABELS.open)}</p>
+                        </div>
+                    </div>
+                    <div class="tattoo-upcoming-actions">
+                        <button type="button" class="tattoo-upcoming-action-btn" data-action="edit-upcoming">Editar</button>
+                        <button type="button" class="tattoo-location-remove-btn" data-action="remove">Quitar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        return rows.map(({ item, index }) => {
+            const studioField = `
+                <div class="tattoo-location-field">
+                    <label class="tattoo-location-label">Estudio</label>
+                    <div class="current-location-autocomplete">
+                        <input type="text" class="form-input-dashboard current-location-autocomplete-input" data-field="studio_name" value="${escapeHtml(item.studio_name || '')}" placeholder="Nombre del estudio" aria-label="Nombre del estudio" autocomplete="off">
+                        <div class="current-location-suggestions" data-field="studio_name"></div>
+                    </div>
+                </div>
+            `;
+            const cityField = `
+                <div class="tattoo-location-field">
+                    <label class="tattoo-location-label">Ciudad</label>
+                    <div class="current-location-autocomplete">
+                        <input type="text" class="form-input-dashboard current-location-autocomplete-input" data-field="city" value="${escapeHtml(item.city || '')}" placeholder="Ciudad" aria-label="Ciudad" autocomplete="off">
+                        <div class="current-location-suggestions" data-field="city"></div>
+                    </div>
+                </div>
+            `;
+            const agendaField = `
+                <div class="tattoo-location-field">
+                    <label class="tattoo-location-label">Estado de agenda</label>
+                    <select class="form-select-dashboard" data-field="agenda_status" aria-label="Estado de agenda">
+                        <option value="open" ${item.agenda_status === 'open' ? 'selected' : ''}>Agenda abierta</option>
+                        <option value="closed" ${item.agenda_status === 'closed' ? 'selected' : ''}>Agenda cerrada</option>
+                    </select>
+                </div>
+            `;
+            return `
+                <div class="tattoo-location-editor-item" data-index="${index}" data-type="${type}">
+                    <div class="tattoo-location-editor-grid">
+                        ${studioField}
+                        ${cityField}
+                        ${agendaField}
+                    </div>
+                    <button type="button" class="tattoo-location-remove-btn" data-action="remove">Quitar</button>
+                </div>
+            `;
+        }).join('');
+    };
+
+    currentListEl.innerHTML = renderList('current');
+    upcomingListEl.innerHTML = renderList('upcoming');
+}
+
+function addTattooLocationDraft(periodType) {
+    const type = periodType === 'upcoming' ? 'upcoming' : 'current';
+    tattooLocationDrafts.push({
+        id: null,
+        period_type: type,
+        studio_id: null,
+        studio_name: '',
+        city: '',
+        agenda_status: 'open',
+        start_date: '',
+        end_date: '',
+        sort_order: 0
+    });
+    renderTattooLocationsEditor();
+}
+
+function openUpcomingTravelModal(index = null) {
+    const modal = document.getElementById('upcoming-travel-modal');
+    if (!modal) return;
+
+    const studioInput = document.getElementById('upcoming-travel-studio');
+    const cityInput = document.getElementById('upcoming-travel-city');
+    const startInput = document.getElementById('upcoming-travel-start');
+    const endInput = document.getElementById('upcoming-travel-end');
+    const agendaInput = document.getElementById('upcoming-travel-agenda');
+    const titleEl = document.getElementById('upcoming-travel-modal-title');
+    const messageEl = document.getElementById('upcoming-travel-message');
+
+    upcomingTravelModalEditIndex = Number.isInteger(index) ? index : null;
+    const item = upcomingTravelModalEditIndex !== null ? tattooLocationDrafts[upcomingTravelModalEditIndex] : null;
+
+    if (titleEl) {
+        titleEl.textContent = item ? 'Editar Viaje' : 'Agregar Viaje';
+    }
+    if (studioInput) studioInput.value = item?.studio_name || '';
+    if (cityInput) cityInput.value = item?.city || '';
+    if (startInput) startInput.value = item?.start_date || '';
+    if (endInput) endInput.value = item?.end_date || '';
+    if (agendaInput) agendaInput.value = item?.agenda_status || 'open';
+    if (messageEl) {
+        messageEl.textContent = '';
+        messageEl.className = 'form-message';
+    }
+
+    initUpcomingTravelModalAutocomplete();
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    if (studioInput) studioInput.focus();
+}
+
+function initUpcomingTravelModalAutocomplete() {
+    const studioInput = document.getElementById('upcoming-travel-studio');
+    const studioSuggestions = document.getElementById('upcoming-travel-studio-suggestions');
+    const cityInput = document.getElementById('upcoming-travel-city');
+    const citySuggestions = document.getElementById('upcoming-travel-city-suggestions');
+
+    if (studioInput && studioSuggestions && !upcomingTravelStudioAutocompleteInit) {
+        upcomingTravelStudioAutocompleteInit = true;
+
+        studioInput.addEventListener('input', () => {
+            const query = studioInput.value.trim();
+            if (query.length < 2) {
+                hideUpcomingTravelSuggestions(studioSuggestions);
+                return;
+            }
+            clearTimeout(upcomingTravelStudioSearchTimeout);
+            upcomingTravelStudioSearchTimeout = setTimeout(() => {
+                searchUpcomingTravelStudios(query);
+            }, 220);
+        });
+    }
+
+    if (cityInput && citySuggestions && !upcomingTravelCityAutocompleteInit) {
+        upcomingTravelCityAutocompleteInit = true;
+
+        cityInput.addEventListener('input', () => {
+            const query = cityInput.value.trim();
+            if (query.length < 2) {
+                hideUpcomingTravelSuggestions(citySuggestions);
+                return;
+            }
+            clearTimeout(upcomingTravelCitySearchTimeout);
+            upcomingTravelCitySearchTimeout = setTimeout(() => {
+                searchUpcomingTravelCities(query);
+            }, 220);
+        });
+    }
+}
+
+async function searchUpcomingTravelStudios(query) {
+    const suggestionsEl = document.getElementById('upcoming-travel-studio-suggestions');
+    if (!suggestionsEl || !_supabase) return;
+
+    try {
+        const normalized = query.toUpperCase();
+        const { data, error } = await _supabase
+            .from('studios')
+            .select('name, normalized_name')
+            .ilike('normalized_name', `%${normalized}%`)
+            .order('name')
+            .limit(8);
+
+        if (error) {
+            hideUpcomingTravelSuggestions(suggestionsEl);
+            return;
+        }
+
+        const results = Array.isArray(data) ? data.map((row) => row.name).filter(Boolean) : [];
+        renderUpcomingTravelSuggestions({
+            suggestionsEl,
+            results,
+            query,
+            inputId: 'upcoming-travel-studio'
+        });
+    } catch (error) {
+        hideUpcomingTravelSuggestions(suggestionsEl);
+    }
+}
+
+async function searchUpcomingTravelCities(query) {
+    const suggestionsEl = document.getElementById('upcoming-travel-city-suggestions');
+    if (!suggestionsEl || !_supabase) return;
+
+    try {
+        const [artistsRes, locationsRes] = await Promise.all([
+            _supabase
+                .from('artists_db')
+                .select('city')
+                .ilike('city', `%${query}%`)
+                .limit(10),
+            _supabase
+                .from('artist_tattoo_locations')
+                .select('city')
+                .ilike('city', `%${query}%`)
+                .limit(10)
+        ]);
+
+        const merged = [];
+        const pushCity = (value) => {
+            if (!value) return;
+            const cleaned = String(value).trim();
+            if (!cleaned) return;
+            if (!merged.some((city) => city.toLowerCase() === cleaned.toLowerCase())) {
+                merged.push(cleaned);
+            }
+        };
+
+        (artistsRes.data || []).forEach((row) => pushCity(row.city));
+        (locationsRes.data || []).forEach((row) => pushCity(row.city));
+
+        merged.sort((a, b) => a.localeCompare(b, 'es'));
+
+        renderUpcomingTravelSuggestions({
+            suggestionsEl,
+            results: merged.slice(0, 8),
+            query,
+            inputId: 'upcoming-travel-city'
+        });
+    } catch (error) {
+        hideUpcomingTravelSuggestions(suggestionsEl);
+    }
+}
+
+function renderUpcomingTravelSuggestions({ suggestionsEl, results, query, inputId }) {
+    const safeQuery = (query || '').trim();
+    if (!suggestionsEl) return;
+
+    let uniqueResults = Array.isArray(results) ? results : [];
+    uniqueResults = uniqueResults.filter((item, idx) => uniqueResults.findIndex((x) => x.toLowerCase() === item.toLowerCase()) === idx);
+
+    if (!uniqueResults.length) {
+        suggestionsEl.innerHTML = `<div class="upcoming-travel-suggestion-item suggestion-custom" data-value="${escapeHtml(safeQuery)}">Usar: "${escapeHtml(safeQuery)}"</div>`;
+    } else {
+        const exact = uniqueResults.some((item) => item.toLowerCase() === safeQuery.toLowerCase());
+        let html = uniqueResults
+            .map((item) => `<div class="upcoming-travel-suggestion-item" data-value="${escapeHtml(item)}">${escapeHtml(item)}</div>`)
+            .join('');
+        if (!exact && safeQuery) {
+            html += `<div class="upcoming-travel-suggestion-item suggestion-custom" data-value="${escapeHtml(safeQuery)}">Usar: "${escapeHtml(safeQuery)}"</div>`;
+        }
+        suggestionsEl.innerHTML = html;
+    }
+
+    suggestionsEl.querySelectorAll('.upcoming-travel-suggestion-item').forEach((item) => {
+        item.addEventListener('click', () => {
+            const input = document.getElementById(inputId);
+            if (input) input.value = item.dataset.value || '';
+            hideUpcomingTravelSuggestions(suggestionsEl);
+        });
+    });
+
+    suggestionsEl.classList.add('visible');
+}
+
+function hideUpcomingTravelSuggestions(suggestionsEl) {
+    if (!suggestionsEl) return;
+    suggestionsEl.classList.remove('visible');
+    suggestionsEl.innerHTML = '';
+}
+
+function hideAllUpcomingTravelSuggestions() {
+    hideUpcomingTravelSuggestions(document.getElementById('upcoming-travel-studio-suggestions'));
+    hideUpcomingTravelSuggestions(document.getElementById('upcoming-travel-city-suggestions'));
+}
+
+function closeUpcomingTravelModal() {
+    const modal = document.getElementById('upcoming-travel-modal');
+    if (!modal) return;
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    hideAllUpcomingTravelSuggestions();
+    upcomingTravelModalEditIndex = null;
+}
+
+function closeUpcomingTravelModalOnOverlay(event) {
+    if (event.target.classList.contains('modal-overlay')) {
+        closeUpcomingTravelModal();
+    }
+}
+
+function showUpcomingTravelMessage(message, type = 'error') {
+    const messageEl = document.getElementById('upcoming-travel-message');
+    if (!messageEl) return;
+    messageEl.textContent = message || '';
+    messageEl.className = `form-message ${type}`;
+}
+
+function handleUpcomingTravelSave(event) {
+    event.preventDefault();
+
+    const studio = document.getElementById('upcoming-travel-studio')?.value.trim() || '';
+    const city = document.getElementById('upcoming-travel-city')?.value.trim() || '';
+    const startDate = document.getElementById('upcoming-travel-start')?.value || '';
+    const endDate = document.getElementById('upcoming-travel-end')?.value || '';
+    const agenda = document.getElementById('upcoming-travel-agenda')?.value === 'closed' ? 'closed' : 'open';
+
+    if (!studio) {
+        showUpcomingTravelMessage('Completa el nombre del estudio.', 'error');
+        return;
+    }
+    if (!startDate || !endDate) {
+        showUpcomingTravelMessage('Completa inicio y fin del viaje.', 'error');
+        return;
+    }
+    if (endDate < startDate) {
+        showUpcomingTravelMessage('La fecha de fin no puede ser menor a la de inicio.', 'error');
+        return;
+    }
+
+    if (upcomingTravelModalEditIndex !== null && tattooLocationDrafts[upcomingTravelModalEditIndex]) {
+        tattooLocationDrafts[upcomingTravelModalEditIndex] = {
+            ...tattooLocationDrafts[upcomingTravelModalEditIndex],
+            period_type: 'upcoming',
+            studio_name: studio,
+            city,
+            start_date: startDate,
+            end_date: endDate,
+            agenda_status: agenda
+        };
+    } else {
+        tattooLocationDrafts.push({
+            id: null,
+            period_type: 'upcoming',
+            studio_id: null,
+            studio_name: studio,
+            city,
+            agenda_status: agenda,
+            start_date: startDate,
+            end_date: endDate,
+            sort_order: 0
+        });
+    }
+
+    renderTattooLocationsEditor();
+    closeUpcomingTravelModal();
+}
+
+function handleTattooLocationsEditorInput(event) {
+    const target = event.target;
+    if (!target || !target.dataset || !target.dataset.field) return;
+
+    const itemEl = target.closest('.tattoo-location-editor-item');
+    if (!itemEl) return;
+    const index = Number(itemEl.dataset.index);
+    if (!Number.isInteger(index) || !tattooLocationDrafts[index]) return;
+
+    const field = target.dataset.field;
+    tattooLocationDrafts[index][field] = target.value;
+
+    if (itemEl.dataset.type === 'current' && (field === 'studio_name' || field === 'city')) {
+        const suggestionsEl = itemEl.querySelector(`.current-location-suggestions[data-field="${field}"]`);
+        if (!suggestionsEl) return;
+
+        const query = (target.value || '').trim();
+        if (query.length < 2) {
+            hideCurrentLocationSuggestions(suggestionsEl);
+            return;
+        }
+
+        const timerKey = `${index}:${field}`;
+        const existingTimer = currentLocationAutocompleteTimers.get(timerKey);
+        if (existingTimer) clearTimeout(existingTimer);
+
+        const timeoutId = setTimeout(() => {
+            if (field === 'studio_name') {
+                searchCurrentLocationStudios({ itemEl, index, query, suggestionsEl });
+            } else {
+                searchCurrentLocationCities({ itemEl, index, query, suggestionsEl });
+            }
+        }, 220);
+
+        currentLocationAutocompleteTimers.set(timerKey, timeoutId);
+    }
+}
+
+function handleTattooLocationsEditorClick(event) {
+    const suggestionItem = event.target.closest('.current-location-suggestion-item');
+    if (suggestionItem) {
+        const itemEl = suggestionItem.closest('.tattoo-location-editor-item');
+        if (!itemEl) return;
+        const index = Number(itemEl.dataset.index);
+        if (!Number.isInteger(index) || !tattooLocationDrafts[index]) return;
+
+        const field = suggestionItem.dataset.field;
+        const value = suggestionItem.dataset.value || '';
+        const input = itemEl.querySelector(`.current-location-autocomplete-input[data-field="${field}"]`);
+        const suggestionsEl = itemEl.querySelector(`.current-location-suggestions[data-field="${field}"]`);
+
+        if (input) input.value = value;
+        if (field && tattooLocationDrafts[index]) {
+            tattooLocationDrafts[index][field] = value;
+        }
+        hideCurrentLocationSuggestions(suggestionsEl);
+        return;
+    }
+
+    const editUpcomingBtn = event.target.closest('[data-action="edit-upcoming"]');
+    if (editUpcomingBtn) {
+        const itemEl = editUpcomingBtn.closest('.tattoo-location-editor-item');
+        if (!itemEl) return;
+        const index = Number(itemEl.dataset.index);
+        if (!Number.isInteger(index) || !tattooLocationDrafts[index]) return;
+        openUpcomingTravelModal(index);
+        return;
+    }
+
+    const removeBtn = event.target.closest('[data-action="remove"]');
+    if (!removeBtn) return;
+
+    const itemEl = removeBtn.closest('.tattoo-location-editor-item');
+    if (!itemEl) return;
+    const index = Number(itemEl.dataset.index);
+    if (!Number.isInteger(index) || !tattooLocationDrafts[index]) return;
+
+    tattooLocationDrafts.splice(index, 1);
+    renderTattooLocationsEditor();
+}
+
+async function searchCurrentLocationStudios({ itemEl, index, query, suggestionsEl }) {
+    if (!_supabase || !itemEl || !suggestionsEl) return;
+    try {
+        const normalized = query.toUpperCase();
+        const { data, error } = await _supabase
+            .from('studios')
+            .select('name, normalized_name')
+            .ilike('normalized_name', `%${normalized}%`)
+            .order('name')
+            .limit(8);
+
+        if (error) {
+            hideCurrentLocationSuggestions(suggestionsEl);
+            return;
+        }
+
+        const results = Array.isArray(data) ? data.map((row) => row.name).filter(Boolean) : [];
+        renderCurrentLocationSuggestions({
+            itemEl,
+            index,
+            field: 'studio_name',
+            query,
+            suggestionsEl,
+            results
+        });
+    } catch (error) {
+        hideCurrentLocationSuggestions(suggestionsEl);
+    }
+}
+
+async function searchCurrentLocationCities({ itemEl, index, query, suggestionsEl }) {
+    if (!_supabase || !itemEl || !suggestionsEl) return;
+    try {
+        const [artistsRes, locationsRes] = await Promise.all([
+            _supabase
+                .from('artists_db')
+                .select('city')
+                .ilike('city', `%${query}%`)
+                .limit(10),
+            _supabase
+                .from('artist_tattoo_locations')
+                .select('city')
+                .ilike('city', `%${query}%`)
+                .limit(10)
+        ]);
+
+        const merged = [];
+        const pushCity = (value) => {
+            if (!value) return;
+            const cleaned = String(value).trim();
+            if (!cleaned) return;
+            if (!merged.some((city) => city.toLowerCase() === cleaned.toLowerCase())) {
+                merged.push(cleaned);
+            }
+        };
+
+        (artistsRes.data || []).forEach((row) => pushCity(row.city));
+        (locationsRes.data || []).forEach((row) => pushCity(row.city));
+        merged.sort((a, b) => a.localeCompare(b, 'es'));
+
+        renderCurrentLocationSuggestions({
+            itemEl,
+            index,
+            field: 'city',
+            query,
+            suggestionsEl,
+            results: merged.slice(0, 8)
+        });
+    } catch (error) {
+        hideCurrentLocationSuggestions(suggestionsEl);
+    }
+}
+
+function renderCurrentLocationSuggestions({ itemEl, index, field, query, suggestionsEl, results }) {
+    if (!itemEl || !suggestionsEl) return;
+    const safeQuery = (query || '').trim();
+    let uniqueResults = Array.isArray(results) ? results : [];
+    uniqueResults = uniqueResults.filter((item, idx) => uniqueResults.findIndex((x) => x.toLowerCase() === item.toLowerCase()) === idx);
+
+    if (!uniqueResults.length && !safeQuery) {
+        hideCurrentLocationSuggestions(suggestionsEl);
+        return;
+    }
+
+    let html = uniqueResults
+        .map((item) => `<div class="current-location-suggestion-item" data-index="${index}" data-field="${field}" data-value="${escapeHtml(item)}">${escapeHtml(item)}</div>`)
+        .join('');
+
+    const exact = uniqueResults.some((item) => item.toLowerCase() === safeQuery.toLowerCase());
+    if (!exact && safeQuery) {
+        html += `<div class="current-location-suggestion-item suggestion-custom" data-index="${index}" data-field="${field}" data-value="${escapeHtml(safeQuery)}">Usar: "${escapeHtml(safeQuery)}"</div>`;
+    }
+
+    suggestionsEl.innerHTML = html;
+    suggestionsEl.classList.add('visible');
+}
+
+function hideCurrentLocationSuggestions(suggestionsEl) {
+    if (!suggestionsEl) return;
+    suggestionsEl.classList.remove('visible');
+    suggestionsEl.innerHTML = '';
+}
+
+function hideAllCurrentLocationSuggestions() {
+    document.querySelectorAll('.current-location-suggestions.visible').forEach((el) => hideCurrentLocationSuggestions(el));
+}
+
+function buildTattooLocationsPayload() {
+    const payload = [];
+    let currentOrder = 0;
+    let upcomingOrder = 0;
+
+    for (const draft of tattooLocationDrafts) {
+        const location = normalizeTattooLocationRecord(draft);
+        const hasAnyValue = Boolean(
+            location.studio_name
+            || location.start_date
+            || location.end_date
+            || location.city
+        );
+
+        if (!hasAnyValue) continue;
+
+        if (!location.studio_name) {
+            const scope = location.period_type === 'upcoming' ? 'proxima fecha' : 'actual';
+            throw new Error(`Completa el estudio para la ubicacion ${scope}.`);
+        }
+
+        if (location.period_type === 'upcoming') {
+            if (!location.start_date || !location.end_date) {
+                throw new Error('Completa fecha de inicio y fin para cada proximo estudio.');
+            }
+            if (location.end_date < location.start_date) {
+                throw new Error('La fecha de fin no puede ser menor a la fecha de inicio.');
+            }
+            location.sort_order = upcomingOrder;
+            upcomingOrder += 1;
+        } else {
+            location.start_date = '';
+            location.end_date = '';
+            location.sort_order = currentOrder;
+            currentOrder += 1;
+        }
+
+        payload.push(location);
+    }
+
+    return payload;
+}
+
+async function saveArtistTattooLocations(locationsPayload) {
+    if (!currentUser) return;
+
+    const studioCache = new Map();
+    const rows = [];
+
+    for (const location of locationsPayload) {
+        const normalizedStudio = location.studio_name.toUpperCase().trim();
+        let resolvedStudioId = null;
+
+        if (normalizedStudio) {
+            if (studioCache.has(normalizedStudio)) {
+                resolvedStudioId = studioCache.get(normalizedStudio);
+            } else {
+                resolvedStudioId = await dashboardFindOrCreateStudio(location.studio_name);
+                studioCache.set(normalizedStudio, resolvedStudioId || null);
+            }
+        }
+
+        rows.push({
+            artist_user_id: currentUser.id,
+            period_type: location.period_type,
+            studio_id: resolvedStudioId,
+            studio_name: location.studio_name.trim(),
+            city: location.city || null,
+            agenda_status: location.agenda_status === 'closed' ? 'closed' : 'open',
+            start_date: location.period_type === 'upcoming' ? location.start_date : null,
+            end_date: location.period_type === 'upcoming' ? location.end_date : null,
+            sort_order: location.sort_order
+        });
+    }
+
+    const { error: deleteError } = await _supabase
+        .from('artist_tattoo_locations')
+        .delete()
+        .eq('artist_user_id', currentUser.id);
+
+    if (deleteError) throw deleteError;
+
+    if (rows.length > 0) {
+        const { error: insertError } = await _supabase
+            .from('artist_tattoo_locations')
+            .insert(rows);
+        if (insertError) throw insertError;
+    }
+
+    await loadArtistTattooLocations();
+}
+
 function populateDashboard() {
     if (!artistData) return;
+    const normalizedArtistLocation = normalizeDashboardLocation(artistData.ubicacion || '');
+    if (normalizedArtistLocation !== (artistData.ubicacion || '')) {
+        artistData.ubicacion = normalizedArtistLocation;
+    }
 
     // Identity Block
     const artisticName = artistData.username ? artistData.username.replace(/\.wo$/, '') : 'Artista';
@@ -466,6 +1243,32 @@ function populateDashboard() {
             locationLink.classList.add('is-empty');
         }
     }
+
+    const fallbackTattooLocations = (!artistTattooLocations.length
+        && artistData.estudios
+        && artistData.estudios !== 'Sin estudio/Independiente')
+        ? [{
+            period_type: 'current',
+            studio_name: artistData.estudios,
+            agenda_status: 'open',
+            city: artistData.city || '',
+            start_date: '',
+            end_date: '',
+            sort_order: 0
+        }]
+        : [];
+
+    const tattooLocationsForUI = artistTattooLocations.length ? artistTattooLocations : fallbackTattooLocations;
+
+    const currentTattooLocations = tattooLocationsForUI
+        .filter((location) => location.period_type === 'current')
+        .map(normalizeTattooLocationRecord);
+    const upcomingTattooLocations = tattooLocationsForUI
+        .filter((location) => location.period_type === 'upcoming')
+        .map(normalizeTattooLocationRecord);
+
+    renderTattooPresenceGroup('current-tattoo-locations', currentTattooLocations, false);
+    renderTattooPresenceGroup('upcoming-tattoo-locations', upcomingTattooLocations, true);
 
     // Profile Picture (Avatar)
     if (artistData.profile_picture) {
@@ -501,6 +1304,15 @@ function populateDashboard() {
     document.getElementById('display-full-name').textContent = artistData.name || '-';
     document.getElementById('display-email').textContent = artistData.email || currentUser.email || '-';
     document.getElementById('display-location').textContent = artistData.ubicacion || '-';
+    const tattooScheduleSummary = buildTattooScheduleSummary();
+    document.getElementById('display-tattoo-schedule-summary').textContent = (
+        tattooScheduleSummary === '-' && fallbackTattooLocations.length
+            ? '1 actual'
+            : tattooScheduleSummary
+    );
+
+    tattooLocationDrafts = tattooLocationsForUI.map(normalizeTattooLocationRecord);
+    renderTattooLocationsEditor();
 
     // Styles
     const stylesContainer = document.getElementById('display-styles');
@@ -613,7 +1425,7 @@ function populateDashboard() {
     // Populate input fields for edit mode
     document.getElementById('input-artistic-name').value = artisticName;
     document.getElementById('input-full-name').value = artistData.name || '';
-    document.getElementById('input-location').value = artistData.ubicacion || '';
+    document.getElementById('input-location').value = normalizeDashboardLocation(artistData.ubicacion || '');
     dashboardSelectedStyles = artistData.styles_array ? [...artistData.styles_array] : [];
     updateStylesTriggerUI();
     document.getElementById('input-experience').value = artistData.years_experience || '0-1';
@@ -740,6 +1552,45 @@ function setupEventListeners() {
     // Work type change
     const workTypeSelect = document.getElementById('input-work-type');
     workTypeSelect.addEventListener('change', handleWorkTypeChange);
+
+    const addCurrentTattooLocationBtn = document.getElementById('add-current-tattoo-location-btn');
+    if (addCurrentTattooLocationBtn) {
+        addCurrentTattooLocationBtn.addEventListener('click', () => addTattooLocationDraft('current'));
+    }
+
+    const addUpcomingTattooLocationBtn = document.getElementById('add-upcoming-tattoo-location-btn');
+    if (addUpcomingTattooLocationBtn) {
+        addUpcomingTattooLocationBtn.addEventListener('click', () => openUpcomingTravelModal());
+    }
+
+    const tattooLocationsEditor = document.getElementById('tattoo-locations-editor');
+    if (tattooLocationsEditor) {
+        tattooLocationsEditor.addEventListener('input', handleTattooLocationsEditorInput);
+        tattooLocationsEditor.addEventListener('change', handleTattooLocationsEditorInput);
+        tattooLocationsEditor.addEventListener('click', handleTattooLocationsEditorClick);
+    }
+
+    const upcomingTravelForm = document.getElementById('upcoming-travel-form');
+    if (upcomingTravelForm) {
+        upcomingTravelForm.addEventListener('submit', handleUpcomingTravelSave);
+    }
+
+    document.addEventListener('click', (event) => {
+        const modal = document.getElementById('upcoming-travel-modal');
+        if (!modal || !modal.classList.contains('active')) return;
+
+        const clickedInsideStudio = event.target.closest('#upcoming-travel-studio, #upcoming-travel-studio-suggestions');
+        const clickedInsideCity = event.target.closest('#upcoming-travel-city, #upcoming-travel-city-suggestions');
+        if (!clickedInsideStudio) hideUpcomingTravelSuggestions(document.getElementById('upcoming-travel-studio-suggestions'));
+        if (!clickedInsideCity) hideUpcomingTravelSuggestions(document.getElementById('upcoming-travel-city-suggestions'));
+    });
+
+    document.addEventListener('click', (event) => {
+        const clickedCurrentAutocomplete = event.target.closest('.current-location-autocomplete');
+        if (!clickedCurrentAutocomplete) {
+            hideAllCurrentLocationSuggestions();
+        }
+    });
 
     // Avatar upload
     const avatarUploadBtn = document.getElementById('avatar-upload-btn');
@@ -880,6 +1731,72 @@ async function copyWhatsappLink() {
 // LOCATION AUTOCOMPLETE & GEOLOCATION
 // ============================================
 
+function sanitizeDashboardLocationSegment(segment) {
+    if (!segment || typeof segment !== 'string') return '';
+    return segment
+        .replace(/\b(?:[A-Z]{1,3}\d{3,6}[A-Z]{0,3}|\d{3,8}(?:-\d{3,4})?)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .replace(/^[,\s-]+|[,\s-]+$/g, '')
+        .trim();
+}
+
+function normalizeDashboardLocation(rawLocation) {
+    if (!rawLocation || typeof rawLocation !== 'string') return '';
+    const parts = rawLocation
+        .split(',')
+        .map((segment) => sanitizeDashboardLocationSegment(segment))
+        .filter(Boolean);
+
+    const deduped = [];
+    for (const part of parts) {
+        if (!deduped.some((existing) => existing.toLowerCase() === part.toLowerCase())) {
+            deduped.push(part);
+        }
+    }
+
+    return deduped.slice(0, 3).join(', ');
+}
+
+function getDashboardAddressComponent(components, acceptedTypes) {
+    if (!Array.isArray(components)) return '';
+
+    for (const acceptedType of acceptedTypes) {
+        const match = components.find((component) => component.types && component.types.includes(acceptedType));
+        if (match && match.long_name) {
+            return sanitizeDashboardLocationSegment(match.long_name);
+        }
+    }
+
+    return '';
+}
+
+function buildDashboardLocationFromComponents(components, fallbackAddress = '') {
+    const city = getDashboardAddressComponent(components, [
+        'locality',
+        'postal_town',
+        'administrative_area_level_3',
+        'administrative_area_level_2',
+        'sublocality_level_1',
+        'sublocality'
+    ]);
+    const province = getDashboardAddressComponent(components, [
+        'administrative_area_level_1',
+        'administrative_area_level_2'
+    ]);
+    const country = getDashboardAddressComponent(components, ['country']);
+
+    const structured = [city, province, country].filter(Boolean);
+    const dedupedStructured = structured.filter((part, index, arr) => (
+        arr.findIndex((candidate) => candidate.toLowerCase() === part.toLowerCase()) === index
+    ));
+
+    if (dedupedStructured.length > 0) {
+        return dedupedStructured.join(', ');
+    }
+
+    return normalizeDashboardLocation(fallbackAddress);
+}
+
 // Initialize Google Places Autocomplete on the location input.
 // Called by Google Maps callback and also when entering edit mode
 // (to handle race condition between Maps API load and user action).
@@ -895,8 +1812,14 @@ function initDashboardGooglePlaces() {
 
     placesAutocompleteDashboard.addListener('place_changed', () => {
         const place = placesAutocompleteDashboard.getPlace();
-        if (place && place.formatted_address) {
-            locationInput.value = place.formatted_address;
+        if (!place) return;
+
+        const normalizedLocation = buildDashboardLocationFromComponents(
+            place.address_components,
+            place.formatted_address
+        );
+        if (normalizedLocation) {
+            locationInput.value = normalizedLocation;
         }
     });
 }
@@ -922,24 +1845,19 @@ function getDashboardGeolocation() {
             const response = await geocoder.geocode({
                 location: { lat: latitude, lng: longitude }
             });
-            if (!response.results || !response.results[0]) return null;
+            if (!response.results || !response.results.length) return null;
 
-            const components = response.results[0].address_components;
-            let locality = '', province = '', country = '';
-            for (const comp of components) {
-                const types = comp.types;
-                if ((types.includes('locality') || types.includes('administrative_area_level_2')) && !locality) {
-                    locality = comp.long_name;
-                }
-                if (types.includes('administrative_area_level_1')) {
-                    province = comp.long_name;
-                }
-                if (types.includes('country')) {
-                    country = comp.long_name;
+            for (const result of response.results) {
+                const normalizedResult = buildDashboardLocationFromComponents(
+                    result.address_components,
+                    result.formatted_address
+                );
+                if (normalizedResult) {
+                    return normalizedResult;
                 }
             }
-            const parts = [locality, province, country].filter(p => p);
-            return parts.length ? parts.join(', ') : response.results[0].formatted_address;
+
+            return null;
         } catch (err) {
             return null;
         }
@@ -1035,6 +1953,7 @@ function toggleEditMode() {
         editBtn.classList.remove('active');
         editBtn.querySelector('span').textContent = 'Editar';
         formActions.style.display = 'none';
+        closeUpcomingTravelModal();
         // Hide gallery edit section
         if (galleryEditSection) {
             galleryEditSection.style.display = 'none';
@@ -1074,6 +1993,12 @@ function toggleEditMode() {
     const stylesTrigger = document.getElementById('styles-edit-trigger');
     if (stylesTrigger) {
         stylesTrigger.style.display = isEditMode ? 'flex' : 'none';
+    }
+
+    const tattooLocationsEditor = document.getElementById('tattoo-locations-editor');
+    if (tattooLocationsEditor) {
+        tattooLocationsEditor.style.display = isEditMode ? 'flex' : 'none';
+        if (isEditMode) renderTattooLocationsEditor();
     }
 
     // Handle studio row visibility based on work type
@@ -1392,7 +2317,7 @@ async function handleProfileSave(e) {
         // Gather form data
         const artisticName = document.getElementById('input-artistic-name').value.trim();
         const fullName = document.getElementById('input-full-name').value.trim();
-        const location = document.getElementById('input-location').value.trim();
+        const location = normalizeDashboardLocation(document.getElementById('input-location').value.trim());
         const styles = [...dashboardSelectedStyles];
         const experience = document.getElementById('input-experience').value;
         const price = document.getElementById('input-price').value;
@@ -1404,6 +2329,7 @@ async function handleProfileSave(e) {
         const newsletter = document.getElementById('input-newsletter').checked;
         const instagram = document.getElementById('input-instagram').value.trim();
         const whatsappNumber = document.getElementById('input-whatsapp').value.trim();
+        const tattooLocationsPayload = buildTattooLocationsPayload();
         // Note: embajador is managed by support team only - not editable by artist
 
         // Format username
@@ -1412,10 +2338,22 @@ async function handleProfileSave(e) {
         // Format session price
         const sessionPrice = price ? `${price} ${currency}` : null;
 
-        // Resolve studio via find-or-create
+        // Keep legacy studio fields in sync with the first active location
+        const firstCurrentLocation = tattooLocationsPayload.find((location) => location.period_type === 'current') || null;
+        let normalizedWorkType = workType || null;
         let estudios;
         let resolvedStudioId = null;
-        if (workType === 'independent') {
+
+        if (firstCurrentLocation) {
+            resolvedStudioId = await dashboardFindOrCreateStudio(firstCurrentLocation.studio_name);
+            estudios = firstCurrentLocation.studio_name.toUpperCase();
+            if (!normalizedWorkType || normalizedWorkType === 'independent') {
+                normalizedWorkType = 'studio';
+            }
+        } else if (tattooLocationsPayload.length > 0) {
+            estudios = 'Sin estudio/Independiente';
+            normalizedWorkType = 'independent';
+        } else if (workType === 'independent') {
             estudios = 'Sin estudio/Independiente';
         } else if (studioName) {
             resolvedStudioId = await dashboardFindOrCreateStudio(studioName);
@@ -1433,6 +2371,8 @@ async function handleProfileSave(e) {
         const whatsappMessage = encodeURIComponent(`Hola Ötzi, quiero cotizar con ${username}`);
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanWeOtziNumber}&text=${whatsappMessage}`;
 
+        document.getElementById('input-location').value = location;
+
         const updateData = {
             username: username,
             name: capitalizedName,
@@ -1444,7 +2384,7 @@ async function handleProfileSave(e) {
             portafolio: portfolio || null,
             estudios: estudios,
             studio_id: resolvedStudioId,
-            work_type: workType || null,
+            work_type: normalizedWorkType,
             birth_date: birthDate || null,
             subscribed_newsletter: newsletter,
             instagram: instagram || null,
@@ -1458,6 +2398,8 @@ async function handleProfileSave(e) {
             .eq('user_id', currentUser.id);
 
         if (error) throw error;
+
+        await saveArtistTattooLocations(tattooLocationsPayload);
 
         // Update local data
         artistData = { ...artistData, ...updateData };
@@ -1473,7 +2415,7 @@ async function handleProfileSave(e) {
 
     } catch (error) {
         console.error('Error saving profile:', error);
-        showStatusMessage('Error al guardar el perfil.', 'error');
+        showStatusMessage(error?.message || 'Error al guardar el perfil.', 'error');
     } finally {
         saveBtn.textContent = 'Guardar Cambios';
         saveBtn.disabled = false;
@@ -1530,12 +2472,7 @@ async function generateAIAvatar() {
         return;
     }
 
-    const config = window.ConfigManager?.get();
-    if (!config || !config.gemini?.apiKey) {
-        messageEl.textContent = 'La configuración de IA no está disponible.';
-        messageEl.className = 'form-message error';
-        return;
-    }
+    const config = window.ConfigManager?.get() || {};
 
     messageEl.textContent = 'Generando imagen, esto puede tardar unos segundos...';
     messageEl.className = 'form-message info';
@@ -1552,8 +2489,7 @@ async function generateAIAvatar() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt: fullPrompt,
-                apiKey: config.gemini.apiKey,
-                model: aiSettings.model || config.gemini.model,
+                model: aiSettings.model || config.gemini?.model,
                 aspectRatio: "1:1",
                 imageSize: aiSettings.resolution || "1K",
                 temperature: aiSettings.temperature || 0.7,
@@ -1764,6 +2700,119 @@ function getVideoDuration(file) {
     });
 }
 
+const GALLERY_CATEGORY_OPTIONS = ['realizados', 'flash', 'proyectos'];
+const GALLERY_CATEGORY_LABELS = {
+    realizados: 'Realizado',
+    flash: 'Flash',
+    proyectos: 'Proyecto'
+};
+
+function normalizeGalleryCategory(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw === 'flash') return 'flash';
+    if (raw === 'proyectos' || raw === 'proyecto' || raw === 'projects' || raw === 'project') return 'proyectos';
+    return 'realizados';
+}
+
+function parseJsonArraySafe(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function normalizeDashboardGalleryFeedItems() {
+    const normalized = [];
+    const seen = new Set();
+
+    const feedItems = parseJsonArraySafe(artistData?.gallery_feed_items);
+    for (const raw of feedItems) {
+        const url = String(raw?.url || '').trim();
+        if (!url || seen.has(url)) continue;
+
+        const category = normalizeGalleryCategory(raw?.category);
+        normalized.push({
+            url,
+            category,
+            kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image',
+            created_at: raw?.created_at || new Date().toISOString()
+        });
+        seen.add(url);
+    }
+
+    if (!normalized.length) {
+        const legacyItems = parseJsonArraySafe(artistData?.gallery_images);
+        for (const entry of legacyItems) {
+            const url = typeof entry === 'string'
+                ? entry.trim()
+                : String(entry?.url || '').trim();
+
+            if (!url || seen.has(url)) continue;
+
+            normalized.push({
+                url,
+                category: 'realizados',
+                kind: isUrlVideo(url) ? 'video' : 'image',
+                created_at: new Date().toISOString()
+            });
+            seen.add(url);
+        }
+    }
+
+    return normalized;
+}
+
+function syncDashboardGalleryFromFeed(feedItems) {
+    const safeFeed = Array.isArray(feedItems) ? feedItems : [];
+    artistData.gallery_feed_items = safeFeed;
+    artistData.gallery_images = safeFeed.map((item) => item.url);
+}
+
+function isMissingGalleryFeedColumnError(error) {
+    const haystack = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+    return haystack.includes('gallery_feed_items') && haystack.includes('column');
+}
+
+async function persistDashboardGalleryFeed(feedItems) {
+    const safeFeed = Array.isArray(feedItems) ? feedItems : [];
+    const legacyImages = safeFeed.map((item) => item.url);
+
+    const payload = {
+        gallery_images: legacyImages,
+        gallery_feed_items: safeFeed
+    };
+
+    let { error } = await _supabase
+        .from('artists_db')
+        .update(payload)
+        .eq('user_id', currentUser.id);
+
+    if (error && isMissingGalleryFeedColumnError(error)) {
+        const retry = await _supabase
+            .from('artists_db')
+            .update({ gallery_images: legacyImages })
+            .eq('user_id', currentUser.id);
+        error = retry.error;
+    }
+
+    if (error) throw error;
+
+    syncDashboardGalleryFromFeed(safeFeed);
+}
+
+function getSelectedGalleryCategory(selectId) {
+    const select = document.getElementById(selectId);
+    const category = normalizeGalleryCategory(select?.value);
+    if (select && !GALLERY_CATEGORY_OPTIONS.includes(select.value)) {
+        select.value = category;
+    }
+    return category;
+}
+
 function setupGalleryListeners() {
     const galleryInput = document.getElementById('gallery-input');
     if (galleryInput) {
@@ -1822,7 +2871,7 @@ function handleDashboardGalleryClick(event, origin) {
 
 function openDashboardGalleryLightbox(index, origin = 'admin') {
     const lightbox = document.getElementById('dashboard-gallery-lightbox');
-    const images = [...(artistData?.gallery_images || [])];
+    const images = normalizeDashboardGalleryFeedItems().map((item) => item.url);
     if (!lightbox || !images.length) return;
 
     dashboardGalleryLightboxState = {
@@ -1899,8 +2948,9 @@ async function handleGalleryUpload(e) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    const currentImages = artistData.gallery_images || [];
-    const remainingSlots = MAX_GALLERY_IMAGES - currentImages.length;
+    const currentFeedItems = normalizeDashboardGalleryFeedItems();
+    const remainingSlots = MAX_GALLERY_IMAGES - currentFeedItems.length;
+    const selectedCategory = getSelectedGalleryCategory('gallery-category-select');
 
     if (files.length > remainingSlots) {
         showStatusMessage(`Solo puedes subir ${remainingSlots} archivos mas (max ${MAX_GALLERY_IMAGES}).`, 'error');
@@ -1926,8 +2976,8 @@ async function handleGalleryUpload(e) {
     }
 
     // Validate video files
-    const currentVideos = (artistData.gallery_images || []).filter(url => isUrlVideo(url));
-    if (currentVideos.length + videoFiles.length > MAX_GALLERY_VIDEOS) {
+    const currentVideoCount = currentFeedItems.filter((item) => isUrlVideo(item.url)).length;
+    if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
         showStatusMessage(`Ya tienes el maximo de ${MAX_GALLERY_VIDEOS} videos en tu portfolio.`, 'error');
         e.target.value = '';
         return;
@@ -2000,15 +3050,16 @@ async function handleGalleryUpload(e) {
         }
 
         if (uploadedUrls.length > 0) {
-            const newGalleryImages = [...(artistData.gallery_images || []), ...uploadedUrls];
-            const { error: updateError } = await _supabase
-                .from('artists_db')
-                .update({ gallery_images: newGalleryImages })
-                .eq('user_id', currentUser.id);
-            if (updateError) throw updateError;
-            artistData.gallery_images = newGalleryImages;
+            const newFeedItems = uploadedUrls.map((url) => ({
+                url,
+                category: selectedCategory,
+                kind: isUrlVideo(url) ? 'video' : 'image',
+                created_at: new Date().toISOString()
+            }));
+            await persistDashboardGalleryFeed([...currentFeedItems, ...newFeedItems]);
             renderGalleryAdmin();
-            showStatusMessage(`${uploadedUrls.length} archivo(s) subido(s) correctamente.`, 'success');
+            renderGalleryEditPreview();
+            showStatusMessage(`${uploadedUrls.length} archivo(s) subido(s) en ${selectedCategory}.`, 'success');
         }
     } catch (error) {
         console.error('Error uploading gallery files:', error);
@@ -2024,9 +3075,10 @@ async function handleGalleryUpload(e) {
 function renderGalleryAdmin() {
     const grid = document.getElementById('gallery-admin-grid');
     const emptyState = document.getElementById('gallery-empty');
-    const images = artistData.gallery_images || [];
+    const feedItems = normalizeDashboardGalleryFeedItems();
+    syncDashboardGalleryFromFeed(feedItems);
 
-    if (images.length === 0) {
+    if (feedItems.length === 0) {
         grid.innerHTML = '';
         grid.appendChild(emptyState);
         emptyState.style.display = 'flex';
@@ -2034,8 +3086,10 @@ function renderGalleryAdmin() {
     }
 
     emptyState.style.display = 'none';
-    const filledSlots = images.map((url, index) => {
+    const filledSlots = feedItems.map((item, index) => {
+        const url = item.url;
         const isVideo = isUrlVideo(url);
+        const categoryLabel = GALLERY_CATEGORY_LABELS[normalizeGalleryCategory(item.category)] || 'Realizado';
         return `
         <div class="gallery-item" data-index="${index}">
             ${isVideo
@@ -2043,6 +3097,7 @@ function renderGalleryAdmin() {
                    <span class="gallery-video-badge">VIDEO</span>
                    <span class="gallery-video-play">&#9654;</span>`
                 : `<img src="${url}" alt="Trabajo ${index + 1}" loading="lazy">`}
+            <span class="gallery-category-badge">${categoryLabel}</span>
             <button class="gallery-item-delete" onclick="deleteGalleryImage(${index})" aria-label="Eliminar archivo">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -2051,7 +3106,7 @@ function renderGalleryAdmin() {
         </div>`;
     });
 
-    const emptySlots = Array.from({ length: Math.max(0, MAX_GALLERY_IMAGES - images.length) }, () => (
+    const emptySlots = Array.from({ length: Math.max(0, MAX_GALLERY_IMAGES - feedItems.length) }, () => (
         '<div class="gallery-item-slot" aria-hidden="true"></div>'
     ));
 
@@ -2059,8 +3114,8 @@ function renderGalleryAdmin() {
 }
 
 async function deleteGalleryImage(index) {
-    const images = artistData.gallery_images || [];
-    const imageUrl = images[index];
+    const feedItems = normalizeDashboardGalleryFeedItems();
+    const imageUrl = feedItems[index]?.url;
 
     if (!imageUrl) return;
 
@@ -2073,17 +3128,10 @@ async function deleteGalleryImage(index) {
             await _supabase.storage.from('artist-gallery').remove([filePath]);
         }
 
-        const newImages = images.filter((_, i) => i !== index);
-
-        const { error } = await _supabase
-            .from('artists_db')
-            .update({ gallery_images: newImages })
-            .eq('user_id', currentUser.id);
-
-        if (error) throw error;
-
-        artistData.gallery_images = newImages;
+        const nextFeedItems = feedItems.filter((_, i) => i !== index);
+        await persistDashboardGalleryFeed(nextFeedItems);
         renderGalleryAdmin();
+        renderGalleryEditPreview();
         showStatusMessage('Archivo eliminado correctamente.', 'success');
 
     } catch (error) {
@@ -2204,6 +3252,7 @@ document.addEventListener('keydown', (e) => {
         setDashboardMobileMenuOpen(false);
         closePasswordModal();
         closeVerificationModal();
+        closeUpcomingTravelModal();
         closeQRModal();
     }
 });
@@ -2632,28 +3681,32 @@ function previewPublicProfile() {
 function renderGalleryEditPreview() {
     const previewContainer = document.getElementById('gallery-edit-preview');
     const countEl = document.getElementById('gallery-edit-count');
-    const images = artistData?.gallery_images || [];
+    const feedItems = normalizeDashboardGalleryFeedItems();
+    syncDashboardGalleryFromFeed(feedItems);
 
     if (!previewContainer) return;
 
     // Update count
     if (countEl) {
-        countEl.textContent = `${images.length}/${MAX_GALLERY_IMAGES} archivos`;
+        countEl.textContent = `${feedItems.length}/${MAX_GALLERY_IMAGES} archivos`;
     }
 
-    if (images.length === 0) {
+    if (feedItems.length === 0) {
         previewContainer.innerHTML = '<div class="gallery-edit-empty">Sin archivos. Sube fotos o videos de tus trabajos.</div>';
         return;
     }
 
-    previewContainer.innerHTML = images.map((url, index) => {
+    previewContainer.innerHTML = feedItems.map((item, index) => {
+        const url = item.url;
         const isVideo = isUrlVideo(url);
+        const categoryLabel = GALLERY_CATEGORY_LABELS[normalizeGalleryCategory(item.category)] || 'Realizado';
         return `
         <div class="gallery-edit-thumb" data-index="${index}">
             ${isVideo
                 ? `<video src="${url}" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
                    <span class="gallery-video-badge" style="font-size:8px;">VIDEO</span>`
                 : `<img src="${url}" alt="Trabajo ${index + 1}" loading="lazy">`}
+            <span class="gallery-category-badge">${categoryLabel}</span>
             <button class="gallery-edit-thumb-delete" onclick="deleteGalleryEditImage(${index})" aria-label="Eliminar archivo">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -2667,8 +3720,9 @@ async function handleGalleryEditUpload(e) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    const currentImages = artistData?.gallery_images || [];
-    const remainingSlots = MAX_GALLERY_IMAGES - currentImages.length;
+    const currentFeedItems = normalizeDashboardGalleryFeedItems();
+    const remainingSlots = MAX_GALLERY_IMAGES - currentFeedItems.length;
+    const selectedCategory = getSelectedGalleryCategory('gallery-edit-category-select');
 
     if (files.length > remainingSlots) {
         showStatusMessage(`Solo puedes subir ${remainingSlots} archivos mas (max ${MAX_GALLERY_IMAGES}).`, 'error');
@@ -2694,8 +3748,8 @@ async function handleGalleryEditUpload(e) {
     }
 
     // Validate video files
-    const currentVideos = (artistData?.gallery_images || []).filter(url => isUrlVideo(url));
-    if (currentVideos.length + videoFiles.length > MAX_GALLERY_VIDEOS) {
+    const currentVideoCount = currentFeedItems.filter((item) => isUrlVideo(item.url)).length;
+    if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
         showStatusMessage(`Ya tienes el maximo de ${MAX_GALLERY_VIDEOS} videos en tu portfolio.`, 'error');
         e.target.value = '';
         return;
@@ -2767,16 +3821,16 @@ async function handleGalleryEditUpload(e) {
         }
 
         if (uploadedUrls.length > 0) {
-            const newGalleryImages = [...(artistData?.gallery_images || []), ...uploadedUrls];
-            const { error: updateError } = await _supabase
-                .from('artists_db')
-                .update({ gallery_images: newGalleryImages })
-                .eq('user_id', currentUser.id);
-            if (updateError) throw updateError;
-            artistData.gallery_images = newGalleryImages;
+            const newFeedItems = uploadedUrls.map((url) => ({
+                url,
+                category: selectedCategory,
+                kind: isUrlVideo(url) ? 'video' : 'image',
+                created_at: new Date().toISOString()
+            }));
+            await persistDashboardGalleryFeed([...currentFeedItems, ...newFeedItems]);
             renderGalleryEditPreview();
             renderGalleryAdmin();
-            showStatusMessage(`${uploadedUrls.length} archivo(s) subido(s) correctamente.`, 'success');
+            showStatusMessage(`${uploadedUrls.length} archivo(s) subido(s) en ${selectedCategory}.`, 'success');
         }
     } catch (error) {
         console.error('Error uploading gallery files:', error);
@@ -2790,8 +3844,8 @@ async function handleGalleryEditUpload(e) {
 }
 
 async function deleteGalleryEditImage(index) {
-    const images = artistData?.gallery_images || [];
-    const imageUrl = images[index];
+    const feedItems = normalizeDashboardGalleryFeedItems();
+    const imageUrl = feedItems[index]?.url;
 
     if (!imageUrl) return;
 
@@ -2804,16 +3858,8 @@ async function deleteGalleryEditImage(index) {
             await _supabase.storage.from('artist-gallery').remove([filePath]);
         }
 
-        const newImages = images.filter((_, i) => i !== index);
-
-        const { error } = await _supabase
-            .from('artists_db')
-            .update({ gallery_images: newImages })
-            .eq('user_id', currentUser.id);
-
-        if (error) throw error;
-
-        artistData.gallery_images = newImages;
+        const nextFeedItems = feedItems.filter((_, i) => i !== index);
+        await persistDashboardGalleryFeed(nextFeedItems);
         renderGalleryEditPreview();
         renderGalleryAdmin();
         showStatusMessage('Archivo eliminado correctamente.', 'success');
@@ -3044,7 +4090,7 @@ function generateQR(dest) {
     const encodedUsername = encodeURIComponent(username);
 
     const url = dest === 'gallery'
-        ? `${origin}/artist/profile?artist=${encodedUsername}#gallery`
+        ? `${origin}/artist/profile/gallery?artist=${encodedUsername}`
         : `${origin}/artist/profile?artist=${encodedUsername}`;
 
     currentQRUrl = url;
@@ -3193,3 +4239,6 @@ window.downloadQRPNG = downloadQRPNG;
 window.downloadQRSVG = downloadQRSVG;
 window.copyQRUrl = copyQRUrl;
 window.shareQRUrl = shareQRUrl;
+window.openUpcomingTravelModal = openUpcomingTravelModal;
+window.closeUpcomingTravelModal = closeUpcomingTravelModal;
+window.closeUpcomingTravelModalOnOverlay = closeUpcomingTravelModalOnOverlay;

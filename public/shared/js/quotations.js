@@ -479,6 +479,11 @@ window.bulkArchiveSingle = async function(id) {
     selectedQuotes.clear();
     selectedQuotes.add(id.toString());
     await bulkArchive();
+    if (typeof chatChannel !== 'undefined' && chatChannel) {
+        _supabase.removeChannel(chatChannel);
+        chatChannel = null;
+    }
+    if (typeof currentChatQuoteId !== 'undefined') currentChatQuoteId = null;
     document.getElementById('drawer-toggle').checked = false;
 };
 

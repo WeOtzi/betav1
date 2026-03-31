@@ -1237,15 +1237,49 @@ const ConfigManager = (function () {
             n8n: { configured: isN8NConfigured() },
             googleMaps: { configured: isGoogleMapsConfigured() },
             googleDrive: { configured: isGoogleDriveConfigured() },
-            googleCalendar: { configured: isGoogleCalendarConfigured() }
+            googleCalendar: { configured: isGoogleCalendarConfigured() },
+            gemini: { configured: !!(getValue('gemini.apiKey')) }
         };
 
-        // Test Supabase connection
+        // Try real health check endpoint first
+        try {
+            const response = await fetch('/api/health/all');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.services) {
+                    const svcMap = {
+                        'supabase': 'supabase',
+                        'n8n': 'n8n',
+                        'gemini': 'gemini',
+                        'google-maps': 'googleMaps',
+                        'google-drive': 'googleDrive',
+                        'emailjs': 'emailjs',
+                        'google-calendar': 'googleCalendar'
+                    };
+                    for (const [svcKey, healthKey] of Object.entries(svcMap)) {
+                        const svc = data.services[svcKey];
+                        if (svc && health[healthKey]) {
+                            health[healthKey].connected = svc.status === 'healthy';
+                            health[healthKey].status = svc.status;
+                            health[healthKey].latency_ms = svc.latency_ms;
+                            health[healthKey].message = svc.error || svc.metadata?.note || '';
+                        }
+                    }
+                    health._source = 'real';
+                    return health;
+                }
+            }
+        } catch (e) {
+            _dbg('Health check endpoint unavailable, falling back to local check:', e.message);
+        }
+
+        // Fallback: local Supabase-only check
         if (health.supabase.configured) {
             const test = await testSupabaseConnection();
             health.supabase.connected = test.success;
             health.supabase.message = test.message || test.error;
         }
+        health._source = 'local';
 
         return health;
     }
@@ -1676,9 +1710,9 @@ const ConfigManager = (function () {
             anonKey: config.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888'
         },
         weOtzi: config.weOtzi || { whatsapp: '+541127015926' },
-        googleMaps: config.googleMaps || { apiKey: 'AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs' },
+        googleMaps: config.googleMaps || { apiKey: '' },
         googleCalendar: config.googleCalendar || { clientId: '', apiKey: '', enabled: false },
-        registration: config.registration || { presetPassword: 'OtziArtist2025' },
+        registration: config.registration || { presetPassword: '' },
         infoTexts: config.infoTexts || [],
         routes: config.routes || {}
     };

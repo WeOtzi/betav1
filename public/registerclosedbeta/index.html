@@ -5,6 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WE ÖTZI | BETA</title>
+
+    <!-- Microsoft Clarity - Behavior Analytics -->
+    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -59,19 +70,373 @@
                 --footer-height: 110px;
             }
         }
+
+        .registerclosedbeta-page .nav-col-dashboard-links {
+            margin-right: 0.35rem;
+        }
+
+        .registerclosedbeta-page .dashboard-quick-nav {
+            display: inline-flex;
+            align-items: center;
+            height: 36px;
+            border: 2px solid var(--fg);
+            background: var(--bg);
+        }
+
+        .registerclosedbeta-page .dashboard-quick-link {
+            height: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 0.85rem;
+            border-right: 2px solid var(--fg);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--fg);
+            background: var(--bg);
+            transition: background 0.18s ease, color 0.18s ease;
+        }
+
+        .registerclosedbeta-page .dashboard-quick-link:last-child {
+            border-right: none;
+        }
+
+        .registerclosedbeta-page .dashboard-quick-link:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        .registerclosedbeta-page .dashboard-quick-link-job-board:hover {
+            background: var(--primary-red);
+            color: var(--bg);
+        }
+
+        .registerclosedbeta-page.menu-authenticated #login-btn {
+            height: 36px;
+            padding: 0 0.85rem;
+            font-size: 0.62rem;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+
+        .registerclosedbeta-page .mobile-menu-toggle {
+            display: none;
+        }
+
+        .registerclosedbeta-page .dashboard-mobile-menu {
+            display: none;
+        }
+
+        .registerclosedbeta-page .dashboard-mobile-menu[hidden] {
+            display: none !important;
+        }
+
+        @keyframes register-dashboard-menu-reveal {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .registerclosedbeta-page .dashboard-quick-link {
+                padding: 0 0.62rem;
+                font-size: 0.56rem;
+            }
+
+            .registerclosedbeta-page.menu-authenticated #login-btn {
+                padding: 0 0.62rem;
+                font-size: 0.56rem;
+            }
+
+            .registerclosedbeta-page .nav-col-dashboard-links {
+                margin-right: 0.15rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .registerclosedbeta-page.menu-authenticated .nav-row {
+                left: 0.75rem !important;
+                right: 0.75rem !important;
+                width: auto !important;
+                border-left: 3px solid var(--fg);
+                border-right: 3px solid var(--fg);
+            }
+
+            .registerclosedbeta-page.menu-authenticated .nav-col {
+                min-width: 0;
+            }
+
+            .registerclosedbeta-page.menu-authenticated .nav-row .login-toggle {
+                font-size: 14px !important;
+                letter-spacing: 0.12em !important;
+                font-weight: 800 !important;
+            }
+
+            .registerclosedbeta-page .nav-col-dashboard-links {
+                margin-right: 0;
+            }
+
+            .registerclosedbeta-page .dashboard-quick-nav {
+                display: none;
+            }
+
+            .registerclosedbeta-page .mobile-menu-toggle {
+                display: inline-flex;
+                width: 100% !important;
+                height: 100% !important;
+                align-items: center;
+                justify-content: center;
+                border: none !important;
+                background: var(--bg) !important;
+                color: var(--fg) !important;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 14px !important;
+                letter-spacing: 0.11em !important;
+                text-transform: uppercase;
+                font-weight: 800;
+                cursor: pointer;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+
+            .registerclosedbeta-page .mobile-menu-toggle:hover,
+            .registerclosedbeta-page .mobile-menu-toggle[aria-expanded="true"] {
+                background: var(--primary-yellow) !important;
+                color: var(--text-on-light) !important;
+            }
+
+            .registerclosedbeta-page .dashboard-mobile-menu {
+                position: fixed;
+                left: 0.75rem;
+                right: 0.75rem;
+                bottom: calc(60px + env(safe-area-inset-bottom));
+                z-index: 1100;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0;
+                border: 3px solid var(--fg);
+                background: var(--fg);
+                animation: register-dashboard-menu-reveal 0.2s ease;
+            }
+
+            .registerclosedbeta-page .dashboard-mobile-menu-link {
+                min-height: 56px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 14px !important;
+                letter-spacing: 0.08em !important;
+                text-transform: uppercase;
+                font-weight: 700;
+                color: var(--fg);
+                background: var(--bg);
+                border-right: 2px solid var(--fg);
+                border-bottom: 2px solid var(--fg);
+                transition: background 0.16s ease, color 0.16s ease;
+            }
+
+            .registerclosedbeta-page .dashboard-mobile-menu-link:nth-child(2n) {
+                border-right: none;
+            }
+
+            .registerclosedbeta-page .dashboard-mobile-menu-link:nth-last-child(-n + 2) {
+                border-bottom: none;
+            }
+
+            .registerclosedbeta-page .dashboard-mobile-menu-link:hover {
+                background: var(--fg);
+                color: var(--bg);
+            }
+
+            .registerclosedbeta-page .dashboard-mobile-menu-link-job-board {
+                background: var(--primary-red);
+                color: var(--bg);
+            }
+        }
+
+        .welcome-video-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(10, 10, 10, 0.85);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.22s ease, visibility 0.22s ease;
+        }
+
+        .welcome-video-modal.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .welcome-video-modal__panel {
+            width: min(86vw, 900px);
+            background: #141414;
+            border: 3px solid var(--fg);
+            padding: clamp(12px, 1.2vw, 18px);
+            --video-inline-gutter: clamp(30px, 4.8vw, 56px);
+            --video-bottom-gutter: clamp(16px, 2vw, 24px);
+            --close-size: 40px;
+            --close-offset: clamp(12px, 1.1vw, 16px);
+            --close-safe-inline: calc(var(--close-size) + var(--close-offset) + 22px);
+            position: relative;
+            transform: translateY(14px);
+            transition: transform 0.22s ease;
+        }
+
+        .welcome-video-modal.active .welcome-video-modal__panel {
+            transform: translateY(0);
+        }
+
+        .welcome-video-modal__close {
+            position: absolute;
+            top: var(--close-offset);
+            right: var(--close-offset);
+            width: var(--close-size);
+            height: var(--close-size);
+            border: 2px solid var(--fg);
+            background: var(--bg);
+            color: var(--fg);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+        }
+
+        .welcome-video-modal__close:hover {
+            background: var(--fg);
+            color: var(--bg);
+            transform: translateY(-1px);
+        }
+
+        .welcome-video-modal__title {
+            margin: 0 var(--close-safe-inline) clamp(14px, 1.6vw, 20px) var(--video-inline-gutter);
+            color: #f2f2f2;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .welcome-video-modal__frame-wrap {
+            width: calc(100% - (var(--video-inline-gutter) * 2));
+            max-width: 700px;
+            position: relative;
+            padding-top: 56.25%;
+            background: #202020;
+            border: 2px solid #2a2a2a;
+            margin: clamp(8px, 1vw, 14px) auto var(--video-bottom-gutter) auto;
+        }
+
+        .welcome-video-modal__frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .welcome-video-modal__fallback {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            text-align: center;
+            color: #f2f2f2;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .welcome-video-modal__fallback.active {
+            display: flex;
+        }
+
+        @media (max-width: 768px) {
+            .welcome-video-modal {
+                padding: 0.9rem;
+            }
+
+            .welcome-video-modal__panel {
+                width: 100%;
+                padding: 0.95rem;
+                --video-inline-gutter: 22px;
+                --video-bottom-gutter: 12px;
+                --close-size: 36px;
+                --close-offset: 10px;
+                --close-safe-inline: calc(var(--close-size) + var(--close-offset) + 14px);
+            }
+
+            .welcome-video-modal__close {
+                width: var(--close-size);
+                height: var(--close-size);
+                top: var(--close-offset);
+                right: var(--close-offset);
+            }
+
+            .welcome-video-modal__title {
+                margin: 0 var(--close-safe-inline) 0.9rem var(--video-inline-gutter);
+                font-size: 0.72rem;
+            }
+
+            .welcome-video-modal__frame-wrap {
+                width: min(calc(100% - 2.25rem), 320px);
+                max-width: 320px;
+                margin: 0.5rem auto var(--video-bottom-gutter) auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .welcome-video-modal__panel {
+                --video-inline-gutter: 18px;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
 </head>
 
-<body>
+<body class="registerclosedbeta-page">
 
     <header class="top-nav-header">
         <div class="header-edition-info">
             Edición Bauhaus | Beta Cerrada
         </div>
         <div class="nav-row">
+            <div class="nav-col nav-col-dashboard-links" id="dashboard-nav-links-col" hidden>
+                <nav class="dashboard-quick-nav" aria-label="Navegacion principal de artista">
+                    <a href="/artist/dashboard" class="dashboard-quick-link">Dashboard</a>
+                    <a href="/my-quotations" class="dashboard-quick-link">Cotizaciones</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/calendar" class="dashboard-quick-link">Calendario</a>
+                    <a href="/my-quotations/statistics" class="dashboard-quick-link">Estadisticas</a>
+                </nav>
+                <button class="mobile-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
+                    Menu
+                </button>
+            </div>
             <div class="nav-col">
                 <button id="login-btn" class="login-toggle" onclick="openLoginModal()" aria-label="Iniciar sesion">
                     LOG IN
@@ -84,6 +449,41 @@
             </div>
         </div>
     </header>
+    <nav class="dashboard-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegacion movil de artista" hidden>
+        <a href="/artist/dashboard" class="dashboard-mobile-menu-link">Dashboard</a>
+        <a href="/my-quotations" class="dashboard-mobile-menu-link">Cotizaciones</a>
+        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+        <a href="/calendar" class="dashboard-mobile-menu-link">Calendario</a>
+        <a href="/my-quotations/statistics" class="dashboard-mobile-menu-link">Estadisticas</a>
+    </nav>
+
+    <div id="welcome-video-modal"
+         class="welcome-video-modal"
+         data-youtube-id="hDQTu9WhObc"
+         onclick="closeWelcomeVideoModalOnOverlay(event)"
+         aria-hidden="true">
+        <div class="welcome-video-modal__panel" role="dialog" aria-modal="true" aria-labelledby="welcome-video-modal-title">
+            <button class="welcome-video-modal__close" type="button" onclick="closeWelcomeVideoModal()" aria-label="Cerrar video de bienvenida">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+            <p id="welcome-video-modal-title" class="welcome-video-modal__title">Video de Bienvenida</p>
+            <div class="welcome-video-modal__frame-wrap">
+                <iframe id="welcome-video-frame"
+                        class="welcome-video-modal__frame"
+                        src=""
+                        title="Video de bienvenida de We Otzi"
+                        loading="lazy"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen></iframe>
+                <div id="welcome-video-fallback" class="welcome-video-modal__fallback">
+                    Define un ID de YouTube en <code>data-youtube-id</code> para mostrar el video
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Login Modal -->
     <div id="login-modal" class="modal-overlay" onclick="closeLoginModalOnOverlay(event)">
@@ -101,11 +501,11 @@
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="modal-form-group">
                     <label for="login-email">EMAIL</label>
-                    <input type="email" id="login-email" class="modal-input" placeholder="tu@email.com" required>
+                    <input type="email" id="login-email" class="modal-input" placeholder="tu@email.com" required data-clarity-mask="true">
                 </div>
                 <div class="modal-form-group">
                     <label for="login-password">CONTRASENA</label>
-                    <input type="password" id="login-password" class="modal-input" placeholder="Tu contrasena" required>
+                    <input type="password" id="login-password" class="modal-input" placeholder="Tu contrasena" required data-clarity-mask="true">
                 </div>
                 <div id="login-message" class="form-message"></div>
                 <button type="submit" class="btn-modal-submit">
@@ -151,7 +551,7 @@
                 Acceso Anticipado</h2>
             <form id="beta-form" onsubmit="handleRegistration(event)">
                 <div class="form-group">
-                    <input type="email" class="input-email" placeholder="TU@EMAIL.COM" required>
+                    <input type="email" class="input-email" placeholder="TU@EMAIL.COM" required data-clarity-mask="true">
                 </div>
                 <button type="submit" class="btn-register">
                     Registrarse
@@ -173,37 +573,7 @@
         </section>
     </main>
 
-    <footer class="bauhaus-footer">
-        <div class="footer-content">
-            <p class="footer-text">Hecho con amor por We Ötzi, para artistas.</p>
-            <div class="footer-social">
-                <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-                    </svg>
-                </a>
-                <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
-                    </svg>
-                </a>
-                <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
-                    </svg>
-                </a>
-                <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
-                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
-                    </svg>
-                </a>
-            </div>
-            <p class="footer-copyright">© 2025 We Ötzi. Todos los derechos reservados.</p>
-        </div>
-    </footer>
+    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
 
     <!-- Feedback Floating Button -->
     <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
@@ -263,9 +633,93 @@
     </div>
 
     <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/main.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>
+    <script>
+        (function () {
+            const PLACEHOLDER_VIDEO_ID = 'VIDEO_ID_AQUI';
+
+            function normalizeYoutubeId(value) {
+                const raw = String(value || '').trim();
+                if (!raw) return '';
+                if (/^[a-zA-Z0-9_-]{11}$/.test(raw)) return raw;
+                try {
+                    const url = new URL(raw);
+                    if (url.hostname.includes('youtu.be')) {
+                        return (url.pathname.split('/').filter(Boolean)[0] || '').trim();
+                    }
+                    if (url.searchParams.has('v')) {
+                        return (url.searchParams.get('v') || '').trim();
+                    }
+                    const embedPart = url.pathname.split('/embed/')[1] || '';
+                    return embedPart.split('/')[0].trim();
+                } catch (_) {
+                    return '';
+                }
+            }
+
+            function getWelcomeVideoId() {
+                const modal = document.getElementById('welcome-video-modal');
+                if (!modal) return '';
+                const configId = window.CONFIG?.landing?.welcomeVideoYoutubeId || '';
+                const datasetId = modal.dataset.youtubeId || '';
+                const candidate = configId || datasetId;
+                const normalized = normalizeYoutubeId(candidate);
+                if (normalized === PLACEHOLDER_VIDEO_ID) return '';
+                return normalized;
+            }
+
+            function openWelcomeVideoModal() {
+                const modal = document.getElementById('welcome-video-modal');
+                const frame = document.getElementById('welcome-video-frame');
+                const fallback = document.getElementById('welcome-video-fallback');
+                if (!modal || !frame || !fallback) return;
+
+                const videoId = getWelcomeVideoId();
+                if (videoId) {
+                    frame.src = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?rel=0&modestbranding=1';
+                    fallback.classList.remove('active');
+                } else {
+                    frame.src = '';
+                    fallback.classList.add('active');
+                }
+
+                modal.classList.add('active');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeWelcomeVideoModal() {
+                const modal = document.getElementById('welcome-video-modal');
+                const frame = document.getElementById('welcome-video-frame');
+                if (!modal || !frame) return;
+                if (!modal.classList.contains('active')) return;
+                modal.classList.remove('active');
+                modal.setAttribute('aria-hidden', 'true');
+                frame.src = '';
+                document.body.style.overflow = '';
+            }
+
+            function closeWelcomeVideoModalOnOverlay(event) {
+                if (event.target && event.target.id === 'welcome-video-modal') {
+                    closeWelcomeVideoModal();
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', openWelcomeVideoModal);
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeWelcomeVideoModal();
+                }
+            });
+
+            window.openWelcomeVideoModal = openWelcomeVideoModal;
+            window.closeWelcomeVideoModal = closeWelcomeVideoModal;
+            window.closeWelcomeVideoModalOnOverlay = closeWelcomeVideoModalOnOverlay;
+        })();
+    </script>
 </body>
 
 </html>

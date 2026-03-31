@@ -5,6 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WE ÖTZI | Dashboard</title>
+
+    <!-- Microsoft Clarity - Behavior Analytics -->
+    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -200,6 +211,20 @@
                     <span id="location-text">-</span>
                 </a>
             </p>
+            <section class="tattoo-presence" id="tattoo-presence">
+                <div class="tattoo-presence-group">
+                    <h3 class="tattoo-presence-title">Tatuando en</h3>
+                    <div class="tattoo-presence-list" id="current-tattoo-locations">
+                        <p class="tattoo-presence-empty">Sin estudios cargados.</p>
+                    </div>
+                </div>
+                <div class="tattoo-presence-group">
+                    <h3 class="tattoo-presence-title">Proximamente tatuando en</h3>
+                    <div class="tattoo-presence-list" id="upcoming-tattoo-locations">
+                        <p class="tattoo-presence-empty">Sin estudios cargados.</p>
+                    </div>
+                </div>
+            </section>
             <div class="artist-social-links">
                 <a href="#" id="instagram-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -388,6 +413,11 @@
         <section class="block-gallery-admin dashboard-card block">
             <div class="gallery-admin-header">
                 <h2 class="gallery-admin-title">Galeria de Trabajos</h2>
+                <select id="gallery-category-select" class="gallery-category-select" aria-label="Categoria para nuevos archivos">
+                    <option value="realizados">Trabajos realizados</option>
+                    <option value="flash">Flash disponibles</option>
+                    <option value="proyectos">Proyectos</option>
+                </select>
                 <label class="gallery-upload-btn" for="gallery-input">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -564,6 +594,28 @@
                     </div>
                 </div>
 
+                <!-- Tattoo Presence (Current + Upcoming) -->
+                <div class="form-row">
+                    <label class="form-label">Disponibilidad por Estudios</label>
+                    <div class="form-value" id="display-tattoo-schedule-summary">-</div>
+                    <div class="tattoo-locations-editor" id="tattoo-locations-editor" style="display: none;">
+                        <div class="tattoo-editor-group">
+                            <div class="tattoo-editor-group-header">
+                                <span>Tatuando en</span>
+                                <button type="button" class="tattoo-editor-add-btn" id="add-current-tattoo-location-btn">+ Agregar Estudio</button>
+                            </div>
+                            <div class="tattoo-location-form-list" id="current-tattoo-location-editor-list"></div>
+                        </div>
+                        <div class="tattoo-editor-group">
+                            <div class="tattoo-editor-group-header">
+                                <span>Proximamente tatuando en</span>
+                                <button type="button" class="tattoo-editor-add-btn" id="add-upcoming-tattoo-location-btn">+ Agregar Viaje</button>
+                            </div>
+                            <div class="tattoo-location-form-list" id="upcoming-tattoo-location-editor-list"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Instagram -->
                 <div class="form-row">
                     <label class="form-label">Instagram</label>
@@ -575,7 +627,7 @@
                 <div class="form-row">
                     <label class="form-label">WhatsApp</label>
                     <div class="form-value" id="display-whatsapp">-</div>
-                    <input type="tel" class="form-input-dashboard" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display: none;">
+                    <input type="tel" class="form-input-dashboard" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display: none;" data-clarity-mask="true">
                 </div>
 
                 <!-- Embajador (Managed by Support) -->
@@ -609,6 +661,11 @@
                         <div class="gallery-edit-preview" id="gallery-edit-preview">
                             <!-- Thumbnails will be inserted here -->
                         </div>
+                        <select id="gallery-edit-category-select" class="gallery-edit-category-select" aria-label="Categoria para nuevos archivos">
+                            <option value="realizados">Trabajos realizados</option>
+                            <option value="flash">Flash disponibles</option>
+                            <option value="proyectos">Proyectos</option>
+                        </select>
                         <label class="gallery-edit-upload-btn" for="gallery-edit-input">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -660,11 +717,11 @@
             <form id="password-form" onsubmit="handlePasswordChange(event)">
                 <div class="modal-form-group">
                     <label for="new-password">NUEVA CONTRASENA</label>
-                    <input type="password" id="new-password" class="modal-input" placeholder="Minimo 8 caracteres" required minlength="8">
+                    <input type="password" id="new-password" class="modal-input" placeholder="Minimo 8 caracteres" required minlength="8" data-clarity-mask="true">
                 </div>
                 <div class="modal-form-group">
                     <label for="confirm-password">CONFIRMAR CONTRASENA</label>
-                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repite la contrasena" required>
+                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repite la contrasena" required data-clarity-mask="true">
                 </div>
                 <div id="password-message" class="form-message"></div>
                 <button type="submit" class="btn-modal-submit">
@@ -753,38 +810,63 @@
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="bauhaus-footer">
-        <div class="footer-content">
-            <p class="footer-text">Hecho con amor por We Ötzi, para artistas.</p>
-            <div class="footer-social">
-                <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-                    </svg>
-                </a>
-                <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
-                    </svg>
-                </a>
-                <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8"/>
-                    </svg>
-                </a>
-                <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
-                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
-                    </svg>
-                </a>
+    <!-- Upcoming Travel Modal -->
+    <div id="upcoming-travel-modal" class="modal-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
+        <div class="modal-container upcoming-travel-modal-container">
+            <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <div class="modal-header">
+                <h2 class="modal-title" id="upcoming-travel-modal-title">Agregar Viaje</h2>
+                <p class="modal-subtitle">Completa estudio, ciudad, fechas y agenda</p>
             </div>
-            <p class="footer-copyright">© 2025 We Ötzi. Todos los derechos reservados.</p>
+            <form id="upcoming-travel-form">
+                <div class="modal-form-group">
+                    <label for="upcoming-travel-studio">ESTUDIO</label>
+                    <div class="upcoming-travel-autocomplete">
+                        <input type="text" id="upcoming-travel-studio" class="modal-input" placeholder="Nombre del estudio" autocomplete="off" required>
+                        <div class="upcoming-travel-suggestions" id="upcoming-travel-studio-suggestions"></div>
+                    </div>
+                </div>
+                <div class="modal-form-group">
+                    <label for="upcoming-travel-city">CIUDAD</label>
+                    <div class="upcoming-travel-autocomplete">
+                        <input type="text" id="upcoming-travel-city" class="modal-input" placeholder="Ciudad" autocomplete="off">
+                        <div class="upcoming-travel-suggestions" id="upcoming-travel-city-suggestions"></div>
+                    </div>
+                </div>
+                <div class="upcoming-travel-dates-grid">
+                    <div class="modal-form-group">
+                        <label for="upcoming-travel-start">FECHA INICIO</label>
+                        <input type="date" id="upcoming-travel-start" class="modal-input" required>
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="upcoming-travel-end">FECHA FIN</label>
+                        <input type="date" id="upcoming-travel-end" class="modal-input" required>
+                    </div>
+                </div>
+                <div class="modal-form-group">
+                    <label for="upcoming-travel-agenda">ESTADO DE AGENDA</label>
+                    <select id="upcoming-travel-agenda" class="modal-input" required>
+                        <option value="open">Agenda abierta</option>
+                        <option value="closed">Agenda cerrada</option>
+                    </select>
+                </div>
+                <div id="upcoming-travel-message" class="form-message"></div>
+                <button type="submit" class="btn-modal-submit">
+                    Guardar Viaje
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                </button>
+            </form>
         </div>
-    </footer>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
 
     <!-- Feedback Floating Button -->
     <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
@@ -968,6 +1050,7 @@
     </div>
 
     <script src="/shared/js/bio-formatting.js"></script>
+    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/artist-auth.js"></script>
     <script src="/shared/js/heic-converter.js"></script>
     <script src="/shared/js/dashboard.js"></script>

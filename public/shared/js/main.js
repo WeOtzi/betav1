@@ -5,8 +5,10 @@ const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 // Pre-set password for new registrations - Uses config.js
-const PRESET_PASSWORD = window.CONFIG?.registration?.presetPassword || 'OtziArtist2025';
+const PRESET_PASSWORD = window.CONFIG?.registration?.presetPassword || '';
 // [CH-07 / CH-08] END
+
+const DASHBOARD_MOBILE_MENU_BREAKPOINT = 768;
 
 // [CH-04 / CH-05 / CH-06] START: Logo interaction logic
 document.addEventListener('DOMContentLoaded', () => {
@@ -47,6 +49,54 @@ document.addEventListener('DOMContentLoaded', () => {
     // [CH-07] END
 });
 
+function setLandingDashboardMobileMenuOpen(isOpen) {
+    const toggleBtn = document.getElementById('dashboard-mobile-menu-toggle');
+    const menu = document.getElementById('dashboard-mobile-menu');
+    if (!toggleBtn || !menu) return;
+
+    const shouldOpen = Boolean(isOpen);
+    menu.hidden = !shouldOpen;
+    toggleBtn.setAttribute('aria-expanded', String(shouldOpen));
+}
+
+function setupLandingDashboardNavigationMenu() {
+    const toggleBtn = document.getElementById('dashboard-mobile-menu-toggle');
+    const menu = document.getElementById('dashboard-mobile-menu');
+    if (!toggleBtn || !menu) return;
+    if (toggleBtn.dataset.menuBound === 'true') return;
+
+    setLandingDashboardMobileMenuOpen(false);
+
+    toggleBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const shouldOpen = toggleBtn.getAttribute('aria-expanded') !== 'true';
+        setLandingDashboardMobileMenuOpen(shouldOpen);
+    });
+
+    menu.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', () => {
+            setLandingDashboardMobileMenuOpen(false);
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        if (menu.hidden) return;
+        const clickInsideMenu = menu.contains(event.target);
+        const clickOnToggle = toggleBtn.contains(event.target);
+        if (!clickInsideMenu && !clickOnToggle) {
+            setLandingDashboardMobileMenuOpen(false);
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > DASHBOARD_MOBILE_MENU_BREAKPOINT) {
+            setLandingDashboardMobileMenuOpen(false);
+        }
+    });
+
+    toggleBtn.dataset.menuBound = 'true';
+}
+
 // [CH-12] START: Random Info Text - Dynamic Content
 // Selects a random HTML paragraph from config.js and injects it into the landing page
 function initRandomInfoText() {
@@ -84,7 +134,24 @@ async function checkAuthState() {
     };
     
     const { data: { session } } = await _supabase.auth.getSession();
-    
+
+    const isLoggedIn = Boolean(session);
+    document.body.classList.toggle('menu-authenticated', isLoggedIn);
+
+    const dashboardLinksCol = document.getElementById('dashboard-nav-links-col');
+    const dashboardMobileMenu = document.getElementById('dashboard-mobile-menu');
+    if (dashboardLinksCol) {
+        dashboardLinksCol.hidden = !isLoggedIn;
+    }
+    if (dashboardMobileMenu) {
+        dashboardMobileMenu.hidden = true;
+    }
+    if (isLoggedIn) {
+        setupLandingDashboardNavigationMenu();
+    } else {
+        setLandingDashboardMobileMenuOpen(false);
+    }
+
     // Always toggle the login button if it exists
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {

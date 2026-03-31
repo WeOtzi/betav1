@@ -5,226 +5,363 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WE OTZI | Perfil del Artista</title>
-    <meta name="description" content="Conoce el trabajo de este increible artista tatuador en We Otzi">
+
+    <!-- Microsoft Clarity - Behavior Analytics -->
+    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+    </script>
+
+    <meta name="description" content="Conoce el trabajo de este artista tatuador en We Otzi">
 
     <meta property="og:type" content="profile">
     <meta property="og:title" id="og-title" content="Artista en We Otzi">
-    <meta property="og:description" id="og-description" content="Conoce el trabajo de este increible artista tatuador">
+    <meta property="og:description" id="og-description" content="Conoce el trabajo de este artista tatuador">
     <meta property="og:image" id="og-image" content="">
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/landing-style.css">
     <link rel="stylesheet" href="/shared/css/dashboard.css">
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/jsvectormap.min.css"
+    >
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
+    <script>
+        window.initArtistProfileGoogleMaps = function () {
+            // Se redefine en artist-profile.js para evitar "callback not defined".
+        };
+
+        function loadArtistProfileGoogleMapsWhenReady() {
+            if (window.google?.maps?.Geocoder) {
+                window.initArtistProfileGoogleMaps();
+                return;
+            }
+
+            if (window.CONFIG?.googleMaps?.apiKey) {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&loading=async&callback=initArtistProfileGoogleMaps`;
+                script.async = true;
+                script.defer = true;
+                script.dataset.role = 'artist-profile-google-maps';
+                document.head.appendChild(script);
+            } else {
+                if (!window._artistProfileGMapsRetryCount) window._artistProfileGMapsRetryCount = 0;
+                window._artistProfileGMapsRetryCount += 1;
+                if (window._artistProfileGMapsRetryCount < 50) {
+                    setTimeout(loadArtistProfileGoogleMapsWhenReady, 100);
+                } else {
+                    console.warn('[Artist Profile] Google Maps API key no disponible; geocodificación desactivada.');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadArtistProfileGoogleMapsWhenReady);
+    </script>
 </head>
 
 <body class="public-profile-view">
-    <header class="top-nav-header">
-        <div class="header-edition-info">
-            Edicion Bauhaus | Beta Cerrada
-        </div>
-        <div class="nav-row">
-            <div class="nav-col">
-                <a href="/marketplace" class="back-to-marketplace">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 12H5M12 19l-7-7 7-7" />
-                    </svg>
-                    <span>Explorar Artistas</span>
-                </a>
+    <a class="skip-link" href="#profile-content">Saltar al contenido</a>
+    <header class="top-nav-header profile-nav-header">
+        <div class="header-edition-info">Edición Bauhaus | Perfil Público</div>
+        <div class="nav-row profile-nav-row">
+            <div class="nav-col nav-col-dashboard-links">
+                <nav class="dashboard-quick-nav" aria-label="Navegación principal del perfil público">
+                    <a href="/marketplace" class="dashboard-quick-link">Marketplace</a>
+                    <a href="/quotations" class="dashboard-quick-link" id="profile-header-quote-link">Cotizar</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/client/login" class="dashboard-quick-link">Acceder</a>
+                </nav>
+                <button class="mobile-menu-toggle" id="profile-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="profile-mobile-menu">
+                    Menu
+                </button>
             </div>
             <div class="nav-col">
-                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
-                    O
-                </button>
+                <a href="/marketplace" class="login-toggle profile-login-link" aria-label="Volver al marketplace">
+                    Explorar
+                </a>
+            </div>
+            <div class="nav-col profile-nav-actions">
+                <button class="theme-toggle profile-theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo visual">Ö</button>
             </div>
         </div>
     </header>
+    <nav class="dashboard-mobile-menu" id="profile-mobile-menu" aria-label="Navegación móvil del perfil público" hidden>
+        <a href="/marketplace" class="dashboard-mobile-menu-link">Marketplace</a>
+        <a href="/quotations" class="dashboard-mobile-menu-link" id="profile-mobile-quote-link">Cotizar</a>
+        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+        <a href="/client/login" class="dashboard-mobile-menu-link">Acceder</a>
+    </nav>
 
     <div class="profile-loading" id="profile-loading">
         <div class="loading-spinner-large"></div>
-        <p>Cargando perfil...</p>
+        <p>Cargando perfil…</p>
     </div>
 
-    <div class="profile-error" id="profile-error" style="display: none;">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-        <h2>Artista no encontrado</h2>
-        <p>El perfil que buscas no existe o no esta disponible.</p>
-        <a href="/marketplace" class="btn-back-marketplace">Ver todos los artistas</a>
-    </div>
-
-    <main class="public-profile-grid" id="profile-content" style="display: none;">
-        <section class="block block-gallery-left" id="block-gallery" style="display: none;">
-            <div class="gallery-header">
-                <h2 class="gallery-title">Trabajos del artista</h2>
-                <button class="gallery-view-all-btn" id="gallery-view-all-btn" style="display: none;">
-                    Ver galeria completa
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                </button>
+    <div class="profile-error profile-error--not-found" id="profile-error" style="display: none;" role="status" aria-live="polite" aria-atomic="true">
+        <div class="profile-error__grid">
+            <div class="profile-error__scene" aria-hidden="true">
+                <span class="profile-error__scene-grid"></span>
+                <span class="bauhaus-shape bauhaus-shape--circle" data-shape="circle"></span>
+                <span class="bauhaus-shape bauhaus-shape--bar" data-shape="bar"></span>
+                <span class="bauhaus-shape bauhaus-shape--slab" data-shape="slab"></span>
+                <span class="bauhaus-shape bauhaus-shape--line bauhaus-shape--line-a" data-shape="line-a"></span>
+                <span class="bauhaus-shape bauhaus-shape--line bauhaus-shape--line-b" data-shape="line-b"></span>
             </div>
-            <div class="gallery-grid" id="gallery-grid"></div>
-            <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista aun no cargo trabajos en su galeria.</p>
+
+            <div class="profile-error__content">
+                <p class="profile-error__eyebrow" id="profile-error-eyebrow">Perfil público · No encontrado</p>
+                <h2 class="profile-error__title" id="profile-error-title">Artista no encontrado.. pero no te preocupes, hay muchos más!</h2>
+                <p class="profile-error__copy" id="profile-error-message">Explora más perfiles dentro del marketplace.</p>
+                <p class="profile-error__requested" id="profile-error-requested" hidden></p>
+
+                <div class="profile-error__actions">
+                    <a href="/marketplace" class="btn-back-marketplace" id="profile-error-cta-primary">Ir al marketplace</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="artist-profile-shell" id="profile-content" style="display: none;" tabindex="-1">
+        <section class="artist-gallery-section profile-panel reveal-block" id="block-gallery" style="display: none;" aria-hidden="true">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">Portafolio público</p>
+                    <h1 class="section-title-display">Trabajos del artista</h1>
+                </div>
+                <p class="section-subcopy">Una selección visual del trabajo reciente del artista.</p>
+            </div>
+
+            <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
+            <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Los espacios están reservados para su próxima colección.</p>
+
+            <div class="gallery-footer-actions">
+                <button class="secondary-inline-btn" id="gallery-view-all-btn" style="display: none;">Ver más trabajos</button>
+            </div>
         </section>
 
-        <aside class="block block-right-column" id="right-column">
-            <section class="right-section right-cta-top">
-                <button class="quote-cta-btn" id="quote-cta-top-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                    </svg>
-                    Cotizar ahora
-                </button>
-                <p class="quote-cta-note">Respuesta estimada en 24-48 horas</p>
-            </section>
-
-            <section class="right-section profile-identity-section">
-                <div class="avatar-wrapper" id="avatar-wrapper">
-                    <img src="" alt="Avatar" class="avatar-image" id="avatar-image">
-                    <div class="avatar-placeholder" id="avatar-placeholder">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
+        <section class="artist-hero-section profile-panel reveal-block">
+            <div class="artist-hero-main">
+                <div class="avatar-stack">
+                    <div class="avatar-wrapper" id="avatar-wrapper">
+                        <img src="" alt="Foto de perfil del artista" class="avatar-image" id="avatar-image" width="132" height="132">
+                        <div class="avatar-placeholder" id="avatar-placeholder">
+                            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="avatar-badges-row">
+                        <span class="avatar-level-chip" id="avatar-level-chip">Nuevo</span>
+                        <span class="avatar-embajador-icon" id="avatar-embajador-icon" hidden aria-label="Embajador" title="Embajador">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="M12 7l1.54 3.12 3.46.5-2.5 2.44.59 3.44L12 14.87 8.91 16.5l.59-3.44L7 10.62l3.46-.5L12 7z" />
+                            </svg>
+                        </span>
                     </div>
                 </div>
-                <div class="identity-copy">
-                    <h1 class="artist-name" id="artist-name">Cargando...</h1>
+
+                <div class="artist-hero-copy">
+                    <p class="section-kicker">Perfil del artista</p>
+                    <div class="artist-name-row">
+                        <h2 class="artist-name" id="artist-name">Cargando...</h2>
+                        <span class="artist-verified-icon" id="artist-verified-icon" hidden aria-label="Perfil verificado" title="Perfil verificado">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" fill="currentColor" />
+                                <path d="M7.5 12.5l2.7 2.7 6.3-6.3" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                    </div>
                     <p class="artist-username" id="artist-username">@usuario.wo</p>
                 </div>
-                <div class="identity-status-row">
-                    <span class="verification-badge" id="verification-badge" data-state="unverified">
-                        <span id="verification-text">No verificado</span>
-                    </span>
-                    <span class="artist-level-badge" id="artist-level-badge" hidden>
-                        <span class="level-text" id="level-text">Nuevo</span>
-                    </span>
-                    <span class="embajador-badge" id="embajador-badge" hidden>Embajador</span>
+
+                <div class="hero-location-meta">
+                    <p class="hero-meta-line">
+                        <span>Ciudad</span>
+                        <strong id="display-city">-</strong>
+                    </p>
+                    <p class="hero-meta-line">
+                        <span>País</span>
+                        <strong id="display-country">-</strong>
+                    </p>
+                    <p class="hero-meta-line hero-meta-line-wide">
+                        <span>Ubicación</span>
+                        <a id="display-location-link" class="inline-link" href="#" target="_blank" rel="noopener noreferrer">
+                            <strong id="display-location">-</strong>
+                        </a>
+                    </p>
                 </div>
+            </div>
+
+            <section class="artist-map-section" aria-label="Mapa mundial de ubicaciones del artista">
+                <div class="artist-map-section-heading">
+                    <p class="section-kicker">Ubicaciones</p>
+                    <h3 class="artist-map-section-title">Mapa mundial</h3>
+                </div>
+                <div id="artist-map" class="artist-map-canvas" role="img" aria-label="Mapa mundial con puntos de tatuando en y próximamente en">
+                    <div id="artist-map-empty" class="artist-map-empty">
+                        Aún no hay ubicaciones para mostrar.
+                    </div>
+                </div>
+                <ul id="artist-map-points" class="artist-map-points" aria-live="polite"></ul>
             </section>
 
-            <section class="right-section">
-                <h3 class="section-title">Estilos</h3>
+            <aside class="artist-hero-aside">
+                <div class="cta-card">
+                    <p class="section-kicker">Galería pública</p>
+                    <h3>Feed completo del artista</h3>
+                    <p>Abre una página aparte con trabajos realizados, flash disponibles y proyectos en formato feed.</p>
+                    <a
+                        class="quote-cta-btn"
+                        id="gallery-cta-btn"
+                        href="/artist/profile/gallery"
+                        onclick="this.href = '/artist/profile/gallery' + window.location.search;"
+                        aria-label="Abrir la galería completa del artista"
+                    >Abrir galería</a>
+                </div>
+
+                <div class="cta-card">
+                    <p class="section-kicker">Cotización</p>
+                    <h3>Listo para pedir una propuesta</h3>
+                    <p>Cuéntale tu idea y deriva la consulta al flujo de cotización del artista.</p>
+                    <a class="quote-cta-btn" id="quote-cta-top-btn" href="/quotations">Cotizar</a>
+                    <p class="quote-cta-note">Respuesta estimada en 24 a 48 horas.</p>
+                </div>
+
+                <div class="quick-actions-card">
+                    <p class="section-kicker">Enlaces</p>
+                    <div class="action-buttons-grid">
+                        <button type="button" id="share-profile-btn" class="action-btn">Compartir perfil</button>
+                        <a href="#" id="whatsapp-quote-btn" class="action-btn" target="_blank" rel="noopener">WhatsApp</a>
+                        <a href="#" id="instagram-link" class="action-btn" target="_blank" rel="noopener">Instagram</a>
+                        <a href="/artist/profile/gallery" id="gallery-feed-action-link" class="action-btn" onclick="this.href = '/artist/profile/gallery' + window.location.search;">Galeria Feed</a>
+                        <a href="#" id="portfolio-action-link" class="action-btn" target="_blank" rel="noopener">Portfolio</a>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <section class="tattoo-presence-section reveal-block">
+            <article class="profile-panel presence-panel">
+                <div class="presence-heading">
+                    <p class="section-kicker">Disponibilidad actual</p>
+                    <h3>Tatuando en</h3>
+                </div>
+                <div class="presence-list" id="current-tattoo-locations"></div>
+            </article>
+
+            <article class="profile-panel presence-panel">
+                <div class="presence-heading">
+                    <p class="section-kicker">Próximos destinos</p>
+                    <h3>Próximamente en</h3>
+                </div>
+                <div class="presence-list" id="upcoming-tattoo-locations"></div>
+            </article>
+        </section>
+
+        <section class="artist-details-grid reveal-block">
+            <article class="profile-panel detail-card detail-card-wide">
+                <p class="section-kicker">Acerca del artista</p>
+                <h3 class="detail-card-title">Sobre mí</h3>
+                <div class="bio-text" id="bio-text" data-empty-message="Este artista todavía no agregó una descripción.">-</div>
+            </article>
+
+            <article class="profile-panel detail-card">
+                <p class="section-kicker">Lenguaje visual</p>
+                <h3 class="detail-card-title">Estilos</h3>
                 <div class="styles-value large-style-tags" id="display-styles">-</div>
-                <p class="inline-meta">Total estilos: <span id="stat-styles">-</span></p>
-            </section>
+                <p class="inline-stat">Total de estilos: <span id="stat-styles">-</span></p>
+            </article>
 
-            <section class="right-section metrics-inline-block">
-                <h3 class="section-title">Tarifa</h3>
-                <p class="metric-highlight" id="display-price">-</p>
-                <p class="inline-meta">Referencia: <span id="stat-price">-</span></p>
-            </section>
+            <article class="profile-panel detail-card">
+                <p class="section-kicker">Trayectoria</p>
+                <h3 class="detail-card-title">Experiencia y tarifa</h3>
+                <div class="metric-stack">
+                    <div>
+                        <span class="metric-label">Experiencia</span>
+                        <strong class="metric-highlight" id="display-experience">-</strong>
+                    </div>
+                    <div>
+                        <span class="metric-label">Tarifa</span>
+                        <strong class="metric-highlight" id="display-price">-</strong>
+                    </div>
+                </div>
+            </article>
 
-            <section class="right-section metrics-inline-block">
-                <h3 class="section-title">Anios de experiencia</h3>
-                <p class="metric-highlight" id="display-experience">-</p>
-                <p class="inline-meta">Resumen: <span id="stat-experience">-</span></p>
-            </section>
-
-            <section class="right-section where-section">
-                <h3 class="section-title">Donde esta tatuando</h3>
-                <p class="where-row"><span>Ubicacion</span><a id="display-location-link" class="where-location-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-location">-</strong></a></p>
-                <p class="where-row"><span>Modalidad</span><strong id="display-work-type">-</strong></p>
-                <p class="where-row" id="studio-row" style="display: none;"><span>Estudio</span><strong id="display-studio">-</strong></p>
-            </section>
-
-            <section class="right-section about-section">
-                <h3 class="section-title">Sobre el artista</h3>
-                <div class="bio-text" id="bio-text" data-empty-message="Este artista aun no ha agregado una descripcion.">-</div>
-            </section>
-
-            <section class="right-section full-profile-section">
-                <h3 class="section-title">Perfil completo</h3>
-                <div class="full-profile-grid">
-                    <p><span>Nombre artistico</span><strong id="display-artistic-name">-</strong></p>
-                    <p><span>Nombre completo</span><strong id="display-full-name">-</strong></p>
-                    <p><span>Usuario</span><strong id="display-username">-</strong></p>
+            <article class="profile-panel detail-card">
+                <p class="section-kicker">Contacto</p>
+                <h3 class="detail-card-title">Redes y portfolio</h3>
+                <div class="link-list">
                     <p><span>Instagram</span><a id="display-instagram-link" class="full-profile-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-instagram">-</strong></a></p>
+                    <p><span>WhatsApp</span><a id="display-whatsapp-link" class="full-profile-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-whatsapp">-</strong></a></p>
                     <p><span>Portfolio</span><a id="display-portfolio-link" class="full-profile-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-portfolio">-</strong></a></p>
                 </div>
-            </section>
+            </article>
 
-            <section class="right-section action-buttons-section">
-                <h3 class="section-title">Acciones</h3>
-                <div class="action-buttons-grid">
-                    <button type="button" id="share-profile-btn" class="action-btn">Compartir perfil</button>
-                    <a href="#" id="whatsapp-quote-btn" class="action-btn" target="_blank" rel="noopener">Cotizar por WhatsApp</a>
-                    <a href="#" id="instagram-link" class="action-btn" target="_blank" rel="noopener">Instagram</a>
-                    <a href="#" id="portfolio-action-link" class="action-btn" target="_blank" rel="noopener">Portfolio</a>
+            <article class="profile-panel detail-card detail-card-wide">
+                <p class="section-kicker">Ficha completa</p>
+                <h3 class="detail-card-title">Datos del artista</h3>
+                <div class="full-profile-grid">
+                    <p><span>Nombre artístico</span><strong id="display-artistic-name">-</strong></p>
+                    <p><span>Nombre completo</span><strong id="display-full-name">-</strong></p>
+                    <p><span>Usuario</span><strong id="display-username">-</strong></p>
+                    <p><span>Nivel</span><strong id="display-level">-</strong></p>
+                    <p><span>Verificación</span><strong id="display-verification">-</strong></p>
+                    <p><span>Embajador</span><strong id="display-embajador">-</strong></p>
+                    <p><span>País</span><strong id="display-country-detail">-</strong></p>
+                    <p><span>Ciudad</span><strong id="display-city-detail">-</strong></p>
+                    <p><span>Modalidad</span><strong id="display-work-type">-</strong></p>
+                    <p><span>Estudio legacy</span><strong id="display-studio">-</strong></p>
+                    <p><span>Idiomas</span><strong id="display-languages">-</strong></p>
+                    <p><span>Ubicación completa</span><strong id="display-location-detail">-</strong></p>
                 </div>
-            </section>
+            </article>
+        </section>
 
-            <section class="right-section right-cta-bottom">
-                <button class="quote-cta-btn quote-cta-btn-bottom" id="quote-cta-bottom-btn">
-                    Cotizar ahora
-                </button>
-            </section>
-        </aside>
+        <section class="profile-panel cta-footer-panel reveal-block">
+            <div>
+                <p class="section-kicker">Siguiente paso</p>
+                <h3 class="detail-card-title">Pide una cotización con este artista</h3>
+                <p class="cta-footer-copy">Envía tu idea, referencias y ubicación desde el flujo de cotización.</p>
+            </div>
+            <a class="quote-cta-btn quote-cta-btn-bottom" id="quote-cta-bottom-btn" href="/quotations">Ir a cotizar</a>
+        </section>
     </main>
 
-    <footer class="bauhaus-footer">
-        <div class="footer-content">
-            <p class="footer-text">Hecho con amor por We Otzi, para artistas.</p>
-            <div class="footer-social">
-                <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" aria-label="Instagram" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-                    </svg>
-                </a>
-                <a href="https://tiktok.com/@weotzi" target="_blank" rel="noopener" aria-label="TikTok" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
-                    </svg>
-                </a>
-                <a href="https://twitter.com/weotzi" target="_blank" rel="noopener" aria-label="X/Twitter" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.4-8M20 4l-6.4 8" />
-                    </svg>
-                </a>
-                <a href="https://youtube.com/@weotzi" target="_blank" rel="noopener" aria-label="YouTube" class="social-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
-                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
-                    </svg>
-                </a>
-            </div>
-            <p class="footer-copyright">2025 We Otzi. Todos los derechos reservados.</p>
-        </div>
-    </footer>
+    <footer
+        class="profile-footer"
+        data-bauhaus-footer
+        data-footer-variant="dashboard"
+        data-footer-width="full"
+    ></footer>
 
-    <div class="status-message" id="status-message"></div>
+    <div class="status-message" id="status-message" aria-live="polite"></div>
 
-    <div class="gallery-lightbox" id="gallery-lightbox">
+    <div class="gallery-lightbox" id="gallery-lightbox" aria-hidden="true">
         <button class="lightbox-close" id="lightbox-close" aria-label="Cerrar">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M18 6L6 18M6 6l12 12" />
             </svg>
         </button>
         <button class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Anterior">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M15 18l-6-6 6-6" />
             </svg>
         </button>
         <div class="lightbox-content">
-            <img src="" alt="Trabajo" id="lightbox-image">
-            <video id="lightbox-video" controls playsinline preload="metadata" style="display:none;max-width:100%;max-height:85vh;"></video>
+            <img src="" alt="Trabajo del artista" id="lightbox-image" width="1200" height="1200">
+            <video id="lightbox-video" controls playsinline preload="metadata" style="display:none;max-width:100%;max-height:82vh;"></video>
         </div>
         <button class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Siguiente">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M9 18l6-6-6-6" />
             </svg>
         </button>
@@ -232,6 +369,9 @@
     </div>
 
     <script src="/shared/js/bio-formatting.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/jsvectormap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/maps/world.js"></script>
+    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
 </body>
 

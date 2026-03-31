@@ -70,7 +70,7 @@ const DEFAULT_QUESTIONS_CONFIG = [
     { id: 14.1, step: 'medical-boolean', type: 'boolean', title: '¿Tienes alguna condición médica?', field: 'client_medical_boolean' },
     { id: 14.2, step: 'medical-details', type: 'textarea', title: 'Indícanos tus condiciones médicas', field: 'client_medical_details', placeholder: 'Describe aquí...', minLength: 5, hidden: true },
     { id: 14.3, step: 'allergies', type: 'textarea', title: '¿Tienes alguna alergia que debamos saber?', field: 'client_allergies', placeholder: 'Ej: Alergia al látex, tintas rojas, etc...', optional: true },
-    { id: 15, step: 'city', type: 'text', title: '¿En qué ciudad vives?', field: 'client_city_residence', placeholder: 'Ciudad, País' },
+    { id: 15, step: 'city', type: 'text', title: '¿En qué ciudad vives?', field: 'client_city_residence', placeholder: 'Ciudad, Provincia, País' },
     { id: 15.5, step: 'travel', type: 'boolean', title: 'Disponibilidad de Viaje', field: 'client_travel_willing', hidden: true },
     { id: 16, step: 'date', type: 'date-range', title: '¿Para cuándo lo planeas?', field: 'client_preferred_date' },
     { id: 17, step: 'budget', type: 'currency', title: 'Presupuesto aproximado', field: 'client_budget_amount' },
@@ -468,7 +468,7 @@ async function handleUrlArtist(username) {
             formData.artist_email = artist.email;
             formData.artist_instagram = artist.instagram;
             formData.artist_styles = artist.styles_array;
-            formData.artist_current_city = artist.ubicacion;
+            formData.artist_current_city = normalizeQuotationLocation(artist.ubicacion || '');
             formData.artist_studio_name = artist.estudios;
             formData.artist_session_cost_amount = artist.session_price;
             formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram);
@@ -595,26 +595,66 @@ function setupTextareaCounter(question) {
     });
 }
 
-// Extract city name from address_components, accepting locality or admin_area_level_2
-function extractCityFromComponents(components) {
-    let cityName = '';
-    let province = '';
-    let countryName = '';
+function sanitizeQuotationLocationSegment(segment) {
+    if (!segment || typeof segment !== 'string') return '';
+    return segment
+        .replace(/\b(?:[A-Z]{1,3}\d{3,6}[A-Z]{0,3}|\d{3,8}(?:-\d{3,4})?)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .replace(/^[,\s-]+|[,\s-]+$/g, '')
+        .trim();
+}
 
-    for (const c of components) {
-        const t = c.types;
-        if (!cityName && (t.includes('locality') || t.includes('administrative_area_level_2'))) {
-            cityName = c.long_name;
-        }
-        if (t.includes('administrative_area_level_1')) {
-            province = c.long_name;
-        }
-        if (t.includes('country')) {
-            countryName = c.long_name;
+function normalizeQuotationLocation(rawLocation) {
+    if (!rawLocation || typeof rawLocation !== 'string') return '';
+    const parts = rawLocation
+        .split(',')
+        .map((segment) => sanitizeQuotationLocationSegment(segment))
+        .filter(Boolean);
+
+    const deduped = [];
+    for (const part of parts) {
+        if (!deduped.some((existing) => existing.toLowerCase() === part.toLowerCase())) {
+            deduped.push(part);
         }
     }
 
-    return { cityName, province, countryName };
+    return deduped.slice(0, 3).join(', ');
+}
+
+function getQuotationAddressComponent(components, acceptedTypes) {
+    if (!Array.isArray(components)) return '';
+    for (const acceptedType of acceptedTypes) {
+        const match = components.find((component) => component.types && component.types.includes(acceptedType));
+        if (match && match.long_name) {
+            return sanitizeQuotationLocationSegment(match.long_name);
+        }
+    }
+    return '';
+}
+
+// Extract normalized city/province/country from Google address components
+function extractCityFromComponents(components, fallbackAddress = '') {
+    const cityName = getQuotationAddressComponent(components, [
+        'locality',
+        'postal_town',
+        'administrative_area_level_3',
+        'administrative_area_level_2',
+        'sublocality_level_1',
+        'sublocality'
+    ]);
+    const province = getQuotationAddressComponent(components, [
+        'administrative_area_level_1',
+        'administrative_area_level_2'
+    ]);
+    const countryName = getQuotationAddressComponent(components, ['country']);
+
+    const structured = [cityName, province, countryName].filter(Boolean);
+    const deduped = structured.filter((part, index, arr) => (
+        arr.findIndex((candidate) => candidate.toLowerCase() === part.toLowerCase()) === index
+    ));
+    const normalizedLocation = deduped.length ? deduped.join(', ') : normalizeQuotationLocation(fallbackAddress);
+
+    return { cityName, province, countryName, normalizedLocation };
 }
 
 // Google Maps Autocomplete for City (retries if Maps loads late)
@@ -636,16 +676,18 @@ function setupCityAutocomplete(question) {
 
         autocomplete.addListener('place_changed', () => {
             const place = autocomplete.getPlace();
-            if (place && place.formatted_address) {
-                input.value = place.formatted_address;
-                formData.client_city_residence = place.formatted_address;
+            if (!place) return;
 
-                if (place.address_components) {
-                    const { cityName, countryName } = extractCityFromComponents(place.address_components);
-                    formData.client_city_name = cityName;
-                    formData.client_country = countryName;
-                }
-            }
+            const parsed = extractCityFromComponents(place.address_components, place.formatted_address);
+            const normalizedLocation = parsed.normalizedLocation || normalizeQuotationLocation(place.formatted_address || '');
+            if (!normalizedLocation) return;
+
+            input.value = normalizedLocation;
+            formData.client_city_residence = normalizedLocation;
+            formData.client_city_name = parsed.cityName || normalizedLocation.split(',')[0]?.trim() || '';
+
+            const locationParts = normalizedLocation.split(',').map((part) => part.trim()).filter(Boolean);
+            formData.client_country = parsed.countryName || locationParts[locationParts.length - 1] || '';
         });
 
         input.addEventListener('keydown', (e) => {
@@ -708,17 +750,15 @@ function useGpsLocation(questionId) {
                     }
 
                     let cityName = '';
-                    let province = '';
                     let countryName = '';
                     let formattedAddress = '';
 
                     for (const result of results) {
-                        const parsed = extractCityFromComponents(result.address_components);
-                        if (parsed.cityName && parsed.countryName) {
+                        const parsed = extractCityFromComponents(result.address_components, result.formatted_address);
+                        if (parsed.normalizedLocation) {
                             cityName = parsed.cityName;
-                            province = parsed.province;
                             countryName = parsed.countryName;
-                            formattedAddress = [cityName, province, countryName].filter(Boolean).join(', ');
+                            formattedAddress = parsed.normalizedLocation;
                             break;
                         }
                     }
@@ -726,8 +766,8 @@ function useGpsLocation(questionId) {
                     if (formattedAddress) {
                         input.value = formattedAddress;
                         formData.client_city_residence = formattedAddress;
-                        formData.client_city_name = cityName;
-                        formData.client_country = countryName;
+                        formData.client_city_name = cityName || formattedAddress.split(',')[0]?.trim() || '';
+                        formData.client_country = countryName || formattedAddress.split(',').pop()?.trim() || '';
                         showToastMessage('Ubicación detectada correctamente');
                     } else {
                         showToastMessage('No se pudo determinar tu ciudad. Ingrésala manualmente.');
@@ -792,9 +832,13 @@ function generateStandardQuestionHtml(q) {
                     <input type="text" id="field-${q.id}" placeholder="@usuario" value="${formData[q.field] || '@'}" oninput="handleInstagramInput(this)">
                 `;
             } else if (q.step === 'city') {
+                const normalizedCityValue = normalizeQuotationLocation(formData[q.field] || '');
+                if (normalizedCityValue && normalizedCityValue !== formData[q.field]) {
+                    formData[q.field] = normalizedCityValue;
+                }
                 inputField = `
                     <div class="city-input-group">
-                        <input type="text" id="field-${q.id}" placeholder="${q.placeholder || ''}" value="${formData[q.field] || ''}">
+                        <input type="text" id="field-${q.id}" placeholder="${q.placeholder || ''}" value="${normalizedCityValue || ''}">
                         <button type="button" class="btn-gps" onclick="useGpsLocation(${q.id})" title="Usar mi ubicación">
                             <i class="fa-solid fa-location-crosshairs"></i>
                         </button>
@@ -1318,7 +1362,7 @@ function preparePayload() {
         artist_instagram: formData.artist_instagram,
         artist_session_cost_amount: formData.artist_session_cost_amount,
         artist_styles: ensureArray(formData.artist_styles),
-        artist_current_city: formData.artist_current_city,
+        artist_current_city: normalizeQuotationLocation(formData.artist_current_city || ''),
         artist_studio_name: formData.artist_studio_name,
         tattoo_body_part: formData.tattoo_body_part,
         tattoo_body_side: formData.tattoo_body_side,
@@ -1333,7 +1377,7 @@ function preparePayload() {
         client_full_name: formData.client_full_name,
         client_email: formData.client_email,
         client_instagram: formData.client_instagram,
-        client_city_residence: formData.client_city_residence,
+        client_city_residence: normalizeQuotationLocation(formData.client_city_residence || ''),
         client_travel_willing: formData.client_travel_willing ? 'true' : 'false',
         city_mismatch_acknowledged: formData.city_mismatch_acknowledged ? 'true' : 'false',
         style_mismatch_acknowledged: formData.style_mismatch_acknowledged ? 'true' : 'false',
@@ -1599,7 +1643,11 @@ function applyReusedClientData(data) {
     if (data.client_whatsapp) formData.client_whatsapp = data.client_whatsapp;
     if (data.client_birth_date) formData.client_birth_date = data.client_birth_date;
     if (data.client_instagram) formData.client_instagram = data.client_instagram;
-    if (data.client_city_residence) formData.client_city_residence = data.client_city_residence;
+    if (data.client_city_residence) {
+        formData.client_city_residence = normalizeQuotationLocation(data.client_city_residence);
+        formData.client_city_name = formData.client_city_residence.split(',')[0]?.trim() || '';
+        formData.client_country = formData.client_city_residence.split(',').pop()?.trim() || '';
+    }
     if (data.client_contact_preference) formData.client_contact_preference = data.client_contact_preference;
     if (data.client_allergies && data.client_allergies !== 'Ninguna') {
         formData.client_allergies = data.client_allergies;
@@ -1773,7 +1821,7 @@ async function searchArtist() {
         formData.artist_email = artist.email;
         formData.artist_instagram = artist.instagram;
         formData.artist_styles = artist.styles_array;
-        formData.artist_current_city = artist.ubicacion;
+        formData.artist_current_city = normalizeQuotationLocation(artist.ubicacion || '');
         formData.artist_studio_name = artist.estudios;
         formData.artist_session_cost_amount = artist.session_price;
         formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram); // Use instagram as fallback
@@ -1940,7 +1988,7 @@ async function getRecommendedArtists() {
         }
 
         // 2. Location match (Medium priority - +50 points)
-        const artistCity = (artist.city || artist.ubicacion || '').split(',')[0].toLowerCase().trim();
+        const artistCity = normalizeQuotationLocation(artist.city || artist.ubicacion || '').split(',')[0].toLowerCase().trim();
         if (artistCity && clientCity) {
             const cityMatch = artistCity.includes(clientCity) || clientCity.includes(artistCity);
             if (cityMatch) {
@@ -2078,7 +2126,7 @@ function renderRecommendationCards(artists) {
                 
                 <div class="recommendation-body">
                     <div class="artist-meta-small">
-                        <span><i class="fa-solid fa-location-dot"></i> ${toTitleCase(artist.ubicacion || 'Ubicación no especificada')}</span>
+                        <span><i class="fa-solid fa-location-dot"></i> ${toTitleCase(normalizeQuotationLocation(artist.ubicacion || '') || 'Ubicación no especificada')}</span>
                         <span class="price-tag"><i class="fa-solid fa-tag"></i> ${artist.session_price || 'Consultar'}</span>
                     </div>
                     
@@ -2109,7 +2157,7 @@ function selectRecommendedArtist(artistId) {
             formData.artist_email = artist.email;
             formData.artist_instagram = artist.instagram;
             formData.artist_styles = Array.isArray(artist.styles_array) ? JSON.stringify(artist.styles_array) : artist.styles_array;
-            formData.artist_current_city = artist.ubicacion;
+            formData.artist_current_city = normalizeQuotationLocation(artist.ubicacion || '');
             formData.artist_studio_name = artist.estudios;
             formData.artist_session_cost_amount = artist.session_price;
             formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram);
@@ -2146,7 +2194,7 @@ function displayArtistCard(artist) {
     // Fill template data
     setText('artist-name-display', toTitleCase(artist.name));
     setText('artist-styles-display', Array.isArray(artist.styles_array) ? artist.styles_array.map(toTitleCase).join(', ') : toTitleCase(artist.styles_array));
-    setText('artist-location-display', toTitleCase(artist.ubicacion));
+    setText('artist-location-display', toTitleCase(normalizeQuotationLocation(artist.ubicacion || '')));
     setText('artist-studio-display', toTitleCase(artist.estudios || 'Independiente'));
     setText('artist-price-display', artist.session_price || 'Consultar');
     
@@ -2184,17 +2232,22 @@ function handleCitySelection() {
     // Try both fixed ID and dynamic ID (field-14)
     const q = questionsConfig[currentStepIndex];
     const cityInput = document.getElementById(`field-${q.id}`) || document.getElementById('client-city');
-    let city = cityInput ? cityInput.value.trim() : '';
+    let city = cityInput ? normalizeQuotationLocation(cityInput.value.trim()) : '';
 
     if (!city) {
         return;
     }
 
-    // Title case the city name
-    city = toTitleCase(city);
-    formData.client_city_residence = city;
+    if (cityInput) {
+        cityInput.value = city;
+    }
 
-    const artistCity = formData.artist_current_city || '';
+    formData.client_city_residence = city;
+    formData.client_city_name = city.split(',')[0]?.trim() || '';
+    formData.client_country = city.split(',').pop()?.trim() || '';
+
+    const artistCity = normalizeQuotationLocation(formData.artist_current_city || '');
+    formData.artist_current_city = artistCity;
     const cleanClientCity = city.split(',')[0].toLowerCase().trim();
     const cleanArtistCity = artistCity.split(',')[0].toLowerCase().trim();
 

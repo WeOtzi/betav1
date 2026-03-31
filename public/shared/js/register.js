@@ -1622,7 +1622,7 @@ async function submitForm() {
         }
 
         // [CH-16] Get preset password from config for storage in artists_db
-        const presetPassword = window.CONFIG?.registration?.presetPassword || 'OtziArtist2025';
+        const presetPassword = window.CONFIG?.registration?.presetPassword || '';
 
         // Final validation of birth_date to prevent "INVALID DATE" errors in DB
         let finalBirthDate = null;

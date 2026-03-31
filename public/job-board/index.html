@@ -6,6 +6,16 @@
     <title>WE OTZI | Job Board - Solicitudes de Tatuajes</title>
     <meta name="description" content="Explora solicitudes de tatuaje abiertas y postulate como artista en We Otzi.">
 
+    <!-- Microsoft Clarity - Behavior Analytics -->
+    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+    </script>
+
     <!-- Fonts - Bauhaus Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,15 +44,32 @@
                 <span class="header-divider">|</span>
                 <span class="header-section">JOB BOARD</span>
             </div>
+            <div class="nav-col nav-col-dashboard-links">
+                <nav class="dashboard-quick-nav" aria-label="Navegacion principal de artista">
+                    <a href="/my-quotations" class="dashboard-quick-link">Cotizaciones</a>
+                    <a href="/my-quotations?tab=applications" class="dashboard-quick-link">Postulaciones</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/calendar" class="dashboard-quick-link">Calendario</a>
+                    <a href="/my-quotations/statistics" class="dashboard-quick-link">Estadisticas</a>
+                </nav>
+                <button class="mobile-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
+                    Menu
+                </button>
+            </div>
             <nav class="header-nav">
-                <a href="/marketplace" class="nav-link">Artistas</a>
-                <a href="/quotation" class="nav-link">Cotizar</a>
                 <a href="#" id="auth-nav-btn" class="nav-link nav-link--accent">
                     <i class="fa-solid fa-right-to-bracket"></i>
                     <span id="auth-nav-label">Iniciar Sesion</span>
                 </a>
             </nav>
         </header>
+        <nav class="dashboard-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegacion movil de artista" hidden>
+            <a href="/my-quotations" class="dashboard-mobile-menu-link">Cotizaciones</a>
+            <a href="/my-quotations?tab=applications" class="dashboard-mobile-menu-link">Postulaciones</a>
+            <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+            <a href="/calendar" class="dashboard-mobile-menu-link">Calendario</a>
+            <a href="/my-quotations/statistics" class="dashboard-mobile-menu-link">Estadisticas</a>
+        </nav>
 
         <!-- Main Content -->
         <main id="marketplace-content">
@@ -142,12 +169,7 @@
         </main>
 
         <!-- Footer -->
-        <footer class="bauhaus-footer">
-            <div class="footer-content">
-                <p class="footer-text">Hecho con amor por We Otzi, para artistas.</p>
-                <p class="footer-copyright">&copy; 2025 We Otzi. Todos los derechos reservados.</p>
-            </div>
-        </footer>
+        <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
     </div>
 
     <!-- Application Modal -->
@@ -216,6 +238,7 @@
 
     <!-- Job Board Script -->
     <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/job-board-feed.js"></script>
 </body>
 </html>

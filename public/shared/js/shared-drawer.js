@@ -285,7 +285,7 @@ window.exportCanvasToPDF = async function() {
     const content = await getCanvasContentAsHTML();
     
     if (!content) {
-        alert('No hay contenido para exportar');
+        window.showToast?.('No hay contenido para exportar', 'info');
         return;
     }
     
@@ -318,7 +318,7 @@ window.exportCanvasToPDF = async function() {
         await html2pdf().set(opt).from(pdfContainer).save();
     } catch (error) {
         console.error('Error exporting PDF:', error);
-        alert('Error al exportar PDF: ' + error.message);
+        window.showToast?.('Error al exportar PDF', 'error');
     }
 };
 
@@ -328,7 +328,7 @@ window.copyCanvasToClipboard = async function() {
     const content = await getCanvasContentAsText();
     
     if (!content && !title) {
-        alert('No hay contenido para copiar');
+        window.showToast?.('No hay contenido para copiar', 'info');
         return;
     }
     
@@ -352,7 +352,7 @@ window.copyCanvasToClipboard = async function() {
         }
     } catch (error) {
         console.error('Error copying to clipboard:', error);
-        alert('Error al copiar: ' + error.message);
+        window.showToast?.('Error al copiar al portapapeles', 'error');
     }
 };
 
@@ -361,7 +361,7 @@ window.copyCanvasToChat = async function() {
     const content = await getCanvasContentAsText();
     
     if (!content) {
-        alert('No hay contenido para enviar al chat');
+        window.showToast?.('No hay contenido para enviar al chat', 'info');
         return;
     }
     
@@ -371,7 +371,7 @@ window.copyCanvasToChat = async function() {
         chatInput.focus();
         closeNoteModal();
     } else {
-        alert('El chat no esta disponible');
+        window.showToast?.('El chat no esta disponible', 'warning');
     }
 };
 
@@ -506,7 +506,7 @@ window.setRatingReason = function(btn, reason) {
 
 window.submitRating = function(quoteId, rating) {
     if (selectedReasons.size === 0) {
-        alert('Por favor selecciona al menos un motivo.');
+        window.showToast?.('Por favor selecciona al menos un motivo', 'warning');
         return;
     }
     const reasonStr = Array.from(selectedReasons).join(', ');
@@ -556,20 +556,52 @@ window.saveRating = async function(quoteId, rating, reason) {
         } catch (e) { /* n8n notification failure should not break main flow */ }
         
         inspectQuote(quoteId);
-    } catch (err) { alert('Error saving rating: ' + err.message); }
+    } catch (err) { window.showToast?.('Error al guardar la calificacion', 'error'); }
 };
 
 // ============================================
 // STATUS & PRIORITY MANAGEMENT
 // ============================================
 
+// Valid state transitions map
+const VALID_STATUS_TRANSITIONS = {
+    'pending': ['responded', 'expired'],
+    'responded': ['client_approved', 'client_rejected', 'expired'],
+    'client_approved': ['in_progress', 'expired'],
+    'client_rejected': ['responded'],
+    'in_progress': ['completed'],
+    'completed': [],
+    'expired': []
+};
+
+const STATUS_LABELS = {
+    'pending': 'PENDIENTE',
+    'responded': 'RESPONDIDA',
+    'client_approved': 'APROBADA',
+    'client_rejected': 'RECHAZADA',
+    'in_progress': 'EN PROGRESO',
+    'completed': 'COMPLETADA',
+    'expired': 'EXPIRADA'
+};
+
 window.updateQuoteStatus = async function(quoteId, newStatus) {
     try {
+        const quote = quotations.find(q => q.id.toString() === quoteId.toString());
+        if (!quote) throw new Error('Cotizacion no encontrada');
+
+        const currentStatus = quote.quote_status;
+        const allowed = VALID_STATUS_TRANSITIONS[currentStatus] || [];
+        if (!allowed.includes(newStatus)) {
+            window.showToast?.(`Transicion no permitida: ${STATUS_LABELS[currentStatus] || currentStatus} → ${STATUS_LABELS[newStatus] || newStatus}`, 'error');
+            inspectQuote(quoteId);
+            return;
+        }
+
         const { error } = await _supabase.from('quotations_db').update({ quote_status: newStatus }).eq('id', quoteId);
         if (error) throw error;
-        const quote = quotations.find(q => q.id.toString() === quoteId.toString());
-        if (quote) quote.quote_status = newStatus;
-        
+        quote.quote_status = newStatus;
+        window.showToast?.(`Estado actualizado: ${STATUS_LABELS[newStatus] || newStatus}`, 'success');
+
         try {
             if (newStatus === 'client_approved' && quote) {
                 window.ConfigManager.sendN8NEvent('client_approved_quotation', {
@@ -613,7 +645,7 @@ window.updateQuotePriority = async function(quoteId, newPriority) {
         if (prioritySelect) prioritySelect.className = `priority-dropdown priority-${newPriority}`;
     } catch (err) { 
         console.error('Error updating priority:', err);
-        alert('Error updating priority: ' + err.message);
+        window.showToast?.('Error al actualizar la prioridad', 'error');
     }
 };
 
@@ -717,7 +749,7 @@ window.saveNote = async function() {
     const dateValue = document.getElementById('note-date').value;
     
     if (!title) {
-        alert('El titulo del canvas es requerido');
+        window.showToast?.('El titulo del canvas es requerido', 'warning');
         return;
     }
     
@@ -756,7 +788,7 @@ window.saveNote = async function() {
         if (quoteIdToRefresh) await inspectQuote(quoteIdToRefresh);
     } catch (err) {
         console.error('Error saving note:', err);
-        alert('Error al guardar el canvas: ' + err.message);
+        window.showToast?.('Error al guardar el canvas', 'error');
     }
 };
 
@@ -784,7 +816,7 @@ window.confirmDeleteNote = async function() {
         if (quoteIdToRefresh) await inspectQuote(quoteIdToRefresh);
     } catch (err) {
         console.error('Error deleting note:', err);
-        alert('Error al eliminar la nota: ' + err.message);
+        window.showToast?.('Error al eliminar la nota', 'error');
     }
 };
 
@@ -991,7 +1023,7 @@ window.saveSession = async function(quoteId) {
     const status = statusEl ? statusEl.value : 'scheduled';
     
     if (!sessionDate) {
-        alert('Por favor selecciona la fecha y hora de la sesion.');
+        window.showToast?.('Por favor selecciona la fecha y hora de la sesion', 'warning');
         return;
     }
     
@@ -1050,7 +1082,7 @@ window.saveSession = async function(quoteId) {
         
     } catch (err) {
         console.error('Error saving session:', err);
-        alert('Error al guardar la sesion: ' + err.message);
+        window.showToast?.('Error al guardar la sesion', 'error');
     }
 };
 
@@ -1106,7 +1138,7 @@ window.updateSessionStatus = async function(sessionId, newStatus, quoteId) {
         
     } catch (err) {
         console.error('Error updating session status:', err);
-        alert('Error al actualizar el estado: ' + err.message);
+        window.showToast?.('Error al actualizar el estado de la sesion', 'error');
     }
 };
 
@@ -1158,7 +1190,7 @@ window.confirmDeleteSession = async function() {
         
     } catch (err) {
         console.error('Error deleting session:', err);
-        alert('Error al eliminar la sesion: ' + err.message);
+        window.showToast?.('Error al eliminar la sesion', 'error');
     }
 };
 
@@ -1428,7 +1460,7 @@ window.sendDrawerChatMessage = async function(quoteId) {
         
     } catch (err) {
         console.error('Error sending message:', err);
-        alert('Error al enviar el mensaje');
+        window.showToast?.('Error al enviar el mensaje', 'error');
     }
 };
 
@@ -1709,12 +1741,12 @@ window.submitConfirmation = async function(quoteId) {
     const firstSessionDate = document.getElementById('confirm-first-session-date').value;
 
     if (!amount) {
-        alert('Por favor ingresa el monto final.');
+        window.showToast?.('Por favor ingresa el monto final', 'warning');
         return;
     }
 
     if (!firstSessionDate) {
-        alert('Por favor selecciona la fecha de la primera sesion.');
+        window.showToast?.('Por favor selecciona la fecha de la primera sesion', 'warning');
         return;
     }
 
@@ -1781,11 +1813,11 @@ window.submitConfirmation = async function(quoteId) {
         if (typeof updateStats === 'function') updateStats();
         inspectQuote(quoteId);
         
-        alert('Cotizacion confirmada y primera sesion agendada correctamente.');
+        window.showToast?.('Cotizacion confirmada y primera sesion agendada', 'success');
 
     } catch (err) {
         console.error('Error confirming quote:', err);
-        alert('Error al confirmar: ' + err.message);
+        window.showToast?.('Error al confirmar la cotizacion', 'error');
     }
 };
 
@@ -1920,6 +1952,12 @@ window.saveQuoteEdits = async function(quoteId) {
     const size = document.getElementById('edit-size').value;
     const color = document.getElementById('edit-color').value;
 
+    // Validar campos requeridos
+    if (!description || description.trim() === '') {
+        window.showToast?.('La descripcion del tatuaje es obligatoria', 'warning');
+        return;
+    }
+
     try {
         const updateData = {
             artist_budget_amount: price || null,
@@ -1957,11 +1995,11 @@ window.saveQuoteEdits = async function(quoteId) {
         if (typeof applyFiltersAndSort === 'function') applyFiltersAndSort();
         inspectQuote(quoteId);
         
-        alert('Cambios guardados correctamente.');
+        window.showToast?.('Cambios guardados correctamente', 'success');
 
     } catch (err) {
         console.error('Error saving quote edits:', err);
-        alert('Error al guardar cambios: ' + err.message);
+        window.showToast?.('Error al guardar los cambios', 'error');
     }
 };
 
@@ -1971,7 +2009,7 @@ window.submitResponse = async function(quoteId) {
     const sessions = document.getElementById('response-sessions').value;
 
     if (!price) {
-        alert('Por favor ingresa tu presupuesto.');
+        window.showToast?.('Por favor ingresa tu presupuesto', 'warning');
         return;
     }
 
@@ -2021,11 +2059,11 @@ window.submitResponse = async function(quoteId) {
         if (typeof updateStats === 'function') updateStats();
         inspectQuote(quoteId);
         
-        alert('Respuesta enviada correctamente.');
+        window.showToast?.('Respuesta enviada correctamente', 'success');
 
     } catch (err) {
         console.error('Error submitting response:', err);
-        alert('Error al enviar respuesta: ' + err.message);
+        window.showToast?.('Error al enviar la respuesta', 'error');
     }
 };
 
@@ -2039,7 +2077,8 @@ window.inspectQuote = async function(quoteId, options = {}) {
     const quote = quotations.find(q => q.id.toString() === quoteId.toString());
     if (!quote) return;
     const drawerContent = document.getElementById('drawer-content');
-    
+    if (!drawerContent) return;
+
     await loadNotesForQuote(parseInt(quoteId));
     
     // Load sessions for completed quotes
@@ -2081,14 +2120,23 @@ window.inspectQuote = async function(quoteId, options = {}) {
             </div>`;
     } else if (!readOnly) {
         let primaryAction = '';
-        if (quote.quote_status === 'pending') {
+        const qs = quote.quote_status;
+        if (qs === 'pending') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="openResponseModal('${quote.id}')">RESPONDER</button>`;
-        } else if (quote.quote_status === 'responded') {
+        } else if (qs === 'responded') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="openConfirmModal('${quote.id}')">CONFIRMAR</button>`;
-        } else if (quote.quote_status === 'client_approved') {
-            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="openConfirmModal('${quote.id}')">CONFIRMAR</button>`;
-        } else {
+        } else if (qs === 'client_approved') {
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;" onclick="updateQuoteStatus('${quote.id}', 'in_progress')">INICIAR TRABAJO</button>`;
+        } else if (qs === 'client_rejected') {
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-red, #C62828); color: white;" onclick="openResponseModal('${quote.id}')">REENVIAR</button>`;
+        } else if (qs === 'in_progress') {
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;" onclick="updateQuoteStatus('${quote.id}', 'completed')">MARCAR COMPLETADO</button>`;
+        } else if (qs === 'completed') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>COMPLETADO</button>`;
+        } else if (qs === 'expired') {
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>EXPIRADA</button>`;
+        } else {
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>&mdash;</button>`;
         }
 
         actionButtonsHtml = `
@@ -2105,11 +2153,8 @@ window.inspectQuote = async function(quoteId, options = {}) {
             <p style="font-family: 'Space Mono'; font-size: 0.8rem; color: var(--bauhaus-red);">RECORD_ID: ${quote.quote_id || quote.id}</p>
             <div class="status-priority-row">
                 <select onchange="updateQuoteStatus('${quote.id}', this.value)" class="status-dropdown" ${readOnly ? 'disabled' : ''}>
-                    <option value="pending" ${quote.quote_status === 'pending' ? 'selected' : ''}>PENDING</option>
-                    <option value="responded" ${quote.quote_status === 'responded' ? 'selected' : ''}>RESPONDED</option>
-                    <option value="client_approved" ${quote.quote_status === 'client_approved' ? 'selected' : ''}>CLIENT APPROVED</option>
-                    <option value="client_rejected" ${quote.quote_status === 'client_rejected' ? 'selected' : ''}>CLIENT REJECTED</option>
-                    <option value="completed" ${quote.quote_status === 'completed' ? 'selected' : ''}>COMPLETED</option>
+                    <option value="${quote.quote_status}" selected>${STATUS_LABELS[quote.quote_status] || quote.quote_status.toUpperCase()}</option>
+                    ${(VALID_STATUS_TRANSITIONS[quote.quote_status] || []).map(s => `<option value="${s}">${STATUS_LABELS[s] || s.toUpperCase()}</option>`).join('')}
                 </select>
                 <select onchange="updateQuotePriority('${quote.id}', this.value)" class="priority-dropdown priority-${currentPriority}" ${readOnly ? 'disabled' : ''}>
                     <option value="low" ${currentPriority === 'low' ? 'selected' : ''}>BAJA</option>
@@ -2180,6 +2225,22 @@ window.inspectQuote = async function(quoteId, options = {}) {
     }, 100);
 };
 
+// Cleanup chat subscription when drawer is closed via checkbox toggle (X button or backdrop click)
+document.addEventListener('DOMContentLoaded', () => {
+    const drawerToggle = document.getElementById('drawer-toggle');
+    if (drawerToggle) {
+        drawerToggle.addEventListener('change', () => {
+            if (!drawerToggle.checked) {
+                if (chatChannel) {
+                    _supabase.removeChannel(chatChannel);
+                    chatChannel = null;
+                }
+                currentChatQuoteId = null;
+            }
+        });
+    }
+});
+
 // Archive-specific actions
 window.bulkArchiveSingle = window.bulkArchiveSingle || async function(id) {
     if (typeof selectedQuotes !== 'undefined') {
@@ -2187,6 +2248,11 @@ window.bulkArchiveSingle = window.bulkArchiveSingle || async function(id) {
         selectedQuotes.add(id.toString());
         if (typeof bulkArchive === 'function') await bulkArchive();
     }
+    if (chatChannel) {
+        _supabase.removeChannel(chatChannel);
+        chatChannel = null;
+    }
+    currentChatQuoteId = null;
     document.getElementById('drawer-toggle').checked = false;
 };
 
@@ -2194,9 +2260,14 @@ window.unarchiveSingle = window.unarchiveSingle || async function(id) {
     try {
         const { error } = await _supabase.from('quotations_db').update({ is_archived: false }).eq('id', id);
         if (error) throw error;
+        if (chatChannel) {
+            _supabase.removeChannel(chatChannel);
+            chatChannel = null;
+        }
+        currentChatQuoteId = null;
         document.getElementById('drawer-toggle').checked = false;
         if (typeof loadQuotations === 'function') await loadQuotations();
-    } catch (err) { alert('Error unarchiving: ' + err.message); }
+    } catch (err) { window.showToast?.('Error al desarchivar la cotizacion', 'error'); }
 };
 
 window.deleteSingle = window.deleteSingle || async function(id) {
@@ -2204,7 +2275,12 @@ window.deleteSingle = window.deleteSingle || async function(id) {
     try {
         const { error } = await _supabase.from('quotations_db').delete().eq('id', id);
         if (error) throw error;
+        if (chatChannel) {
+            _supabase.removeChannel(chatChannel);
+            chatChannel = null;
+        }
+        currentChatQuoteId = null;
         document.getElementById('drawer-toggle').checked = false;
         if (typeof loadQuotations === 'function') await loadQuotations();
-    } catch (err) { alert('Error deleting: ' + err.message); }
+    } catch (err) { window.showToast?.('Error al eliminar la cotizacion', 'error'); }
 };

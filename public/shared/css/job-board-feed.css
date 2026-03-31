@@ -92,6 +92,7 @@ body::before {
     align-items: center;
     padding: 0 2rem;
     height: 60px;
+    gap: 0.75rem;
     transition: background-color var(--transition);
 }
 
@@ -130,6 +131,80 @@ body::before {
     display: flex;
     gap: 0.75rem;
     align-items: center;
+}
+
+.nav-col-dashboard-links {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.dashboard-quick-nav {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+}
+
+.dashboard-quick-link {
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.75rem;
+    border-right: 2px solid var(--fg);
+    text-decoration: none;
+    font-family: 'JetBrains Mono', 'Space Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--fg);
+    background: var(--bg);
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.dashboard-quick-link:last-child {
+    border-right: none;
+}
+
+.dashboard-quick-link:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.dashboard-quick-link-job-board {
+    color: var(--fg);
+}
+
+.dashboard-quick-link-job-board:hover {
+    background: var(--primary-red);
+    color: #fff;
+}
+
+.mobile-menu-toggle {
+    display: none;
+}
+
+.dashboard-mobile-menu {
+    display: none;
+}
+
+.dashboard-mobile-menu[hidden] {
+    display: none !important;
+}
+
+@keyframes dashboard-menu-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .nav-link {
@@ -1018,13 +1093,39 @@ body::before {
 .footer-text {
     font-family: var(--font-technical);
     font-size: 0.7rem;
-    font-weight: 400;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.footer-social {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+.social-icon {
+    color: var(--bg);
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.social-icon:hover {
+    color: var(--primary-red);
+    transform: translateY(-3px);
 }
 
 .footer-copyright {
     font-family: var(--font-technical);
-    font-size: 0.65rem;
-    opacity: 0.6;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
 }
 
 /* --- UTILITY CLASSES --- */
@@ -1045,6 +1146,11 @@ body::before {
 
 /* 1200px: 3 columns */
 @media (max-width: 1200px) {
+    .dashboard-quick-link {
+        padding: 0 0.5rem;
+        font-size: 0.56rem;
+    }
+
     .marketplace-grid {
         grid-template-columns: repeat(3, 1fr);
         gap: 20px;
@@ -1095,6 +1201,85 @@ body::before {
 
     .app-header {
         padding: 0 1rem;
+        justify-content: space-between;
+    }
+
+    .dashboard-quick-nav {
+        display: none;
+    }
+
+    .mobile-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--fg);
+        background: var(--bg);
+        color: var(--fg);
+        font-family: 'JetBrains Mono', 'Space Mono', monospace;
+        font-size: 0.75rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-weight: 700;
+        min-height: 36px;
+        padding: 0 0.85rem;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .mobile-menu-toggle:hover,
+    .mobile-menu-toggle[aria-expanded="true"] {
+        background: var(--primary-yellow);
+        color: var(--text-on-light);
+    }
+
+    .dashboard-mobile-menu {
+        position: fixed;
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: calc(60px + env(safe-area-inset-bottom));
+        z-index: 1100;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        border: 3px solid var(--fg);
+        background: var(--fg);
+        animation: dashboard-menu-reveal 0.2s ease;
+    }
+
+    .dashboard-mobile-menu-link {
+        min-height: 56px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-family: 'JetBrains Mono', 'Space Mono', monospace;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--fg);
+        background: var(--bg);
+        border-right: 2px solid var(--fg);
+        border-bottom: 2px solid var(--fg);
+        transition: background 0.16s ease, color 0.16s ease;
+    }
+
+    .dashboard-mobile-menu-link:nth-child(2n) {
+        border-right: none;
+    }
+
+    .dashboard-mobile-menu-link:last-child {
+        border-bottom: none;
+    }
+
+    .dashboard-mobile-menu-link:hover {
+        background: var(--fg);
+        color: var(--bg);
+    }
+
+    .dashboard-mobile-menu-link-job-board {
+        background: var(--primary-red);
+        color: #fff;
     }
 
     .nav-link {
@@ -1155,6 +1340,12 @@ body::before {
         flex-direction: column;
         align-items: center;
         text-align: center;
+        gap: 16px;
+    }
+
+    .footer-text,
+    .footer-copyright {
+        font-size: 0.6rem;
     }
 }
 
@@ -1182,6 +1373,12 @@ body::before {
     .app-header {
         height: 50px;
         padding: 0 0.75rem;
+    }
+
+    .mobile-menu-toggle {
+        min-height: 32px;
+        font-size: 0.68rem;
+        padding: 0 0.65rem;
     }
 
     .header-logo {
@@ -1248,6 +1445,27 @@ body::before {
 
     .modal-container--sm {
         max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-content {
+        gap: 10px;
+    }
+
+    .footer-text,
+    .footer-copyright {
+        display: none;
+    }
+
+    .footer-content::before {
+        content: 'WE ÖTZI';
+        font-family: var(--font-technical);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--bg);
     }
 }
 

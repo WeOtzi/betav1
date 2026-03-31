@@ -21,6 +21,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
     <!-- Styles -->
     <link rel="stylesheet" href="/shared/css/admin-styles.css">
 </head>
@@ -62,6 +65,10 @@
                 <a href="#" class="nav-item" data-section="content">
                     <i class="fa-solid fa-pen-to-square"></i>
                     <span>Contenido</span>
+                </a>
+                <a href="#" class="nav-item" data-section="analytics">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Analytics</span>
                 </a>
 
                 <!-- Super Admin Divider -->
@@ -118,7 +125,7 @@
                 </div>
             </header>
 
-            <!-- Dashboard Section -->
+            <!-- Dashboard Section — Centro de Comando -->
             <section id="section-dashboard" class="content-section active">
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -168,15 +175,87 @@
                     </div>
                 </div>
 
-                <div class="dashboard-grid">
+                <!-- Quotations Trend Chart + Artists Breakdown -->
+                <div class="dashboard-charts-row">
+                    <div class="card dash-chart-wide">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> Cotizaciones por Semana</h3>
+                            <div class="chart-legend-inline">
+                                <span class="legend-dot" style="background: var(--primary-color);"></span> Nuevas
+                                <span class="legend-dot" style="background: var(--success-color); margin-left: 12px;"></span> Completadas
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 260px;">
+                                <canvas id="chart-dash-quotations"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card dash-chart-small">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-palette"></i> Artistas</h3>
+                            <a href="#" class="btn-link" onclick="showSection('artists')">Ver todos</a>
+                        </div>
+                        <div class="card-body">
+                            <div id="dash-artists-breakdown" class="artists-breakdown">
+                                <div class="breakdown-row">
+                                    <span class="breakdown-label"><i class="fa-solid fa-circle" style="color: var(--success-color); font-size: 8px;"></i> Activos</span>
+                                    <span class="breakdown-value" id="dash-artists-active">--</span>
+                                </div>
+                                <div class="breakdown-row">
+                                    <span class="breakdown-label"><i class="fa-solid fa-circle" style="color: var(--text-muted); font-size: 8px;"></i> Inactivos</span>
+                                    <span class="breakdown-value" id="dash-artists-inactive">--</span>
+                                </div>
+                                <div class="breakdown-row">
+                                    <span class="breakdown-label"><i class="fa-solid fa-circle-check" style="color: var(--info-color); font-size: 8px;"></i> Verificados</span>
+                                    <span class="breakdown-value" id="dash-artists-verified">--</span>
+                                </div>
+                                <div class="breakdown-row">
+                                    <span class="breakdown-label"><i class="fa-solid fa-clock" style="color: var(--warning-color); font-size: 8px;"></i> Pendiente Verif.</span>
+                                    <span class="breakdown-value" id="dash-artists-pending">--</span>
+                                </div>
+                            </div>
+                            <div class="chart-container" style="height: 140px; margin-top: 12px;">
+                                <canvas id="chart-dash-artists"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity + Services + Tickets Row -->
+                <div class="dashboard-triple-grid">
+                    <!-- Recent Quotations + Realtime Activity -->
                     <div class="card">
                         <div class="card-header">
-                            <h3>Últimas Cotizaciones</h3>
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Últimas Cotizaciones</h3>
                             <a href="#" class="btn-link" onclick="showSection('quotations')">Ver todas</a>
                         </div>
                         <div class="card-body">
                             <div id="recent-quotations" class="recent-list">
-                                <p class="empty-state">Conecta Supabase para ver cotizaciones</p>
+                                <div class="empty-state-box" style="padding: 24px;">
+                                    <i class="fa-solid fa-inbox"></i>
+                                    <span class="empty-title">Sin cotizaciones recientes</span>
+                                    <span class="empty-desc">Conecta Supabase para ver los datos.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="realtime-activity-card">
+                        <div class="card-header">
+                            <h3>Actividad en Tiempo Real</h3>
+                            <span class="realtime-indicator" id="realtime-indicator">
+                                <i class="fa-solid fa-circle fa-beat-fade" style="color: #3ecf8e; font-size: 8px;"></i>
+                                <span class="technical-label">LIVE</span>
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div id="realtime-feed" class="realtime-feed">
+                                <div class="empty-state-box" style="padding: 24px;">
+                                    <i class="fa-solid fa-satellite-dish"></i>
+                                    <span class="empty-title">Esperando actividad...</span>
+                                    <span class="empty-desc">Los eventos apareceran aqui en tiempo real.</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -297,11 +376,13 @@
                             </tr>
                         </thead>
                         <tbody id="quotations-tbody">
-                            <tr>
-                                <td colspan="8" class="empty-state">
-                                    Conecta Supabase para ver cotizaciones
-                                </td>
-                            </tr>
+                            <tr><td colspan="8" style="padding: 0;">
+                                <div class="empty-state-box">
+                                    <i class="fa-solid fa-plug"></i>
+                                    <span class="empty-title">Sin conexion a Supabase</span>
+                                    <span class="empty-desc">Configura la conexion para ver cotizaciones.</span>
+                                </div>
+                            </td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -344,11 +425,13 @@
                             </tr>
                         </thead>
                         <tbody id="artists-tbody">
-                            <tr>
-                                <td colspan="6" class="empty-state">
-                                    Conecta Supabase para ver artistas
-                                </td>
-                            </tr>
+                            <tr><td colspan="6" style="padding: 0;">
+                                <div class="empty-state-box">
+                                    <i class="fa-solid fa-plug"></i>
+                                    <span class="empty-title">Sin conexion a Supabase</span>
+                                    <span class="empty-desc">Configura la conexion o activa Modo Demo.</span>
+                                </div>
+                            </td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -402,7 +485,10 @@
                 </div>
 
                 <div id="tattoo-styles-tree" class="styles-tree-container">
-                    <div class="empty-state">Cargando estilos...</div>
+                    <div class="section-loader">
+                        <div class="spinner"></div>
+                        <span class="loader-text">Cargando estilos...</span>
+                    </div>
                 </div>
 
                 <div class="styles-stats" id="styles-stats" style="margin-top: 20px; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
@@ -1033,7 +1119,10 @@
                 <!-- Tables Grid -->
                 <div class="tables-grid" id="tables-grid">
                     <!-- Tables loaded by JS -->
-                    <div class="empty-state">Cargando tablas...</div>
+                    <div class="section-loader">
+                        <div class="spinner"></div>
+                        <span class="loader-text">Cargando tablas...</span>
+                    </div>
                 </div>
             </section>
 
@@ -1081,9 +1170,12 @@
                             </tr>
                         </thead>
                         <tbody id="routes-tbody">
-                            <tr>
-                                <td colspan="4" class="empty-state">Cargando rutas...</td>
-                            </tr>
+                            <tr><td colspan="4" style="padding: 0;">
+                                <div class="section-loader">
+                                    <div class="spinner"></div>
+                                    <span class="loader-text">Cargando rutas...</span>
+                                </div>
+                            </td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1259,7 +1351,11 @@
                     </div>
                     <div class="card-body">
                         <div id="backup-history" class="backup-history">
-                            <p class="empty-state">No hay backups registrados</p>
+                            <div class="empty-state-box" style="padding: 24px;">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span class="empty-title">No hay backups registrados</span>
+                                <span class="empty-desc">Crea un backup del sistema para comenzar.</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1294,11 +1390,13 @@
                             </tr>
                         </thead>
                         <tbody id="support-users-tbody">
-                            <tr>
-                                <td colspan="6" class="empty-state">
-                                    Conecta Supabase para ver usuarios de soporte
-                                </td>
-                            </tr>
+                            <tr><td colspan="6" style="padding: 0;">
+                                <div class="empty-state-box">
+                                    <i class="fa-solid fa-plug"></i>
+                                    <span class="empty-title">Sin conexion a Supabase</span>
+                                    <span class="empty-desc">Configura la conexion para ver usuarios de soporte.</span>
+                                </div>
+                            </td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1329,11 +1427,12 @@
                             </tr>
                         </thead>
                         <tbody id="events-tbody">
-                            <tr>
-                                <td colspan="5" class="empty-state">
-                                    Cargando eventos...
-                                </td>
-                            </tr>
+                            <tr><td colspan="5" style="padding: 0;">
+                                <div class="section-loader">
+                                    <div class="spinner"></div>
+                                    <span class="loader-text">Cargando eventos...</span>
+                                </div>
+                            </td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1351,6 +1450,165 @@
                     </ul>
                 </div>
             </section>
+
+            <!-- Analytics Section -->
+            <section id="section-analytics" class="content-section">
+                <!-- Period Selector -->
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Metricas de uso de la plataforma. Datos de usuarios, dispositivos, paginas y errores.
+                    </p>
+                    <div class="filter-group">
+                        <select id="analytics-period" onchange="loadAnalyticsData()">
+                            <option value="7d">Ultimos 7 dias</option>
+                            <option value="30d" selected>Ultimos 30 dias</option>
+                            <option value="90d">Ultimos 90 dias</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadAnalyticsData()">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metric Cards -->
+                <div class="analytics-stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--info-color);">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="analytics-total-users">--</span>
+                            <span class="stat-label">Usuarios Totales</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(34, 197, 94, 0.15); color: var(--success-color);">
+                            <i class="fa-solid fa-user-plus"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="analytics-new-users">--</span>
+                            <span class="stat-label">Nuevos este Mes</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">
+                            <i class="fa-solid fa-signal"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="analytics-active-sessions">--</span>
+                            <span class="stat-label">Sesiones Activas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--error-color);">
+                            <i class="fa-solid fa-bug"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="analytics-error-sessions">--</span>
+                            <span class="stat-label">Sesiones con Error</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1: Users over time + Devices -->
+                <div class="analytics-charts-row">
+                    <div class="card analytics-chart-card analytics-chart-wide">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-chart-area"></i> Usuarios Registrados</h3>
+                            <div class="chart-legend-inline">
+                                <span class="legend-dot" style="background: var(--primary-color);"></span> Clientes
+                                <span class="legend-dot" style="background: var(--info-color); margin-left: 12px;"></span> Artistas
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 280px;">
+                                <canvas id="chart-users-timeline"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card analytics-chart-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-mobile-screen-button"></i> Dispositivos</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 280px;">
+                                <canvas id="chart-devices"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2: Countries + Pages table -->
+                <div class="analytics-charts-row">
+                    <div class="card analytics-chart-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-earth-americas"></i> Top Paises</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 280px;">
+                                <canvas id="chart-countries"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card analytics-chart-card analytics-chart-wide">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-file"></i> Paginas mas Visitadas</h3>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                                <table class="data-table analytics-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Pagina</th>
+                                            <th>Visitas</th>
+                                            <th>% del Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="analytics-pages-tbody">
+                                        <tr><td colspan="3" style="padding: 0;">
+                                            <div class="section-loader">
+                                                <div class="spinner"></div>
+                                                <span class="loader-text">Cargando...</span>
+                                            </div>
+                                        </td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Sessions Table -->
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-triangle-exclamation"></i> Sesiones con Errores</h3>
+                        <span class="badge" style="background: var(--error-color); color: white;" id="analytics-error-badge">0</span>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                            <table class="data-table analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pagina</th>
+                                        <th>Error</th>
+                                        <th>Ocurrencias</th>
+                                        <th>Ultima vez</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-errors-tbody">
+                                    <tr><td colspan="4" style="padding: 0;">
+                                        <div class="section-loader">
+                                            <div class="spinner"></div>
+                                            <span class="loader-text">Cargando...</span>
+                                        </div>
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
     </div>
 

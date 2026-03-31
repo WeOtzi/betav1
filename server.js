@@ -8,10 +8,12 @@ try { require('dotenv').config(); } catch (e) { /* dotenv not installed, using s
 
 const express = require('express');
 const path = require('path');
-const fetch = require('node-fetch');
 const { Readable } = require('stream');
 const archiver = require('archiver');
 const fs = require('fs-extra');
+const helmet = require('helmet');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 4545;
@@ -52,6 +54,56 @@ setInterval(() => {
     }
 }, 30000);
 
+// ============================================
+// SECURITY MIDDLEWARE
+// ============================================
+
+// Helmet: Security headers
+app.use(helmet({
+    contentSecurityPolicy: false, // Disabled — app uses inline scripts and CDN resources
+    crossOriginEmbedderPolicy: false
+}));
+
+// CORS: Restrict origins
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:4545')
+    .split(',')
+    .map(o => o.trim());
+
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (server-to-server, curl, mobile apps)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+}));
+
+// Rate limiting: General API endpoints
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many requests, please try again later.' }
+});
+
+// Rate limiting: Sensitive endpoints (auth, password)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many authentication attempts, please try again later.' }
+});
+
+// Apply rate limits
+app.use('/api/', apiLimiter);
+app.use('/api/admin/update-user-password', authLimiter);
+app.use('/api/auth/reset-temp-password', authLimiter);
+
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -63,26 +115,28 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 /**
  * Generate image using Gemini API
  * POST /api/gemini/generate-image
- * Body: { prompt, apiKey, model, aspectRatio, imageSize }
+ * Body: { prompt, model, aspectRatio, imageSize }
+ * API key read from process.env (NEVER from frontend)
  */
 app.post('/api/gemini/generate-image', async (req, res) => {
-    const { 
-        prompt, 
-        apiKey, 
-        model, 
-        aspectRatio, 
-        imageSize, 
-        temperature, 
-        maxOutputTokens, 
-        safetySettings 
+    const {
+        prompt,
+        model,
+        aspectRatio,
+        imageSize,
+        temperature,
+        maxOutputTokens,
+        safetySettings
     } = req.body;
+
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!prompt) {
         return res.status(400).json({ success: false, error: 'Prompt is required' });
     }
 
     if (!apiKey) {
-        return res.status(400).json({ success: false, error: 'API Key is required' });
+        return res.status(500).json({ success: false, error: 'Server missing GEMINI_API_KEY environment variable' });
     }
 
     try {
@@ -451,7 +505,7 @@ async function uploadFileToFolder(drive, folderId, file) {
             throw new Error(`Failed to download file: HTTP ${response.status} ${response.statusText}. Body: ${errorBody.substring(0, 200)}`);
         }
         
-        const buffer = await response.buffer();
+        const buffer = Buffer.from(await response.arrayBuffer());
         console.log(`[Upload] Downloaded ${buffer.length} bytes in ${Date.now() - startTime}ms`);
         
         if (buffer.length === 0) {
@@ -539,24 +593,57 @@ app.get('/api/client-info', (req, res) => {
  * Receive session log data via sendBeacon on page unload
  * This endpoint handles the final persist when user leaves the page
  * POST /api/session-log
+ * Also resolves IP geolocation (country/city) and updates the session_logs record
  */
 app.post('/api/session-log', async (req, res) => {
-    // This is a fire-and-forget endpoint for sendBeacon
-    // We just acknowledge receipt - the actual storage is handled client-side via Supabase
-    // This is a fallback/backup mechanism
-    
     const { session_id, session_log_id, log_data, log_entries_count, has_errors, error_count, ended_at } = req.body;
-    
+
     if (!session_id) {
         return res.status(400).json({ success: false, error: 'Session ID required' });
     }
-    
+
     console.log(`[Session Log] Received final log for session ${session_id}: ${log_entries_count} entries, ${error_count} errors`);
-    
-    // Acknowledge receipt
-    // Note: The actual update to Supabase should be done here if client-side persist fails
-    // For now, we just log it - the client handles Supabase persistence
+
+    // Respond immediately (fire-and-forget for sendBeacon)
     res.status(200).json({ success: true, received: true });
+
+    // Background: resolve IP geolocation and update the record
+    if (session_log_id) {
+        try {
+            const cfg = getHealthConfig();
+            if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) return;
+
+            // Get the client IP from the request
+            const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+                || req.headers['x-real-ip']
+                || req.socket.remoteAddress;
+
+            const isLocal = !clientIp || clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
+
+            if (!isLocal) {
+                const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city`, {
+                    signal: AbortSignal.timeout(3000)
+                });
+                const geo = await geoRes.json();
+
+                if (geo.status === 'success' && (geo.country || geo.city)) {
+                    await fetch(`${cfg.supabaseUrl}/rest/v1/session_logs?id=eq.${session_log_id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': cfg.supabaseServiceKey,
+                            'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({ country: geo.country, city: geo.city })
+                    });
+                    console.log(`[Session Log] Geo resolved for ${session_log_id}: ${geo.city}, ${geo.country}`);
+                }
+            }
+        } catch (err) {
+            console.error(`[Session Log] Geo resolution failed for ${session_log_id}:`, err.message);
+        }
+    }
 });
 
 // ============================================
@@ -566,25 +653,36 @@ app.post('/api/session-log', async (req, res) => {
 /**
  * Update user password using Supabase Admin API
  * POST /api/admin/update-user-password
- * Body: { userId, newPassword, supabaseUrl, serviceRoleKey }
+ * Body: { userId, newPassword }
+ * Keys read from process.env (NEVER from frontend)
  */
 app.post('/api/admin/update-user-password', async (req, res) => {
-    const { userId, newPassword, supabaseUrl, serviceRoleKey } = req.body;
-    
-    if (!userId || !newPassword || !supabaseUrl || !serviceRoleKey) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Faltan parametros requeridos (userId, newPassword, supabaseUrl, serviceRoleKey)' 
+    const { userId, newPassword } = req.body;
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({
+            success: false,
+            error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables'
         });
     }
-    
+
+    if (!userId || !newPassword) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parametros requeridos (userId, newPassword)'
+        });
+    }
+
     if (newPassword.length < 6) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'La contrasena debe tener al menos 6 caracteres' 
+        return res.status(400).json({
+            success: false,
+            error: 'La contrasena debe tener al menos 6 caracteres'
         });
     }
-    
+
     try {
         // Use Supabase Admin API to update user password
         const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
@@ -1052,7 +1150,7 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.googleMaps = config.googleMaps || {};
             config.googleMaps.apiKey = process.env.GOOGLE_MAPS_API_KEY;
         }
-        
+
         // n8n configuration
         if (process.env.N8N_WEBHOOK_URL) {
             config.n8n = config.n8n || {};
@@ -1516,6 +1614,748 @@ app.post('/api/client/quotations/:quoteId/hide', async (req, res) => {
     } catch (error) {
         console.error('[Client Hide] Error:', error.message);
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================
+// HEALTH CHECK ENDPOINTS
+// ============================================
+
+/**
+ * Helper: read config for health checks (env vars override file config)
+ */
+function getHealthConfig() {
+    const configPath = path.join(__dirname, 'public', 'shared', 'js', 'app-config.json');
+    let config = {};
+    try {
+        if (fs.pathExistsSync(configPath)) {
+            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        }
+    } catch (e) { /* use empty config */ }
+
+    return {
+        supabaseUrl: process.env.SUPABASE_URL || config.supabase?.url || '',
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY || config.supabase?.anonKey || '',
+        supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+        storageBucket: process.env.SUPABASE_STORAGE_BUCKET || config.supabase?.storageBucket || 'quotation-references',
+        googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || config.googleMaps?.apiKey || '',
+        n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || config.n8n?.webhookUrl || '',
+        geminiApiKey: process.env.GEMINI_API_KEY || config.gemini?.apiKey || '',
+        emailjsServiceId: process.env.EMAILJS_SERVICE_ID || config.emailjs?.serviceId || '',
+        emailjsPublicKey: process.env.EMAILJS_PUBLIC_KEY || config.emailjs?.publicKey || '',
+        gdriveCredentials: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT || config.googleDrive?.serviceAccountJson || '',
+        gdriveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID || config.googleDrive?.mainFolderId || '',
+        gcalClientId: config.googleCalendar?.clientId || '',
+        gcalApiKey: config.googleCalendar?.apiKey || '',
+        gcalEnabled: config.googleCalendar?.enabled || false
+    };
+}
+
+/**
+ * Helper: log health check result to Supabase
+ */
+async function logHealthCheck(cfg, serviceName, status, latencyMs, errorMessage, metadata) {
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
+    try {
+        await fetch(`${cfg.supabaseUrl}/rest/v1/service_health_logs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseAnonKey,
+                'Authorization': `Bearer ${cfg.supabaseAnonKey}`
+            },
+            body: JSON.stringify({
+                service_name: serviceName,
+                status,
+                latency_ms: latencyMs,
+                error_message: errorMessage || null,
+                metadata: metadata || {},
+                checked_by: 'server'
+            })
+        });
+    } catch (e) {
+        console.error(`[HealthLog] Failed to log ${serviceName}:`, e.message);
+    }
+}
+
+/**
+ * Check a single service health
+ */
+async function checkServiceHealth(serviceName, cfg) {
+    const start = Date.now();
+    let status = 'unconfigured';
+    let error = null;
+    let metadata = {};
+
+    try {
+        switch (serviceName) {
+            case 'supabase': {
+                if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) break;
+                // Test 1: REST API query
+                const dbRes = await fetch(
+                    `${cfg.supabaseUrl}/rest/v1/artists_db?select=id&limit=1`,
+                    {
+                        headers: {
+                            'apikey': cfg.supabaseAnonKey,
+                            'Authorization': `Bearer ${cfg.supabaseAnonKey}`
+                        }
+                    }
+                );
+                if (!dbRes.ok) throw new Error(`DB query failed: HTTP ${dbRes.status}`);
+                metadata.dbQuery = 'ok';
+
+                // Test 2: Storage bucket accessible
+                const storageRes = await fetch(
+                    `${cfg.supabaseUrl}/storage/v1/bucket/${cfg.storageBucket}`,
+                    {
+                        headers: {
+                            'apikey': cfg.supabaseAnonKey,
+                            'Authorization': `Bearer ${cfg.supabaseAnonKey}`
+                        }
+                    }
+                );
+                metadata.storageBucket = storageRes.ok ? 'ok' : `HTTP ${storageRes.status}`;
+
+                status = dbRes.ok && storageRes.ok ? 'healthy' : 'degraded';
+                break;
+            }
+
+            case 'n8n': {
+                if (!cfg.n8nWebhookUrl) break;
+                // Use HEAD request to avoid triggering webhook actions
+                const n8nRes = await fetch(cfg.n8nWebhookUrl, {
+                    method: 'HEAD',
+                    signal: AbortSignal.timeout(10000)
+                });
+                // n8n webhooks may return various codes; anything other than network error = reachable
+                metadata.httpStatus = n8nRes.status;
+                status = (n8nRes.status < 500) ? 'healthy' : 'degraded';
+                break;
+            }
+
+            case 'gemini': {
+                if (!cfg.geminiApiKey) break;
+                // List models endpoint — lightweight, no token consumption
+                const geminiRes = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models?key=${cfg.geminiApiKey}&pageSize=1`,
+                    { signal: AbortSignal.timeout(10000) }
+                );
+                if (!geminiRes.ok) {
+                    const errData = await geminiRes.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP ${geminiRes.status}`);
+                }
+                status = 'healthy';
+                break;
+            }
+
+            case 'google-maps': {
+                if (!cfg.googleMapsKey) break;
+                // Geocoding test with a known address
+                const mapsRes = await fetch(
+                    `https://maps.googleapis.com/maps/api/geocode/json?address=Buenos+Aires&key=${cfg.googleMapsKey}`,
+                    { signal: AbortSignal.timeout(10000) }
+                );
+                const mapsData = await mapsRes.json();
+                if (mapsData.status === 'OK') {
+                    status = 'healthy';
+                } else if (mapsData.status === 'REQUEST_DENIED') {
+                    throw new Error(`API Key denied: ${mapsData.error_message || 'check restrictions'}`);
+                } else {
+                    status = 'degraded';
+                    metadata.apiStatus = mapsData.status;
+                }
+                break;
+            }
+
+            case 'google-drive': {
+                if (!cfg.gdriveFolderId || !cfg.gdriveCredentials) break;
+                let credentials;
+                try {
+                    credentials = typeof cfg.gdriveCredentials === 'string'
+                        ? JSON.parse(cfg.gdriveCredentials)
+                        : cfg.gdriveCredentials;
+                } catch (e) {
+                    throw new Error('Invalid service account JSON');
+                }
+                const drive = getGoogleDriveClient(credentials);
+                if (!drive) throw new Error('Failed to initialize Drive client');
+                const folderRes = await drive.files.get({
+                    fileId: cfg.gdriveFolderId,
+                    fields: 'id,name'
+                });
+                metadata.folderName = folderRes.data.name;
+                status = 'healthy';
+                break;
+            }
+
+            case 'emailjs': {
+                if (!cfg.emailjsServiceId || !cfg.emailjsPublicKey) break;
+                // EmailJS cannot be tested without sending email
+                // Validate credentials format only
+                status = 'healthy';
+                metadata.note = 'Credentials present; real test requires sending email';
+                break;
+            }
+
+            case 'google-calendar': {
+                if (!cfg.gcalEnabled || !cfg.gcalApiKey) break;
+                // Validate API key format
+                if (cfg.gcalApiKey.startsWith('AIza') && cfg.gcalClientId.includes('.apps.googleusercontent.com')) {
+                    status = 'healthy';
+                    metadata.note = 'Credentials format valid; real OAuth test requires browser';
+                } else {
+                    status = 'degraded';
+                    metadata.note = 'Credentials format invalid';
+                }
+                break;
+            }
+
+            default:
+                error = `Unknown service: ${serviceName}`;
+                status = 'down';
+        }
+    } catch (err) {
+        status = 'down';
+        error = err.message;
+    }
+
+    const latency = Date.now() - start;
+    return { service: serviceName, status, latency_ms: latency, error, metadata };
+}
+
+const HEALTH_SERVICES = ['supabase', 'n8n', 'gemini', 'google-maps', 'google-drive', 'emailjs', 'google-calendar'];
+
+/**
+ * GET /api/health/all — Check all services
+ */
+app.get('/api/health/all', async (req, res) => {
+    const cfg = getHealthConfig();
+    const results = {};
+
+    const checks = await Promise.allSettled(
+        HEALTH_SERVICES.map(svc => checkServiceHealth(svc, cfg))
+    );
+
+    for (const check of checks) {
+        if (check.status === 'fulfilled') {
+            const r = check.value;
+            results[r.service] = r;
+            // Log to DB in background (don't await)
+            logHealthCheck(cfg, r.service, r.status, r.latency_ms, r.error, r.metadata);
+        }
+    }
+
+    const allHealthy = Object.values(results).every(r => r.status === 'healthy' || r.status === 'unconfigured');
+    res.json({
+        success: true,
+        overall: allHealthy ? 'healthy' : 'degraded',
+        checked_at: new Date().toISOString(),
+        services: results
+    });
+});
+
+/**
+ * GET /api/health/:service — Check a single service
+ */
+app.get('/api/health/:service', async (req, res) => {
+    const serviceName = req.params.service;
+    if (!HEALTH_SERVICES.includes(serviceName)) {
+        return res.status(400).json({ success: false, error: `Unknown service: ${serviceName}. Valid: ${HEALTH_SERVICES.join(', ')}` });
+    }
+
+    const cfg = getHealthConfig();
+    const result = await checkServiceHealth(serviceName, cfg);
+
+    // Log to DB in background
+    logHealthCheck(cfg, result.service, result.status, result.latency_ms, result.error, result.metadata);
+
+    res.json({ success: true, ...result });
+});
+
+/**
+ * GET /api/health/history/:service — Get health check history
+ */
+app.get('/api/health/history/:service', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const serviceName = req.params.service;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+
+    try {
+        const historyRes = await fetch(
+            `${cfg.supabaseUrl}/rest/v1/service_health_logs?service_name=eq.${encodeURIComponent(serviceName)}&order=checked_at.desc&limit=${limit}`,
+            {
+                headers: {
+                    'apikey': cfg.supabaseAnonKey,
+                    'Authorization': `Bearer ${cfg.supabaseAnonKey}`
+                }
+            }
+        );
+        const data = await historyRes.json();
+        res.json({ success: true, service: serviceName, history: data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ANALYTICS ENDPOINTS
+// ============================================
+
+/**
+ * Helper: make authenticated request to Supabase REST API
+ */
+async function supabaseQuery(cfg, path) {
+    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
+        headers: {
+            'apikey': cfg.supabaseAnonKey,
+            'Authorization': `Bearer ${cfg.supabaseAnonKey}`
+        }
+    });
+    if (!res.ok) throw new Error(`Supabase query failed: HTTP ${res.status}`);
+    return res.json();
+}
+
+/**
+ * GET /api/analytics/users — Users by type and period
+ * Query params: period (day|week|month), env (production|development|all), days (default 30)
+ */
+app.get('/api/analytics/users', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const env = req.query.env || 'all';
+    const period = req.query.period || 'day';
+
+    try {
+        // Users by type
+        const userTypes = await supabaseQuery(cfg,
+            `analytics_user_sessions?select=user_type,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}`
+        );
+
+        // Aggregate by type
+        const typeCounts = {};
+        const timeline = {};
+        for (const row of userTypes) {
+            typeCounts[row.user_type] = (typeCounts[row.user_type] || 0) + 1;
+
+            let key;
+            const d = new Date(row.created_at);
+            if (period === 'month') key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            else if (period === 'week') {
+                const weekStart = new Date(d);
+                weekStart.setDate(d.getDate() - d.getDay());
+                key = weekStart.toISOString().split('T')[0];
+            } else {
+                key = d.toISOString().split('T')[0];
+            }
+
+            if (!timeline[key]) timeline[key] = { date: key, artist: 0, client: 0, anonymous: 0, authenticated_other: 0 };
+            timeline[key][row.user_type] = (timeline[key][row.user_type] || 0) + 1;
+        }
+
+        // New vs returning
+        const fingerprints = await supabaseQuery(cfg,
+            `analytics_user_sessions?select=device_fingerprint,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}`
+        );
+        const fpFirst = {};
+        for (const row of fingerprints) {
+            if (!fpFirst[row.device_fingerprint] || row.created_at < fpFirst[row.device_fingerprint]) {
+                fpFirst[row.device_fingerprint] = row.created_at;
+            }
+        }
+        const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+        let newVisitors = 0, returningVisitors = 0;
+        for (const [fp, firstSeen] of Object.entries(fpFirst)) {
+            if (firstSeen >= cutoff) newVisitors++;
+            else returningVisitors++;
+        }
+
+        res.json({
+            success: true,
+            period: { days, groupBy: period, environment: env },
+            summary: typeCounts,
+            newVsReturning: { new: newVisitors, returning: returningVisitors },
+            timeline: Object.values(timeline).sort((a, b) => a.date.localeCompare(b.date))
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/analytics/devices — Device/OS/Browser distribution
+ * Query params: days (default 30), env (production|development|all)
+ */
+app.get('/api/analytics/devices', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const env = req.query.env || 'all';
+
+    try {
+        const devices = await supabaseQuery(cfg,
+            `analytics_devices?select=os,device_type,browser,created_at${env !== 'all' ? `&environment=eq.${env}` : ''}&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
+        );
+
+        const byOS = {};
+        const byDeviceType = {};
+        const byBrowser = {};
+        for (const row of devices) {
+            byOS[row.os] = (byOS[row.os] || 0) + 1;
+            byDeviceType[row.device_type] = (byDeviceType[row.device_type] || 0) + 1;
+            byBrowser[row.browser] = (byBrowser[row.browser] || 0) + 1;
+        }
+
+        res.json({
+            success: true,
+            total: devices.length,
+            os: byOS,
+            deviceType: byDeviceType,
+            browser: byBrowser
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/analytics/pages — Most visited pages
+ * Query params: days (default 30), env (production|development|all), limit (default 20)
+ */
+app.get('/api/analytics/pages', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const env = req.query.env || 'all';
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+
+    try {
+        const sessions = await supabaseQuery(cfg,
+            `analytics_user_sessions?select=page_path,created_at${env !== 'all' ? `&environment=eq.${env}` : ''}&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
+        );
+
+        const pageCounts = {};
+        for (const row of sessions) {
+            pageCounts[row.page_path] = (pageCounts[row.page_path] || 0) + 1;
+        }
+
+        const pages = Object.entries(pageCounts)
+            .map(([page, visits]) => ({ page, visits }))
+            .sort((a, b) => b.visits - a.visits)
+            .slice(0, limit);
+
+        res.json({ success: true, total: sessions.length, pages });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/analytics/errors — Sessions with errors
+ * Query params: days (default 30), env (production|development|all)
+ */
+app.get('/api/analytics/errors', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const env = req.query.env || 'all';
+
+    try {
+        const errorSessions = await supabaseQuery(cfg,
+            `analytics_user_sessions?select=page_path,error_count,user_type,environment,created_at&has_errors=eq.true&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}&order=created_at.desc`
+        );
+
+        // Aggregate by page
+        const byPage = {};
+        let totalErrors = 0;
+        const timeline = {};
+        for (const row of errorSessions) {
+            byPage[row.page_path] = (byPage[row.page_path] || 0) + (row.error_count || 1);
+            totalErrors += row.error_count || 1;
+
+            const day = new Date(row.created_at).toISOString().split('T')[0];
+            timeline[day] = (timeline[day] || 0) + 1;
+        }
+
+        const errorPages = Object.entries(byPage)
+            .map(([page, errors]) => ({ page, errors }))
+            .sort((a, b) => b.errors - a.errors);
+
+        res.json({
+            success: true,
+            totalErrorSessions: errorSessions.length,
+            totalErrors,
+            byPage: errorPages,
+            timeline: Object.entries(timeline)
+                .map(([date, count]) => ({ date, errorSessions: count }))
+                .sort((a, b) => a.date.localeCompare(b.date))
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/analytics/locations — Geographic distribution from resolved IPs
+ * Query params: days (default 30), env (production|development|all)
+ */
+app.get('/api/analytics/locations', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const env = req.query.env || 'all';
+
+    try {
+        const sessions = await supabaseQuery(cfg,
+            `analytics_user_sessions?select=user_ip,country,city,created_at&user_ip=not.is.null${env !== 'all' ? `&environment=eq.${env}` : ''}&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
+        );
+
+        const countryCounts = {};
+        const cityCounts = {};
+        const ipCounts = {};
+        let localhostCount = 0;
+        let resolvedCount = 0;
+
+        for (const row of sessions) {
+            if (row.user_ip === '::1' || row.user_ip === '127.0.0.1') {
+                localhostCount++;
+                continue;
+            }
+            ipCounts[row.user_ip] = (ipCounts[row.user_ip] || 0) + 1;
+
+            if (row.country) {
+                resolvedCount++;
+                countryCounts[row.country] = (countryCounts[row.country] || 0) + 1;
+                if (row.city) {
+                    const key = `${row.city}, ${row.country}`;
+                    cityCounts[key] = (cityCounts[key] || 0) + 1;
+                }
+            }
+        }
+
+        const topCountries = Object.entries(countryCounts)
+            .map(([country, count]) => ({ country, sessions: count }))
+            .sort((a, b) => b.sessions - a.sessions);
+
+        const topCities = Object.entries(cityCounts)
+            .map(([city, count]) => ({ city, sessions: count }))
+            .sort((a, b) => b.sessions - a.sessions)
+            .slice(0, 20);
+
+        const uniqueIPs = Object.entries(ipCounts)
+            .map(([ip, count]) => ({ ip, sessions: count }))
+            .sort((a, b) => b.sessions - a.sessions);
+
+        res.json({
+            success: true,
+            totalSessions: sessions.length,
+            localhostSessions: localhostCount,
+            uniquePublicIPs: uniqueIPs.length,
+            resolvedSessions: resolvedCount,
+            countries: topCountries,
+            cities: topCities,
+            topIPs: uniqueIPs.slice(0, 20)
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/analytics/quotations — Quotation metrics
+ * Query params: days (default 90)
+ * Returns: status breakdown, avg response time, conversion by style, conversion by artist, trend over time
+ */
+app.get('/api/analytics/quotations', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 90, 365);
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+
+    try {
+        const quotes = await supabaseQuery(cfg,
+            `quotations_db?select=quote_id,quote_status,tattoo_style,artist_id,artist_name,created_at,sent_to_artist_at,artist_responded_at&created_at=gte.${since}`
+        );
+
+        // 1. Total by status
+        const byStatus = {};
+        for (const q of quotes) {
+            const s = q.quote_status || 'unknown';
+            byStatus[s] = (byStatus[s] || 0) + 1;
+        }
+
+        // 2. Average response time (sent_to_artist_at → artist_responded_at)
+        const responseTimes = [];
+        for (const q of quotes) {
+            if (q.sent_to_artist_at && q.artist_responded_at) {
+                const sent = new Date(q.sent_to_artist_at).getTime();
+                const responded = new Date(q.artist_responded_at).getTime();
+                if (responded > sent) {
+                    responseTimes.push(responded - sent);
+                }
+            }
+        }
+        const avgResponseMs = responseTimes.length > 0
+            ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+            : null;
+        const avgResponseHours = avgResponseMs ? Math.round(avgResponseMs / 3600000 * 10) / 10 : null;
+
+        // 3. Conversion by style (tattoo_style is JSONB with style_name)
+        const CONVERTED_STATUSES = ['client_approved', 'in_progress', 'en_progreso', 'completed'];
+        const styleStats = {};
+        for (const q of quotes) {
+            const styleName = q.tattoo_style?.style_name || 'Sin estilo';
+            if (!styleStats[styleName]) styleStats[styleName] = { total: 0, converted: 0 };
+            styleStats[styleName].total++;
+            if (CONVERTED_STATUSES.includes(q.quote_status)) {
+                styleStats[styleName].converted++;
+            }
+        }
+        const conversionByStyle = Object.entries(styleStats)
+            .map(([style, s]) => ({
+                style,
+                total: s.total,
+                converted: s.converted,
+                rate: s.total > 0 ? Math.round(s.converted / s.total * 1000) / 10 : 0
+            }))
+            .sort((a, b) => b.total - a.total);
+
+        // 4. Conversion by artist
+        const artistStats = {};
+        for (const q of quotes) {
+            if (!q.artist_id) continue;
+            const key = q.artist_id;
+            if (!artistStats[key]) artistStats[key] = { name: q.artist_name || 'Unknown', total: 0, converted: 0, responseTimes: [] };
+            artistStats[key].total++;
+            if (CONVERTED_STATUSES.includes(q.quote_status)) {
+                artistStats[key].converted++;
+            }
+            if (q.sent_to_artist_at && q.artist_responded_at) {
+                const diff = new Date(q.artist_responded_at).getTime() - new Date(q.sent_to_artist_at).getTime();
+                if (diff > 0) artistStats[key].responseTimes.push(diff);
+            }
+        }
+        const conversionByArtist = Object.entries(artistStats)
+            .map(([artistId, s]) => ({
+                artistId,
+                name: s.name,
+                total: s.total,
+                converted: s.converted,
+                rate: s.total > 0 ? Math.round(s.converted / s.total * 1000) / 10 : 0,
+                avgResponseHours: s.responseTimes.length > 0
+                    ? Math.round(s.responseTimes.reduce((a, b) => a + b, 0) / s.responseTimes.length / 3600000 * 10) / 10
+                    : null
+            }))
+            .sort((a, b) => b.total - a.total);
+
+        // 5. Trend by week
+        const weekBuckets = {};
+        for (const q of quotes) {
+            const d = new Date(q.created_at);
+            const weekStart = new Date(d);
+            weekStart.setDate(d.getDate() - d.getDay());
+            const key = weekStart.toISOString().slice(0, 10);
+            if (!weekBuckets[key]) weekBuckets[key] = { total: 0, converted: 0 };
+            weekBuckets[key].total++;
+            if (CONVERTED_STATUSES.includes(q.quote_status)) {
+                weekBuckets[key].converted++;
+            }
+        }
+        const trend = Object.entries(weekBuckets)
+            .map(([week, s]) => ({ week, total: s.total, converted: s.converted }))
+            .sort((a, b) => a.week.localeCompare(b.week));
+
+        res.json({
+            success: true,
+            period: { days, since: since.slice(0, 10) },
+            total: quotes.length,
+            byStatus,
+            avgResponseHours,
+            responseSamples: responseTimes.length,
+            conversionByStyle,
+            conversionByArtist,
+            trend
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/analytics/summary — Dashboard summary of all analytics
+ * Query params: days (default 30), env (production|development|all)
+ */
+app.get('/api/analytics/summary', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const env = req.query.env || 'all';
+
+    try {
+        const sessions = await supabaseQuery(cfg,
+            `analytics_user_sessions?select=user_type,page_path,has_errors,error_count,device_fingerprint,environment,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}`
+        );
+
+        const devices = await supabaseQuery(cfg,
+            `analytics_devices?select=device_type,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
+        );
+
+        // Compute summary
+        const totalSessions = sessions.length;
+        const uniqueVisitors = new Set(sessions.map(s => s.device_fingerprint)).size;
+        const errorSessions = sessions.filter(s => s.has_errors).length;
+        const totalErrors = sessions.reduce((sum, s) => sum + (s.error_count || 0), 0);
+
+        const userTypes = {};
+        for (const s of sessions) {
+            userTypes[s.user_type] = (userTypes[s.user_type] || 0) + 1;
+        }
+
+        const deviceTypes = {};
+        for (const d of devices) {
+            deviceTypes[d.device_type] = (deviceTypes[d.device_type] || 0) + 1;
+        }
+
+        res.json({
+            success: true,
+            period: { days, environment: env },
+            summary: {
+                totalSessions,
+                uniqueVisitors,
+                errorSessions,
+                totalErrors,
+                errorRate: totalSessions > 0 ? ((errorSessions / totalSessions) * 100).toFixed(1) + '%' : '0%'
+            },
+            userTypes,
+            deviceTypes
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 

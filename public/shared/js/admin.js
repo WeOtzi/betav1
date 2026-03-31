@@ -109,6 +109,7 @@ function showSection(sectionId) {
         'styles': 'Estilos de Tatuaje',
         'settings': 'Configuracion',
         'content': 'Contenido de la App',
+        'analytics': 'Analytics de Usuarios',
         // Super Admin sections
         'apis': 'Gestion de APIs',
         'database': 'Base de Datos',
@@ -140,6 +141,8 @@ function showSection(sectionId) {
         loadSupportUsers();
     } else if (sectionId === 'events') {
         loadN8NEvents();
+    } else if (sectionId === 'analytics') {
+        loadAnalyticsData();
     }
 }
 
@@ -489,6 +492,8 @@ async function loadDashboardStats() {
 
     } catch (error) {
         console.error('Error loading stats:', error);
+        document.querySelectorAll('.stat-value').forEach(el => el.textContent = '—');
+        showToast('No se pudieron cargar las estadisticas', 'warning');
     }
 }
 
@@ -496,7 +501,13 @@ function renderRecentQuotations(quotations) {
     const container = document.getElementById('recent-quotations');
 
     if (quotations.length === 0) {
-        container.innerHTML = '<p class="empty-state">No hay cotizaciones recientes</p>';
+        container.innerHTML = `
+            <div class="empty-state-box" style="padding: 24px;">
+                <i class="fa-solid fa-inbox"></i>
+                <span class="empty-title">No hay cotizaciones recientes</span>
+                <span class="empty-desc">Las nuevas solicitudes apareceran aqui.</span>
+            </div>
+        `;
         return;
     }
 
@@ -523,14 +534,14 @@ function renderRecentQuotations(quotations) {
 // ============ QUOTATIONS ============
 async function loadQuotations() {
     if (!supabaseClient) {
-        document.getElementById('quotations-tbody').innerHTML = `
-            <tr><td colspan="7" class="empty-state">Conecta Supabase para ver cotizaciones</td></tr>
-        `;
+        showTableEmptyState('quotations-tbody', 8, 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion en la seccion de Configuracion para ver cotizaciones.');
         return;
     }
 
     const searchTerm = document.getElementById('search-quotations').value.toLowerCase();
     const statusFilter = document.getElementById('filter-status').value;
+
+    showTableLoading('quotations-tbody', 8);
 
     try {
         let query = supabaseClient
@@ -561,6 +572,7 @@ async function loadQuotations() {
 
     } catch (error) {
         console.error('Error loading quotations:', error);
+        showTableErrorState('quotations-tbody', 8, 'No se pudieron cargar las cotizaciones. Verifica tu conexion.', 'loadQuotations()');
         showToast('Error cargando cotizaciones', 'error');
     }
 }
@@ -572,7 +584,7 @@ function renderQuotationsTable() {
     const pageItems = currentQuotations.slice(start, end);
 
     if (pageItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No se encontraron cotizaciones</td></tr>';
+        showTableEmptyState('quotations-tbody', 8, 'fa-file-invoice', 'No se encontraron cotizaciones', 'Ajusta los filtros de busqueda o espera nuevas solicitudes.');
         return;
     }
 
@@ -1682,13 +1694,13 @@ async function loadArtists() {
 
     // Check connection first
     if (!supabaseClient && !isDemo) {
-        tbody.innerHTML = `
-            <tr><td colspan="6" class="empty-state">Conecta Supabase para ver artistas o activa el Modo Demo en Configuración</td></tr>
-        `;
+        showTableEmptyState('artists-tbody', 6, 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion o activa el Modo Demo en Configuracion.');
         return;
     }
 
     const searchTerm = document.getElementById('search-artists').value.trim().toLowerCase();
+
+    showTableLoading('artists-tbody', 6);
 
     try {
         let artists = [];
@@ -1742,7 +1754,8 @@ async function loadArtists() {
 
     } catch (error) {
         console.error('Error loading artists:', error);
-        showToast('Error cargando artistas: ' + error.message, 'error');
+        showTableErrorState('artists-tbody', 6, 'No se pudieron cargar los artistas. Verifica tu conexion.', 'loadArtists()');
+        showToast('Error cargando artistas', 'error');
     }
 }
 
@@ -1753,7 +1766,7 @@ function renderArtistsTable() {
     const pageItems = currentArtists.slice(start, end);
 
     if (pageItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No se encontraron artistas</td></tr>';
+        showTableEmptyState('artists-tbody', 6, 'fa-palette', 'No se encontraron artistas', 'Ajusta los filtros o espera nuevos registros.');
         return;
     }
 
@@ -1979,27 +1992,121 @@ function togglePassword(inputId) {
 }
 
 function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
 
     const icons = {
         success: 'fa-circle-check',
         error: 'fa-circle-xmark',
-        info: 'fa-circle-info'
+        info: 'fa-circle-info',
+        warning: 'fa-triangle-exclamation'
     };
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
-        <i class="fa-solid ${icons[type]}"></i>
+        <i class="fa-solid ${icons[type] || icons.info}"></i>
         <span>${message}</span>
     `;
 
     container.appendChild(toast);
 
     setTimeout(() => {
-        toast.remove();
+        toast.classList.add('toast-exit');
+        toast.addEventListener('animationend', () => toast.remove(), { once: true });
     }, 4000);
 }
+window.showToast = showToast;
+
+// ============ UI HELPERS: LOADING & EMPTY/ERROR STATES ============
+
+function showSectionLoading(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.setAttribute('data-prev-content', el.innerHTML);
+    el.innerHTML = `
+        <div class="section-loader">
+            <div class="spinner"></div>
+            <span class="loader-text">Cargando...</span>
+        </div>
+    `;
+}
+
+function hideSectionLoading(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const prev = el.getAttribute('data-prev-content');
+    if (prev !== null) {
+        el.removeAttribute('data-prev-content');
+    }
+}
+
+function showTableLoading(tbodyId, colspan) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = `
+        <tr><td colspan="${colspan}" style="padding: 0;">
+            <div class="section-loader">
+                <div class="spinner"></div>
+                <span class="loader-text">Cargando datos...</span>
+            </div>
+        </td></tr>
+    `;
+}
+
+function showEmptyState(containerId, icon, title, description) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = `
+        <div class="empty-state-box">
+            <i class="fa-solid ${icon}"></i>
+            <span class="empty-title">${title}</span>
+            <span class="empty-desc">${description}</span>
+        </div>
+    `;
+}
+
+function showTableEmptyState(tbodyId, colspan, icon, title, description) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = `
+        <tr><td colspan="${colspan}" style="padding: 0;">
+            <div class="empty-state-box">
+                <i class="fa-solid ${icon}"></i>
+                <span class="empty-title">${title}</span>
+                <span class="empty-desc">${description}</span>
+            </div>
+        </td></tr>
+    `;
+}
+
+function showTableErrorState(tbodyId, colspan, message, retryFn) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    const retryBtn = retryFn ? `<button class="btn btn-secondary btn-sm" onclick="${retryFn}"><i class="fa-solid fa-rotate-right"></i> Reintentar</button>` : '';
+    tbody.innerHTML = `
+        <tr><td colspan="${colspan}" style="padding: 0;">
+            <div class="error-state-box">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span class="error-title">Error al cargar datos</span>
+                <span class="error-desc">${message}</span>
+                ${retryBtn}
+            </div>
+        </td></tr>
+    `;
+}
+
+window.showSectionLoading = showSectionLoading;
+window.hideSectionLoading = hideSectionLoading;
+window.showTableLoading = showTableLoading;
+window.showEmptyState = showEmptyState;
+window.showTableEmptyState = showTableEmptyState;
+window.showTableErrorState = showTableErrorState;
 
 // Setup search
 document.getElementById('search-quotations')?.addEventListener('input', debounce(loadQuotations, 300));
@@ -2369,7 +2476,7 @@ async function saveNodeEdit() {
     };
 
     if (!partData.id || !partData.label) {
-        alert('ID y Etiqueta son obligatorios');
+        showToast('ID y Etiqueta son obligatorios', 'warning');
         return;
     }
 
@@ -2614,8 +2721,8 @@ async function handleExpandedMediaUpload(input) {
 
 async function generateBodyPartIcon(specificNode = null) {
     const config = window.ConfigManager?.get();
-    if (!config?.gemini?.enabled || !config?.gemini?.apiKey) {
-        showToast('Gemini AI no está habilitado o configurado', 'error');
+    if (!config?.gemini?.enabled) {
+        showToast('Gemini AI no está habilitado', 'error');
         return;
     }
 
@@ -2638,7 +2745,6 @@ async function generateBodyPartIcon(specificNode = null) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt,
-                apiKey: config.gemini.apiKey,
                 model: config.gemini.model,
                 aspectRatio: '1:1',
                 imageSize: '1K'
@@ -3233,7 +3339,6 @@ async function testGeminiAPI() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt: 'A simple minimalist line art icon of a circle',
-                apiKey,
                 model,
                 aspectRatio: '1:1',
                 imageSize: '1K'
@@ -3278,10 +3383,47 @@ function saveGeminiAPI() {
 
 async function testAllConnections() {
     showToast('Probando todas las conexiones...', 'info');
+
+    try {
+        const response = await fetch('/api/health/all');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.services) {
+                const svcMap = {
+                    'supabase': 'supabase',
+                    'n8n': 'n8n',
+                    'gemini': 'gemini',
+                    'google-maps': 'gmaps',
+                    'google-drive': 'gdrive',
+                    'emailjs': 'emailjs',
+                    'google-calendar': 'gcalendar'
+                };
+                let healthy = 0;
+                let total = 0;
+                for (const [svcKey, uiKey] of Object.entries(svcMap)) {
+                    const svc = data.services[svcKey];
+                    if (!svc) continue;
+                    total++;
+                    if (svc.status === 'healthy') {
+                        updateAPIStatus(uiKey, 'connected');
+                        healthy++;
+                    } else if (svc.status === 'unconfigured') {
+                        updateAPIStatus(uiKey, 'none');
+                    } else {
+                        updateAPIStatus(uiKey, 'error');
+                    }
+                }
+                showToast(`Test completado: ${healthy}/${total} servicios saludables (${data.overall})`, healthy === total ? 'success' : 'warning');
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Health endpoint unavailable, falling back to individual tests:', e.message);
+    }
+
+    // Fallback: individual tests
     await testSupabaseAPI();
-    // Add slight delay between tests
     await new Promise(r => setTimeout(r, 500));
-    
     const n8nUrl = document.getElementById('api-n8n-webhook').value.trim();
     if (n8nUrl) await testN8NAPI();
 }
@@ -3309,13 +3451,14 @@ async function loadDatabaseStats() {
     const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
         healthIndicator.className = 'db-health-indicator disconnected';
-        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Sin conexión a Supabase</span>';
-        tablesGrid.innerHTML = '<div class="empty-state">Configura Supabase para ver las tablas</div>';
+        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Sin conexion a Supabase</span>';
+        showEmptyState('tables-grid', 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion en Configuracion para ver las tablas.');
         return;
     }
-    
+
     healthIndicator.className = 'db-health-indicator';
     healthIndicator.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Cargando...</span>';
+    showSectionLoading('tables-grid');
     
     try {
         let totalRows = 0;
@@ -3570,7 +3713,7 @@ function renderRoutesTable() {
     const routeEntries = Object.entries(currentRoutes);
     
     if (routeEntries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No hay rutas configuradas</td></tr>';
+        showTableEmptyState('routes-tbody', 4, 'fa-route', 'No hay rutas configuradas', 'Agrega rutas con el boton "Nueva Ruta".');
         return;
     }
     
@@ -4004,61 +4147,41 @@ function handleRestore(event) {
 
 // ============ DASHBOARD HEALTH INDICATORS ============
 async function refreshServiceHealth() {
-    // Get service health from ConfigManager
+    // Get service health from ConfigManager (now uses real health check endpoint)
     const health = await window.ConfigManager?.getSystemHealth();
-    
+
     if (!health) return;
-    
-    // Update Supabase status
-    const supabaseEl = document.getElementById('supabase-status');
-    if (supabaseEl) {
-        if (health.supabase.connected) {
-            supabaseEl.className = 'health-status connected';
-            supabaseEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Conectado';
-        } else if (health.supabase.configured) {
-            supabaseEl.className = 'health-status warning';
-            supabaseEl.innerHTML = '<i class="fa-solid fa-circle"></i> Configurado';
+
+    /**
+     * Update a health status element based on real check results
+     */
+    function updateHealthElement(elementId, svcHealth) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        if (svcHealth.connected) {
+            const latencyText = svcHealth.latency_ms ? ` (${svcHealth.latency_ms}ms)` : '';
+            el.className = 'health-status connected';
+            el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Conectado${latencyText}`;
+        } else if (svcHealth.status === 'degraded') {
+            el.className = 'health-status warning';
+            el.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Degradado';
+        } else if (svcHealth.status === 'down') {
+            el.className = 'health-status disconnected';
+            el.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Error';
+        } else if (svcHealth.configured) {
+            el.className = 'health-status warning';
+            el.innerHTML = '<i class="fa-solid fa-circle"></i> Configurado';
         } else {
-            supabaseEl.className = 'health-status disconnected';
-            supabaseEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Sin configurar';
+            el.className = 'health-status';
+            el.innerHTML = '<i class="fa-solid fa-circle"></i> Sin configurar';
         }
     }
-    
-    // Update n8n status
-    const n8nEl = document.getElementById('n8n-status');
-    if (n8nEl) {
-        if (health.n8n.configured) {
-            n8nEl.className = 'health-status warning';
-            n8nEl.innerHTML = '<i class="fa-solid fa-circle"></i> Configurado';
-        } else {
-            n8nEl.className = 'health-status';
-            n8nEl.innerHTML = '<i class="fa-solid fa-circle"></i> Sin configurar';
-        }
-    }
-    
-    // Update EmailJS status
-    const emailjsEl = document.getElementById('emailjs-status');
-    if (emailjsEl) {
-        if (health.emailjs.configured) {
-            emailjsEl.className = 'health-status warning';
-            emailjsEl.innerHTML = '<i class="fa-solid fa-circle"></i> Configurado';
-        } else {
-            emailjsEl.className = 'health-status';
-            emailjsEl.innerHTML = '<i class="fa-solid fa-circle"></i> Sin configurar';
-        }
-    }
-    
-    // Update Google Maps status
-    const gmapsEl = document.getElementById('gmaps-status');
-    if (gmapsEl) {
-        if (health.googleMaps.configured) {
-            gmapsEl.className = 'health-status warning';
-            gmapsEl.innerHTML = '<i class="fa-solid fa-circle"></i> Configurado';
-        } else {
-            gmapsEl.className = 'health-status';
-            gmapsEl.innerHTML = '<i class="fa-solid fa-circle"></i> Sin configurar';
-        }
-    }
+
+    updateHealthElement('supabase-status', health.supabase);
+    updateHealthElement('n8n-status', health.n8n);
+    updateHealthElement('emailjs-status', health.emailjs);
+    updateHealthElement('gmaps-status', health.googleMaps);
 }
 
 // Call refresh on init
@@ -4278,40 +4401,22 @@ async function loadSupportUsers() {
     // Check if Supabase is available
     const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="empty-state">
-                    Conecta Supabase para ver usuarios de soporte
-                </td>
-            </tr>
-        `;
+        showTableEmptyState('support-users-tbody', 6, 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion para ver usuarios de soporte.');
         return;
     }
-    
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="6" class="empty-state">
-                <i class="fa-solid fa-spinner fa-spin"></i> Cargando...
-            </td>
-        </tr>
-    `;
-    
+
+    showTableLoading('support-users-tbody', 6);
+
     try {
         const { data, error } = await client
             .from('support_users_db')
             .select('*')
             .order('created_at', { ascending: false });
-        
+
         if (error) throw error;
-        
+
         if (!data || data.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        No hay usuarios de soporte registrados
-                    </td>
-                </tr>
-            `;
+            showTableEmptyState('support-users-tbody', 6, 'fa-headset', 'No hay usuarios de soporte', 'Crea el primer usuario con el boton de arriba.');
             return;
         }
         
@@ -4361,13 +4466,7 @@ async function loadSupportUsers() {
         
     } catch (err) {
         console.error('Error loading support users:', err);
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="empty-state" style="color: var(--error-color);">
-                    Error al cargar usuarios: ${err.message}
-                </td>
-            </tr>
-        `;
+        showTableErrorState('support-users-tbody', 6, 'No se pudieron cargar los usuarios de soporte.', 'loadSupportUsers()');
         showToast('Error al cargar usuarios de soporte', 'error');
     }
 }
@@ -4519,24 +4618,13 @@ async function saveSupportUser(event) {
                     return;
                 }
                 
-                const config = window.ConfigManager?.get() || {};
-                const supabaseUrl = config.supabase?.url;
-                const serviceRoleKey = config.supabase?.serviceRoleKey;
-                
-                if (!serviceRoleKey) {
-                    showToast('Para cambiar contrasenas, configura el Service Role Key en la seccion de APIs', 'error');
-                    return;
-                }
-                
-                // Call server endpoint to update password
+                // Call server endpoint to update password (keys are read server-side from env)
                 const passwordResponse = await fetch('/api/admin/update-user-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: userId,
-                        newPassword: newPassword,
-                        supabaseUrl: supabaseUrl,
-                        serviceRoleKey: serviceRoleKey
+                        newPassword: newPassword
                     })
                 });
                 
@@ -4659,7 +4747,7 @@ async function loadN8NEvents() {
     const tbody = document.getElementById('events-tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Cargando eventos...</td></tr>';
+    showTableLoading('events-tbody', 5);
 
     try {
         // Wait for ConfigManager to be ready
@@ -4671,7 +4759,7 @@ async function loadN8NEvents() {
         const events = await window.ConfigManager.getN8NEvents(true); // Force refresh
 
         if (!events || events.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay eventos configurados</td></tr>';
+            showTableEmptyState('events-tbody', 5, 'fa-bolt', 'No hay eventos configurados', 'Configura webhooks de n8n para habilitar automatizaciones.');
             return;
         }
 
@@ -4734,13 +4822,7 @@ async function loadN8NEvents() {
 
     } catch (err) {
         console.error('Error loading n8n events:', err);
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="empty-state" style="color: var(--error-color);">
-                    Error al cargar eventos: ${err.message}
-                </td>
-            </tr>
-        `;
+        showTableErrorState('events-tbody', 5, 'No se pudieron cargar los eventos.', 'loadN8NEvents()');
         showToast('Error al cargar eventos', 'error');
     }
 }
@@ -4899,3 +4981,554 @@ window.createSelectiveBackup = createSelectiveBackup;
 window.createConfigBackup = createConfigBackup;
 window.restoreConfig = restoreConfig;
 window.handleRestore = handleRestore;
+
+// ============ ANALYTICS SECTION ============
+
+let analyticsCharts = {};
+
+// Chart.js global defaults for dark theme
+function configureChartDefaults() {
+    if (!window.Chart) return;
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.borderColor = '#2a2a2a';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.plugins.legend.display = false;
+    Chart.defaults.responsive = true;
+    Chart.defaults.maintainAspectRatio = false;
+}
+
+async function loadAnalyticsData() {
+    configureChartDefaults();
+
+    const period = document.getElementById('analytics-period')?.value || '30d';
+
+    // Try to fetch real data from individual API endpoints, fall back to mock
+    let data = {};
+    let usedMock = false;
+
+    try {
+        const endpoints = [
+            fetch(`/api/analytics/users?period=${period}`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`/api/analytics/devices?period=${period}`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`/api/analytics/locations?period=${period}`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`/api/analytics/pages?period=${period}`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`/api/analytics/errors?period=${period}`).then(r => r.ok ? r.json() : null).catch(() => null)
+        ];
+
+        const [users, devices, locations, pages, errors] = await Promise.all(endpoints);
+
+        if (users) {
+            data.totalUsers = users.totalUsers;
+            data.newUsersThisMonth = users.newUsersThisMonth;
+            data.activeSessions = users.activeSessions;
+            data.usersTimeline = users.timeline;
+        }
+        if (devices) data.devices = devices;
+        if (locations) data.countries = locations.countries;
+        if (pages) data.topPages = pages;
+        if (errors) {
+            data.errorSessions = errors.totalErrorSessions;
+            data.errors = errors.items;
+        }
+    } catch (e) {
+        // API not available yet
+    }
+
+    // Fill any missing data with mock
+    if (!data.totalUsers) {
+        usedMock = true;
+        const mock = generateMockAnalyticsData(period);
+        data = { ...mock, ...data };
+        Object.keys(mock).forEach(k => { if (data[k] === undefined) data[k] = mock[k]; });
+    }
+
+    // Update metric cards
+    document.getElementById('analytics-total-users').textContent = (data.totalUsers || 0).toLocaleString();
+    document.getElementById('analytics-new-users').textContent = (data.newUsersThisMonth || 0).toLocaleString();
+    document.getElementById('analytics-active-sessions').textContent = (data.activeSessions || 0).toLocaleString();
+    document.getElementById('analytics-error-sessions').textContent = (data.errorSessions || 0).toLocaleString();
+    document.getElementById('analytics-error-badge').textContent = data.errorSessions || 0;
+
+    // Render charts
+    renderUsersTimelineChart(data.usersTimeline);
+    renderDevicesChart(data.devices);
+    renderCountriesChart(data.countries);
+    renderPagesTable(data.topPages);
+    renderErrorsTable(data.errors);
+
+    if (usedMock) {
+        showToast('Mostrando datos de ejemplo. Los endpoints de Analytics aun no estan disponibles.', 'info');
+    }
+}
+
+function generateMockAnalyticsData(period) {
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+
+    // Generate timeline labels based on real session_logs data patterns
+    const labels = [];
+    const clientsData = [];
+    const artistsData = [];
+    for (let i = days; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }));
+        // Realistic distribution: ~1.3% clients, ~15% artists from 1046 sessions over ~54 days
+        clientsData.push(Math.floor(Math.random() * 2));
+        artistsData.push(Math.floor(Math.random() * 4) + 1);
+    }
+
+    return {
+        totalUsers: 55,
+        newUsersThisMonth: 14,
+        activeSessions: 1046,
+        errorSessions: 79,
+        usersTimeline: { labels, clients: clientsData, artists: artistsData },
+        devices: { mobile: 21, desktop: 79, tablet: 0 },
+        countries: [
+            { name: 'Mexico', count: 28 },
+            { name: 'Colombia', count: 9 },
+            { name: 'Argentina', count: 6 },
+            { name: 'Espana', count: 5 },
+            { name: 'Estados Unidos', count: 4 },
+            { name: 'Chile', count: 2 },
+            { name: 'Peru', count: 1 }
+        ],
+        topPages: [
+            { url: '/artist/dashboard', visits: 273, pct: 26.1 },
+            { url: '/artist/profile', visits: 181, pct: 17.3 },
+            { url: '/registerclosedbeta', visits: 163, pct: 15.6 },
+            { url: '/quotation', visits: 140, pct: 13.4 },
+            { url: '/job-board', visits: 98, pct: 9.4 },
+            { url: '/marketplace', visits: 76, pct: 7.3 },
+            { url: '/client/dashboard', visits: 62, pct: 5.9 },
+            { url: '/', visits: 53, pct: 5.1 }
+        ],
+        errors: [
+            { page: '/artist/dashboard', error: 'TypeError: Cannot read properties of null (reading style)', count: 23, lastSeen: '2026-03-28' },
+            { page: '/quotation', error: 'Failed to fetch: NetworkError when attempting to fetch resource', count: 18, lastSeen: '2026-03-28' },
+            { page: '/registerclosedbeta', error: 'ReferenceError: supabase is not defined', count: 15, lastSeen: '2026-03-27' },
+            { page: '/job-board', error: 'TypeError: feedContainer is null', count: 12, lastSeen: '2026-03-27' },
+            { page: '/marketplace', error: 'Supabase: relation "marketplace_listings" does not exist', count: 11, lastSeen: '2026-03-26' }
+        ]
+    };
+}
+
+function renderUsersTimelineChart(timeline) {
+    if (!window.Chart) return;
+    const ctx = document.getElementById('chart-users-timeline');
+    if (!ctx) return;
+
+    if (analyticsCharts.usersTimeline) analyticsCharts.usersTimeline.destroy();
+
+    analyticsCharts.usersTimeline = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timeline.labels,
+            datasets: [
+                {
+                    label: 'Clientes',
+                    data: timeline.clients,
+                    borderColor: '#FFD700',
+                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Artistas',
+                    data: timeline.artists,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { stepSize: 1 }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { maxTicksLimit: 10 }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: '#1a1a1a',
+                    titleColor: '#fff',
+                    bodyColor: '#9ca3af',
+                    borderColor: '#2a2a2a',
+                    borderWidth: 1
+                }
+            },
+            interaction: { mode: 'index', intersect: false }
+        }
+    });
+}
+
+function renderDevicesChart(devices) {
+    if (!window.Chart) return;
+    const ctx = document.getElementById('chart-devices');
+    if (!ctx) return;
+
+    if (analyticsCharts.devices) analyticsCharts.devices.destroy();
+
+    analyticsCharts.devices = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Movil', 'Desktop', 'Tablet'],
+            datasets: [{
+                data: [devices.mobile, devices.desktop, devices.tablet],
+                backgroundColor: ['#FFD700', '#3b82f6', '#a855f7'],
+                borderColor: '#1a1a1a',
+                borderWidth: 3,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        padding: 16,
+                        usePointStyle: true,
+                        pointStyleWidth: 10
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#1a1a1a',
+                    titleColor: '#fff',
+                    bodyColor: '#9ca3af',
+                    borderColor: '#2a2a2a',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(ctx) {
+                            return ` ${ctx.label}: ${ctx.parsed}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderCountriesChart(countries) {
+    if (!window.Chart) return;
+    const ctx = document.getElementById('chart-countries');
+    if (!ctx) return;
+
+    if (analyticsCharts.countries) analyticsCharts.countries.destroy();
+
+    const top8 = countries.slice(0, 8);
+
+    analyticsCharts.countries = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: top8.map(c => c.name),
+            datasets: [{
+                data: top8.map(c => c.count),
+                backgroundColor: 'rgba(255, 215, 0, 0.6)',
+                borderColor: '#FFD700',
+                borderWidth: 1,
+                borderRadius: 4,
+                barThickness: 20
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    backgroundColor: '#1a1a1a',
+                    titleColor: '#fff',
+                    bodyColor: '#9ca3af',
+                    borderColor: '#2a2a2a',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(ctx) {
+                            return ` ${ctx.parsed.x} usuarios`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderPagesTable(pages) {
+    const tbody = document.getElementById('analytics-pages-tbody');
+    if (!tbody) return;
+
+    if (!pages || pages.length === 0) {
+        showTableEmptyState('analytics-pages-tbody', 3, 'fa-file', 'Sin datos de paginas', 'Los datos apareceran cuando haya visitas registradas.');
+        return;
+    }
+
+    const maxVisits = Math.max(...pages.map(p => p.visits));
+
+    tbody.innerHTML = pages.map(p => `
+        <tr>
+            <td class="page-url">${escapeHtml(p.url)}</td>
+            <td>
+                <div class="visit-bar">
+                    <div class="visit-bar-fill" style="width: ${(p.visits / maxVisits) * 100}px;"></div>
+                    <span>${p.visits.toLocaleString()}</span>
+                </div>
+            </td>
+            <td>${p.pct}%</td>
+        </tr>
+    `).join('');
+}
+
+function renderErrorsTable(errors) {
+    const tbody = document.getElementById('analytics-errors-tbody');
+    if (!tbody) return;
+
+    if (!errors || errors.length === 0) {
+        showTableEmptyState('analytics-errors-tbody', 4, 'fa-circle-check', 'Sin errores registrados', 'No se han detectado errores en el periodo seleccionado.');
+        return;
+    }
+
+    tbody.innerHTML = errors.map(e => `
+        <tr>
+            <td class="page-url">${escapeHtml(e.page)}</td>
+            <td class="error-msg" title="${escapeHtml(e.error)}">${escapeHtml(e.error)}</td>
+            <td><span class="badge" style="background: rgba(239,68,68,0.15); color: var(--error-color);">${e.count}</span></td>
+            <td>${e.lastSeen}</td>
+        </tr>
+    `).join('');
+}
+
+window.loadAnalyticsData = loadAnalyticsData;
+
+// ============ SUPABASE REALTIME — DASHBOARD ACTIVITY FEED ============
+
+const _realtimeChannels = [];
+const _realtimeEvents = [];
+const MAX_REALTIME_EVENTS = 50;
+
+function initRealtimeSubscriptions() {
+    if (!supabaseClient) return;
+
+    cleanupRealtimeSubscriptions();
+
+    // Channel: new/updated quotations
+    const quotationsChannel = supabaseClient
+        .channel('dashboard-quotations')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'quotations_db' }, (payload) => {
+            const q = payload.new;
+            pushRealtimeEvent({
+                type: 'quotation_new',
+                icon: 'fa-file-invoice',
+                color: '#8b5cf6',
+                title: 'Nueva cotizacion',
+                detail: `${q.client_full_name || 'Cliente'} — ${q.quote_id || ''}`,
+                timestamp: q.created_at || new Date().toISOString()
+            });
+            refreshStatValue('stat-total', 1);
+            refreshStatValue('stat-pending-artist', 1);
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'quotations_db' }, (payload) => {
+            const q = payload.new;
+            const oldStatus = payload.old?.quote_status;
+            const newStatus = q.quote_status;
+            if (oldStatus === newStatus) return;
+
+            const statusLabels = {
+                'pending': 'Pendiente',
+                'responded': 'Respondida',
+                'client_approved': 'Aprobada por cliente',
+                'client_rejected': 'Rechazada por cliente',
+                'in_progress': 'En progreso',
+                'completed': 'Completada'
+            };
+
+            pushRealtimeEvent({
+                type: 'quotation_status',
+                icon: 'fa-arrow-right-arrow-left',
+                color: '#f59e0b',
+                title: `Cotizacion ${q.quote_id || ''} cambio de estado`,
+                detail: `${statusLabels[oldStatus] || oldStatus} → ${statusLabels[newStatus] || newStatus}`,
+                timestamp: new Date().toISOString()
+            });
+            loadDashboardStats();
+        })
+        .subscribe();
+
+    _realtimeChannels.push(quotationsChannel);
+
+    // Channel: new artists
+    const artistsChannel = supabaseClient
+        .channel('dashboard-artists')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'artists_db' }, (payload) => {
+            const a = payload.new;
+            pushRealtimeEvent({
+                type: 'artist_new',
+                icon: 'fa-palette',
+                color: '#3ecf8e',
+                title: 'Nuevo artista registrado',
+                detail: a.artist_name || a.email || 'Artista',
+                timestamp: a.created_at || new Date().toISOString()
+            });
+            refreshStatValue('stat-artists', 1);
+        })
+        .subscribe();
+
+    _realtimeChannels.push(artistsChannel);
+
+    // Channel: job board applications
+    const applicationsChannel = supabaseClient
+        .channel('dashboard-applications')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'job_board_applications' }, (payload) => {
+            const app = payload.new;
+            pushRealtimeEvent({
+                type: 'application_new',
+                icon: 'fa-paper-plane',
+                color: '#3b82f6',
+                title: 'Nueva postulacion al Job Board',
+                detail: `Artista postulo a solicitud ${app.request_id || ''}`,
+                timestamp: app.created_at || new Date().toISOString()
+            });
+        })
+        .subscribe();
+
+    _realtimeChannels.push(applicationsChannel);
+
+    // Show live indicator
+    const indicator = document.getElementById('realtime-indicator');
+    if (indicator) indicator.style.display = '';
+}
+
+function cleanupRealtimeSubscriptions() {
+    if (!supabaseClient) return;
+    for (const channel of _realtimeChannels) {
+        supabaseClient.removeChannel(channel);
+    }
+    _realtimeChannels.length = 0;
+
+    const indicator = document.getElementById('realtime-indicator');
+    if (indicator) indicator.style.display = 'none';
+}
+
+function pushRealtimeEvent(event) {
+    _realtimeEvents.unshift(event);
+    if (_realtimeEvents.length > MAX_REALTIME_EVENTS) {
+        _realtimeEvents.length = MAX_REALTIME_EVENTS;
+    }
+    renderRealtimeFeed();
+}
+
+function renderRealtimeFeed() {
+    const feed = document.getElementById('realtime-feed');
+    if (!feed) return;
+
+    if (_realtimeEvents.length === 0) {
+        feed.innerHTML = `
+            <div class="empty-state-box" style="padding: 24px;">
+                <i class="fa-solid fa-satellite-dish"></i>
+                <span class="empty-title">Esperando actividad...</span>
+                <span class="empty-desc">Los eventos apareceran aqui en tiempo real.</span>
+            </div>
+        `;
+        return;
+    }
+
+    feed.innerHTML = _realtimeEvents.slice(0, 15).map(evt => {
+        const time = formatRelativeTime(evt.timestamp);
+        return `
+            <div class="realtime-event realtime-event--new">
+                <div class="realtime-event-icon" style="color: ${evt.color};">
+                    <i class="fa-solid ${evt.icon}"></i>
+                </div>
+                <div class="realtime-event-body">
+                    <span class="realtime-event-title">${escapeHtml(evt.title)}</span>
+                    <span class="realtime-event-detail">${escapeHtml(evt.detail)}</span>
+                </div>
+                <span class="realtime-event-time">${time}</span>
+            </div>
+        `;
+    }).join('');
+
+    // Trigger entry animation on newest item
+    const firstEvent = feed.querySelector('.realtime-event--new');
+    if (firstEvent) {
+        requestAnimationFrame(() => {
+            firstEvent.classList.remove('realtime-event--new');
+        });
+    }
+}
+
+function formatRelativeTime(isoString) {
+    const now = Date.now();
+    const then = new Date(isoString).getTime();
+    const diffSec = Math.floor((now - then) / 1000);
+
+    if (diffSec < 5) return 'ahora';
+    if (diffSec < 60) return `hace ${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `hace ${diffMin}m`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `hace ${diffHr}h`;
+    return new Date(isoString).toLocaleDateString('es');
+}
+
+function refreshStatValue(elementId, increment) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const current = parseInt(el.textContent) || 0;
+    el.textContent = current + increment;
+}
+
+// Hook into showSection to manage subscriptions lifecycle
+const _originalShowSection = showSection;
+function showSectionWithRealtime(sectionId) {
+    _originalShowSection(sectionId);
+
+    if (sectionId === 'dashboard') {
+        initRealtimeSubscriptions();
+    } else {
+        cleanupRealtimeSubscriptions();
+    }
+}
+window.showSection = showSectionWithRealtime;
+
+// Auto-start realtime if dashboard is the active section on load
+document.addEventListener('DOMContentLoaded', () => {
+    const dashboardSection = document.getElementById('section-dashboard');
+    if (dashboardSection && dashboardSection.classList.contains('active')) {
+        // Wait for Supabase to be ready
+        const waitForSupabase = setInterval(() => {
+            if (supabaseClient) {
+                clearInterval(waitForSupabase);
+                initRealtimeSubscriptions();
+            }
+        }, 500);
+        // Stop waiting after 10 seconds
+        setTimeout(() => clearInterval(waitForSupabase), 10000);
+    }
+});
+
+window.initRealtimeSubscriptions = initRealtimeSubscriptions;
+window.cleanupRealtimeSubscriptions = cleanupRealtimeSubscriptions;

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Galeria del Artista</title>
+    <meta name="description" content="Feed publico del artista: trabajos realizados, flash tattoo disponibles y proyectos.">
+
+    <meta property="og:type" content="profile">
+    <meta property="og:title" id="og-title" content="Galeria del artista en We Otzi">
+    <meta property="og:description" id="og-description" content="Trabajos realizados, flash tattoo disponibles y proyectos.">
+    <meta property="og:image" id="og-image" content="">
+
+    <link rel="stylesheet" href="/shared/css/landing-style.css">
+    <link rel="stylesheet" href="/shared/css/dashboard.css">
+    <link rel="stylesheet" href="/shared/css/artist-profile.css">
+    <link rel="stylesheet" href="/shared/css/artist-gallery-feed.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+
+<body class="public-profile-view artist-feed-page">
+    <a class="skip-link" href="#feed-content">Saltar al contenido</a>
+
+    <header class="top-nav-header profile-nav-header">
+        <div class="header-edition-info">Edición Bauhaus | Perfil Público</div>
+        <div class="nav-row profile-nav-row">
+            <div class="nav-col nav-col-dashboard-links">
+                <nav class="dashboard-quick-nav" aria-label="Navegación principal del perfil público">
+                    <a href="/marketplace" class="dashboard-quick-link">Marketplace</a>
+                    <a href="/quotations" class="dashboard-quick-link" id="profile-header-quote-link">Cotizar</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/client/login" class="dashboard-quick-link">Acceder</a>
+                </nav>
+                <button class="mobile-menu-toggle" id="profile-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="profile-mobile-menu">
+                    Menu
+                </button>
+            </div>
+            <div class="nav-col">
+                <a href="/marketplace" class="login-toggle profile-login-link" aria-label="Volver al marketplace">
+                    Explorar
+                </a>
+            </div>
+            <div class="nav-col profile-nav-actions">
+                <button class="theme-toggle profile-theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo visual">Ö</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="dashboard-mobile-menu" id="profile-mobile-menu" aria-label="Navegación móvil del perfil público" hidden>
+        <a href="/marketplace" class="dashboard-mobile-menu-link">Marketplace</a>
+        <a href="/quotations" class="dashboard-mobile-menu-link" id="profile-mobile-quote-link">Cotizar</a>
+        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+        <a href="/client/login" class="dashboard-mobile-menu-link">Acceder</a>
+    </nav>
+
+    <div id="feed-loading" class="feed-loading">
+        <div class="spinner"></div>
+        <p>Cargando galeria...</p>
+    </div>
+
+    <div id="feed-error" class="feed-error" style="display:none;">
+        <h1>No se pudo cargar la galeria</h1>
+        <p>Verifica el enlace del artista o vuelve al marketplace.</p>
+        <a href="/marketplace" class="primary-btn">Volver al marketplace</a>
+    </div>
+
+    <main id="feed-content" class="feed-content" style="display:none;" tabindex="-1">
+        <p class="feed-intro section-kicker reveal-block">Galeria publica · Feed del artista</p>
+
+        <section class="artist-summary profile-panel reveal-block">
+            <div class="artist-meta">
+                <div class="artist-avatar-wrap">
+                    <img id="artist-avatar" class="artist-avatar" alt="Avatar del artista" width="88" height="88">
+                    <div id="artist-avatar-fallback" class="artist-avatar-fallback">WO</div>
+                </div>
+                <div class="artist-meta-copy">
+                    <p id="artist-username" class="artist-username">@artista.wo</p>
+                    <h1 id="artist-name" class="artist-name">Artista</h1>
+                    <p id="artist-bio" class="artist-bio">Sin bio disponible.</p>
+                </div>
+            </div>
+
+            <div class="artist-stats">
+                <div class="stat-box">
+                    <span id="stat-total" class="stat-value">0</span>
+                    <span class="stat-label">Publicaciones</span>
+                </div>
+                <div class="stat-box">
+                    <span id="stat-realizados" class="stat-value">0</span>
+                    <span class="stat-label">Realizados</span>
+                </div>
+                <div class="stat-box">
+                    <span id="stat-flash" class="stat-value">0</span>
+                    <span class="stat-label">Flash</span>
+                </div>
+                <div class="stat-box">
+                    <span id="stat-proyectos" class="stat-value">0</span>
+                    <span class="stat-label">Proyectos</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="feed-panel profile-panel reveal-block" aria-label="Feed de galeria">
+            <div class="feed-tabs" role="tablist" aria-label="Categorias de galeria">
+                <button class="feed-tab is-active" id="tab-realizados" role="tab" aria-selected="true" data-category="realizados">Trabajos realizados</button>
+                <button class="feed-tab" id="tab-flash" role="tab" aria-selected="false" data-category="flash">Flash disponibles</button>
+                <button class="feed-tab" id="tab-proyectos" role="tab" aria-selected="false" data-category="proyectos">Proyectos</button>
+            </div>
+
+            <p id="feed-empty" class="feed-empty" style="display:none;">Esta categoria todavia no tiene publicaciones.</p>
+            <div id="feed-grid" class="feed-grid" aria-live="polite"></div>
+        </section>
+    </main>
+
+    <footer
+        class="profile-footer"
+        data-bauhaus-footer
+        data-footer-variant="dashboard"
+        data-footer-width="full"
+    ></footer>
+
+    <div class="feed-lightbox" id="feed-lightbox" aria-hidden="true">
+        <button class="feed-lightbox-close" id="feed-lightbox-close" aria-label="Cerrar">×</button>
+        <button class="feed-lightbox-nav" id="feed-lightbox-prev" aria-label="Anterior">‹</button>
+        <div class="feed-lightbox-media-wrap">
+            <img id="feed-lightbox-image" class="feed-lightbox-image" alt="Trabajo del artista" width="1200" height="1200">
+            <video id="feed-lightbox-video" class="feed-lightbox-video" controls playsinline preload="metadata"></video>
+            <div id="feed-lightbox-counter" class="feed-lightbox-counter">1 / 1</div>
+        </div>
+        <button class="feed-lightbox-nav" id="feed-lightbox-next" aria-label="Siguiente">›</button>
+    </div>
+
+    <script src="/shared/js/bauhaus-footer.js"></script>
+    <script src="/shared/js/artist-gallery-feed.js"></script>
+</body>
+</html>

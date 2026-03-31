@@ -119,6 +119,60 @@ const SIZE_MAP = {
     'xlarge': ['muy_grande', 'muy grande', 'manga_completa', 'manga completa', 'espalda_completa', 'espalda completa', 'pecho_completo', 'pecho completo', 'xlarge']
 };
 
+const DASHBOARD_MOBILE_MENU_BREAKPOINT = 768;
+
+function setDashboardMobileMenuOpen(isOpen) {
+    const toggleBtn = document.getElementById('dashboard-mobile-menu-toggle');
+    const menu = document.getElementById('dashboard-mobile-menu');
+    if (!toggleBtn || !menu) return;
+
+    const shouldOpen = Boolean(isOpen);
+    menu.hidden = !shouldOpen;
+    toggleBtn.setAttribute('aria-expanded', String(shouldOpen));
+}
+
+function setupDashboardNavigationMenu() {
+    const toggleBtn = document.getElementById('dashboard-mobile-menu-toggle');
+    const menu = document.getElementById('dashboard-mobile-menu');
+    if (!toggleBtn || !menu) return;
+    if (toggleBtn.dataset.menuBound === 'true') return;
+
+    setDashboardMobileMenuOpen(false);
+
+    toggleBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const shouldOpen = toggleBtn.getAttribute('aria-expanded') !== 'true';
+        setDashboardMobileMenuOpen(shouldOpen);
+    });
+
+    menu.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', () => {
+            setDashboardMobileMenuOpen(false);
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        if (menu.hidden) return;
+        if (menu.contains(event.target)) return;
+        if (toggleBtn.contains(event.target)) return;
+        setDashboardMobileMenuOpen(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            setDashboardMobileMenuOpen(false);
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > DASHBOARD_MOBILE_MENU_BREAKPOINT) {
+            setDashboardMobileMenuOpen(false);
+        }
+    });
+
+    toggleBtn.dataset.menuBound = 'true';
+}
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -126,6 +180,7 @@ const SIZE_MAP = {
 document.addEventListener('DOMContentLoaded', async () => {
     showLoading();
     try {
+        setupDashboardNavigationMenu();
         await checkAuthState();
 
         if (!_supabase) {
