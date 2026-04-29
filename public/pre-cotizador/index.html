@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi - Pre Cotizador de Tatuaje</title>
+    <meta name="description"
+        content="Calcula un estimado aproximado del costo de tu tatuaje y descubre artistas compatibles en We Ötzi.">
+
+    <!-- Fonts - Bauhaus Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Supabase (loaded for ConfigManager parity, even though we use Express endpoint) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Google Maps API (Places) - loaded dynamically from config (same as /quotation) -->
+    <script>
+        function loadGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                var s = document.createElement('script');
+                s.src = 'https://maps.googleapis.com/maps/api/js?key=' +
+                    window.CONFIG.googleMaps.apiKey + '&libraries=places&loading=async';
+                s.async = true;
+                document.head.appendChild(s);
+            } else {
+                if (!window._googleMapsRetryCount) window._googleMapsRetryCount = 0;
+                window._googleMapsRetryCount++;
+                if (window._googleMapsRetryCount < 50) {
+                    setTimeout(loadGoogleMapsWhenReady, 100);
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadGoogleMapsWhenReady);
+    </script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/pre-quote.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Same header treatment as /quotation -->
+        <header class="app-header">
+            <a href="/quotation" class="nav-btn" aria-label="Volver a Cotización">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+
+            <div class="header-logo">We Ötzi</div>
+
+            <div class="header-actions">
+                <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <section class="step active" id="step-prequote">
+                <div class="question-container wide">
+                    <h1 class="brand-title">Pre Cotizador</h1>
+                    <p class="subtitle">
+                        Cuéntanos los datos básicos del tatuaje y te daremos un estimado aproximado
+                        basado en artistas reales de la plataforma.
+                    </p>
+
+                    <form id="prequote-form" class="prequote-form" novalidate>
+                        <div class="prequote-field">
+                            <label for="prequote-idea" class="technical-label">Idea del tatuaje</label>
+                            <textarea
+                                id="prequote-idea"
+                                name="tattoo_idea_description"
+                                rows="4"
+                                placeholder="Ej: dragón japonés en blanco y negro, estilo realista..."
+                                required></textarea>
+                        </div>
+
+                        <div class="prequote-grid">
+                            <div class="prequote-field">
+                                <label for="prequote-style" class="technical-label">Estilo</label>
+                                <select id="prequote-style" name="tattoo_style" required>
+                                    <option value="">Selecciona un estilo</option>
+                                </select>
+                            </div>
+                            <div class="prequote-field">
+                                <label for="prequote-size" class="technical-label">Tamaño</label>
+                                <select id="prequote-size" name="tattoo_size" required>
+                                    <option value="">Selecciona un tamaño</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="prequote-grid">
+                            <div class="prequote-field">
+                                <label for="prequote-body-zone" class="technical-label">Zona del cuerpo</label>
+                                <select id="prequote-body-zone" name="tattoo_body_zone" required>
+                                    <option value="">Cargando zonas...</option>
+                                </select>
+                            </div>
+                            <div class="prequote-field">
+                                <span class="technical-label">Subzonas</span>
+                                <div id="prequote-body-subzone" class="prequote-checkbox-grid prequote-checkbox-grid--empty" role="group" aria-label="Subzonas">
+                                    <p class="prequote-checkbox-empty">Selecciona una zona primero</p>
+                                </div>
+                                <p class="prequote-hint">Puedes marcar varias subzonas, o usar "Sin subzona específica" / "Zona entera".</p>
+                            </div>
+                        </div>
+
+                        <div class="prequote-field">
+                            <label for="prequote-city" class="technical-label">Ciudad</label>
+                            <input
+                                id="prequote-city"
+                                name="client_city_residence"
+                                type="text"
+                                placeholder="Empieza a escribir tu ciudad..."
+                                autocomplete="off"
+                                required>
+                            <p class="prequote-hint">Selecciona una opción del autocompletado para incluir país.</p>
+                        </div>
+
+                        <p id="prequote-error" class="error-msg hidden"></p>
+
+                        <div class="actions-row">
+                            <button id="prequote-submit" type="submit" class="btn btn-primary btn-large">
+                                <span class="btn-text-content">Calcular aproximado</span>
+                                <i class="fa-solid fa-calculator"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section id="prequote-results" class="prequote-results hidden" aria-live="polite"></section>
+        </main>
+
+        <!-- Bauhaus Footer (same component used by quotation) -->
+        <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
+    </div>
+
+    <!-- Loading Overlay (same markup as /quotation) -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <p>Calculando estimado...</p>
+    </div>
+
+    <!-- Shared scripts (same order as /quotation up to quotation-shared.js) -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/logging-loader.js"></script>
+    <script src="/shared/js/bauhaus-footer.js"></script>
+    <script src="/shared/js/quotation-shared.js"></script>
+    <script src="/shared/js/pre-quote.js"></script>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            body.setAttribute('data-theme', newTheme);
+            const icon = document.getElementById('theme-icon');
+            if (icon) icon.className = newTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+            try { localStorage.setItem('weotzi_theme', newTheme); } catch (e) {}
+        }
+        (function initTheme() {
+            try {
+                const saved = localStorage.getItem('weotzi_theme');
+                if (saved) {
+                    document.body.setAttribute('data-theme', saved);
+                    const icon = document.getElementById('theme-icon');
+                    if (icon) icon.className = saved === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+                }
+            } catch (e) {}
+        })();
+    </script>
+</body>
+
+</html>

@@ -70,6 +70,18 @@
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Analytics</span>
                 </a>
+                <a href="#" class="nav-item" data-section="tickets">
+                    <i class="fa-solid fa-ticket"></i>
+                    <span>Tickets</span>
+                </a>
+                <a href="#" class="nav-item" data-section="verifications">
+                    <i class="fa-solid fa-user-check"></i>
+                    <span>Verificaciones</span>
+                </a>
+                <a href="#" class="nav-item" data-section="jobboard">
+                    <i class="fa-solid fa-briefcase"></i>
+                    <span>Job Board</span>
+                </a>
 
                 <!-- Super Admin Divider -->
                 <div class="nav-divider">
@@ -99,6 +111,14 @@
                 <a href="#" class="nav-item" data-section="events">
                     <i class="fa-solid fa-bolt"></i>
                     <span>Eventos/Webhooks</span>
+                </a>
+                <a href="#" class="nav-item" data-section="email-routing">
+                    <i class="fa-solid fa-envelope-circle-check"></i>
+                    <span>Email Routing</span>
+                </a>
+                <a href="#" class="nav-item" data-section="currencies">
+                    <i class="fa-solid fa-dollar-sign"></i>
+                    <span>Monedas</span>
                 </a>
             </nav>
 
@@ -222,6 +242,66 @@
                     </div>
                 </div>
 
+                <!-- Quotation Metrics Row -->
+                <div class="dashboard-metrics-row">
+                    <!-- Avg Response Time + Trend -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-stopwatch"></i> Metricas de Cotizaciones</h3>
+                            <span class="text-muted" id="dash-metrics-period" style="font-size: 0.75rem;">Ultimos 90 dias</span>
+                        </div>
+                        <div class="card-body" style="padding: 16px;">
+                            <div class="metrics-kpi-row">
+                                <div class="kpi-box">
+                                    <span class="kpi-value" id="dash-avg-response">--</span>
+                                    <span class="kpi-label">Tiempo Prom. Respuesta</span>
+                                </div>
+                                <div class="kpi-box">
+                                    <span class="kpi-value" id="dash-conversion-rate">--</span>
+                                    <span class="kpi-label">Tasa de Conversion</span>
+                                </div>
+                                <div class="kpi-box">
+                                    <span class="kpi-value" id="dash-total-period">--</span>
+                                    <span class="kpi-label">Total Periodo</span>
+                                </div>
+                            </div>
+                            <div class="chart-container" style="height: 180px; margin-top: 16px;">
+                                <canvas id="chart-dash-trend"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conversion by Style -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-brush"></i> Conversion por Estilo</h3>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <div class="mini-table-container" id="dash-conversion-style">
+                                <div class="section-loader" style="padding: 24px;">
+                                    <div class="spinner"></div>
+                                    <span class="loader-text">Cargando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conversion by Artist -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-user-pen"></i> Conversion por Artista</h3>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <div class="mini-table-container" id="dash-conversion-artist">
+                                <div class="section-loader" style="padding: 24px;">
+                                    <div class="spinner"></div>
+                                    <span class="loader-text">Cargando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Activity + Services + Tickets Row -->
                 <div class="dashboard-triple-grid">
                     <!-- Recent Quotations + Realtime Activity -->
@@ -260,67 +340,104 @@
                         </div>
                     </div>
 
+                    <!-- Health Monitor Compact -->
                     <div class="card">
                         <div class="card-header">
-                            <h3>Estado de Servicios</h3>
+                            <h3><i class="fa-solid fa-heart-pulse"></i> Servicios</h3>
                             <button class="btn-icon" onclick="refreshServiceHealth()" title="Actualizar">
                                 <i class="fa-solid fa-rotate"></i>
                             </button>
                         </div>
-                        <div class="card-body">
-                            <div class="health-cards-grid">
-                                <div class="health-card" onclick="showSection('apis')">
-                                    <div class="health-icon" style="background: rgba(62, 207, 142, 0.15); color: #3ecf8e;">
+                        <div class="card-body" style="padding: 12px;">
+                            <div class="health-list-compact">
+                                <div class="health-row" onclick="showSection('apis')">
+                                    <div class="health-icon-sm" style="background: rgba(62, 207, 142, 0.15); color: #3ecf8e;">
                                         <i class="fa-solid fa-database"></i>
                                     </div>
-                                    <div class="health-info">
-                                        <span class="health-name">Supabase</span>
-                                        <span class="health-status" id="supabase-status">
-                                            <i class="fa-solid fa-circle"></i> Sin verificar
-                                        </span>
-                                    </div>
+                                    <span class="health-svc-name">Supabase</span>
+                                    <span class="health-status" id="supabase-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
                                 </div>
-                                <div class="health-card" onclick="showSection('apis')">
-                                    <div class="health-icon" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;">
+                                <div class="health-row" onclick="showSection('apis')">
+                                    <div class="health-icon-sm" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;">
                                         <i class="fa-solid fa-webhook"></i>
                                     </div>
-                                    <div class="health-info">
-                                        <span class="health-name">n8n</span>
-                                        <span class="health-status" id="n8n-status">
-                                            <i class="fa-solid fa-circle"></i> Sin verificar
-                                        </span>
-                                    </div>
+                                    <span class="health-svc-name">n8n</span>
+                                    <span class="health-status" id="n8n-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
                                 </div>
-                                <div class="health-card" onclick="showSection('apis')">
-                                    <div class="health-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                                <div class="health-row" onclick="showSection('apis')">
+                                    <div class="health-icon-sm" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
                                         <i class="fa-solid fa-envelope"></i>
                                     </div>
-                                    <div class="health-info">
-                                        <span class="health-name">EmailJS</span>
-                                        <span class="health-status" id="emailjs-status">
-                                            <i class="fa-solid fa-circle"></i> Sin verificar
-                                        </span>
-                                    </div>
+                                    <span class="health-svc-name">EmailJS</span>
+                                    <span class="health-status" id="emailjs-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
                                 </div>
-                                <div class="health-card" onclick="showSection('apis')">
-                                    <div class="health-icon" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;">
+                                <div class="health-row" onclick="showSection('apis')">
+                                    <div class="health-icon-sm" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;">
                                         <i class="fa-solid fa-map-location-dot"></i>
                                     </div>
-                                    <div class="health-info">
-                                        <span class="health-name">Google Maps</span>
-                                        <span class="health-status" id="gmaps-status">
-                                            <i class="fa-solid fa-circle"></i> Sin verificar
-                                        </span>
+                                    <span class="health-svc-name">Google Maps</span>
+                                    <span class="health-status" id="gmaps-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                                <div class="health-row" onclick="showSection('apis')">
+                                    <div class="health-icon-sm" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+                                        <i class="fa-solid fa-robot"></i>
                                     </div>
+                                    <span class="health-svc-name">Gemini AI</span>
+                                    <span class="health-status" id="gemini-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
+                                </div>
+                                <div class="health-row" onclick="showSection('apis')">
+                                    <div class="health-icon-sm" style="background: rgba(52, 168, 83, 0.15); color: #34a853;">
+                                        <i class="fa-brands fa-google-drive"></i>
+                                    </div>
+                                    <span class="health-svc-name">Google Drive</span>
+                                    <span class="health-status" id="gdrive-status">
+                                        <i class="fa-solid fa-circle"></i> Sin verificar
+                                    </span>
                                 </div>
                             </div>
-                            <div class="btn-group" style="margin-top: 16px;">
-                                <button class="btn btn-secondary btn-sm" onclick="showSection('apis')">
-                                    <i class="fa-solid fa-plug"></i> Gestionar APIs
-                                </button>
-                                <button class="btn btn-secondary btn-sm" onclick="showSection('backup')">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i> Backup
-                                </button>
+                        </div>
+                    </div>
+
+                    <!-- Tickets Summary -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-headset"></i> Tickets Abiertos</h3>
+                            <a href="#" class="btn-link" onclick="showSection('support')">Ver todos</a>
+                        </div>
+                        <div class="card-body" style="padding: 12px;">
+                            <div class="tickets-summary">
+                                <div class="ticket-priority-row">
+                                    <span class="ticket-priority critical"><i class="fa-solid fa-circle-exclamation"></i> Critica</span>
+                                    <span class="ticket-count" id="dash-tickets-critical">0</span>
+                                </div>
+                                <div class="ticket-priority-row">
+                                    <span class="ticket-priority high"><i class="fa-solid fa-arrow-up"></i> Alta</span>
+                                    <span class="ticket-count" id="dash-tickets-high">0</span>
+                                </div>
+                                <div class="ticket-priority-row">
+                                    <span class="ticket-priority medium"><i class="fa-solid fa-minus"></i> Media</span>
+                                    <span class="ticket-count" id="dash-tickets-medium">0</span>
+                                </div>
+                                <div class="ticket-priority-row">
+                                    <span class="ticket-priority low"><i class="fa-solid fa-arrow-down"></i> Baja</span>
+                                    <span class="ticket-count" id="dash-tickets-low">0</span>
+                                </div>
+                            </div>
+                            <div id="dash-recent-tickets" class="recent-tickets-list" style="margin-top: 12px;">
+                                <div class="empty-state-box" style="padding: 16px;">
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    <span class="empty-title">Sin tickets abiertos</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -339,8 +456,29 @@
                             <option value="">Todos los estados</option>
                             <option value="pending">Pendientes</option>
                             <option value="responded">Respondidas</option>
-                            <option value="in_progress">En progreso (Cliente)</option>
+                            <option value="client_approved">Cliente Acepto</option>
+                            <option value="client_rejected">Cliente Rechazo</option>
+                            <option value="in_progress">En Progreso</option>
+                            <option value="completed">Completadas</option>
+                            <option value="expired">Expiradas</option>
                         </select>
+                        <select id="filter-artist">
+                            <option value="">Todos los artistas</option>
+                        </select>
+                        <select id="filter-price-range">
+                            <option value="">Cualquier precio</option>
+                            <option value="0-50">$0 - $50</option>
+                            <option value="50-100">$50 - $100</option>
+                            <option value="100-250">$100 - $250</option>
+                            <option value="250-500">$250 - $500</option>
+                            <option value="500-1000">$500 - $1,000</option>
+                            <option value="1000+">$1,000+</option>
+                        </select>
+                        <input type="date" id="filter-date-from" title="Fecha desde">
+                        <input type="date" id="filter-date-to" title="Fecha hasta">
+                        <button class="btn btn-secondary" onclick="clearQuotationFilters()" title="Limpiar filtros">
+                            <i class="fa-solid fa-filter-circle-xmark"></i>
+                        </button>
                         <button class="btn btn-secondary" onclick="loadQuotations()">
                             <i class="fa-solid fa-refresh"></i> Actualizar
                         </button>
@@ -351,8 +489,26 @@
                 <div class="bulk-actions hidden" id="quotations-bulk-actions">
                     <span class="selected-count">0 seleccionados</span>
                     <div class="btn-group">
+                        <select id="bulk-status-change" title="Cambiar estado en lote">
+                            <option value="">Cambiar estado...</option>
+                            <option value="pending">Pendiente</option>
+                            <option value="responded">Respondida</option>
+                            <option value="client_approved">Cliente Acepto</option>
+                            <option value="client_rejected">Cliente Rechazo</option>
+                            <option value="in_progress">En Progreso</option>
+                            <option value="completed">Completada</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="bulkChangeStatus()">
+                            <i class="fa-solid fa-arrows-rotate"></i> Aplicar Estado
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportSelectedCSV()">
+                            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                        </button>
                         <button class="btn btn-secondary btn-sm" onclick="exportSelectedQuotations()">
                             <i class="fa-solid fa-file-zipper"></i> Exportar ZIP
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="bulkArchiveQuotations()">
+                            <i class="fa-solid fa-box-archive"></i> Archivar
                         </button>
                         <button class="btn btn-secondary btn-sm danger-hover" onclick="deleteSelectedQuotations()">
                             <i class="fa-solid fa-trash"></i> Eliminar
@@ -412,6 +568,34 @@
                     </div>
                 </div>
 
+                <div class="section-toolbar filters-row">
+                    <div class="filter-group">
+                        <select id="filter-artist-country" onchange="applyArtistFilters()">
+                            <option value="">Todos los paises</option>
+                        </select>
+                        <select id="filter-artist-style" onchange="applyArtistFilters()">
+                            <option value="">Todos los estilos</option>
+                        </select>
+                        <select id="filter-artist-verification" onchange="applyArtistFilters()">
+                            <option value="">Todos los estados</option>
+                            <option value="verified">Verificado</option>
+                            <option value="pending">Pendiente</option>
+                            <option value="pending_review">En revision</option>
+                            <option value="rejected">Rechazado</option>
+                        </select>
+                        <select id="filter-artist-index" onchange="applyArtistFilters()">
+                            <option value="">Todos los index</option>
+                            <option value="high">Alto (75+)</option>
+                            <option value="medium">Medio (50-74)</option>
+                            <option value="low">Bajo (< 50)</option>
+                            <option value="none">Sin index</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" onclick="clearArtistFilters()">
+                            <i class="fa-solid fa-filter-circle-xmark"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table class="data-table" id="artists-table">
                         <thead>
@@ -421,11 +605,13 @@
                                 <th>Ciudad</th>
                                 <th>Estilos</th>
                                 <th>Precio/Sesión</th>
+                                <th>Index</th>
+                                <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="artists-tbody">
-                            <tr><td colspan="6" style="padding: 0;">
+                            <tr><td colspan="8" style="padding: 0;">
                                 <div class="empty-state-box">
                                     <i class="fa-solid fa-plug"></i>
                                     <span class="empty-title">Sin conexion a Supabase</span>
@@ -736,6 +922,168 @@
                             <button class="btn btn-primary" onclick="saveAIProfileSettings()">
                                 <i class="fa-solid fa-save"></i> Guardar Configuración
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Verifications Section -->
+            <section id="section-verifications" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Cola de verificaciones de artistas. Revisa, aprueba o rechaza solicitudes.
+                    </p>
+                    <div class="filter-group">
+                        <select id="verification-filter-status">
+                            <option value="pending">Pendientes</option>
+                            <option value="all">Todas</option>
+                            <option value="verified">Aprobadas</option>
+                            <option value="rejected">Rechazadas</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadVerificationQueue()">
+                            <i class="fa-solid fa-refresh"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Verification Stats -->
+                <div class="stats-grid stats-grid--sm">
+                    <div class="stat-card">
+                        <div class="stat-icon pending-artist"><i class="fa-solid fa-clock"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="verif-stat-pending">—</span>
+                            <span class="stat-label">Pendientes</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(62, 207, 142, 0.15); color: #3ecf8e;"><i class="fa-solid fa-check"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="verif-stat-approved">—</span>
+                            <span class="stat-label">Aprobadas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="fa-solid fa-xmark"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="verif-stat-rejected">—</span>
+                            <span class="stat-label">Rechazadas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verification Queue -->
+                <div id="verification-queue" class="verification-queue">
+                    <div class="empty-state-box" style="padding: 32px;">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span class="empty-title">Cargando cola de verificaciones...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tickets Section -->
+            <section id="section-tickets" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Vista unificada de tickets de soporte, feedback y errores automaticos.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadSupportTickets()">
+                            <i class="fa-solid fa-refresh"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid stats-grid--sm">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(239,68,68,0.15);color:#ef4444;"><i class="fa-solid fa-fire"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="ticket-stat-critical">—</span>
+                            <span class="stat-label">Criticos</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(249,115,22,0.15);color:#f97316;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="ticket-stat-open">—</span>
+                            <span class="stat-label">Abiertos</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(139,92,246,0.15);color:#8b5cf6;"><i class="fa-solid fa-spinner"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="ticket-stat-progress">—</span>
+                            <span class="stat-label">En progreso</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(62,207,142,0.15);color:#3ecf8e;"><i class="fa-solid fa-check"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="ticket-stat-resolved">—</span>
+                            <span class="stat-label">Resueltos (30d)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-toolbar filters-row">
+                    <div class="filter-group">
+                        <select id="ticket-filter-status" onchange="applyTicketFilters()">
+                            <option value="">Todos los estados</option>
+                            <option value="open" selected>Abiertos</option>
+                            <option value="in_progress">En progreso</option>
+                            <option value="resolved">Resueltos</option>
+                            <option value="closed">Cerrados</option>
+                        </select>
+                        <select id="ticket-filter-category" onchange="applyTicketFilters()">
+                            <option value="">Todas las categorias</option>
+                            <option value="bug">Bug</option>
+                            <option value="feature">Feature request</option>
+                            <option value="consulta">Consulta</option>
+                            <option value="error_auto">Error automatico</option>
+                        </select>
+                        <select id="ticket-filter-priority" onchange="applyTicketFilters()">
+                            <option value="">Todas las prioridades</option>
+                            <option value="critical">Critica</option>
+                            <option value="high">Alta</option>
+                            <option value="medium">Media</option>
+                            <option value="low">Baja</option>
+                        </select>
+                        <select id="ticket-filter-agent" onchange="applyTicketFilters()">
+                            <option value="">Todos los agentes</option>
+                            <option value="unassigned">Sin asignar</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" onclick="clearTicketFilters()">
+                            <i class="fa-solid fa-filter-circle-xmark"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tickets-layout">
+                    <div class="tickets-list-panel">
+                        <div id="tickets-list" class="tickets-list">
+                            <div class="empty-state-box" style="padding:32px;">
+                                <i class="fa-solid fa-ticket"></i>
+                                <span class="empty-title">Cargando tickets...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ticket-detail-panel" id="ticket-detail-panel">
+                        <div class="ticket-detail-empty">
+                            <i class="fa-solid fa-hand-pointer"></i>
+                            <span>Selecciona un ticket para ver detalles</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ticket-metrics-section" style="margin-top:1.5rem;">
+                    <h3 style="margin:0 0 1rem;font-size:1rem;color:var(--text-primary,#fff);"><i class="fa-solid fa-chart-pie"></i> Metricas</h3>
+                    <div class="artist-dashboard-grid">
+                        <div class="artist-dashboard-chart">
+                            <h4>Distribucion por categoria</h4>
+                            <canvas id="ticket-category-chart" height="180"></canvas>
+                        </div>
+                        <div class="artist-dashboard-chart">
+                            <h4>Tendencia (ultimos 30 dias)</h4>
+                            <canvas id="ticket-trend-chart" height="180"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1451,6 +1799,131 @@
                 </div>
             </section>
 
+            <!-- Email Routing Section (Super Admin) -->
+            <section id="section-email-routing" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Routing de emails transaccionales por evento. Cada evento puede ir a <strong>n8n</strong> (legacy), <strong>BillionMail</strong> (nuevo, self-hosted en mail.weotzi.com), <strong>dual</strong> (ambos en paralelo, durante validación), o <strong>off</strong> (no enviar).
+                        Cambios se aplican en ~30 segundos (cache en backend).
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="loadEmailRouting()">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                        <button class="btn btn-primary" onclick="bulkSetEmailRouting('billionmail')" title="Mover todos los eventos a BillionMail">
+                            <i class="fa-solid fa-arrow-right"></i> Todo a BillionMail
+                        </button>
+                        <button class="btn btn-secondary" onclick="bulkSetEmailRouting('n8n')" title="Volver todos a n8n (rollback)">
+                            <i class="fa-solid fa-arrow-rotate-left"></i> Rollback a n8n
+                        </button>
+                    </div>
+                </div>
+
+                <div class="info-card" style="margin-bottom: 16px;">
+                    <h4><i class="fa-solid fa-circle-info"></i> Cómo migrar un evento</h4>
+                    <ol style="margin-left: 20px; margin-top: 8px; font-size: 0.9rem;">
+                        <li>Cambiar el canal a <strong>dual</strong> y enviar un test (botón Probar)</li>
+                        <li>Verificar que el correo llega por BillionMail (revisa <code>Show original</code> en Gmail: SPF/DKIM/DMARC en pass)</li>
+                        <li>Esperar 24-48h con dual activo, monitorear logs</li>
+                        <li>Cambiar el canal a <strong>billionmail</strong></li>
+                        <li>Cuando todos estén en billionmail estable, desactivar n8n</li>
+                    </ol>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="email-routing-table">
+                        <thead>
+                            <tr>
+                                <th>Evento</th>
+                                <th>Plantilla</th>
+                                <th>Canal</th>
+                                <th>Test</th>
+                            </tr>
+                        </thead>
+                        <tbody id="email-routing-tbody">
+                            <tr><td colspan="4" style="padding: 0;">
+                                <div class="section-loader">
+                                    <div class="spinner"></div>
+                                    <span class="loader-text">Cargando eventos...</span>
+                                </div>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info-card" style="margin-top: 20px;">
+                    <h4><i class="fa-solid fa-key"></i> API Key BillionMail</h4>
+                    <p>La API key se configura como variable de entorno <code>BILLIONMAIL_API_KEY</code> en el servidor (ecosystem.config.js o .env). Una vez configurada, todos los eventos con canal <strong>billionmail</strong> la usarán por defecto. Para sobrescribir por evento (p. ej. usar otra cuenta para registros vs notificaciones), edita el evento desde el botón "..." (próximamente).</p>
+                </div>
+            </section>
+
+            <!-- Currencies Section (Super Admin) -->
+            <section id="section-currencies" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Tabla maestra de monedas y tipos de cambio frente a USD y EUR.
+                        Se actualiza diariamente vía un workflow de n8n que consulta open.er-api.com.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="btn-refresh-currencies-now" onclick="refreshCurrenciesNow()">
+                            <i class="fa-solid fa-rotate"></i> Refrescar ahora
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadCurrenciesAdmin()">
+                            <i class="fa-solid fa-arrows-rotate"></i> Recargar tabla
+                        </button>
+                    </div>
+                </div>
+
+                <div class="info-card" style="margin-bottom: 16px;">
+                    <h4><i class="fa-solid fa-circle-info"></i> Cómo funciona</h4>
+                    <p>Las cotizaciones, costos de sesión y montos del job board guardan automáticamente su equivalente en USD y EUR mediante triggers en la base de datos. Los usuarios pueden elegir en qué moneda ver los precios mediante el selector global.</p>
+                    <p style="margin-top: 8px;"><strong>Endpoint cron:</strong> <code>POST /api/admin/currencies/bulk-update</code> con header <code>X-Cron-Token</code>.</p>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="currencies-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Símbolo</th>
+                                <th>Unidades / USD</th>
+                                <th>Unidades / EUR</th>
+                                <th>Última actualización</th>
+                                <th>Fuente</th>
+                                <th>Activa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="currencies-tbody">
+                            <tr><td colspan="8" style="padding: 0;">
+                                <div class="section-loader">
+                                    <div class="spinner"></div>
+                                    <span class="loader-text">Cargando monedas...</span>
+                                </div>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 style="margin-top: 28px; margin-bottom: 10px;">Historial de actualizaciones</h3>
+                <div class="table-container">
+                    <table class="data-table" id="currency-refresh-logs-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Fuente</th>
+                                <th>Estado</th>
+                                <th>Monedas actualizadas</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="currency-refresh-logs-tbody">
+                            <tr><td colspan="5" style="padding: 16px; text-align: center; opacity: 0.6;">Sin registros aún.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <!-- Analytics Section -->
             <section id="section-analytics" class="content-section">
                 <!-- Period Selector -->
@@ -1605,6 +2078,78 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Job Board Section -->
+            <section id="section-jobboard" class="content-section">
+                <div class="section-toolbar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="search-jobboard" placeholder="Buscar por estilo, ciudad o artista..." oninput="applyJobBoardFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-jb-status" onchange="applyJobBoardFilters()">
+                            <option value="">Todos los estados</option>
+                            <option value="open">Abiertas</option>
+                            <option value="in_review">En revision</option>
+                            <option value="accepted">Aceptadas</option>
+                            <option value="closed">Cerradas</option>
+                            <option value="expired">Expiradas</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadJobBoardAdmin()">
+                            <i class="fa-solid fa-refresh"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-row" id="jb-stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                    <div class="stat-card"><div class="stat-value" id="jb-stat-total">0</div><div class="stat-label">Total Solicitudes</div></div>
+                    <div class="stat-card"><div class="stat-value" id="jb-stat-open">0</div><div class="stat-label">Abiertas</div></div>
+                    <div class="stat-card"><div class="stat-value" id="jb-stat-bids">0</div><div class="stat-label">Total Propuestas</div></div>
+                    <div class="stat-card"><div class="stat-value" id="jb-stat-accepted">0</div><div class="stat-label">Aceptadas</div></div>
+                    <div class="stat-card"><div class="stat-value" id="jb-stat-expired">0</div><div class="stat-label">Expiradas</div></div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="jobboard-table">
+                        <thead>
+                            <tr>
+                                <th>Codigo</th>
+                                <th>Estilo</th>
+                                <th>Ciudad</th>
+                                <th>Presupuesto</th>
+                                <th>Propuestas</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobboard-tbody">
+                            <tr><td colspan="7" style="padding: 0;">
+                                <div class="empty-state-box">
+                                    <i class="fa-solid fa-plug"></i>
+                                    <span class="empty-title">Sin conexion a Supabase</span>
+                                    <span class="empty-desc">Configura la conexion para ver el Job Board.</span>
+                                </div>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="jobboard-pagination"></div>
+
+                <!-- Bids Detail Panel -->
+                <div id="jb-bids-panel" class="card" style="display: none; margin-top: 20px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 id="jb-bids-title" style="margin: 0;">Propuestas</h3>
+                        <button class="btn btn-secondary btn-sm" onclick="closeJobBoardBidsPanel()">
+                            <i class="fa-solid fa-xmark"></i> Cerrar
+                        </button>
+                    </div>
+                    <div id="jb-bids-content">
+                        <!-- Bids loaded by JS -->
                     </div>
                 </div>
             </section>
@@ -1810,7 +2355,7 @@
     <!-- Table Inspector Modal -->
     <div class="modal" id="table-inspector-modal">
         <div class="modal-overlay" onclick="closeModal()"></div>
-        <div class="modal-content large-modal" style="max-width: 1000px;">
+        <div class="modal-content large-modal" style="max-width: 1200px;">
             <div class="modal-header">
                 <h3 id="table-inspector-title">Inspeccionar Tabla</h3>
                 <button class="modal-close" onclick="closeModal()">
@@ -1821,8 +2366,16 @@
                 <div class="table-inspector-toolbar">
                     <div class="table-inspector-info">
                         <span id="table-inspector-count">0 registros</span>
+                        <span id="table-inspector-fk-info" class="table-inspector-fk-info"></span>
+                    </div>
+                    <div class="table-inspector-search-wrap">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="table-inspector-search" placeholder="Buscar en todos los campos..." oninput="filterTableInspector()">
                     </div>
                     <div class="btn-group">
+                        <button class="btn btn-secondary btn-sm" onclick="exportFilteredCSV()" title="Exportar datos filtrados">
+                            <i class="fa-solid fa-filter"></i> CSV Filtrado
+                        </button>
                         <button class="btn btn-secondary btn-sm" onclick="exportTableJSON()">
                             <i class="fa-solid fa-file-code"></i> JSON
                         </button>
@@ -1831,7 +2384,8 @@
                         </button>
                     </div>
                 </div>
-                <div class="table-container" style="max-height: 400px; overflow: auto;">
+                <div class="table-inspector-col-filters" id="table-inspector-col-filters"></div>
+                <div class="table-container" style="max-height: 450px; overflow: auto;">
                     <table class="data-table" id="table-inspector-data">
                         <thead id="table-inspector-head">
                             <!-- Headers loaded by JS -->
@@ -1961,11 +2515,20 @@
         </div>
     </div>
 
+    <!-- Artist Profile Modal -->
+    <div class="artist-profile-overlay" id="artist-profile-overlay">
+        <div class="artist-profile-modal" id="artist-profile-content">
+        </div>
+    </div>
+
     <!-- Toast Notifications -->
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Configuration Manager -->
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/email-routing-admin.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
 
     <!-- Admin Panel Logic -->

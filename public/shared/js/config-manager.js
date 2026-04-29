@@ -15,6 +15,7 @@ const ConfigManager = (function () {
     // Storage keys
     const STORAGE_KEY = 'weotzi_config';
     const CONFIG_FILE = '/shared/js/app-config.json';
+    const DEFAULT_ARTIST_PASSWORD = 'OtziArtist2025';
 
     // Default configuration
     const defaultConfig = {
@@ -25,6 +26,10 @@ const ConfigManager = (function () {
             url: '',
             anonKey: '',
             storageBucket: 'quotation-references'
+        },
+
+        registration: {
+            presetPassword: DEFAULT_ARTIST_PASSWORD
         },
 
         n8n: {
@@ -132,6 +137,13 @@ const ConfigManager = (function () {
             demoMode: true,
             emailNotifications: true,
             imageUpload: true
+        },
+
+        supportChat: {
+            enabled: true,
+            model: 'gpt-4o-mini',
+            welcomeMessage: '¡Hola! Soy el asistente de soporte de WeOtzi. ¿En qué puedo ayudarte hoy?',
+            escalateAfter: 3
         },
 
         demoArtists: [],
@@ -1547,13 +1559,34 @@ const ConfigManager = (function () {
     }
 
     /**
-     * Send an n8n webhook event
-     * Checks if event is enabled and has a webhook URL before sending
+     * Send an email/notification event.
+     *
+     * This function used to POST directly to n8n. As of the BillionMail migration
+     * (docs/plans/2026-04-28-billionmail-migration.md) it now delegates to
+     * window.EmailClient.sendEmail, which calls POST /api/email/:eventId on the
+     * backend. The backend routes to n8n / BillionMail / dual-send / off based on
+     * the per-event feature flag in app_settings.email_routing.
+     *
+     * Falls back to the legacy direct-to-n8n path when EmailClient is not loaded
+     * (e.g. older pages that haven't included email-client.js yet) so existing
+     * behavior is preserved.
+     *
      * @param {string} eventId - The event ID (e.g., 'artist_registration_completed')
      * @param {Object} payload - The data payload to send
-     * @returns {Promise<{success: boolean, error?: string}>}
+     * @returns {Promise<{success: boolean, channel?: string, error?: string}>}
      */
     async function sendN8NEvent(eventId, payload) {
+        if (typeof window !== 'undefined' && window.EmailClient && typeof window.EmailClient.sendEmail === 'function') {
+            try {
+                const res = await window.EmailClient.sendEmail(eventId, payload);
+                return res;
+            } catch (err) {
+                console.error(`❌ EmailClient failed for ${eventId}, falling back to legacy n8n:`, err);
+                // Fall through to legacy path below.
+            }
+        }
+
+        // Legacy path (kept as a safety net).
         try {
             const event = await getN8NEvent(eventId);
 
@@ -1572,7 +1605,6 @@ const ConfigManager = (function () {
                 return { success: false, error: 'No webhook URL configured' };
             }
 
-            // Build the full payload with metadata
             const fullPayload = {
                 event_id: eventId,
                 event_name: event.name,
@@ -1581,13 +1613,11 @@ const ConfigManager = (function () {
                 data: payload
             };
 
-            _dbg(`Sending n8n event: ${eventId}...`);
+            _dbg(`Sending n8n event (legacy direct path): ${eventId}...`);
 
             const response = await fetch(event.webhookUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(fullPayload)
             });
 
@@ -1595,7 +1625,7 @@ const ConfigManager = (function () {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            _dbg(`n8n event sent successfully: ${eventId}`);
+            _dbg(`n8n event sent successfully (legacy): ${eventId}`);
             return { success: true };
         } catch (err) {
             console.error(`❌ Error sending n8n event ${eventId}:`, err);
@@ -1712,7 +1742,12 @@ const ConfigManager = (function () {
         weOtzi: config.weOtzi || { whatsapp: '+541127015926' },
         googleMaps: config.googleMaps || { apiKey: '' },
         googleCalendar: config.googleCalendar || { clientId: '', apiKey: '', enabled: false },
-        registration: config.registration || { presetPassword: '' },
+        registration: {
+            presetPassword: (typeof config.registration?.presetPassword === 'string' &&
+                config.registration.presetPassword.trim().length >= 6)
+                ? config.registration.presetPassword.trim()
+                : DEFAULT_ARTIST_PASSWORD
+        },
         infoTexts: config.infoTexts || [],
         routes: config.routes || {}
     };

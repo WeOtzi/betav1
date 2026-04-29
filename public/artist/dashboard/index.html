@@ -29,6 +29,9 @@
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/shared/js/qrcode-generator.js"></script>
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <!-- Google Maps Places API - Key configured in config-manager.js -->
     <script>
@@ -702,6 +705,68 @@
         </section>
     </main>
 
+    <!-- ============================================
+         Real-time Visitors Map — populated by visitors-map.js
+         Data source: artist_profile_visits (Supabase Realtime)
+         ============================================ -->
+    <section class="dashboard-card block-visitors-map block" id="block-visitors-map" aria-label="Mapa de visitantes">
+        <header class="visitors-header">
+            <h2 class="visitors-title">Mapa de Visitantes</h2>
+            <div class="visitors-period-tabs" role="tablist" aria-label="Periodo">
+                <button type="button" class="visitors-period-btn is-active" data-period="today" role="tab" aria-selected="true">Hoy</button>
+                <button type="button" class="visitors-period-btn" data-period="week" role="tab" aria-selected="false">Semana</button>
+                <button type="button" class="visitors-period-btn" data-period="month" role="tab" aria-selected="false">Mes</button>
+                <button type="button" class="visitors-period-btn" data-period="all" role="tab" aria-selected="false">Histórico</button>
+            </div>
+            <span class="visitors-live-indicator" id="visitors-live" aria-live="polite">● En vivo</span>
+        </header>
+
+        <div class="visitors-stats-row">
+            <div class="visitor-stat">
+                <span class="visitor-stat-value" id="vs-total">0</span>
+                <span class="visitor-stat-label">Visitas</span>
+            </div>
+            <div class="visitor-stat">
+                <span class="visitor-stat-value" id="vs-unique">0</span>
+                <span class="visitor-stat-label">Únicos</span>
+            </div>
+            <div class="visitor-stat">
+                <span class="visitor-stat-value" id="vs-countries">0</span>
+                <span class="visitor-stat-label">Países</span>
+            </div>
+            <div class="visitor-stat">
+                <span class="visitor-stat-value" id="vs-cities">0</span>
+                <span class="visitor-stat-label">Ciudades</span>
+            </div>
+        </div>
+
+        <div class="visitors-main-grid">
+            <div id="visitors-map" class="visitors-map-canvas" aria-label="Mapa geográfico"></div>
+            <aside class="visitors-live-list">
+                <h3 class="visitors-live-title">Últimas visitas</h3>
+                <ul id="visitors-live-feed" class="visitors-live-feed"></ul>
+                <p class="visitors-empty" id="visitors-empty" hidden>Sin visitas recientes.</p>
+            </aside>
+        </div>
+
+        <div class="visitors-bottom-grid">
+            <div class="visitors-chart-wrap">
+                <h3 class="visitors-subtitle">Evolución</h3>
+                <canvas id="visitors-evolution-chart" aria-label="Gráfico de evolución de visitas"></canvas>
+            </div>
+            <div class="visitors-tops">
+                <div class="visitors-top-col">
+                    <h3 class="visitors-subtitle">Top países</h3>
+                    <ol id="visitors-top-countries" class="visitors-top-list"></ol>
+                </div>
+                <div class="visitors-top-col">
+                    <h3 class="visitors-subtitle">Top ciudades</h3>
+                    <ol id="visitors-top-cities" class="visitors-top-list"></ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Password Change Modal -->
     <div id="password-modal" class="modal-overlay" onclick="closePasswordModalOnOverlay(event)">
         <div class="modal-container">
@@ -1056,6 +1121,9 @@
     <script src="/shared/js/dashboard.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>
+    <!-- Visitors map (real-time) — Chart.js + visitors-map.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="/shared/js/visitors-map.js" defer></script>
 </body>
 
 </html>

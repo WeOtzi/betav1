@@ -13,8 +13,12 @@
     <link rel="stylesheet" href="/shared/css/landing-style.css">
     <link rel="stylesheet" href="/shared/css/register.css">
     <link rel="stylesheet" href="/shared/css/feedback.css">
+    <link rel="stylesheet" href="/shared/css/register-nav-header.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <!-- Google Maps Places API - Key configured in config-manager.js -->
     <script>
@@ -39,16 +43,46 @@
     </script>
 </head>
 
-<body>
-    <header class="top-nav-header" style="justify-content: flex-start; padding-top: 1rem;">
-        <div class="header-edition-info" style="margin-left: 1rem;">
-            Edición Bauhaus | Beta Cerrada
+<body class="register-artist-page">
+    <header class="register-nav-header">
+        <a href="/" class="rnh-brand" aria-label="We Ötzi inicio">
+            <span class="rnh-emblem" aria-hidden="true">
+                <i class="rnh-emblem-square"></i>
+                <i class="rnh-emblem-circle"></i>
+                <i class="rnh-emblem-triangle"></i>
+            </span>
+            <span class="rnh-wordmark">We<span class="rnh-wordmark-umlaut">Ö</span>tzi</span>
+        </a>
+
+        <p class="rnh-edition">Edición Bauhaus · Beta Cerrada</p>
+
+        <nav class="rnh-nav rnh-nav-public" aria-label="Navegación principal">
+            <a href="/tutorial/" class="rnh-link">Cómo funciona</a>
+            <a href="/marketplace/" class="rnh-link">Explorar</a>
+        </nav>
+
+        <div class="rnh-actions">
+            <button id="login-btn" class="rnh-login" type="button" onclick="openLoginModal()">
+                Log in
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </button>
+            <button class="rnh-theme theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
+            <button class="rnh-burger" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="rnh-drawer">
+                <i></i><i></i><i></i>
+            </button>
         </div>
     </header>
 
-    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
-        O
-    </button>
+    <div class="rnh-drawer-backdrop" aria-hidden="true"></div>
+    <aside id="rnh-drawer" class="rnh-drawer" aria-hidden="true" aria-label="Menú móvil">
+        <p class="rnh-drawer-label">Navegación</p>
+        <a href="/tutorial/" class="rnh-drawer-link">Cómo funciona</a>
+        <a href="/marketplace/" class="rnh-drawer-link">Explorar</a>
+        <a href="#" class="rnh-drawer-link" onclick="event.preventDefault(); openLoginModal();">Log in</a>
+        <p class="rnh-drawer-footer">Edición Bauhaus · Beta Cerrada</p>
+    </aside>
 
     <main class="register-container">
         <!-- Progress Bar -->
@@ -494,9 +528,9 @@
                 </svg>
             </button>
         </footer>
-    </main>
 
-    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
+        <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
+    </main>
 
     <!-- Feedback Floating Button -->
     <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
@@ -556,8 +590,10 @@
 
     <script src="/shared/js/bio-formatting.js"></script>
     <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/artist-registration-progress.js"></script>
     <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/register.js"></script>
+    <script src="/shared/js/register-nav-header.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>
 </body>

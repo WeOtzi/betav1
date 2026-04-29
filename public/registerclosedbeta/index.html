@@ -23,6 +23,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/landing-style.css">
     <link rel="stylesheet" href="/shared/css/feedback.css">
+    <link rel="stylesheet" href="/shared/css/register-nav-header.css">
     <style>
         /* Page-specific layout with CSS custom properties */
         :root {
@@ -35,10 +36,15 @@
         body {
             padding-left: var(--margin-horizontal);
             padding-right: var(--margin-horizontal);
-            padding-top: calc(var(--margin-vertical) + var(--header-height));
+            padding-top: var(--margin-vertical);
             padding-bottom: 0;
             min-height: 100vh;
             min-height: 100dvh;
+        }
+
+        .registerclosedbeta-page .top-nav-header,
+        .registerclosedbeta-page .dashboard-mobile-menu {
+            display: none !important;
         }
 
         .monolith-grid {
@@ -163,6 +169,36 @@
         }
 
         @media (max-width: 768px) {
+            .registerclosedbeta-page {
+                --mobile-footer-height: 118px;
+                padding-top: calc(var(--margin-vertical) + env(safe-area-inset-top)) !important;
+                padding-bottom: calc(var(--mobile-footer-height) + 80px + env(safe-area-inset-bottom)) !important;
+            }
+
+            .registerclosedbeta-page .top-nav-header {
+                top: 0 !important;
+                padding: max(env(safe-area-inset-top), 0px) 0 0 !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            .registerclosedbeta-page .bauhaus-footer.bauhaus-footer-component {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                z-index: 1000 !important;
+                padding-bottom: calc(0.5rem + env(safe-area-inset-bottom) + 10px) !important;
+            }
+
+            .registerclosedbeta-page .nav-row {
+                top: env(safe-area-inset-top) !important;
+                bottom: auto !important;
+            }
+
             .registerclosedbeta-page.menu-authenticated .nav-row {
                 left: 0.75rem !important;
                 right: 0.75rem !important;
@@ -177,7 +213,13 @@
 
             .registerclosedbeta-page.menu-authenticated .nav-row .login-toggle {
                 font-size: 14px !important;
-                letter-spacing: 0.12em !important;
+                letter-spacing: 0.11em !important;
+                font-weight: 800 !important;
+            }
+
+            .registerclosedbeta-page .nav-row .login-toggle {
+                font-size: 14px !important;
+                letter-spacing: 0.11em !important;
                 font-weight: 800 !important;
             }
 
@@ -217,7 +259,8 @@
                 position: fixed;
                 left: 0.75rem;
                 right: 0.75rem;
-                bottom: calc(60px + env(safe-area-inset-bottom));
+                top: calc(env(safe-area-inset-top) + 60px + 8px);
+                bottom: auto;
                 z-index: 1100;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -261,6 +304,128 @@
             .registerclosedbeta-page .dashboard-mobile-menu-link-job-board {
                 background: var(--primary-red);
                 color: var(--bg);
+            }
+        }
+
+        .beta-form-actions {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .resume-banner {
+            margin-top: 1.25rem;
+            border: 2px solid var(--fg);
+            padding: 1rem 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            background: var(--bg);
+            animation: resume-banner-enter 0.28s ease both;
+        }
+
+        .resume-banner[hidden] {
+            display: none !important;
+        }
+
+        @keyframes resume-banner-enter {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .resume-banner__icon {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary-yellow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .resume-banner__icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .resume-banner__body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .resume-banner__label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--fg);
+            margin: 0 0 0.15rem;
+        }
+
+        .resume-banner__hint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.62rem;
+            color: var(--fg);
+            opacity: 0.65;
+            margin: 0;
+        }
+
+        .resume-banner__actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .resume-banner__btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 0.55rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border: 2px solid var(--fg);
+            background: var(--fg);
+            color: var(--bg);
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .resume-banner__btn:hover {
+            background: var(--primary-yellow);
+            color: var(--text-on-light);
+            border-color: var(--primary-yellow);
+        }
+
+        .resume-banner__btn--secondary {
+            background: var(--bg);
+            color: var(--fg);
+        }
+
+        .resume-banner__btn--secondary:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        @media (max-width: 480px) {
+            .resume-banner {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+                gap: 0.65rem;
+            }
+
+            .resume-banner__icon {
+                align-self: center;
+            }
+
+            .resume-banner__actions {
+                flex-direction: column;
             }
         }
 
@@ -408,6 +573,10 @@
         }
 
         @media (max-width: 480px) {
+            .registerclosedbeta-page {
+                --mobile-footer-height: 114px;
+            }
+
             .welcome-video-modal__panel {
                 --video-inline-gutter: 18px;
             }
@@ -415,47 +584,66 @@
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
 </head>
 
 <body class="registerclosedbeta-page">
 
-    <header class="top-nav-header">
-        <div class="header-edition-info">
-            Edición Bauhaus | Beta Cerrada
-        </div>
-        <div class="nav-row">
-            <div class="nav-col nav-col-dashboard-links" id="dashboard-nav-links-col" hidden>
-                <nav class="dashboard-quick-nav" aria-label="Navegacion principal de artista">
-                    <a href="/artist/dashboard" class="dashboard-quick-link">Dashboard</a>
-                    <a href="/my-quotations" class="dashboard-quick-link">Cotizaciones</a>
-                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
-                    <a href="/calendar" class="dashboard-quick-link">Calendario</a>
-                    <a href="/my-quotations/statistics" class="dashboard-quick-link">Estadisticas</a>
-                </nav>
-                <button class="mobile-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
-                    Menu
-                </button>
-            </div>
-            <div class="nav-col">
-                <button id="login-btn" class="login-toggle" onclick="openLoginModal()" aria-label="Iniciar sesion">
-                    LOG IN
-                </button>
-            </div>
-            <div class="nav-col">
-                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
-                    Ö
-                </button>
-            </div>
+    <header class="register-nav-header">
+        <a href="/" class="rnh-brand" aria-label="We Ötzi inicio">
+            <span class="rnh-emblem" aria-hidden="true">
+                <i class="rnh-emblem-square"></i>
+                <i class="rnh-emblem-circle"></i>
+                <i class="rnh-emblem-triangle"></i>
+            </span>
+            <span class="rnh-wordmark">We<span class="rnh-wordmark-umlaut">Ö</span>tzi</span>
+        </a>
+
+        <p class="rnh-edition">Edición Bauhaus · Beta Cerrada</p>
+
+        <nav class="rnh-nav rnh-nav-public" aria-label="Navegación principal">
+            <a href="/tutorial/" class="rnh-link">Cómo funciona</a>
+            <a href="/marketplace/" class="rnh-link">Explorar</a>
+        </nav>
+
+        <nav class="rnh-nav rnh-nav-auth" id="dashboard-nav-links-col" hidden aria-label="Navegación de artista">
+            <a href="/artist/dashboard" class="rnh-link">Dashboard</a>
+            <a href="/my-quotations" class="rnh-link">Cotizaciones</a>
+            <a href="/job-board" class="rnh-link dashboard-quick-link-job-board">Job Board</a>
+            <a href="/calendar" class="rnh-link">Calendario</a>
+            <a href="/my-quotations/statistics" class="rnh-link">Estadísticas</a>
+        </nav>
+
+        <div class="rnh-actions">
+            <button id="login-btn" class="rnh-login" type="button" onclick="openLoginModal()">
+                Log in
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </button>
+            <button class="rnh-theme theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
+            <button class="rnh-burger" id="dashboard-mobile-menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="rnh-drawer">
+                <i></i><i></i><i></i>
+            </button>
         </div>
     </header>
-    <nav class="dashboard-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegacion movil de artista" hidden>
-        <a href="/artist/dashboard" class="dashboard-mobile-menu-link">Dashboard</a>
-        <a href="/my-quotations" class="dashboard-mobile-menu-link">Cotizaciones</a>
-        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
-        <a href="/calendar" class="dashboard-mobile-menu-link">Calendario</a>
-        <a href="/my-quotations/statistics" class="dashboard-mobile-menu-link">Estadisticas</a>
-    </nav>
+
+    <div class="rnh-drawer-backdrop" aria-hidden="true"></div>
+    <aside id="rnh-drawer" class="rnh-drawer" aria-hidden="true" aria-label="Menú móvil">
+        <p class="rnh-drawer-label">Navegación</p>
+        <a href="/tutorial/" class="rnh-drawer-link rnh-drawer-public">Cómo funciona</a>
+        <a href="/marketplace/" class="rnh-drawer-link rnh-drawer-public">Explorar</a>
+        <a href="/artist/dashboard" class="rnh-drawer-link rnh-drawer-auth">Dashboard</a>
+        <a href="/my-quotations" class="rnh-drawer-link rnh-drawer-auth">Cotizaciones</a>
+        <a href="/job-board" class="rnh-drawer-link rnh-drawer-auth">Job Board</a>
+        <a href="/calendar" class="rnh-drawer-link rnh-drawer-auth">Calendario</a>
+        <a href="/my-quotations/statistics" class="rnh-drawer-link rnh-drawer-auth">Estadísticas</a>
+        <a href="#" class="rnh-drawer-link" onclick="event.preventDefault(); openLoginModal();">Log in</a>
+        <p class="rnh-drawer-footer">Edición Bauhaus · Beta Cerrada</p>
+    </aside>
 
     <div id="welcome-video-modal"
          class="welcome-video-modal"
@@ -553,14 +741,17 @@
                 <div class="form-group">
                     <input type="email" class="input-email" placeholder="TU@EMAIL.COM" required data-clarity-mask="true">
                 </div>
-                <button type="submit" class="btn-register">
-                    Registrarse
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                        stroke-linecap="square" stroke-linejoin="arcs">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                </button>
+                <div class="beta-form-actions">
+                    <button type="submit" class="btn-register btn-register-primary">
+                        Registrarse
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                            stroke-linecap="square" stroke-linejoin="arcs">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
                 <div id="form-message" class="form-message"></div>
+                <div id="resume-registration-banner" class="resume-banner" hidden></div>
             </form>
         </section>
 
@@ -633,8 +824,10 @@
     </div>
 
     <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/artist-registration-progress.js"></script>
     <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/main.js"></script>
+    <script src="/shared/js/register-nav-header.js"></script>
     <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>
     <script>

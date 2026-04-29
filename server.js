@@ -14,8 +14,55 @@ const fs = require('fs-extra');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
+const { estimatePreQuote } = require('./lib/prequote-estimator');
+const emailService = require('./services/email-service');
+const emailEventMapping = require('./services/email-event-mapping');
+
+function ensureCronApiToken() {
+    if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
+        return process.env.CRON_API_TOKEN;
+    }
+
+    const envPath = path.join(__dirname, '.env');
+    const generatedToken = crypto.randomBytes(32).toString('hex');
+
+    try {
+        let envContent = '';
+        if (fs.pathExistsSync(envPath)) {
+            envContent = fs.readFileSync(envPath, 'utf8');
+            const existingMatch = envContent.match(/^CRON_API_TOKEN\s*=\s*['"]?([^'"\r\n]+)['"]?\s*$/m);
+            if (existingMatch && existingMatch[1] && existingMatch[1].trim()) {
+                process.env.CRON_API_TOKEN = existingMatch[1].trim();
+                return process.env.CRON_API_TOKEN;
+            }
+        }
+
+        const tokenLine = `CRON_API_TOKEN=${generatedToken}`;
+        if (/^CRON_API_TOKEN\s*=/m.test(envContent)) {
+            envContent = envContent.replace(/^CRON_API_TOKEN\s*=.*$/m, tokenLine);
+            fs.writeFileSync(envPath, envContent, 'utf8');
+        } else {
+            const separator = envContent && !envContent.endsWith('\n') ? '\n' : '';
+            fs.appendFileSync(envPath, `${separator}\n# Auto-generated on server startup for n8n currency refresh\n${tokenLine}\n`, 'utf8');
+        }
+
+        process.env.CRON_API_TOKEN = generatedToken;
+        console.warn('[Config] CRON_API_TOKEN was missing and has been auto-generated in .env');
+        return process.env.CRON_API_TOKEN;
+    } catch (err) {
+        process.env.CRON_API_TOKEN = generatedToken;
+        console.warn('[Config] CRON_API_TOKEN was missing. Generated a runtime-only token because .env could not be updated:', err.message);
+        return process.env.CRON_API_TOKEN;
+    }
+}
+
+ensureCronApiToken();
 
 const app = express();
+// The beta deployment runs behind Apache/proxy.php, which sets X-Forwarded-For.
+// express-rate-limit requires trust proxy to parse client IPs correctly.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4545;
 let googleApiModule = null;
 
@@ -99,10 +146,20 @@ const authLimiter = rateLimit({
     message: { success: false, error: 'Too many authentication attempts, please try again later.' }
 });
 
+// Rate limiting: Profile-visit tracking (lightweight per-IP limiter)
+const profileVisitLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many profile visit pings.' }
+});
+
 // Apply rate limits
 app.use('/api/', apiLimiter);
 app.use('/api/admin/update-user-password', authLimiter);
 app.use('/api/auth/reset-temp-password', authLimiter);
+app.use('/api/email/events', authLimiter); // Sensitive: changes routing config
 
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
@@ -208,6 +265,733 @@ app.post('/api/gemini/generate-image', async (req, res) => {
     } catch (error) {
         console.error('Gemini API Error:', error.message);
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================
+// SUPPORT CHAT AGENT (OpenAI GPT + handoff humano)
+// ============================================
+// Chat de soporte universal para tatuadores, clientes, soporte y visitantes.
+// Motor: OpenAI con function calling; handoff bidireccional a agentes humanos.
+// Tablas: support_conversations, support_messages, integración con feedback_tickets.
+
+const SUPPORT_CHAT_ENABLED = (process.env.SUPPORT_CHAT_ENABLED || 'true') === 'true';
+const SUPPORT_CHAT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const SUPPORT_CHAT_MAX_TOKENS = parseInt(process.env.SUPPORT_CHAT_MAX_TOKENS || '800', 10);
+const SUPPORT_CHAT_ESCALATE_AFTER = parseInt(process.env.SUPPORT_CHAT_ESCALATE_AFTER || '3', 10);
+
+let _openaiClient = null;
+function getOpenAIClient() {
+    if (_openaiClient) return _openaiClient;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
+    try {
+        const OpenAI = require('openai');
+        _openaiClient = new OpenAI({ apiKey });
+        return _openaiClient;
+    } catch (err) {
+        console.error('[support-chat] OpenAI client init failed:', err.message);
+        return null;
+    }
+}
+
+function _supabaseConfigForSupport() {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    return { supabaseUrl, serviceKey };
+}
+
+async function _supabaseFetch(path, { method = 'GET', body, prefer } = {}) {
+    const { supabaseUrl, serviceKey } = _supabaseConfigForSupport();
+    if (!supabaseUrl || !serviceKey) throw new Error('Supabase service role not configured');
+    const headers = {
+        'Content-Type': 'application/json',
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`
+    };
+    if (prefer) headers['Prefer'] = prefer;
+    const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Supabase ${method} ${path} failed: ${res.status} ${errText}`);
+    }
+    if (res.status === 204) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+}
+
+async function _getAuthUserFromBearer(req) {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return null;
+    const { supabaseUrl, serviceKey } = _supabaseConfigForSupport();
+    if (!supabaseUrl || !serviceKey) return null;
+    try {
+        const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data && data.id ? data : null;
+    } catch { return null; }
+}
+
+async function _detectUserRole(userId, email) {
+    if (!userId) return null;
+    try {
+        const artists = await _supabaseFetch(`artists_db?user_id=eq.${userId}&select=id,name,username,email`);
+        if (artists && artists.length) return { role: 'artist', profile: artists[0] };
+        const clients = await _supabaseFetch(`clients_db?user_id=eq.${userId}&select=id,name,email`);
+        if (clients && clients.length) return { role: 'client', profile: clients[0] };
+        if (email) {
+            const support = await _supabaseFetch(`support_users_db?email=eq.${encodeURIComponent(email)}&select=id,name,is_active`);
+            if (support && support.length) return { role: 'support', profile: support[0] };
+        }
+    } catch (err) {
+        console.warn('[support-chat] role detection failed:', err.message);
+    }
+    return { role: 'anonymous', profile: null };
+}
+
+// In-memory rate limit por conversación
+const _supportRate = new Map(); // key: conv_id -> { windowStart, count, dayStart, dayCount }
+function _rateLimitSupportChat(conversationId) {
+    const now = Date.now();
+    let entry = _supportRate.get(conversationId);
+    if (!entry) {
+        entry = { windowStart: now, count: 0, dayStart: now, dayCount: 0 };
+        _supportRate.set(conversationId, entry);
+    }
+    if (now - entry.windowStart > 60 * 1000) { entry.windowStart = now; entry.count = 0; }
+    if (now - entry.dayStart > 24 * 60 * 60 * 1000) { entry.dayStart = now; entry.dayCount = 0; }
+    entry.count++; entry.dayCount++;
+    if (entry.count > 20) return { ok: false, reason: 'Demasiados mensajes seguidos. Espera un momento.' };
+    if (entry.dayCount > 200) return { ok: false, reason: 'Límite diario alcanzado.' };
+    return { ok: true };
+}
+
+function _assertSupportEnabled(res) {
+    if (!SUPPORT_CHAT_ENABLED) {
+        res.status(503).json({ success: false, error: 'Support chat is disabled' });
+        return false;
+    }
+    return true;
+}
+
+// ---- Tool definitions (OpenAI function calling) ----
+const SUPPORT_TOOLS = [
+    {
+        type: 'function',
+        function: {
+            name: 'get_faq',
+            description: 'Busca respuestas a preguntas frecuentes sobre la plataforma WeOtzi (registro, cotizaciones, pagos, verificación, job board, etc.).',
+            parameters: {
+                type: 'object',
+                properties: { topic: { type: 'string', description: 'Tema o palabra clave a buscar' } },
+                required: ['topic']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_quotation_status',
+            description: 'Devuelve el estado de las cotizaciones del usuario autenticado (solo suyas). Requiere usuario logueado.',
+            parameters: {
+                type: 'object',
+                properties: { quotation_id: { type: 'string', description: 'UUID opcional de una cotización específica' } }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_verification_status',
+            description: 'Devuelve el estado de verificación del artista autenticado. Solo para usuarios artistas.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_user_tickets',
+            description: 'Lista los tickets de soporte abiertos por el usuario.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_ticket',
+            description: 'Crea un ticket de soporte cuando el usuario reporta un problema que requiere intervención humana.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string' },
+                    description: { type: 'string' },
+                    category: { type: 'string', description: 'Categoría: bug, question, billing, account, other' },
+                    priority: { type: 'string', description: 'low | medium | high' }
+                },
+                required: ['title', 'description']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'escalate_to_human',
+            description: 'Escala la conversación a un agente humano cuando el bot no puede resolver o el usuario lo solicita.',
+            parameters: {
+                type: 'object',
+                properties: { reason: { type: 'string' } },
+                required: ['reason']
+            }
+        }
+    }
+];
+
+// ---- FAQ loader (cache en memoria) ----
+let _faqCache = null;
+let _faqLoadedAt = 0;
+async function _loadFaq() {
+    const ttl = 5 * 60 * 1000;
+    if (_faqCache && (Date.now() - _faqLoadedAt) < ttl) return _faqCache;
+    try {
+        const faqPath = path.join(__dirname, 'public/shared/js/support-faq.json');
+        const data = await fs.readJson(faqPath);
+        _faqCache = Array.isArray(data) ? data : (data.items || []);
+        _faqLoadedAt = Date.now();
+        return _faqCache;
+    } catch (err) {
+        console.warn('[support-chat] FAQ load failed:', err.message);
+        return [];
+    }
+}
+
+// ---- Tool execution ----
+async function _executeTool(toolName, args, ctx) {
+    const { conversation, authUser } = ctx;
+    const userId = authUser?.id || null;
+
+    if (toolName === 'get_faq') {
+        const faq = await _loadFaq();
+        const topic = (args.topic || '').toLowerCase();
+        const matches = faq.filter(item => {
+            const haystack = [item.question, item.answer, ...(item.tags || [])].join(' ').toLowerCase();
+            return haystack.includes(topic);
+        }).slice(0, 5);
+        return matches.length
+            ? { matches }
+            : { matches: [], message: 'Sin coincidencias directas. Da una respuesta general basada en conocimiento del producto.' };
+    }
+
+    if (toolName === 'get_quotation_status') {
+        if (!userId) return { error: 'Usuario no autenticado. Pide que inicie sesión.' };
+        try {
+            const qid = args.quotation_id;
+            // Buscar cotizaciones donde el usuario es el cliente (por email del profile o por id)
+            let filter = '';
+            if (qid) filter = `id=eq.${qid}&`;
+            const q = await _supabaseFetch(
+                `quotations_db?${filter}or=(user_id.eq.${userId},client_user_id.eq.${userId})&select=id,status,service_type,created_at,updated_at,artist_id&order=created_at.desc&limit=10`
+            );
+            return { quotations: q || [] };
+        } catch (err) {
+            return { error: err.message };
+        }
+    }
+
+    if (toolName === 'get_verification_status') {
+        if (!userId) return { error: 'Usuario no autenticado.' };
+        try {
+            const artist = await _supabaseFetch(
+                `artists_db?user_id=eq.${userId}&select=id,name,is_verified,profile_status,verification_notes`
+            );
+            if (!artist || !artist.length) return { error: 'Este usuario no es un artista.' };
+            return { artist: artist[0] };
+        } catch (err) {
+            return { error: err.message };
+        }
+    }
+
+    if (toolName === 'get_user_tickets') {
+        if (!authUser?.email) return { error: 'Usuario no autenticado.' };
+        try {
+            const tickets = await _supabaseFetch(
+                `feedback_tickets?user_email=eq.${encodeURIComponent(authUser.email)}&select=id,reason,status,created_at&order=created_at.desc&limit=10`
+            );
+            return { tickets: tickets || [] };
+        } catch (err) {
+            return { error: err.message };
+        }
+    }
+
+    if (toolName === 'create_ticket') {
+        try {
+            const ticket = await _supabaseFetch('feedback_tickets', {
+                method: 'POST',
+                body: [{
+                    reason: args.title || 'Ticket desde chat de soporte',
+                    cause: args.category || 'support_chat',
+                    message: args.description || '',
+                    metadata: {
+                        source: 'support_chat',
+                        conversation_id: conversation.id,
+                        priority: args.priority || 'medium',
+                        is_auto_generated: true
+                    },
+                    user_id: userId,
+                    user_email: authUser?.email || null,
+                    status: 'open'
+                }],
+                prefer: 'return=representation'
+            });
+            const ticketId = Array.isArray(ticket) ? ticket[0]?.id : ticket?.id;
+            if (ticketId) {
+                await _supabaseFetch(`support_conversations?id=eq.${conversation.id}`, {
+                    method: 'PATCH',
+                    body: { ticket_id: ticketId, updated_at: new Date().toISOString() },
+                    prefer: 'return=minimal'
+                });
+                return { ticket_id: ticketId, status: 'created' };
+            }
+            return { error: 'No se pudo crear el ticket.' };
+        } catch (err) {
+            return { error: err.message };
+        }
+    }
+
+    if (toolName === 'escalate_to_human') {
+        try {
+            await _supabaseFetch(`support_conversations?id=eq.${conversation.id}`, {
+                method: 'PATCH',
+                body: {
+                    status: 'awaiting_human',
+                    escalation_count: (conversation.escalation_count || 0) + 1,
+                    updated_at: new Date().toISOString()
+                },
+                prefer: 'return=minimal'
+            });
+            return { status: 'escalated', reason: args.reason || 'unspecified' };
+        } catch (err) {
+            return { error: err.message };
+        }
+    }
+
+    return { error: `Tool ${toolName} not implemented.` };
+}
+
+function _buildSystemPrompt({ role, profile, pageContext, conversation }) {
+    const name = profile?.name || profile?.username || '';
+    const greeting = role === 'artist' ? `Estás hablando con un tatuador${name ? ` (${name})` : ''}.`
+        : role === 'client' ? `Estás hablando con un cliente${name ? ` (${name})` : ''}.`
+        : role === 'support' ? 'Estás hablando con un miembro del equipo de soporte.'
+        : 'Estás hablando con un visitante no autenticado.';
+    return [
+        'Eres el asistente de soporte oficial de WeOtzi, una plataforma para conectar tatuadores con clientes.',
+        'Respondes siempre en español neutro rioplatense, con tono cálido, profesional y conciso.',
+        greeting,
+        pageContext ? `Página actual del usuario: ${pageContext}.` : '',
+        'Tienes acceso a herramientas (tools) para consultar cotizaciones, verificación, tickets y FAQ. Úsalas cuando aplique.',
+        'Cuando el usuario pida explícitamente hablar con un humano (palabras como "humano", "agente", "persona real"), llama a escalate_to_human.',
+        `Si después de ${SUPPORT_CHAT_ESCALATE_AFTER} intentos no puedes resolver, llama a escalate_to_human tú solo.`,
+        'Si el usuario reporta un bug reproducible o algo que requiere acción del equipo, crea un ticket con create_ticket.',
+        'Nunca inventes datos ni prometas plazos. Si no sabes, dilo y ofrece escalamiento.',
+        'Mantén las respuestas en 2-4 oraciones salvo que te pidan algo largo.'
+    ].filter(Boolean).join(' ');
+}
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/conversation
+// Crea o recupera una conversación (por anonymous_id o por user_id del JWT)
+// ============================================
+app.post('/api/support-chat/conversation', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    try {
+        const { anonymous_id, page_context } = req.body || {};
+        const authUser = await _getAuthUserFromBearer(req);
+        const roleInfo = authUser ? await _detectUserRole(authUser.id, authUser.email) : null;
+
+        // Auto-link: si llega JWT + anonymous_id, promover la conversación anónima al user_id
+        if (authUser?.id && anonymous_id) {
+            try {
+                await _supabaseFetch(
+                    `support_conversations?anonymous_id=eq.${anonymous_id}&user_id=is.null`,
+                    {
+                        method: 'PATCH',
+                        body: {
+                            user_id: authUser.id,
+                            user_role: roleInfo?.role || 'anonymous',
+                            updated_at: new Date().toISOString()
+                        },
+                        prefer: 'return=minimal'
+                    }
+                );
+            } catch (err) {
+                console.warn('[support-chat] auto-link failed:', err.message);
+            }
+        }
+
+        // Buscar conversación existente (activa) para este usuario
+        let existing = null;
+        if (authUser?.id) {
+            const rows = await _supabaseFetch(
+                `support_conversations?user_id=eq.${authUser.id}&status=neq.closed&order=last_message_at.desc&limit=1`
+            );
+            existing = rows && rows[0] ? rows[0] : null;
+        } else if (anonymous_id) {
+            const rows = await _supabaseFetch(
+                `support_conversations?anonymous_id=eq.${anonymous_id}&status=neq.closed&order=last_message_at.desc&limit=1`
+            );
+            existing = rows && rows[0] ? rows[0] : null;
+        }
+
+        if (existing) {
+            const messages = await _supabaseFetch(
+                `support_messages?conversation_id=eq.${existing.id}&order=created_at.asc&limit=50&select=id,role,content,created_at,author_user_id`
+            );
+            return res.json({ success: true, conversation: existing, messages: messages || [] });
+        }
+
+        // Crear nueva
+        const payload = [{
+            anonymous_id: authUser?.id ? null : (anonymous_id || null),
+            user_id: authUser?.id || null,
+            user_role: roleInfo?.role || 'anonymous',
+            status: 'bot',
+            page_context: page_context || null
+        }];
+        const created = await _supabaseFetch('support_conversations', {
+            method: 'POST', body: payload, prefer: 'return=representation'
+        });
+        const conv = Array.isArray(created) ? created[0] : created;
+
+        // Insertar mensaje de bienvenida
+        const welcome = '¡Hola! Soy el asistente de soporte de WeOtzi. ¿En qué puedo ayudarte hoy?';
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{ conversation_id: conv.id, role: 'assistant', content: welcome, model: SUPPORT_CHAT_MODEL }],
+            prefer: 'return=minimal'
+        });
+
+        return res.json({ success: true, conversation: conv, messages: [{ role: 'assistant', content: welcome }] });
+    } catch (err) {
+        console.error('[support-chat] conversation error:', err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/message
+// Body: { conversation_id, content, page_context }
+// Persiste mensaje del usuario, llama al LLM (si status='bot'), persiste respuesta.
+// ============================================
+app.post('/api/support-chat/message', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { conversation_id, content, page_context } = req.body || {};
+    if (!conversation_id || !content) {
+        return res.status(400).json({ success: false, error: 'conversation_id y content son requeridos' });
+    }
+
+    const rl = _rateLimitSupportChat(conversation_id);
+    if (!rl.ok) return res.status(429).json({ success: false, error: rl.reason });
+
+    try {
+        // Cargar conversación
+        const convRows = await _supabaseFetch(`support_conversations?id=eq.${conversation_id}&limit=1`);
+        if (!convRows || !convRows.length) return res.status(404).json({ success: false, error: 'Conversación no encontrada' });
+        const conv = convRows[0];
+        if (conv.status === 'closed') {
+            return res.status(400).json({ success: false, error: 'La conversación está cerrada.' });
+        }
+
+        const authUser = await _getAuthUserFromBearer(req);
+        const roleInfo = authUser ? await _detectUserRole(authUser.id, authUser.email) : { role: 'anonymous', profile: null };
+
+        // Persistir mensaje del usuario
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{
+                conversation_id,
+                role: 'user',
+                content,
+                author_user_id: authUser?.id || null
+            }],
+            prefer: 'return=minimal'
+        });
+
+        // Detectar intención manual de handoff
+        const lower = (content || '').toLowerCase();
+        const handoffKeywords = ['humano', 'persona real', 'agente real', 'hablar con alguien', 'un agente', 'operador'];
+        const wantsHuman = handoffKeywords.some(k => lower.includes(k));
+
+        if (wantsHuman && conv.status === 'bot') {
+            await _supabaseFetch(`support_conversations?id=eq.${conversation_id}`, {
+                method: 'PATCH',
+                body: { status: 'awaiting_human', escalation_count: (conv.escalation_count || 0) + 1, updated_at: new Date().toISOString() },
+                prefer: 'return=minimal'
+            });
+            const msg = 'Entendido. Estoy conectándote con un agente humano. En cuanto se conecte, verás su respuesta aquí.';
+            await _supabaseFetch('support_messages', {
+                method: 'POST',
+                body: [{ conversation_id, role: 'system', content: msg }],
+                prefer: 'return=minimal'
+            });
+            return res.json({ success: true, response: msg, status: 'awaiting_human' });
+        }
+
+        // Si ya está en humano o esperando, no invocar LLM
+        if (conv.status === 'human' || conv.status === 'awaiting_human') {
+            return res.json({ success: true, response: null, status: conv.status, note: 'Mensaje persistido. Esperando agente humano.' });
+        }
+
+        // Invocar OpenAI
+        const openai = getOpenAIClient();
+        if (!openai) {
+            return res.status(503).json({ success: false, error: 'OpenAI no está configurado en el servidor.' });
+        }
+
+        // Construir historial (últimos 10 mensajes)
+        const history = await _supabaseFetch(
+            `support_messages?conversation_id=eq.${conversation_id}&order=created_at.desc&limit=10&select=role,content,tool_calls,tool_results`
+        );
+        const ordered = (history || []).reverse();
+        const chatMessages = [
+            { role: 'system', content: _buildSystemPrompt({ role: roleInfo.role, profile: roleInfo.profile, pageContext: page_context || conv.page_context, conversation: conv }) }
+        ];
+        for (const m of ordered) {
+            if (m.role === 'user' || m.role === 'assistant') {
+                chatMessages.push({ role: m.role, content: m.content });
+            } else if (m.role === 'system') {
+                chatMessages.push({ role: 'system', content: m.content });
+            }
+        }
+
+        let finalText = null;
+        let toolCallsLog = [];
+        let tokensIn = 0, tokensOut = 0;
+        const ctx = { conversation: conv, authUser: authUser ? { ...authUser, role: roleInfo.role } : null };
+        let shouldEscalate = false;
+
+        for (let round = 0; round < 3; round++) {
+            const completion = await openai.chat.completions.create({
+                model: SUPPORT_CHAT_MODEL,
+                messages: chatMessages,
+                tools: SUPPORT_TOOLS,
+                max_tokens: SUPPORT_CHAT_MAX_TOKENS,
+                temperature: 0.4
+            });
+            tokensIn += completion.usage?.prompt_tokens || 0;
+            tokensOut += completion.usage?.completion_tokens || 0;
+
+            const choice = completion.choices?.[0];
+            const msg = choice?.message;
+            if (!msg) break;
+
+            if (msg.tool_calls && msg.tool_calls.length) {
+                chatMessages.push({ role: 'assistant', content: msg.content || '', tool_calls: msg.tool_calls });
+                for (const tc of msg.tool_calls) {
+                    const fnName = tc.function?.name;
+                    let parsedArgs = {};
+                    try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+                    const result = await _executeTool(fnName, parsedArgs, ctx);
+                    toolCallsLog.push({ name: fnName, args: parsedArgs, result });
+                    chatMessages.push({
+                        role: 'tool',
+                        tool_call_id: tc.id,
+                        content: JSON.stringify(result).slice(0, 4000)
+                    });
+                    if (fnName === 'escalate_to_human') shouldEscalate = true;
+                }
+                continue;
+            }
+
+            finalText = msg.content || '';
+            break;
+        }
+
+        if (!finalText) {
+            finalText = 'Disculpa, no pude procesar tu pregunta. Te conecto con un agente humano.';
+            shouldEscalate = true;
+        }
+
+        // Persistir respuesta del asistente
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{
+                conversation_id,
+                role: 'assistant',
+                content: finalText,
+                tool_calls: toolCallsLog.length ? toolCallsLog.map(t => ({ name: t.name, args: t.args })) : null,
+                tool_results: toolCallsLog.length ? toolCallsLog.map(t => t.result) : null,
+                tokens_in: tokensIn,
+                tokens_out: tokensOut,
+                model: SUPPORT_CHAT_MODEL
+            }],
+            prefer: 'return=minimal'
+        });
+
+        // Re-leer conversación por si status cambió vía tool
+        const updatedRows = await _supabaseFetch(`support_conversations?id=eq.${conversation_id}&limit=1`);
+        const updated = updatedRows?.[0] || conv;
+
+        return res.json({
+            success: true,
+            response: finalText,
+            status: updated.status,
+            escalated: shouldEscalate || updated.status === 'awaiting_human',
+            tokens: { in: tokensIn, out: tokensOut }
+        });
+    } catch (err) {
+        console.error('[support-chat] message error:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/escalate
+// Forzar escalamiento desde el usuario (botón "hablar con humano")
+// ============================================
+app.post('/api/support-chat/escalate', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { conversation_id, reason } = req.body || {};
+    if (!conversation_id) return res.status(400).json({ success: false, error: 'conversation_id requerido' });
+    try {
+        await _supabaseFetch(`support_conversations?id=eq.${conversation_id}`, {
+            method: 'PATCH',
+            body: { status: 'awaiting_human', updated_at: new Date().toISOString() },
+            prefer: 'return=minimal'
+        });
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{ conversation_id, role: 'system', content: `Usuario solicita agente humano${reason ? ': ' + reason : ''}.` }],
+            prefer: 'return=minimal'
+        });
+        return res.json({ success: true, status: 'awaiting_human' });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/assign
+// Soporte toma una conversación
+// ============================================
+app.post('/api/support-chat/assign', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { conversation_id, support_user_id } = req.body || {};
+    if (!conversation_id || !support_user_id) return res.status(400).json({ success: false, error: 'Faltan datos' });
+    try {
+        await _supabaseFetch(`support_conversations?id=eq.${conversation_id}`, {
+            method: 'PATCH',
+            body: { status: 'human', assigned_support_user_id: support_user_id, updated_at: new Date().toISOString() },
+            prefer: 'return=minimal'
+        });
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{ conversation_id, role: 'system', content: 'Un agente humano se ha unido a la conversación.' }],
+            prefer: 'return=minimal'
+        });
+        return res.json({ success: true, status: 'human' });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/release
+// Soporte devuelve la conversación al bot
+// ============================================
+app.post('/api/support-chat/release', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { conversation_id } = req.body || {};
+    if (!conversation_id) return res.status(400).json({ success: false, error: 'conversation_id requerido' });
+    try {
+        await _supabaseFetch(`support_conversations?id=eq.${conversation_id}`, {
+            method: 'PATCH',
+            body: { status: 'bot', assigned_support_user_id: null, updated_at: new Date().toISOString() },
+            prefer: 'return=minimal'
+        });
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{ conversation_id, role: 'system', content: 'El asistente automático retoma la conversación.' }],
+            prefer: 'return=minimal'
+        });
+        return res.json({ success: true, status: 'bot' });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/agent-message
+// Soporte envía un mensaje como humano
+// ============================================
+app.post('/api/support-chat/agent-message', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { conversation_id, content, support_user_id } = req.body || {};
+    if (!conversation_id || !content) return res.status(400).json({ success: false, error: 'Faltan datos' });
+    try {
+        await _supabaseFetch('support_messages', {
+            method: 'POST',
+            body: [{
+                conversation_id,
+                role: 'human_agent',
+                content,
+                author_user_id: support_user_id || null
+            }],
+            prefer: 'return=minimal'
+        });
+        return res.json({ success: true });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/close
+// Cerrar conversación
+// ============================================
+app.post('/api/support-chat/close', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { conversation_id } = req.body || {};
+    if (!conversation_id) return res.status(400).json({ success: false, error: 'conversation_id requerido' });
+    try {
+        await _supabaseFetch(`support_conversations?id=eq.${conversation_id}`, {
+            method: 'PATCH',
+            body: { status: 'closed', closed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            prefer: 'return=minimal'
+        });
+        return res.json({ success: true, status: 'closed' });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ENDPOINT: POST /api/support-chat/link-anonymous
+// Al loguearse/registrarse, vincula la conversación anónima al user_id
+// ============================================
+app.post('/api/support-chat/link-anonymous', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    const { anonymous_id } = req.body || {};
+    if (!anonymous_id) return res.status(400).json({ success: false, error: 'anonymous_id requerido' });
+    try {
+        const authUser = await _getAuthUserFromBearer(req);
+        if (!authUser) return res.status(401).json({ success: false, error: 'Autenticación requerida' });
+        const roleInfo = await _detectUserRole(authUser.id, authUser.email);
+        await _supabaseFetch(`support_conversations?anonymous_id=eq.${anonymous_id}&user_id=is.null`, {
+            method: 'PATCH',
+            body: { user_id: authUser.id, user_role: roleInfo.role, updated_at: new Date().toISOString() },
+            prefer: 'return=minimal'
+        });
+        return res.json({ success: true });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
     }
 });
 
@@ -643,6 +1427,169 @@ app.post('/api/session-log', async (req, res) => {
         } catch (err) {
             console.error(`[Session Log] Geo resolution failed for ${session_log_id}:`, err.message);
         }
+    }
+});
+
+/**
+ * Track a visit to a public artist profile page.
+ * POST /api/artist/profile-visit
+ * Body: { artist_username, device_fingerprint?, user_agent?, is_authenticated?, referrer? }
+ *
+ * - Responds 200 immediately (fire-and-forget pattern).
+ * - Hashes IP (sha256+salt) — never stored in clear.
+ * - Resolves geo via ip-api.com (country, city, lat, lon).
+ * - Server-side dedupe: same ip_hash + artist in last hour is skipped.
+ * - Parses user-agent into device_type / os / browser (mirrors analytics_devices view).
+ * - Inserts into artist_profile_visits with service_role credentials.
+ */
+app.post('/api/artist/profile-visit', profileVisitLimiter, async (req, res) => {
+    const { artist_username, device_fingerprint, user_agent, is_authenticated, referrer } = req.body || {};
+
+    if (!artist_username || typeof artist_username !== 'string') {
+        return res.status(400).json({ success: false, error: 'artist_username required' });
+    }
+
+    // Respond immediately — the heavy work happens in the background.
+    res.status(200).json({ success: true });
+
+    try {
+        const cfg = getHealthConfig();
+        if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+            console.warn('[profile-visit] Missing Supabase config, skipping');
+            return;
+        }
+
+        const clientIp = (req.headers['x-forwarded-for']?.split(',')[0]?.trim())
+            || req.headers['x-real-ip']
+            || req.socket?.remoteAddress
+            || '';
+
+        const isLocal = !clientIp
+            || clientIp === '::1'
+            || clientIp === '127.0.0.1'
+            || clientIp.startsWith('192.168.')
+            || clientIp.startsWith('10.')
+            || clientIp.startsWith('172.');
+
+        // Hash the IP (never store it in clear). Use a stable salt from env.
+        const salt = process.env.IP_HASH_SALT || 'weotzi';
+        const ip_hash = clientIp
+            ? crypto.createHash('sha256').update(clientIp + salt).digest('hex').slice(0, 32)
+            : null;
+
+        // Resolve artist_id from artist_username
+        const normalizedUsername = String(artist_username).replace(/\.wo$/i, '');
+        const lookupUrl = `${cfg.supabaseUrl}/rest/v1/artists_db?username=eq.${encodeURIComponent(normalizedUsername)}&select=user_id,username&limit=1`;
+        const lookupRes = await fetch(lookupUrl, {
+            headers: {
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`
+            }
+        });
+        const artistRows = await lookupRes.json();
+        const artist = Array.isArray(artistRows) ? artistRows[0] : null;
+        if (!artist?.user_id) {
+            console.warn(`[profile-visit] Artist not found: ${normalizedUsername}`);
+            return;
+        }
+
+        // Server-side dedupe: skip if same ip_hash + artist within last hour
+        if (ip_hash) {
+            const sinceIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            const dedupeUrl = `${cfg.supabaseUrl}/rest/v1/artist_profile_visits`
+                + `?artist_id=eq.${artist.user_id}`
+                + `&ip_hash=eq.${ip_hash}`
+                + `&created_at=gte.${encodeURIComponent(sinceIso)}`
+                + `&select=id&limit=1`;
+            const dedupeRes = await fetch(dedupeUrl, {
+                headers: {
+                    'apikey': cfg.supabaseServiceKey,
+                    'Authorization': `Bearer ${cfg.supabaseServiceKey}`
+                }
+            });
+            const dedupeRows = await dedupeRes.json();
+            if (Array.isArray(dedupeRows) && dedupeRows.length > 0) {
+                // Already counted within the last hour — skip
+                return;
+            }
+        }
+
+        // Resolve geolocation (country, city, lat, lon) via ip-api.com
+        let country = null, city = null, lat = null, lon = null;
+        if (!isLocal) {
+            try {
+                const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city,lat,lon`, {
+                    signal: AbortSignal.timeout(3000)
+                });
+                const geo = await geoRes.json();
+                if (geo.status === 'success') {
+                    country = geo.country || null;
+                    city = geo.city || null;
+                    lat = typeof geo.lat === 'number' ? geo.lat : null;
+                    lon = typeof geo.lon === 'number' ? geo.lon : null;
+                }
+            } catch (err) {
+                console.warn(`[profile-visit] Geo resolution failed for ${clientIp}:`, err.message);
+            }
+        }
+
+        // Parse user-agent (mirror analytics_devices view expressions)
+        const ua = (user_agent || req.headers['user-agent'] || '').toString();
+        const device_type = /Mobile|iPhone|Android.*Mobile/i.test(ua) ? 'Mobile'
+                          : /iPad|Tablet/i.test(ua) ? 'Tablet'
+                          : 'Desktop';
+        const os = /iPhone/i.test(ua) ? 'iOS'
+                 : /iPad/i.test(ua) ? 'iPadOS'
+                 : /Android/i.test(ua) ? 'Android'
+                 : /Macintosh/i.test(ua) ? 'macOS'
+                 : /Windows/i.test(ua) ? 'Windows'
+                 : /CrOS/i.test(ua) ? 'ChromeOS'
+                 : /Linux/i.test(ua) ? 'Linux'
+                 : 'Other';
+        const browser = /CriOS\//i.test(ua) ? 'Chrome iOS'
+                      : /FxiOS\//i.test(ua) ? 'Firefox iOS'
+                      : /Edg\//i.test(ua) ? 'Edge'
+                      : /OPR\//i.test(ua) ? 'Opera'
+                      : /Chrome\//i.test(ua) ? 'Chrome'
+                      : /Firefox\//i.test(ua) ? 'Firefox'
+                      : /Safari\//i.test(ua) ? 'Safari'
+                      : 'Other';
+
+        const insertPayload = {
+            artist_id: artist.user_id,
+            artist_username: artist.username,
+            ip_hash,
+            device_fingerprint: device_fingerprint ? String(device_fingerprint).slice(0, 128) : null,
+            device_type,
+            os,
+            browser,
+            country,
+            city,
+            latitude: lat,
+            longitude: lon,
+            is_authenticated: !!is_authenticated,
+            referrer: referrer ? String(referrer).slice(0, 500) : null
+        };
+
+        const insertRes = await fetch(`${cfg.supabaseUrl}/rest/v1/artist_profile_visits`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(insertPayload)
+        });
+
+        if (!insertRes.ok) {
+            const errText = await insertRes.text();
+            console.error(`[profile-visit] Insert failed (${insertRes.status}): ${errText}`);
+        } else {
+            console.log(`[profile-visit] Tracked visit to ${artist.username} from ${city || 'Unknown'}, ${country || 'Unknown'}`);
+        }
+    } catch (err) {
+        console.error('[profile-visit] Unexpected error:', err.message);
     }
 });
 
@@ -2303,6 +3250,881 @@ app.get('/api/analytics/quotations', async (req, res) => {
     }
 });
 
+// ============================================
+// ARTIST INDEX — Score calculation (0-100)
+// ============================================
+
+/**
+ * GET /api/artists/index — Calculate Artist Index for all artists or a specific one
+ * Query params: artist_id (optional, UUID), recalculate (optional, "true" to force update)
+ * Score components: profile completeness (25%), response time (25%), rating (25%), conversion (25%)
+ */
+app.get('/api/artists/index', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const targetArtistId = req.query.artist_id || null;
+    const recalculate = req.query.recalculate === 'true';
+
+    try {
+        // Fetch artists
+        let artistQuery = `artists_db?select=id,user_id,name,username,bio_description,profile_picture,gallery_images,styles_array,whatsapp_number,city,country,instagram,email,session_price,years_experience,languages,artist_index,index_updated_at,profile_completeness,verification_state`;
+        if (targetArtistId) artistQuery += `&id=eq.${targetArtistId}`;
+        const artists = await supabaseQuery(cfg, artistQuery);
+
+        if (!artists.length) {
+            return res.json({ success: true, artists: [], message: 'No artists found' });
+        }
+
+        // Fetch all quotations for these artists
+        const artistIds = artists.map(a => a.user_id).filter(Boolean);
+        let quotes = [];
+        if (artistIds.length > 0) {
+            quotes = await supabaseQuery(cfg,
+                `quotations_db?select=artist_id,quote_status,sent_to_artist_at,artist_responded_at,rating&artist_id=in.(${artistIds.join(',')})`
+            );
+        }
+
+        // Group quotations by artist_id
+        const quotesByArtist = {};
+        for (const q of quotes) {
+            if (!q.artist_id) continue;
+            if (!quotesByArtist[q.artist_id]) quotesByArtist[q.artist_id] = [];
+            quotesByArtist[q.artist_id].push(q);
+        }
+
+        const CONVERTED_STATUSES = ['client_approved', 'in_progress', 'en_progreso', 'completed'];
+        const PROFILE_FIELDS = ['name', 'bio_description', 'profile_picture', 'gallery_images', 'styles_array', 'whatsapp_number', 'city', 'country', 'instagram', 'email', 'session_price', 'years_experience', 'languages'];
+
+        const results = artists.map(artist => {
+            // 1. Profile Completeness (25 points)
+            let filledFields = 0;
+            for (const field of PROFILE_FIELDS) {
+                const val = artist[field];
+                if (val && val !== '' && val !== '[]' && val !== '{}' && !(Array.isArray(val) && val.length === 0)) {
+                    filledFields++;
+                }
+            }
+            const profileScore = Math.round((filledFields / PROFILE_FIELDS.length) * 25);
+
+            // 2. Response Time (25 points)
+            const artistQuotes = quotesByArtist[artist.user_id] || [];
+            const responseTimes = [];
+            for (const q of artistQuotes) {
+                if (q.sent_to_artist_at && q.artist_responded_at) {
+                    const diff = new Date(q.artist_responded_at).getTime() - new Date(q.sent_to_artist_at).getTime();
+                    if (diff > 0) responseTimes.push(diff);
+                }
+            }
+            let responseScore = 25; // Default: full score if no data
+            if (responseTimes.length > 0) {
+                const avgHours = (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) / 3600000;
+                // Scale: 0-2h = 25pts, 2-12h = 20pts, 12-24h = 15pts, 24-48h = 10pts, 48-72h = 5pts, >72h = 0pts
+                if (avgHours <= 2) responseScore = 25;
+                else if (avgHours <= 12) responseScore = 20;
+                else if (avgHours <= 24) responseScore = 15;
+                else if (avgHours <= 48) responseScore = 10;
+                else if (avgHours <= 72) responseScore = 5;
+                else responseScore = 0;
+            }
+
+            // 3. Rating (25 points)
+            const ratings = artistQuotes
+                .map(q => parseFloat(q.rating))
+                .filter(r => !isNaN(r) && r > 0);
+            let ratingScore = 12; // Default: mid score if no ratings
+            if (ratings.length > 0) {
+                const avgRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+                ratingScore = Math.round((avgRating / 5) * 25); // Assuming 1-5 scale
+            }
+
+            // 4. Conversion Rate (25 points)
+            let conversionScore = 12; // Default: mid score if no quotes
+            if (artistQuotes.length > 0) {
+                const converted = artistQuotes.filter(q => CONVERTED_STATUSES.includes(q.quote_status)).length;
+                const rate = converted / artistQuotes.length;
+                conversionScore = Math.round(rate * 25);
+            }
+
+            const totalIndex = profileScore + responseScore + ratingScore + conversionScore;
+
+            return {
+                id: artist.id,
+                user_id: artist.user_id,
+                name: artist.name,
+                username: artist.username,
+                artist_index: totalIndex,
+                profile_completeness: Math.round((filledFields / PROFILE_FIELDS.length) * 100),
+                verification_state: artist.verification_state,
+                breakdown: {
+                    profile: profileScore,
+                    responseTime: responseScore,
+                    rating: ratingScore,
+                    conversion: conversionScore
+                },
+                stats: {
+                    totalQuotes: artistQuotes.length,
+                    avgResponseHours: responseTimes.length > 0
+                        ? Math.round((responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) / 3600000 * 10) / 10
+                        : null,
+                    avgRating: ratings.length > 0
+                        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
+                        : null,
+                    conversionRate: artistQuotes.length > 0
+                        ? Math.round(artistQuotes.filter(q => CONVERTED_STATUSES.includes(q.quote_status)).length / artistQuotes.length * 1000) / 10
+                        : null
+                }
+            };
+        });
+
+        // Persist index values if recalculate=true
+        if (recalculate && cfg.supabaseServiceKey) {
+            for (const r of results) {
+                await fetch(`${cfg.supabaseUrl}/rest/v1/artists_db?id=eq.${r.id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': cfg.supabaseServiceKey,
+                        'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        artist_index: r.artist_index,
+                        profile_completeness: r.profile_completeness,
+                        index_updated_at: new Date().toISOString()
+                    })
+                });
+            }
+        }
+
+        results.sort((a, b) => b.artist_index - a.artist_index);
+
+        res.json({
+            success: true,
+            count: results.length,
+            persisted: recalculate,
+            artists: results
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// VERIFICATION CENTER — Approve/Reject artists
+// ============================================
+
+/**
+ * GET /api/verification/pending — Artists pending verification
+ */
+app.get('/api/verification/pending', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    try {
+        const artists = await supabaseQuery(cfg,
+            `artists_db?select=id,user_id,name,username,email,instagram,city,country,verification_state,profile_picture,styles_array,artist_index,profile_completeness&verification_state=in.(pending_review,pending)&order=created_at.asc`
+        );
+
+        res.json({ success: true, count: artists.length, artists });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/verification/history — Verification history for an artist or all
+ * Query params: artist_id (optional)
+ */
+app.get('/api/verification/history', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const artistId = req.query.artist_id;
+
+    try {
+        let query = `verification_history?select=*&order=created_at.desc&limit=100`;
+        if (artistId) query += `&artist_id=eq.${artistId}`;
+        const history = await supabaseQuery(cfg, query);
+        res.json({ success: true, count: history.length, history });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /api/verification/review — Approve or reject an artist
+ * Body: { artist_id, action ('approved'|'rejected'), notes, reviewed_by }
+ */
+app.post('/api/verification/review', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured or missing service key' });
+    }
+
+    const { artist_id, action, notes, reviewed_by } = req.body;
+
+    if (!artist_id || !action) {
+        return res.status(400).json({ success: false, error: 'artist_id and action are required' });
+    }
+
+    if (!['approved', 'rejected'].includes(action)) {
+        return res.status(400).json({ success: false, error: 'action must be "approved" or "rejected"' });
+    }
+
+    try {
+        // 1. Update artist verification_state
+        const newState = action === 'approved' ? 'verified' : 'rejected';
+        const updateRes = await fetch(`${cfg.supabaseUrl}/rest/v1/artists_db?id=eq.${artist_id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({ verification_state: newState })
+        });
+
+        if (!updateRes.ok) {
+            const err = await updateRes.text();
+            throw new Error(`Failed to update artist: ${err}`);
+        }
+
+        const updatedArtist = await updateRes.json();
+
+        // 2. Insert verification_history record
+        const historyRes = await fetch(`${cfg.supabaseUrl}/rest/v1/verification_history`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+                artist_id,
+                action,
+                notes: notes || null,
+                reviewed_by: reviewed_by || 'backoffice'
+            })
+        });
+
+        if (!historyRes.ok) {
+            const err = await historyRes.text();
+            throw new Error(`Failed to log verification: ${err}`);
+        }
+
+        const historyRecord = await historyRes.json();
+
+        // 3. Fire email event through the centralized service.
+        //    Routing (n8n / billionmail / dual / off) is per-event and configurable from the
+        //    backoffice UI (Email Routing). Fire-and-forget: do NOT block the response.
+        const emailEventId = action === 'approved' ? 'profile_verified' : 'profile_verification_denied';
+        try {
+            const artist = updatedArtist[0] || {};
+            emailService.sendEmail(emailEventId, {
+                artist_id,
+                artist_name: artist.name,
+                artist_email: artist.email,
+                email: artist.email,
+                action,
+                notes,
+                reviewed_by,
+                timestamp: new Date().toISOString()
+            }).catch(e => console.error(`[Verification] sendEmail failed:`, e.message));
+        } catch (e) {
+            console.error(`[Verification] sendEmail dispatch failed:`, e.message);
+        }
+
+        res.json({
+            success: true,
+            artist_id,
+            action,
+            new_state: newState,
+            history: historyRecord[0] || historyRecord
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// QUOTATION STATUS HISTORY — Timeline data
+// ============================================
+
+/**
+ * GET /api/quotations/:quoteId/timeline — Status history for a quotation
+ */
+app.get('/api/quotations/:quoteId/timeline', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const quoteId = req.params.quoteId;
+
+    try {
+        // Try by quote_id string first, then by numeric id
+        let history = await supabaseQuery(cfg,
+            `quotation_status_history?select=*&quote_id=eq.${quoteId}&order=changed_at.asc`
+        );
+
+        if (history.length === 0 && /^\d+$/.test(quoteId)) {
+            history = await supabaseQuery(cfg,
+                `quotation_status_history?select=*&quotation_id=eq.${quoteId}&order=changed_at.asc`
+            );
+        }
+
+        res.json({ success: true, quote_id: quoteId, count: history.length, timeline: history });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// TICKET SUPPORT — Assignments & Comments
+// ============================================
+
+/**
+ * GET /api/tickets/:ticketId/assignments — Get assignments for a ticket
+ */
+app.get('/api/tickets/:ticketId/assignments', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+    try {
+        const assignments = await supabaseQuery(cfg,
+            `ticket_assignments?select=*&ticket_id=eq.${req.params.ticketId}&order=assigned_at.desc`
+        );
+        res.json({ success: true, assignments });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /api/tickets/:ticketId/assign — Assign a ticket to an agent
+ * Body: { assigned_to, assigned_by }
+ */
+app.post('/api/tickets/:ticketId/assign', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const { assigned_to, assigned_by } = req.body;
+    if (!assigned_to) {
+        return res.status(400).json({ success: false, error: 'assigned_to is required' });
+    }
+
+    try {
+        // Insert assignment
+        const assignRes = await fetch(`${cfg.supabaseUrl}/rest/v1/ticket_assignments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+                ticket_id: req.params.ticketId,
+                assigned_to,
+                assigned_by: assigned_by || 'backoffice'
+            })
+        });
+
+        if (!assignRes.ok) throw new Error(await assignRes.text());
+        const assignment = await assignRes.json();
+
+        // Update ticket status to 'in_progress' if currently 'open'/'new'
+        await fetch(`${cfg.supabaseUrl}/rest/v1/feedback_tickets?id=eq.${req.params.ticketId}&status=in.(open,new)`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ status: 'in_progress', updated_at: new Date().toISOString() })
+        });
+
+        res.json({ success: true, assignment: assignment[0] || assignment });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/tickets/:ticketId/comments — Get comments for a ticket
+ * Query params: include_internal (default true)
+ */
+app.get('/api/tickets/:ticketId/comments', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const includeInternal = req.query.include_internal !== 'false';
+
+    try {
+        let query = `ticket_comments?select=*&ticket_id=eq.${req.params.ticketId}&order=created_at.asc`;
+        if (!includeInternal) query += '&is_internal=eq.false';
+        const comments = await supabaseQuery(cfg, query);
+        res.json({ success: true, comments });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /api/tickets/:ticketId/comments — Add a comment to a ticket
+ * Body: { author, content, is_internal }
+ */
+app.post('/api/tickets/:ticketId/comments', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const { author, content, is_internal } = req.body;
+    if (!author || !content) {
+        return res.status(400).json({ success: false, error: 'author and content are required' });
+    }
+
+    try {
+        const commentRes = await fetch(`${cfg.supabaseUrl}/rest/v1/ticket_comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+                ticket_id: req.params.ticketId,
+                author,
+                content,
+                is_internal: is_internal || false
+            })
+        });
+
+        if (!commentRes.ok) throw new Error(await commentRes.text());
+        const comment = await commentRes.json();
+
+        // Update ticket updated_at
+        await fetch(`${cfg.supabaseUrl}/rest/v1/feedback_tickets?id=eq.${req.params.ticketId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ updated_at: new Date().toISOString() })
+        });
+
+        res.json({ success: true, comment: comment[0] || comment });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/tickets/metrics — Support ticket metrics
+ * Query params: days (default 30)
+ */
+app.get('/api/tickets/metrics', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+
+    try {
+        const tickets = await supabaseQuery(cfg,
+            `feedback_tickets?select=id,status,ticket_category,ticket_priority,is_auto_generated,created_at,updated_at&created_at=gte.${since}`
+        );
+
+        const byStatus = {};
+        const byCategory = {};
+        const byPriority = {};
+        let autoGenerated = 0;
+        const resolutionTimes = [];
+
+        for (const t of tickets) {
+            byStatus[t.status || 'unknown'] = (byStatus[t.status || 'unknown'] || 0) + 1;
+            if (t.ticket_category) byCategory[t.ticket_category] = (byCategory[t.ticket_category] || 0) + 1;
+            if (t.ticket_priority) byPriority[t.ticket_priority] = (byPriority[t.ticket_priority] || 0) + 1;
+            if (t.is_auto_generated) autoGenerated++;
+
+            if (t.status === 'resolved' && t.created_at && t.updated_at) {
+                const diff = new Date(t.updated_at).getTime() - new Date(t.created_at).getTime();
+                if (diff > 0) resolutionTimes.push(diff);
+            }
+        }
+
+        const avgResolutionHours = resolutionTimes.length > 0
+            ? Math.round(resolutionTimes.reduce((a, b) => a + b, 0) / resolutionTimes.length / 3600000 * 10) / 10
+            : null;
+
+        res.json({
+            success: true,
+            period: { days, since: since.slice(0, 10) },
+            total: tickets.length,
+            autoGenerated,
+            byStatus,
+            byCategory,
+            byPriority,
+            avgResolutionHours,
+            resolvedCount: resolutionTimes.length
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// JOB BOARD BIDDING — Artist proposals & matches
+// ============================================
+
+/**
+ * POST /api/job-board/:requestId/bid — Artist submits a bid/proposal
+ * Body: { artist_id, estimated_price, estimated_sessions, message, availability_note, portfolio_links }
+ */
+app.post('/api/job-board/:requestId/bid', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const { artist_id, estimated_price, estimated_sessions, message, availability_note, portfolio_links } = req.body;
+    if (!artist_id) {
+        return res.status(400).json({ success: false, error: 'artist_id is required' });
+    }
+
+    try {
+        // Check if request exists and is active
+        const requests = await supabaseQuery(cfg,
+            `job_board_requests?select=id,status,max_applications,application_count&id=eq.${req.params.requestId}`
+        );
+
+        if (!requests.length) {
+            return res.status(404).json({ success: false, error: 'Request not found' });
+        }
+
+        const request = requests[0];
+        if (request.status !== 'active' && request.status !== 'open') {
+            return res.status(400).json({ success: false, error: `Request is ${request.status}, cannot accept bids` });
+        }
+
+        if (request.max_applications && request.application_count >= request.max_applications) {
+            return res.status(400).json({ success: false, error: 'Maximum applications reached' });
+        }
+
+        // Check for duplicate bid
+        const existing = await supabaseQuery(cfg,
+            `job_board_applications?select=id&request_id=eq.${req.params.requestId}&artist_id=eq.${artist_id}`
+        );
+        if (existing.length > 0) {
+            return res.status(409).json({ success: false, error: 'Artist already submitted a bid for this request' });
+        }
+
+        // Insert bid
+        const bidRes = await fetch(`${cfg.supabaseUrl}/rest/v1/job_board_applications`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+                request_id: req.params.requestId,
+                artist_id,
+                estimated_price: estimated_price || null,
+                estimated_sessions: estimated_sessions || null,
+                message: message || null,
+                availability_note: availability_note || null,
+                portfolio_links: portfolio_links || null,
+                status: 'pending'
+            })
+        });
+
+        if (!bidRes.ok) throw new Error(await bidRes.text());
+        const bid = await bidRes.json();
+
+        // Increment application_count
+        await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/increment_application_count`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`
+            },
+            body: JSON.stringify({ request_id_input: req.params.requestId })
+        }).catch(() => {
+            // If RPC doesn't exist, do a manual update
+            fetch(`${cfg.supabaseUrl}/rest/v1/job_board_requests?id=eq.${req.params.requestId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': cfg.supabaseServiceKey,
+                    'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({
+                    application_count: (request.application_count || 0) + 1,
+                    updated_at: new Date().toISOString()
+                })
+            });
+        });
+
+        res.json({ success: true, bid: bid[0] || bid });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/job-board/:requestId/bids — List bids for a request
+ */
+app.get('/api/job-board/:requestId/bids', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    try {
+        const bids = await supabaseQuery(cfg,
+            `job_board_applications?select=*&request_id=eq.${req.params.requestId}&order=created_at.desc`
+        );
+
+        // Enrich with artist names
+        const artistIds = [...new Set(bids.map(b => b.artist_id).filter(Boolean))];
+        let artistMap = {};
+        if (artistIds.length > 0) {
+            const artists = await supabaseQuery(cfg,
+                `artists_db?select=user_id,name,username,profile_picture,city,country,styles_array,artist_index&user_id=in.(${artistIds.join(',')})`
+            );
+            for (const a of artists) {
+                artistMap[a.user_id] = a;
+            }
+        }
+
+        const enriched = bids.map(b => ({
+            ...b,
+            artist: artistMap[b.artist_id] || null
+        }));
+
+        res.json({ success: true, count: enriched.length, bids: enriched });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * PATCH /api/job-board/bid/:bidId — Approve or reject a bid
+ * Body: { status ('accepted'|'rejected') }
+ */
+app.patch('/api/job-board/bid/:bidId', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const { status } = req.body;
+    if (!status || !['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, error: 'status must be "accepted" or "rejected"' });
+    }
+
+    try {
+        const updateBody = {
+            status,
+            decided_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        const updateRes = await fetch(`${cfg.supabaseUrl}/rest/v1/job_board_applications?id=eq.${req.params.bidId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify(updateBody)
+        });
+
+        if (!updateRes.ok) throw new Error(await updateRes.text());
+        const updated = await updateRes.json();
+        const bid = updated[0] || updated;
+
+        // If accepted, update the request with accepted_artist_id and accepted_application_id
+        if (status === 'accepted' && bid.request_id && bid.artist_id) {
+            await fetch(`${cfg.supabaseUrl}/rest/v1/job_board_requests?id=eq.${bid.request_id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': cfg.supabaseServiceKey,
+                    'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({
+                    status: 'assigned',
+                    accepted_artist_id: bid.artist_id,
+                    accepted_application_id: bid.id,
+                    accepted_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+            });
+        }
+
+        // Fire email event through the centralized service.
+        // Need the artist email so BillionMail/n8n can address the recipient. The bid row
+        // only has artist_id, so look up the artist quickly. Fire-and-forget for the email.
+        try {
+            const emailEventId = status === 'accepted'
+                ? 'job_board_application_accepted'
+                : 'job_board_application_rejected';
+            (async () => {
+                let artistEmail = null;
+                let artistName = null;
+                try {
+                    if (bid.artist_id) {
+                        const artists = await supabaseQuery(
+                            cfg,
+                            `artists_db?select=email,name&user_id=eq.${bid.artist_id}&limit=1`
+                        );
+                        if (artists && artists[0]) {
+                            artistEmail = artists[0].email || null;
+                            artistName = artists[0].name || null;
+                        }
+                    }
+                } catch (lookupErr) {
+                    console.warn('[JobBoard] artist lookup for email failed:', lookupErr.message);
+                }
+                await emailService.sendEmail(emailEventId, {
+                    bid_id: bid.id,
+                    request_id: bid.request_id,
+                    artist_id: bid.artist_id,
+                    artist_email: artistEmail,
+                    artist_name: artistName,
+                    status,
+                    timestamp: new Date().toISOString()
+                }).catch(e => console.error(`[JobBoard] sendEmail failed:`, e.message));
+            })().catch(e => console.error(`[JobBoard] sendEmail wrapper failed:`, e.message));
+        } catch (e) { /* webhook optional */ }
+
+        res.json({ success: true, bid });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/job-board/matches — Find matching requests for an artist (by style + location + budget)
+ * Query params: artist_id (required)
+ */
+app.get('/api/job-board/matches', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const artistId = req.query.artist_id;
+    if (!artistId) {
+        return res.status(400).json({ success: false, error: 'artist_id query param is required' });
+    }
+
+    try {
+        // Get artist profile
+        const artists = await supabaseQuery(cfg,
+            `artists_db?select=user_id,styles_array,city,country,session_price&user_id=eq.${artistId}`
+        );
+
+        if (!artists.length) {
+            return res.status(404).json({ success: false, error: 'Artist not found' });
+        }
+
+        const artist = artists[0];
+
+        // Get active requests
+        const requests = await supabaseQuery(cfg,
+            `job_board_requests?select=*&status=in.(active,open)&is_public=eq.true&order=created_at.desc`
+        );
+
+        // Score each request for match quality
+        const scored = requests.map(r => {
+            let score = 0;
+            let matchReasons = [];
+
+            // Style match
+            const requestStyle = r.tattoo_style?.style_name || r.tattoo_style?.style_slug || '';
+            if (requestStyle && artist.styles_array && artist.styles_array.some(s =>
+                s.toLowerCase().includes(requestStyle.toLowerCase()) ||
+                requestStyle.toLowerCase().includes(s.toLowerCase())
+            )) {
+                score += 40;
+                matchReasons.push('style');
+            }
+
+            // Location match
+            if (artist.city && r.client_city &&
+                artist.city.toLowerCase().includes(r.client_city.toLowerCase())) {
+                score += 30;
+                matchReasons.push('city');
+            } else if (artist.country && r.client_country &&
+                artist.country.toLowerCase().includes(r.client_country.toLowerCase())) {
+                score += 15;
+                matchReasons.push('country');
+            }
+
+            // Budget match
+            if (artist.session_price && r.client_budget_max) {
+                const artistPrice = parseFloat(artist.session_price.replace(/[^0-9.]/g, ''));
+                if (!isNaN(artistPrice) && artistPrice <= r.client_budget_max) {
+                    score += 20;
+                    matchReasons.push('budget');
+                }
+            }
+
+            // Travel willing bonus
+            if (r.client_travel_willing) {
+                score += 10;
+                matchReasons.push('travel_willing');
+            }
+
+            return { ...r, match_score: score, match_reasons: matchReasons };
+        });
+
+        // Filter to score > 0 and sort
+        const matches = scored
+            .filter(r => r.match_score > 0)
+            .sort((a, b) => b.match_score - a.match_score);
+
+        res.json({
+            success: true,
+            artist_id: artistId,
+            total_active_requests: requests.length,
+            matches_found: matches.length,
+            matches
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 /**
  * GET /api/analytics/summary — Dashboard summary of all analytics
  * Query params: days (default 30), env (production|development|all)
@@ -2356,6 +4178,466 @@ app.get('/api/analytics/summary', async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// PRE-QUOTE ESTIMATOR ENDPOINT
+// ============================================
+
+/**
+ * POST /api/pre-quote/estimate
+ * Body: { tattoo_idea_description?, tattoo_style, tattoo_size, tattoo_body_part?, client_city_residence }
+ * Returns: { success, estimate, suggestedArtists, matchedArtists, fallbackTier }
+ */
+app.post('/api/pre-quote/estimate', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const input = {
+        tattoo_idea_description: String(req.body.tattoo_idea_description || '').trim(),
+        tattoo_style: req.body.tattoo_style,
+        tattoo_size: req.body.tattoo_size,
+        tattoo_body_part: req.body.tattoo_body_part,
+        client_city_residence: String(req.body.client_city_residence || '').trim()
+    };
+
+    if (!input.tattoo_style || !input.tattoo_size || !input.client_city_residence) {
+        return res.status(400).json({
+            success: false,
+            error: 'tattoo_style, tattoo_size and client_city_residence are required'
+        });
+    }
+
+    try {
+        const artists = await supabaseQuery(cfg,
+            'artists_db?select=user_id,username,name,instagram,portafolio,profile_picture,styles_array,city,country,ubicacion,estudios,session_price,artist_index,verification_state&order=artist_index.desc'
+        );
+
+        const result = estimatePreQuote(input, Array.isArray(artists) ? artists : []);
+        return res.json({ success: true, ...result });
+    } catch (err) {
+        console.error('[PreQuote] Estimate failed:', err);
+        return res.status(500).json({ success: false, error: 'Could not calculate pre-quote estimate' });
+    }
+});
+
+// ============================================
+// CURRENCY NORMALIZATION ENDPOINTS
+// ============================================
+// Master currency table refreshed daily by an n8n workflow that fetches
+// rates from open.er-api.com and POSTs them to /api/admin/currencies/bulk-update.
+
+const _currencyCache = { data: null, fetchedAt: 0, ttlMs: 60 * 60 * 1000 }; // 1h
+
+function _resetCurrencyCache() {
+    _currencyCache.data = null;
+    _currencyCache.fetchedAt = 0;
+}
+
+/**
+ * GET /api/currencies
+ * Public list of active currencies and their FX rates against USD and EUR.
+ * Cached in-memory for 1 hour.
+ */
+app.get('/api/currencies', async (req, res) => {
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+        return res.status(503).json({ success: false, error: 'Supabase not configured' });
+    }
+
+    const force = String(req.query.force || '') === '1';
+    const now = Date.now();
+    if (!force && _currencyCache.data && (now - _currencyCache.fetchedAt) < _currencyCache.ttlMs) {
+        return res.json({ success: true, currencies: _currencyCache.data, cached: true });
+    }
+
+    try {
+        const url = `${cfg.supabaseUrl}/rest/v1/currencies`
+            + `?select=code,name,symbol,decimals,units_per_usd,units_per_eur,is_active,last_updated_at,source`
+            + `&is_active=eq.true&order=code.asc`;
+        const response = await fetch(url, {
+            headers: {
+                'apikey': cfg.supabaseAnonKey,
+                'Authorization': `Bearer ${cfg.supabaseAnonKey}`
+            }
+        });
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Supabase responded ${response.status}: ${errText}`);
+        }
+        const list = await response.json();
+        _currencyCache.data = list;
+        _currencyCache.fetchedAt = now;
+        return res.json({ success: true, currencies: list, cached: false });
+    } catch (err) {
+        console.error('[Currencies] List failed:', err.message);
+        return res.status(500).json({ success: false, error: 'Could not load currencies' });
+    }
+});
+
+/**
+ * POST /api/admin/currencies/bulk-update
+ * Called by the n8n daily cron workflow.
+ * Auth: header `X-Cron-Token` must match process.env.CRON_API_TOKEN.
+ * Body: {
+ *   source?: 'open.er-api.com',
+ *   rates: [
+ *     { code: 'ARS', name?, symbol?, decimals?, units_per_usd, units_per_eur }
+ *   ]
+ * }
+ */
+app.post('/api/admin/currencies/bulk-update', async (req, res) => {
+    const expectedToken = process.env.CRON_API_TOKEN;
+    if (!expectedToken) {
+        return res.status(503).json({ success: false, error: 'CRON_API_TOKEN not configured on server' });
+    }
+    const provided = req.headers['x-cron-token'] || '';
+    if (provided !== expectedToken) {
+        return res.status(401).json({ success: false, error: 'Invalid cron token' });
+    }
+
+    const cfg = getHealthConfig();
+    if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+        return res.status(503).json({ success: false, error: 'Supabase service role not configured' });
+    }
+
+    const source = String(req.body?.source || 'open.er-api.com').slice(0, 100);
+    const rates = Array.isArray(req.body?.rates) ? req.body.rates : null;
+    if (!rates || !rates.length) {
+        return res.status(400).json({ success: false, error: 'Body must include non-empty `rates` array' });
+    }
+
+    const now = new Date().toISOString();
+    const rows = [];
+    const skipped = [];
+    for (const r of rates) {
+        const code = String(r.code || '').trim().toUpperCase();
+        const upu = Number(r.units_per_usd);
+        const upe = Number(r.units_per_eur);
+        if (!/^[A-Z]{3}$/.test(code) || !isFinite(upu) || upu <= 0 || !isFinite(upe) || upe <= 0) {
+            skipped.push({ code: r.code, reason: 'invalid code or rate' });
+            continue;
+        }
+        rows.push({
+            code,
+            name: String(r.name || code).slice(0, 100),
+            symbol: r.symbol ? String(r.symbol).slice(0, 16) : null,
+            decimals: Number.isInteger(r.decimals) ? r.decimals : 2,
+            units_per_usd: upu,
+            units_per_eur: upe,
+            is_active: true,
+            source,
+            last_updated_at: now
+        });
+    }
+
+    if (!rows.length) {
+        return res.status(400).json({ success: false, error: 'No valid currencies in payload', skipped });
+    }
+
+    let upserted = 0;
+    let errorMessage = null;
+    let status = 'success';
+
+    try {
+        const upsertUrl = `${cfg.supabaseUrl}/rest/v1/currencies?on_conflict=code`;
+        const response = await fetch(upsertUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'resolution=merge-duplicates,return=representation'
+            },
+            body: JSON.stringify(rows)
+        });
+        if (!response.ok) {
+            errorMessage = `Supabase upsert failed: ${response.status} ${await response.text()}`;
+            status = 'error';
+        } else {
+            const data = await response.json();
+            upserted = Array.isArray(data) ? data.length : rows.length;
+            if (skipped.length) status = 'partial';
+        }
+    } catch (err) {
+        errorMessage = err.message;
+        status = 'error';
+    }
+
+    // Audit log (best-effort)
+    try {
+        await fetch(`${cfg.supabaseUrl}/rest/v1/currency_refresh_logs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`
+            },
+            body: JSON.stringify({
+                source,
+                currencies_updated: upserted,
+                status,
+                error_message: errorMessage,
+                raw_payload: { count_in: rates.length, count_skipped: skipped.length }
+            })
+        });
+    } catch (logErr) {
+        console.warn('[Currencies] Audit log failed:', logErr.message);
+    }
+
+    _resetCurrencyCache();
+
+    if (status === 'error') {
+        return res.status(500).json({ success: false, error: errorMessage, upserted, skipped });
+    }
+    return res.json({ success: true, status, upserted, skipped, source, refreshed_at: now });
+});
+
+/**
+ * POST /api/admin/currencies/refresh-now
+ * Manual refresh from the backoffice. Fetches rates from open.er-api.com server-side
+ * and writes them to Supabase via the bulk-update logic.
+ * Requires: header `X-Cron-Token` (admin-only operation).
+ */
+app.post('/api/admin/currencies/refresh-now', async (req, res) => {
+    const expectedToken = process.env.CRON_API_TOKEN;
+    if (!expectedToken) {
+        return res.status(503).json({ success: false, error: 'CRON_API_TOKEN not configured on server' });
+    }
+    const provided = req.headers['x-cron-token'] || '';
+    if (provided !== expectedToken) {
+        return res.status(401).json({ success: false, error: 'Invalid cron token' });
+    }
+
+    try {
+        const apiResponse = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (!apiResponse.ok) {
+            throw new Error(`open.er-api.com responded ${apiResponse.status}`);
+        }
+        const payload = await apiResponse.json();
+        if (payload.result !== 'success' || !payload.rates) {
+            throw new Error('open.er-api.com returned unexpected payload');
+        }
+
+        const eurPerUsd = Number(payload.rates.EUR);
+        if (!isFinite(eurPerUsd) || eurPerUsd <= 0) {
+            throw new Error('Missing EUR rate from provider');
+        }
+
+        const rates = Object.entries(payload.rates).map(([code, units_per_usd]) => {
+            const upu = Number(units_per_usd);
+            return {
+                code,
+                units_per_usd: upu,
+                units_per_eur: upu / eurPerUsd
+            };
+        }).filter(r => isFinite(r.units_per_usd) && r.units_per_usd > 0
+                    && isFinite(r.units_per_eur) && r.units_per_eur > 0);
+
+        // Forward through the bulk-update logic by re-issuing an internal request
+        req.body = { source: 'open.er-api.com', rates };
+        // Re-dispatch: simplest is to call the handler directly via routing helper.
+        // Express doesn't expose handlers easily, so duplicate the upsert here.
+        const cfg = getHealthConfig();
+        if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) {
+            return res.status(503).json({ success: false, error: 'Supabase service role not configured' });
+        }
+
+        const now = new Date().toISOString();
+        const rows = rates.map(r => ({
+            code: r.code,
+            name: r.code,
+            symbol: null,
+            decimals: 2,
+            units_per_usd: r.units_per_usd,
+            units_per_eur: r.units_per_eur,
+            is_active: true,
+            source: 'open.er-api.com',
+            last_updated_at: now
+        }));
+
+        const upsertUrl = `${cfg.supabaseUrl}/rest/v1/currencies?on_conflict=code`;
+        const upsertRes = await fetch(upsertUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
+                'Prefer': 'resolution=merge-duplicates,return=minimal'
+            },
+            body: JSON.stringify(rows)
+        });
+        if (!upsertRes.ok) {
+            const errText = await upsertRes.text();
+            throw new Error(`Supabase upsert failed: ${upsertRes.status} ${errText}`);
+        }
+
+        await fetch(`${cfg.supabaseUrl}/rest/v1/currency_refresh_logs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': cfg.supabaseServiceKey,
+                'Authorization': `Bearer ${cfg.supabaseServiceKey}`
+            },
+            body: JSON.stringify({
+                source: 'open.er-api.com',
+                currencies_updated: rows.length,
+                status: 'success',
+                raw_payload: { trigger: 'manual', count: rows.length }
+            })
+        }).catch(() => {});
+
+        _resetCurrencyCache();
+
+        return res.json({ success: true, upserted: rows.length, refreshed_at: now });
+    } catch (err) {
+        console.error('[Currencies] Manual refresh failed:', err.message);
+        try {
+            const cfg = getHealthConfig();
+            if (cfg.supabaseUrl && cfg.supabaseServiceKey) {
+                await fetch(`${cfg.supabaseUrl}/rest/v1/currency_refresh_logs`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': cfg.supabaseServiceKey,
+                        'Authorization': `Bearer ${cfg.supabaseServiceKey}`
+                    },
+                    body: JSON.stringify({
+                        source: 'open.er-api.com',
+                        currencies_updated: 0,
+                        status: 'error',
+                        error_message: err.message,
+                        raw_payload: { trigger: 'manual' }
+                    })
+                });
+            }
+        } catch { /* ignore */ }
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// EMAIL ROUTING (BillionMail / n8n / dual / off)
+// Centralized dispatcher for all transactional emails.
+// See services/email-service.js and services/email-event-mapping.js.
+// IMPORTANT: register specific routes (/events, /test) BEFORE the catch-all
+// /api/email/:eventId so Express does not interpret 'test' as an eventId.
+// ============================================
+
+/**
+ * List all email events with their current routing channel.
+ * GET /api/email/events
+ */
+app.get('/api/email/events', async (req, res) => {
+    try {
+        const events = await emailService.getEventsWithRouting();
+        return res.json({ success: true, count: events.length, events });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * Update routing for a single event id.
+ * PUT /api/email/events/:eventId
+ * Body: { channel: 'n8n'|'billionmail'|'dual'|'off',
+ *         billionmail_api_key?, billionmail_sender?, n8n_webhook_url? }
+ *
+ * NOTE: Authorization is enforced at the backoffice UI level (same pattern as the rest
+ * of /api/admin/*). The authLimiter prevents brute-force changes to the routing config.
+ */
+app.put('/api/email/events/:eventId', async (req, res) => {
+    const eventId = req.params.eventId;
+    if (!emailEventMapping.getEvent(eventId)) {
+        return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
+    }
+    const allowed = ['channel', 'billionmail_api_key', 'billionmail_sender', 'billionmail_api_url', 'n8n_webhook_url'];
+    const updates = {};
+    for (const k of allowed) if (k in req.body) updates[k] = req.body[k];
+    if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ success: false, error: 'No update fields provided' });
+    }
+
+    try {
+        const result = await emailService.updateRoutingForEvent(eventId, updates);
+        if (!result.ok) return res.status(500).json({ success: false, error: result.error });
+        const refreshed = (await emailService.getEventsWithRouting()).find(e => e.id === eventId);
+        return res.json({ success: true, event: refreshed });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * Send a synthetic test email for an event id (admin / QA).
+ * POST /api/email/test
+ * Body: { eventId, recipient, channel? }
+ * - When `recipient` is set, payload is built minimally so the recipient receives the test.
+ */
+app.post('/api/email/test', authLimiter, async (req, res) => {
+    const { eventId, recipient, channel } = req.body || {};
+    if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
+    if (!emailEventMapping.getEvent(eventId)) {
+        return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
+    }
+    if (!recipient || !String(recipient).includes('@')) {
+        return res.status(400).json({ success: false, error: 'Valid recipient email required' });
+    }
+
+    // Build a synthetic payload that satisfies the most common recipient resolvers.
+    const stub = {
+        email: recipient,
+        client_email: recipient,
+        artist_email: recipient,
+        admin_email: recipient,
+        username: 'test_user',
+        password: 'TempPass123!',
+        temp_password: 'TempPass123!',
+        full_name: 'Test User',
+        name: 'Test User',
+        artist_name: 'Test Artist',
+        client_name: 'Test Client',
+        quote_id: 'TEST-0001',
+        login_url: 'https://weotzi.chat/client/login',
+        dashboard_url: 'https://weotzi.chat/client/dashboard',
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        const result = await emailService.sendEmail(eventId, stub, {
+            forceChannel: channel && emailService.VALID_CHANNELS.includes(channel) ? channel : undefined
+        });
+        return res.json({ success: !!result.ok, ...result });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * Dispatch an email event (catch-all eventId route, must come after /events and /test).
+ * POST /api/email/:eventId
+ * Body: { data: {...} }
+ * Optional query: ?force=billionmail|n8n|dual|off  (admin-only override)
+ */
+app.post('/api/email/:eventId', async (req, res) => {
+    const eventId = req.params.eventId;
+    const payload = (req.body && req.body.data) || req.body || {};
+    const forceChannel = req.query.force ? String(req.query.force) : undefined;
+
+    if (!emailEventMapping.getEvent(eventId)) {
+        return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
+    }
+
+    try {
+        const result = await emailService.sendEmail(eventId, payload, { forceChannel });
+        const status = result.ok ? 200 : (result.skipped ? 200 : 502);
+        return res.status(status).json({ success: !!result.ok, ...result });
+    } catch (err) {
+        console.error(`[email] dispatch failed for ${eventId}:`, err);
+        return res.status(500).json({ success: false, error: err.message });
     }
 });
 

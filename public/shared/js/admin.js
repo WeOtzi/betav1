@@ -19,6 +19,22 @@ let questionsConfig = [];
 // Styles configuration (extracted from questionsConfig)
 let currentStyles = [];
 
+// Job Board state
+let allJobBoardRequests = [];
+let filteredJobBoardRequests = [];
+let jobBoardPage = 1;
+const jobBoardPerPage = 15;
+
+// Routes state
+let currentRoutes = {};
+let routeHealthResults = {};
+
+// Tickets state
+let allTickets = [];
+let filteredTickets = [];
+let currentTicketId = null;
+let _ticketRealtimeChannels = [];
+
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', async () => {
     await initAdmin();
@@ -116,7 +132,12 @@ function showSection(sectionId) {
         'routes': 'Gestion de Rutas',
         'backup': 'Backup y Restauracion',
         'support': 'Usuarios de Soporte',
-        'events': 'Eventos y Webhooks'
+        'events': 'Eventos y Webhooks',
+        'email-routing': 'Email Routing (n8n / BillionMail)',
+        'currencies': 'Monedas y Tipos de Cambio',
+        'jobboard': 'Job Board',
+        'tickets': 'Tickets de Soporte',
+        'verifications': 'Centro de Verificaciones'
     };
     document.getElementById('section-title').textContent = titles[sectionId];
 
@@ -141,8 +162,18 @@ function showSection(sectionId) {
         loadSupportUsers();
     } else if (sectionId === 'events') {
         loadN8NEvents();
+    } else if (sectionId === 'email-routing') {
+        if (typeof loadEmailRouting === 'function') loadEmailRouting();
+    } else if (sectionId === 'currencies') {
+        loadCurrenciesAdmin();
     } else if (sectionId === 'analytics') {
         loadAnalyticsData();
+    } else if (sectionId === 'jobboard') {
+        loadJobBoardAdmin();
+    } else if (sectionId === 'tickets') {
+        loadSupportTickets();
+    } else if (sectionId === 'verifications') {
+        loadVerificationQueue();
     }
 }
 
@@ -286,7 +317,7 @@ const CONFIG = {
 };
 
 // Initialize Supabase Client
-let supabaseClient = null;
+supabaseClient = null;
 
 if (typeof window.supabase !== 'undefined' && 
     CONFIG.supabase.url !== 'https://YOUR_PROJECT_ID.supabase.co') {
@@ -490,6 +521,9 @@ async function loadDashboardStats() {
 
         renderRecentQuotations(recent || []);
 
+        // Load dashboard charts (Centro de Comando)
+        loadDashboardCharts();
+
     } catch (error) {
         console.error('Error loading stats:', error);
         document.querySelectorAll('.stat-value').forEach(el => el.textContent = '—');
@@ -524,11 +558,218 @@ function renderRecentQuotations(quotations) {
         <div class="recent-item">
             <div class="recent-info">
                 <span class="recent-id">${q.quote_id}</span>
-                <span class="recent-meta">${q.client_full_name || 'Prospecto'} → ${q.artist_name || 'Sin artista'}</span>
+                <span class="recent-meta">${escapeHtml(q.client_full_name) || 'Prospecto'} → ${escapeHtml(q.artist_name) || 'Sin artista'}</span>
             </div>
             <span class="status-badge ${q.quote_status}">${statusLabels[q.quote_status] || q.quote_status}</span>
         </div>
     `).join('');
+}
+
+// ============ DASHBOARD CENTRO DE COMANDO ============
+let dashCharts = {};
+
+async function loadDashboardCharts() {
+    loadQuotationsTrendChart();
+    loadArtistsBreakdown();
+    loadTicketsSummary();
+    loadQuotationMetrics();
+}
+
+// --- Quotations Trend (line chart, last 8 weeks) ---
+async function loadQuotationsTrendChart() {
+    const container = document.getElementById('quotations-trend-chart');
+    if (!container || !supabaseClient) return;
+    try {
+        const eightWeeksAgo = new Date();
+        eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+        const { data, error } = await supabaseClient
+            .from('quotations_db')
+            .select('created_at, quote_status')
+            .gte('created_at', eightWeeksAgo.toISOString());
+        if (error) throw error;
+        if (!data || data.length === 0) { renderQuotationsTrendEmpty(container); return; }
+
+        const weeks = {};
+        for (let i = 7; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i * 7);
+            const key = d.toISOString().slice(0, 10);
+            weeks[key] = { newCount: 0, completedCount: 0 };
+        }
+        const weekKeys = Object.keys(weeks);
+        data.forEach(q => {
+            const qd = q.created_at.slice(0, 10);
+            let assigned = weekKeys[0];
+            for (const wk of weekKeys) { if (qd >= wk) assigned = wk; }
+            if (weeks[assigned]) {
+                weeks[assigned].newCount++;
+                if (q.quote_status === 'completed') weeks[assigned].completedCount++;
+            }
+        });
+        const labels = weekKeys.map(k => { const d = new Date(k); return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }); });
+        const newData = weekKeys.map(k => weeks[k].newCount);
+        const completedData = weekKeys.map(k => weeks[k].completedCount);
+        renderQuotationsTrendChart(container, labels, newData, completedData);
+    } catch (err) {
+        console.error('Error loading quotations trend:', err);
+        renderQuotationsTrendEmpty(container);
+    }
+}
+
+function renderQuotationsTrendEmpty(canvas) {
+    const parent = canvas.parentElement;
+    if (parent) parent.innerHTML = '<div class="empty-state-box" style="padding:24px;"><i class="fa-solid fa-chart-line"></i><span class="empty-title">Sin datos de tendencia</span></div>';
+}
+
+function renderQuotationsTrendChart(canvas, labels, newData, completedData) {
+    if (dashCharts.trend) dashCharts.trend.destroy();
+    dashCharts.trend = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Nuevas', data: newData, borderColor: '#6c5ce7', backgroundColor: 'rgba(108,92,231,0.1)', tension: 0.3, fill: true },
+                { label: 'Completadas', data: completedData, borderColor: '#00b894', backgroundColor: 'rgba(0,184,148,0.1)', tension: 0.3, fill: true }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { x: { ticks: { color: '#999' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { beginAtZero: true, ticks: { color: '#999', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+    });
+}
+
+// --- Artists Breakdown (doughnut chart) ---
+async function loadArtistsBreakdown() {
+    const canvas = document.getElementById('artists-doughnut-chart');
+    if (!canvas || !supabaseClient) return;
+    try {
+        const { data, error } = await supabaseClient.from('artists_db').select('status, is_verified');
+        if (error) throw error;
+        let active = 0, inactive = 0, verified = 0, pending = 0;
+        (data || []).forEach(a => {
+            if (a.status === 'active') active++; else inactive++;
+            if (a.is_verified) verified++; else pending++;
+        });
+        renderArtistsDoughnut(canvas, active, inactive, verified, pending);
+        const countEl = document.getElementById('artists-breakdown-count');
+        if (countEl) countEl.textContent = (data || []).length;
+    } catch (err) {
+        console.error('Error loading artists breakdown:', err);
+    }
+}
+
+function renderArtistsDoughnut(canvas, active, inactive, verified, pending) {
+    if (dashCharts.artists) dashCharts.artists.destroy();
+    dashCharts.artists = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: ['Activos', 'Inactivos', 'Verificados', 'Pendientes'],
+            datasets: [{ data: [active, inactive, verified, pending], backgroundColor: ['#00b894', '#636e72', '#6c5ce7', '#fdcb6e'], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } }
+    });
+    // Update legend text
+    const rows = document.querySelectorAll('.breakdown-row');
+    const vals = [active, inactive, verified, pending];
+    rows.forEach((row, i) => { const ve = row.querySelector('.breakdown-value'); if (ve) ve.textContent = vals[i] || 0; });
+}
+
+// --- Tickets Summary ---
+async function loadTicketsSummary() {
+    const container = document.getElementById('tickets-summary-content');
+    if (!container || !supabaseClient) return;
+    try {
+        const { data, error } = await supabaseClient.from('feedback_tickets').select('id, subject, ticket_priority, ticket_category, status, created_at').order('created_at', { ascending: false }).limit(50);
+        if (error) throw error;
+        const tickets = data || [];
+        let critical = 0, high = 0, medium = 0, low = 0, open = 0;
+        tickets.forEach(t => {
+            if (t.status === 'open' || t.status === 'in_progress') open++;
+            if (t.ticket_priority === 'critical') critical++;
+            else if (t.ticket_priority === 'high') high++;
+            else if (t.ticket_priority === 'medium') medium++;
+            else low++;
+        });
+        container.innerHTML = `
+            <div class="ticket-priority-row"><span class="priority-dot critical"></span><span>Criticos</span><span class="ticket-count">${critical}</span></div>
+            <div class="ticket-priority-row"><span class="priority-dot high"></span><span>Alta</span><span class="ticket-count">${high}</span></div>
+            <div class="ticket-priority-row"><span class="priority-dot medium"></span><span>Media</span><span class="ticket-count">${medium}</span></div>
+            <div class="ticket-priority-row"><span class="priority-dot low"></span><span>Baja</span><span class="ticket-count">${low}</span></div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-secondary);font-size:0.85rem;">Abiertos</span>
+                <span style="color:#fdcb6e;font-weight:600;">${open}</span>
+            </div>
+            <div class="recent-tickets-list">
+                ${tickets.slice(0, 3).map(t => `<div class="recent-ticket-item"><span class="priority-dot ${t.ticket_priority || 'low'}"></span><span style="flex:1;font-size:0.82rem;color:var(--text-secondary);">${escapeHtml(t.subject) || 'Sin asunto'}</span><span class="status-badge ${t.status}">${t.status}</span></div>`).join('')}
+            </div>`;
+    } catch (err) {
+        console.error('Error loading tickets summary:', err);
+        container.innerHTML = '<div class="empty-state-box" style="padding:16px;"><span class="empty-title">Error cargando tickets</span></div>';
+    }
+}
+
+// --- Quotation Metrics (from /api/analytics/quotations) ---
+async function loadQuotationMetrics() {
+    const kpiRow = document.getElementById('metrics-kpi-row');
+    const trendCanvas = document.getElementById('metrics-trend-chart');
+    const styleTable = document.getElementById('conversion-style-table');
+    const artistTable = document.getElementById('conversion-artist-table');
+    if (!kpiRow) return;
+    try {
+        const resp = await fetch('/api/analytics/quotations?days=90');
+        if (!resp.ok) throw new Error('API error');
+        const result = await resp.json();
+        if (!result.success) throw new Error(result.error);
+        const d = result.data;
+
+        // KPIs
+        const avgHours = d.avgResponseHours != null ? Math.round(d.avgResponseHours) : '—';
+        const total = Object.values(d.byStatus || {}).reduce((s, v) => s + v, 0);
+        const completed = (d.byStatus || {}).completed || 0;
+        const convRate = total > 0 ? ((completed / total) * 100).toFixed(1) : '0';
+        kpiRow.innerHTML = `
+            <div class="kpi-box"><span class="kpi-value">${avgHours}h</span><span class="kpi-label">Tiempo resp. promedio</span></div>
+            <div class="kpi-box"><span class="kpi-value">${convRate}%</span><span class="kpi-label">Tasa de conversion</span></div>
+            <div class="kpi-box"><span class="kpi-value">${total}</span><span class="kpi-label">Total (90 dias)</span></div>`;
+
+        // Trend bar chart
+        if (trendCanvas && d.trend) renderQuotationMetricsTrend(trendCanvas, d.trend);
+
+        // Conversion tables
+        if (styleTable && d.conversionByStyle) renderConversionByStyleTable(styleTable, d.conversionByStyle);
+        if (artistTable && d.conversionByArtist) renderConversionByArtistTable(artistTable, d.conversionByArtist);
+    } catch (err) {
+        console.error('Error loading quotation metrics:', err);
+        kpiRow.innerHTML = '<div class="kpi-box"><span class="kpi-value">—</span><span class="kpi-label">Error cargando metricas</span></div>';
+    }
+}
+
+function renderQuotationMetricsTrend(canvas, trend) {
+    if (dashCharts.metricsTrend) dashCharts.metricsTrend.destroy();
+    const labels = trend.map(t => t.week || t.date || '');
+    const values = trend.map(t => t.count || 0);
+    dashCharts.metricsTrend = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Cotizaciones', data: values, backgroundColor: 'rgba(108,92,231,0.6)', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#999' }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: '#999', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+    });
+}
+
+function renderConversionByStyleTable(container, styles) {
+    if (!styles.length) { container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Sin datos</p>'; return; }
+    const maxTotal = Math.max(...styles.map(s => s.total || 1));
+    container.innerHTML = `<table class="mini-table"><thead><tr><th>Estilo</th><th>Conv.</th><th></th></tr></thead><tbody>${styles.slice(0, 8).map(s => {
+        const rate = s.total > 0 ? ((s.completed || 0) / s.total * 100).toFixed(0) : 0;
+        const width = s.total > 0 ? (s.total / maxTotal * 100).toFixed(0) : 0;
+        return `<tr><td>${s.style || 'N/A'}</td><td>${rate}%</td><td><div class="conversion-bar"><div class="conversion-bar-fill" style="width:${width}%"></div></div></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function renderConversionByArtistTable(container, artists) {
+    if (!artists.length) { container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Sin datos</p>'; return; }
+    const maxTotal = Math.max(...artists.map(a => a.total || 1));
+    container.innerHTML = `<table class="mini-table"><thead><tr><th>Artista</th><th>Conv.</th><th></th></tr></thead><tbody>${artists.slice(0, 8).map(a => {
+        const rate = a.total > 0 ? ((a.completed || 0) / a.total * 100).toFixed(0) : 0;
+        const width = a.total > 0 ? (a.total / maxTotal * 100).toFixed(0) : 0;
+        return `<tr><td>${escapeHtml(a.artist) || 'N/A'}</td><td>${rate}%</td><td><div class="conversion-bar"><div class="conversion-bar-fill" style="width:${width}%"></div></div></td></tr>`;
+    }).join('')}</tbody></table>`;
 }
 
 // ============ QUOTATIONS ============
@@ -612,8 +853,8 @@ function renderQuotationsTable() {
                 </td>
                 <td>${q.quote_id}</td>
                 <td>${date}</td>
-                <td>${q.client_full_name || '—'}</td>
-                <td>${q.artist_name || '—'}</td>
+                <td>${escapeHtml(q.client_full_name) || '—'}</td>
+                <td>${escapeHtml(q.artist_name) || '—'}</td>
                 <td>${formatTattooStyleDisplay(q.tattoo_style)}</td>
                 <td><span class="status-badge ${q.quote_status}">${statusLabels[q.quote_status] || q.quote_status}</span></td>
                 <td>
@@ -766,6 +1007,93 @@ async function deleteSelectedQuotations() {
         console.error('Error removing quotations:', error);
         showToast('Error al eliminar: ' + error.message, 'error');
     }
+}
+
+async function bulkChangeStatus() {
+    const newStatus = document.getElementById('bulk-status-change')?.value;
+    if (!newStatus) { showToast('Selecciona un estado', 'error'); return; }
+    if (selectedQuotations.size === 0) { showToast('No hay cotizaciones seleccionadas', 'error'); return; }
+    if (!supabaseClient) { showToast('Sin conexion a Supabase', 'error'); return; }
+
+    const count = selectedQuotations.size;
+    if (!confirm(`Cambiar estado de ${count} cotizaciones a "${newStatus}"?`)) return;
+
+    try {
+        const ids = Array.from(selectedQuotations);
+        const { error } = await supabaseClient
+            .from('quotations_db')
+            .update({ quote_status: newStatus, updated_at: new Date().toISOString() })
+            .in('quote_id', ids);
+        if (error) throw error;
+
+        // Update local state
+        ids.forEach(id => {
+            const q = currentQuotations.find(q => q.quote_id === id);
+            if (q) q.quote_status = newStatus;
+        });
+
+        showToast(`${count} cotizaciones actualizadas a "${newStatus}"`, 'success');
+        document.getElementById('bulk-status-change').value = '';
+        renderQuotationsTable();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function bulkArchiveQuotations() {
+    if (selectedQuotations.size === 0) { showToast('No hay cotizaciones seleccionadas', 'error'); return; }
+    if (!supabaseClient) { showToast('Sin conexion a Supabase', 'error'); return; }
+
+    const count = selectedQuotations.size;
+    if (!confirm(`Archivar ${count} cotizaciones seleccionadas?`)) return;
+
+    try {
+        const ids = Array.from(selectedQuotations);
+        const { error } = await supabaseClient
+            .from('quotations_db')
+            .update({ quote_status: 'archived', updated_at: new Date().toISOString() })
+            .in('quote_id', ids);
+        if (error) throw error;
+
+        ids.forEach(id => {
+            const q = currentQuotations.find(q => q.quote_id === id);
+            if (q) q.quote_status = 'archived';
+        });
+
+        showToast(`${count} cotizaciones archivadas`, 'success');
+        selectedQuotations.clear();
+        renderQuotationsTable();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+function exportSelectedCSV() {
+    if (selectedQuotations.size === 0) { showToast('No hay cotizaciones seleccionadas', 'error'); return; }
+
+    const selected = currentQuotations.filter(q => selectedQuotations.has(q.quote_id));
+    if (selected.length === 0) return;
+
+    const columns = Object.keys(selected[0]);
+    const csvRows = [columns.join(',')];
+    for (const row of selected) {
+        csvRows.push(columns.map(col => {
+            let val = row[col];
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'object') val = JSON.stringify(val);
+            return `"${String(val).replace(/"/g, '""')}"`;
+        }).join(','));
+    }
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    saveAs(blob, `cotizaciones-seleccionadas-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast(`${selected.length} cotizaciones exportadas como CSV`, 'success');
+}
+
+function clearQuotationFilters() {
+    const ids = ['filter-quote-status', 'filter-artist', 'filter-price-range', 'filter-date-from', 'filter-date-to', 'search-quotations'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    loadQuotations();
 }
 
 function renderPagination() {
@@ -941,7 +1269,7 @@ function viewQuotation(quoteId) {
             </div>
             <div class="detail-row">
                 <span class="detail-label">Presupuesto:</span>
-                <span class="detail-value">${quotation.client_budget_amount || '—'} ${quotation.client_budget_currency || ''}</span>
+                <span class="detail-value">${quotation.client_budget_amount ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quotation.client_budget_amount, quotation.client_budget_currency || 'USD') : `${quotation.client_budget_amount} ${quotation.client_budget_currency || ''}`) : '—'}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Contacto:</span>
@@ -981,7 +1309,7 @@ function renderQuestions() {
             <div class="question-item">
                 <div class="question-number">${index + 1}</div>
                 <div class="question-content">
-                    <div class="question-title">${q.title}</div>
+                    <div class="question-title">${escapeHtml(q.title)}</div>
                     <div class="question-type">${typeLabels[q.type] || q.type}${q.optional ? ' (opcional)' : ''}${q.conditional ? ' (condicional)' : ''}</div>
                 </div>
                 <div class="question-actions">
@@ -1688,37 +2016,36 @@ function closeModal() {
 }
 
 // ============ ARTISTS LOGIC ============
+let allArtistsUnfiltered = [];
+
 async function loadArtists() {
     const tbody = document.getElementById('artists-tbody');
     const isDemo = document.getElementById('setting-demo-mode').checked;
 
-    // Check connection first
     if (!supabaseClient && !isDemo) {
-        showTableEmptyState('artists-tbody', 6, 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion o activa el Modo Demo en Configuracion.');
+        showTableEmptyState('artists-tbody', 8, 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion o activa el Modo Demo en Configuracion.');
         return;
     }
 
-    const searchTerm = document.getElementById('search-artists').value.trim().toLowerCase();
-
-    showTableLoading('artists-tbody', 6);
+    showTableLoading('artists-tbody', 8);
 
     try {
         let artists = [];
 
         if (isDemo) {
-            // Load from ConfigManager
             const demoArtists = window.ConfigManager.getDemoArtists();
-            // Map to unified format if needed, but demo structure is already good
             artists = demoArtists.map(a => ({
                 id: a.userId,
                 username: a.username,
                 name: a.name,
                 current_city: a.location,
-                styles_array: a.styles, // Array in demo
-                session_cost: a.sessionPrice
+                country: '',
+                styles_array: a.styles,
+                session_cost: a.sessionPrice,
+                artist_index: null,
+                verification_state: 'pending'
             }));
         } else {
-            // Load from Supabase
             const { data, error } = await supabaseClient
                 .from('artists_db')
                 .select('*')
@@ -1726,37 +2053,91 @@ async function loadArtists() {
 
             if (error) throw error;
 
-            // Map Supabase format
             artists = data.map(a => ({
                 id: a.user_id,
                 username: a.username,
                 name: a.name,
-                current_city: a.ubicacion, // Note field name mapping
+                current_city: a.ubicacion,
+                country: a.country || '',
                 studio_name: a.estudios,
                 email: a.email,
                 instagram: a.instagram,
+                bio: a.bio || '',
+                phone: a.phone || '',
+                profile_photo: a.profile_picture || '',
                 styles_array: typeof a.styles_array === 'string' ? JSON.parse(a.styles_array) : a.styles_array,
-                session_cost: a.session_price
+                session_cost: a.session_price,
+                artist_index: a.artist_index || null,
+                verification_state: a.verification_state || 'pending',
+                created_at: a.created_at,
+                _raw: a
             }));
         }
 
-        // Filter
-        if (searchTerm) {
-            artists = artists.filter(a =>
-                a.name.toLowerCase().includes(searchTerm) ||
-                a.username.toLowerCase().includes(searchTerm) ||
-                (a.current_city && a.current_city.toLowerCase().includes(searchTerm))
-            );
-        }
-
-        currentArtists = artists;
-        renderArtistsTable();
+        allArtistsUnfiltered = artists;
+        populateArtistFilterDropdowns(artists);
+        applyArtistFilters();
 
     } catch (error) {
         console.error('Error loading artists:', error);
-        showTableErrorState('artists-tbody', 6, 'No se pudieron cargar los artistas. Verifica tu conexion.', 'loadArtists()');
+        showTableErrorState('artists-tbody', 8, 'No se pudieron cargar los artistas. Verifica tu conexion.', 'loadArtists()');
         showToast('Error cargando artistas', 'error');
     }
+}
+
+function populateArtistFilterDropdowns(artists) {
+    const countrySelect = document.getElementById('filter-artist-country');
+    const styleSelect = document.getElementById('filter-artist-style');
+    if (!countrySelect || !styleSelect) return;
+
+    const countries = [...new Set(artists.map(a => a.country).filter(Boolean))].sort();
+    countrySelect.innerHTML = '<option value="">Todos los paises</option>' + countries.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const allStyles = new Set();
+    artists.forEach(a => { if (Array.isArray(a.styles_array)) a.styles_array.forEach(s => allStyles.add(s)); });
+    const styles = [...allStyles].sort();
+    styleSelect.innerHTML = '<option value="">Todos los estilos</option>' + styles.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function applyArtistFilters() {
+    const searchTerm = (document.getElementById('search-artists')?.value || '').trim().toLowerCase();
+    const countryF = document.getElementById('filter-artist-country')?.value || '';
+    const styleF = document.getElementById('filter-artist-style')?.value || '';
+    const verifF = document.getElementById('filter-artist-verification')?.value || '';
+    const indexF = document.getElementById('filter-artist-index')?.value || '';
+
+    let filtered = [...allArtistsUnfiltered];
+
+    if (searchTerm) {
+        filtered = filtered.filter(a =>
+            (a.name || '').toLowerCase().includes(searchTerm) ||
+            (a.username || '').toLowerCase().includes(searchTerm) ||
+            (a.current_city || '').toLowerCase().includes(searchTerm)
+        );
+    }
+    if (countryF) filtered = filtered.filter(a => a.country === countryF);
+    if (styleF) filtered = filtered.filter(a => Array.isArray(a.styles_array) && a.styles_array.some(s => s.toLowerCase().includes(styleF.toLowerCase())));
+    if (verifF) filtered = filtered.filter(a => a.verification_state === verifF);
+    if (indexF) {
+        filtered = filtered.filter(a => {
+            const idx = a.artist_index;
+            if (indexF === 'high') return idx !== null && idx >= 75;
+            if (indexF === 'medium') return idx !== null && idx >= 50 && idx < 75;
+            if (indexF === 'low') return idx !== null && idx > 0 && idx < 50;
+            if (indexF === 'none') return idx === null || idx === 0;
+            return true;
+        });
+    }
+
+    currentArtists = filtered;
+    currentArtistsPage = 1;
+    renderArtistsTable();
+}
+
+function clearArtistFilters() {
+    const ids = ['search-artists', 'filter-artist-country', 'filter-artist-style', 'filter-artist-verification', 'filter-artist-index'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    applyArtistFilters();
 }
 
 function renderArtistsTable() {
@@ -1766,29 +2147,42 @@ function renderArtistsTable() {
     const pageItems = currentArtists.slice(start, end);
 
     if (pageItems.length === 0) {
-        showTableEmptyState('artists-tbody', 6, 'fa-palette', 'No se encontraron artistas', 'Ajusta los filtros o espera nuevos registros.');
+        showTableEmptyState('artists-tbody', 8, 'fa-palette', 'No se encontraron artistas', 'Ajusta los filtros o espera nuevos registros.');
+        document.getElementById('artists-pagination').innerHTML = '';
         return;
     }
 
     tbody.innerHTML = pageItems.map(a => {
         const styles = Array.isArray(a.styles_array) ? a.styles_array.join(', ') : a.styles_array;
+        const idx = a.artist_index;
+        const idxCls = idx >= 75 ? 'high' : (idx >= 50 ? 'medium' : (idx > 0 ? 'low' : 'none'));
+        const idxLabel = idx !== null && idx > 0 ? idx : '—';
+
+        const verifMap = {
+            'verified': { label: 'Verificado', cls: 'badge-success' },
+            'approved': { label: 'Aprobado', cls: 'badge-success' },
+            'pending': { label: 'Pendiente', cls: 'badge-warning' },
+            'pending_review': { label: 'En revision', cls: 'badge-info' },
+            'rejected': { label: 'Rechazado', cls: 'badge-danger' }
+        };
+        const vs = verifMap[a.verification_state] || { label: a.verification_state || '—', cls: 'badge-secondary' };
 
         return `
             <tr>
-                <td><strong>${a.username}</strong></td>
-                <td>${a.name}</td>
-                <td>${a.current_city || '—'}</td>
-                <td><span class="truncate-text" title="${styles}">${styles || '—'}</span></td>
+                <td><strong>${escapeHtml(a.username) || '—'}</strong></td>
+                <td>${escapeHtml(a.name) || '—'}</td>
+                <td>${escapeHtml(a.current_city) || '—'}</td>
+                <td><span class="truncate-text" title="${escapeHtml(styles)}">${escapeHtml(styles) || '—'}</span></td>
                 <td>${a.session_cost || '—'}</td>
+                <td><span class="artist-index-badge ${idxCls}">${idxLabel}</span></td>
+                <td><span class="badge ${vs.cls}">${vs.label}</span></td>
                 <td>
+                    <button class="btn-icon" onclick="openArtistProfile('${a.id}')" title="Ver perfil">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
                     <button class="btn-icon" onclick="editArtist('${a.id}')" title="Editar">
                         <i class="fa-solid fa-pen"></i>
                     </button>
-                    ${document.getElementById('setting-demo-mode').checked ? `
-                    <button class="btn-icon danger" onclick="deleteArtist('${a.id}')" title="Eliminar (Solo Demo)">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                    ` : ''}
                 </td>
             </tr>
         `;
@@ -2133,6 +2527,16 @@ window.handleImport = handleImport;
 window.loadQuotations = loadQuotations;
 window.viewQuotation = viewQuotation;
 window.goToPage = goToPage;
+window.deleteQuotation = deleteQuotation;
+window.exportQuotation = exportQuotation;
+window.toggleSelectAllQuotations = toggleSelectAllQuotations;
+window.toggleQuotationSelection = toggleSelectQuotation;
+window.deleteSelectedQuotations = deleteSelectedQuotations;
+window.exportSelectedQuotations = exportSelectedQuotations;
+window.bulkChangeStatus = bulkChangeStatus;
+window.bulkArchiveQuotations = bulkArchiveQuotations;
+window.exportSelectedCSV = exportSelectedCSV;
+window.clearQuotationFilters = clearQuotationFilters;
 window.editQuestion = editQuestion;
 window.saveQuestion = saveQuestion;
 window.moveQuestion = moveQuestion;
@@ -2839,9 +3243,18 @@ window.cancelBodyPartsConfig = cancelBodyPartsConfig;
 
 // ============ APIs SECTION ============
 let currentTableData = [];
+let currentTableAllData = [];
+let currentTableFilteredData = [];
 let currentTableName = '';
 let tableInspectorPage = 1;
 const tableInspectorPerPage = 20;
+let tableInspectorSort = { column: null, ascending: true };
+let tableInspectorColFilters = {};
+const TABLE_FK_MAP = {
+    'quotations_db': { artist_id: 'artists_db', artist_name: 'artists_db' },
+    'feedback_tickets': { user_id: 'artists_db' },
+    'chat_messages': { quotation_id: 'quotations_db' }
+};
 
 function loadAPIsSection() {
     // Load current config values into form fields
@@ -3518,73 +3931,400 @@ async function loadDatabaseStats() {
 
 async function inspectTable(tableName) {
     const client = window.ConfigManager?.getSupabaseClient();
+    if (!client) { showToast('No hay conexión a Supabase', 'error'); return; }
+    currentTableName = tableName;
+    tableInspectorPage = 1;
+    tableInspectorSort = { column: null, ascending: true };
+    tableInspectorColFilters = {};
+    document.getElementById('table-inspector-title').textContent = `Tabla: ${tableName}`;
+    const searchInput = document.getElementById('table-inspector-search');
+    if (searchInput) searchInput.value = '';
+    showToast('Cargando datos...', 'info');
+    try {
+        const { data, error } = await client.from(tableName).select('*');
+        if (error) throw error;
+        currentTableAllData = data || [];
+        currentTableData = [...currentTableAllData];
+        currentTableFilteredData = [...currentTableAllData];
+        document.getElementById('table-inspector-count').textContent = `${currentTableAllData.length} registros`;
+        const fkInfo = document.getElementById('table-inspector-fk-info');
+        const fks = TABLE_FK_MAP[tableName];
+        if (fkInfo && fks) { fkInfo.innerHTML = `<i class="fa-solid fa-link"></i> FK: ${Object.entries(fks).map(([c,r])=>c+' -> '+r).join(', ')}`; }
+        else if (fkInfo) { fkInfo.innerHTML = ''; }
+        renderColumnFilters();
+        renderTableInspector();
+        openModal('table-inspector-modal');
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+function detectColumnType(data, col) {
+    for (const row of data) {
+        const val = row[col];
+        if (val === null || val === undefined || val === '') continue;
+        if (typeof val === 'number') return 'number';
+        if (typeof val === 'boolean') return 'boolean';
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return 'date';
+        if (typeof val === 'object') return 'json';
+        return 'text';
+    }
+    return 'text';
+}
+
+
+function renderColumnFilters() {
+    const container = document.getElementById('table-inspector-col-filters');
+    if (!container || currentTableAllData.length === 0) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    const columns = Object.keys(currentTableAllData[0]);
+    const filterCols = columns.slice(0, 8);
+
+    container.innerHTML = filterCols.map(col => {
+        const type = detectColumnType(currentTableAllData, col);
+        const currentVal = tableInspectorColFilters[col] || '';
+        const baseStyle = 'width:100px;padding:4px 8px;font-size:0.75rem;border:1px solid var(--border-color,#333);border-radius:4px;background:var(--bg-secondary,#1a1a1a);color:var(--text-primary,#fff);';
+
+        if (type === 'date') {
+            return `<input type="date" value="${currentVal}" style="${baseStyle}width:130px;"
+                oninput="updateColFilter('${col}',this.value)" title="Filtrar ${col}">`;
+        }
+        const placeholder = type === 'number' ? `${col} (>N, <N, N-N)` : col;
+        return `<input type="text" placeholder="${placeholder}" value="${currentVal}" style="${baseStyle}"
+            oninput="updateColFilter('${col}',this.value)" title="Filtrar ${col}">`;
+    }).join('');
+}
+
+
+function updateColFilter(col, value) {
+    if (value) {
+        tableInspectorColFilters[col] = value;
+    } else {
+        delete tableInspectorColFilters[col];
+    }
+    tableInspectorPage = 1;
+    applyInspectorFilters();
+}
+
+
+function filterTableInspector() {
+    tableInspectorPage = 1;
+    applyInspectorFilters();
+}
+
+
+function applyInspectorFilters() {
+    const searchInput = document.getElementById('table-inspector-search');
+    const searchTerm = (searchInput?.value || '').toLowerCase().trim();
+
+    let filtered = [...currentTableAllData];
+
+    // Global search
+    if (searchTerm) {
+        filtered = filtered.filter(row =>
+            Object.values(row).some(val => {
+                if (val === null || val === undefined) return false;
+                return String(val).toLowerCase().includes(searchTerm);
+            })
+        );
+    }
+
+    // Column filters
+    for (const [col, filterVal] of Object.entries(tableInspectorColFilters)) {
+        if (!filterVal) continue;
+        const type = detectColumnType(currentTableAllData, col);
+
+        if (type === 'number') {
+            if (filterVal.startsWith('>')) {
+                const num = parseFloat(filterVal.slice(1));
+                if (!isNaN(num)) filtered = filtered.filter(r => (r[col] || 0) > num);
+            } else if (filterVal.startsWith('<')) {
+                const num = parseFloat(filterVal.slice(1));
+                if (!isNaN(num)) filtered = filtered.filter(r => (r[col] || 0) < num);
+            } else if (filterVal.includes('-') && !filterVal.startsWith('-')) {
+                const [min, max] = filterVal.split('-').map(Number);
+                if (!isNaN(min) && !isNaN(max)) filtered = filtered.filter(r => (r[col] || 0) >= min && (r[col] || 0) <= max);
+            } else {
+                const num = parseFloat(filterVal);
+                if (!isNaN(num)) filtered = filtered.filter(r => r[col] === num);
+            }
+        } else if (type === 'date') {
+            filtered = filtered.filter(r => r[col] && r[col].startsWith(filterVal));
+        } else {
+            const lowerFilter = filterVal.toLowerCase();
+            filtered = filtered.filter(r => {
+                if (r[col] === null || r[col] === undefined) return false;
+                return String(r[col]).toLowerCase().includes(lowerFilter);
+            });
+        }
+    }
+
+    currentTableFilteredData = filtered;
+    currentTableData = filtered;
+
+    document.getElementById('table-inspector-count').textContent =
+        filtered.length === currentTableAllData.length
+            ? `${filtered.length} registros`
+            : `${filtered.length} de ${currentTableAllData.length} registros`;
+
+    renderTableInspector();
+}
+
+
+function sortTableInspector(column) {
+    if (tableInspectorSort.column === column) {
+        tableInspectorSort.ascending = !tableInspectorSort.ascending;
+    } else {
+        tableInspectorSort.column = column;
+        tableInspectorSort.ascending = true;
+    }
+
+    currentTableFilteredData.sort((a, b) => {
+        let valA = a[column];
+        let valB = b[column];
+        if (valA === null || valA === undefined) return 1;
+        if (valB === null || valB === undefined) return -1;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            return tableInspectorSort.ascending ? valA - valB : valB - valA;
+        }
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return tableInspectorSort.ascending ? -1 : 1;
+        if (valA > valB) return tableInspectorSort.ascending ? 1 : -1;
+        return 0;
+    });
+
+    currentTableData = currentTableFilteredData;
+    tableInspectorPage = 1;
+    renderTableInspector();
+}
+
+// --- REPLACE renderTableInspector ---
+function renderTableInspector() {
+    const thead = document.getElementById('table-inspector-head');
+    const tbody = document.getElementById('table-inspector-body');
+    const data = currentTableFilteredData;
+
+    if (!data || data.length === 0) {
+        thead.innerHTML = '<tr><th>Sin datos</th></tr>';
+        tbody.innerHTML = '<tr><td class="empty-state">No hay resultados</td></tr>';
+        document.getElementById('table-inspector-pagination').innerHTML = '';
+        return;
+    }
+
+    const columns = Object.keys(data[0]);
+    const fks = TABLE_FK_MAP[currentTableName] || {};
+
+    // Header with sort + FK badges
+    thead.innerHTML = `<tr>
+        <th style="width:40px;text-align:center;">#</th>
+        ${columns.map(col => {
+            const sortIcon = tableInspectorSort.column === col
+                ? (tableInspectorSort.ascending ? ' <i class="fa-solid fa-sort-up"></i>' : ' <i class="fa-solid fa-sort-down"></i>')
+                : ' <i class="fa-solid fa-sort" style="opacity:0.3"></i>';
+            const fkBadge = fks[col] ? ` <span style="font-size:0.6rem;background:var(--bauhaus-blue,#1A4B8E);color:white;padding:1px 4px;border-radius:3px;" title="FK → ${fks[col]}">FK</span>` : '';
+            return `<th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="sortTableInspector('${col}')">${col}${fkBadge}${sortIcon}</th>`;
+        }).join('')}
+    </tr>`;
+
+    // Paginate
+    const start = (tableInspectorPage - 1) * tableInspectorPerPage;
+    const end = start + tableInspectorPerPage;
+    const pageData = data.slice(start, end);
+
+    // Rows with inline edit on double-click
+    tbody.innerHTML = pageData.map((row, idx) => {
+        const globalIdx = start + idx;
+        return `<tr>
+            <td style="text-align:center;color:var(--text-muted);font-size:0.75rem;">${globalIdx + 1}</td>
+            ${columns.map(col => {
+                let value = row[col];
+                const isFK = !!fks[col];
+
+                if (value === null) value = '<span class="text-muted">null</span>';
+                else if (typeof value === 'object') {
+                    const json = JSON.stringify(value);
+                    value = `<code title="${json.replace(/"/g, '&quot;')}">${json.substring(0, 40)}${json.length > 40 ? '...' : ''}</code>`;
+                }
+                else if (typeof value === 'string' && value.length > 50) value = `<span title="${value.replace(/"/g, '&quot;')}">${value.substring(0, 50)}...</span>`;
+
+                const fkLink = isFK && row[col] !== null ? ` <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.6rem;cursor:pointer;color:var(--bauhaus-blue,#1A4B8E);" onclick="event.stopPropagation();inspectTable('${fks[col]}')" title="Ver en ${fks[col]}"></i>` : '';
+
+                return `<td ondblclick="startInlineEdit(this,'${col}',${globalIdx})" style="cursor:default;" title="Doble click para editar">${value}${fkLink}</td>`;
+            }).join('')}
+        </tr>`;
+    }).join('');
+
+    renderInspectorPagination();
+}
+
+
+function renderInspectorPagination() {
+    const container = document.getElementById('table-inspector-pagination');
+    const totalPages = Math.ceil(currentTableFilteredData.length / tableInspectorPerPage);
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    html += `<button ${tableInspectorPage <= 1 ? 'disabled' : ''} onclick="goToInspectorPage(${tableInspectorPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+
+    const startPage = Math.max(1, tableInspectorPage - 2);
+    const endPage = Math.min(totalPages, tableInspectorPage + 2);
+
+    if (startPage > 1) html += `<button onclick="goToInspectorPage(1)">1</button><span>...</span>`;
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="${i === tableInspectorPage ? 'active' : ''}" onclick="goToInspectorPage(${i})">${i}</button>`;
+    }
+    if (endPage < totalPages) html += `<span>...</span><button onclick="goToInspectorPage(${totalPages})">${totalPages}</button>`;
+
+    html += `<button ${tableInspectorPage >= totalPages ? 'disabled' : ''} onclick="goToInspectorPage(${tableInspectorPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+
+    container.innerHTML = html;
+}
+
+function goToInspectorPage(page) {
+    const totalPages = Math.ceil(currentTableFilteredData.length / tableInspectorPerPage);
+    if (page < 1 || page > totalPages) return;
+    tableInspectorPage = page;
+    renderTableInspector();
+}
+
+
+function startInlineEdit(td, column, rowIndex) {
+    // Don't edit id or created_at
+    if (column === 'id' || column === 'created_at') {
+        showToast('Esta columna no es editable', 'info');
+        return;
+    }
+
+    const row = currentTableFilteredData[rowIndex];
+    if (!row) return;
+
+    const currentValue = row[column];
+    const displayValue = currentValue === null ? '' : (typeof currentValue === 'object' ? JSON.stringify(currentValue) : String(currentValue));
+
+    td.innerHTML = `<div style="display:flex;gap:4px;align-items:center;">
+        <input type="text" value="${displayValue.replace(/"/g, '&quot;')}"
+            style="flex:1;padding:4px 6px;font-size:0.8rem;border:1px solid var(--bauhaus-blue,#1A4B8E);border-radius:3px;background:var(--bg-secondary,#1a1a1a);color:var(--text-primary,#fff);min-width:80px;"
+            onkeydown="if(event.key==='Enter')saveInlineEdit(this,'${column}',${rowIndex});if(event.key==='Escape')cancelInlineEdit();"
+            id="inline-edit-input">
+        <button onclick="saveInlineEdit(document.getElementById('inline-edit-input'),'${column}',${rowIndex})"
+            style="padding:2px 6px;font-size:0.7rem;background:var(--bauhaus-blue,#1A4B8E);color:white;border:none;border-radius:3px;cursor:pointer;" title="Guardar">
+            <i class="fa-solid fa-check"></i>
+        </button>
+        <button onclick="cancelInlineEdit()"
+            style="padding:2px 6px;font-size:0.7rem;background:var(--bauhaus-red,#C62828);color:white;border:none;border-radius:3px;cursor:pointer;" title="Cancelar">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>`;
+
+    const input = document.getElementById('inline-edit-input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+
+async function saveInlineEdit(input, column, rowIndex) {
+    const newValue = input.value;
+    const row = currentTableFilteredData[rowIndex];
+    if (!row) return;
+
+    const oldValue = row[column];
+    const displayNew = newValue === '' ? 'null' : newValue;
+    const displayOld = oldValue === null ? 'null' : String(oldValue);
+
+    if (displayNew === displayOld) {
+        cancelInlineEdit();
+        return;
+    }
+
+    if (!confirm(`Cambiar "${column}" de "${displayOld}" a "${displayNew}"?`)) {
+        cancelInlineEdit();
+        return;
+    }
+
+    const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
         showToast('No hay conexión a Supabase', 'error');
         return;
     }
-    
-    currentTableName = tableName;
-    tableInspectorPage = 1;
-    
-    document.getElementById('table-inspector-title').textContent = `Tabla: ${tableName}`;
-    
-    showToast('Cargando datos...', 'info');
-    
+
+    // Determine the primary key
+    const pk = row.id !== undefined ? 'id' : (row.quote_id !== undefined ? 'quote_id' : null);
+    if (!pk) {
+        showToast('No se pudo identificar la clave primaria', 'error');
+        cancelInlineEdit();
+        return;
+    }
+
     try {
-        // Get total count
-        const { count } = await client
-            .from(tableName)
-            .select('*', { count: 'exact', head: true });
-        
-        document.getElementById('table-inspector-count').textContent = `${count || 0} registros`;
-        
-        // Get first page of data
-        const { data, error } = await client
-            .from(tableName)
-            .select('*')
-            .range(0, tableInspectorPerPage - 1);
-        
+        // Parse value type
+        let parsedValue = newValue === '' ? null : newValue;
+        if (parsedValue !== null) {
+            if (parsedValue === 'true') parsedValue = true;
+            else if (parsedValue === 'false') parsedValue = false;
+            else if (!isNaN(parsedValue) && parsedValue.trim() !== '') parsedValue = Number(parsedValue);
+            else {
+                try { const obj = JSON.parse(parsedValue); if (typeof obj === 'object') parsedValue = obj; } catch {}
+            }
+        }
+
+        const { error } = await client
+            .from(currentTableName)
+            .update({ [column]: parsedValue })
+            .eq(pk, row[pk]);
+
         if (error) throw error;
-        
-        currentTableData = data || [];
-        renderTableInspector(data);
-        
-        openModal('table-inspector-modal');
-        
+
+        // Update local data
+        row[column] = parsedValue;
+        const allDataRow = currentTableAllData.find(r => r[pk] === row[pk]);
+        if (allDataRow) allDataRow[column] = parsedValue;
+
+        showToast('Registro actualizado', 'success');
+        renderTableInspector();
+
     } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+        showToast('Error al guardar: ' + err.message, 'error');
+        cancelInlineEdit();
     }
 }
 
-function renderTableInspector(data) {
-    const thead = document.getElementById('table-inspector-head');
-    const tbody = document.getElementById('table-inspector-body');
-    
+
+function cancelInlineEdit() {
+    renderTableInspector();
+}
+
+
+function exportFilteredCSV() {
+    const data = currentTableFilteredData;
     if (!data || data.length === 0) {
-        thead.innerHTML = '<tr><th>Sin datos</th></tr>';
-        tbody.innerHTML = '<tr><td class="empty-state">Esta tabla está vacía</td></tr>';
+        showToast('No hay datos filtrados para exportar', 'error');
         return;
     }
-    
-    // Get columns from first row
+
     const columns = Object.keys(data[0]);
-    
-    // Render header
-    thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
-    
-    // Render rows
-    tbody.innerHTML = data.map(row => {
-        return `<tr>${columns.map(col => {
-            let value = row[col];
-            
-            // Format different types
-            if (value === null) value = '<span class="text-muted">null</span>';
-            else if (typeof value === 'object') value = `<code>${JSON.stringify(value).substring(0, 50)}...</code>`;
-            else if (typeof value === 'string' && value.length > 50) value = value.substring(0, 50) + '...';
-            
-            return `<td>${value}</td>`;
-        }).join('')}</tr>`;
-    }).join('');
+    const csvRows = [columns.join(',')];
+
+    for (const row of data) {
+        const values = columns.map(col => {
+            let val = row[col];
+            if (val === null) return '';
+            if (typeof val === 'object') val = JSON.stringify(val);
+            return `"${String(val).replace(/"/g, '""')}"`;
+        });
+        csvRows.push(values.join(','));
+    }
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    saveAs(blob, `${currentTableName}-filtrado-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast(`Exportados ${data.length} registros filtrados como CSV`, 'success');
 }
 
 async function exportTable(tableName) {
@@ -3678,8 +4418,6 @@ async function exportAllTables() {
 }
 
 // ============ ROUTES SECTION ============
-let currentRoutes = {};
-let routeHealthResults = {};
 
 function loadRoutesSection() {
     loadRoutesConfig();
@@ -4182,6 +4920,8 @@ async function refreshServiceHealth() {
     updateHealthElement('n8n-status', health.n8n);
     updateHealthElement('emailjs-status', health.emailjs);
     updateHealthElement('gmaps-status', health.googleMaps);
+    if (health.gemini) updateHealthElement('gemini-status', health.gemini);
+    if (health.googleDrive) updateHealthElement('gdrive-status', health.googleDrive);
 }
 
 // Call refresh on init
@@ -4934,6 +5674,141 @@ window.saveEventWebhookUrl = saveEventWebhookUrl;
 window.toggleEventEnabled = toggleEventEnabled;
 window.testEventWebhook = testEventWebhook;
 
+// ============================================
+// CURRENCIES SECTION (Super Admin)
+// ============================================
+
+async function loadCurrenciesAdmin() {
+    const tbody = document.getElementById('currencies-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8"><div class="section-loader"><div class="spinner"></div><span class="loader-text">Cargando monedas...</span></div></td></tr>';
+
+    try {
+        if (!supabaseClient) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 16px; opacity: 0.6;">Supabase no inicializado.</td></tr>';
+            return;
+        }
+
+        const { data: currencies, error } = await supabaseClient
+            .from('currencies')
+            .select('code,name,symbol,decimals,units_per_usd,units_per_eur,is_active,last_updated_at,source')
+            .order('code', { ascending: true });
+
+        if (error) throw error;
+
+        if (!currencies || !currencies.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 16px; opacity: 0.6;">No hay monedas registradas.</td></tr>';
+        } else {
+            tbody.innerHTML = currencies.map(function (c) {
+                const updated = c.last_updated_at
+                    ? new Date(c.last_updated_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })
+                    : '—';
+                return '<tr>'
+                    + '<td><strong>' + escapeHtml(c.code) + '</strong></td>'
+                    + '<td>' + escapeHtml(c.name || '') + '</td>'
+                    + '<td>' + escapeHtml(c.symbol || '') + '</td>'
+                    + '<td style="font-family: monospace;">' + Number(c.units_per_usd).toFixed(4) + '</td>'
+                    + '<td style="font-family: monospace;">' + Number(c.units_per_eur).toFixed(4) + '</td>'
+                    + '<td>' + escapeHtml(updated) + '</td>'
+                    + '<td>' + escapeHtml(c.source || '—') + '</td>'
+                    + '<td>'
+                    +   '<label class="switch">'
+                    +     '<input type="checkbox" ' + (c.is_active ? 'checked' : '')
+                    +       ' onchange="toggleCurrencyActive(\'' + c.code + '\', this.checked)">'
+                    +     '<span class="slider"></span>'
+                    +   '</label>'
+                    + '</td>'
+                    + '</tr>';
+            }).join('');
+        }
+
+        const { data: logs, error: logsErr } = await supabaseClient
+            .from('currency_refresh_logs')
+            .select('source,status,currencies_updated,error_message,refreshed_at')
+            .order('refreshed_at', { ascending: false })
+            .limit(10);
+
+        const logsTbody = document.getElementById('currency-refresh-logs-tbody');
+        if (!logsTbody) return;
+        if (logsErr || !logs || !logs.length) {
+            logsTbody.innerHTML = '<tr><td colspan="5" style="padding: 16px; text-align: center; opacity: 0.6;">Sin registros aún.</td></tr>';
+        } else {
+            logsTbody.innerHTML = logs.map(function (l) {
+                const when = new Date(l.refreshed_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+                const statusColor = l.status === 'success' ? '#22c55e' : (l.status === 'partial' ? '#F4B942' : '#E23E28');
+                return '<tr>'
+                    + '<td>' + escapeHtml(when) + '</td>'
+                    + '<td>' + escapeHtml(l.source || '—') + '</td>'
+                    + '<td><span style="background:' + statusColor + '; color:white; padding:2px 8px; font-size:0.75rem; font-weight:700; text-transform:uppercase; border-radius: 2px;">' + escapeHtml(l.status) + '</span></td>'
+                    + '<td>' + (l.currencies_updated || 0) + '</td>'
+                    + '<td style="font-family: monospace; font-size: 0.75rem;">' + escapeHtml(l.error_message || '') + '</td>'
+                    + '</tr>';
+            }).join('');
+        }
+    } catch (err) {
+        console.error('[Admin] loadCurrenciesAdmin failed:', err);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 16px; color: var(--error-color);">Error: ' + escapeHtml(err.message || String(err)) + '</td></tr>';
+    }
+}
+
+async function toggleCurrencyActive(code, isActive) {
+    try {
+        if (!supabaseClient) throw new Error('Supabase no inicializado');
+        const { error } = await supabaseClient
+            .from('currencies')
+            .update({ is_active: !!isActive })
+            .eq('code', code);
+        if (error) throw error;
+        showToast('Moneda ' + code + (isActive ? ' activada' : ' desactivada'), 'success');
+    } catch (err) {
+        console.error('[Admin] toggleCurrencyActive failed:', err);
+        showToast('Error: ' + err.message, 'error');
+        loadCurrenciesAdmin();
+    }
+}
+
+async function refreshCurrenciesNow() {
+    const btn = document.getElementById('btn-refresh-currencies-now');
+    const tokenKey = 'weotzi_admin_cron_token';
+    let token = '';
+    try { token = localStorage.getItem(tokenKey) || ''; } catch (e) { /* ignore */ }
+    if (!token) {
+        token = prompt('Ingresa el CRON_API_TOKEN (se guarda en localStorage para futuros usos):') || '';
+        if (!token) return;
+        try { localStorage.setItem(tokenKey, token); } catch (e) { /* ignore */ }
+    }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refrescando...'; }
+    try {
+        const response = await fetch('/api/admin/currencies/refresh-now', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Cron-Token': token
+            },
+            body: '{}'
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            if (response.status === 401) {
+                try { localStorage.removeItem(tokenKey); } catch (e) { /* ignore */ }
+            }
+            throw new Error(data.error || ('HTTP ' + response.status));
+        }
+        showToast('Tipos de cambio actualizados (' + data.upserted + ' monedas)', 'success');
+        await loadCurrenciesAdmin();
+    } catch (err) {
+        console.error('[Admin] refreshCurrenciesNow failed:', err);
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Refrescar ahora'; }
+    }
+}
+
+window.loadCurrenciesAdmin = loadCurrenciesAdmin;
+window.toggleCurrencyActive = toggleCurrencyActive;
+window.refreshCurrenciesNow = refreshCurrenciesNow;
+
 // ============ APP CONTENT EXPORTS ============
 window.loadAppContent = loadAppContent;
 window.saveNextStepsContent = saveNextStepsContent;
@@ -4953,6 +5828,10 @@ window.testEmailJSAPI = testEmailJSAPI;
 window.saveEmailJSAPI = saveEmailJSAPI;
 window.testGoogleMapsAPI = testGoogleMapsAPI;
 window.saveGoogleMapsAPI = saveGoogleMapsAPI;
+window.testGoogleCalendarAPI = testGoogleCalendarAPI;
+window.saveGoogleCalendarAPI = saveGoogleCalendarAPI;
+window.testGoogleDriveAPI = testGoogleDriveAPI;
+window.saveGoogleDriveAPI = saveGoogleDriveAPI;
 window.testGeminiAPI = testGeminiAPI;
 window.saveGeminiAPI = saveGeminiAPI;
 window.testAllConnections = testAllConnections;
@@ -4967,6 +5846,14 @@ window.exportTable = exportTable;
 window.exportTableJSON = exportTableJSON;
 window.exportTableCSV = exportTableCSV;
 window.exportAllTables = exportAllTables;
+window.filterTableInspector = filterTableInspector;
+window.updateColFilter = updateColFilter;
+window.sortTableInspector = sortTableInspector;
+window.startInlineEdit = startInlineEdit;
+window.saveInlineEdit = saveInlineEdit;
+window.cancelInlineEdit = cancelInlineEdit;
+window.exportFilteredCSV = exportFilteredCSV;
+window.goToInspectorPage = goToInspectorPage;
 
 window.loadRoutesSection = loadRoutesSection;
 window.loadRoutesConfig = loadRoutesConfig;
@@ -5501,15 +6388,771 @@ function refreshStatValue(elementId, increment) {
     el.textContent = current + increment;
 }
 
+// ============ ARTIST PROFILE MODAL ============
+
+async function openArtistProfile(artistId) {
+    const artist = allArtistsUnfiltered.find(a => a.id === artistId || a.user_id === artistId);
+    if (!artist) { showToast('Artista no encontrado', 'error'); return; }
+
+    const overlay = document.getElementById('artist-profile-overlay');
+    const content = document.getElementById('artist-profile-content');
+    if (!overlay || !content) return;
+
+    // Fetch artist index from API
+    let artistIndex = null;
+    try {
+        const res = await fetch(`/api/artists/index?artist_id=${artist.user_id}`);
+        if (res.ok) artistIndex = await res.json();
+    } catch (e) { console.warn('Could not fetch artist index:', e); }
+
+    // Fetch locations
+    let locations = [];
+    if (supabaseClient) {
+        try {
+            const { data } = await supabaseClient.from('artist_tattoo_locations').select('*').eq('artist_user_id', artist.user_id).order('sort_order');
+            locations = data || [];
+        } catch (e) { /* optional */ }
+    }
+
+    // Fetch quotation stats
+    let totalQuotes = 0, completedQuotes = 0;
+    if (supabaseClient) {
+        try {
+            const { count: tq } = await supabaseClient.from('quotations_db').select('*', { count: 'exact', head: true }).eq('artist_id', artist.user_id);
+            totalQuotes = tq || 0;
+            const { count: cq } = await supabaseClient.from('quotations_db').select('*', { count: 'exact', head: true }).eq('artist_id', artist.user_id).eq('quote_status', 'completed');
+            completedQuotes = cq || 0;
+        } catch (e) { /* optional */ }
+    }
+
+    const styles = Array.isArray(artist.styles_array) ? artist.styles_array : [];
+    const idx = artistIndex?.artist_index || artist.artist_index || 0;
+    const breakdown = artistIndex?.breakdown || {};
+
+    const verifMap = {
+        'verified': { label: 'Verificado', cls: 'badge-success' },
+        'approved': { label: 'Aprobado', cls: 'badge-success' },
+        'pending': { label: 'Pendiente', cls: 'badge-warning' },
+        'pending_review': { label: 'En revision', cls: 'badge-info' },
+        'rejected': { label: 'Rechazado', cls: 'badge-danger' }
+    };
+    const vs = verifMap[artist.verification_state] || { label: artist.verification_state || '—', cls: 'badge-secondary' };
+
+    content.innerHTML = `
+        <div class="artist-profile-header">
+            <button class="artist-profile-close" onclick="closeArtistProfile()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="artist-profile-avatar">
+                ${artist.profile_photo ? `<img src="${artist.profile_photo}" alt="${escapeHtml(artist.name)}">` : `<i class="fa-solid fa-user"></i>`}
+            </div>
+            <div class="artist-profile-info">
+                <h2>${escapeHtml(artist.name || '—')}</h2>
+                <p>@${escapeHtml(artist.username || '—')} ${artist.current_city ? '&bull; ' + escapeHtml(artist.current_city) : ''} ${artist.country ? '&bull; ' + escapeHtml(artist.country) : ''}</p>
+                <span class="badge ${vs.cls}">${vs.label}</span>
+            </div>
+        </div>
+        <div class="artist-profile-stats-row">
+            <div class="artist-profile-stat"><strong>${idx}</strong><span>Index</span></div>
+            <div class="artist-profile-stat"><strong>${totalQuotes}</strong><span>Cotizaciones</span></div>
+            <div class="artist-profile-stat"><strong>${completedQuotes}</strong><span>Completadas</span></div>
+            <div class="artist-profile-stat"><strong>${artist.session_cost || '—'}</strong><span>Precio/Sesion</span></div>
+        </div>
+        <div class="artist-profile-data-grid">
+            <div><label>Email</label><span>${escapeHtml(artist.email) || '—'}</span></div>
+            <div><label>Instagram</label><span>${escapeHtml(artist.instagram) || '—'}</span></div>
+            <div><label>Telefono</label><span>${escapeHtml(artist.phone) || '—'}</span></div>
+            <div><label>Estudio</label><span>${escapeHtml(artist.studio_name) || '—'}</span></div>
+        </div>
+        ${artist.bio ? `<div class="artist-profile-bio"><h4>Bio</h4><p>${escapeHtml(artist.bio)}</p></div>` : ''}
+        <div class="artist-profile-tags"><h4>Estilos</h4>${styles.map(s => `<span class="tag">${escapeHtml(s)}</span>`).join('') || '<span class="text-muted">Sin estilos</span>'}</div>
+        ${locations.length > 0 ? `
+        <div class="profile-locations"><h4>Ubicaciones</h4>
+            ${locations.map(l => `<div class="profile-location-item">
+                <strong>${escapeHtml(l.city) || '—'}</strong> ${l.studio_name ? '(' + escapeHtml(l.studio_name) + ')' : ''}
+                <span class="badge ${l.period_type === 'current' ? 'badge-info' : 'badge-warning'}">${l.period_type === 'current' ? 'Actual' : 'Proximo'}</span>
+                <span class="location-agenda ${l.agenda_status}">${l.agenda_status === 'open' ? 'Agenda abierta' : 'Agenda cerrada'}</span>
+                ${l.start_date ? `<span class="location-dates">${l.start_date}${l.end_date ? ' - ' + l.end_date : ''}</span>` : ''}
+            </div>`).join('')}
+        </div>` : ''}
+        <div class="artist-profile-index-section"><h4>Artist Index: ${idx}/100</h4>
+            <div class="index-bar-row"><span>Perfil</span><div class="index-bar"><div class="index-bar-fill" style="width:${breakdown.profile || 0}%"></div></div><span>${breakdown.profile || 0}%</span></div>
+            <div class="index-bar-row"><span>Respuesta</span><div class="index-bar"><div class="index-bar-fill" style="width:${breakdown.responseTime || 0}%"></div></div><span>${breakdown.responseTime || 0}%</span></div>
+            <div class="index-bar-row"><span>Rating</span><div class="index-bar"><div class="index-bar-fill" style="width:${breakdown.rating || 0}%"></div></div><span>${breakdown.rating || 0}%</span></div>
+            <div class="index-bar-row"><span>Conversion</span><div class="index-bar"><div class="index-bar-fill" style="width:${breakdown.conversion || 0}%"></div></div><span>${breakdown.conversion || 0}%</span></div>
+        </div>
+        <div class="artist-profile-actions">
+            <button class="btn btn-primary btn-sm" onclick="verifyFromProfile('${artist.user_id}')"><i class="fa-solid fa-check-circle"></i> Verificar</button>
+            <button class="btn btn-secondary btn-sm" onclick="editArtist('${artist.id}');closeArtistProfile()"><i class="fa-solid fa-pen"></i> Editar</button>
+        </div>
+    `;
+
+    overlay.classList.add('active');
+}
+
+function closeArtistProfile() {
+    const overlay = document.getElementById('artist-profile-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+async function verifyFromProfile(artistId) {
+    if (!confirm('Aprobar verificacion de este artista?')) return;
+    if (!supabaseClient) { showToast('Sin conexion a Supabase', 'error'); return; }
+    try {
+        const { error } = await supabaseClient.from('artists_db').update({ verification_state: 'verified' }).eq('user_id', artistId);
+        if (error) throw error;
+        showToast('Artista verificado', 'success');
+        closeArtistProfile();
+        loadArtists();
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+// ============ VERIFICATION QUEUE ============
+
+async function loadVerificationQueue() {
+    const container = document.getElementById('verification-queue');
+    if (!container) return;
+    if (!supabaseClient) { container.innerHTML = '<div class="empty-state-box" style="padding:32px;"><i class="fa-solid fa-plug"></i><span class="empty-title">Sin conexion a Supabase</span></div>'; return; }
+
+    const filterStatus = document.getElementById('verification-filter-status')?.value || 'pending';
+
+    container.innerHTML = '<div class="empty-state-box" style="padding:32px;"><div class="spinner"></div><span class="empty-title">Cargando...</span></div>';
+
+    try {
+        let query = supabaseClient.from('artists_db').select('user_id, name, username, email, ubicacion, verification_state, profile_picture, styles_array, country, city').order('name', { ascending: true });
+        if (filterStatus !== 'all') {
+            if (filterStatus === 'pending') query = query.in('verification_state', ['pending', 'pending_review']);
+            else query = query.eq('verification_state', filterStatus);
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const artists = data || [];
+
+        // Update stats
+        const pending = artists.filter(a => a.verification_state === 'pending' || a.verification_state === 'pending_review').length;
+        const approved = artists.filter(a => a.verification_state === 'verified' || a.verification_state === 'approved').length;
+        const rejected = artists.filter(a => a.verification_state === 'rejected').length;
+        document.getElementById('verif-stat-pending').textContent = filterStatus === 'all' ? pending : (filterStatus === 'pending' ? artists.length : pending);
+        document.getElementById('verif-stat-approved').textContent = filterStatus === 'all' ? approved : (filterStatus === 'verified' ? artists.length : approved);
+        document.getElementById('verif-stat-rejected').textContent = filterStatus === 'all' ? rejected : (filterStatus === 'rejected' ? artists.length : rejected);
+
+        if (artists.length === 0) {
+            container.innerHTML = '<div class="empty-state-box" style="padding:32px;"><i class="fa-solid fa-check-circle"></i><span class="empty-title">No hay verificaciones pendientes</span></div>';
+            return;
+        }
+
+        container.innerHTML = artists.map(a => {
+            const vs = a.verification_state || 'pending';
+            const verifMap = { 'verified': 'badge-success', 'approved': 'badge-success', 'pending': 'badge-warning', 'pending_review': 'badge-info', 'rejected': 'badge-danger' };
+            const styles = typeof a.styles_array === 'string' ? JSON.parse(a.styles_array) : (a.styles_array || []);
+
+            return `<div class="verification-card" style="display:flex;gap:16px;align-items:center;padding:16px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:12px;background:var(--bg-secondary,#1a1a1a);">
+                <div style="width:48px;height:48px;border-radius:50%;background:var(--bg-color);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                    ${a.profile_picture ? `<img src="${a.profile_picture}" style="width:100%;height:100%;object-fit:cover;">` : '<i class="fa-solid fa-user" style="font-size:1.2rem;color:var(--text-muted);"></i>'}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <strong>${escapeHtml(a.name || '—')}</strong>
+                        <span class="badge ${verifMap[vs] || 'badge-secondary'}" style="font-size:0.7rem;">${vs}</span>
+                    </div>
+                    <div style="font-size:0.82rem;color:var(--text-secondary);">@${escapeHtml(a.username || '—')} &bull; ${escapeHtml(a.ubicacion || '—')} &bull; ${escapeHtml(a.email || '—')}</div>
+                    <div style="margin-top:4px;">${styles.slice(0, 3).map(s => `<span class="tag" style="font-size:0.7rem;">${escapeHtml(s)}</span>`).join(' ')}</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                    ${vs !== 'verified' && vs !== 'approved' ? `<button class="btn btn-primary btn-sm" onclick="approveVerification('${a.user_id}')"><i class="fa-solid fa-check"></i></button>` : ''}
+                    ${vs !== 'rejected' ? `<button class="btn btn-secondary btn-sm" style="color:#ef4444;" onclick="rejectVerification('${a.user_id}')"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="openArtistProfile('${a.user_id}')"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+        container.innerHTML = '<div class="empty-state-box" style="padding:32px;"><i class="fa-solid fa-triangle-exclamation"></i><span class="empty-title">Error cargando verificaciones</span></div>';
+    }
+}
+
+async function approveVerification(userId) {
+    if (!confirm('Aprobar verificacion de este artista?')) return;
+    if (!supabaseClient) return;
+    try {
+        const { error } = await supabaseClient.from('artists_db').update({ verification_state: 'verified' }).eq('user_id', userId);
+        if (error) throw error;
+        showToast('Artista verificado', 'success');
+        loadVerificationQueue();
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function rejectVerification(userId) {
+    if (!confirm('Rechazar verificacion de este artista?')) return;
+    if (!supabaseClient) return;
+    try {
+        const { error } = await supabaseClient.from('artists_db').update({ verification_state: 'rejected' }).eq('user_id', userId);
+        if (error) throw error;
+        showToast('Verificacion rechazada', 'success');
+        loadVerificationQueue();
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+// ============ SUPPORT TICKETS SECTION (#27) ============
+
+async function loadSupportTickets() {
+    if (!supabaseClient) { showToast('Sin conexion a Supabase', 'error'); return; }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('feedback_tickets')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+
+        allTickets = data || [];
+        updateTicketStats();
+        populateAgentFilter();
+        applyTicketFilters();
+        renderTicketMetrics();
+        initTicketRealtimeSubscriptions();
+    } catch (err) {
+        showToast('Error cargando tickets: ' + err.message, 'error');
+    }
+}
+
+function updateTicketStats() {
+    const critical = allTickets.filter(t => t.ticket_priority === 'critical').length;
+    const open = allTickets.filter(t => t.status === 'open').length;
+    const inProgress = allTickets.filter(t => t.status === 'in_progress').length;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+    const resolved = allTickets.filter(t => (t.status === 'resolved' || t.status === 'closed') && t.updated_at >= thirtyDaysAgo).length;
+
+    document.getElementById('ticket-stat-critical').textContent = critical;
+    document.getElementById('ticket-stat-open').textContent = open;
+    document.getElementById('ticket-stat-progress').textContent = inProgress;
+    document.getElementById('ticket-stat-resolved').textContent = resolved;
+}
+
+function populateAgentFilter() {
+    const select = document.getElementById('ticket-filter-agent');
+    if (!select) return;
+    const agents = [...new Set(allTickets.map(t => t.assigned_to).filter(Boolean))].sort();
+    const current = select.value;
+    select.innerHTML = '<option value="">Todos los agentes</option><option value="unassigned">Sin asignar</option>' +
+        agents.map(a => `<option value="${a}">${a}</option>`).join('');
+    select.value = current;
+}
+
+function applyTicketFilters() {
+    const statusF = document.getElementById('ticket-filter-status')?.value || '';
+    const categoryF = document.getElementById('ticket-filter-category')?.value || '';
+    const priorityF = document.getElementById('ticket-filter-priority')?.value || '';
+    const agentF = document.getElementById('ticket-filter-agent')?.value || '';
+
+    filteredTickets = allTickets.filter(t => {
+        if (statusF && t.status !== statusF) return false;
+        if (categoryF && t.ticket_category !== categoryF) return false;
+        if (priorityF && t.ticket_priority !== priorityF) return false;
+        if (agentF === 'unassigned' && t.assigned_to) return false;
+        if (agentF && agentF !== 'unassigned' && t.assigned_to !== agentF) return false;
+        return true;
+    });
+
+    renderTicketsList();
+}
+
+function clearTicketFilters() {
+    ['ticket-filter-status', 'ticket-filter-category', 'ticket-filter-priority', 'ticket-filter-agent'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    applyTicketFilters();
+}
+
+function renderTicketsList() {
+    const container = document.getElementById('tickets-list');
+    if (!container) return;
+
+    if (filteredTickets.length === 0) {
+        container.innerHTML = '<div class="empty-state-box" style="padding:32px;"><i class="fa-solid fa-ticket"></i><span class="empty-title">No hay tickets</span></div>';
+        return;
+    }
+
+    const priorityColors = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#6b7280' };
+
+    container.innerHTML = filteredTickets.map(t => {
+        const isActive = t.id === currentTicketId ? ' active' : '';
+        const pColor = priorityColors[t.ticket_priority] || '#6b7280';
+        const date = t.created_at ? new Date(t.created_at).toLocaleDateString('es') : '—';
+
+        return `<div class="ticket-item${isActive}" onclick="selectTicket('${t.id}')" style="border-left:3px solid ${pColor};">
+            <div class="ticket-item-header">
+                <strong class="ticket-item-subject">${escapeHtml(t.subject || 'Sin asunto')}</strong>
+                <span class="badge badge-sm ${t.status === 'open' ? 'badge-warning' : (t.status === 'resolved' ? 'badge-success' : 'badge-info')}">${t.status}</span>
+            </div>
+            <div class="ticket-item-meta">
+                <span>${escapeHtml(t.ticket_category || '—')}</span>
+                <span>${date}</span>
+                ${t.assigned_to ? `<span><i class="fa-solid fa-user"></i> ${escapeHtml(t.assigned_to)}</span>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function selectTicket(ticketId) {
+    currentTicketId = ticketId;
+    renderTicketsList(); // re-render to update active state
+
+    const ticket = allTickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+
+    const panel = document.getElementById('ticket-detail-panel');
+    if (!panel) return;
+
+    // Load comments
+    let comments = [];
+    if (supabaseClient) {
+        try {
+            const { data } = await supabaseClient.from('ticket_comments').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: true });
+            comments = data || [];
+        } catch (e) { /* optional */ }
+    }
+
+    const pMap = { critical: 'Critica', high: 'Alta', medium: 'Media', low: 'Baja' };
+
+    panel.innerHTML = `
+        <div class="ticket-detail-header">
+            <h3>${escapeHtml(ticket.subject || 'Sin asunto')}</h3>
+            <span class="badge ${ticket.status === 'open' ? 'badge-warning' : (ticket.status === 'resolved' ? 'badge-success' : 'badge-info')}">${ticket.status}</span>
+        </div>
+        <div class="ticket-detail-meta" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0;font-size:0.85rem;">
+            <div><label style="color:var(--text-muted);">Prioridad</label><br><strong>${pMap[ticket.ticket_priority] || ticket.ticket_priority || '—'}</strong></div>
+            <div><label style="color:var(--text-muted);">Categoria</label><br><strong>${escapeHtml(ticket.ticket_category || '—')}</strong></div>
+            <div><label style="color:var(--text-muted);">Creado</label><br>${ticket.created_at ? new Date(ticket.created_at).toLocaleString('es') : '—'}</div>
+            <div><label style="color:var(--text-muted);">Asignado a</label><br>${ticket.assigned_to ? escapeHtml(ticket.assigned_to) : '<em>Sin asignar</em>'}</div>
+        </div>
+        ${ticket.description ? `<div style="padding:12px;background:var(--bg-color);border-radius:6px;margin-bottom:12px;font-size:0.9rem;">${escapeHtml(ticket.description)}</div>` : ''}
+        <div class="ticket-detail-actions" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <select onchange="updateTicketField('${ticketId}','status',this.value)" style="padding:6px 10px;font-size:0.8rem;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);">
+                <option value="open" ${ticket.status === 'open' ? 'selected' : ''}>Abierto</option>
+                <option value="in_progress" ${ticket.status === 'in_progress' ? 'selected' : ''}>En progreso</option>
+                <option value="resolved" ${ticket.status === 'resolved' ? 'selected' : ''}>Resuelto</option>
+                <option value="closed" ${ticket.status === 'closed' ? 'selected' : ''}>Cerrado</option>
+            </select>
+            <select onchange="updateTicketField('${ticketId}','ticket_priority',this.value)" style="padding:6px 10px;font-size:0.8rem;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);">
+                <option value="critical" ${ticket.ticket_priority === 'critical' ? 'selected' : ''}>Critica</option>
+                <option value="high" ${ticket.ticket_priority === 'high' ? 'selected' : ''}>Alta</option>
+                <option value="medium" ${ticket.ticket_priority === 'medium' ? 'selected' : ''}>Media</option>
+                <option value="low" ${ticket.ticket_priority === 'low' ? 'selected' : ''}>Baja</option>
+            </select>
+            <input type="text" placeholder="Asignar a..." value="${escapeHtml(ticket.assigned_to) || ''}" onchange="updateTicketField('${ticketId}','assigned_to',this.value)" style="padding:6px 10px;font-size:0.8rem;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);width:140px;">
+        </div>
+        <div class="ticket-comments-section">
+            <h4 style="margin:0 0 12px;font-size:0.9rem;">Comentarios (${comments.length})</h4>
+            <div id="ticket-comments-list">
+                ${comments.length === 0 ? '<p style="color:var(--text-muted);font-size:0.85rem;">Sin comentarios</p>' :
+                comments.map(c => `<div class="ticket-comment" style="padding:10px;border:1px solid var(--border-color);border-radius:6px;margin-bottom:8px;background:var(--bg-color);">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.78rem;color:var(--text-muted);">
+                        <strong>${escapeHtml(c.author || 'Sistema')}</strong>
+                        <span>${c.created_at ? new Date(c.created_at).toLocaleString('es') : ''}</span>
+                    </div>
+                    <p style="margin:0;font-size:0.85rem;">${escapeHtml(c.content || '')}</p>
+                </div>`).join('')}
+            </div>
+            <div class="ticket-add-comment" style="display:flex;gap:8px;margin-top:12px;">
+                <input type="text" id="ticket-comment-input" placeholder="Escribe un comentario..." style="flex:1;padding:8px 12px;font-size:0.85rem;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);">
+                <button class="btn btn-primary btn-sm" onclick="addTicketComment('${ticketId}')"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    `;
+}
+
+async function updateTicketField(ticketId, field, value) {
+    if (!supabaseClient) return;
+    try {
+        const { error } = await supabaseClient.from('feedback_tickets').update({ [field]: value || null, updated_at: new Date().toISOString() }).eq('id', ticketId);
+        if (error) throw error;
+        const ticket = allTickets.find(t => t.id === ticketId);
+        if (ticket) ticket[field] = value;
+        updateTicketStats();
+        renderTicketsList();
+        showToast('Ticket actualizado', 'success');
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function addTicketComment(ticketId) {
+    const input = document.getElementById('ticket-comment-input');
+    if (!input || !input.value.trim()) return;
+    if (!supabaseClient) return;
+
+    try {
+        const { error } = await supabaseClient.from('ticket_comments').insert({
+            ticket_id: ticketId,
+            author: 'Admin',
+            content: input.value.trim()
+        });
+        if (error) throw error;
+        input.value = '';
+        showToast('Comentario agregado', 'success');
+        selectTicket(ticketId); // refresh detail
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+function renderTicketMetrics() {
+    if (!window.Chart) return;
+
+    // Category distribution
+    const catCounts = {};
+    allTickets.forEach(t => {
+        const cat = t.ticket_category || 'sin_categoria';
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+    });
+
+    const catCanvas = document.getElementById('ticket-category-chart');
+    if (catCanvas) {
+        const existingChart = Chart.getChart(catCanvas);
+        if (existingChart) existingChart.destroy();
+        new Chart(catCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(catCounts),
+                datasets: [{ data: Object.values(catCounts), backgroundColor: ['#ef4444', '#3b82f6', '#eab308', '#8b5cf6', '#6b7280'] }]
+            },
+            options: { plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12 } } } }
+        });
+    }
+
+    // Trend chart (last 30 days)
+    const trendCanvas = document.getElementById('ticket-trend-chart');
+    if (trendCanvas) {
+        const existingChart = Chart.getChart(trendCanvas);
+        if (existingChart) existingChart.destroy();
+
+        const days = {};
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+            days[d] = 0;
+        }
+        allTickets.forEach(t => {
+            if (t.created_at) {
+                const d = t.created_at.split('T')[0];
+                if (days[d] !== undefined) days[d]++;
+            }
+        });
+
+        new Chart(trendCanvas, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(days).map(d => d.substring(5)),
+                datasets: [{ data: Object.values(days), backgroundColor: 'rgba(59,130,246,0.6)', borderRadius: 3 }]
+            },
+            options: { scales: { x: { ticks: { maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
+}
+
+// ============ TICKET REALTIME (#28) ============
+
+function initTicketRealtimeSubscriptions() {
+    cleanupTicketRealtimeSubscriptions();
+    if (!supabaseClient) return;
+
+    const ticketsChannel = supabaseClient
+        .channel('tickets-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback_tickets' }, (payload) => {
+            if (payload.eventType === 'INSERT') {
+                allTickets.unshift(payload.new);
+            } else if (payload.eventType === 'UPDATE') {
+                const idx = allTickets.findIndex(t => t.id === payload.new.id);
+                if (idx >= 0) allTickets[idx] = payload.new;
+            } else if (payload.eventType === 'DELETE') {
+                allTickets = allTickets.filter(t => t.id !== payload.old.id);
+            }
+            updateTicketStats();
+            applyTicketFilters();
+            if (currentTicketId === (payload.new?.id || payload.old?.id)) selectTicket(currentTicketId);
+        })
+        .subscribe();
+    _ticketRealtimeChannels.push(ticketsChannel);
+
+    const commentsChannel = supabaseClient
+        .channel('ticket-comments-realtime')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_comments' }, (payload) => {
+            if (currentTicketId === payload.new.ticket_id) selectTicket(currentTicketId);
+        })
+        .subscribe();
+    _ticketRealtimeChannels.push(commentsChannel);
+}
+
+function cleanupTicketRealtimeSubscriptions() {
+    if (!supabaseClient) return;
+    for (const ch of _ticketRealtimeChannels) {
+        supabaseClient.removeChannel(ch);
+    }
+    _ticketRealtimeChannels.length = 0;
+}
+
+// ============ JOB BOARD ADMIN SECTION ============
+
+async function loadJobBoardAdmin() {
+    const client = window.ConfigManager?.getSupabaseClient();
+    if (!client) {
+        showToast('No hay conexion a Supabase', 'error');
+        return;
+    }
+
+    showToast('Cargando Job Board...', 'info');
+
+    try {
+        const { data: requests, error } = await client
+            .from('job_board_requests')
+            .select('*, job_board_applications(*)')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        allJobBoardRequests = requests || [];
+        filteredJobBoardRequests = [...allJobBoardRequests];
+        jobBoardPage = 1;
+
+        updateJobBoardStats();
+        applyJobBoardFilters();
+    } catch (err) {
+        showToast('Error cargando Job Board: ' + err.message, 'error');
+    }
+}
+
+function updateJobBoardStats() {
+    const data = allJobBoardRequests;
+    const totalBids = data.reduce((sum, r) => sum + (r.job_board_applications?.length || 0), 0);
+    const open = data.filter(r => r.status === 'open' || r.status === 'active').length;
+    const accepted = data.filter(r => r.status === 'accepted').length;
+    const expired = data.filter(r => r.status === 'expired').length;
+
+    document.getElementById('jb-stat-total').textContent = data.length;
+    document.getElementById('jb-stat-open').textContent = open;
+    document.getElementById('jb-stat-bids').textContent = totalBids;
+    document.getElementById('jb-stat-accepted').textContent = accepted;
+    document.getElementById('jb-stat-expired').textContent = expired;
+}
+
+function applyJobBoardFilters() {
+    const statusFilter = document.getElementById('filter-jb-status')?.value || '';
+    const searchTerm = (document.getElementById('search-jobboard')?.value || '').toLowerCase().trim();
+
+    filteredJobBoardRequests = allJobBoardRequests.filter(r => {
+        if (statusFilter && r.status !== statusFilter) return false;
+        if (searchTerm) {
+            const style = r.tattoo_style?.style_name || r.tattoo_style?.style_slug || '';
+            const city = r.preferred_city || r.client_city || '';
+            const code = r.id?.substring(0, 8) || '';
+            const haystack = `${style} ${city} ${code}`.toLowerCase();
+            if (!haystack.includes(searchTerm)) return false;
+        }
+        return true;
+    });
+
+    jobBoardPage = 1;
+    renderJobBoardTable();
+}
+
+function renderJobBoardTable() {
+    const tbody = document.getElementById('jobboard-tbody');
+    const start = (jobBoardPage - 1) * jobBoardPerPage;
+    const pageItems = filteredJobBoardRequests.slice(start, start + jobBoardPerPage);
+
+    if (pageItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state-box"><i class="fa-solid fa-briefcase"></i><span class="empty-title">No se encontraron solicitudes</span><span class="empty-desc">Ajusta los filtros o espera nuevas solicitudes.</span></div></td></tr>`;
+        document.getElementById('jobboard-pagination').innerHTML = '';
+        return;
+    }
+
+    tbody.innerHTML = pageItems.map(r => {
+        const apps = r.job_board_applications || [];
+        const pendingBids = apps.filter(a => a.status === 'pending' || a.status === 'viewed').length;
+        const totalBids = apps.length;
+        const budgetMin = r.client_budget_min;
+        const budgetMax = r.client_budget_max;
+        const budgetStr = budgetMin && budgetMax ? `$${budgetMin} - $${budgetMax}` : (budgetMin ? `Desde $${budgetMin}` : (budgetMax ? `Hasta $${budgetMax}` : 'No especificado'));
+        const style = r.tattoo_style?.style_name || r.tattoo_style?.style_slug || 'N/A';
+        const city = r.preferred_city || r.client_city || 'N/A';
+        const code = r.id?.substring(0, 8)?.toUpperCase() || '—';
+        const popularityBadge = totalBids >= 5 ? ' <i class="fa-solid fa-star" style="color:var(--bauhaus-red,#C62828);font-size:0.7rem;" title="Popular: 5+ propuestas"></i>' : '';
+
+        const statusMap = {
+            'open': { label: 'Abierta', cls: 'badge-info' },
+            'active': { label: 'Activa', cls: 'badge-info' },
+            'in_review': { label: 'En revision', cls: 'badge-warning' },
+            'accepted': { label: 'Aceptada', cls: 'badge-success' },
+            'closed': { label: 'Cerrada', cls: 'badge-secondary' },
+            'expired': { label: 'Expirada', cls: 'badge-danger' }
+        };
+        const st = statusMap[r.status] || { label: r.status || 'Desconocido', cls: 'badge-secondary' };
+
+        return `<tr>
+            <td><code>${code}</code></td>
+            <td>${escapeHtml(style)}</td>
+            <td>${escapeHtml(city)}</td>
+            <td>${budgetStr}</td>
+            <td>${pendingBids}/${totalBids}${popularityBadge}</td>
+            <td><span class="badge ${st.cls}">${st.label}</span></td>
+            <td>
+                <button class="btn-icon" onclick="viewJobBoardBids('${r.id}')" title="Ver propuestas"><i class="fa-solid fa-eye"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    renderJobBoardPagination();
+}
+
+function renderJobBoardPagination() {
+    const container = document.getElementById('jobboard-pagination');
+    const totalPages = Math.ceil(filteredJobBoardRequests.length / jobBoardPerPage);
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    let h = `<button ${jobBoardPage <= 1 ? 'disabled' : ''} onclick="goToJobBoardPage(${jobBoardPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+    const sp = Math.max(1, jobBoardPage - 2), ep = Math.min(totalPages, jobBoardPage + 2);
+    if (sp > 1) h += `<button onclick="goToJobBoardPage(1)">1</button><span>...</span>`;
+    for (let i = sp; i <= ep; i++) h += `<button class="${i === jobBoardPage ? 'active' : ''}" onclick="goToJobBoardPage(${i})">${i}</button>`;
+    if (ep < totalPages) h += `<span>...</span><button onclick="goToJobBoardPage(${totalPages})">${totalPages}</button>`;
+    h += `<button ${jobBoardPage >= totalPages ? 'disabled' : ''} onclick="goToJobBoardPage(${jobBoardPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+    container.innerHTML = h;
+}
+
+function goToJobBoardPage(page) {
+    const totalPages = Math.ceil(filteredJobBoardRequests.length / jobBoardPerPage);
+    if (page < 1 || page > totalPages) return;
+    jobBoardPage = page;
+    renderJobBoardTable();
+}
+
+function viewJobBoardBids(requestId) {
+    const request = allJobBoardRequests.find(r => r.id === requestId);
+    if (!request) { showToast('Solicitud no encontrada', 'error'); return; }
+
+    const panel = document.getElementById('jb-bids-panel');
+    const title = document.getElementById('jb-bids-title');
+    const content = document.getElementById('jb-bids-content');
+
+    const style = request.tattoo_style?.style_name || request.tattoo_style?.style_slug || 'N/A';
+    title.textContent = `Propuestas — ${style} (${request.id?.substring(0, 8)?.toUpperCase()})`;
+
+    const apps = request.job_board_applications || [];
+    if (apps.length === 0) {
+        content.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No hay propuestas para esta solicitud.</p>';
+    } else {
+        content.innerHTML = apps.map(a => {
+            const priceInRange = request.client_budget_min && request.client_budget_max && a.estimated_price
+                ? (a.estimated_price >= request.client_budget_min && a.estimated_price <= request.client_budget_max)
+                : false;
+            const matchBadge = priceInRange ? '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.7rem;margin-left:8px;">MATCH</span>' : '';
+
+            const statusMap = {
+                'pending': { label: 'Pendiente', cls: 'badge-warning' },
+                'viewed': { label: 'Vista', cls: 'badge-info' },
+                'accepted': { label: 'Aceptada', cls: 'badge-success' },
+                'rejected': { label: 'Rechazada', cls: 'badge-danger' }
+            };
+            const st = statusMap[a.status] || { label: a.status || '—', cls: 'badge-secondary' };
+
+            const actions = (a.status === 'pending' || a.status === 'viewed')
+                ? `<div style="display:flex;gap:8px;margin-top:10px;">
+                    <button class="btn btn-primary btn-sm" onclick="acceptBidAdmin('${a.id}','${requestId}')"><i class="fa-solid fa-check"></i> Aceptar</button>
+                    <button class="btn btn-secondary btn-sm" onclick="rejectBidAdmin('${a.id}','${requestId}')"><i class="fa-solid fa-xmark"></i> Rechazar</button>
+                  </div>`
+                : '';
+
+            return `<div style="border:1px solid var(--border-color);border-radius:8px;padding:14px;margin-bottom:12px;background:var(--bg-secondary,#1a1a1a);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <strong>${escapeHtml(a.artist_name || a.artist_id?.substring(0, 8) || 'Artista')}</strong>
+                    <span class="badge ${st.cls}">${st.label}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;font-size:0.85rem;color:var(--text-secondary);">
+                    <span><i class="fa-solid fa-dollar-sign"></i> Precio: <strong style="color:var(--text-primary);">$${a.estimated_price || '—'}</strong>${matchBadge}</span>
+                    <span><i class="fa-solid fa-calendar"></i> Sesiones: <strong style="color:var(--text-primary);">${a.estimated_sessions || '—'}</strong></span>
+                    <span><i class="fa-solid fa-clock"></i> Disponibilidad: ${escapeHtml(a.availability_note || 'No especificada')}</span>
+                </div>
+                ${a.message ? `<p style="margin:8px 0 0;font-size:0.85rem;color:var(--text-secondary);">${escapeHtml(a.message)}</p>` : ''}
+                ${actions}
+            </div>`;
+        }).join('');
+    }
+
+    panel.style.display = '';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeJobBoardBidsPanel() {
+    const panel = document.getElementById('jb-bids-panel');
+    if (panel) panel.style.display = 'none';
+}
+
+async function acceptBidAdmin(appId, requestId) {
+    if (!confirm('Aceptar esta propuesta? Las demas propuestas pendientes seran rechazadas automaticamente.')) return;
+
+    const client = window.ConfigManager?.getSupabaseClient();
+    if (!client) { showToast('No hay conexion a Supabase', 'error'); return; }
+
+    try {
+        // Accept this bid
+        const { error: acceptErr } = await client
+            .from('job_board_applications')
+            .update({ status: 'accepted', decided_at: new Date().toISOString() })
+            .eq('id', appId);
+        if (acceptErr) throw acceptErr;
+
+        // Reject all other pending bids for this request
+        const { error: rejectErr } = await client
+            .from('job_board_applications')
+            .update({ status: 'rejected', decided_at: new Date().toISOString() })
+            .eq('request_id', requestId)
+            .neq('id', appId)
+            .in('status', ['pending', 'viewed']);
+        if (rejectErr) throw rejectErr;
+
+        // Update request status to accepted
+        const { error: reqErr } = await client
+            .from('job_board_requests')
+            .update({ status: 'accepted' })
+            .eq('id', requestId);
+        if (reqErr) throw reqErr;
+
+        showToast('Propuesta aceptada', 'success');
+        await loadJobBoardAdmin();
+        viewJobBoardBids(requestId);
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function rejectBidAdmin(appId, requestId) {
+    if (!confirm('Rechazar esta propuesta?')) return;
+
+    const client = window.ConfigManager?.getSupabaseClient();
+    if (!client) { showToast('No hay conexion a Supabase', 'error'); return; }
+
+    try {
+        const { error } = await client
+            .from('job_board_applications')
+            .update({ status: 'rejected', decided_at: new Date().toISOString() })
+            .eq('id', appId);
+        if (error) throw error;
+
+        showToast('Propuesta rechazada', 'success');
+        await loadJobBoardAdmin();
+        viewJobBoardBids(requestId);
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
 // Hook into showSection to manage subscriptions lifecycle
 const _originalShowSection = showSection;
 function showSectionWithRealtime(sectionId) {
+    // Cleanup previous realtime subscriptions
+    cleanupRealtimeSubscriptions();
+    cleanupTicketRealtimeSubscriptions();
+
     _originalShowSection(sectionId);
 
     if (sectionId === 'dashboard') {
         initRealtimeSubscriptions();
-    } else {
-        cleanupRealtimeSubscriptions();
+    } else if (sectionId === 'tickets') {
+        initTicketRealtimeSubscriptions();
     }
 }
 window.showSection = showSectionWithRealtime;
@@ -5532,3 +7175,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.initRealtimeSubscriptions = initRealtimeSubscriptions;
 window.cleanupRealtimeSubscriptions = cleanupRealtimeSubscriptions;
+
+// Artist exports
+window.loadArtists = loadArtists;
+window.renderArtistsTable = renderArtistsTable;
+window.goToArtistsPage = goToArtistsPage;
+window.changeItemsPerPage = changeItemsPerPage;
+window.editArtist = editArtist;
+window.applyArtistFilters = applyArtistFilters;
+window.clearArtistFilters = clearArtistFilters;
+window.openArtistProfile = openArtistProfile;
+window.closeArtistProfile = closeArtistProfile;
+window.verifyFromProfile = verifyFromProfile;
+window.deleteArtist = deleteArtist;
+window.saveArtist = saveArtist;
+window.loadDashboardCharts = loadDashboardCharts;
+window.createSystemBackup = createSystemBackup;
+
+// Verification exports
+window.loadVerificationQueue = loadVerificationQueue;
+window.approveVerification = approveVerification;
+window.rejectVerification = rejectVerification;
+
+// Tickets exports
+window.loadSupportTickets = loadSupportTickets;
+window.applyTicketFilters = applyTicketFilters;
+window.clearTicketFilters = clearTicketFilters;
+window.selectTicket = selectTicket;
+window.updateTicketField = updateTicketField;
+window.addTicketComment = addTicketComment;
+window.initTicketRealtimeSubscriptions = initTicketRealtimeSubscriptions;
+window.cleanupTicketRealtimeSubscriptions = cleanupTicketRealtimeSubscriptions;
+
+// Job Board exports
+window.loadJobBoardAdmin = loadJobBoardAdmin;
+window.applyJobBoardFilters = applyJobBoardFilters;
+window.goToJobBoardPage = goToJobBoardPage;
+window.viewJobBoardBids = viewJobBoardBids;
+window.closeJobBoardBidsPanel = closeJobBoardBidsPanel;
+window.acceptBidAdmin = acceptBidAdmin;
+window.rejectBidAdmin = rejectBidAdmin;

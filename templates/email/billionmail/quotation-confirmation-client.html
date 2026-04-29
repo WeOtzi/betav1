@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Cotizacion Enviada - We Otzi</title>
+<!--[if mso]>
+<noscript>
+<xml>
+<o:OfficeDocumentSettings>
+<o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings>
+</xml>
+</noscript>
+<![endif]-->
+</head>
+<body style="margin:0; padding:0; background-color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#FFFFFF;">
+<tr>
+<td align="center" style="padding:20px 10px;">
+
+<!--[if mso]>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center"><tr><td>
+<![endif]-->
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px; width:100%; background-color:#F2F0E9;">
+
+<!-- ====== HEADER ====== -->
+<tr>
+<td style="background-color:#0A0A0A; padding:40px 40px 28px 40px; text-align:center;">
+<p style="margin:0 0 16px 0; font-family:Arial, Helvetica, sans-serif; font-size:32px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:8px; line-height:1;">WE OTZI</p>
+<p style="margin:0 0 20px 0; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; color:#E23E28; text-transform:uppercase; letter-spacing:3px; line-height:1;">COTIZACION ENVIADA</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+<tr>
+<td style="border:2px solid #333333; padding:6px 16px;">
+<p style="margin:0; font-family:'Courier New', Courier, monospace; font-size:13px; color:#888888; letter-spacing:1px;">{{quote_id}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Red accent line -->
+<tr>
+<td style="background-color:#E23E28; height:4px; font-size:0; line-height:0;">&nbsp;</td>
+</tr>
+
+
+<!-- ====== GREETING ====== -->
+<tr>
+<td style="padding:32px 40px 24px 40px;">
+<p style="margin:0 0 12px 0; font-family:Arial, Helvetica, sans-serif; font-size:22px; font-weight:700; color:#0A0A0A; line-height:1.3;">Hola {{client_full_name}},</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A; line-height:1.6;">Tu solicitud de cotizacion fue enviada exitosamente a <strong>{{artist_name}}</strong>. Te notificaremos cuando el artista responda.</p>
+</td>
+</tr>
+
+
+<!-- ====== TATTOO DETAILS BLOCK ====== -->
+<tr>
+<td style="padding:0 40px 24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">DETALLES DEL TATUAJE</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:14px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ZONA DEL CUERPO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{tattoo_body_part}} {{ $json.tattoo_body_side != '-' ? '(' + $json.tattoo_body_side + ')' : '' }}</p>
+</td>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">TAMANO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{tattoo_size}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:14px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ESTILO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{tattoo_style}}</p>
+</td>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">COLOR</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{tattoo_color_type}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<p style="margin:0 0 8px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">DESCRIPCION DE LA IDEA</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="background-color:#F2F0E9; padding:14px 16px; border-left:3px solid #0A0A0A;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#0A0A0A; line-height:1.6;">{{tattoo_idea_description}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Red accent divider -->
+<tr>
+<td style="padding:0 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr><td style="background-color:#E23E28; height:3px; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== REFERENCE IMAGES (conditional) ====== -->
+<tr style="{{ $json.attachments_count > 0 ? '' : 'display:none; mso-hide:all;' }}">
+<td style="padding:24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">IMAGENES DE REFERENCIA</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px; text-align:center;">
+<p style="margin:0 0 12px 0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#0A0A0A;">{{attachments_count}} imagen(es) de referencia adjunta(s)</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="{{ $json.has_attachments ? '' : 'display:none;' }}">
+<tr>{{attachments_html}}</tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="{{ $json.has_references_folder ? '' : 'display:none;' }}">
+<tr>
+<td style="padding-top:12px;">
+<a href="{{tattoo_references}}" target="_blank" style="font-family:Arial, Helvetica, sans-serif; font-size:13px; font-weight:700; color:#1A4B8E; text-decoration:none; text-transform:uppercase; letter-spacing:1px;">VER TODAS LAS REFERENCIAS &#8594;</a>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== ARTIST INFO BLOCK ====== -->
+<tr>
+<td style="padding:0 40px 24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">TU ARTISTA</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:14px;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ARTISTA</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:700; color:#0A0A0A;">{{artist_name}}</p>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:14px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">CIUDAD</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{artist_current_city}}</p>
+</td>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ESTUDIO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{artist_studio_name}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Red accent divider -->
+<tr>
+<td style="padding:0 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr><td style="background-color:#E23E28; height:3px; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== PREFERENCES BLOCK ====== -->
+<tr>
+<td style="padding:24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px;">TUS PREFERENCIAS</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<!-- Budget highlighted -->
+<tr>
+<td style="padding-bottom:16px;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">TU PRESUPUESTO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:20px; font-weight:900; color:#E23E28; letter-spacing:0.5px;">{{client_budget_amount}} {{client_budget_currency}}</p>
+</td>
+</tr>
+<tr>
+<td style="padding-bottom:14px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">FECHA PREFERIDA</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{client_preferred_date}}</p>
+</td>
+<td width="50%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">FECHAS FLEXIBLES</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{client_flexible_dates}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td width="33%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">PRIMER TATUAJE</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{tattoo_is_first_tattoo}}</p>
+</td>
+<td width="33%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">COVER-UP</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{tattoo_is_cover_up}}</p>
+</td>
+<td width="34%" style="vertical-align:top;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">VIAJARIA</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{client_travel_willing}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== HEALTH INFO BLOCK ====== -->
+<tr style="{{ ($json.client_health_conditions && $json.client_health_conditions != 'Ninguna') || ($json.client_allergies && $json.client_allergies != 'Ninguna') ? '' : 'display:none; mso-hide:all;' }}">
+<td style="padding:0 40px 24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:3px solid #0A0A0A; border-left:4px solid #F4B942;">
+<tr>
+<td style="background-color:#0A0A0A; padding:10px 20px;">
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:900; color:#F4B942; text-transform:uppercase; letter-spacing:2px;">INFORMACION DE SALUD</p>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF; padding:20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="padding-bottom:14px;">
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">CONDICIONES DE SALUD</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{client_health_conditions}}</p>
+</td>
+</tr>
+<tr>
+<td>
+<p style="margin:0 0 2px 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; color:#888888; text-transform:uppercase; letter-spacing:1px;">ALERGIAS</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#0A0A0A;">{{client_allergies}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== NEXT STEPS ====== -->
+<tr>
+<td style="padding:0 40px 24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td style="background-color:#F2F0E9; padding:14px 16px; border-left:3px solid #0A0A0A;">
+<p style="margin:0 0 4px 0; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; color:#0A0A0A; text-transform:uppercase; letter-spacing:1px;">SIGUIENTE PASO</p>
+<p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#0A0A0A; line-height:1.5;">El artista revisara tu solicitud y te enviara su propuesta con presupuesto y numero de sesiones estimadas. Te enviaremos un correo cuando responda.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<!-- ====== CTA SECTION ====== -->
+<tr>
+<td style="padding:12px 40px 36px 40px; text-align:center;">
+
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://beta.weotzi.com/client/dashboard" style="height:52px; v-text-anchor:middle; width:400px;" fill="t" stroke="t" strokecolor="#0A0A0A" strokeweight="3px">
+<v:fill type="tile" color="#0A0A0A"/>
+<w:anchorlock/>
+<center style="color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; text-transform:uppercase; letter-spacing:2px;">VER EN MI DASHBOARD</center>
+</v:roundrect>
+<![endif]-->
+
+<!--[if !mso]><!-->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+<tr>
+<td style="background-color:#0A0A0A; border:3px solid #0A0A0A; padding:16px 44px; text-align:center;">
+<a href="https://beta.weotzi.com/client/dashboard" target="_blank" style="font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:2px; text-decoration:none; display:inline-block;">VER EN MI DASHBOARD</a>
+</td>
+</tr>
+</table>
+<!--<![endif]-->
+
+</td>
+</tr>
+
+
+<!-- ====== FOOTER ====== -->
+<tr>
+<td style="background-color:#0A0A0A; padding:32px 40px; text-align:center;">
+<p style="margin:0 0 10px 0; font-family:Arial, Helvetica, sans-serif; font-size:20px; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:6px; line-height:1;">WE OTZI</p>
+<p style="margin:0 0 16px 0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#888888; font-style:italic;">Hecho con amor, para artistas.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="60" align="center">
+<tr><td style="background-color:#E23E28; height:2px; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+<p style="margin:16px 0 0 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#555555;">&copy; 2025 We Otzi. Todos los derechos reservados.</p>
+</td>
+</tr>
+
+
+</table>
+
+<!--[if mso]>
+</td></tr></table>
+<![endif]-->
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>

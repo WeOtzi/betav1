@@ -1,7 +1,10 @@
 node_modules/
 .env
 .server-credentials
+.server-credentials-*
+.billionmail-panel-credentials
 .DS_Store
+__pycache__/
 Thumbs.db
 coverage/
 dist/
