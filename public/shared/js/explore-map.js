@@ -238,8 +238,75 @@
         });
     }
 
-    function openArtistModal(artist) { /* implemented in Task 7 */ }
-    function closeArtistModal() { /* implemented in Task 7 */ }
+    function openArtistModal(artist) {
+        if (!artist) return;
+        STATE.activeArtistId = artist.user_id;
+
+        document.querySelectorAll('.bauhaus-pin-wrap').forEach(function (w) { w.classList.remove('is-active'); });
+        var m = STATE.markers.get(artist.user_id);
+        if (m && m.wrap) m.wrap.classList.add('is-active');
+
+        document.querySelectorAll('.explore-card').forEach(function (c) { c.classList.remove('is-active'); });
+        var card = document.querySelector('.explore-card[data-user-id="' + CSS.escape(artist.user_id) + '"]');
+        if (card) card.classList.add('is-active');
+
+        var cover = document.getElementById('modal-cover');
+        if (cover) cover.style.backgroundImage = artist.profile_picture
+            ? 'url("' + artist.profile_picture + '")'
+            : 'none';
+
+        var stylesEl = document.getElementById('modal-styles');
+        if (stylesEl) {
+            var stylesArr = parseStyles(artist.styles_array).slice(0, 5);
+            stylesEl.innerHTML = stylesArr.map(function (s) {
+                return '<span class="tag-mini">' + escapeHtml(s) + '</span>';
+            }).join('');
+        }
+
+        document.getElementById('modal-artist-name').textContent = toTitleCase(artist.name || artist.username || 'Artista');
+
+        var location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ') || (artist.ubicacion || 'Ubicacion no disponible');
+        document.getElementById('modal-location').textContent = location;
+
+        var exp = artist.years_experience ? artist.years_experience + ' anos exp.' : 'Experiencia no especificada';
+        document.getElementById('modal-experience').textContent = exp;
+
+        var bio = (artist.bio_description || '').trim();
+        document.getElementById('modal-bio').textContent = bio ? (bio.length > 220 ? bio.slice(0, 220) + '...' : bio) : 'Este artista todavia no escribio una bio.';
+
+        var price = artist.session_price ? String(artist.session_price).replace(',00', '') : 'Consultar';
+        document.getElementById('modal-price').textContent = price;
+
+        var quoteBtn = document.getElementById('modal-cta-quote');
+        var profileBtn = document.getElementById('modal-cta-profile');
+        if (quoteBtn) quoteBtn.onclick = function () {
+            window.location.href = '/quotation?artist=' + encodeURIComponent(artist.username);
+        };
+        if (profileBtn) profileBtn.onclick = function () {
+            window.location.href = '/artist/profile?artist=' + encodeURIComponent(artist.username);
+        };
+
+        var backdrop = document.getElementById('artist-modal-backdrop');
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    function closeArtistModal() {
+        var backdrop = document.getElementById('artist-modal-backdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
+        if (STATE.activeArtistId) {
+            var m = STATE.markers.get(STATE.activeArtistId);
+            if (m && m.wrap) m.wrap.classList.remove('is-active');
+        }
+        var card = document.querySelector('.explore-card.is-active');
+        if (card) card.classList.remove('is-active');
+        STATE.activeArtistId = null;
+    }
 
     function renderList() {
         var listEl = document.getElementById('explore-list');
@@ -409,6 +476,16 @@
     }
 
     document.addEventListener('DOMContentLoaded', async function () {
+        var modalBackdrop = document.getElementById('artist-modal-backdrop');
+        var modalCloseBtn = document.getElementById('modal-close-btn');
+        if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeArtistModal);
+        if (modalBackdrop) modalBackdrop.addEventListener('click', function (e) {
+            if (e.target === modalBackdrop) closeArtistModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeArtistModal();
+        });
+
         showLoading();
         try {
             await waitForConfigManager();
