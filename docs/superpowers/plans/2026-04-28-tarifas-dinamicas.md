@@ -1,6 +1,64 @@
 # Tarifas Dinámicas para Tatuadores — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **STATUS: PAUSED — registered for future implementation**
+> Last updated: 2026-04-29 · Owner: Isaí · Resume when ready.
+
+## Resume Notes (read this first before continuing implementation)
+
+**Why paused:** Parallel git activity in the repo (other agent/session committing, branching, cherry-picking) made subagent-driven execution unsafe. Pausing until the workspace stabilizes.
+
+**Progress:** 1 / 14 tasks completed.
+
+| # | Task | Status | Artifact |
+|---|---|---|---|
+| 1 | Schema: `dynamic_pricing_*` columns on `artists_db` + audit log + `get_artist_avg_rating` helper | ✅ Done | Commit `d1d53b0` on `feature/dynamic-pricing`; file [`supabase/migrations/20260428210000_artists_dynamic_pricing.sql`](../../../supabase/migrations/20260428210000_artists_dynamic_pricing.sql) |
+| 2 | Matview `zone_demand_metrics` + `calculate_artist_zone_demand_ratio` helper + `refresh_zone_demand_metrics` RPC | ⏸ Pending | — |
+| 3 | `computeArtistDynamicFactor` pure helper in `server.js` | ⏸ Pending | — |
+| 4 | `POST /api/admin/dynamic-pricing/recompute` cron endpoint | ⏸ Pending | — |
+| 5 | `GET /api/artists/:user_id/dynamic-pricing` read endpoint | ⏸ Pending | — |
+| 6 | Shared client helper module `dynamic-pricing.{js,css}` | ⏸ Pending | — |
+| 7 | Dashboard "Tarifa dinámica" HTML row + breakdown panel + CSS import | ⏸ Pending | — |
+| 8 | Wire `dashboard.js` toggle load/save + breakdown render | ⏸ Pending | — |
+| 9 | Public profile dynamic price + badge | ⏸ Pending | — |
+| 10 | Marketplace cards apply factor | ⏸ Pending | — |
+| 11 | Quotation flow uses dynamic price for `artist_session_cost_amount` | ⏸ Pending | — |
+| 12 | Quote response prefill in `shared-drawer.js` | ⏸ Pending | — |
+| 13 | Document n8n cron call in `.env.example` | ⏸ Pending | — |
+| 14 | Final QA end-to-end manual checklist | ⏸ Pending | — |
+
+**State of the workspace at pause time:**
+
+- Branch: `feature/dynamic-pricing` (created from `main`).
+- Branch commits ahead of `main`:
+  - `d1d53b0` — Task 1 (this plan).
+  - `10fcc04` — `feat(db): add CHECK constraints for artists_db lat/lng ranges` (unrelated parallel work that landed on this branch; same commit was cherry-picked to `main` as `98d077a`, so it's safe to rebase out before resuming if a clean feature branch is desired).
+- Working tree: substantial uncommitted WIP from other features (50+ modified files including `server.js`, `dashboard.js`, `script.js`, etc.) — this WIP is the implicit baseline the plan was anchored on. Most plan tasks (3-12) reference patterns that exist in the WIP, not in `main HEAD`.
+
+**Operational pending before resuming:**
+
+1. **Apply Task 1 migration in Supabase** (staging or prod). Verification SQL:
+   ```sql
+   SELECT column_name, data_type FROM information_schema.columns
+   WHERE table_schema='public' AND table_name='artists_db'
+     AND column_name LIKE 'dynamic_pricing%' ORDER BY column_name;
+   -- Expected: 5 rows (breakdown jsonb, calculated_at timestamptz, enabled boolean, factor numeric, floor_amount numeric)
+
+   SELECT to_regclass('public.artist_dynamic_pricing_log');
+   -- Expected: artist_dynamic_pricing_log
+   ```
+2. Decide whether the WIP gets committed to `main` (or its own branch) before resuming, or stays as the implicit baseline.
+3. Decide whether to rebase `10fcc04` out of `feature/dynamic-pricing` before adding more commits.
+
+**How to resume:**
+
+1. Tell the agent: *"continuá con el plan de tarifas dinámicas"* (or equivalent).
+2. The agent will: verify branch is `feature/dynamic-pricing`, confirm Task 1 migration is applied, evaluate the lat/lng commit, and start Task 2.
+3. Recommended sub-skill: `superpowers:subagent-driven-development` (or `superpowers:executing-plans` if a parallel session is preferred).
+4. Each remaining task creates either new files (Tasks 2, 6, 13) — clean commits — or modifies existing WIP-touched files (Tasks 3-5, 7-12) — requires a strategy to separate dynamic-pricing changes from WIP changes (likely `git add -p` per task, or commit the WIP as a baseline first).
+
+---
+
+> **For agentic workers (when resumed):** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an opt-in dynamic pricing system for artists that adjusts their displayed `session_price` based on rating tiers and a weighted demand/supply ratio across the artist's zones, computed daily by an n8n cron and overridable per quotation.
 
