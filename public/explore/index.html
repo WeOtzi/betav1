@@ -21,14 +21,34 @@
 <body data-theme="light">
     <div class="explore-app">
         <header class="explore-header">
-            <a href="/marketplace" class="nav-btn" aria-label="Volver al marketplace">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div class="explore-header-title">Explorar Tatuadores</div>
-            <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
-                <i class="fa-solid fa-moon"></i>
-            </button>
+            <div class="explore-header-left">
+                <a href="/marketplace" class="nav-btn" aria-label="Volver al marketplace">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div class="explore-header-title">Explorar Tatuadores</div>
+            </div>
+            <div class="explore-header-right">
+                <nav class="dashboard-quick-nav explore-nav-links" aria-label="Navegación principal">
+                    <a href="/marketplace" class="dashboard-quick-link">Marketplace</a>
+                    <a href="/quotation" class="dashboard-quick-link">Cotizar</a>
+                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
+                    <a href="/client/login" class="dashboard-quick-link">Acceder</a>
+                </nav>
+                <button class="mobile-menu-toggle explore-menu-toggle" id="explore-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="explore-mobile-menu">
+                    Menu
+                </button>
+                <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
         </header>
+
+        <nav class="dashboard-mobile-menu explore-mobile-menu" id="explore-mobile-menu" aria-label="Navegación móvil" hidden>
+            <a href="/marketplace" class="dashboard-mobile-menu-link">Marketplace</a>
+            <a href="/quotation" class="dashboard-mobile-menu-link">Cotizar</a>
+            <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
+            <a href="/client/login" class="dashboard-mobile-menu-link">Acceder</a>
+        </nav>
 
         <section class="explore-filters">
             <div class="filter-pill-group" id="style-filter-pills" aria-label="Filtros por estilo">
@@ -141,6 +161,33 @@
             document.body.setAttribute('data-theme', savedTheme);
             const icon = document.querySelector('#theme-toggle i');
             if (icon) icon.className = savedTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+
+            // Mobile nav menu toggle
+            const menuToggle = document.getElementById('explore-mobile-menu-toggle');
+            const mobileMenu = document.getElementById('explore-mobile-menu');
+            if (menuToggle && mobileMenu) {
+                const setOpen = (open) => {
+                    menuToggle.setAttribute('aria-expanded', String(open));
+                    mobileMenu.hidden = !open;
+                };
+                setOpen(false);
+                menuToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setOpen(menuToggle.getAttribute('aria-expanded') !== 'true');
+                });
+                mobileMenu.querySelectorAll('a').forEach((a) => {
+                    a.addEventListener('click', () => setOpen(false));
+                });
+                document.addEventListener('click', (e) => {
+                    if (mobileMenu.hidden) return;
+                    if (!mobileMenu.contains(e.target) && !menuToggle.contains(e.target)) {
+                        setOpen(false);
+                    }
+                });
+                window.addEventListener('resize', () => {
+                    if (window.innerWidth > 768) setOpen(false);
+                });
+            }
         });
     </script>
 </body>

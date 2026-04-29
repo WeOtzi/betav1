@@ -22,6 +22,20 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
+    gap: 12px;
+}
+
+.explore-header-left,
+.explore-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.explore-header-right {
+    justify-content: flex-end;
+    flex-shrink: 0;
 }
 
 .explore-header-title {
@@ -30,6 +44,83 @@
     text-transform: uppercase;
     letter-spacing: -0.5px;
     font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ----- SHARED PUBLIC NAV (matches /artist/profile, /client/login pattern) ----- */
+.explore-nav-links.dashboard-quick-nav {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+}
+
+.explore-nav-links .dashboard-quick-link {
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.85rem;
+    border-right: 2px solid var(--fg);
+    text-decoration: none;
+    font-family: var(--font-technical);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--fg);
+    background: var(--bg);
+    transition: background 0.18s ease, color 0.18s ease;
+    white-space: nowrap;
+}
+
+.explore-nav-links .dashboard-quick-link:last-child {
+    border-right: none;
+}
+
+.explore-nav-links .dashboard-quick-link:hover {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.explore-nav-links .dashboard-quick-link-job-board:hover {
+    background: var(--primary-red);
+    color: var(--bg);
+}
+
+.explore-menu-toggle.mobile-menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 12px;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-technical);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.explore-menu-toggle.mobile-menu-toggle:hover,
+.explore-menu-toggle.mobile-menu-toggle[aria-expanded="true"] {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+
+.explore-mobile-menu.dashboard-mobile-menu {
+    display: none;
+}
+
+.explore-mobile-menu.dashboard-mobile-menu[hidden] {
+    display: none !important;
 }
 
 /* ----- FILTERS BAR ----- */
@@ -411,6 +502,56 @@
 
 /* ----- HIDDEN HELPER ----- */
 .hidden { display: none !important; }
+
+/* ----- NAV COLLAPSE (matches dashboard.css breakpoint) ----- */
+@media (max-width: 768px) {
+    .explore-nav-links.dashboard-quick-nav { display: none; }
+    .explore-menu-toggle.mobile-menu-toggle { display: inline-flex; }
+
+    .explore-mobile-menu.dashboard-mobile-menu {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        top: calc(64px + 8px);
+        z-index: 35;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        border: 3px solid var(--fg);
+        background: var(--fg);
+        animation: explore-menu-reveal 0.2s ease;
+    }
+
+    .explore-mobile-menu .dashboard-mobile-menu-link {
+        min-height: 56px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-family: var(--font-technical);
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--fg);
+        background: var(--bg);
+        border-right: 2px solid var(--fg);
+        border-bottom: 2px solid var(--fg);
+        transition: background 0.16s ease, color 0.16s ease;
+    }
+
+    .explore-mobile-menu .dashboard-mobile-menu-link:nth-child(2n) { border-right: none; }
+    .explore-mobile-menu .dashboard-mobile-menu-link:nth-last-child(-n + 2) { border-bottom: none; }
+    .explore-mobile-menu .dashboard-mobile-menu-link:hover { background: var(--fg); color: var(--bg); }
+    .explore-mobile-menu .dashboard-mobile-menu-link-job-board { background: var(--primary-red); color: var(--bg); }
+
+    .explore-header-title { font-size: 0.95rem; }
+}
+
+@keyframes explore-menu-reveal {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
 /* ----- MOBILE LAYOUT ----- */
 @media (max-width: 900px) {
