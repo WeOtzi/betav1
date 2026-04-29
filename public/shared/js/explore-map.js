@@ -97,9 +97,14 @@
             console.warn('[explore-map] Demo mode or no Supabase. Using empty list.');
             return [];
         }
-        var resp = await supabase
-            .from('artists_db')
-            .select('user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended,latitude,longitude');
+        var fullCols = 'user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended,latitude,longitude';
+        var safeCols = 'user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended';
+
+        var resp = await supabase.from('artists_db').select(fullCols);
+        if (resp.error) {
+            console.warn('[explore-map] Full SELECT failed (likely missing geo columns), retrying without lat/lng:', resp.error.message);
+            resp = await supabase.from('artists_db').select(safeCols);
+        }
         if (resp.error) {
             console.error('[explore-map] Supabase error:', resp.error);
             return [];
