@@ -243,59 +243,91 @@
         });
     }
 
-    function openArtistModal(artist) {
-        if (!artist) return;
-        STATE.activeArtistId = artist.user_id;
+    function setText(id, value) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = value;
+        else console.warn('[explore-map] Missing modal element:', id);
+        return el;
+    }
 
-        document.querySelectorAll('.bauhaus-pin-wrap').forEach(function (w) { w.classList.remove('is-active'); });
-        var m = STATE.markers.get(artist.user_id);
-        if (m && m.wrap) m.wrap.classList.add('is-active');
-
-        document.querySelectorAll('.explore-card').forEach(function (c) { c.classList.remove('is-active'); });
-        var card = document.querySelector('.explore-card[data-user-id="' + CSS.escape(artist.user_id) + '"]');
-        if (card) card.classList.add('is-active');
-
-        var cover = document.getElementById('modal-cover');
-        if (cover) cover.style.backgroundImage = artist.profile_picture
-            ? 'url("' + artist.profile_picture + '")'
-            : 'none';
-
-        var stylesEl = document.getElementById('modal-styles');
-        if (stylesEl) {
-            var stylesArr = parseStyles(artist.styles_array).slice(0, 5);
-            stylesEl.innerHTML = stylesArr.map(function (s) {
-                return '<span class="tag-mini">' + escapeHtml(s) + '</span>';
-            }).join('');
+    function safeCssEscape(value) {
+        var str = String(value == null ? '' : value);
+        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+            try { return CSS.escape(str); } catch (e) { /* fall through */ }
         }
+        return str.replace(/[^a-zA-Z0-9_-]/g, function (ch) {
+            return '\\' + ch;
+        });
+    }
 
-        document.getElementById('modal-artist-name').textContent = toTitleCase(artist.name || artist.username || 'Artista');
-
-        var location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ') || (artist.ubicacion || 'Ubicacion no disponible');
-        document.getElementById('modal-location').textContent = location;
-
-        var exp = artist.years_experience ? artist.years_experience + ' anos exp.' : 'Experiencia no especificada';
-        document.getElementById('modal-experience').textContent = exp;
-
-        var bio = (artist.bio_description || '').trim();
-        document.getElementById('modal-bio').textContent = bio ? (bio.length > 220 ? bio.slice(0, 220) + '...' : bio) : 'Este artista todavia no escribio una bio.';
-
-        var price = artist.session_price ? String(artist.session_price).replace(',00', '') : 'Consultar';
-        document.getElementById('modal-price').textContent = price;
-
-        var quoteBtn = document.getElementById('modal-cta-quote');
-        var profileBtn = document.getElementById('modal-cta-profile');
-        if (quoteBtn) quoteBtn.onclick = function () {
-            window.location.href = '/quotation?artist=' + encodeURIComponent(artist.username);
-        };
-        if (profileBtn) profileBtn.onclick = function () {
-            window.location.href = '/artist/profile?artist=' + encodeURIComponent(artist.username);
-        };
+    function openArtistModal(artist) {
+        if (!artist) {
+            console.warn('[explore-map] openArtistModal called without artist');
+            return;
+        }
+        console.log('[explore-map] openArtistModal:', artist.username || artist.user_id);
 
         var backdrop = document.getElementById('artist-modal-backdrop');
-        if (backdrop) {
-            backdrop.classList.remove('hidden');
-            backdrop.setAttribute('aria-hidden', 'false');
+        if (!backdrop) {
+            console.error('[explore-map] Modal backdrop #artist-modal-backdrop not found in DOM');
+            return;
         }
+
+        try {
+            STATE.activeArtistId = artist.user_id;
+
+            document.querySelectorAll('.bauhaus-pin-wrap').forEach(function (w) { w.classList.remove('is-active'); });
+            var m = STATE.markers.get(artist.user_id);
+            if (m && m.wrap) m.wrap.classList.add('is-active');
+
+            document.querySelectorAll('.explore-card').forEach(function (c) { c.classList.remove('is-active'); });
+            if (artist.user_id) {
+                var card = document.querySelector('.explore-card[data-user-id="' + safeCssEscape(artist.user_id) + '"]');
+                if (card) card.classList.add('is-active');
+            }
+
+            var cover = document.getElementById('modal-cover');
+            if (cover) cover.style.backgroundImage = artist.profile_picture
+                ? 'url("' + artist.profile_picture + '")'
+                : 'none';
+
+            var stylesEl = document.getElementById('modal-styles');
+            if (stylesEl) {
+                var stylesArr = parseStyles(artist.styles_array).slice(0, 5);
+                stylesEl.innerHTML = stylesArr.map(function (s) {
+                    return '<span class="tag-mini">' + escapeHtml(s) + '</span>';
+                }).join('');
+            }
+
+            setText('modal-artist-name', toTitleCase(artist.name || artist.username || 'Artista'));
+
+            var location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ') || (artist.ubicacion || 'Ubicacion no disponible');
+            setText('modal-location', location);
+
+            var exp = artist.years_experience ? artist.years_experience + ' anos exp.' : 'Experiencia no especificada';
+            setText('modal-experience', exp);
+
+            var bio = (artist.bio_description || '').trim();
+            setText('modal-bio', bio ? (bio.length > 220 ? bio.slice(0, 220) + '...' : bio) : 'Este artista todavia no escribio una bio.');
+
+            var price = artist.session_price ? String(artist.session_price).replace(',00', '') : 'Consultar';
+            setText('modal-price', price);
+
+            var quoteBtn = document.getElementById('modal-cta-quote');
+            var profileBtn = document.getElementById('modal-cta-profile');
+            var username = artist.username || '';
+            if (quoteBtn) quoteBtn.onclick = function () {
+                window.location.href = '/quotation?artist=' + encodeURIComponent(username);
+            };
+            if (profileBtn) profileBtn.onclick = function () {
+                window.location.href = '/artist/profile?artist=' + encodeURIComponent(username);
+            };
+        } catch (err) {
+            console.error('[explore-map] Error populating modal, opening anyway:', err);
+        }
+
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
     }
 
     function closeArtistModal() {
@@ -415,9 +447,16 @@
             var div = document.createElement('div');
             div.className = 'bauhaus-pin-wrap';
             div.innerHTML = this.html;
-            div.addEventListener('click', this.onClick);
+            var handler = this.onClick;
+            var clickHandler = function (event) {
+                if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+                if (typeof handler === 'function') handler();
+            };
+            div.addEventListener('click', clickHandler);
+            div.addEventListener('touchend', clickHandler);
             this.div = div;
-            this.getPanes().floatPane.appendChild(div);
+            var panes = this.getPanes();
+            if (panes && panes.floatPane) panes.floatPane.appendChild(div);
         };
         PriceOverlay.prototype.draw = function () {
             if (!this.div) return;
@@ -506,16 +545,17 @@
     function plotArtistMarker(artist, lat, lng) {
         var price = artist.session_price ? String(artist.session_price).replace(',00', '') : '$$';
         var html = '<div class="bauhaus-pin">' + escapeHtml(price) + '</div>';
+        var artistRef = artist;
         var overlay = new STATE.overlayClass(
             new google.maps.LatLng(lat, lng),
             html,
-            function () { openArtistModal(artist); }
+            function () { openArtistModal(artistRef); }
         );
         overlay.setMap(STATE.map);
 
         setTimeout(function () {
             var wrap = overlay.getDiv && overlay.getDiv();
-            STATE.markers.set(artist.user_id, { overlay: overlay, wrap: wrap, artist: artist });
+            STATE.markers.set(artistRef.user_id, { overlay: overlay, wrap: wrap, artist: artistRef });
         }, 50);
     }
 
