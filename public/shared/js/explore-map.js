@@ -430,6 +430,28 @@
         STATE.overlayClass = PriceOverlay;
     }
 
+    function persistGeocode(userId, lat, lng, displayName) {
+        return fetch('/api/artists/geocode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                latitude: lat,
+                longitude: lng,
+                geocoded_address: displayName || null
+            })
+        })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (data) {
+                if (!data.success) console.warn('[explore-map] Geocode persist failed:', userId, data.error);
+                return data;
+            })
+            .catch(function (err) {
+                console.warn('[explore-map] Geocode persist error:', userId, err);
+                return null;
+            });
+    }
+
     async function renderMarkers() {
         if (!STATE.map) return;
 
@@ -438,24 +460,41 @@
 
         var bounds = new google.maps.LatLngBounds();
         var anyPlotted = false;
+        var pendingGeocode = [];
 
-        for (var i = 0; i < STATE.filtered.length; i++) {
-            var artist = STATE.filtered[i];
+        STATE.filtered.forEach(function (artist) {
             var lat = Number(artist.latitude);
             var lng = Number(artist.longitude);
-            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                continue;
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                plotArtistMarker(artist, lat, lng);
+                bounds.extend({ lat: lat, lng: lng });
+                anyPlotted = true;
+            } else if (artist.city || artist.country) {
+                pendingGeocode.push(artist);
             }
-            plotArtistMarker(artist, lat, lng);
-            bounds.extend({ lat: lat, lng: lng });
-            anyPlotted = true;
-        }
+        });
 
         if (anyPlotted) {
             STATE.map.fitBounds(bounds, 64);
             google.maps.event.addListenerOnce(STATE.map, 'idle', function () {
                 if (STATE.map.getZoom() > 11) STATE.map.setZoom(11);
             });
+        }
+
+        for (var i = 0; i < pendingGeocode.length; i++) {
+            var artist = pendingGeocode[i];
+            var query = [artist.city, artist.country].filter(Boolean).join(', ');
+            if (!query) continue;
+            try {
+                var point = await window.WeOtziGeocoder.geocodeQuery(query);
+                if (!point) continue;
+                artist.latitude = point.lat;
+                artist.longitude = point.lng;
+                plotArtistMarker(artist, point.lat, point.lng);
+                persistGeocode(artist.user_id, point.lat, point.lng, point.displayName);
+            } catch (err) {
+                console.warn('[explore-map] Geocode loop error:', err);
+            }
         }
     }
 
