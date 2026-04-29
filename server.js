@@ -2359,6 +2359,100 @@ app.get('/api/analytics/summary', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/artists/geocode
+ * Persist geocoding results computed by the client (Explore Map page).
+ *
+ * Body: {
+ *   user_id: string (UUID, required),
+ *   latitude: number (required),
+ *   longitude: number (required),
+ *   geocoded_address: string (optional, formatted address from Google)
+ * }
+ *
+ * Uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS (the public anon role cannot
+ * UPDATE arbitrary artists_db rows). Validates that coordinates are finite
+ * numbers within Earth bounds before writing.
+ *
+ * Idempotent: subsequent calls with the same (user_id, lat, lng) just refresh
+ * geocoded_at.
+ */
+app.post('/api/artists/geocode', async (req, res) => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(503).json({
+            success: false,
+            error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+        });
+    }
+
+    const { user_id, latitude, longitude, geocoded_address } = req.body || {};
+
+    if (!user_id || typeof user_id !== 'string') {
+        return res.status(400).json({ success: false, error: 'user_id is required' });
+    }
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({ success: false, error: 'latitude must be a finite number in [-90, 90]' });
+    }
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+        return res.status(400).json({ success: false, error: 'longitude must be a finite number in [-180, 180]' });
+    }
+
+    try {
+        const updateRes = await fetch(
+            `${supabaseUrl}/rest/v1/artists_db?user_id=eq.${encodeURIComponent(user_id)}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': serviceRoleKey,
+                    'Authorization': `Bearer ${serviceRoleKey}`,
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lng,
+                    geocoded_address: geocoded_address ? String(geocoded_address).slice(0, 500) : null,
+                    geocoded_at: new Date().toISOString()
+                })
+            }
+        );
+
+        if (!updateRes.ok) {
+            const errBody = await updateRes.text();
+            console.error('[Geocode] Supabase PATCH failed:', updateRes.status, errBody);
+            return res.status(502).json({
+                success: false,
+                error: `Supabase update failed: HTTP ${updateRes.status}`
+            });
+        }
+
+        const rows = await updateRes.json();
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Artist not found for given user_id' });
+        }
+
+        return res.json({
+            success: true,
+            artist: {
+                user_id: rows[0].user_id,
+                latitude: rows[0].latitude,
+                longitude: rows[0].longitude,
+                geocoded_at: rows[0].geocoded_at
+            }
+        });
+    } catch (err) {
+        console.error('[Geocode] Error:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Redirect root to quotation page
 app.get('/', (req, res) => {
     res.redirect('/quotation');
