@@ -1,7 +1,22 @@
 # Rediseño del Globo 3D — /explore/globe
 
-Estado: **en curso** (rama `feature/globe-redesign`)
+Estado: **F1–F3 construidas y aprobadas por Isaí; F4 (ajustes) pendiente**
+Rama: `feature/globe-redesign` (NO mergeada a main — mergear al cerrar F4)
 Decisiones tomadas con Isaí el 2026-06-11.
+
+## Cómo retomar (próxima sesión)
+
+1. `git checkout feature/globe-redesign` — todo el trabajo vive ahí.
+2. Levantar con `npm start` (o el server que ya corre en 4545) y abrir
+   `/explore/globe`. No requiere build: Three.js está vendorizado con import
+   map en el index.html.
+3. Archivos: `public/shared/js/globe/globe-engine.js` (motor 3D),
+   `globe-data.js` (datos), `globe-app.js` (UI); CSS en
+   `public/shared/css/explore-globe.css`.
+4. Para probar el tour: buscar "Eduardo Mendoza" (itinerario de 5 ciudades) →
+   "Ver viaje". Estudio multi-sede: "Claroscuro Laboratorio de Arte" (4 sedes).
+5. Ajustes que Isaí quiere hacer (definir el detalle en sesión): pulido
+   visual/UX general — ver F4 abajo.
 
 ## Objetivo de producto
 
