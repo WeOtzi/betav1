@@ -68,6 +68,18 @@
             </div>
         </header>
 
+        <!-- Draft sync warning: only shown after >=2 consecutive autosave failures.
+             Managed by saveRegistrationDraftToServer() in register.js. -->
+        <div id="draft-sync-warning" class="draft-sync-warning" role="status" aria-live="polite" hidden>
+            <div class="draft-sync-warning-body">
+                <strong class="draft-sync-warning-title">Tus avances no se están guardando en el servidor.</strong>
+                <span class="draft-sync-warning-text">Tu progreso vive solo en este navegador. Reintenta o recarga.</span>
+            </div>
+            <button type="button" class="draft-sync-warning-retry" id="draft-sync-retry">
+                Reintentar
+            </button>
+        </div>
+
         <!-- Form Container -->
         <div class="form-wrapper">
             <!-- Scroll Indicator - Bauhaus Style -->

@@ -2369,3 +2369,91 @@ kbd {
     }
 }
 
+/* ============================================
+   DRAFT SYNC WARNING BANNER
+   Surfaces after >= 2 consecutive autosave failures so the user
+   isn't ambushed at finalize. Bauhaus aesthetic: yellow ground,
+   thick fg border, no animation (the wizard stays usable).
+   ============================================ */
+
+.draft-sync-warning {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 2.5rem;
+    padding: 0.85rem 1.25rem;
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    border: var(--border-width) solid var(--fg);
+    border-top: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    flex-shrink: 0;
+}
+
+.draft-sync-warning[hidden] {
+    display: none;
+}
+
+.draft-sync-warning-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.draft-sync-warning-title {
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.draft-sync-warning-text {
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+.draft-sync-warning-retry {
+    flex-shrink: 0;
+    padding: 0.5rem 1rem;
+    background: var(--fg);
+    color: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.draft-sync-warning-retry:hover {
+    transform: translateY(-1px);
+}
+
+.draft-sync-warning-retry:active {
+    transform: translateY(0);
+}
+
+.draft-sync-warning-retry:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+@media (max-width: 768px) {
+    .draft-sync-warning {
+        margin: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+        padding: 0.75rem 1rem;
+    }
+    .draft-sync-warning-retry {
+        align-self: flex-end;
+    }
+}
+
+

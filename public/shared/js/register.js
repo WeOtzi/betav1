@@ -19,6 +19,10 @@ let placesAutocomplete = null;
 const formState = {
     currentStep: 1,
     totalSteps: 12,
+    // Count of consecutive autosave failures (server draft sync). Reset to 0 on
+    // success. The wizard surfaces a banner once this reaches DRAFT_SYNC_WARN_THRESHOLD
+    // so the user knows their progress is no longer being persisted server-side.
+    draftSyncFailures: 0,
     data: {
         artistic_name: '',
         full_name: '',
@@ -59,6 +63,137 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
 });
 
+// ============================================
+// Registration Draft Autosave
+// ============================================
+// Persists the wizard's in-progress state to public.artist_registration_drafts
+// so a closed tab / network blip / server hiccup doesn't lose the user's work.
+// See supabase/migrations/20260513000000_artist_registration_drafts.sql.
+
+const DRAFT_SYNC_DEBOUNCE_MS = 800;
+// Stay silent on the first failure (could be a transient blip — the debounce
+// will retry on the next field change). Surface the banner once we hit this.
+const DRAFT_SYNC_WARN_THRESHOLD = 2;
+
+let draftSyncTimer = null;
+let draftSyncInFlight = null;
+
+function scheduleDraftSync() {
+    if (!currentUser) return;
+    if (draftSyncTimer) clearTimeout(draftSyncTimer);
+    draftSyncTimer = setTimeout(() => {
+        draftSyncTimer = null;
+        saveRegistrationDraftToServer();
+    }, DRAFT_SYNC_DEBOUNCE_MS);
+}
+
+// Force an immediate sync (e.g., on step transition). Cancels any pending debounce.
+function flushDraftSync() {
+    if (!currentUser) return Promise.resolve(null);
+    if (draftSyncTimer) {
+        clearTimeout(draftSyncTimer);
+        draftSyncTimer = null;
+    }
+    return saveRegistrationDraftToServer();
+}
+
+async function saveRegistrationDraftToServer() {
+    if (!currentUser) return null;
+
+    // Coalesce concurrent calls — return the in-flight promise instead of racing.
+    if (draftSyncInFlight) return draftSyncInFlight;
+
+    draftSyncInFlight = (async () => {
+        try {
+            const { error } = await _supabase
+                .from('artist_registration_drafts')
+                .upsert({
+                    user_id: currentUser.id,
+                    draft_data: formState.data,
+                    current_step: String(formState.currentStep)
+                }, { onConflict: 'user_id' });
+
+            if (error) throw error;
+
+            formState.draftSyncFailures = 0;
+            hideDraftSyncWarning();
+            return true;
+        } catch (error) {
+            console.warn('[register] Could not sync registration draft:', error.message || error);
+            formState.draftSyncFailures += 1;
+            if (formState.draftSyncFailures >= DRAFT_SYNC_WARN_THRESHOLD) {
+                showDraftSyncWarning();
+            }
+            return null;
+        } finally {
+            draftSyncInFlight = null;
+        }
+    })();
+
+    return draftSyncInFlight;
+}
+
+async function loadRegistrationDraft() {
+    if (!currentUser) return null;
+    try {
+        const { data, error } = await _supabase
+            .from('artist_registration_drafts')
+            .select('draft_data, current_step')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+
+        if (error) {
+            console.warn('[register] Could not load registration draft:', error.message || error);
+            return null;
+        }
+        if (!data || !data.draft_data) return null;
+
+        // Draft overlays whatever loadExistingArtistData() set: the draft is the
+        // most recent in-progress state, so a partially-edited field should win
+        // over the stored profile value. Email stays pinned to the auth session.
+        const incoming = data.draft_data || {};
+        const pinnedEmail = formState.data.email;
+        Object.assign(formState.data, incoming);
+        if (pinnedEmail) formState.data.email = pinnedEmail;
+        return data;
+    } catch (error) {
+        console.warn('[register] Could not load registration draft:', error.message || error);
+        return null;
+    }
+}
+
+async function clearRegistrationDraft() {
+    if (!currentUser) return;
+    if (draftSyncTimer) {
+        clearTimeout(draftSyncTimer);
+        draftSyncTimer = null;
+    }
+    try {
+        await _supabase
+            .from('artist_registration_drafts')
+            .delete()
+            .eq('user_id', currentUser.id);
+    } catch (error) {
+        // Non-fatal: the draft will be overwritten on the user's next wizard visit
+        // (or cascade-deleted with the auth user). No need to surface to the user.
+        console.warn('[register] Could not clear registration draft:', error.message || error);
+    }
+}
+
+function showDraftSyncWarning() {
+    const banner = document.getElementById('draft-sync-warning');
+    if (!banner) return;
+    banner.hidden = false;
+    banner.classList.add('visible');
+}
+
+function hideDraftSyncWarning() {
+    const banner = document.getElementById('draft-sync-warning');
+    if (!banner) return;
+    banner.hidden = true;
+    banner.classList.remove('visible');
+}
+
 // [CH-10] START: Google Maps Places API Integration
 // [CH-15] Updated to use full formatted_address from Google Maps
 // Handles address autocomplete and reverse geocoding for geolocation
@@ -78,13 +213,13 @@ function initGooglePlaces() {
             // Use full formatted_address directly from Google Maps
             cityInput.value = place.formatted_address;
             formState.data.city = place.formatted_address;
-            
+
             // Extract city and country from address_components
             if (place.address_components) {
                 // Reset before extracting
                 formState.data.location_city = '';
                 formState.data.location_country = '';
-                
+
                 for (const component of place.address_components) {
                     const types = component.types;
                     // Locality (ciudad/localidad)
@@ -99,6 +234,7 @@ function initGooglePlaces() {
                     }
                 }
             }
+            scheduleDraftSync();
         }
     });
 }
@@ -149,6 +285,7 @@ function getGeolocation() {
             // Store city and country separately in formState
             formState.data.location_city = locality || '';
             formState.data.location_country = country || '';
+            scheduleDraftSync();
             
             // Build the formatted address: "Localidad, Provincia, País"
             const parts = [locality, province, country].filter(p => p);
@@ -336,6 +473,7 @@ function setupBirthDateSelects() {
         } else {
             formState.data.birth_date = '';
         }
+        scheduleDraftSync();
     }
 
     daySel.addEventListener('change', syncBirthDateState);
@@ -414,6 +552,20 @@ async function initializeAuth() {
         }
 
         await loadExistingArtistData();
+        // Draft overlays loadExistingArtistData(): abandoned-mid-edit state wins
+        // over the stored profile because it's the most recent in-progress data.
+        const draft = await loadRegistrationDraft();
+        if (draft) {
+            prefillFormInputs();
+            if (draft.current_step) {
+                const parsed = Number(draft.current_step);
+                if (Number.isFinite(parsed) && parsed >= 1 && parsed <= formState.totalSteps) {
+                    formState.currentStep = parsed;
+                } else if (draft.current_step === 'summary') {
+                    formState.currentStep = 'summary';
+                }
+            }
+        }
         await loadAndRenderStylesFromDB();
 
         initializeForm();
@@ -705,6 +857,7 @@ function initializeForm() {
     if (currencySelect) {
         currencySelect.addEventListener('change', (e) => {
             formState.data.session_currency = e.target.value;
+            scheduleDraftSync();
         });
     }
 
@@ -713,6 +866,7 @@ function initializeForm() {
     if (termsCheckbox) {
         termsCheckbox.addEventListener('change', (e) => {
             formState.data.terms_accepted = e.target.checked;
+            scheduleDraftSync();
         });
     }
 }
@@ -720,6 +874,18 @@ function initializeForm() {
 function setupEventListeners() {
     btnNext.addEventListener('click', handleNext);
     btnBack.addEventListener('click', handleBack);
+
+    const draftRetryBtn = document.getElementById('draft-sync-retry');
+    if (draftRetryBtn) {
+        draftRetryBtn.addEventListener('click', async () => {
+            draftRetryBtn.disabled = true;
+            try {
+                await flushDraftSync();
+            } finally {
+                draftRetryBtn.disabled = false;
+            }
+        });
+    }
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -738,6 +904,7 @@ function setupEventListeners() {
             const field = e.target.id;
             formState.data[field] = e.target.value;
             e.target.classList.remove('error');
+            scheduleDraftSync();
         });
     });
 }
@@ -766,7 +933,7 @@ function toggleStyleOption(btn) {
     }
     
     btn.classList.toggle('selected');
-    
+
     if (btn.classList.contains('selected')) {
         if (!formState.data.styles.includes(style)) {
             formState.data.styles.push(style);
@@ -774,6 +941,7 @@ function toggleStyleOption(btn) {
     } else {
         formState.data.styles = formState.data.styles.filter(s => s !== style);
     }
+    scheduleDraftSync();
 }
 
 async function addCustomStyle() {
@@ -827,6 +995,7 @@ async function addCustomStyle() {
         }
 
         customInput.value = '';
+        scheduleDraftSync();
     } catch (err) {
         console.error('addCustomStyle network error:', err);
     } finally {
@@ -838,6 +1007,7 @@ function selectExperienceOption(btn) {
     document.querySelectorAll('.experience-option').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     formState.data.experience_years = btn.dataset.years;
+    scheduleDraftSync();
 }
 
 // ============================================
@@ -853,6 +1023,7 @@ function initStudioAutocomplete() {
         const query = e.target.value.trim();
         formState.data.studio_name = query;
         formState.data.studio_id = null;
+        scheduleDraftSync();
 
         if (query.length < 2) {
             hideSuggestions();
@@ -955,6 +1126,7 @@ function selectStudioSuggestion(item) {
         if (studioInput) studioInput.value = item.dataset.name;
     }
     hideSuggestions();
+    scheduleDraftSync();
 }
 
 function hideSuggestions() {
@@ -1045,12 +1217,14 @@ function selectWorkTypeOption(btn) {
             if (studioNameInput) studioNameInput.value = '';
         }
     }
+    scheduleDraftSync();
 }
 
 function selectNewsletterOption(btn) {
     document.querySelectorAll('.newsletter-option').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     formState.data.subscribed_newsletter = btn.dataset.subscribe === 'true';
+    scheduleDraftSync();
 }
 
 function selectPortfolioSource(btn) {
@@ -1058,6 +1232,7 @@ function selectPortfolioSource(btn) {
     btn.classList.add('selected');
     const source = btn.dataset.source;
     formState.data.portfolio_source = source;
+    scheduleDraftSync();
 
     const urlWrapper = document.getElementById('portfolio-url-wrapper');
     const igWrapper = document.getElementById('portfolio-ig-wrapper');
@@ -1103,6 +1278,11 @@ function handleNext() {
     }
 
     saveCurrentStepData();
+    // Force-flush the draft on step transition: the user is committing to advance,
+    // and we don't want the debounce window to lose state if they close the tab now.
+    // Fire-and-forget — the wizard advances regardless of network outcome, and a
+    // failure here will surface via the consecutive-failures banner anyway.
+    flushDraftSync();
 
     if (formState.currentStep < formState.totalSteps) {
         goToStep(formState.currentStep + 1);
@@ -1685,6 +1865,12 @@ async function submitForm() {
 
         console.log('Artist profile saved successfully:', data);
 
+        // The profile is now durably in artists_db, so the in-progress draft is
+        // obsolete. Fire-and-forget — a stale draft row is harmless (gets
+        // overwritten on the user's next visit) but cleaning it up keeps the
+        // table tidy.
+        clearRegistrationDraft();
+
         // [CH-15] Update Supabase Auth display_name metadata
         try {
             await _supabase.auth.updateUser({
@@ -1977,6 +2163,7 @@ function syncBioContent() {
         formState.data.bio = window.BioFormatting
             ? window.BioFormatting.sanitizeBioHtml(raw)
             : raw;
+        scheduleDraftSync();
     }
 }
 // [CH-11] END
