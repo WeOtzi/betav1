@@ -1,2 +1,0 @@
-{"permissions":{"allow":["Bash(wc:*)","Bash(sort:*)","mcp__supabase__list_projects","mcp__supabase__list_tables","mcp__supabase__apply_migration","mcp__supabase__execute_sql","Bash(node:*)","mcp__supabase__get_ad
-  visors","mcp__supabase__list_migrations","Bash(tail:*)","Bash(export:*)","Bash(python3:*)","mcp__supabase__restore_project"]}}

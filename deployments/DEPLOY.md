@@ -21,7 +21,7 @@ La contraseña siempre se lee del archivo `.server-credentials`:
 ```
 SSH_PASS=<contraseña>
 ```
-Si el archivo no existe, usar `Abnerisai24.` como fallback.
+Si el archivo no existe, configurar `WEOTZI_SSH_PASSWORD` o `SSH_PASS` en el entorno local. No debe existir fallback de contraseña en claro dentro del repositorio.
 
 ---
 
@@ -47,7 +47,9 @@ from scp import SCPClient
 # Leer credenciales
 with open('.server-credentials') as f:
     creds = dict(line.strip().split('=', 1) for line in f if '=' in line)
-PASSWORD = creds.get('SSH_PASS', 'Abnerisai24.')
+PASSWORD = creds.get('SSH_PASS')
+if not PASSWORD:
+    raise RuntimeError('Missing SSH_PASS in .server-credentials')
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -78,7 +80,7 @@ Usar cuando solo cambian archivos en `public/` (JS, CSS, HTML).
 
 ```python
 REMOTE_BASE = '/home/u795331143/domains/weotzi.com/public_html/beta'
-LOCAL_BASE  = '/mnt/c/Users/Isaí/OneDrive/Compartida MacWin/We Otzi/Beta Cerrada V1/weotzi-unified'
+LOCAL_BASE  = '/mnt/c/dev/weotzi-unified'
 
 # Subir un archivo específico
 with SCPClient(ssh.get_transport()) as scp:
@@ -109,7 +111,7 @@ Usar cuando cambian `server.js`, `package.json`, `ecosystem.config.js`, o múlti
 El script existente en `scripts/deploy_beta.py` realiza todo el proceso:
 
 ```bash
-cd "/mnt/c/Users/Isaí/OneDrive/Compartida MacWin/We Otzi/Beta Cerrada V1/weotzi-unified"
+cd "/mnt/c/dev/weotzi-unified"
 python3 scripts/deploy_beta.py
 ```
 
