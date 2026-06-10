@@ -1,0 +1,57 @@
+[
+  {
+    "question": "¿Cómo me registro como tatuador en WeOtzi?",
+    "answer": "Ingresá a la sección de registro de artista desde la página principal. Deberás completar tu perfil (nombre, estilos, portafolio, redes sociales) y esperar la verificación por parte del equipo de WeOtzi. Una vez verificado, aparecerás en el marketplace.",
+    "tags": ["registro", "artista", "tatuador", "signup", "alta"]
+  },
+  {
+    "question": "¿Cómo creo una cotización como cliente?",
+    "answer": "Desde el dashboard de cliente, entrá a 'Nueva cotización' y completá el flujo paso a paso: parte del cuerpo, estilo, tamaño, referencias y disponibilidad. Podés elegir un artista específico del marketplace o publicar en el Job Board para recibir postulaciones.",
+    "tags": ["cotización", "cotizacion", "cliente", "pedido", "quote"]
+  },
+  {
+    "question": "¿Cuánto tarda la verificación de mi perfil de artista?",
+    "answer": "La verificación toma entre 24 y 72 horas hábiles. El equipo revisa tu portafolio, redes y datos de contacto. Podés consultar el estado actual desde tu dashboard o pedirme que lo consulte por vos.",
+    "tags": ["verificación", "verificacion", "artista", "tiempo", "estado"]
+  },
+  {
+    "question": "¿Cómo funciona el Job Board?",
+    "answer": "El Job Board es una bolsa de solicitudes: los clientes publican lo que quieren tatuarse y los artistas verificados se postulan con su propuesta, precio estimado y disponibilidad. El cliente elige la postulación que prefiere.",
+    "tags": ["job board", "jobboard", "bolsa", "postulaciones", "bidding"]
+  },
+  {
+    "question": "¿Cómo funcionan los pagos?",
+    "answer": "WeOtzi facilita el contacto entre cliente y artista, pero los pagos se coordinan directamente entre ambas partes (seña, efectivo, transferencia). Recomendamos acordar una seña al aceptar la cotización. Si necesitás ayuda con disputas, puedo escalar la conversación a un agente de soporte.",
+    "tags": ["pago", "pagos", "seña", "dinero", "billing", "cobro"]
+  },
+  {
+    "question": "Olvidé mi contraseña, ¿qué hago?",
+    "answer": "Desde la pantalla de login, hacé clic en '¿Olvidaste tu contraseña?'. Te enviaremos un email con una contraseña temporal que podrás cambiar luego en tu perfil. Si no recibís el email, revisá spam o escalo el caso.",
+    "tags": ["contraseña", "password", "olvidé", "reset", "recuperar"]
+  },
+  {
+    "question": "¿Cómo chateo con mi artista / cliente sobre una cotización?",
+    "answer": "Cada cotización tiene un chat propio accesible desde 'Mis cotizaciones'. Abrí la cotización, hacé clic en el ícono de chat y comenzá la conversación. Este chat es diferente al de soporte (que soy yo).",
+    "tags": ["chat", "cotización", "conversación", "mensaje", "artista", "cliente"]
+  },
+  {
+    "question": "¿Puedo cancelar una cotización?",
+    "answer": "Sí, el cliente puede cancelar una cotización desde su panel mientras esté en estado 'pendiente' o 'respondida'. Si ya fue aprobada y hay una seña involucrada, coordiná con el artista directamente.",
+    "tags": ["cancelar", "cancelación", "cotización", "rechazar"]
+  },
+  {
+    "question": "¿Cómo subo imágenes de referencia?",
+    "answer": "Durante el flujo de cotización, en el paso de 'Referencias' podés subir hasta 4 imágenes (JPG, PNG o WEBP de hasta 5MB cada una). Se almacenan de forma segura y solo el artista elegido puede verlas.",
+    "tags": ["imagen", "referencia", "upload", "subir", "foto"]
+  },
+  {
+    "question": "¿Qué hago si encuentro un bug o error?",
+    "answer": "Contame qué estabas haciendo, qué esperabas y qué pasó. Puedo escalar la conversación a un agente de soporte y registrar el contexto técnico disponible. También podés describir el navegador y dispositivo que usás.",
+    "tags": ["bug", "error", "falla", "problema", "reporte", "soporte"]
+  },
+  {
+    "question": "¿Cómo contacto a un humano del equipo?",
+    "answer": "En cualquier momento podés escribirme 'quiero hablar con un humano' o 'agente' y te conecto con alguien del equipo de soporte. También puedo escalar automáticamente si no logro resolverte.",
+    "tags": ["humano", "agente", "persona", "soporte", "equipo", "escalar"]
+  }
+]

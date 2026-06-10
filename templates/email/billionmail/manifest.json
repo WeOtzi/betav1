@@ -1,0 +1,375 @@
+{
+  "admin-new-quotation": {
+    "file": "templates/email/billionmail/admin-new-quotation.html",
+    "variables": [
+      "artist_name",
+      "client_budget_amount",
+      "client_budget_currency",
+      "client_full_name",
+      "quotation_medium",
+      "quote_id",
+      "tattoo_style"
+    ]
+  },
+  "admin-weekly-report": {
+    "file": "templates/email/billionmail/admin-weekly-report.html",
+    "variables": [
+      "completed_week",
+      "new_jb_applications",
+      "new_jb_requests",
+      "new_quotes_week",
+      "new_users_week",
+      "total_active",
+      "total_artists",
+      "total_clients",
+      "week_range"
+    ]
+  },
+  "ambassador-updated": {
+    "file": "templates/email/billionmail/ambassador-updated.html",
+    "variables": [
+      "ambassador_status",
+      "artist_name"
+    ]
+  },
+  "application-accepted": {
+    "file": "templates/email/billionmail/application-accepted.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "application-rejected": {
+    "file": "templates/email/billionmail/application-rejected.html",
+    "variables": [
+      "artist_name",
+      "request_code"
+    ]
+  },
+  "artist-quotation-notification": {
+    "file": "templates/email/billionmail/artist-quotation-notification.html",
+    "variables": [
+      "artist_name",
+      "attachments_count",
+      "attachments_html",
+      "client_age",
+      "client_allergies",
+      "client_budget_amount",
+      "client_budget_currency",
+      "client_city_residence",
+      "client_contact_preference",
+      "client_email",
+      "client_flexible_dates",
+      "client_full_name",
+      "client_health_conditions",
+      "client_instagram",
+      "client_preferred_date",
+      "client_travel_willing",
+      "client_whatsapp",
+      "quotation_medium",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_body_side",
+      "tattoo_color_type",
+      "tattoo_idea_description",
+      "tattoo_is_cover_up",
+      "tattoo_is_first_tattoo",
+      "tattoo_references",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "artist-responded": {
+    "file": "templates/email/billionmail/artist-responded.html",
+    "variables": [
+      "artist_budget_amount",
+      "artist_budget_currency",
+      "artist_name",
+      "client_budget",
+      "client_name",
+      "estimated_sessions",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "artist-welcome": {
+    "file": "templates/email/billionmail/artist-welcome.html",
+    "variables": [
+      "artistic_name",
+      "city",
+      "country",
+      "dashboard_url",
+      "email",
+      "password",
+      "portfolio_url",
+      "profile_url",
+      "session_price",
+      "studio",
+      "styles_text",
+      "username",
+      "work_type",
+      "years_experience"
+    ]
+  },
+  "chat-message-artist": {
+    "file": "templates/email/billionmail/chat-message-artist.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "message_preview",
+      "quote_id"
+    ]
+  },
+  "chat-message-client": {
+    "file": "templates/email/billionmail/chat-message-client.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "message_preview",
+      "quote_id"
+    ]
+  },
+  "client-rating": {
+    "file": "templates/email/billionmail/client-rating.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "rating",
+      "rating_comment"
+    ]
+  },
+  "client-welcome": {
+    "file": "templates/email/billionmail/client-welcome.html",
+    "variables": [
+      "age",
+      "artist_name",
+      "city",
+      "dashboard_url",
+      "email",
+      "full_name",
+      "instagram",
+      "password",
+      "quote_id",
+      "whatsapp"
+    ]
+  },
+  "daily-digest": {
+    "file": "templates/email/billionmail/daily-digest.html",
+    "variables": [
+      "artist_name",
+      "date",
+      "new_today",
+      "pending_count",
+      "unread_messages",
+      "upcoming_sessions"
+    ]
+  },
+  "job-board-application": {
+    "file": "templates/email/billionmail/job-board-application.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "estimated_price",
+      "estimated_sessions",
+      "message",
+      "request_code"
+    ]
+  },
+  "job-board-confirmed": {
+    "file": "templates/email/billionmail/job-board-confirmed.html",
+    "variables": [
+      "budget_currency",
+      "budget_max",
+      "budget_min",
+      "client_name",
+      "request_code",
+      "tattoo_body_part",
+      "tattoo_color_type",
+      "tattoo_idea_description",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "password-reset": {
+    "file": "templates/email/billionmail/password-reset.html",
+    "variables": [
+      "email",
+      "login_url",
+      "temp_password"
+    ]
+  },
+  "platform-update": {
+    "file": "templates/email/billionmail/platform-update.html",
+    "variables": [
+      "feature_1_description",
+      "feature_1_title",
+      "feature_2_description",
+      "feature_2_title",
+      "feature_3_description",
+      "feature_3_title",
+      "recipient_name"
+    ]
+  },
+  "profile-verified": {
+    "file": "templates/email/billionmail/profile-verified.html",
+    "variables": [
+      "artist_name"
+    ]
+  },
+  "quotation-approved": {
+    "file": "templates/email/billionmail/quotation-approved.html",
+    "variables": [
+      "artist_budget_amount",
+      "artist_budget_currency",
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "quotation-completed": {
+    "file": "templates/email/billionmail/quotation-completed.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "final_budget_amount",
+      "final_budget_currency",
+      "final_comment",
+      "final_sessions",
+      "first_session_date",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "quotation-confirmation-client": {
+    "file": "templates/email/billionmail/quotation-confirmation-client.html",
+    "variables": [
+      "artist_current_city",
+      "artist_name",
+      "artist_studio_name",
+      "attachments_count",
+      "attachments_html",
+      "client_allergies",
+      "client_budget_amount",
+      "client_budget_currency",
+      "client_flexible_dates",
+      "client_full_name",
+      "client_health_conditions",
+      "client_preferred_date",
+      "client_travel_willing",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_color_type",
+      "tattoo_idea_description",
+      "tattoo_is_cover_up",
+      "tattoo_is_first_tattoo",
+      "tattoo_references",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "quotation-rejected": {
+    "file": "templates/email/billionmail/quotation-rejected.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style"
+    ]
+  },
+  "request-rating": {
+    "file": "templates/email/billionmail/request-rating.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "tattoo_body_part",
+      "tattoo_style"
+    ]
+  },
+  "session-cancelled": {
+    "file": "templates/email/billionmail/session-cancelled.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "recipient_name",
+      "session_date",
+      "session_number"
+    ]
+  },
+  "session-completed": {
+    "file": "templates/email/billionmail/session-completed.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "session_date",
+      "session_number"
+    ]
+  },
+  "session-reminder": {
+    "file": "templates/email/billionmail/session-reminder.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "dashboard_url",
+      "recipient_name",
+      "session_date",
+      "session_number"
+    ]
+  },
+  "session-rescheduled": {
+    "file": "templates/email/billionmail/session-rescheduled.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "session_date",
+      "session_number"
+    ]
+  },
+  "session-scheduled": {
+    "file": "templates/email/billionmail/session-scheduled.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "duration_hours",
+      "quote_id",
+      "session_date",
+      "session_number"
+    ]
+  },
+  "verification-denied": {
+    "file": "templates/email/billionmail/verification-denied.html",
+    "variables": [
+      "artist_name",
+      "reason"
+    ]
+  },
+  "weekly-digest": {
+    "file": "templates/email/billionmail/weekly-digest.html",
+    "variables": [
+      "artist_name",
+      "completed_quotes",
+      "job_board_applications",
+      "messages_received",
+      "new_quotes",
+      "pending_total",
+      "responded_quotes",
+      "sessions_completed",
+      "upcoming_sessions",
+      "week_range"
+    ]
+  }
+}
