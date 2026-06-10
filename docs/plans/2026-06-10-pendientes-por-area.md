@@ -46,18 +46,48 @@ de nacimiento y condiciones de salud). El cliente logueado sigue viendo todo lo 
   a autenticados (`20260610230000`); descargas por URL pública intactas
   (verificado HTTP 200).
 
-### Pendiente manual (solo desde el dashboard de Supabase, no por API)
-1. **Upgrade de Postgres** (parches de seguridad): Dashboard → Settings →
-   Infrastructure → Upgrade. Programar en horario de poco uso; reinicia la BD.
-2. **Protección de contraseñas filtradas** (HaveIBeenPwned): Dashboard →
-   Authentication → Providers/Policies → "Leaked password protection" → habilitar.
+### Pendiente manual (dashboard de Supabase)
+1. ✅ **Upgrade de Postgres** — hecho (2026-06-11).
+2. **Protección de contraseñas filtradas** (HaveIBeenPwned) — requiere plan Pro;
+   en desarrollo usamos Free. **Habilitarla al migrar a Pro / producción.**
+
+### ✅ RESUELTO 2026-06-11: backlog menor (políticas USING(true) + superficie definer)
+Migraciones `drop_dashboard_ddl_functions` + `20260611000000_harden_minor_backlog`,
+verificadas con anon key (10/10 checks) y suite 109/109:
+- **CRÍTICO encontrado**: `dashboard_update_trigger_function` ejecutaba SQL
+  arbitrario (`EXECUTE p_definition`) como SECURITY DEFINER e invocable por
+  **anon** = control total de la BD para cualquiera con la anon key. Eliminada
+  junto con `dashboard_manage_trigger` y `dashboard_get_triggers` (restos del
+  "Database Dashboard" borrado; ningún código las usaba).
+- `session_logs` (2,778 filas con email/teléfono/IP/fingerprint) era legible por
+  cualquiera → lectura solo soporte; vistas `analytics_*` a `security_invoker`.
+- Chats de soporte (289 conversaciones) eran legibles/escribibles por cualquiera
+  → lectura/edición solo soporte. El widget anónimo pasó de Realtime a polling
+  vía `GET /api/support-chat/poll` (service role); el dashboard de soporte
+  conserva lectura directa y Realtime (pasa `is_support_user()`).
+- Catálogos/config escribibles por cualquiera → escritura solo soporte:
+  `tattoo_styles`, `app_settings`, `tools_site_config` (el backoffice superadmin
+  sigue funcionando vía `is_support_user()`).
+- Vistas de estudio (definer, sin filtro por dueño) ya no son legibles por anon.
+- `quotation_status_history` visible solo para las partes + soporte;
+  `quotation_surveys` y `verification_history` fuera del alcance anon;
+  `support_users_db` solo fila propia o soporte.
+- Módulo feedback: `feedback_tickets`, `ticket_assignments`, `ticket_comments`
+  eliminadas (0 filas, sin código).
+- RPCs definer revocadas para anon/authenticated: chatbot legacy
+  (`upsert_web_chat_quotation`, `generate_web_chat_quote_id`,
+  `expire_old_job_board_requests`) y todas las funciones de trigger. Quedan
+  públicas solo `check_email_registered` e `is_support_user`.
 
 ### Backlog menor restante
-- 28 políticas `USING (true)` señaladas por el advisor (varias intencionales:
-  lecturas públicas de catálogos y el insert anónimo del wizard). Revisar caso
-  por caso cuando se toque cada área.
-- 7 vistas SECURITY DEFINER y 14 funciones SECURITY DEFINER ejecutables por
-  anon — revisar si todas lo necesitan.
+- **Si se revive el chatbot de n8n**: configurar su credencial Supabase con la
+  service key (las RPCs del chat web ya no aceptan anon).
+- Vistas de estudio: convertir a `security_invoker` cuando se retome el área
+  (hoy siguen definer sin acceso anon; un usuario autenticado cualquiera aún
+  podría leer métricas de otros estudios).
+- Política `Allow update own logs` de `session_logs` sigue `USING(true)` — la
+  mitiga que las lecturas están cerradas y los ids son aleatorios; afinar si se
+  rediseña la telemetría.
 
 ## Áreas funcionales pero incompletas
 

@@ -19,7 +19,9 @@
             assignedAgentName: null,
             messages: [],
             isSending: false,
-            realtimeChannel: null,
+            pollTimer: null,
+            pollInFlight: false,
+            lastMessageAt: null,
             supabase: null,
             panelOpen: false,
             mounted: false,
@@ -46,7 +48,7 @@
             this._mountDOM();
             await this._connectSupabase();
             await this._ensureConversation();
-            await this._subscribeRealtime();
+            this._startPolling();
             this._bindAuthListener();
             this.state.mounted = true;
 
@@ -221,30 +223,50 @@
             }
         },
 
-        async _subscribeRealtime() {
-            if (!this.state.supabase || !this.state.conversationId) return;
+        // El widget recibia respuestas via Supabase Realtime, pero eso exigia
+        // lectura publica de support_messages/support_conversations (cualquiera
+        // podia leer todos los chats). Ahora RLS restringe esas tablas a
+        // soporte y el widget consulta el servidor (service role) por polling.
+        _startPolling() {
+            if (!this.state.conversationId) return;
+            this._stopPolling();
+            this.state.pollTimer = setInterval(() => this._pollMessages(), 5000);
+            this._pollMessages();
+        },
+
+        _stopPolling() {
+            if (this.state.pollTimer) {
+                clearInterval(this.state.pollTimer);
+                this.state.pollTimer = null;
+            }
+        },
+
+        async _pollMessages() {
+            if (!this.state.conversationId) return;
+            if (document.visibilityState === 'hidden') return;
+            if (this.state.pollInFlight) return;
+            this.state.pollInFlight = true;
             try {
-                if (this.state.realtimeChannel) {
-                    await this.state.supabase.removeChannel(this.state.realtimeChannel);
-                }
-                const convId = this.state.conversationId;
-                this.state.realtimeChannel = this.state.supabase
-                    .channel(`support:${convId}`)
-                    .on('postgres_changes', {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'support_messages',
-                        filter: `conversation_id=eq.${convId}`
-                    }, (payload) => this._onRealtimeMessage(payload.new))
-                    .on('postgres_changes', {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'support_conversations',
-                        filter: `id=eq.${convId}`
-                    }, (payload) => this._onConversationUpdate(payload.new))
-                    .subscribe();
+                const since = this.state.lastMessageAt
+                    ? `&since=${encodeURIComponent(this.state.lastMessageAt)}`
+                    : '';
+                const res = await fetch(
+                    `/api/support-chat/poll?conversationId=${encodeURIComponent(this.state.conversationId)}${since}`
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data?.success) return;
+                (data.messages || []).forEach((row) => {
+                    if (row.created_at && (!this.state.lastMessageAt || row.created_at > this.state.lastMessageAt)) {
+                        this.state.lastMessageAt = row.created_at;
+                    }
+                    this._onRealtimeMessage(row);
+                });
+                if (data.conversation) this._onConversationUpdate(data.conversation);
             } catch (err) {
-                console.warn('[support-chat] realtime subscribe failed:', err.message);
+                // silencioso: el siguiente tick reintenta
+            } finally {
+                this.state.pollInFlight = false;
             }
         },
 
@@ -284,6 +306,7 @@
             if (!this.state.conversationId) {
                 await this._ensureConversation();
                 if (!this.state.conversationId) return;
+                this._startPolling();
             }
 
             this.state.isSending = true;

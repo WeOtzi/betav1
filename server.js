@@ -891,6 +891,44 @@ app.post('/api/support-chat/message', async (req, res) => {
 });
 
 // ============================================
+// ENDPOINT: GET /api/support-chat/poll
+// Query: conversationId (uuid), since (ISO timestamp opcional)
+// Sustituye a Supabase Realtime para el widget: support_messages y
+// support_conversations ahora son legibles solo por soporte via RLS, asi que
+// el widget (anonimo o no) recibe las novedades a traves de este endpoint
+// (service role). El conversationId es un uuid no adivinable: mismo modelo de
+// confianza que tenia el canal de Realtime.
+// ============================================
+app.get('/api/support-chat/poll', async (req, res) => {
+    if (!_assertSupportEnabled(res)) return;
+    try {
+        const conversationId = String(req.query.conversationId || '');
+        if (!_isUuid(conversationId)) {
+            return res.status(400).json({ success: false, error: 'conversationId invalido' });
+        }
+        const sinceRaw = req.query.since ? new Date(String(req.query.since)) : null;
+        const sinceFilter = sinceRaw && !isNaN(sinceRaw.getTime())
+            ? `&created_at=gt.${encodeURIComponent(sinceRaw.toISOString())}`
+            : '';
+        const [convRows, messages] = await Promise.all([
+            _supabaseFetch(`support_conversations?id=eq.${conversationId}&limit=1`),
+            _supabaseFetch(
+                `support_messages?conversation_id=eq.${conversationId}${sinceFilter}` +
+                `&order=created_at.asc&limit=50&select=id,role,content,created_at,author_user_id`
+            )
+        ]);
+        const conversation = convRows && convRows[0] ? convRows[0] : null;
+        if (!conversation) {
+            return res.status(404).json({ success: false, error: 'conversacion no encontrada' });
+        }
+        return res.json({ success: true, conversation, messages: messages || [] });
+    } catch (err) {
+        console.error('[support-chat] poll error:', err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
 // ENDPOINT: POST /api/support-chat/escalate
 // Forzar escalamiento desde el usuario (botón "hablar con humano")
 // ============================================
