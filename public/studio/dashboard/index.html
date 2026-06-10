@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Estudios — Panel</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/address-picker.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link rel="stylesheet" href="/shared/css/reviews.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn" aria-label="Inicio"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Studios · Panel</span>
+                <span class="studio-masthead-wordmark" id="studio-name-display">Mi <span class="accent">estudio</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="#" id="view-public-profile">Ver perfil público</a>
+                <a href="/explore">Mapa</a>
+                <button type="button" id="logout-btn">Salir</button>
+            </nav>
+        </header>
+
+        <div class="studio-dash-shell">
+            <aside class="studio-dash-sidebar" aria-label="Navegacion del panel de estudio">
+                <a href="#" class="studio-dash-tab is-active" data-tab="perfil"><span class="dot"></span> Perfil</a>
+                <a href="#" class="studio-dash-tab" data-tab="sedes"><span class="dot"></span> Sedes</a>
+                <a href="#" class="studio-dash-tab" data-tab="roster"><span class="dot"></span> Roster</a>
+                <a href="#" class="studio-dash-tab" data-tab="spots"><span class="dot"></span> Spots</a>
+                <a href="#" class="studio-dash-tab" data-tab="ops"><span class="dot"></span> Operaciones</a>
+                <a href="#" class="studio-dash-tab" data-tab="inventory"><span class="dot"></span> Inventario</a>
+                <a href="#" class="studio-dash-tab" data-tab="suppliers"><span class="dot"></span> Proveedores</a>
+                <a href="#" class="studio-dash-tab" data-tab="sponsors"><span class="dot"></span> Sponsors</a>
+                <a href="#" class="studio-dash-tab" data-tab="analytics"><span class="dot"></span> Analytics</a>
+            </aside>
+
+            <main class="studio-dash-main">
+                <!-- ============ Perfil ============ -->
+                <section class="studio-dash-panel is-active" data-panel="perfil">
+                    <p class="studio-section-kicker">Perfil del estudio</p>
+                    <h1 class="studio-h1" id="panel-perfil-title">Editá tu perfil</h1>
+
+                    <form id="profile-form" class="studio-form">
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-name">Nombre del estudio</label>
+                            <input type="text" id="p-name" class="studio-input" required>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-tagline">Tagline</label>
+                            <input type="text" id="p-tagline" class="studio-input" maxlength="120">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-bio">Bio</label>
+                            <textarea id="p-bio" class="studio-textarea" maxlength="2000"></textarea>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-founded">Año fundación</label>
+                            <input type="number" id="p-founded" class="studio-input" min="1900" max="2100">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-languages">Idiomas (coma)</label>
+                            <input type="text" id="p-languages" class="studio-input">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-instagram">Instagram</label>
+                            <input type="text" id="p-instagram" class="studio-input">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-website">Sitio web</label>
+                            <input type="url" id="p-website" class="studio-input">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-whatsapp">WhatsApp</label>
+                            <input type="tel" id="p-whatsapp" class="studio-input">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-cover">Imagen de portada</label>
+                            <input type="url" id="p-cover" class="studio-input">
+                            <span class="studio-help">Recomendado 2100×800. Subí un archivo o pegá una URL.</span>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="p-logo">Logo</label>
+                            <input type="url" id="p-logo" class="studio-input">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label">Galería del estudio</label>
+                            <span class="studio-help">Subí varias imágenes a la vez. Aparecen en el perfil público.</span>
+                            <div id="p-gallery"></div>
+                            <textarea id="p-photos" hidden></textarea>
+                        </div>
+
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <button type="submit" class="studio-btn studio-btn-primary">
+                                <i class="fa-solid fa-floppy-disk"></i> Guardar cambios
+                            </button>
+                            <span id="profile-status" class="studio-status studio-status-info" hidden></span>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- ============ Sedes ============ -->
+                <section class="studio-dash-panel" data-panel="sedes">
+                    <p class="studio-section-kicker">Sedes</p>
+                    <h1 class="studio-h1">Tus <span class="accent">ubicaciones</span></h1>
+                    <p class="studio-help" style="margin-bottom:18px;">
+                        Cada sede aparece como un pin en tu perfil público. Marcá una como "principal".
+                    </p>
+                    <div class="studio-locations-list" id="sedes-list"></div>
+                    <button type="button" class="studio-locations-add" id="add-sede-btn" style="margin-top:14px;">
+                        <i class="fa-solid fa-plus"></i> Agregar sede
+                    </button>
+                    <span id="sedes-status" class="studio-status studio-status-info" hidden style="margin-top:12px;display:inline-block;"></span>
+                </section>
+
+                <!-- ============ Roster ============ -->
+                <section class="studio-dash-panel" data-panel="roster">
+                    <p class="studio-section-kicker">Roster</p>
+                    <h1 class="studio-h1">Artistas <span class="accent">del estudio</span></h1>
+                    <p class="studio-help" style="margin-bottom:18px;">
+                        Invitá artistas, cambiales el rol, moveles de sede o desvinculalos. Las invitaciones
+                        quedan pendientes hasta que el artista las acepta desde su panel.
+                    </p>
+
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+                        <div class="studio-field" style="flex:1;min-width:240px;">
+                            <label class="studio-label" for="invite-search">Invitar artista (buscar por @username o nombre)</label>
+                            <input id="invite-search" class="studio-input" placeholder="@yomicoart o Yomico Moreno" autocomplete="off">
+                            <div id="invite-suggestions" class="studio-locations-list" style="margin-top:6px;display:none;"></div>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="invite-role">Rol</label>
+                            <select id="invite-role" class="studio-input">
+                                <option value="resident">Residente</option>
+                                <option value="itinerant">Itinerante</option>
+                                <option value="guest">Guest</option>
+                                <option value="manager">Manager</option>
+                            </select>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="invite-location">Sede</label>
+                            <select id="invite-location" class="studio-input"></select>
+                        </div>
+                        <button type="button" class="studio-btn studio-btn-primary" id="invite-send">
+                            <i class="fa-solid fa-user-plus"></i> Invitar
+                        </button>
+                    </div>
+
+                    <div id="roster-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+                    <div id="roster-content"><em>Cargando roster…</em></div>
+                </section>
+
+                <!-- ============ Spots ============ -->
+                <section class="studio-dash-panel" data-panel="spots">
+                    <p class="studio-section-kicker">Spots</p>
+                    <h1 class="studio-h1">Spots <span class="accent">disponibles</span></h1>
+                    <p class="studio-help" style="margin-bottom:18px;">
+                        Publicá residencias, itinerantes o guest spots. Las postulaciones aparecen aquí mismo — aceptá para sumar al artista al roster automáticamente.
+                    </p>
+
+                    <button type="button" class="studio-btn studio-btn-primary" id="spot-new-btn" style="margin-bottom:14px;">
+                        <i class="fa-solid fa-plus"></i> Nuevo spot
+                    </button>
+
+                    <div id="spots-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+
+                    <div id="spots-editor-container"></div>
+
+                    <h2 class="studio-h2" style="margin-top:24px;">Tus spots</h2>
+                    <div id="my-spots-list"><em class="studio-help">Cargando…</em></div>
+                </section>
+
+                <!-- ============ Operations: Jobs / Clients / Invoicing / Documents ============ -->
+                <section class="studio-dash-panel" data-panel="ops">
+                    <p class="studio-section-kicker">Operaciones</p>
+                    <h1 class="studio-h1">Jobs <span class="accent">&amp;</span> facturación</h1>
+
+                    <div class="studio-pill-row" id="ops-subnav" style="margin-bottom:18px;">
+                        <button class="studio-pill is-active" data-sub="jobs">Trabajos</button>
+                        <button class="studio-pill" data-sub="clients">Clientes</button>
+                        <button class="studio-pill" data-sub="invoices">Facturas</button>
+                        <button class="studio-pill" data-sub="documents">Documentos</button>
+                    </div>
+
+                    <div id="ops-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+
+                    <div id="ops-sub-jobs" class="ops-sub is-active">
+                        <button class="studio-btn studio-btn-primary" id="job-new-btn" style="margin-bottom:14px;"><i class="fa-solid fa-plus"></i> Registrar trabajo</button>
+                        <div id="job-editor"></div>
+                        <div id="jobs-list"><em class="studio-help">Cargando…</em></div>
+                    </div>
+                    <div id="ops-sub-clients" class="ops-sub" style="display:none;">
+                        <div id="clients-list"><em class="studio-help">Cargando…</em></div>
+                    </div>
+                    <div id="ops-sub-invoices" class="ops-sub" style="display:none;">
+                        <button class="studio-btn studio-btn-primary" id="invoice-new-btn" style="margin-bottom:14px;"><i class="fa-solid fa-plus"></i> Nueva factura</button>
+                        <div id="invoice-editor"></div>
+                        <div id="invoices-list"><em class="studio-help">Cargando…</em></div>
+                    </div>
+                    <div id="ops-sub-documents" class="ops-sub" style="display:none;">
+                        <button class="studio-btn studio-btn-primary" id="doc-new-btn" style="margin-bottom:14px;"><i class="fa-solid fa-plus"></i> Nuevo documento</button>
+                        <div id="doc-editor"></div>
+                        <div id="docs-list"><em class="studio-help">Cargando…</em></div>
+                    </div>
+                </section>
+
+                <!-- ============ Inventory ============ -->
+                <section class="studio-dash-panel" data-panel="inventory">
+                    <p class="studio-section-kicker">Inventario</p>
+                    <h1 class="studio-h1">Stock <span class="accent">&amp;</span> consumo</h1>
+                    <p class="studio-help" style="margin-bottom:14px;">
+                        Cada movimiento de consumo se asocia opcionalmente a un artista para ver quién usa qué.
+                    </p>
+                    <button class="studio-btn studio-btn-primary" id="item-new-btn" style="margin-bottom:14px;"><i class="fa-solid fa-plus"></i> Nuevo item</button>
+                    <div id="item-editor"></div>
+                    <div id="inventory-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+                    <div id="inventory-health" class="studio-health-grid" style="margin-bottom:14px;"></div>
+                    <div id="inventory-list"><em class="studio-help">Cargando…</em></div>
+                </section>
+
+                <!-- ============ Suppliers ============ -->
+                <section class="studio-dash-panel" data-panel="suppliers">
+                    <p class="studio-section-kicker">Proveedores</p>
+                    <h1 class="studio-h1">Tu lista de <span class="accent">contactos</span></h1>
+                    <button class="studio-btn studio-btn-primary" id="supplier-new-btn" style="margin-bottom:14px;"><i class="fa-solid fa-plus"></i> Nuevo proveedor</button>
+                    <div id="supplier-editor"></div>
+                    <div id="suppliers-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+                    <div id="suppliers-list"><em class="studio-help">Cargando…</em></div>
+                </section>
+
+                <!-- ============ Sponsors ============ -->
+                <section class="studio-dash-panel" data-panel="sponsors">
+                    <p class="studio-section-kicker">Sponsors</p>
+                    <h1 class="studio-h1">Marcas <span class="accent">aliadas</span></h1>
+                    <button class="studio-btn studio-btn-primary" id="sponsor-new-btn" style="margin-bottom:14px;"><i class="fa-solid fa-plus"></i> Nuevo sponsor</button>
+                    <div id="sponsor-editor"></div>
+                    <div id="sponsors-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+                    <div id="sponsors-list"><em class="studio-help">Cargando…</em></div>
+                </section>
+
+                <!-- ============ Analytics ============ -->
+                <section class="studio-dash-panel" data-panel="analytics">
+                    <p class="studio-section-kicker">Analytics</p>
+                    <h1 class="studio-h1">Performance <span class="accent">&amp;</span> ganancias</h1>
+                    <div id="analytics-summary" style="margin-bottom:18px;"></div>
+                    <h2 class="studio-h2">Por mes</h2>
+                    <div id="analytics-monthly"><em class="studio-help">Cargando…</em></div>
+                    <h2 class="studio-h2" style="margin-top:24px;">Performance por artista</h2>
+                    <div id="analytics-artist"><em class="studio-help">Cargando…</em></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/geocoder.js"></script>
+    <script src="/shared/js/address-picker.js"></script>
+    <script src="/shared/js/reviews.js"></script>
+    <script src="/shared/js/studio-auth.js"></script>
+    <script src="/shared/js/weotzi-uploader.js"></script>
+    <script src="/shared/js/studio-dashboard.js"></script>
+    <script src="/shared/js/studio-dashboard-ops.js"></script>
+</body>
+</html>

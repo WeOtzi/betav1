@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Spots disponibles en estudios</title>
+    <meta name="description" content="Directorio de spots abiertos en estudios de tatuaje: residencias, itinerantes y guest spots. Encontrá el próximo lugar donde tatuar.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Directorio · Spots</span>
+                <span class="studio-masthead-wordmark">Spots <span class="accent">disponibles</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="/marketplace">Marketplace</a>
+                <a href="/explore">Mapa</a>
+                <a href="/job-board">Trabajos</a>
+            </nav>
+        </header>
+
+        <main class="studio-shell">
+            <p class="studio-section-kicker">Encontrá tu próximo studio</p>
+            <h1 class="studio-h1">Residencias, <span class="accent">itinerantes</span> y guest spots</h1>
+            <p class="studio-help" style="margin-bottom:18px;max-width:60ch;">
+                Los estudios publican aquí sus posiciones abiertas. Aplicá con un mensaje y tu portfolio;
+                el estudio revisa y te contesta. Si te aceptan, el spot se suma automáticamente a tu agenda.
+            </p>
+
+            <div class="studio-pill-row" id="spots-filter" role="tablist" style="margin-bottom:18px;">
+                <button class="studio-pill is-active" data-kind="">Todos</button>
+                <button class="studio-pill" data-kind="resident"><i class="fa-solid fa-house-chimney"></i> Residencias</button>
+                <button class="studio-pill" data-kind="itinerant"><i class="fa-solid fa-route"></i> Itinerantes</button>
+                <button class="studio-pill" data-kind="guest_spot"><i class="fa-solid fa-suitcase-rolling"></i> Guest spots</button>
+            </div>
+
+            <div id="spots-grid" class="spots-grid">
+                <em class="studio-help">Cargando spots…</em>
+            </div>
+        </main>
+
+        <div class="spot-modal-backdrop hidden" id="spot-modal-backdrop">
+            <div class="spot-modal" style="position:relative;">
+                <button class="spot-modal-close" id="spot-modal-close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="spot-modal-cover" id="spot-modal-cover"></div>
+                <div class="spot-modal-body">
+                    <span class="spot-card-kind kind-guest_spot" id="spot-modal-kind">Guest spot</span>
+                    <h2 class="studio-h2" id="spot-modal-title">Spot</h2>
+                    <p class="studio-help" id="spot-modal-studio">—</p>
+                    <p id="spot-modal-description" style="line-height:1.55;color:var(--text-secondary);"></p>
+
+                    <div class="studio-meta-grid" id="spot-modal-meta"></div>
+
+                    <p class="studio-section-kicker" style="margin-top:8px;">Estilos buscados</p>
+                    <div class="studio-pill-row" id="spot-modal-styles"></div>
+
+                    <div id="spot-modal-apply" style="margin-top:8px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/studio-spots-directory.js"></script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Estudios — Registrar tu estudio</title>
+    <meta name="description" content="Registrá tu estudio de tatuaje en We Ötzi: perfil público, sedes, recruiting de artistas, operaciones y analítica.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/address-picker.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link rel="stylesheet" href="/shared/css/instagram-import.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn" aria-label="Inicio"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Studios · Registro</span>
+                <span class="studio-masthead-wordmark">Listá tu <span class="accent">estudio</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="/studio/login">Ya tengo cuenta</a>
+                <a href="/marketplace">Marketplace</a>
+            </nav>
+        </header>
+
+        <main class="studio-center">
+            <section class="studio-wizard">
+                <p class="studio-section-kicker">Registro de estudio</p>
+                <h2 class="studio-h2">Configurá tu perfil en 5 pasos</h2>
+
+                <ol class="studio-wizard-rail" id="wizard-rail">
+                    <li class="studio-wizard-pill is-active" data-step="1">1 · Cuenta</li>
+                    <li class="studio-wizard-pill" data-step="2">2 · Identidad</li>
+                    <li class="studio-wizard-pill" data-step="3">3 · Sedes</li>
+                    <li class="studio-wizard-pill" data-step="4">4 · Fotos</li>
+                    <li class="studio-wizard-pill" data-step="5">5 · Confirmar</li>
+                </ol>
+
+                <!-- ============ Step 1: Account ============ -->
+                <section class="studio-wizard-step is-active" data-step="1">
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-name">Nombre del estudio</label>
+                        <input type="text" id="reg-name" class="studio-input" placeholder="Ej. Bang Bang NYC" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-email">Email del estudio</label>
+                        <input type="email" id="reg-email" class="studio-input" placeholder="contacto@tustudio.com" autocomplete="email" required>
+                        <span class="studio-help">Lo usaremos para tu acceso y para notificaciones de aplicaciones de artistas.</span>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-password">Contraseña</label>
+                        <input type="password" id="reg-password" class="studio-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-password-confirm">Repetí la contraseña</label>
+                        <input type="password" id="reg-password-confirm" class="studio-input" autocomplete="new-password" minlength="8" required>
+                    </div>
+                </section>
+
+                <!-- ============ Step 2: Identity ============ -->
+                <section class="studio-wizard-step" data-step="2">
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-tagline">Tagline (frase corta)</label>
+                        <input type="text" id="reg-tagline" class="studio-input" placeholder="Ej. Estudio especializado en blackwork desde 2014" maxlength="120">
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-bio">Descripción / bio</label>
+                        <textarea id="reg-bio" class="studio-textarea" placeholder="Contale al mundo qué hace especial a tu estudio. Estilo, historia, vibe…" maxlength="2000"></textarea>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-founded">Año de fundación</label>
+                        <input type="number" id="reg-founded" class="studio-input" min="1900" max="2100" placeholder="2018">
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-languages">Idiomas (separados por coma)</label>
+                        <input type="text" id="reg-languages" class="studio-input" placeholder="Español, Inglés, Portugués">
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-instagram">Instagram</label>
+                        <input type="text" id="reg-instagram" class="studio-input" placeholder="@tustudio">
+                        <div id="ig-import-mount-studio" style="margin-top: 10px;"></div>
+                        <span class="studio-help">Opcional: importá bio y enlace de bio desde Instagram para autocompletar campos.</span>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-website">Sitio web</label>
+                        <input type="url" id="reg-website" class="studio-input" placeholder="https://tustudio.com">
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-whatsapp">WhatsApp</label>
+                        <input type="tel" id="reg-whatsapp" class="studio-input" placeholder="+54 11 1234 5678">
+                    </div>
+                </section>
+
+                <!-- ============ Step 3: Locations ============ -->
+                <section class="studio-wizard-step" data-step="3">
+                    <p class="studio-help">
+                        Agregá una o más sedes. Las clientes verán cada sede como un pin en el mapa público de tu estudio.
+                        La primera es la sede principal.
+                    </p>
+                    <div class="studio-locations-list" id="locations-list">
+                        <!-- repopulated via JS -->
+                    </div>
+                    <button type="button" class="studio-locations-add" id="add-location-btn">
+                        <i class="fa-solid fa-plus"></i> Agregar otra sede
+                    </button>
+                </section>
+
+                <!-- ============ Step 4: Photos ============ -->
+                <section class="studio-wizard-step" data-step="4">
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-cover">Imagen de portada (URL)</label>
+                        <input type="url" id="reg-cover" class="studio-input" placeholder="https://...">
+                        <span class="studio-help">Recomendado: 2100×800px. La subida directa de archivos llega en una próxima versión.</span>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-logo">Logo (URL)</label>
+                        <input type="url" id="reg-logo" class="studio-input" placeholder="https://...">
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label">Galería del estudio (URLs separadas por línea)</label>
+                        <textarea id="reg-photos" class="studio-textarea" placeholder="https://...&#10;https://..." rows="4"></textarea>
+                        <span class="studio-help">Pegá una URL por línea. Estas imágenes aparecen en tu perfil público.</span>
+                    </div>
+                </section>
+
+                <!-- ============ Step 5: Confirm ============ -->
+                <section class="studio-wizard-step" data-step="5">
+                    <p class="studio-help">Revisá y enviá. Vas a poder editar todo desde el panel después.</p>
+                    <div id="confirm-summary" class="studio-meta-grid"></div>
+                </section>
+
+                <div id="wizard-status" class="studio-status studio-status-info" hidden></div>
+
+                <div class="studio-wizard-actions">
+                    <button type="button" id="wizard-prev" class="studio-btn studio-btn-ghost" disabled>
+                        <i class="fa-solid fa-arrow-left"></i> Atrás
+                    </button>
+                    <button type="button" id="wizard-next" class="studio-btn studio-btn-primary">
+                        Continuar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/geocoder.js"></script>
+    <script src="/shared/js/address-picker.js"></script>
+    <script src="/shared/js/studio-auth.js"></script>
+    <script src="/shared/js/instagram-import.js"></script>
+    <script src="/shared/js/studio-register.js"></script>
+</body>
+</html>

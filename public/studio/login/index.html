@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Estudios — Acceder</title>
+    <meta name="description" content="Acceso al panel del estudio en We Ötzi.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn" aria-label="Inicio">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Studios · Acceso</span>
+                <span class="studio-masthead-wordmark">Panel del <span class="accent">estudio</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="/studio/register" class="accent">Registrar estudio</a>
+                <a href="/marketplace">Marketplace</a>
+                <a href="/explore">Mapa</a>
+            </nav>
+        </header>
+
+        <main class="studio-center">
+            <section class="studio-card">
+                <p class="studio-section-kicker">Iniciar sesión</p>
+                <h2 class="studio-h2">Bienvenido de vuelta</h2>
+
+                <form id="studio-login-form" class="studio-form" novalidate>
+                    <div class="studio-field">
+                        <label class="studio-label" for="login-email">Email</label>
+                        <input type="email" id="login-email" class="studio-input" autocomplete="email" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="login-password">Contraseña</label>
+                        <input type="password" id="login-password" class="studio-input" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" id="login-submit" class="studio-btn studio-btn-primary">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder
+                    </button>
+                </form>
+
+                <div id="login-status" class="studio-status studio-status-info" hidden></div>
+
+                <p class="studio-help" style="margin-top:18px;">
+                    ¿Aún no tenés cuenta? <a href="/studio/register" style="color:var(--primary-red);font-weight:700;">Registrar tu estudio</a>.<br>
+                    ¿Olvidaste tu contraseña? <a href="#" id="forgot-password-link" style="color:var(--primary-red);font-weight:700;">Recuperar acceso</a>.
+                </p>
+            </section>
+        </main>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/studio-auth.js"></script>
+    <script>
+        (function () {
+            const form = document.getElementById('studio-login-form');
+            const submitBtn = document.getElementById('login-submit');
+            const statusEl = document.getElementById('login-status');
+
+            function showStatus(kind, message) {
+                statusEl.className = 'studio-status studio-status-' + kind;
+                statusEl.textContent = message;
+                statusEl.hidden = false;
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                statusEl.hidden = true;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Accediendo…';
+
+                const email    = document.getElementById('login-email').value.trim();
+                const password = document.getElementById('login-password').value;
+
+                try {
+                    await window.WeOtziStudioAuth.login(email, password);
+                    showStatus('success', 'Acceso correcto. Redirigiendo…');
+                    setTimeout(() => { window.location.href = '/studio/dashboard'; }, 400);
+                } catch (err) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder';
+                    showStatus('error', err?.message || 'No pudimos iniciar sesión. Revisá tus datos.');
+                }
+            });
+
+            document.getElementById('forgot-password-link').addEventListener('click', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value.trim();
+                if (!email) {
+                    showStatus('error', 'Escribí tu email primero, así te mandamos el link de recuperación.');
+                    return;
+                }
+                try {
+                    await window.WeOtziStudioAuth.requestPasswordReset(email);
+                    showStatus('success', 'Te mandamos un email con el link para recuperar el acceso.');
+                } catch (err) {
+                    showStatus('error', err?.message || 'No pudimos enviar el email.');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

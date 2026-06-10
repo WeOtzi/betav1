@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudio · We Ötzi</title>
+    <meta name="description" content="Perfil público de estudio en We Ötzi.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/explore-map.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link rel="stylesheet" href="/shared/css/reviews.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page">
+        <header class="studio-masthead">
+            <a href="/explore" class="nav-btn" aria-label="Volver al mapa"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Estudio · Perfil</span>
+                <span class="studio-masthead-wordmark" id="profile-name-display">Estudio</span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="/marketplace">Marketplace</a>
+                <a href="/explore">Mapa</a>
+                <a href="/studio/login">Soy estudio</a>
+            </nav>
+        </header>
+
+        <section class="studio-profile-cover" id="profile-cover">
+            <div class="overlay">
+                <div>
+                    <span class="studio-section-kicker" style="color:#fff;opacity:.85;" id="profile-tagline">—</span>
+                    <h1 class="studio-profile-name" id="profile-h1">Estudio</h1>
+                </div>
+                <div id="profile-cover-actions" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            </div>
+        </section>
+
+        <main class="studio-shell">
+            <div class="studio-profile-grid">
+                <div>
+                    <p class="studio-section-kicker">Sobre el estudio</p>
+                    <h2 class="studio-h2">Identidad</h2>
+                    <p class="studio-bio" id="profile-bio">—</p>
+
+                    <p class="studio-section-kicker" style="margin-top:24px;">Estilos del equipo</p>
+                    <h2 class="studio-h2">Lenguaje visual</h2>
+                    <div class="studio-styles-pill-row" id="profile-styles">—</div>
+
+                    <p class="studio-section-kicker" style="margin-top:24px;">Roster</p>
+                    <h2 class="studio-h2">Artistas <span style="color:var(--primary-red);font-style:italic;">en residencia</span></h2>
+                    <div class="studio-roster-cards" id="profile-roster"><em>Cargando…</em></div>
+
+                    <p class="studio-section-kicker" style="margin-top:24px;">Galería</p>
+                    <h2 class="studio-h2">El estudio</h2>
+                    <div class="studio-photos-grid" id="profile-photos"></div>
+
+                    <section id="profile-sponsors-section" hidden>
+                        <p class="studio-section-kicker" style="margin-top:24px;">Sponsors</p>
+                        <h2 class="studio-h2">Marcas <span style="color:var(--primary-red);font-style:italic;">aliadas</span></h2>
+                        <div class="studio-sponsor-rail" id="profile-sponsors"></div>
+                    </section>
+
+                    <section id="studio-reviews-section" style="margin-top:24px;">
+                        <div id="studio-reviews"></div>
+                    </section>
+                </div>
+
+                <aside>
+                    <p class="studio-section-kicker">Sedes</p>
+                    <h2 class="studio-h2">¿Dónde nos encontrás?</h2>
+                    <div id="studio-map" class="studio-map" role="application" aria-label="Mapa de sedes"></div>
+
+                    <div class="studio-meta-grid" id="profile-meta" style="margin-top:18px;"></div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/geocoder.js"></script>
+    <script src="/shared/js/reviews.js"></script>
+    <script src="/shared/js/studio-profile.js"></script>
+</body>
+</html>
