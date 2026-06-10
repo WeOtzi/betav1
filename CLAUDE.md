@@ -26,6 +26,13 @@ npm run test:prequote  # test del estimador de pre-cotización
 - [deployments/DEPLOY.md](deployments/DEPLOY.md) — deploy a producción `beta.weotzi.com` (SSH + PM2, vía `scripts/deploy.py`; credenciales en `.server-credentials`, nunca en el repo).
 - `docs/plans/` — solo planes activos o pausados (lo demás se elimina al completarse).
 
+## Flujo de trabajo con git
+
+- Remoto: `origin` → `github.com/WeOtzi/betav1`. **Push a `origin main` al cerrar cada sesión de trabajo** — el repo local no es respaldo.
+- Features no triviales en rama `feature/<nombre>` desde `main`; merge a `main` cuando los tests pasen. Cambios chicos pueden ir directo a `main`.
+- Commits agrupados por área con prefijo convencional (`feat(studios):`, `fix(explore):`, `chore:`); no acumular semanas de trabajo sin commitear.
+- Antes de commitear: `node --test "tests/*.test.js"` en verde.
+
 ## Convenciones
 
 - Vanilla JS con módulos por página; reutilizar los helpers compartidos (`config-manager.js`, `*-auth.js`, `shared-drawer.js`, `weotzi-uploader.js`) antes de crear nuevos.
