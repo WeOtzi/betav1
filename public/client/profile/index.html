@@ -1,0 +1,121 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente | We Otzi</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/reviews.css">
+    <style>
+        body {
+            margin: 0;
+            background: #F2F0E9;
+            color: #0A0A0A;
+            font-family: Inter, system-ui, sans-serif;
+        }
+        .client-public-shell {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 56px;
+        }
+        .client-public-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            font-family: "Space Mono", monospace;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+            margin-bottom: 28px;
+        }
+        .client-public-nav a {
+            color: inherit;
+            font-weight: 700;
+        }
+        .client-public-hero {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: clamp(16px, 4vw, 32px);
+            align-items: center;
+            border: 2px solid currentColor;
+            background: #fff;
+            padding: clamp(18px, 4vw, 32px);
+            margin-bottom: 24px;
+        }
+        .client-public-hero[hidden],
+        .client-public-error[hidden] {
+            display: none;
+        }
+        .client-public-avatar {
+            width: 120px;
+            aspect-ratio: 1;
+            border: 2px solid currentColor;
+            border-radius: 50%;
+            background: #CDEBD8;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            font-size: 2.4rem;
+            font-weight: 900;
+        }
+        .client-public-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .client-public-kicker {
+            margin: 0 0 8px;
+            font-family: "Space Mono", monospace;
+            text-transform: uppercase;
+            font-size: 0.76rem;
+        }
+        .client-public-name {
+            margin: 0;
+            font-size: clamp(2rem, 6vw, 4.2rem);
+            line-height: 0.95;
+            word-break: break-word;
+        }
+        .client-public-meta {
+            margin: 14px 0 0;
+            font-family: "Space Mono", monospace;
+            text-transform: uppercase;
+        }
+        .client-public-error {
+            border: 2px solid currentColor;
+            padding: 24px;
+            background: #fff;
+            font-family: "Space Mono", monospace;
+            text-transform: uppercase;
+        }
+        @media (max-width: 640px) {
+            .client-public-hero {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="client-public-shell">
+        <nav class="client-public-nav" aria-label="Navegacion publica">
+            <a href="/marketplace">Marketplace</a>
+            <a href="/client/login">Acceder</a>
+        </nav>
+
+        <section class="client-public-hero" id="client-public-hero" hidden>
+            <div class="client-public-avatar" id="client-public-avatar"></div>
+            <div>
+                <p class="client-public-kicker">Perfil publico de cliente</p>
+                <h1 class="client-public-name" id="client-public-name">Cliente</h1>
+                <p class="client-public-meta" id="client-public-meta"></p>
+            </div>
+        </section>
+
+        <div class="client-public-error" id="client-public-error">Cargando perfil...</div>
+        <section id="client-reviews"></section>
+    </main>
+
+    <script src="/shared/js/reviews.js"></script>
+    <script src="/shared/js/client-profile.js"></script>
+</body>
+</html>
