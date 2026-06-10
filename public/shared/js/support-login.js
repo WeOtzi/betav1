@@ -6,7 +6,26 @@
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
+
+const ADMIN_EMAIL_DOMAIN = 'weotzi.com';
+function _isAdminEmail(email) {
+    return typeof email === 'string' && email.toLowerCase().endsWith('@' + ADMIN_EMAIL_DOMAIN);
+}
+
+// Reads ?redirect= from the URL (only same-origin paths to prevent open redirects).
+function _getSafeRedirect() {
+    try {
+        const url = new URL(window.location.href);
+        const r = url.searchParams.get('redirect');
+        if (!r) return null;
+        // Only allow paths starting with "/" (same-origin), not full URLs.
+        if (!r.startsWith('/') || r.startsWith('//')) return null;
+        return r;
+    } catch (_) {
+        return null;
+    }
+}
 
 // ============================================
 // INITIALIZATION
@@ -18,46 +37,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Check if user is already logged in and is a support user
+ * Check if user is already logged in with a valid admin email.
+ * If yes, honor ?redirect= or fall back to the support dashboard.
  */
 async function checkExistingSession() {
     try {
         const { data: { session }, error } = await _supabase.auth.getSession();
-        
-        if (session && !error) {
-            // Check if this user is a support user
-            const isSupport = await verifySupportUser(session.user.id);
-            if (isSupport) {
-                // Already logged in as support, redirect to dashboard
-                window.location.href = '/support/dashboard';
-                return;
-            }
+        if (session && !error && _isAdminEmail(session.user?.email)) {
+            const target = _getSafeRedirect() || '/support/dashboard';
+            window.location.href = target;
+            return;
         }
     } catch (err) {
         console.error('Session check error:', err);
-    }
-}
-
-/**
- * Verify if a user ID belongs to an active support user
- */
-async function verifySupportUser(userId) {
-    try {
-        const { data, error } = await _supabase
-            .from('support_users_db')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .single();
-        
-        if (error || !data) {
-            return false;
-        }
-        
-        return true;
-    } catch (err) {
-        console.error('Support verification error:', err);
-        return false;
     }
 }
 
@@ -87,38 +79,30 @@ window.handleSupportLogin = async function(event) {
             email,
             password
         });
-        
+
         if (authError) {
-            throw new Error(authError.message === 'Invalid login credentials' 
-                ? 'Email o contrasena incorrectos' 
+            throw new Error(authError.message === 'Invalid login credentials'
+                ? 'Email o contrasena incorrectos'
                 : authError.message);
         }
-        
+
         if (!authData.user) {
             throw new Error('No se pudo autenticar el usuario');
         }
-        
-        // Step 2: Verify the user is in support_users_db
-        const { data: supportData, error: supportError } = await _supabase
-            .from('support_users_db')
-            .select('*')
-            .eq('user_id', authData.user.id)
-            .eq('is_active', true)
-            .single();
-        
-        if (supportError || !supportData) {
-            // User authenticated but is not a support user - sign them out
+
+        // Step 2: Domain check — only @weotzi.com emails may access admin areas.
+        if (!_isAdminEmail(authData.user.email)) {
             await _supabase.auth.signOut();
-            throw new Error('No tienes permisos para acceder al panel de soporte. Contacta al administrador.');
+            throw new Error(`Acceso restringido a cuentas @${ADMIN_EMAIL_DOMAIN}.`);
         }
-        
-        // Step 3: Success - redirect to dashboard
+
+        // Step 3: Success — honor ?redirect= or fall back to the dashboard.
         showMessage('Acceso autorizado. Redirigiendo...', 'success');
-        
+        const target = _getSafeRedirect() || '/support/dashboard';
         setTimeout(() => {
-            window.location.href = '/support/dashboard';
-        }, 1000);
-        
+            window.location.href = target;
+        }, 800);
+
     } catch (err) {
         console.error('Login error:', err);
         showMessage(err.message, 'error');

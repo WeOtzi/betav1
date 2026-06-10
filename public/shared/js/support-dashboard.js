@@ -1,13 +1,13 @@
 // ============================================
 // WE OTZI - Support Dashboard
 // Multi-table admin panel for support team
-// Manages: Artists, Quotations, Feedback Tickets
+// Manages: Artists, Quotations, Sessions, Support Chats
 // ============================================
 
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
 
 // ============================================
 // STATE MANAGEMENT
@@ -20,8 +20,13 @@ let activeTab = 'artists';
 // Data stores
 let artists = [];
 let quotes = [];
-let tickets = [];
 let sessionLogs = [];
+let reviews = [];
+let chats = [];           // support_conversations list (bandeja)
+let chatMessages = [];    // mensajes de la conversación abierta
+let chatRealtimeChannel = null;   // inbox subscription
+let chatMessagesChannel = null;   // per-open-conversation subscription
+let activeChatId = null;          // conversación abierta en drawer
 
 // Filtered data
 let filteredData = [];
@@ -54,15 +59,6 @@ const columnConfigs = {
         { id: 'status', label: 'STATUS', width: '1fr' },
         { id: 'action', label: 'ACTION', width: '120px' }
     ],
-    tickets: [
-        { id: 'date', label: 'DATE', width: '100px' },
-        { id: 'id', label: 'ID', width: '80px' },
-        { id: 'reason', label: 'REASON', width: '1.5fr' },
-        { id: 'cause', label: 'CAUSE', width: '1.5fr' },
-        { id: 'message', label: 'MESSAGE', width: '2fr' },
-        { id: 'status', label: 'STATUS', width: '1fr' },
-        { id: 'action', label: 'ACTION', width: '120px' }
-    ],
     sessions: [
         { id: 'date', label: 'DATE', width: '100px' },
         { id: 'session_id', label: 'SESSION', width: '120px' },
@@ -70,6 +66,24 @@ const columnConfigs = {
         { id: 'page', label: 'PAGE', width: '2fr' },
         { id: 'entries', label: 'ENTRIES', width: '80px' },
         { id: 'errors', label: 'ERRORS', width: '80px' },
+        { id: 'action', label: 'ACTION', width: '120px' }
+    ],
+    chats: [
+        { id: 'last', label: 'LAST MSG', width: '120px' },
+        { id: 'id', label: 'ID', width: '80px' },
+        { id: 'user', label: 'USER', width: '2fr' },
+        { id: 'role', label: 'ROLE', width: '90px' },
+        { id: 'status', label: 'STATUS', width: '1fr' },
+        { id: 'page', label: 'PAGE', width: '1.5fr' },
+        { id: 'action', label: 'ACTION', width: '120px' }
+    ],
+    reviews: [
+        { id: 'date', label: 'DATE', width: '110px' },
+        { id: 'reviewer', label: 'REVIEWER', width: '1.5fr' },
+        { id: 'target', label: 'TARGET', width: '1.5fr' },
+        { id: 'rating', label: 'RATING', width: '90px' },
+        { id: 'comment', label: 'COMMENT', width: '2fr' },
+        { id: 'status', label: 'STATUS', width: '1fr' },
         { id: 'action', label: 'ACTION', width: '120px' }
     ]
 };
@@ -179,11 +193,12 @@ async function loadAllData() {
         const statusEl = document.getElementById('status-indicator');
         statusEl.textContent = 'STATUS: LOADING DATA...';
         
-        const [artistsResult, quotesResult, ticketsResult, sessionsResult] = await Promise.all([
+        const [artistsResult, quotesResult, sessionsResult, chatsResult, reviewsResult] = await Promise.all([
             _supabase.from('artists_db').select('*'),
             _supabase.from('quotations_db').select('*').order('created_at', { ascending: false }),
-            _supabase.from('feedback_tickets').select('*').order('created_at', { ascending: false }),
-            _supabase.from('session_logs').select('*').order('created_at', { ascending: false }).limit(500)
+            _supabase.from('session_logs').select('*').order('created_at', { ascending: false }).limit(500),
+            _supabase.from('support_conversations').select('*').order('last_message_at', { ascending: false }).limit(500),
+            _supabase.from('verified_reviews').select('*').order('created_at', { ascending: false }).limit(500)
         ]);
 
         let errors = [];
@@ -202,13 +217,6 @@ async function loadAllData() {
             console.log(`Loaded ${quotesResult.data?.length || 0} quotes`);
         }
         
-        if (ticketsResult.error) {
-            console.error('Error loading tickets:', ticketsResult.error);
-            errors.push(`Tickets: ${ticketsResult.error.message}`);
-        } else {
-            console.log(`Loaded ${ticketsResult.data?.length || 0} tickets`);
-        }
-
         if (sessionsResult.error) {
             console.error('Error loading session logs:', sessionsResult.error);
             errors.push(`Sessions: ${sessionsResult.error.message}`);
@@ -216,10 +224,25 @@ async function loadAllData() {
             console.log(`Loaded ${sessionsResult.data?.length || 0} session logs`);
         }
 
+        if (chatsResult.error) {
+            console.error('Error loading support chats:', chatsResult.error);
+            errors.push(`Chats: ${chatsResult.error.message}`);
+        } else {
+            console.log(`Loaded ${chatsResult.data?.length || 0} support conversations`);
+        }
+
+        if (reviewsResult.error) {
+            console.error('Error loading reviews:', reviewsResult.error);
+            errors.push(`Reviews: ${reviewsResult.error.message}`);
+        } else {
+            console.log(`Loaded ${reviewsResult.data?.length || 0} reviews`);
+        }
+
         artists = artistsResult.data || [];
         quotes = quotesResult.data || [];
-        tickets = ticketsResult.data || [];
         sessionLogs = sessionsResult.data || [];
+        chats = chatsResult.data || [];
+        reviews = reviewsResult.data || [];
 
         if (errors.length > 0) {
             statusEl.textContent = `STATUS: ONLINE | ERRORS: ${errors.length}`;
@@ -229,8 +252,10 @@ async function loadAllData() {
 
         updateStats();
         applyFiltersAndSort();
-        
-        console.log(`Data loaded - Artists: ${artists.length}, Quotes: ${quotes.length}, Tickets: ${tickets.length}, Sessions: ${sessionLogs.length}`);
+        updateChatsBadge();
+        subscribeChatsInbox();
+
+        console.log(`Data loaded - Artists: ${artists.length}, Quotes: ${quotes.length}, Sessions: ${sessionLogs.length}, Chats: ${chats.length}, Reviews: ${reviews.length}`);
 
     } catch (err) {
         console.error('Error loading data:', err);
@@ -258,6 +283,10 @@ window.switchTab = function(tabName) {
         filterConfig = { search: '', status: 'all', archived: 'all' };
     } else if (tabName === 'sessions') {
         filterConfig = { search: '', hasErrors: 'all' };
+    } else if (tabName === 'chats') {
+        filterConfig = { search: '', status: 'awaiting_human', mine: 'all' };
+    } else if (tabName === 'reviews') {
+        filterConfig = { search: '', status: 'pending' };
     } else {
         filterConfig = { search: '', status: 'all' };
     }
@@ -267,6 +296,10 @@ window.switchTab = function(tabName) {
     renderHeaders();
     updateGridStyles();
     applyFiltersAndSort();
+
+    // Hide NEW button on chats tab (no manual chat creation from support side)
+    const createBtn = document.getElementById('create-new-btn');
+    if (createBtn) createBtn.style.display = (tabName === 'chats' || tabName === 'reviews') ? 'none' : '';
 };
 
 window.updateSidebarActive = function(element) {
@@ -317,6 +350,8 @@ function renderFilters() {
                 <option value="pending">PENDING</option>
                 <option value="responded">RESPONDED</option>
                 <option value="client_approved">CLIENT APPROVED</option>
+                <option value="in_progress">IN PROGRESS</option>
+                <option value="artist_completed">ARTIST COMPLETED</option>
                 <option value="client_rejected">CLIENT REJECTED</option>
                 <option value="completed">COMPLETED</option>
             </select>
@@ -326,16 +361,6 @@ function renderFilters() {
                 <option value="true">ARCHIVED ONLY</option>
             </select>
         `;
-    } else if (activeTab === 'tickets') {
-        filtersHTML = `
-            <select id="status-filter" class="toolbar-select" style="border-color: var(--bauhaus-yellow);" onchange="handleFilterChange('status', this.value)">
-                <option value="all">ALL STATUS</option>
-                <option value="open">OPEN</option>
-                <option value="in-review">IN REVIEW</option>
-                <option value="resolved">RESOLVED</option>
-                <option value="closed">CLOSED</option>
-            </select>
-        `;
     } else if (activeTab === 'sessions') {
         filtersHTML = `
             <select id="errors-filter" class="toolbar-select" style="border-color: var(--bauhaus-red);" onchange="handleFilterChange('hasErrors', this.value)">
@@ -343,18 +368,53 @@ function renderFilters() {
                 <option value="true">WITH ERRORS</option>
                 <option value="false">NO ERRORS</option>
             </select>
-            <input type="text" id="user-search" class="toolbar-input" placeholder="Email/IP/Phone..." 
+            <input type="text" id="user-search" class="toolbar-input" placeholder="Email/IP/Phone..."
                 style="width: 150px; margin-left: 0.5rem;"
                 onchange="handleFilterChange('userSearch', this.value)">
         `;
+    } else if (activeTab === 'chats') {
+        filtersHTML = `
+            <select id="chat-status-filter" class="toolbar-select" style="border-color: var(--bauhaus-red);" onchange="handleFilterChange('status', this.value)">
+                <option value="awaiting_human" ${filterConfig.status === 'awaiting_human' ? 'selected' : ''}>AWAITING HUMAN</option>
+                <option value="human" ${filterConfig.status === 'human' ? 'selected' : ''}>HUMAN</option>
+                <option value="bot" ${filterConfig.status === 'bot' ? 'selected' : ''}>BOT</option>
+                <option value="closed" ${filterConfig.status === 'closed' ? 'selected' : ''}>CLOSED</option>
+                <option value="all" ${filterConfig.status === 'all' ? 'selected' : ''}>ALL</option>
+            </select>
+            <select id="chat-mine-filter" class="toolbar-select" onchange="handleFilterChange('mine', this.value)">
+                <option value="all">ALL AGENTS</option>
+                <option value="mine">ASSIGNED TO ME</option>
+                <option value="unassigned">UNASSIGNED</option>
+            </select>
+        `;
+    } else if (activeTab === 'reviews') {
+        filtersHTML = `
+            <select id="review-status-filter" class="toolbar-select" style="border-color: var(--bauhaus-red);" onchange="handleFilterChange('status', this.value)">
+                <option value="pending" ${filterConfig.status === 'pending' ? 'selected' : ''}>PENDING</option>
+                <option value="approved" ${filterConfig.status === 'approved' ? 'selected' : ''}>APPROVED</option>
+                <option value="rejected" ${filterConfig.status === 'rejected' ? 'selected' : ''}>REJECTED</option>
+                <option value="hidden" ${filterConfig.status === 'hidden' ? 'selected' : ''}>HIDDEN</option>
+                <option value="all" ${filterConfig.status === 'all' ? 'selected' : ''}>ALL</option>
+            </select>
+        `;
     }
 
-    filtersHTML += `
-        <select id="sort-select" class="toolbar-select" onchange="handleSortChange(this.value)">
-            <option value="created_at:desc">MOST RECENT</option>
-            <option value="created_at:asc">OLDEST</option>
-        </select>
-    `;
+    if (activeTab === 'chats') {
+        filtersHTML += `
+            <select id="sort-select" class="toolbar-select" onchange="handleSortChange(this.value)">
+                <option value="last_message_at:desc">RECENT ACTIVITY</option>
+                <option value="created_at:desc">NEWEST CONVO</option>
+                <option value="created_at:asc">OLDEST CONVO</option>
+            </select>
+        `;
+    } else {
+        filtersHTML += `
+            <select id="sort-select" class="toolbar-select" onchange="handleSortChange(this.value)">
+                <option value="created_at:desc">MOST RECENT</option>
+                <option value="created_at:asc">OLDEST</option>
+            </select>
+        `;
+    }
 
     filtersContainer.innerHTML = filtersHTML;
 }
@@ -377,10 +437,12 @@ function applyFiltersAndSort() {
         data = [...artists];
     } else if (activeTab === 'quotes') {
         data = [...quotes];
-    } else if (activeTab === 'tickets') {
-        data = [...tickets];
     } else if (activeTab === 'sessions') {
         data = [...sessionLogs];
+    } else if (activeTab === 'chats') {
+        data = [...chats];
+    } else if (activeTab === 'reviews') {
+        data = [...reviews];
     }
 
     if (filterConfig.search) {
@@ -405,10 +467,6 @@ function applyFiltersAndSort() {
             const isArchived = filterConfig.archived === 'true';
             data = data.filter(q => q.is_archived === isArchived);
         }
-    } else if (activeTab === 'tickets') {
-        if (filterConfig.status && filterConfig.status !== 'all') {
-            data = data.filter(t => (t.status || 'open') === filterConfig.status);
-        }
     } else if (activeTab === 'sessions') {
         if (filterConfig.hasErrors && filterConfig.hasErrors !== 'all') {
             const hasErrors = filterConfig.hasErrors === 'true';
@@ -416,21 +474,37 @@ function applyFiltersAndSort() {
         }
         if (filterConfig.userSearch) {
             const search = filterConfig.userSearch.toLowerCase();
-            data = data.filter(s => 
+            data = data.filter(s =>
                 (s.user_email && s.user_email.toLowerCase().includes(search)) ||
                 (s.user_ip && s.user_ip.includes(search)) ||
                 (s.user_phone && s.user_phone.includes(search)) ||
                 (s.user_id && s.user_id.includes(search))
             );
         }
+    } else if (activeTab === 'chats') {
+        if (filterConfig.status && filterConfig.status !== 'all') {
+            data = data.filter(c => (c.status || 'bot') === filterConfig.status);
+        }
+        if (filterConfig.mine === 'mine') {
+            data = data.filter(c => c.assigned_support_user_id === (supportUser?.user_id || currentUser?.id));
+        } else if (filterConfig.mine === 'unassigned') {
+            data = data.filter(c => !c.assigned_support_user_id);
+        }
+    } else if (activeTab === 'reviews') {
+        if (filterConfig.status && filterConfig.status !== 'all') {
+            data = data.filter(r => (r.moderation_status || 'pending') === filterConfig.status);
+        }
     }
 
     data.sort((a, b) => {
         let valA, valB;
-        
+
         if (sortConfig.field === 'created_at') {
             valA = new Date(a.created_at).getTime();
             valB = new Date(b.created_at).getTime();
+        } else if (sortConfig.field === 'last_message_at') {
+            valA = new Date(a.last_message_at || a.created_at).getTime();
+            valB = new Date(b.last_message_at || b.created_at).getTime();
         } else {
             valA = a[sortConfig.field] || '';
             valB = b[sortConfig.field] || '';
@@ -477,10 +551,12 @@ function renderTable() {
         rowsHTML = filteredData.map((artist, idx) => renderArtistRow(artist, idx)).join('');
     } else if (activeTab === 'quotes') {
         rowsHTML = filteredData.map((quote, idx) => renderQuoteRow(quote, idx)).join('');
-    } else if (activeTab === 'tickets') {
-        rowsHTML = filteredData.map((ticket, idx) => renderTicketRow(ticket, idx)).join('');
     } else if (activeTab === 'sessions') {
         rowsHTML = filteredData.map((session, idx) => renderSessionRow(session, idx)).join('');
+    } else if (activeTab === 'chats') {
+        rowsHTML = filteredData.map((chat, idx) => renderChatRow(chat, idx)).join('');
+    } else if (activeTab === 'reviews') {
+        rowsHTML = filteredData.map((review, idx) => renderReviewRow(review, idx)).join('');
     }
 
     tbody.innerHTML = rowsHTML;
@@ -535,6 +611,25 @@ function renderQuoteRow(quote, index) {
     `;
 }
 
+function renderReviewRow(review, index) {
+    const date = new Date(review.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const reviewer = review.reviewer_username || review.reviewer_display_name || review.reviewer_user_id;
+    const target = review.reviewee_display_name || `${review.reviewee_type}:${String(review.reviewee_user_id || '').slice(0, 8)}`;
+    const comment = review.comment || '';
+
+    return `
+        <div class="quote-row data-row" style="opacity: 0; transform: translateY(20px); transition: all 0.4s; transition-delay: ${index * 0.03}s">
+            <div style="font-family: 'Space Mono'; font-size: 0.75rem;">${date}</div>
+            <div class="client-cell"><span class="client-name">${escapeHtml(reviewer)}</span></div>
+            <div style="font-size: 0.8rem;">${escapeHtml(target)}</div>
+            <div style="font-family: 'Space Mono'; font-size: 0.75rem;">${'★'.repeat(Number(review.rating || 0))} ${review.rating || '-'}</div>
+            <div style="font-size: 0.8rem; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(comment)}</div>
+            <div>${getReviewStatusBadge(review.moderation_status || 'pending')}</div>
+            <div><button class="action-btn detail-btn" onclick="inspectRecord('reviews', '${review.id}')">MODERATE</button></div>
+        </div>
+    `;
+}
+
 function renderSessionRow(session, index) {
     const date = new Date(session.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const sessionId = session.session_id?.slice(-8) || '-';
@@ -553,27 +648,6 @@ function renderSessionRow(session, index) {
             <div style="font-family: 'Space Mono'; font-size: 0.75rem; text-align: center;">${entries}</div>
             <div style="font-family: 'Space Mono'; font-size: 0.75rem; text-align: center; ${hasErrors ? 'color: var(--bauhaus-red); font-weight: bold;' : ''}">${errors}</div>
             <div><button class="action-btn detail-btn" onclick="inspectRecord('sessions', '${session.id}')">VIEW LOG</button></div>
-        </div>
-    `;
-}
-
-function renderTicketRow(ticket, index) {
-    const date = new Date(ticket.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    const id = ticket.id.toString().slice(-5).toUpperCase();
-    const reason = ticket.reason || '-';
-    const cause = ticket.cause || '-';
-    const message = ticket.message || '-';
-    const status = ticket.status || 'open';
-
-    return `
-        <div class="quote-row data-row" style="opacity: 0; transform: translateY(20px); transition: all 0.4s; transition-delay: ${index * 0.03}s">
-            <div style="font-family: 'Space Mono'; font-size: 0.75rem;">${date}</div>
-            <div style="font-family: 'Space Mono'; font-size: 0.75rem; color: var(--bauhaus-blue);">#TK${id}</div>
-            <div style="font-size: 0.8rem; text-transform: uppercase;">${reason}</div>
-            <div style="font-size: 0.8rem; text-transform: uppercase;">${cause}</div>
-            <div style="font-size: 0.8rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${message}</div>
-            <div>${getTicketStatusBadge(status)}</div>
-            <div><button class="action-btn detail-btn" onclick="inspectRecord('tickets', '${ticket.id}')">VIEW</button></div>
         </div>
     `;
 }
@@ -606,6 +680,8 @@ function getQuoteStatusBadge(status) {
         'pending': { text: 'PENDING', class: 'quote-pending' },
         'responded': { text: 'RESPONDED', class: 'quote-responded' },
         'client_approved': { text: 'CLIENT APPROVED', class: 'quote-completed' }, // Using completed style for now or add new class
+        'in_progress': { text: 'IN PROGRESS', class: 'quote-responded' },
+        'artist_completed': { text: 'ARTIST COMPLETED', class: 'quote-responded' },
         'client_rejected': { text: 'CLIENT REJECTED', class: 'quote-rejected' }, // Need to define this class
         'completed': { text: 'COMPLETED', class: 'quote-completed' }
     };
@@ -616,6 +692,7 @@ function getQuoteStatusBadge(status) {
     // Inline styles for new statuses if classes don't exist in CSS
     let style = '';
     if (status === 'client_approved') style = 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
+    if (status === 'artist_completed') style = 'background: #fff3cd; color: #856404; border: 1px solid #ffeeba;';
     if (status === 'client_rejected') style = 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
     
     if (style) {
@@ -625,15 +702,15 @@ function getQuoteStatusBadge(status) {
     return `<span class="status-badge ${config.class}">${config.text}</span>`;
 }
 
-function getTicketStatusBadge(status) {
+function getReviewStatusBadge(status) {
     const states = {
-        'open': { text: 'OPEN', class: 'open' },
-        'in-review': { text: 'IN REVIEW', class: 'in-review' },
-        'resolved': { text: 'RESOLVED', class: 'resolved' },
-        'closed': { text: 'CLOSED', class: 'closed' }
+        pending: { text: 'PENDING', style: 'background:#fff3cd;color:#856404;border:1px solid #ffeeba;' },
+        approved: { text: 'APPROVED', style: 'background:#d4edda;color:#155724;border:1px solid #c3e6cb;' },
+        rejected: { text: 'REJECTED', style: 'background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;' },
+        hidden: { text: 'HIDDEN', style: 'background:#e2e3e5;color:#383d41;border:1px solid #d6d8db;' }
     };
-    const config = states[status] || states['open'];
-    return `<span class="status-badge ${config.class}">${config.text}</span>`;
+    const config = states[status] || states.pending;
+    return `<span class="status-badge" style="${config.style}">${config.text}</span>`;
 }
 
 // ============================================
@@ -643,13 +720,12 @@ function getTicketStatusBadge(status) {
 function updateStats() {
     document.getElementById('stat-total-artists').textContent = artists.length;
     document.getElementById('stat-total-quotes').textContent = quotes.length;
-    document.getElementById('stat-total-tickets').textContent = tickets.length;
     
     const pendingQuotes = quotes.filter(q => q.quote_status === 'pending' && !q.is_archived).length;
-    const openTickets = tickets.filter(t => (t.status || 'open') === 'open').length;
     const pendingVerifications = artists.filter(a => a.verification_state === 'Requested' || a.verification_state === 'In Progress').length;
+    const pendingReviews = reviews.filter(r => (r.moderation_status || 'pending') === 'pending').length;
     
-    document.getElementById('stat-pending').textContent = pendingQuotes + openTickets + pendingVerifications;
+    document.getElementById('stat-pending').textContent = pendingQuotes + pendingVerifications + pendingReviews;
 }
 
 // ============================================
@@ -658,32 +734,36 @@ function updateStats() {
 
 window.inspectRecord = function(type, id) {
     let record = null;
-    
+
     if (type === 'artists') {
         record = artists.find(a => a.user_id === id);
     } else if (type === 'quotes') {
         record = quotes.find(q => q.id.toString() === id.toString());
-    } else if (type === 'tickets') {
-        record = tickets.find(t => t.id.toString() === id.toString());
     } else if (type === 'sessions') {
         record = sessionLogs.find(s => s.id.toString() === id.toString());
+    } else if (type === 'chats') {
+        record = chats.find(c => c.id === id);
+    } else if (type === 'reviews') {
+        record = reviews.find(r => r.id === id);
     }
-    
+
     if (!record) return;
-    
+
     selectedRecord = { type, id, data: record };
     const drawerContent = document.getElementById('drawer-content');
-    
+
     if (type === 'artists') {
         drawerContent.innerHTML = renderArtistDrawer(record);
     } else if (type === 'quotes') {
         drawerContent.innerHTML = renderQuoteDrawer(record);
-    } else if (type === 'tickets') {
-        drawerContent.innerHTML = renderTicketDrawer(record);
     } else if (type === 'sessions') {
         drawerContent.innerHTML = renderSessionDrawer(record);
+    } else if (type === 'chats') {
+        openChatDrawer(record);
+    } else if (type === 'reviews') {
+        drawerContent.innerHTML = renderReviewDrawer(record);
     }
-    
+
     document.getElementById('drawer-toggle').checked = true;
 };
 
@@ -909,6 +989,58 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function renderReviewDrawer(review) {
+    const formatDateTime = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+    const tags = Array.isArray(review.tags) ? review.tags : [];
+    const photos = Array.isArray(review.photo_urls) ? review.photo_urls : [];
+
+    return `
+        <div class="shape-decor"></div>
+        <p style="font-family:'Space Mono';font-size:0.7rem;color:var(--bauhaus-red);">REVIEW_ID: ${escapeHtml(String(review.id).slice(0, 12))}...</p>
+        <h2 style="font-weight:900;font-size:1.6rem;margin:1rem 0;">Review Moderation</h2>
+
+        <div class="drawer-section" style="background:#fffbf0;">
+            <div class="drawer-section-title">Status</div>
+            <div style="margin-bottom:0.7rem;">${getReviewStatusBadge(review.moderation_status || 'pending')}</div>
+            <div class="form-group">
+                <label>Moderation Reason</label>
+                <textarea rows="3" id="review-moderation-reason">${escapeHtml(review.moderation_reason || '')}</textarea>
+            </div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem;">
+                <button class="action-btn accept-btn" onclick="updateReviewModeration('${review.id}', 'approved')">APPROVE</button>
+                <button class="action-btn" onclick="updateReviewModeration('${review.id}', 'hidden')">HIDE</button>
+                <button class="action-btn delete-btn" onclick="updateReviewModeration('${review.id}', 'rejected')">REJECT</button>
+            </div>
+        </div>
+
+        <div class="drawer-section">
+            <div class="drawer-section-title">Review</div>
+            <div class="detail-row"><span>Created</span><strong>${formatDateTime(review.created_at)}</strong></div>
+            <div class="detail-row"><span>Context</span><strong>${escapeHtml(review.context_type || '-')}</strong></div>
+            <div class="detail-row"><span>Reviewer</span><strong>${escapeHtml(review.reviewer_username || review.reviewer_display_name || '-')} (${escapeHtml(review.reviewer_type || '-')})</strong></div>
+            <div class="detail-row"><span>Country</span><strong>${escapeHtml(review.reviewer_country || '-')}</strong></div>
+            <div class="detail-row"><span>Target</span><strong>${escapeHtml(review.reviewee_display_name || review.reviewee_type || '-')}</strong></div>
+            <div class="detail-row"><span>Rating</span><strong>${'★'.repeat(Number(review.rating || 0))} ${review.rating || '-'}</strong></div>
+            <div class="form-group">
+                <label>Comment</label>
+                <textarea rows="6" readonly>${escapeHtml(review.comment || '')}</textarea>
+            </div>
+            <div class="detail-row"><span>Tags</span><strong>${escapeHtml(tags.join(', ') || '-')}</strong></div>
+            <div class="detail-row"><span>Photos</span><strong>${escapeHtml(photos.join(', ') || '-')}</strong></div>
+        </div>
+
+        <div class="drawer-section" style="background:#f0f4ff;">
+            <div class="drawer-section-title">Response</div>
+            <div class="detail-row"><span>Status</span><strong>${escapeHtml(review.response_status || 'none')}</strong></div>
+            <div class="form-group">
+                <label>Response Comment</label>
+                <textarea rows="4" readonly>${escapeHtml(review.response_comment || '')}</textarea>
+            </div>
+            ${review.response_comment ? `<button class="action-btn accept-btn" onclick="approveReviewResponse('${review.id}')">APPROVE RESPONSE</button>` : ''}
+        </div>
+    `;
+}
+
 function renderQuoteDrawer(quote) {
     const artistInfo = artists.find(a => a.user_id === quote.artist_id);
     const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
@@ -939,6 +1071,8 @@ function renderQuoteDrawer(quote) {
                         <option value="pending" ${quote.quote_status === 'pending' || !quote.quote_status ? 'selected' : ''}>PENDING</option>
                         <option value="responded" ${quote.quote_status === 'responded' ? 'selected' : ''}>RESPONDED</option>
                         <option value="client_approved" ${quote.quote_status === 'client_approved' ? 'selected' : ''}>CLIENT APPROVED</option>
+                        <option value="in_progress" ${quote.quote_status === 'in_progress' ? 'selected' : ''}>IN PROGRESS</option>
+                        <option value="artist_completed" ${quote.quote_status === 'artist_completed' ? 'selected' : ''}>ARTIST COMPLETED</option>
                         <option value="client_rejected" ${quote.quote_status === 'client_rejected' ? 'selected' : ''}>CLIENT REJECTED</option>
                         <option value="completed" ${quote.quote_status === 'completed' ? 'selected' : ''}>COMPLETED</option>
                     </select>
@@ -1104,7 +1238,7 @@ function renderQuoteDrawer(quote) {
                 </div>
                 <div class="info-block">
                     <label>Session Cost</label>
-                    <p>${quote.artist_session_cost_amount || '-'} ${quote.artist_session_cost_currency || ''}</p>
+                    <p>${quote.artist_session_cost_amount ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.artist_session_cost_amount, quote.artist_session_cost_currency || 'USD') : `${quote.artist_session_cost_amount} ${quote.artist_session_cost_currency || ''}`) : '-'}</p>
                 </div>
             </div>
             <div class="info-block">
@@ -1251,189 +1385,6 @@ function renderQuoteDrawer(quote) {
     `;
 }
 
-function renderTicketDrawer(ticket) {
-    const formatDateTime = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-    
-    // Lookup user info from artists if user_id exists
-    const userInfo = ticket.user_id ? artists.find(a => a.user_id === ticket.user_id) : null;
-    
-    // Parse metadata
-    const metadata = ticket.metadata || {};
-    
-    return `
-        <div class="shape-decor"></div>
-        <p style="font-family: 'Space Mono'; font-size: 0.7rem; color: var(--bauhaus-blue);">TICKET_ID: #TK${ticket.id.toString().slice(-5).toUpperCase()}</p>
-        <h2 style="font-weight: 900; font-size: 1.6rem; margin: 1rem 0; text-transform: uppercase;">${escapeHtml(ticket.reason) || 'Feedback'}</h2>
-        
-        <!-- Section: Ticket Info -->
-        <div class="drawer-section" style="background: #f0f4ff;">
-            <div class="drawer-section-title">Ticket Information</div>
-            <div class="info-block">
-                <label>Ticket ID</label>
-                <p class="monospace-text">${ticket.id}</p>
-            </div>
-            <div class="drawer-form-group">
-                <label>Status</label>
-                <div style="margin-bottom: 0.5rem;">${getTicketStatusBadge(ticket.status || 'open')}</div>
-                <select onchange="updateTicketField('${ticket.id}', 'status', this.value)">
-                    <option value="open" ${(ticket.status || 'open') === 'open' ? 'selected' : ''}>OPEN</option>
-                    <option value="in-review" ${ticket.status === 'in-review' ? 'selected' : ''}>IN REVIEW</option>
-                    <option value="resolved" ${ticket.status === 'resolved' ? 'selected' : ''}>RESOLVED</option>
-                    <option value="closed" ${ticket.status === 'closed' ? 'selected' : ''}>CLOSED</option>
-                </select>
-            </div>
-            <div class="info-grid">
-                <div class="drawer-form-group">
-                    <label>Reason</label>
-                    <select onchange="updateTicketField('${ticket.id}', 'reason', this.value)">
-                        <option value="error" ${ticket.reason === 'error' ? 'selected' : ''}>ERROR</option>
-                        <option value="sugerencia" ${ticket.reason === 'sugerencia' ? 'selected' : ''}>SUGERENCIA</option>
-                        <option value="pregunta" ${ticket.reason === 'pregunta' ? 'selected' : ''}>PREGUNTA</option>
-                        <option value="otro" ${ticket.reason === 'otro' || !ticket.reason ? 'selected' : ''}>OTRO</option>
-                    </select>
-                </div>
-                <div class="drawer-form-group">
-                    <label>Cause / Area</label>
-                    <select onchange="updateTicketField('${ticket.id}', 'cause', this.value)">
-                        <option value="registro" ${ticket.cause === 'registro' ? 'selected' : ''}>REGISTRO</option>
-                        <option value="perfil" ${ticket.cause === 'perfil' ? 'selected' : ''}>PERFIL</option>
-                        <option value="dashboard" ${ticket.cause === 'dashboard' ? 'selected' : ''}>DASHBOARD</option>
-                        <option value="interfaz" ${ticket.cause === 'interfaz' ? 'selected' : ''}>INTERFAZ</option>
-                        <option value="cotizacion" ${ticket.cause === 'cotizacion' ? 'selected' : ''}>COTIZACION</option>
-                        <option value="otro" ${ticket.cause === 'otro' || !ticket.cause ? 'selected' : ''}>OTRO</option>
-                    </select>
-                </div>
-            </div>
-            <div class="info-grid">
-                <div class="info-block">
-                    <label>Created At</label>
-                    <p>${formatDateTime(ticket.created_at)}</p>
-                </div>
-                <div class="info-block">
-                    <label>Updated At</label>
-                    <p>${formatDateTime(ticket.updated_at)}</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Section: Message -->
-        <div class="drawer-section">
-            <div class="drawer-section-title">User Message</div>
-            <div class="drawer-form-group">
-                <label>Message</label>
-                <textarea rows="5" onchange="updateTicketField('${ticket.id}', 'message', this.value)">${escapeHtml(ticket.message || '')}</textarea>
-            </div>
-        </div>
-        
-        <!-- Section: Submitted By -->
-        <div class="drawer-section" style="background: #f9f9f9;">
-            <div class="drawer-section-title">Submitted By</div>
-            <div class="info-block">
-                <label>User ID</label>
-                <p class="monospace-text">${ticket.user_id || 'Anonymous (no login)'}</p>
-            </div>
-            ${userInfo ? `
-                <div class="info-grid">
-                    <div class="info-block">
-                        <label>User Name</label>
-                        <p>${escapeHtml(userInfo.name) || '-'}</p>
-                    </div>
-                    <div class="info-block">
-                        <label>User Email</label>
-                        <p>${escapeHtml(userInfo.email) || '-'}</p>
-                    </div>
-                </div>
-                <a href="#" onclick="inspectRecord('artists', '${userInfo.user_id}'); return false;" class="field-link">View User Profile</a>
-            ` : `
-                <div class="info-block">
-                    <label>User Info</label>
-                    <p style="color: #888;">No linked user account found</p>
-                </div>
-            `}
-        </div>
-        
-        <!-- Section: Support Response -->
-        <div class="drawer-section" style="background: #fff5e6;">
-            <div class="drawer-section-title">Support Response</div>
-            <div class="drawer-form-group">
-                <label>Internal Notes (not visible to user)</label>
-                <textarea rows="3" placeholder="Add internal notes here..." onchange="updateTicketField('${ticket.id}', 'internal_notes', this.value)">${escapeHtml(ticket.internal_notes || '')}</textarea>
-            </div>
-            <div class="drawer-form-group">
-                <label>Resolution Summary</label>
-                <textarea rows="3" placeholder="Describe how the issue was resolved..." onchange="updateTicketField('${ticket.id}', 'resolution', this.value)">${escapeHtml(ticket.resolution || '')}</textarea>
-            </div>
-        </div>
-        
-        <!-- Section: Metadata -->
-        <div class="drawer-section" style="background: #f5f5f5;">
-            <div class="drawer-section-title">Technical Metadata</div>
-            ${Object.keys(metadata).length > 0 ? `
-                <div class="metadata-grid">
-                    ${metadata.url ? `
-                        <div class="metadata-item">
-                            <label>Page URL</label>
-                            <p class="metadata-value">${escapeHtml(metadata.url)}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.userAgent ? `
-                        <div class="metadata-item">
-                            <label>User Agent</label>
-                            <p class="metadata-value small">${escapeHtml(metadata.userAgent)}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.platform ? `
-                        <div class="metadata-item">
-                            <label>Platform</label>
-                            <p class="metadata-value">${escapeHtml(metadata.platform)}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.language ? `
-                        <div class="metadata-item">
-                            <label>Language</label>
-                            <p class="metadata-value">${escapeHtml(metadata.language)}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.screenSize || metadata.resolution ? `
-                        <div class="metadata-item">
-                            <label>Screen Size</label>
-                            <p class="metadata-value">${escapeHtml(metadata.screenSize || metadata.resolution || '-')}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.viewport ? `
-                        <div class="metadata-item">
-                            <label>Viewport</label>
-                            <p class="metadata-value">${escapeHtml(metadata.viewport)}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.timestamp ? `
-                        <div class="metadata-item">
-                            <label>Timestamp</label>
-                            <p class="metadata-value">${escapeHtml(metadata.timestamp)}</p>
-                        </div>
-                    ` : ''}
-                    ${metadata.quote_id ? `
-                        <div class="metadata-item">
-                            <label>Related Quote ID</label>
-                            <p class="metadata-value">${escapeHtml(metadata.quote_id)}</p>
-                        </div>
-                    ` : ''}
-                </div>
-                <details class="metadata-raw">
-                    <summary>View Raw JSON</summary>
-                    <pre class="metadata-display">${JSON.stringify(metadata, null, 2)}</pre>
-                </details>
-            ` : `
-                <p style="color: #888; font-style: italic;">No metadata available</p>
-            `}
-        </div>
-        
-        <div class="drawer-actions">
-            <button class="action-btn delete-btn" onclick="deleteRecord('tickets', '${ticket.id}')">DELETE TICKET</button>
-        </div>
-    `;
-}
-
 function renderSessionDrawer(session) {
     const formatDateTime = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
     
@@ -1463,9 +1414,6 @@ function renderSessionDrawer(session) {
         decompressError = err.message;
     }
 
-    // Find linked tickets
-    const linkedTickets = tickets.filter(t => t.session_log_id === session.id);
-    
     return `
         <div class="shape-decor" style="background: var(--bauhaus-blue);"></div>
         <p style="font-family: 'Space Mono'; font-size: 0.7rem; color: var(--bauhaus-blue);">SESSION_ID: ${session.session_id}</p>
@@ -1532,21 +1480,6 @@ function renderSessionDrawer(session) {
                 <p style="font-size: 0.7rem; word-break: break-all;">${escapeHtml(session.user_agent || '-')}</p>
             </div>
         </div>
-        
-        <!-- Section: Linked Tickets -->
-        ${linkedTickets.length > 0 ? `
-        <div class="drawer-section" style="background: #fff5e6;">
-            <div class="drawer-section-title">Linked Tickets (${linkedTickets.length})</div>
-            ${linkedTickets.map(t => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; margin-bottom: 0.5rem; border-left: 3px solid var(--bauhaus-red);">
-                    <span style="font-family: 'Space Mono'; font-size: 0.75rem;">#TK${t.id.toString().slice(-5).toUpperCase()}</span>
-                    <span style="font-size: 0.8rem;">${escapeHtml(t.reason || 'feedback')}</span>
-                    ${getTicketStatusBadge(t.status || 'open')}
-                    <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="inspectRecord('tickets', '${t.id}')">VIEW</button>
-                </div>
-            `).join('')}
-        </div>
-        ` : ''}
         
         <!-- Section: Log Viewer -->
         <div class="drawer-section">
@@ -1625,6 +1558,14 @@ window.copySessionLog = async function(sessionId) {
 
 window.updateArtistField = async function(userId, field, value) {
     try {
+        // The password field is special — a direct PATCH to artists_db only
+        // updates the cleartext mirror and leaves auth.users untouched, which
+        // means the artist can no longer log in with the new value. Route
+        // through the server endpoint that updates BOTH auth and the mirror.
+        if (field === 'password') {
+            return await syncArtistPasswordViaApi(userId, value);
+        }
+
         const updateData = {};
         // Handle boolean values properly (don't convert false to null)
         if (typeof value === 'boolean') {
@@ -1632,13 +1573,13 @@ window.updateArtistField = async function(userId, field, value) {
         } else {
             updateData[field] = value || null;
         }
-        
+
         const { error } = await _supabase.from('artists_db').update(updateData).eq('user_id', userId);
         if (error) throw error;
-        
+
         const artist = artists.find(a => a.user_id === userId);
         if (artist) artist[field] = updateData[field];
-        
+
         applyFiltersAndSort();
         updateStats();
         inspectRecord('artists', userId);
@@ -1647,6 +1588,45 @@ window.updateArtistField = async function(userId, field, value) {
         alert('Error updating: ' + err.message);
     }
 };
+
+async function syncArtistPasswordViaApi(userId, newPassword) {
+    const artist = artists.find(a => a.user_id === userId);
+    if (!artist?.email) {
+        alert('No se encontro el email del artista');
+        return;
+    }
+    if (!newPassword || String(newPassword).length < 6) {
+        alert('La contrasena debe tener al menos 6 caracteres');
+        return;
+    }
+    const { data: sessionData } = await _supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+        alert('Sesion de soporte no encontrada — inicia sesion de nuevo.');
+        return;
+    }
+    const res = await fetch('/api/auth/reset-temp-password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+            email: artist.email,
+            userType: 'artist',
+            tempPassword: String(newPassword)
+        })
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.success) {
+        throw new Error(result.error || `Reset failed (${res.status})`);
+    }
+    artist.password = String(newPassword);
+    applyFiltersAndSort();
+    updateStats();
+    inspectRecord('artists', userId);
+    console.log(`[support] artist password updated for ${artist.email}`);
+}
 
 window.updateQuoteField = async function(id, field, value) {
     try {
@@ -1668,23 +1648,50 @@ window.updateQuoteField = async function(id, field, value) {
     }
 };
 
-window.updateTicketField = async function(id, field, value) {
+window.updateReviewModeration = async function(id, status) {
     try {
-        const updateData = {};
-        updateData[field] = value;
-        
-        const { error } = await _supabase.from('feedback_tickets').update(updateData).eq('id', id);
+        const reasonEl = document.getElementById('review-moderation-reason');
+        const updateData = {
+            moderation_status: status,
+            moderation_reason: reasonEl ? reasonEl.value.trim() || null : null
+        };
+
+        if (status === 'approved') {
+            updateData.approved_at = new Date().toISOString();
+            updateData.approved_by_user_id = currentUser?.id || null;
+        }
+
+        const { error } = await _supabase.from('verified_reviews').update(updateData).eq('id', id);
         if (error) throw error;
-        
-        const ticket = tickets.find(t => t.id.toString() === id.toString());
-        if (ticket) ticket[field] = value;
-        
+
+        const review = reviews.find(r => r.id === id);
+        if (review) Object.assign(review, updateData);
+
         applyFiltersAndSort();
         updateStats();
-        inspectRecord('tickets', id);
+        inspectRecord('reviews', id);
     } catch (err) {
-        console.error('Error updating ticket:', err);
-        alert('Error updating: ' + err.message);
+        console.error('Error updating review:', err);
+        alert('Error updating review: ' + err.message);
+    }
+};
+
+window.approveReviewResponse = async function(id) {
+    try {
+        const updateData = {
+            response_status: 'approved',
+            response_updated_at: new Date().toISOString()
+        };
+        const { error } = await _supabase.from('verified_reviews').update(updateData).eq('id', id);
+        if (error) throw error;
+
+        const review = reviews.find(r => r.id === id);
+        if (review) Object.assign(review, updateData);
+
+        inspectRecord('reviews', id);
+    } catch (err) {
+        console.error('Error approving response:', err);
+        alert('Error approving response: ' + err.message);
     }
 };
 
@@ -1711,8 +1718,6 @@ window.confirmAction = async function() {
             idField = 'user_id';
         } else if (type === 'quotes') {
             tableName = 'quotations_db';
-        } else if (type === 'tickets') {
-            tableName = 'feedback_tickets';
         } else if (type === 'sessions') {
             tableName = 'session_logs';
         }
@@ -1724,8 +1729,6 @@ window.confirmAction = async function() {
             artists = artists.filter(a => a.user_id !== id);
         } else if (type === 'quotes') {
             quotes = quotes.filter(q => q.id.toString() !== id.toString());
-        } else if (type === 'tickets') {
-            tickets = tickets.filter(t => t.id.toString() !== id.toString());
         } else if (type === 'sessions') {
             sessionLogs = sessionLogs.filter(s => s.id.toString() !== id.toString());
         }
@@ -1808,5 +1811,394 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeConfirmModal();
         document.getElementById('drawer-toggle').checked = false;
+        // si cerramos drawer, desuscribirse del canal de mensajes
+        unsubscribeChatMessages();
+        activeChatId = null;
     }
 });
+
+// ============================================
+// SUPPORT LIVE CHAT — bandeja + conversación
+// ============================================
+
+const CHAT_STATUS_META = {
+    bot:            { label: 'BOT',             color: '#ddd',        text: '#0A0A0A' },
+    awaiting_human: { label: 'AWAITING HUMAN',  color: '#F4B942',     text: '#0A0A0A' },
+    human:          { label: 'HUMAN CONNECTED', color: '#E23E28',     text: '#fff' },
+    closed:         { label: 'CLOSED',          color: '#999',        text: '#fff' }
+};
+
+function renderChatStatusBadge(status) {
+    const meta = CHAT_STATUS_META[status] || CHAT_STATUS_META.bot;
+    return `<span class="status-badge" style="background:${meta.color}; color:${meta.text}; font-family:'Space Mono',monospace; font-size:0.65rem; padding:2px 8px; border:1.5px solid var(--bauhaus-black,#0A0A0A);">${meta.label}</span>`;
+}
+
+function formatChatWhen(ts) {
+    if (!ts) return '-';
+    const d = new Date(ts);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function chatUserLabel(chat) {
+    if (chat.user_id) {
+        const artist = artists.find(a => a.user_id === chat.user_id);
+        if (artist) return artist.name || artist.username || artist.email || chat.user_id.slice(0, 8);
+        return chat.user_id.slice(0, 8) + '…';
+    }
+    if (chat.anonymous_id) return 'Anon ' + chat.anonymous_id.slice(0, 6);
+    return 'Unknown';
+}
+
+function renderChatRow(chat, index) {
+    const shortId = chat.id.slice(0, 5).toUpperCase();
+    const user = chatUserLabel(chat);
+    const role = (chat.user_role || 'anonymous').toUpperCase();
+    const page = chat.page_context ? (() => {
+        try { return new URL(chat.page_context).pathname; } catch { return chat.page_context; }
+    })() : '-';
+    const status = chat.status || 'bot';
+    const lastWhen = formatChatWhen(chat.last_message_at || chat.created_at);
+
+    return `
+        <div class="quote-row data-row" style="opacity: 0; transform: translateY(20px); transition: all 0.4s; transition-delay: ${index * 0.03}s">
+            <div style="font-family: 'Space Mono'; font-size: 0.75rem;">${lastWhen}</div>
+            <div style="font-family: 'Space Mono'; font-size: 0.75rem; color: var(--bauhaus-blue);">#SC${shortId}</div>
+            <div style="font-size: 0.85rem;">${escapeHtml(user)}</div>
+            <div style="font-family: 'Space Mono'; font-size: 0.7rem;">${role}</div>
+            <div>${renderChatStatusBadge(status)}</div>
+            <div style="font-size: 0.75rem; color:#666; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(page)}</div>
+            <div><button class="action-btn detail-btn" onclick="inspectRecord('chats', '${chat.id}')">OPEN</button></div>
+        </div>
+    `;
+}
+
+async function openChatDrawer(chat) {
+    activeChatId = chat.id;
+    const drawerContent = document.getElementById('drawer-content');
+    drawerContent.innerHTML = `
+        <div class="shape-decor"></div>
+        <p style="font-family: 'Space Mono'; font-size: 0.7rem; color: var(--bauhaus-red);">CONVERSATION_ID: ${chat.id}</p>
+        <h2 style="font-weight: 900; font-size: 1.4rem; margin: 1rem 0;">${escapeHtml(chatUserLabel(chat))}</h2>
+        <div id="chat-drawer-body">
+            <div class="loading-placeholder" style="padding:1rem; font-family:'Space Mono',monospace;">LOADING_MESSAGES...</div>
+        </div>
+    `;
+
+    try {
+        const { data, error } = await _supabase
+            .from('support_messages')
+            .select('*')
+            .eq('conversation_id', chat.id)
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        chatMessages = data || [];
+        renderChatDrawerBody(chat);
+        subscribeChatMessages(chat.id);
+    } catch (err) {
+        console.error('Error loading messages:', err);
+        document.getElementById('chat-drawer-body').innerHTML =
+            `<div class="empty-state" style="padding:1rem; color:var(--bauhaus-red);">ERROR: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function renderChatDrawerBody(chat) {
+    const body = document.getElementById('chat-drawer-body');
+    if (!body) return;
+
+    const meId = supportUser?.user_id || currentUser?.id;
+    const isMine = chat.assigned_support_user_id === meId;
+    const status = chat.status || 'bot';
+    const canTake = status === 'awaiting_human' || status === 'bot';
+    const canSend = status === 'human' && isMine;
+    const canRelease = status === 'human' && isMine;
+    const canClose = status !== 'closed';
+
+    const assignedName = chat.assigned_support_user_id
+        ? (chat.assigned_support_user_id === meId ? 'YOU' : chat.assigned_support_user_id.slice(0, 8) + '…')
+        : 'UNASSIGNED';
+
+    const metaBlock = `
+        <div class="drawer-section" style="background:#f9f9f9;">
+            <div class="drawer-section-title">Conversation</div>
+            <div class="info-grid">
+                <div class="info-block"><label>Status</label><p>${renderChatStatusBadge(status)}</p></div>
+                <div class="info-block"><label>Role</label><p>${escapeHtml((chat.user_role || 'anonymous').toUpperCase())}</p></div>
+            </div>
+            <div class="info-grid">
+                <div class="info-block"><label>Assigned</label><p style="font-family:'Space Mono',monospace; font-size:0.8rem;">${assignedName}</p></div>
+                <div class="info-block"><label>Escalations</label><p style="font-family:'Space Mono',monospace;">${chat.escalation_count ?? 0}</p></div>
+            </div>
+            <div class="info-block"><label>User ID</label><p class="monospace-text">${chat.user_id || '(anon) ' + (chat.anonymous_id || '-')}</p></div>
+            <div class="info-block"><label>Page Context</label><p style="font-size:0.75rem; word-break:break-all;">${escapeHtml(chat.page_context || '-')}</p></div>
+        </div>
+    `;
+
+    const actionsBlock = `
+        <div class="drawer-actions" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+            ${canTake ? `<button class="action-btn save-btn" onclick="assignChat('${chat.id}')">TOMAR CONVERSACIÓN</button>` : ''}
+            ${canRelease ? `<button class="action-btn" onclick="releaseChat('${chat.id}')">DEVOLVER AL BOT</button>` : ''}
+            ${canClose ? `<button class="action-btn delete-btn" onclick="closeChat('${chat.id}')">CERRAR</button>` : ''}
+        </div>
+    `;
+
+    const messagesHTML = chatMessages.map(m => renderChatMessage(m)).join('') ||
+        `<div class="empty-state" style="padding:1rem;">NO_MESSAGES</div>`;
+
+    const composerBlock = canSend ? `
+        <div class="drawer-section" style="background:#fffbe6;">
+            <div class="drawer-section-title">Send as human agent</div>
+            <textarea id="chat-agent-input" rows="3" placeholder="Type your reply..."
+                style="width:100%; font-family:Inter,sans-serif; font-size:0.9rem; border:2px solid var(--bauhaus-black,#0A0A0A); padding:0.5rem; resize:vertical;"></textarea>
+            <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
+                <button class="action-btn save-btn" onclick="sendAgentMessage('${chat.id}')">SEND</button>
+            </div>
+        </div>
+    ` : (status === 'human' && !isMine ? `
+        <div class="drawer-section" style="background:#f5f5f5;">
+            <p style="font-family:'Space Mono',monospace; font-size:0.8rem;">Asignada a otro agente. Puedes ver el transcript pero no enviar mensajes.</p>
+        </div>
+    ` : (status === 'awaiting_human' ? `
+        <div class="drawer-section" style="background:#fffbe6;">
+            <p style="font-family:'Space Mono',monospace; font-size:0.8rem;">Usuario esperando agente. Pulsa <strong>TOMAR CONVERSACIÓN</strong> para responder.</p>
+        </div>
+    ` : (status === 'closed' ? `
+        <div class="drawer-section" style="background:#f5f5f5;">
+            <p style="font-family:'Space Mono',monospace; font-size:0.8rem;">Conversación cerrada.</p>
+        </div>
+    ` : '')));
+
+    body.innerHTML = `
+        ${metaBlock}
+        ${actionsBlock}
+        <div class="drawer-section" style="background:#fff;">
+            <div class="drawer-section-title">Transcript</div>
+            <div id="chat-transcript" style="max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:8px; border:2px solid var(--bauhaus-black,#0A0A0A); background:#fafafa;">
+                ${messagesHTML}
+            </div>
+        </div>
+        ${composerBlock}
+    `;
+
+    // autoscroll
+    const t = document.getElementById('chat-transcript');
+    if (t) t.scrollTop = t.scrollHeight;
+}
+
+function renderChatMessage(msg) {
+    const role = msg.role || 'user';
+    const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+    const common = `padding:8px 10px; font-size:0.85rem; line-height:1.35; border:2px solid var(--bauhaus-black,#0A0A0A); max-width:85%; word-wrap:break-word;`;
+
+    if (role === 'user') {
+        return `<div style="align-self:flex-end; background:#0A0A0A; color:#F2F0E9; ${common}">
+            <div>${escapeHtml(msg.content || '')}</div>
+            <div style="font-family:'Space Mono',monospace; font-size:0.65rem; opacity:0.6; margin-top:4px;">USER · ${time}</div>
+        </div>`;
+    }
+    if (role === 'assistant') {
+        return `<div style="align-self:flex-start; background:#fff; ${common}">
+            <div>${escapeHtml(msg.content || '')}</div>
+            <div style="font-family:'Space Mono',monospace; font-size:0.65rem; opacity:0.6; margin-top:4px;">BOT${msg.model ? ' · ' + msg.model : ''} · ${time}</div>
+        </div>`;
+    }
+    if (role === 'human_agent') {
+        return `<div style="align-self:flex-start; background:var(--bauhaus-red,#E23E28); color:#fff; ${common}">
+            <div>${escapeHtml(msg.content || '')}</div>
+            <div style="font-family:'Space Mono',monospace; font-size:0.65rem; opacity:0.85; margin-top:4px;">AGENT · ${time}</div>
+        </div>`;
+    }
+    if (role === 'system') {
+        return `<div style="align-self:center; background:transparent; border:1px dashed var(--bauhaus-black,#0A0A0A); font-style:italic; font-size:0.75rem; ${common}">
+            <div>${escapeHtml(msg.content || '')}</div>
+        </div>`;
+    }
+    if (role === 'tool') {
+        return `<div style="align-self:flex-start; background:#eef; border:1px dashed #88a; font-family:'Space Mono',monospace; font-size:0.7rem; ${common}">
+            <div><strong>TOOL</strong> ${escapeHtml(msg.content || '').slice(0, 200)}</div>
+        </div>`;
+    }
+    return '';
+}
+
+// --- Actions ---
+
+async function _getSupportAuthToken() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    return session?.access_token;
+}
+
+async function _postSupportChatAPI(path, payload) {
+    const token = await _getSupportAuthToken();
+    const res = await fetch(path, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload || {})
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+}
+
+window.assignChat = async function(conversationId) {
+    try {
+        await _postSupportChatAPI('/api/support-chat/assign', { conversation_id: conversationId });
+        // refresh local record
+        const updated = await _supabase.from('support_conversations').select('*').eq('id', conversationId).single();
+        if (updated.data) {
+            const idx = chats.findIndex(c => c.id === conversationId);
+            if (idx >= 0) chats[idx] = updated.data;
+            if (activeChatId === conversationId) renderChatDrawerBody(updated.data);
+            applyFiltersAndSort();
+        }
+    } catch (err) {
+        alert('Error tomando conversación: ' + err.message);
+    }
+};
+
+window.releaseChat = async function(conversationId) {
+    try {
+        await _postSupportChatAPI('/api/support-chat/release', { conversation_id: conversationId });
+        const updated = await _supabase.from('support_conversations').select('*').eq('id', conversationId).single();
+        if (updated.data) {
+            const idx = chats.findIndex(c => c.id === conversationId);
+            if (idx >= 0) chats[idx] = updated.data;
+            if (activeChatId === conversationId) renderChatDrawerBody(updated.data);
+            applyFiltersAndSort();
+        }
+    } catch (err) {
+        alert('Error devolviendo al bot: ' + err.message);
+    }
+};
+
+window.closeChat = async function(conversationId) {
+    if (!confirm('¿Cerrar esta conversación?')) return;
+    try {
+        await _postSupportChatAPI('/api/support-chat/close', { conversation_id: conversationId });
+        const updated = await _supabase.from('support_conversations').select('*').eq('id', conversationId).single();
+        if (updated.data) {
+            const idx = chats.findIndex(c => c.id === conversationId);
+            if (idx >= 0) chats[idx] = updated.data;
+            if (activeChatId === conversationId) renderChatDrawerBody(updated.data);
+            applyFiltersAndSort();
+        }
+    } catch (err) {
+        alert('Error cerrando: ' + err.message);
+    }
+};
+
+window.sendAgentMessage = async function(conversationId) {
+    const input = document.getElementById('chat-agent-input');
+    if (!input) return;
+    const content = (input.value || '').trim();
+    if (!content) return;
+    input.disabled = true;
+    try {
+        await _postSupportChatAPI('/api/support-chat/agent-message', {
+            conversation_id: conversationId,
+            content
+        });
+        input.value = '';
+        // el mensaje entrará via realtime; pero forzamos refresh por si acaso
+        const msgsRes = await _supabase
+            .from('support_messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+        if (!msgsRes.error) {
+            chatMessages = msgsRes.data || [];
+            const chat = chats.find(c => c.id === conversationId);
+            if (chat) renderChatDrawerBody(chat);
+        }
+    } catch (err) {
+        alert('Error enviando: ' + err.message);
+    } finally {
+        input.disabled = false;
+        input.focus();
+    }
+};
+
+// --- Realtime ---
+
+function subscribeChatsInbox() {
+    if (chatRealtimeChannel) return;
+    try {
+        chatRealtimeChannel = _supabase
+            .channel('support-inbox')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'support_conversations'
+            }, (payload) => {
+                const row = payload.new || payload.old;
+                if (!row) return;
+                if (payload.eventType === 'DELETE') {
+                    chats = chats.filter(c => c.id !== row.id);
+                } else {
+                    const idx = chats.findIndex(c => c.id === row.id);
+                    if (idx >= 0) chats[idx] = payload.new;
+                    else chats.unshift(payload.new);
+                }
+                if (activeTab === 'chats') applyFiltersAndSort();
+                updateChatsBadge();
+                // si la convo abierta cambió, refresh meta/acciones
+                if (activeChatId && payload.new && payload.new.id === activeChatId) {
+                    renderChatDrawerBody(payload.new);
+                }
+            })
+            .subscribe();
+    } catch (err) {
+        console.warn('Chat inbox realtime error:', err);
+    }
+}
+
+function subscribeChatMessages(conversationId) {
+    unsubscribeChatMessages();
+    try {
+        chatMessagesChannel = _supabase
+            .channel('support-msgs-' + conversationId)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'support_messages',
+                filter: `conversation_id=eq.${conversationId}`
+            }, (payload) => {
+                if (!payload.new) return;
+                if (chatMessages.some(m => m.id === payload.new.id)) return;
+                chatMessages.push(payload.new);
+                const chat = chats.find(c => c.id === conversationId);
+                if (chat) renderChatDrawerBody(chat);
+            })
+            .subscribe();
+    } catch (err) {
+        console.warn('Chat messages realtime error:', err);
+    }
+}
+
+function unsubscribeChatMessages() {
+    if (chatMessagesChannel) {
+        try { _supabase.removeChannel(chatMessagesChannel); } catch {}
+        chatMessagesChannel = null;
+    }
+}
+
+function updateChatsBadge() {
+    const pending = chats.filter(c => c.status === 'awaiting_human').length;
+    ['nav-chats-badge', 'tab-chats-badge'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (pending > 0) {
+            el.textContent = String(pending);
+            el.style.display = 'inline-block';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}

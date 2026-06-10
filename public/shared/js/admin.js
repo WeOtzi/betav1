@@ -12,6 +12,8 @@ let currentPage = 1;
 let currentArtistsPage = 1;
 const itemsPerPage = 10; // Quotations
 let artistsItemsPerPage = 15; // Artists [NEW]
+// Used to sanity-check an identifier before sending it to the delete endpoint.
+const UUID_RE_CLIENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Questions configuration
 let questionsConfig = [];
@@ -105,6 +107,7 @@ function showSection(sectionId) {
         'dashboard': 'Dashboard',
         'quotations': 'Cotizaciones',
         'artists': 'Gestion de Artistas',
+        'studios': 'Gestion de Estudios',
         'questions': 'Configurar Preguntas',
         'styles': 'Estilos de Tatuaje',
         'settings': 'Configuracion',
@@ -116,7 +119,9 @@ function showSection(sectionId) {
         'routes': 'Gestion de Rutas',
         'backup': 'Backup y Restauracion',
         'support': 'Usuarios de Soporte',
-        'events': 'Eventos y Webhooks'
+        'events': 'Eventos y Webhooks',
+        'email-routing': 'Email Routing (n8n / BillionMail)',
+        'currencies': 'Monedas y Tipos de Cambio'
     };
     document.getElementById('section-title').textContent = titles[sectionId];
 
@@ -125,6 +130,8 @@ function showSection(sectionId) {
         loadQuotations();
     } else if (sectionId === 'artists') {
         loadArtists();
+    } else if (sectionId === 'studios') {
+        loadStudios();
     } else if (sectionId === 'styles') {
         loadTattooStyles();
     } else if (sectionId === 'content') {
@@ -141,6 +148,10 @@ function showSection(sectionId) {
         loadSupportUsers();
     } else if (sectionId === 'events') {
         loadN8NEvents();
+    } else if (sectionId === 'email-routing') {
+        if (typeof loadEmailRouting === 'function') loadEmailRouting();
+    } else if (sectionId === 'currencies') {
+        loadCurrenciesAdmin();
     } else if (sectionId === 'analytics') {
         loadAnalyticsData();
     }
@@ -290,8 +301,8 @@ let supabaseClient = null;
 
 if (typeof window.supabase !== 'undefined' && 
     CONFIG.supabase.url !== 'https://YOUR_PROJECT_ID.supabase.co') {
-    supabaseClient = window.supabase.createClient(
-        CONFIG.supabase.url, 
+    supabaseClient = window._supabase = window._supabase || window.supabase.createClient(
+        CONFIG.supabase.url,
         CONFIG.supabase.key
     );
     console.log('✅ Supabase client initialized');
@@ -319,12 +330,18 @@ window.supabaseClient = supabaseClient;
 
 // ============ SUPABASE ============
 function initSupabase() {
-    const savedSettings = localStorage.getItem('weotzi_admin_settings');
-    if (!savedSettings) return;
+    let url = window.ConfigManager?.getValue?.('supabase.url') || '';
+    let key = window.ConfigManager?.getValue?.('supabase.anonKey') || '';
 
-    const settings = JSON.parse(savedSettings);
-    if (settings.supabase?.url && settings.supabase?.key) {
-        connectSupabase(settings.supabase.url, settings.supabase.key);
+    const savedSettings = localStorage.getItem('weotzi_admin_settings');
+    if ((!url || !key) && savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        url = settings.supabase?.url || '';
+        key = settings.supabase?.key || settings.supabase?.anonKey || '';
+    }
+
+    if (url && key) {
+        connectSupabase(url, key);
     }
 }
 
@@ -351,13 +368,7 @@ async function connectSupabase(url, key) {
 
         if (!supabaseClient) throw new Error("Could not initialize Supabase client");
 
-        // Test connection
-        const { data, error } = await supabaseClient
-            .from('quotations_db')
-            .select('count')
-            .limit(1);
-
-        if (error) throw error;
+        await _fetchAdminJson('/api/admin/database/tables');
 
         updateConnectionStatus(true);
         loadDashboardStats();
@@ -386,21 +397,13 @@ async function testSupabaseConnection() {
     showToast('Probando conexión...', 'info');
 
     try {
-        const testClient = window.supabase.createClient(url, key);
-
-        // Try to access quotations_db
-        const { data, error } = await testClient
-            .from('quotations_db')
-            .select('quote_id')
-            .limit(1);
-
-        if (error) throw error;
+        await _fetchAdminJson('/api/admin/database/tables');
 
         // Save settings
         saveSettings();
 
         // Connect
-        supabaseClient = testClient;
+        supabaseClient = window.ConfigManager?.getSupabaseClient?.() || window._supabase || null;
         updateConnectionStatus(true);
         loadDashboardStats();
 
@@ -516,6 +519,7 @@ function renderRecentQuotations(quotations) {
         'pending': 'Pendiente',
         'responded': 'Respondida',
         'client_approved': 'Cliente Acepto',
+        'artist_completed': 'Lista para cliente',
         'client_rejected': 'Cliente Rechazo',
         'completed': 'Completada'
     };
@@ -597,6 +601,7 @@ function renderQuotationsTable() {
         'pending': 'Pendiente',
         'responded': 'Respondida',
         'client_approved': 'Cliente Acepto',
+        'artist_completed': 'Lista para cliente',
         'client_rejected': 'Cliente Rechazo',
         'completed': 'Completada'
     };
@@ -1688,107 +1693,242 @@ function closeModal() {
 }
 
 // ============ ARTISTS LOGIC ============
+//
+// Reads artists_db from Supabase (fallback to demo via ConfigManager) and
+// renders a dense business view: identity + contact + ubicación + studio +
+// estilos + precio + experiencia + embajador + verificación + índice +
+// completitud. The edit modal exposes ~30 columns split across tabs so the
+// admin can curate any field without leaving /backoffice.
+//
+// Key constants live near the top of this block to keep them in sync between
+// list, filters, badges and the edit modal.
+const EMBAJADOR_LABELS = {
+    si: { text: 'Embajador', class: 'ambassador' },
+    pendiente: { text: 'Pendiente', class: 'pending' },
+    No: { text: 'No', class: 'none' }
+};
+
+const VERIFICATION_LABELS = {
+    'Yes':         { text: 'Verificado',   class: 'verified' },
+    'No':          { text: 'No verificado',class: 'not-verified' },
+    'Requested':   { text: 'Solicitada',   class: 'requested' },
+    'In Progress': { text: 'En progreso',  class: 'in-progress' },
+    'In Analysis': { text: 'En análisis',  class: 'in-analysis' },
+    'Denied':      { text: 'Denegado',     class: 'denied' }
+};
+
+function normalizeEmbajador(value) {
+    const v = String(value || '').toLowerCase();
+    if (v === 'si' || v === 'sí' || v === 'yes' || v === 'true') return 'si';
+    if (v === 'pendiente' || v === 'pending') return 'pendiente';
+    return 'No';
+}
+
+function getEmbajadorBadge(value) {
+    const key = normalizeEmbajador(value);
+    const cfg = EMBAJADOR_LABELS[key] || EMBAJADOR_LABELS.No;
+    return `<span class="status-badge ${cfg.class}">${cfg.text}</span>`;
+}
+
+function getVerificationBadge(state) {
+    const cfg = VERIFICATION_LABELS[state] || VERIFICATION_LABELS.No;
+    return `<span class="status-badge ${cfg.class}">${cfg.text}</span>`;
+}
+
+function progressBar(value, max = 100) {
+    const v = Number(value) || 0;
+    const pct = Math.min(100, Math.max(0, (v / max) * 100));
+    const cls = v >= 70 ? '' : (v >= 40 ? 'warn' : 'error');
+    return `<div class="bo-progress" title="${v} / ${max}">
+        <span class="bar"><span class="${cls}" style="width: ${pct}%"></span></span>
+        <span class="value">${v}</span>
+    </div>`;
+}
+
+function avatarInitials(name) {
+    return String(name || '?')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(s => s[0].toUpperCase())
+        .join('') || '?';
+}
+
+function buildArtistLocation(a) {
+    // Prefer structured fields, fall back to legacy columns.
+    const parts = [];
+    const city = a.city || a.locality;
+    if (city) parts.push(city);
+    const region = a.state_province;
+    if (region && region !== city) parts.push(region);
+    const country = a.country;
+    if (country) parts.push(country);
+    if (parts.length) return parts.join(', ');
+    return a.ubicacion || '';
+}
+
 async function loadArtists() {
     const tbody = document.getElementById('artists-tbody');
     const isDemo = document.getElementById('setting-demo-mode').checked;
+    const colCount = 12;
 
-    // Check connection first
-    if (!supabaseClient && !isDemo) {
-        showTableEmptyState('artists-tbody', 6, 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion o activa el Modo Demo en Configuracion.');
-        return;
-    }
+    const searchTerm = (document.getElementById('search-artists')?.value || '').trim().toLowerCase();
+    const filterEmb = document.getElementById('filter-artists-embajador')?.value || '';
+    const filterVer = document.getElementById('filter-artists-verification')?.value || '';
 
-    const searchTerm = document.getElementById('search-artists').value.trim().toLowerCase();
-
-    showTableLoading('artists-tbody', 6);
+    showTableLoading('artists-tbody', colCount);
 
     try {
         let artists = [];
 
         if (isDemo) {
-            // Load from ConfigManager
             const demoArtists = window.ConfigManager.getDemoArtists();
-            // Map to unified format if needed, but demo structure is already good
             artists = demoArtists.map(a => ({
                 id: a.userId,
+                user_id: a.userId,
                 username: a.username,
                 name: a.name,
-                current_city: a.location,
-                styles_array: a.styles, // Array in demo
-                session_cost: a.sessionPrice
+                email: a.email || '',
+                instagram: a.instagram || '',
+                whatsapp_number: a.whatsappNumber || '',
+                city: a.location,
+                country: a.country || '',
+                estudios: a.studio || '',
+                styles_array: a.styles || [],
+                session_price: a.sessionPrice,
+                years_experience: a.yearsExperience || '',
+                embajador: a.embajador || 'No',
+                verification_state: a.verificationState || 'No',
+                is_recommended: !!a.isRecommended,
+                artist_index: Number(a.artistIndex) || 0,
+                profile_completeness: Number(a.profileCompleteness) || 0,
+                profile_picture: a.profilePicture || ''
             }));
         } else {
-            // Load from Supabase
-            const { data, error } = await supabaseClient
-                .from('artists_db')
-                .select('*')
-                .order('name', { ascending: true });
+            const result = await _fetchAdminJson('/api/admin/artists');
+            const data = result.artists || [];
 
-            if (error) throw error;
-
-            // Map Supabase format
             artists = data.map(a => ({
-                id: a.user_id,
-                username: a.username,
-                name: a.name,
-                current_city: a.ubicacion, // Note field name mapping
-                studio_name: a.estudios,
-                email: a.email,
-                instagram: a.instagram,
-                styles_array: typeof a.styles_array === 'string' ? JSON.parse(a.styles_array) : a.styles_array,
-                session_cost: a.session_price
+                ...a,
+                id: a.id || a.user_id,
+                styles_array: typeof a.styles_array === 'string'
+                    ? JSON.parse(a.styles_array)
+                    : (a.styles_array || []),
+                languages: typeof a.languages === 'string'
+                    ? JSON.parse(a.languages)
+                    : (a.languages || []),
+                custom_canvas_labels: typeof a.custom_canvas_labels === 'string'
+                    ? JSON.parse(a.custom_canvas_labels)
+                    : (a.custom_canvas_labels || [])
             }));
         }
 
-        // Filter
+        // Filter (search across many fields, plus dropdown filters)
         if (searchTerm) {
-            artists = artists.filter(a =>
-                a.name.toLowerCase().includes(searchTerm) ||
-                a.username.toLowerCase().includes(searchTerm) ||
-                (a.current_city && a.current_city.toLowerCase().includes(searchTerm))
-            );
+            artists = artists.filter(a => {
+                const haystack = [
+                    a.name, a.username, a.email, a.instagram, a.whatsapp_number,
+                    a.city, a.country, a.locality, a.state_province, a.ubicacion,
+                    a.estudios, a.formatted_address,
+                    Array.isArray(a.styles_array) ? a.styles_array.join(' ') : a.styles_array
+                ].filter(Boolean).join(' ').toLowerCase();
+                return haystack.includes(searchTerm);
+            });
+        }
+        if (filterEmb) {
+            artists = artists.filter(a => normalizeEmbajador(a.embajador) === filterEmb);
+        }
+        if (filterVer) {
+            artists = artists.filter(a => (a.verification_state || 'No') === filterVer);
         }
 
         currentArtists = artists;
+        currentArtistsPage = 1;
         renderArtistsTable();
+        renderArtistsMeta(artists);
 
     } catch (error) {
         console.error('Error loading artists:', error);
-        showTableErrorState('artists-tbody', 6, 'No se pudieron cargar los artistas. Verifica tu conexion.', 'loadArtists()');
+        showTableErrorState('artists-tbody', colCount, 'No se pudieron cargar los artistas. Verifica tu conexion.', 'loadArtists()');
         showToast('Error cargando artistas', 'error');
     }
 }
 
+function renderArtistsMeta(artists) {
+    const meta = document.getElementById('artists-table-meta');
+    if (!meta) return;
+    const total = artists.length;
+    const ambassadors = artists.filter(a => normalizeEmbajador(a.embajador) === 'si').length;
+    const pending = artists.filter(a => normalizeEmbajador(a.embajador) === 'pendiente').length;
+    const verified = artists.filter(a => a.verification_state === 'Yes').length;
+    const recommended = artists.filter(a => a.is_recommended === true).length;
+    meta.innerHTML = `
+        <span><strong>${total}</strong> artistas</span>
+        <span><strong>${ambassadors}</strong> embajadores</span>
+        <span><strong>${pending}</strong> pendientes</span>
+        <span><strong>${verified}</strong> verificados</span>
+        <span><strong>${recommended}</strong> recomendados</span>
+    `;
+}
+
 function renderArtistsTable() {
     const tbody = document.getElementById('artists-tbody');
+    const colCount = 12;
     const start = (currentArtistsPage - 1) * artistsItemsPerPage;
     const end = start + parseInt(artistsItemsPerPage);
     const pageItems = currentArtists.slice(start, end);
 
     if (pageItems.length === 0) {
-        showTableEmptyState('artists-tbody', 6, 'fa-palette', 'No se encontraron artistas', 'Ajusta los filtros o espera nuevos registros.');
+        showTableEmptyState('artists-tbody', colCount, 'fa-palette', 'No se encontraron artistas', 'Ajusta los filtros o espera nuevos registros.');
         return;
     }
 
     tbody.innerHTML = pageItems.map(a => {
-        const styles = Array.isArray(a.styles_array) ? a.styles_array.join(', ') : a.styles_array;
+        const styles = Array.isArray(a.styles_array) ? a.styles_array.join(', ') : (a.styles_array || '');
+        const location = buildArtistLocation(a);
+        const studio = a.estudios || (a.studio_id ? `Studio ${String(a.studio_id).slice(0, 8)}…` : '');
+        const initials = avatarInitials(a.name || a.username);
+        const recommendedTag = a.is_recommended
+            ? '<span class="badge-sm" title="Artista recomendado" style="margin-left:6px;background:rgba(245,158,11,0.18);color:#f59e0b;">★</span>'
+            : '';
+        const safeId = escapeHtml(a.user_id || a.id || '');
 
         return `
             <tr>
-                <td><strong>${a.username}</strong></td>
-                <td>${a.name}</td>
-                <td>${a.current_city || '—'}</td>
-                <td><span class="truncate-text" title="${styles}">${styles || '—'}</span></td>
-                <td>${a.session_cost || '—'}</td>
                 <td>
-                    <button class="btn-icon" onclick="editArtist('${a.id}')" title="Editar">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    ${document.getElementById('setting-demo-mode').checked ? `
-                    <button class="btn-icon danger" onclick="deleteArtist('${a.id}')" title="Eliminar (Solo Demo)">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                    ` : ''}
+                    <div class="artist-cell-identity">
+                        <span class="avatar">${a.profile_picture ? `<img src="${escapeHtml(a.profile_picture)}" alt="">` : escapeHtml(initials)}</span>
+                        <div class="artist-meta">
+                            <strong title="${escapeHtml(a.name || '')}">${escapeHtml(a.name || '—')}${recommendedTag}</strong>
+                            <small title="${escapeHtml(a.username || '')}">@${escapeHtml(a.username || '—')}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="artist-cell-contact">
+                        ${a.email ? `<a href="mailto:${escapeHtml(a.email)}" title="${escapeHtml(a.email)}"><i class="fa-solid fa-envelope"></i> ${escapeHtml(a.email)}</a>` : '<span>—</span>'}
+                        ${a.instagram ? `<a href="${escapeHtml(a.instagram)}" target="_blank" rel="noopener" title="${escapeHtml(a.instagram)}"><i class="fa-brands fa-instagram"></i> Instagram</a>` : ''}
+                        ${a.whatsapp_number ? `<span title="${escapeHtml(a.whatsapp_number)}"><i class="fa-brands fa-whatsapp"></i> ${escapeHtml(a.whatsapp_number)}</span>` : ''}
+                    </div>
+                </td>
+                <td><span class="truncate-text" title="${escapeHtml(location)}">${escapeHtml(location || '—')}</span></td>
+                <td><span class="truncate-text" title="${escapeHtml(studio)}">${escapeHtml(studio || '—')}</span></td>
+                <td><span class="truncate-text" title="${escapeHtml(styles)}">${escapeHtml(styles || '—')}</span></td>
+                <td>${escapeHtml(a.session_price || '—')}</td>
+                <td>${escapeHtml(a.years_experience || '—')}</td>
+                <td>${getEmbajadorBadge(a.embajador)}</td>
+                <td>${getVerificationBadge(a.verification_state || 'No')}</td>
+                <td>${progressBar(a.artist_index)}</td>
+                <td>${progressBar(a.profile_completeness)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-icon" onclick="editArtist('${safeId}')" title="Editar">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="btn-icon danger-hover" onclick="deleteArtist('${safeId}')" title="Eliminar">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -1824,124 +1964,693 @@ function goToArtistsPage(page) {
     renderArtistsTable();
 }
 
+// Switches between tabs inside the artist edit modal.
+function switchArtistTab(tabName) {
+    document.querySelectorAll('#artist-modal .modal-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('#artist-modal .modal-tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
+    });
+}
+
+// Tracks the artist currently open in the modal so save/delete know which row
+// to operate on, even when the user types into form fields.
+let editingArtist = null;
+
+function setVal(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!value;
+    else if (el.isContentEditable) {
+        if (id === 'artist-bio' && window.BioFormatting) {
+            window.BioFormatting.renderBioHtml(el, value, { emptyMessage: '' });
+        } else {
+            el.textContent = value == null ? '' : value;
+        }
+    }
+    else el.value = value == null ? '' : value;
+}
+
+function getVal(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    if (el.type === 'checkbox') return el.checked;
+    if (el.isContentEditable) {
+        const raw = el.innerHTML || '';
+        if (id === 'artist-bio' && window.BioFormatting) {
+            return window.BioFormatting.sanitizeBioHtml(raw);
+        }
+        return raw;
+    }
+    return el.value;
+}
+
+function csvToArray(s) {
+    return String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+}
+
 function editArtist(artistId) {
-    const artist = currentArtists.find(a => a.id === artistId);
-    if (!artist) return;
+    const artist = currentArtists.find(a =>
+        a.user_id === artistId || a.id === artistId
+    );
+    if (!artist) {
+        showToast('Artista no encontrado', 'error');
+        return;
+    }
+    editingArtist = artist;
 
-    // Reset form
     document.getElementById('artist-form').reset();
+    switchArtistTab('identity');
 
-    // Fill fields
-    document.getElementById('artist-id').value = artist.id;
-    document.getElementById('artist-name').value = artist.name;
-    document.getElementById('artist-username').value = artist.username;
-    document.getElementById('artist-email').value = artist.email || '';
-    document.getElementById('artist-instagram').value = artist.instagram || '';
-    document.getElementById('artist-city').value = artist.current_city || '';
-    document.getElementById('artist-studio').value = artist.studio_name || ''; // Mapping
-    document.getElementById('artist-price').value = artist.session_cost || '';
+    // Hidden ids: artist-id keeps the row primary key (id); artist-user-id keeps user_id (used as filter for updates because RLS policies key off user_id).
+    setVal('artist-id', artist.id || artist.user_id);
+    setVal('artist-user-id', artist.user_id || artist.id);
 
-    const styles = Array.isArray(artist.styles_array) ? artist.styles_array.join(', ') : '';
-    document.getElementById('artist-styles').value = styles;
+    // Identidad
+    setVal('artist-name', artist.name);
+    setVal('artist-username', artist.username);
+    setVal('artist-email', artist.email);
+    setVal('artist-whatsapp', artist.whatsapp_number);
+    setVal('artist-instagram', artist.instagram);
+    setVal('artist-portfolio', artist.portafolio);
+    setVal('artist-picture', artist.profile_picture);
+    setVal('artist-birth', artist.birth_date);
+    setVal('artist-bio', artist.bio_description);
+    setVal('artist-languages', Array.isArray(artist.languages) ? artist.languages.join(', ') : artist.languages);
+    setVal('artist-newsletter', artist.subscribed_newsletter);
 
-    document.getElementById('artist-modal-title').textContent = 'Editar Artista';
+    // Ubicación
+    setVal('artist-city', artist.city);
+    setVal('artist-country', artist.country);
+    setVal('artist-state-province', artist.state_province);
+    setVal('artist-locality', artist.locality);
+    setVal('artist-street', artist.street);
+    setVal('artist-street-number', artist.street_number);
+    setVal('artist-unit', artist.unit);
+    setVal('artist-postal-code', artist.postal_code);
+    setVal('artist-country-code', artist.country_code);
+    setVal('artist-formatted-address', artist.formatted_address);
+    setVal('artist-latitude', artist.latitude);
+    setVal('artist-longitude', artist.longitude);
+    setVal('artist-ubicacion', artist.ubicacion);
+
+    // Negocio
+    setVal('artist-studio', artist.estudios);
+    setVal('artist-studio-id', artist.studio_id);
+    setVal('artist-work-type', artist.work_type);
+    setVal('artist-experience', artist.years_experience);
+    setVal('artist-price', artist.session_price);
+    setVal('artist-nivel', artist.nivel);
+    setVal('artist-styles', Array.isArray(artist.styles_array) ? artist.styles_array.join(', ') : artist.styles_array);
+    setVal('artist-estilo', artist.estilo);
+
+    // Estatus
+    setVal('artist-embajador', normalizeEmbajador(artist.embajador));
+    setVal('artist-verification-state', artist.verification_state || 'No');
+    setVal('artist-is-recommended', artist.is_recommended);
+    setVal('artist-email-confirmed', artist.email_confirmed);
+    setVal('artist-vacation-start', artist.vacation_start);
+    setVal('artist-vacation-end', artist.vacation_end);
+    setVal('artist-ms-profile-complete', artist.ms_profile_complete);
+    setVal('artist-ms-first-quote-received', artist.ms_first_quote_received);
+    setVal('artist-ms-first-quote-completed', artist.ms_first_quote_completed);
+    setVal('artist-ms-whatsapp-shared', artist.ms_whatsapp_shared);
+    setVal('artist-ms-profile-shared', artist.ms_profile_shared);
+
+    // Avanzado
+    setVal('artist-custom-canvas-labels', Array.isArray(artist.custom_canvas_labels) ? artist.custom_canvas_labels.join(', ') : artist.custom_canvas_labels);
+    setVal('artist-artist-index', artist.artist_index);
+    setVal('artist-profile-completeness', artist.profile_completeness);
+    setVal('artist-google-place-id', artist.google_place_id);
+    setVal('artist-idx', artist.idx);
+
+    // Header meta inside the modal — quick reference of read-only signals.
+    const meta = document.getElementById('artist-modal-meta');
+    if (meta) {
+        const created = artist.index_updated_at ? new Date(artist.index_updated_at).toLocaleString() : '—';
+        meta.innerHTML = `
+            <span>ID: <strong>${escapeHtml(String(artist.id || ''))}</strong></span>
+            <span>user_id: <strong>${escapeHtml(String(artist.user_id || ''))}</strong></span>
+            <span>Índice: <strong>${artist.artist_index || 0}/100</strong></span>
+            <span>Perfil: <strong>${artist.profile_completeness || 0}%</strong></span>
+            <span>Actualizado: <strong>${escapeHtml(created)}</strong></span>
+        `;
+    }
+
+    document.getElementById('artist-modal-title').textContent = `Editar Artista — ${artist.name || artist.username || ''}`;
     openModal('artist-modal');
+}
+
+// Translate Supabase / PostgREST errors into friendlier Spanish messages. We
+// keep the original error.message as a fallback so nothing is hidden.
+function describeArtistDbError(error) {
+    if (!error) return 'Operación bloqueada (RLS o fila no encontrada). Revisa tu sesión.';
+    const code = error.code || '';
+    const details = error.details || '';
+    const msg = error.message || String(error);
+    if (code === '42501') {
+        return 'Sin permisos para modificar artists_db. Tu sesión de superadmin pudo haber expirado.';
+    }
+    if (code === '23503') {
+        // Foreign key violation — surface which table is blocking the delete.
+        if (/studio_jobs_log/.test(details + msg)) {
+            return 'No se puede eliminar: el artista tiene registros en studio_jobs_log (ON DELETE RESTRICT).';
+        }
+        if (/job_board_requests/.test(details + msg)) {
+            return 'No se puede eliminar: el artista aceptó una solicitud en job_board_requests. Reasigna o cancela la solicitud primero.';
+        }
+        return 'No se puede eliminar: hay registros relacionados que lo impiden (' + (details || msg) + ').';
+    }
+    if (code === '23514') {
+        // error.message carries the constraint name ("violates check constraint X"),
+        // which is the actual clue. details/hint are extra context — keep them all.
+        const parts = [msg, details, error.hint].filter(Boolean);
+        return 'CHECK constraint violado: ' + parts.join(' — ');
+    }
+    return msg;
 }
 
 async function saveArtist(event) {
     event.preventDefault();
 
-    const id = document.getElementById('artist-id').value;
-    const name = document.getElementById('artist-name').value;
-    const username = document.getElementById('artist-username').value;
-    const email = document.getElementById('artist-email').value;
-    const instagram = document.getElementById('artist-instagram').value;
-    const city = document.getElementById('artist-city').value;
-    const studio = document.getElementById('artist-studio').value;
-    const price = document.getElementById('artist-price').value;
-    const stylesStr = document.getElementById('artist-styles').value;
-    const styles = stylesStr.split(',').map(s => s.trim()).filter(s => s);
-
+    const id = getVal('artist-id');
+    const userId = getVal('artist-user-id') || id;
     const isDemo = document.getElementById('setting-demo-mode').checked;
+
+    // Optional password change. Empty = leave the current password untouched.
+    // Validate length up front so we never do a partial save (DB row updated
+    // but password rejected).
+    const newPassword = getVal('artist-new-password');
+    if (newPassword && newPassword.length < 6) {
+        showToast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+    }
+    // A password only exists for artists with a real auth account. Drafts /
+    // imported artists have user_id = NULL (the hidden field falls back to the
+    // primary key, so read the true value off the loaded row instead).
+    const authUserId = (editingArtist && editingArtist.user_id) || '';
+    let passwordApplied = false;
+
+    // Build payload that matches artists_db column names exactly.
+    // artist_index, profile_completeness and index_updated_at are NOT sent —
+    // they are computed by the BEFORE-UPDATE trigger update_artist_index().
+    const updates = {
+        name: getVal('artist-name'),
+        username: getVal('artist-username'),
+        email: getVal('artist-email'),
+        whatsapp_number: getVal('artist-whatsapp'),
+        instagram: getVal('artist-instagram'),
+        portafolio: getVal('artist-portfolio'),
+        profile_picture: getVal('artist-picture'),
+        birth_date: getVal('artist-birth') || null,
+        bio_description: getVal('artist-bio'),
+        languages: csvToArray(getVal('artist-languages')),
+        subscribed_newsletter: getVal('artist-newsletter'),
+
+        city: getVal('artist-city'),
+        country: getVal('artist-country'),
+        state_province: getVal('artist-state-province'),
+        locality: getVal('artist-locality'),
+        street: getVal('artist-street'),
+        street_number: getVal('artist-street-number'),
+        unit: getVal('artist-unit'),
+        postal_code: getVal('artist-postal-code'),
+        country_code: getVal('artist-country-code'),
+        formatted_address: getVal('artist-formatted-address'),
+        latitude: getVal('artist-latitude') === '' ? null : Number(getVal('artist-latitude')),
+        longitude: getVal('artist-longitude') === '' ? null : Number(getVal('artist-longitude')),
+        ubicacion: getVal('artist-ubicacion'),
+
+        estudios: getVal('artist-studio'),
+        studio_id: getVal('artist-studio-id') || null,
+        work_type: getVal('artist-work-type') || null,
+        years_experience: getVal('artist-experience'),
+        session_price: getVal('artist-price'),
+        nivel: getVal('artist-nivel') || 'Nuevo',
+        styles_array: csvToArray(getVal('artist-styles')),
+        estilo: getVal('artist-estilo'),
+
+        embajador: getVal('artist-embajador'),
+        verification_state: getVal('artist-verification-state'),
+        is_recommended: getVal('artist-is-recommended'),
+        email_confirmed: getVal('artist-email-confirmed'),
+        vacation_start: getVal('artist-vacation-start') || null,
+        vacation_end: getVal('artist-vacation-end') || null,
+        ms_profile_complete: getVal('artist-ms-profile-complete'),
+        ms_first_quote_received: getVal('artist-ms-first-quote-received'),
+        ms_first_quote_completed: getVal('artist-ms-first-quote-completed'),
+        ms_whatsapp_shared: getVal('artist-ms-whatsapp-shared'),
+        ms_profile_shared: getVal('artist-ms-profile-shared'),
+
+        custom_canvas_labels: csvToArray(getVal('artist-custom-canvas-labels')),
+        google_place_id: getVal('artist-google-place-id'),
+        idx: getVal('artist-idx') === '' ? null : Number(getVal('artist-idx'))
+    };
 
     try {
         if (isDemo) {
-            // Update in ConfigManager
             const currentDemoArtists = window.ConfigManager.getDemoArtists();
-            const index = currentDemoArtists.findIndex(a => a.userId === id);
-
+            const index = currentDemoArtists.findIndex(a => a.userId === userId);
             const updatedArtist = {
-                userId: id,
-                username,
-                name,
-                email,
-                instagram,
-                location: city,
-                studio,
-                sessionPrice: price,
-                styles
+                userId,
+                username: updates.username,
+                name: updates.name,
+                email: updates.email,
+                instagram: updates.instagram,
+                location: updates.city,
+                country: updates.country,
+                studio: updates.estudios,
+                sessionPrice: updates.session_price,
+                yearsExperience: updates.years_experience,
+                styles: updates.styles_array,
+                embajador: updates.embajador,
+                verificationState: updates.verification_state,
+                isRecommended: updates.is_recommended,
+                profilePicture: updates.profile_picture
             };
-
-            let newArtistsList;
-            if (index >= 0) {
-                newArtistsList = [...currentDemoArtists];
-                newArtistsList[index] = updatedArtist;
-            } else {
-                newArtistsList = [...currentDemoArtists, updatedArtist];
-            }
-
-            // Save to config
-            window.ConfigManager.setValue('demoArtists', newArtistsList);
-            showToast('Artista actualizado en Demo Mode', 'success');
-
+            const newList = [...currentDemoArtists];
+            if (index >= 0) newList[index] = updatedArtist;
+            else newList.push(updatedArtist);
+            window.ConfigManager.setValue('demoArtists', newList);
+            showToast(
+                newPassword
+                    ? 'Artista actualizado en Demo Mode (la contraseña no aplica en demo)'
+                    : 'Artista actualizado en Demo Mode',
+                newPassword ? 'warning' : 'success'
+            );
         } else {
-            // Update in Supabase
-            // Verify Supabase connection
-            if (!supabaseClient) throw new Error("No hay conexión con Supabase");
+            if (!supabaseClient) throw new Error('No hay conexión con Supabase');
+            if (!userId) throw new Error('user_id vacío — abre el artista desde la tabla.');
 
-            const updates = {
-                username,
-                name,
-                email,
-                instagram,
-                ubicacion: city,
-                estudios: studio,
-                session_price: price,
-                styles_array: JSON.stringify(styles)
-            };
-
-            const { error } = await supabaseClient
+            // .select() forces PostgREST to return affected rows so we can
+            // detect silent RLS failures (data:[], error:null) that previously
+            // surfaced as a fake "Artista actualizado" toast.
+            const { data, error } = await supabaseClient
                 .from('artists_db')
                 .update(updates)
-                .eq('user_id', id);
+                .eq('user_id', userId)
+                .select('user_id');
 
             if (error) throw error;
-            showToast('Artista actualizado en Supabase', 'success');
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error('No se actualizó ninguna fila (RLS bloqueó la operación o user_id no coincide). Inicia sesión otra vez en /backoffice/login.');
+            }
+
+            // Password change goes through the service-role admin endpoint
+            // (Supabase's anon/authenticated key cannot set another user's
+            // password — only the auth.admin API can). Same endpoint already
+            // used for support users.
+            if (newPassword) {
+                if (!authUserId) {
+                    showToast('Este artista no tiene cuenta de acceso (borrador/importado): no se puede asignar contraseña.', 'warning');
+                } else {
+                    const headers = await _getApifyAuthHeaders();
+                    if (headers._noSession) {
+                        throw new Error('No hay sesión de superadmin para cambiar la contraseña. Inicia sesión otra vez en /backoffice/login.');
+                    }
+                    const pwRes = await fetch('/api/admin/update-user-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...headers },
+                        body: JSON.stringify({ userId: authUserId, newPassword })
+                    });
+                    const pwResult = await pwRes.json();
+                    if (!pwRes.ok || !pwResult.success) {
+                        throw new Error(pwResult.error || `Error al actualizar la contraseña (HTTP ${pwRes.status})`);
+                    }
+                    passwordApplied = true;
+                }
+            }
+
+            showToast(passwordApplied ? 'Artista y contraseña actualizados' : 'Artista actualizado en Supabase', 'success');
         }
 
         closeModal();
-        loadArtists(); // Refresh table
+        loadArtists();
 
     } catch (error) {
         console.error('Error saving artist:', error);
+        showToast('Error al guardar: ' + describeArtistDbError(error), 'error');
+    }
+}
+
+async function deleteArtist(artistId) {
+    const isDemo = document.getElementById('setting-demo-mode').checked;
+    const target = currentArtists.find(a => a.user_id === artistId || a.id === artistId);
+    const label = target ? (target.name || target.username || artistId) : artistId;
+
+    if (!confirm(`¿Eliminar al artista "${label}"?\nEsta acción no se puede deshacer.`)) return;
+
+    try {
+        if (isDemo) {
+            const currentDemoArtists = window.ConfigManager.getDemoArtists();
+            const newList = currentDemoArtists.filter(a => a.userId !== artistId);
+            window.ConfigManager.setValue('demoArtists', newList);
+            showToast('Artista eliminado (Demo)', 'success');
+        } else {
+            // user_id is nullable (registration drafts / imported artists), so
+            // the primary key `id` is the reliable identifier. Resolve both
+            // from the loaded row and let the server prefer `id`.
+            const pkId = (target && target.id) || (UUID_RE_CLIENT.test(String(artistId)) ? artistId : null);
+            const uId = (target && target.user_id) || null;
+            if (!pkId && !uId) throw new Error('No se pudo resolver el artista — recarga la lista e inténtalo de nuevo.');
+
+            // Delete server-side via the service-role key. Going through the
+            // browser's anon/authenticated key would hit the "Support admins
+            // can delete artists" RLS policy, which silently no-ops if the
+            // session expired or the support row is unseeded. The server
+            // endpoint bypasses RLS and is gated to the superadmin account.
+            const headers = await _getApifyAuthHeaders();
+            if (headers._noSession) {
+                throw new Error('No hay sesión de superadmin. Inicia sesión otra vez en /backoffice/login.');
+            }
+
+            const response = await fetch('/api/admin/delete-artist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...headers },
+                body: JSON.stringify({ id: pkId, userId: uId })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || `Error del servidor (HTTP ${response.status})`);
+            }
+            showToast('Artista eliminado de Supabase', 'success');
+        }
+        loadArtists();
+    } catch (error) {
+        console.error('Error deleting artist:', error);
+        showToast('Error al eliminar: ' + describeArtistDbError(error), 'error');
+    }
+}
+
+function deleteArtistFromModal() {
+    const userId = getVal('artist-user-id') || getVal('artist-id');
+    if (!userId) return;
+    closeModal();
+    deleteArtist(userId);
+}
+
+// ============ STUDIOS (studio accounts) ============
+// Studios are a first-class user type owned by an auth.users row via
+// studios.user_id. This block mirrors the artists CRUD: list + search/filter +
+// paginate + edit (profile/brand/contact/status + password) + delete (which
+// cascades sedes/memberships and removes the owning auth user server-side).
+let currentStudios = [];
+let currentStudiosPage = 1;
+let studiosItemsPerPage = 15;
+let editingStudio = null;
+
+// Normalizes languages which PostgREST may return as a JS array (text[]) or,
+// rarely, a "{a,b}" string. Always returns an array.
+function studioLanguagesArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value) {
+        return value.replace(/^\{|\}$/g, '').split(',').map(s => s.replace(/^"|"$/g, '').trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function studioInstagramHref(instagram) {
+    const v = String(instagram || '').trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v)) return v;
+    return 'https://instagram.com/' + v.replace(/^@/, '');
+}
+
+async function loadStudios() {
+    const colCount = 7;
+    const searchTerm = (document.getElementById('search-studios')?.value || '').trim().toLowerCase();
+    const filterVer = document.getElementById('filter-studios-verified')?.value || '';
+    const filterActive = document.getElementById('filter-studios-active')?.value || '';
+
+    showTableLoading('studios-tbody', colCount);
+
+    try {
+        const result = await _fetchAdminJson('/api/admin/studios');
+        let studios = (result.studios || []).map(s => ({
+            ...s,
+            languages: studioLanguagesArray(s.languages)
+        }));
+
+        if (searchTerm) {
+            studios = studios.filter(s => {
+                const haystack = [
+                    s.name, s.slug, s.email, s.instagram, s.tiktok, s.whatsapp,
+                    s.contact_phone, s.phone, s.tagline,
+                    s.primary_city, s.primary_country, s.city, s.country
+                ].filter(Boolean).join(' ').toLowerCase();
+                return haystack.includes(searchTerm);
+            });
+        }
+        if (filterVer) studios = studios.filter(s => (filterVer === 'yes') === Boolean(s.is_verified));
+        if (filterActive) studios = studios.filter(s => (filterActive === 'yes') === Boolean(s.is_active));
+
+        currentStudios = studios;
+        currentStudiosPage = 1;
+        renderStudiosTable();
+        renderStudiosMeta(studios);
+    } catch (error) {
+        console.error('Error loading studios:', error);
+        showTableErrorState('studios-tbody', colCount, 'No se pudieron cargar los estudios. Verifica tu conexion.', 'loadStudios()');
+        showToast('Error cargando estudios: ' + error.message, 'error');
+    }
+}
+
+function renderStudiosMeta(studios) {
+    const meta = document.getElementById('studios-table-meta');
+    if (!meta) return;
+    const total = studios.length;
+    const verified = studios.filter(s => s.is_verified).length;
+    const active = studios.filter(s => s.is_active).length;
+    const sedes = studios.reduce((n, s) => n + (Number(s.location_count) || 0), 0);
+    meta.innerHTML = `
+        <span><strong>${total}</strong> estudios</span>
+        <span><strong>${verified}</strong> verificados</span>
+        <span><strong>${active}</strong> activos</span>
+        <span><strong>${sedes}</strong> sedes</span>
+    `;
+}
+
+function renderStudiosTable() {
+    const tbody = document.getElementById('studios-tbody');
+    const colCount = 7;
+    const start = (currentStudiosPage - 1) * studiosItemsPerPage;
+    const end = start + parseInt(studiosItemsPerPage);
+    const pageItems = currentStudios.slice(start, end);
+
+    if (pageItems.length === 0) {
+        showTableEmptyState('studios-tbody', colCount, 'fa-store', 'No se encontraron estudios', 'Ajusta los filtros o espera nuevos registros.');
+        return;
+    }
+
+    tbody.innerHTML = pageItems.map(s => {
+        const initials = avatarInitials(s.name);
+        const logo = s.logo_image || s.cover_image || '';
+        const location = [s.primary_city || s.city, s.primary_country || s.country].filter(Boolean).join(', ');
+        const sedes = Number(s.location_count) || 0;
+        const created = s.created_at
+            ? new Date(s.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+        const igHref = studioInstagramHref(s.instagram);
+        const safeId = escapeHtml(s.id || '');
+        const verifiedBadge = s.is_verified
+            ? '<span class="status-badge verified">Verificado</span>'
+            : '<span class="status-badge not-verified">No verif.</span>';
+        const activeBadge = s.is_active
+            ? '<span class="status-badge success">Activo</span>'
+            : '<span class="status-badge error">Inactivo</span>';
+
+        return `
+            <tr>
+                <td>
+                    <div class="artist-cell-identity">
+                        <span class="avatar">${logo ? `<img src="${escapeHtml(logo)}" alt="">` : escapeHtml(initials)}</span>
+                        <div class="artist-meta">
+                            <strong title="${escapeHtml(s.name || '')}">${escapeHtml(s.name || '—')}</strong>
+                            <small title="${escapeHtml(s.slug || '')}">${s.slug ? '/' + escapeHtml(s.slug) : '—'}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="artist-cell-contact">
+                        ${s.email ? `<a href="mailto:${escapeHtml(s.email)}" title="${escapeHtml(s.email)}"><i class="fa-solid fa-envelope"></i> ${escapeHtml(s.email)}</a>` : '<span>—</span>'}
+                        ${igHref ? `<a href="${escapeHtml(igHref)}" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i> Instagram</a>` : ''}
+                        ${s.whatsapp ? `<span title="${escapeHtml(s.whatsapp)}"><i class="fa-brands fa-whatsapp"></i> ${escapeHtml(s.whatsapp)}</span>` : ''}
+                    </div>
+                </td>
+                <td><span class="truncate-text" title="${escapeHtml(location)}">${escapeHtml(location || '—')}</span></td>
+                <td>${sedes}</td>
+                <td><div class="action-buttons" style="gap:4px;">${verifiedBadge} ${activeBadge}</div></td>
+                <td>${created}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary btn-sm" onclick="openStudioDetail('${safeId}')" title="Administrar estudio">
+                            <i class="fa-solid fa-sliders"></i> Administrar
+                        </button>
+                        <button class="btn-icon danger-hover" onclick="deleteStudio('${safeId}')" title="Eliminar">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    renderStudiosPagination();
+}
+
+function renderStudiosPagination() {
+    const totalPages = Math.ceil(currentStudios.length / studiosItemsPerPage);
+    const container = document.getElementById('studios-pagination');
+    if (!container) return;
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentStudiosPage ? 'active' : ''}" onclick="goToStudiosPage(${i})">${i}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function goToStudiosPage(page) {
+    currentStudiosPage = page;
+    renderStudiosTable();
+}
+
+function changeStudiosItemsPerPage(value) {
+    studiosItemsPerPage = parseInt(value);
+    currentStudiosPage = 1;
+    renderStudiosTable();
+}
+
+function editStudio(id) {
+    const s = currentStudios.find(x => x.id === id);
+    if (!s) { showToast('Estudio no encontrado — recarga la lista.', 'error'); return; }
+    editingStudio = s;
+
+    setVal('studio-id', s.id);
+    setVal('studio-user-id', s.user_id || '');
+    setVal('studio-name', s.name);
+    setVal('studio-slug', s.slug);
+    setVal('studio-email', s.email);
+    setVal('studio-founded-year', s.founded_year);
+    setVal('studio-new-password', '');
+    setVal('studio-tagline', s.tagline);
+    setVal('studio-bio', s.bio);
+    setVal('studio-cover-image', s.cover_image);
+    setVal('studio-logo-image', s.logo_image);
+    setVal('studio-languages', studioLanguagesArray(s.languages).join(', '));
+    setVal('studio-instagram', s.instagram);
+    setVal('studio-tiktok', s.tiktok);
+    setVal('studio-whatsapp', s.whatsapp);
+    setVal('studio-contact-phone', s.contact_phone);
+    setVal('studio-phone', s.phone);
+    setVal('studio-website', s.website);
+    setVal('studio-is-verified', s.is_verified);
+    setVal('studio-is-active', s.is_active);
+    setVal('studio-profile-complete', s.profile_complete);
+
+    const meta = document.getElementById('studio-modal-meta');
+    if (meta) {
+        meta.innerHTML = `
+            <span><strong>ID:</strong> ${escapeHtml(s.id)}</span>
+            <span><strong>Cuenta:</strong> ${s.user_id ? escapeHtml(s.user_id) : 'sin cuenta de acceso'}</span>
+            <span><strong>Sedes:</strong> ${Number(s.location_count) || 0}</span>
+        `;
+    }
+    document.getElementById('studio-modal-title').textContent = 'Editar Estudio';
+    openModal('studio-modal');
+}
+
+async function saveStudio(event) {
+    event.preventDefault();
+
+    const id = getVal('studio-id');
+    if (!id) { showToast('Falta el ID del estudio — abre el estudio desde la tabla.', 'error'); return; }
+
+    const newPassword = getVal('studio-new-password');
+    if (newPassword && newPassword.length < 6) {
+        showToast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+    }
+    const authUserId = (editingStudio && editingStudio.user_id) || getVal('studio-user-id') || '';
+    const foundedRaw = getVal('studio-founded-year');
+
+    const updates = {
+        name: getVal('studio-name'),
+        slug: getVal('studio-slug') || null,
+        email: getVal('studio-email'),
+        founded_year: foundedRaw === '' ? null : Number(foundedRaw),
+        tagline: getVal('studio-tagline') || null,
+        bio: getVal('studio-bio') || null,
+        cover_image: getVal('studio-cover-image') || null,
+        logo_image: getVal('studio-logo-image') || null,
+        languages: csvToArray(getVal('studio-languages')),
+        instagram: getVal('studio-instagram') || null,
+        tiktok: getVal('studio-tiktok') || null,
+        whatsapp: getVal('studio-whatsapp') || null,
+        contact_phone: getVal('studio-contact-phone') || null,
+        phone: getVal('studio-phone') || null,
+        website: getVal('studio-website') || null,
+        is_verified: getVal('studio-is-verified'),
+        is_active: getVal('studio-is-active'),
+        profile_complete: getVal('studio-profile-complete')
+    };
+
+    try {
+        await _fetchAdminJson(`/api/admin/studios/${encodeURIComponent(id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+
+        let passwordApplied = false;
+        if (newPassword) {
+            if (!authUserId) {
+                showToast('Este estudio no tiene cuenta de acceso: no se puede asignar contraseña.', 'warning');
+            } else {
+                await _fetchAdminJson('/api/admin/update-user-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: authUserId, newPassword })
+                });
+                passwordApplied = true;
+            }
+        }
+
+        showToast(passwordApplied ? 'Estudio y contraseña actualizados' : 'Estudio actualizado en Supabase', 'success');
+        closeModal();
+        loadStudios();
+    } catch (error) {
+        console.error('Error saving studio:', error);
         showToast('Error al guardar: ' + error.message, 'error');
     }
 }
 
-function deleteArtist(artistId) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este artista de la demo?')) return;
+async function deleteStudio(id) {
+    const s = currentStudios.find(x => x.id === id);
+    const label = s ? (s.name || id) : id;
+    if (!confirm(`¿Eliminar el estudio "${label}"?\nSe borrarán sus sedes, membresías y su cuenta de acceso. Esta acción no se puede deshacer.`)) return;
 
     try {
-        const currentDemoArtists = window.ConfigManager.getDemoArtists();
-        const newArtistsList = currentDemoArtists.filter(a => a.userId !== artistId);
-
-        window.ConfigManager.setValue('demoArtists', newArtistsList);
-        showToast('Artista eliminado', 'success');
-        loadArtists();
-
+        await _fetchAdminJson('/api/admin/delete-studio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        showToast('Estudio eliminado de Supabase', 'success');
+        loadStudios();
     } catch (error) {
-        showToast('Error al eliminar', 'error');
+        console.error('Error deleting studio:', error);
+        showToast('Error al eliminar: ' + error.message, 'error');
     }
+}
+
+function deleteStudioFromModal() {
+    const id = getVal('studio-id');
+    if (!id) return;
+    closeModal();
+    deleteStudio(id);
 }
 
 // ============ UTILITIES ============
@@ -2111,6 +2820,17 @@ window.showTableErrorState = showTableErrorState;
 // Setup search
 document.getElementById('search-quotations')?.addEventListener('input', debounce(loadQuotations, 300));
 document.getElementById('filter-status')?.addEventListener('change', loadQuotations);
+
+// Artists section: live search + filters. The previous version had no
+// listener at all, which is why typing in the search box did nothing.
+document.getElementById('search-artists')?.addEventListener('input', debounce(loadArtists, 300));
+document.getElementById('filter-artists-embajador')?.addEventListener('change', loadArtists);
+document.getElementById('filter-artists-verification')?.addEventListener('change', loadArtists);
+
+// Studios section: same live search + filters pattern as artists.
+document.getElementById('search-studios')?.addEventListener('input', debounce(loadStudios, 300));
+document.getElementById('filter-studios-verified')?.addEventListener('change', loadStudios);
+document.getElementById('filter-studios-active')?.addEventListener('change', loadStudios);
 
 function debounce(func, wait) {
     let timeout;
@@ -2842,6 +3562,13 @@ let currentTableData = [];
 let currentTableName = '';
 let tableInspectorPage = 1;
 const tableInspectorPerPage = 20;
+// Inspector edit/delete state. `currentTableIsView` disables row actions for
+// read-only views; `tableKindByName` is filled from the tables grid; `count`
+// drives pagination; `currentRowEditKey` remembers which row the editor is on.
+let currentTableIsView = false;
+let tableInspectorCount = 0;
+const tableKindByName = {};
+let currentRowEditKey = null;
 
 function loadAPIsSection() {
     // Load current config values into form fields
@@ -2939,7 +3666,8 @@ function loadAPIsSection() {
     }
     
     // Update status indicators based on configuration
-    updateAPIStatus('supabase', config.supabase?.url ? 'configured' : 'none');
+    const supabaseConfigured = Boolean(document.getElementById('api-supabase-url')?.value.trim());
+    updateAPIStatus('supabase', supabaseConfigured ? 'configured' : 'none');
     // Google Drive needs both credentials and folder ID
     const gdriveConfigured = config.googleDrive?.mainFolderId && config.googleDrive?.serviceAccountJson;
     updateAPIStatus('gdrive', gdriveConfigured ? 'configured' : 'none');
@@ -2950,6 +3678,15 @@ function loadAPIsSection() {
     updateAPIStatus('emailjs', config.emailjs?.serviceId ? 'configured' : 'none');
     updateAPIStatus('gmaps', config.googleMaps?.apiKey ? 'configured' : 'none');
     updateAPIStatus('gemini', config.gemini?.apiKey ? 'configured' : 'none');
+
+    // Apify lives in app_settings (server-side), not localStorage. Fetch async.
+    if (typeof loadApifySavedInfo === 'function') {
+        loadApifySavedInfo();
+    }
+    // Wire the stats panel: data loads on first <details> open.
+    if (typeof _wireApifyStatsPanel === 'function') {
+        _wireApifyStatsPanel();
+    }
 }
 
 /**
@@ -2997,7 +3734,7 @@ function updateAPIStatus(api, status) {
     el.className = `api-status ${cfg.class}`;
 }
 
-async function testSupabaseAPI() {
+async function legacySupabaseBrowserAPITest() {
     const url = document.getElementById('api-supabase-url').value.trim();
     const key = document.getElementById('api-supabase-key').value.trim();
     
@@ -3021,6 +3758,28 @@ async function testSupabaseAPI() {
         showToast(`Conexión exitosa. ${count} artistas encontrados.`, 'success');
     } catch (err) {
         updateAPIStatus('supabase', 'error');
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function testSupabaseAPI() {
+    const url = document.getElementById('api-supabase-url')?.value.trim() || '';
+    const key = document.getElementById('api-supabase-key')?.value.trim() || '';
+
+    showToast('Probando conexion...', 'info');
+    updateAPIStatus('supabase', 'none');
+
+    try {
+        const result = await _fetchAdminJson('/api/admin/database/tables');
+        const artistsTable = (result.tables || []).find(table => table.name === 'artists_db');
+        const count = artistsTable && typeof artistsTable.count === 'number' ? artistsTable.count : 0;
+
+        updateAPIStatus('supabase', 'connected');
+        if (url && key) updateConnectionStatus(true);
+        showToast(`Conexion exitosa. ${count} artistas encontrados.`, 'success');
+    } catch (err) {
+        updateAPIStatus('supabase', 'error');
+        updateConnectionStatus(false);
         showToast('Error: ' + err.message, 'error');
     }
 }
@@ -3366,19 +4125,385 @@ function saveGeminiAPI() {
     const defaultStyle = document.getElementById('api-gemini-style').value.trim();
     const defaultBackgroundColor = document.getElementById('api-gemini-bg').value.trim();
     const enabled = document.getElementById('api-gemini-enabled').checked;
-    
+
     window.ConfigManager?.update({
-        gemini: { 
-            apiKey, 
-            model, 
-            defaultStyle, 
+        gemini: {
+            apiKey,
+            model,
+            defaultStyle,
             defaultBackgroundColor,
             enabled
         }
     });
-    
+
     showToast('Configuración de Gemini AI guardada', 'success');
     updateAPIStatus('gemini', apiKey ? 'configured' : 'none');
+}
+
+// ============================================
+// APIFY (Instagram import) — uses server-side app_settings
+// ============================================
+
+async function _getApifyAuthHeaders() {
+    const client = window.ConfigManager?.getSupabaseClient?.() || window.supabaseClient || null;
+    if (!client || !client.auth) return { _noSession: true };
+    try {
+        const { data } = await client.auth.getSession();
+        const token = data && data.session && data.session.access_token;
+        return token ? { 'Authorization': `Bearer ${token}` } : { _noSession: true };
+    } catch (e) {
+        return { _noSession: true };
+    }
+}
+
+async function _fetchAdminJson(url, options = {}) {
+    const authHeaders = await _getApifyAuthHeaders();
+    if (authHeaders._noSession) {
+        throw new Error('No hay sesion de superadmin activa');
+    }
+
+    const headers = {
+        ...(options.headers || {}),
+        ...authHeaders
+    };
+
+    const response = await fetch(url, {
+        ...options,
+        headers
+    });
+    const text = await response.text();
+    let data = {};
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = { error: text };
+        }
+    }
+
+    if (!response.ok || data.success === false) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+    }
+
+    return data;
+}
+
+function _apifyNoSessionHTML() {
+    return '<div style="padding:10px; background:#3a2a1a; border:1px solid #d80; border-radius:6px; color:#fda; font-size:12px; line-height:1.5;">'
+        + '<strong>No hay sesion de superadmin.</strong> Inicia sesion en <a href="/backoffice/login" style="color:#ffd86b; text-decoration:underline;">/backoffice/login</a> y vuelve a esta seccion.'
+        + '</div>';
+}
+
+function _renderApifyResult(target, html) {
+    target.style.display = 'block';
+    target.innerHTML = html;
+}
+
+function _renderApifySavedInfo(meta) {
+    const wrap = document.getElementById('api-apify-saved-info');
+    const mask = document.getElementById('api-apify-saved-mask');
+    const updated = document.getElementById('api-apify-saved-updated');
+    if (!wrap || !mask || !updated) return;
+    if (meta && meta.configured) {
+        wrap.style.display = '';
+        mask.textContent = meta.last_chars ? `••••••${meta.last_chars}` : '••••••';
+        updated.textContent = meta.updated_at
+            ? new Date(meta.updated_at).toLocaleString()
+            : '—';
+        updateAPIStatus('apify', 'configured');
+    } else {
+        wrap.style.display = 'none';
+        mask.textContent = '••••••';
+        updated.textContent = '—';
+        updateAPIStatus('apify', 'none');
+    }
+}
+
+async function loadApifySavedInfo() {
+    try {
+        const headers = await _getApifyAuthHeaders();
+        if (headers._noSession) {
+            updateAPIStatus('apify', 'none');
+            const result = document.getElementById('api-apify-result');
+            if (result) _renderApifyResult(result, _apifyNoSessionHTML());
+            return;
+        }
+        const res = await fetch('/api/admin/integrations/apify', { headers });
+        if (res.status === 401 || res.status === 403) {
+            // Token rejected by server — same message as missing session.
+            updateAPIStatus('apify', 'none');
+            const result = document.getElementById('api-apify-result');
+            if (result) _renderApifyResult(result, _apifyNoSessionHTML());
+            return;
+        }
+        if (!res.ok) {
+            updateAPIStatus('apify', 'error');
+            return;
+        }
+        const data = await res.json();
+        if (data && data.success) _renderApifySavedInfo(data);
+    } catch (err) {
+        console.warn('[Apify] could not load saved info:', err.message);
+        updateAPIStatus('apify', 'none');
+    }
+}
+
+// ---- Stats panel (imports/day + cost USD) ----------------------------------
+
+let _apifyStatsLoaded = false;
+let _apifyStatsChart = null;
+
+function _wireApifyStatsPanel() {
+    const panel = document.getElementById('api-apify-stats-panel');
+    if (!panel || panel.dataset.wired === 'true') return;
+    panel.dataset.wired = 'true';
+    panel.addEventListener('toggle', () => {
+        if (panel.open && !_apifyStatsLoaded) {
+            loadApifyStats();
+        }
+    });
+}
+
+function _renderRecentRow(row) {
+    const fields = row.imported_fields || {};
+    const tags = [];
+    if (fields.bio) tags.push('bio');
+    if (fields.bio_link) tags.push('link');
+    if (fields.location) tags.push('loc');
+    if (fields.photos) tags.push(`${fields.photos} fotos`);
+    if (fields.reels) tags.push(`${fields.reels} reels`);
+    const cost = Number(row.cost_estimate_usd || 0).toFixed(4);
+    const date = new Date(row.created_at).toLocaleString();
+    const targetLabel = row.target === 'studio' ? 'studio' : 'artista';
+    return `
+        <tr style="border-top:1px solid #222;">
+            <td style="padding:6px 8px; color:#ddd;">@${escapeHtmlSafe(row.ig_handle)}</td>
+            <td style="padding:6px 8px; color:#aaa;">${targetLabel}</td>
+            <td style="padding:6px 8px; color:#aaa;">${tags.join(', ') || '—'}</td>
+            <td style="padding:6px 8px; color:#aaa; text-align:right;">$${cost}</td>
+            <td style="padding:6px 8px; color:#777; font-size:11px;">${date}</td>
+        </tr>
+    `;
+}
+
+function escapeHtmlSafe(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function loadApifyStats() {
+    const body = document.getElementById('api-apify-stats-body');
+    if (!body) return;
+
+    try {
+        const headers = await _getApifyAuthHeaders();
+        if (headers._noSession) {
+            body.innerHTML = _apifyNoSessionHTML();
+            return;
+        }
+        const res = await fetch('/api/admin/integrations/apify/stats', { headers });
+        if (!res.ok) {
+            body.innerHTML = `<div style="color:#f5a; padding:8px 0;">Error ${res.status}: no se pudieron cargar las estadísticas</div>`;
+            return;
+        }
+        const data = await res.json();
+        if (!data.success) {
+            body.innerHTML = `<div style="color:#f5a; padding:8px 0;">${data.error || 'Error desconocido'}</div>`;
+            return;
+        }
+        _apifyStatsLoaded = true;
+        _renderApifyStats(body, data);
+    } catch (err) {
+        body.innerHTML = `<div style="color:#f5a; padding:8px 0;">No se conectó: ${err.message}</div>`;
+    }
+}
+
+function _renderApifyStats(container, data) {
+    const t = data.totals || {};
+    const recent = Array.isArray(data.recent) ? data.recent : [];
+    const daily = Array.isArray(data.daily) ? data.daily : [];
+
+    container.innerHTML = `
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-bottom:14px;">
+            <div style="background:#0f0f0f; border:1px solid #2a2a2a; border-radius:6px; padding:10px;">
+                <div style="color:#888; font-size:11px; text-transform:uppercase;">7 días</div>
+                <div style="color:#fff; font-size:20px; font-weight:600; margin-top:4px;">${t.imports_7d || 0}</div>
+            </div>
+            <div style="background:#0f0f0f; border:1px solid #2a2a2a; border-radius:6px; padding:10px;">
+                <div style="color:#888; font-size:11px; text-transform:uppercase;">30 días</div>
+                <div style="color:#fff; font-size:20px; font-weight:600; margin-top:4px;">${t.imports_30d || 0}</div>
+            </div>
+            <div style="background:#0f0f0f; border:1px solid #2a2a2a; border-radius:6px; padding:10px;">
+                <div style="color:#888; font-size:11px; text-transform:uppercase;">Total</div>
+                <div style="color:#fff; font-size:20px; font-weight:600; margin-top:4px;">${t.imports_total || 0}</div>
+            </div>
+            <div style="background:#0f0f0f; border:1px solid #5a3d20; border-radius:6px; padding:10px;">
+                <div style="color:#ddc7a8; font-size:11px; text-transform:uppercase;">Costo total</div>
+                <div style="color:#ffd86b; font-size:20px; font-weight:600; margin-top:4px;">$${Number(t.cost_total_usd || 0).toFixed(4)}</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <div style="color:#aaa; font-size:11px; text-transform:uppercase; margin-bottom:6px;">Imports por día (últimos 14)</div>
+            <div style="background:#0f0f0f; border:1px solid #2a2a2a; border-radius:6px; padding:10px; height:160px;">
+                <canvas id="api-apify-stats-chart"></canvas>
+            </div>
+        </div>
+
+        <div>
+            <div style="color:#aaa; font-size:11px; text-transform:uppercase; margin-bottom:6px;">Últimos imports</div>
+            ${recent.length === 0 ? '<div style="color:#666; padding:8px 0;">Aún no hay imports.</div>' : `
+            <div style="background:#0f0f0f; border:1px solid #2a2a2a; border-radius:6px; overflow:hidden;">
+                <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <thead>
+                        <tr style="background:#161616; color:#888; text-transform:uppercase; font-size:10px;">
+                            <th style="padding:6px 8px; text-align:left;">Handle</th>
+                            <th style="padding:6px 8px; text-align:left;">Tipo</th>
+                            <th style="padding:6px 8px; text-align:left;">Importado</th>
+                            <th style="padding:6px 8px; text-align:right;">Costo</th>
+                            <th style="padding:6px 8px; text-align:left;">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>${recent.map(_renderRecentRow).join('')}</tbody>
+                </table>
+            </div>
+            `}
+        </div>
+    `;
+
+    if (window.Chart && daily.length > 0) {
+        const ctx = document.getElementById('api-apify-stats-chart');
+        if (_apifyStatsChart) _apifyStatsChart.destroy();
+        _apifyStatsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: daily.map(d => d.day.slice(5)), // MM-DD
+                datasets: [{
+                    label: 'Imports',
+                    data: daily.map(d => d.count),
+                    backgroundColor: 'rgba(193, 53, 132, 0.6)',
+                    borderColor: 'rgba(193, 53, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: '#888', font: { size: 10 }, stepSize: 1 }, grid: { color: '#222' } }
+                }
+            }
+        });
+    }
+}
+
+async function saveApifyAPI() {
+    const tokenInput = document.getElementById('api-apify-token');
+    const token = (tokenInput && tokenInput.value || '').trim();
+    if (!token) {
+        showToast('Pega el token de Apify primero', 'error');
+        return;
+    }
+
+    try {
+        const headers = await _getApifyAuthHeaders();
+        if (headers._noSession) {
+            const result = document.getElementById('api-apify-result');
+            if (result) _renderApifyResult(result, _apifyNoSessionHTML());
+            showToast('Inicia sesión como admin primero', 'error');
+            return;
+        }
+        const res = await fetch('/api/admin/integrations/apify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            body: JSON.stringify({ token })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            const msg = (data && data.error) || `HTTP ${res.status}`;
+            updateAPIStatus('apify', 'error');
+            showToast('No se pudo guardar: ' + msg, 'error');
+            return;
+        }
+        _renderApifySavedInfo(data);
+        if (tokenInput) tokenInput.value = '';
+        showToast('Token de Apify guardado', 'success');
+    } catch (err) {
+        updateAPIStatus('apify', 'error');
+        showToast('Error guardando: ' + err.message, 'error');
+    }
+}
+
+async function testApifyAPI() {
+    const tokenInput = document.getElementById('api-apify-token');
+    const handleInput = document.getElementById('api-apify-test-handle');
+    const result = document.getElementById('api-apify-result');
+    const tokenInForm = (tokenInput && tokenInput.value || '').trim();
+    const handle = ((handleInput && handleInput.value) || 'instagram').trim().replace(/^@/, '');
+
+    _renderApifyResult(result, '<div style="padding:10px; color:#aaa;">Probando contra Apify…</div>');
+    updateAPIStatus('apify', 'none');
+
+    try {
+        const headers = await _getApifyAuthHeaders();
+        if (headers._noSession) {
+            updateAPIStatus('apify', 'none');
+            _renderApifyResult(result, _apifyNoSessionHTML());
+            return;
+        }
+        const body = { handle };
+        if (tokenInForm) body.token = tokenInForm; // pre-save test
+        const res = await fetch('/api/admin/integrations/apify/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            body: JSON.stringify(body)
+        });
+        if (res.status === 401 || res.status === 403) {
+            updateAPIStatus('apify', 'none');
+            _renderApifyResult(result, _apifyNoSessionHTML());
+            return;
+        }
+        const data = await res.json();
+
+        if (!data.success) {
+            updateAPIStatus('apify', 'error');
+            _renderApifyResult(result, `<div style="padding:10px; background:#3a1a1a; border:1px solid #d33; border-radius:6px; color:#fdd; font-size:12px;">Falló: ${data.error || 'desconocido'}</div>`);
+            return;
+        }
+        if (!data.ok) {
+            updateAPIStatus('apify', 'error');
+            const reasons = {
+                invalid_token: 'Token inválido',
+                private_profile: 'El perfil de prueba es privado, intenta otro',
+                empty_dataset: 'Apify no devolvió datos para ese handle',
+                apify_error: `Apify respondió ${data.http_status}`
+            };
+            _renderApifyResult(result, `<div style="padding:10px; background:#3a2a1a; border:1px solid #d80; border-radius:6px; color:#fda; font-size:12px;">${reasons[data.reason] || data.reason}</div>`);
+            return;
+        }
+
+        updateAPIStatus('apify', 'connected');
+        const s = data.sample;
+        _renderApifyResult(result, `
+            <div style="padding:12px; background:#1a3a1a; border:1px solid #4d4; border-radius:6px; color:#dfd; font-size:12px; line-height:1.6;">
+                <div><strong>✓ Token válido</strong> · Latencia: ${data.elapsedMs} ms</div>
+                <div style="margin-top:8px; color:#cfc;">
+                    <div>Handle:        <strong>@${s.username}</strong></div>
+                    <div>Nombre:        ${s.fullName || '—'}</div>
+                    <div>Bio:           ${s.hasBio ? 'Sí' : 'No'}</div>
+                    <div>Enlace bio:    ${s.hasExternalUrl ? 'Sí' : 'No'}</div>
+                    <div>Posts traídos: ${s.postsReturned}</div>
+                    <div>Followers:     ${s.followersCount != null ? s.followersCount.toLocaleString() : '—'}</div>
+                </div>
+            </div>
+        `);
+    } catch (err) {
+        updateAPIStatus('apify', 'error');
+        _renderApifyResult(result, `<div style="padding:10px; background:#3a1a1a; border:1px solid #d33; border-radius:6px; color:#fdd; font-size:12px;">Error: ${err.message}</div>`);
+    }
 }
 
 async function testAllConnections() {
@@ -3435,15 +4560,14 @@ const DB_TABLES = [
     'tattoo_styles',
     'body_parts',
     'quotation_flow_config',
-    'support_users_db',
-    'feedback_tickets'
+    'support_users_db'
 ];
 
 async function loadDatabaseSection() {
     await loadDatabaseStats();
 }
 
-async function loadDatabaseStats() {
+async function loadDatabaseStatsLegacy() {
     const healthIndicator = document.getElementById('db-health-indicator');
     const tablesGrid = document.getElementById('tables-grid');
     
@@ -3516,7 +4640,7 @@ async function loadDatabaseStats() {
     }
 }
 
-async function inspectTable(tableName) {
+async function inspectTableLegacy(tableName) {
     const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
         showToast('No hay conexión a Supabase', 'error');
@@ -3556,38 +4680,397 @@ async function inspectTable(tableName) {
     }
 }
 
+async function loadDatabaseStats() {
+    const healthIndicator = document.getElementById('db-health-indicator');
+    const tablesGrid = document.getElementById('tables-grid');
+
+    healthIndicator.className = 'db-health-indicator';
+    healthIndicator.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Cargando...</span>';
+    showSectionLoading('tables-grid');
+
+    try {
+        const result = await _fetchAdminJson('/api/admin/database/tables');
+        const tables = Array.isArray(result.tables) ? result.tables : [];
+        const totalRows = tables.reduce((sum, table) => (
+            typeof table.count === 'number' ? sum + table.count : sum
+        ), 0);
+
+        healthIndicator.className = 'db-health-indicator connected';
+        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Conectado al API</span>';
+        document.getElementById('db-total-tables').textContent = tables.length;
+        document.getElementById('db-total-rows').textContent = totalRows.toLocaleString();
+
+        tablesGrid.innerHTML = tables.map(table => {
+            const isError = Boolean(table.error);
+            const count = isError ? 'Error' : (table.count ?? 0);
+            const description = table.description ? ` title="${escapeHtml(table.description)}"` : '';
+            const kind = table.kind === 'view' ? 'view' : 'table';
+            tableKindByName[table.name] = kind;
+            const icon = kind === 'view' ? 'fa-eye' : 'fa-table';
+            const viewBadge = kind === 'view'
+                ? '<span class="badge-sm" title="Vista de solo lectura" style="margin-left:6px;background:rgba(59,130,246,0.15);color:#3b82f6;">vista</span>'
+                : '';
+
+            return `
+                <div class="table-card" onclick="inspectTable('${table.name}', '${kind}')"${description}>
+                    <div class="table-card-header">
+                        <div class="table-card-name">
+                            <i class="fa-solid ${icon}"></i>
+                            <span>${table.name}</span>${viewBadge}
+                        </div>
+                        <span class="table-card-count ${isError ? 'error' : ''}">${isError ? 'Error' : count}</span>
+                    </div>
+                    <div class="table-card-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); exportTable('${table.name}')">
+                            <i class="fa-solid fa-download"></i> Exportar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        healthIndicator.className = 'db-health-indicator disconnected';
+        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Error de conexion</span>';
+        showEmptyState('tables-grid', 'fa-plug', 'Sin conexion a Supabase', err.message || 'No se pudieron cargar las tablas desde el API.');
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function inspectTable(tableName, kind) {
+    currentTableName = tableName;
+    currentTableIsView = (kind || tableKindByName[tableName]) === 'view';
+    tableInspectorPage = 1;
+
+    const titleEl = document.getElementById('table-inspector-title');
+    titleEl.textContent = `${currentTableIsView ? 'Vista' : 'Tabla'}: ${tableName}`;
+    showToast('Cargando datos...', 'info');
+
+    try {
+        await loadInspectorPage(1);
+        openModal('table-inspector-modal');
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+// Fetches one page of the current table from the admin API and re-renders the
+// inspector. Used by inspectTable, the pagination buttons, and the row
+// edit/delete handlers (to refresh after a write). 1-based page.
+async function loadInspectorPage(page) {
+    const offset = (page - 1) * tableInspectorPerPage;
+    const params = new URLSearchParams({
+        limit: String(tableInspectorPerPage),
+        offset: String(offset)
+    });
+    const result = await _fetchAdminJson(`/api/admin/database/tables/${encodeURIComponent(currentTableName)}?${params}`);
+    tableInspectorCount = result.count ?? (result.rows ? result.rows.length : 0);
+    tableInspectorPage = page;
+    currentTableData = result.rows || [];
+
+    const countEl = document.getElementById('table-inspector-count');
+    if (countEl) {
+        countEl.textContent = `${tableInspectorCount} registros${currentTableIsView ? ' · vista de solo lectura' : ''}`;
+    }
+    renderTableInspector(currentTableData);
+    renderTableInspectorPagination();
+}
+
+async function exportTable(tableName) {
+    showToast(`Exportando ${tableName}...`, 'info');
+
+    try {
+        const params = new URLSearchParams({ limit: '1000', offset: '0' });
+        const result = await _fetchAdminJson(`/api/admin/database/tables/${encodeURIComponent(tableName)}?${params}`);
+        const data = result.rows || [];
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        saveAs(blob, `${tableName}-${new Date().toISOString().split('T')[0]}.json`);
+        showToast('Tabla exportada', 'success');
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function exportAllTables() {
+    showToast('Exportando todas las tablas...', 'info');
+
+    const zip = new JSZip();
+
+    try {
+        const result = await _fetchAdminJson('/api/admin/database/tables');
+        const tables = Array.isArray(result.tables) ? result.tables : [];
+
+        for (const table of tables) {
+            try {
+                const params = new URLSearchParams({ limit: '1000', offset: '0' });
+                const tableResult = await _fetchAdminJson(`/api/admin/database/tables/${encodeURIComponent(table.name)}?${params}`);
+                zip.file(`${table.name}.json`, JSON.stringify(tableResult.rows || [], null, 2));
+            } catch (err) {
+                console.warn(`Could not export ${table.name}:`, err);
+            }
+        }
+
+        const blob = await zip.generateAsync({ type: 'blob' });
+        saveAs(blob, `weotzi-database-${new Date().toISOString().split('T')[0]}.zip`);
+        showToast('Base de datos exportada', 'success');
+    } catch (err) {
+        showToast('Error al exportar base de datos: ' + err.message, 'error');
+    }
+}
+
 function renderTableInspector(data) {
     const thead = document.getElementById('table-inspector-head');
     const tbody = document.getElementById('table-inspector-body');
-    
+    const showActions = !currentTableIsView;
+
     if (!data || data.length === 0) {
         thead.innerHTML = '<tr><th>Sin datos</th></tr>';
         tbody.innerHTML = '<tr><td class="empty-state">Esta tabla está vacía</td></tr>';
         return;
     }
-    
-    // Get columns from first row
+
     const columns = Object.keys(data[0]);
-    
-    // Render header
-    thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
-    
-    // Render rows
-    tbody.innerHTML = data.map(row => {
-        return `<tr>${columns.map(col => {
-            let value = row[col];
-            
-            // Format different types
-            if (value === null) value = '<span class="text-muted">null</span>';
-            else if (typeof value === 'object') value = `<code>${JSON.stringify(value).substring(0, 50)}...</code>`;
-            else if (typeof value === 'string' && value.length > 50) value = value.substring(0, 50) + '...';
-            
-            return `<td>${value}</td>`;
-        }).join('')}</tr>`;
+
+    // Header (+ Acciones column for writable tables).
+    thead.innerHTML = `<tr>${columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}${showActions ? '<th>Acciones</th>' : ''}</tr>`;
+
+    // Rows. Values are escaped (admin data is untrusted) and truncated for the
+    // grid; the full value is available in the row editor / via title tooltips.
+    tbody.innerHTML = data.map((row, i) => {
+        const cells = columns.map(col => {
+            const raw = row[col];
+            let html;
+            if (raw === null || raw === undefined) {
+                html = '<span class="text-muted">null</span>';
+            } else if (typeof raw === 'object') {
+                const json = JSON.stringify(raw);
+                html = `<code title="${escapeHtml(json)}">${escapeHtml(json.length > 60 ? json.slice(0, 60) + '…' : json)}</code>`;
+            } else {
+                const str = String(raw);
+                html = escapeHtml(str.length > 80 ? str.slice(0, 80) + '…' : str);
+            }
+            return `<td>${html}</td>`;
+        }).join('');
+
+        let actions = '';
+        if (showActions) {
+            const key = pickRowKey(row);
+            actions = key
+                ? `<td><div class="action-buttons">
+                        <button class="btn-icon" onclick="editTableRow(${i})" title="Editar fila"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-icon danger-hover" onclick="deleteTableRow(${i})" title="Borrar fila"><i class="fa-solid fa-trash"></i></button>
+                    </div></td>`
+                : '<td><span class="text-muted" title="Sin clave única detectada en esta fila">—</span></td>';
+        }
+        return `<tr>${cells}${actions}</tr>`;
     }).join('');
 }
 
-async function exportTable(tableName) {
+// Columns tried, in order, to identify a row for edit/delete. The generic
+// inspector has no schema knowledge, so it picks the first present unique-ish
+// column; falls back to the first scalar column otherwise.
+const ROW_KEY_PRIORITY = ['id', 'user_id', 'setting_key', 'uuid', 'slug', 'key'];
+function pickRowKey(row) {
+    for (const col of ROW_KEY_PRIORITY) {
+        const v = row[col];
+        if (v !== undefined && v !== null && typeof v !== 'object' && String(v) !== '') {
+            return { column: col, value: v };
+        }
+    }
+    for (const col of Object.keys(row)) {
+        const v = row[col];
+        if (v !== undefined && v !== null && typeof v !== 'object' && String(v) !== '') {
+            return { column: col, value: v };
+        }
+    }
+    return null;
+}
+
+function renderTableInspectorPagination() {
+    const container = document.getElementById('table-inspector-pagination');
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil((tableInspectorCount || 0) / tableInspectorPerPage));
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    const cur = tableInspectorPage;
+    container.innerHTML = `
+        <button ${cur <= 1 ? 'disabled' : ''} onclick="gotoInspectorPage(${cur - 1})"><i class="fa-solid fa-chevron-left"></i></button>
+        <span style="padding:0 10px;">Página ${cur} de ${totalPages}</span>
+        <button ${cur >= totalPages ? 'disabled' : ''} onclick="gotoInspectorPage(${cur + 1})"><i class="fa-solid fa-chevron-right"></i></button>
+    `;
+}
+
+async function gotoInspectorPage(page) {
+    const totalPages = Math.max(1, Math.ceil((tableInspectorCount || 0) / tableInspectorPerPage));
+    if (page < 1 || page > totalPages) return;
+    try { await loadInspectorPage(page); }
+    catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+// Opens the generic row editor for the row at `index` in the current page.
+// ============ GENERIC ROW EDITOR (shared) ============
+// Used by the DB inspector AND the studio Operaciones tables. One editor, two
+// callers — each passes its own onSaved() reload. Supports edit mode (PATCH
+// only changed fields) and create mode (POST non-empty fields), plus a raw-JSON
+// fallback for inserting into an empty table whose columns we can't infer.
+let currentRowEditorCtx = null;
+
+function _coerceRowField(el) {
+    const type = el.getAttribute('data-type');
+    const v = el.value;
+    if (type === 'json') { const t = v.trim(); return t === '' ? null : JSON.parse(t); }
+    if (type === 'bool') return v === 'true';
+    if (type === 'number') {
+        if (v === '') return null;
+        const n = Number(v);
+        if (Number.isNaN(n)) throw new Error(`"${el.getAttribute('data-col')}" no es un número válido`);
+        return n;
+    }
+    return v === '' ? null : v;
+}
+
+function _buildRowEditorFields(row, { idColumn, isNew, skipKeys = [] }) {
+    return Object.keys(row).filter(c => !skipKeys.includes(c)).map(col => {
+        const raw = row[col];
+        const isKey = !isNew && col === idColumn;
+        const fid = `rowedit-${col}`;
+        const colAttr = escapeHtml(col);
+        let control;
+        if (raw !== null && typeof raw === 'object') {
+            control = `<textarea id="${fid}" data-col="${colAttr}" data-type="json" rows="3" class="rowedit-input"${isKey ? ' readonly' : ''}>${escapeHtml(JSON.stringify(raw, null, 2))}</textarea>`;
+        } else if (typeof raw === 'boolean') {
+            control = `<select id="${fid}" data-col="${colAttr}" data-type="bool" class="rowedit-input">
+                <option value="true" ${raw === true ? 'selected' : ''}>true</option>
+                <option value="false" ${raw === false ? 'selected' : ''}>false</option>
+            </select>`;
+        } else {
+            const val = (raw === null || raw === undefined) ? '' : String(raw);
+            const type = typeof raw === 'number' ? 'number' : 'text';
+            control = `<input id="${fid}" data-col="${colAttr}" data-type="${type}" class="rowedit-input" value="${escapeHtml(val)}"${isKey ? ' readonly' : ''}>`;
+        }
+        return `<div class="form-group">
+            <label for="${fid}">${colAttr}${isKey ? ' <span class="badge-sm">clave</span>' : ''}</label>
+            ${control}
+        </div>`;
+    }).join('');
+}
+
+function openRowEditor({ table, row, isNew = false, title, subtitle, idColumn, idValue, onSaved, raw = false }) {
+    currentRowEditorCtx = { table, isNew, idColumn, idValue, original: row, onSaved, raw };
+    document.getElementById('row-editor-title').textContent = title || (isNew ? `Nueva fila · ${table}` : `Editar fila · ${table}`);
+    document.getElementById('row-editor-subtitle').innerHTML = subtitle == null
+        ? (isNew
+            ? 'Completá los campos. Los vacíos usan el valor por defecto de la tabla.'
+            : `Identificada por <code>${escapeHtml(String(idColumn))} = ${escapeHtml(String(idValue))}</code>. Solo se guardan los campos que cambies. Vacío = <code>null</code>.`)
+        : subtitle;
+
+    const fieldsEl = document.getElementById('row-editor-fields');
+    if (raw) {
+        fieldsEl.innerHTML = `<div class="form-group">
+            <label for="rowedit-rawjson">Fila (JSON)</label>
+            <textarea id="rowedit-rawjson" rows="8" class="rowedit-input" style="font-family:monospace;">${escapeHtml(JSON.stringify(row, null, 2))}</textarea>
+            <small class="form-hint">No se pudo inferir el esquema (tabla vacía). Editá el JSON de la fila a insertar.</small>
+        </div>`;
+    } else {
+        const skipKeys = isNew ? ['id', 'created_at', 'updated_at'] : [];
+        fieldsEl.innerHTML = _buildRowEditorFields(row, { idColumn, isNew, skipKeys });
+    }
+    openModal('row-editor-modal');
+}
+
+async function saveRowEditor(event) {
+    event.preventDefault();
+    const ctx = currentRowEditorCtx;
+    if (!ctx) { showToast('No hay fila en edición.', 'error'); return; }
+    const base = `/api/admin/database/tables/${encodeURIComponent(ctx.table)}/row`;
+
+    try {
+        const rawEl = document.getElementById('rowedit-rawjson');
+        if (rawEl) {
+            const values = JSON.parse(rawEl.value || '{}');
+            await _fetchAdminJson(base, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values })
+            });
+        } else if (ctx.isNew) {
+            const values = {};
+            document.querySelectorAll('#row-editor-fields .rowedit-input').forEach(el => {
+                const col = el.getAttribute('data-col');
+                const coerced = _coerceRowField(el);
+                // Only send filled fields so table defaults / NOT NULL apply.
+                if (coerced !== null) values[col] = coerced;
+            });
+            if (Object.keys(values).length === 0) { showToast('Completá al menos un campo.', 'error'); return; }
+            await _fetchAdminJson(base, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values })
+            });
+        } else {
+            const original = ctx.original || {};
+            const patch = {};
+            document.querySelectorAll('#row-editor-fields .rowedit-input').forEach(el => {
+                const col = el.getAttribute('data-col');
+                if (col === ctx.idColumn) return;
+                const coerced = _coerceRowField(el);
+                const orig = original[col];
+                const bothNull = (orig === null || orig === undefined) && (coerced === null || coerced === undefined);
+                const changed = (orig !== null && typeof orig === 'object')
+                    ? JSON.stringify(orig) !== JSON.stringify(coerced)
+                    : orig !== coerced;
+                if (changed && !bothNull) patch[col] = coerced;
+            });
+            if (Object.keys(patch).length === 0) { showToast('No hay cambios para guardar.', 'info'); closeModal(); return; }
+            await _fetchAdminJson(base, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idColumn: ctx.idColumn, idValue: ctx.idValue, patch })
+            });
+        }
+        showToast(ctx.isNew ? 'Fila creada' : 'Fila actualizada', 'success');
+        closeModal();
+        if (typeof ctx.onSaved === 'function') await ctx.onSaved();
+    } catch (err) {
+        showToast('Error al guardar: ' + err.message, 'error');
+    }
+}
+
+async function deleteRowGeneric(table, idColumn, idValue, label, onDeleted) {
+    if (!confirm(`¿Borrar "${label}" de "${table}"?\nEsta acción no se puede deshacer.`)) return;
+    try {
+        await _fetchAdminJson(`/api/admin/database/tables/${encodeURIComponent(table)}/row`, {
+            method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idColumn, idValue })
+        });
+        showToast('Fila borrada', 'success');
+        if (typeof onDeleted === 'function') await onDeleted();
+    } catch (err) {
+        showToast('Error al borrar: ' + err.message, 'error');
+    }
+}
+
+// ---- DB inspector wrappers (operate on the current inspector page) ----
+function editTableRow(index) {
+    const row = currentTableData[index];
+    if (!row) { showToast('Fila no encontrada — recarga la tabla.', 'error'); return; }
+    const key = pickRowKey(row);
+    if (!key) { showToast('No se detectó una clave única para esta fila; no se puede editar.', 'error'); return; }
+    openRowEditor({
+        table: currentTableName, row, isNew: false,
+        idColumn: key.column, idValue: key.value,
+        onSaved: () => loadInspectorPage(tableInspectorPage)
+    });
+}
+
+async function deleteTableRow(index) {
+    const row = currentTableData[index];
+    if (!row) { showToast('Fila no encontrada — recarga la tabla.', 'error'); return; }
+    const key = pickRowKey(row);
+    if (!key) { showToast('No se detectó una clave única; no se puede borrar.', 'error'); return; }
+    await deleteRowGeneric(currentTableName, key.column, key.value, String(key.value), () => {
+        const remaining = Math.max(0, (tableInspectorCount || 1) - 1);
+        const totalPages = Math.max(1, Math.ceil(remaining / tableInspectorPerPage));
+        return loadInspectorPage(Math.min(tableInspectorPage, totalPages));
+    });
+}
+
+async function exportTableLegacy(tableName) {
     const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
         showToast('No hay conexión a Supabase', 'error');
@@ -3646,7 +5129,7 @@ function exportTableCSV() {
     showToast('Exportado como CSV', 'success');
 }
 
-async function exportAllTables() {
+async function exportAllTablesLegacy() {
     const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
         showToast('No hay conexión a Supabase', 'error');
@@ -3892,7 +5375,7 @@ async function createSystemBackup() {
         if (includeDb && client) {
             const tables = [
                 'artists_db', 'quotations_db', 'tattoo_styles', 'body_parts',
-                'quotation_flow_config', 'support_users_db', 'feedback_tickets',
+                'quotation_flow_config', 'support_users_db',
                 'app_settings', 'session_logs', 'client_accounts'
             ];
             
@@ -3926,12 +5409,18 @@ async function createSystemBackup() {
         }
         
         updateProgress(60, 'Generando paquete de backup...');
+
+        const headers = await _getApifyAuthHeaders();
+        if (headers._noSession) {
+            throw new Error('No hay sesion de superadmin activa');
+        }
         
         // Send to server to generate ZIP with installer
         const response = await fetch('/api/admin/generate-backup', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                ...headers
             },
             body: JSON.stringify({
                 dbData,
@@ -4395,7 +5884,7 @@ function initContentSection() {
 /**
  * Load support users from Supabase
  */
-async function loadSupportUsers() {
+async function loadSupportUsersLegacy() {
     const tbody = document.getElementById('support-users-tbody');
     
     // Check if Supabase is available
@@ -4492,7 +5981,7 @@ function addSupportUser() {
 /**
  * Open modal to edit an existing support user
  */
-async function editSupportUser(userId) {
+async function editSupportUserLegacy(userId) {
     const client = window.ConfigManager?.getSupabaseClient();
     if (!client) {
         showToast('Error: Supabase no esta conectado', 'error');
@@ -4538,7 +6027,7 @@ async function editSupportUser(userId) {
 /**
  * Save support user (create or update)
  */
-async function saveSupportUser(event) {
+async function saveSupportUserLegacy(event) {
     event.preventDefault();
     
     const client = window.ConfigManager?.getSupabaseClient();
@@ -4619,9 +6108,14 @@ async function saveSupportUser(event) {
                 }
                 
                 // Call server endpoint to update password (keys are read server-side from env)
+                const headers = await _getApifyAuthHeaders();
+                if (headers._noSession) {
+                    throw new Error('No hay sesion de superadmin activa');
+                }
+
                 const passwordResponse = await fetch('/api/admin/update-user-password', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...headers },
                     body: JSON.stringify({
                         userId: userId,
                         newPassword: newPassword
@@ -4666,7 +6160,7 @@ async function saveSupportUser(event) {
 /**
  * Toggle support user active status
  */
-async function toggleSupportUserStatus(userId, newStatus) {
+async function toggleSupportUserStatusLegacy(userId, newStatus) {
     const action = newStatus ? 'activar' : 'desactivar';
     if (!confirm(`¿Estas seguro de que quieres ${action} este usuario?`)) {
         return;
@@ -4727,6 +6221,166 @@ async function sendPasswordResetEmail() {
     } catch (err) {
         console.error('Error sending password reset email:', err);
         showToast('Error al enviar email: ' + err.message, 'error');
+    }
+}
+
+async function loadSupportUsers() {
+    const tbody = document.getElementById('support-users-tbody');
+    showTableLoading('support-users-tbody', 6);
+
+    try {
+        const result = await _fetchAdminJson('/api/admin/support-users');
+        const data = result.users || [];
+
+        if (!data || data.length === 0) {
+            showTableEmptyState('support-users-tbody', 6, 'fa-headset', 'No hay usuarios de soporte', 'Crea el primer usuario con el boton de arriba.');
+            return;
+        }
+
+        tbody.innerHTML = data.map(user => {
+            const createdAt = user.created_at
+                ? new Date(user.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '-';
+            const statusClass = user.is_active ? 'success' : 'error';
+            const statusText = user.is_active ? 'Activo' : 'Inactivo';
+            const statusIcon = user.is_active ? 'fa-circle-check' : 'fa-circle-xmark';
+            const roleLabels = {
+                'support': 'Soporte',
+                'supervisor': 'Supervisor',
+                'admin': 'Administrador'
+            };
+            const roleLabel = roleLabels[user.role] || user.role;
+
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(user.full_name || '-')}</strong></td>
+                    <td>${escapeHtml(user.email || '-')}</td>
+                    <td><span class="badge-sm">${roleLabel}</span></td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            <i class="fa-solid ${statusIcon}"></i> ${statusText}
+                        </span>
+                    </td>
+                    <td>${createdAt}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon" onclick="editSupportUser('${user.user_id}')" title="Editar">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn-icon ${user.is_active ? 'danger-hover' : 'success-hover'}"
+                                onclick="toggleSupportUserStatus('${user.user_id}', ${!user.is_active})"
+                                title="${user.is_active ? 'Desactivar' : 'Activar'}">
+                                <i class="fa-solid ${user.is_active ? 'fa-user-slash' : 'fa-user-check'}"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Error loading support users:', err);
+        showTableErrorState('support-users-tbody', 6, 'No se pudieron cargar los usuarios de soporte.', 'loadSupportUsers()');
+        showToast('Error al cargar usuarios de soporte: ' + err.message, 'error');
+    }
+}
+
+async function editSupportUser(userId) {
+    try {
+        const result = await _fetchAdminJson(`/api/admin/support-users/${encodeURIComponent(userId)}`);
+        const data = result.user;
+        if (!data) throw new Error('Usuario no encontrado');
+
+        document.getElementById('support-user-id').value = data.user_id;
+        document.getElementById('support-user-name').value = data.full_name || '';
+        document.getElementById('support-user-email').value = data.email || '';
+        document.getElementById('support-user-email').disabled = true;
+        document.getElementById('support-user-role').value = data.role || 'support';
+        document.getElementById('support-user-active').checked = data.is_active !== false;
+        document.getElementById('support-user-password').value = '';
+        document.getElementById('support-user-password').required = false;
+        document.getElementById('support-user-password-group').style.display = 'none';
+        document.getElementById('support-user-new-password').value = '';
+        document.getElementById('support-user-change-password-group').style.display = 'block';
+        document.getElementById('support-user-active-group').style.display = 'flex';
+        document.getElementById('support-user-modal-title').textContent = 'Editar Usuario de Soporte';
+        document.getElementById('support-user-modal').classList.add('active');
+    } catch (err) {
+        console.error('Error loading support user:', err);
+        showToast('Error al cargar datos del usuario: ' + err.message, 'error');
+    }
+}
+
+async function saveSupportUser(event) {
+    event.preventDefault();
+
+    const userId = document.getElementById('support-user-id').value;
+    const fullName = document.getElementById('support-user-name').value.trim();
+    const email = document.getElementById('support-user-email').value.trim().toLowerCase();
+    const password = document.getElementById('support-user-password').value;
+    const role = document.getElementById('support-user-role').value;
+    const isActive = document.getElementById('support-user-active').checked;
+    const isNewUser = !userId;
+
+    try {
+        if (isNewUser) {
+            if (!password || password.length < 6) {
+                showToast('La contrasena debe tener al menos 6 caracteres', 'error');
+                return;
+            }
+
+            await _fetchAdminJson('/api/admin/support-users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fullName, email, password, role, isActive: true })
+            });
+            showToast('Usuario de soporte creado exitosamente', 'success');
+        } else {
+            const newPassword = document.getElementById('support-user-new-password')?.value || '';
+            if (newPassword) {
+                if (newPassword.length < 6) {
+                    showToast('La nueva contrasena debe tener al menos 6 caracteres', 'error');
+                    return;
+                }
+                await _fetchAdminJson('/api/admin/update-user-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, newPassword })
+                });
+            }
+
+            await _fetchAdminJson(`/api/admin/support-users/${encodeURIComponent(userId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fullName, role, isActive })
+            });
+            showToast(newPassword ? 'Usuario y contrasena actualizados' : 'Usuario de soporte actualizado', 'success');
+        }
+
+        closeModal();
+        loadSupportUsers();
+    } catch (err) {
+        console.error('Error saving support user:', err);
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function toggleSupportUserStatus(userId, newStatus) {
+    const action = newStatus ? 'activar' : 'desactivar';
+    if (!confirm(`Â¿Estas seguro de que quieres ${action} este usuario?`)) {
+        return;
+    }
+
+    try {
+        await _fetchAdminJson(`/api/admin/support-users/${encodeURIComponent(userId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: newStatus })
+        });
+        showToast(`Usuario ${newStatus ? 'activado' : 'desactivado'} correctamente`, 'success');
+        loadSupportUsers();
+    } catch (err) {
+        console.error('Error toggling support user status:', err);
+        showToast('Error al cambiar estado del usuario: ' + err.message, 'error');
     }
 }
 
@@ -4934,6 +6588,132 @@ window.saveEventWebhookUrl = saveEventWebhookUrl;
 window.toggleEventEnabled = toggleEventEnabled;
 window.testEventWebhook = testEventWebhook;
 
+
+// ============ CURRENCY ADMIN ============
+async function loadCurrenciesAdmin() {
+    const tbody = document.getElementById('currencies-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8"><div class="section-loader"><div class="spinner"></div><span class="loader-text">Cargando monedas...</span></div></td></tr>';
+
+    try {
+        if (!supabaseClient) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 16px; opacity: 0.6;">Supabase no inicializado.</td></tr>';
+            return;
+        }
+
+        const { data: currencies, error } = await supabaseClient
+            .from('currencies')
+            .select('code,name,symbol,decimals,units_per_usd,units_per_eur,is_active,last_updated_at,source')
+            .order('code', { ascending: true });
+
+        if (error) throw error;
+
+        if (!currencies || !currencies.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 16px; opacity: 0.6;">No hay monedas registradas.</td></tr>';
+        } else {
+            tbody.innerHTML = currencies.map(function (c) {
+                const updated = c.last_updated_at
+                    ? new Date(c.last_updated_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })
+                    : '—';
+                return '<tr>'
+                    + '<td><strong>' + escapeHtml(c.code) + '</strong></td>'
+                    + '<td>' + escapeHtml(c.name || '') + '</td>'
+                    + '<td>' + escapeHtml(c.symbol || '') + '</td>'
+                    + '<td style="font-family: monospace;">' + Number(c.units_per_usd).toFixed(4) + '</td>'
+                    + '<td style="font-family: monospace;">' + Number(c.units_per_eur).toFixed(4) + '</td>'
+                    + '<td>' + escapeHtml(updated) + '</td>'
+                    + '<td>' + escapeHtml(c.source || '—') + '</td>'
+                    + '<td>'
+                    +   '<label class="switch">'
+                    +     '<input type="checkbox" ' + (c.is_active ? 'checked' : '')
+                    +       ' onchange="toggleCurrencyActive(\'' + c.code + '\', this.checked)">'
+                    +     '<span class="slider"></span>'
+                    +   '</label>'
+                    + '</td>'
+                    + '</tr>';
+            }).join('');
+        }
+
+        const { data: logs, error: logsErr } = await supabaseClient
+            .from('currency_refresh_logs')
+            .select('source,status,currencies_updated,error_message,refreshed_at')
+            .order('refreshed_at', { ascending: false })
+            .limit(10);
+
+        const logsTbody = document.getElementById('currency-refresh-logs-tbody');
+        if (!logsTbody) return;
+        if (logsErr || !logs || !logs.length) {
+            logsTbody.innerHTML = '<tr><td colspan="5" style="padding: 16px; text-align: center; opacity: 0.6;">Sin registros aún.</td></tr>';
+        } else {
+            logsTbody.innerHTML = logs.map(function (l) {
+                const when = new Date(l.refreshed_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+                const statusColor = l.status === 'success' ? '#22c55e' : (l.status === 'partial' ? '#F4B942' : '#E23E28');
+                return '<tr>'
+                    + '<td>' + escapeHtml(when) + '</td>'
+                    + '<td>' + escapeHtml(l.source || '—') + '</td>'
+                    + '<td><span style="background:' + statusColor + '; color:white; padding:2px 8px; font-size:0.75rem; font-weight:700; text-transform:uppercase; border-radius: 2px;">' + escapeHtml(l.status) + '</span></td>'
+                    + '<td>' + (l.currencies_updated || 0) + '</td>'
+                    + '<td style="font-family: monospace; font-size: 0.75rem;">' + escapeHtml(l.error_message || '') + '</td>'
+                    + '</tr>';
+            }).join('');
+        }
+    } catch (err) {
+        console.error('[Admin] loadCurrenciesAdmin failed:', err);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 16px; color: var(--error-color);">Error: ' + escapeHtml(err.message || String(err)) + '</td></tr>';
+    }
+}
+
+async function toggleCurrencyActive(code, isActive) {
+    try {
+        if (!supabaseClient) throw new Error('Supabase no inicializado');
+        const { error } = await supabaseClient
+            .from('currencies')
+            .update({ is_active: !!isActive })
+            .eq('code', code);
+        if (error) throw error;
+        showToast('Moneda ' + code + (isActive ? ' activada' : ' desactivada'), 'success');
+    } catch (err) {
+        console.error('[Admin] toggleCurrencyActive failed:', err);
+        showToast('Error: ' + err.message, 'error');
+        loadCurrenciesAdmin();
+    }
+}
+
+async function refreshCurrenciesNow() {
+    const btn = document.getElementById('btn-refresh-currencies-now');
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refrescando...'; }
+    try {
+        const authHeaders = typeof _getApifyAuthHeaders === 'function' ? await _getApifyAuthHeaders() : {};
+        if (authHeaders._noSession) {
+            throw new Error('Inicia sesion en /backoffice/login para refrescar monedas.');
+        }
+        const response = await fetch('/api/admin/currencies/refresh-now', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...authHeaders
+            },
+            body: '{}'
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || ('HTTP ' + response.status));
+        }
+        showToast('Tipos de cambio actualizados (' + data.upserted + ' monedas)', 'success');
+        await loadCurrenciesAdmin();
+    } catch (err) {
+        console.error('[Admin] refreshCurrenciesNow failed:', err);
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Refrescar ahora'; }
+    }
+}
+
+window.loadCurrenciesAdmin = loadCurrenciesAdmin;
+window.toggleCurrencyActive = toggleCurrencyActive;
+window.refreshCurrenciesNow = refreshCurrenciesNow;
+
 // ============ APP CONTENT EXPORTS ============
 window.loadAppContent = loadAppContent;
 window.saveNextStepsContent = saveNextStepsContent;
@@ -4967,6 +6747,45 @@ window.exportTable = exportTable;
 window.exportTableJSON = exportTableJSON;
 window.exportTableCSV = exportTableCSV;
 window.exportAllTables = exportAllTables;
+window.gotoInspectorPage = gotoInspectorPage;
+window.editTableRow = editTableRow;
+window.deleteTableRow = deleteTableRow;
+window.saveRowEditor = saveRowEditor;
+
+// Studios (studio accounts) management
+window.loadStudios = loadStudios;
+window.editStudio = editStudio;
+window.saveStudio = saveStudio;
+window.deleteStudio = deleteStudio;
+window.deleteStudioFromModal = deleteStudioFromModal;
+window.goToStudiosPage = goToStudiosPage;
+window.changeStudiosItemsPerPage = changeStudiosItemsPerPage;
+
+// Studio detail (full-page admin)
+window.openStudioDetail = openStudioDetail;
+window.closeStudioDetail = closeStudioDetail;
+window.reloadStudioDetail = reloadStudioDetail;
+window.deleteStudioFromDetail = deleteStudioFromDetail;
+window.switchStudioTab = switchStudioTab;
+window.saveStudioGeneral = saveStudioGeneral;
+window.saveStudioContact = saveStudioContact;
+window.saveStudioImages = saveStudioImages;
+window.openSedeForm = openSedeForm;
+window.saveSede = saveSede;
+window.deleteSedeFromModal = deleteSedeFromModal;
+window.deleteSede = deleteSede;
+window.openSpotForm = openSpotForm;
+window.saveSpot = saveSpot;
+window.deleteSpotFromModal = deleteSpotFromModal;
+window.deleteSpot = deleteSpot;
+window.setApplicationStatus = setApplicationStatus;
+window.switchOpsTable = switchOpsTable;
+window.addOpsRow = addOpsRow;
+window.editOpsRow = editOpsRow;
+window.deleteOpsRow = deleteOpsRow;
+window.removeMembership = removeMembership;
+window.editMembership = editMembership;
+window.assignMembershipSede = assignMembershipSede;
 
 window.loadRoutesSection = loadRoutesSection;
 window.loadRoutesConfig = loadRoutesConfig;
@@ -5362,6 +7181,7 @@ function initRealtimeSubscriptions() {
                 'client_approved': 'Aprobada por cliente',
                 'client_rejected': 'Rechazada por cliente',
                 'in_progress': 'En progreso',
+                'artist_completed': 'Lista para cliente',
                 'completed': 'Completada'
             };
 
@@ -5532,3 +7352,823 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.initRealtimeSubscriptions = initRealtimeSubscriptions;
 window.cleanupRealtimeSubscriptions = cleanupRealtimeSubscriptions;
+
+// ============================================================
+// STUDIO DETAIL — full-page studio administrator
+// ============================================================
+// Opens from the Estudios list ("Administrar"). One studio at a time, with
+// lazy-loaded tabs. Child records (sedes, spots, roster, operaciones) are read
+// via the generic studio_id-filtered table endpoint and written via the generic
+// row INSERT/PATCH/DELETE endpoints. Images upload straight to the studio-photos
+// bucket through WeOtziUploader; their URLs are saved via the studios PATCH.
+let currentStudioDetail = null;
+let currentStudioDetailId = null;
+let sdLocations = [];
+let sdSpots = [];
+let sdRoster = [];
+let sdCurrentSpotId = null;
+let sdGalleryUploader = null;
+let sedePhotosUploader = null;
+let sedeWorkstationUploader = null;
+let currentOpsTable = 'studio_inventory_items';
+let currentOpsTitle = 'Inventario';
+let sdOpsRows = [];
+
+function _sdSupabase() {
+    return (window.ConfigManager && window.ConfigManager.getSupabaseClient && window.ConfigManager.getSupabaseClient())
+        || window.supabaseClient || window._supabase || null;
+}
+
+async function _sdFetchChildren(table, column, value, order) {
+    const params = new URLSearchParams({ filterColumn: column, filterValue: value, limit: '1000' });
+    if (order) params.set('order', order);
+    const result = await _fetchAdminJson(`/api/admin/database/tables/${encodeURIComponent(table)}?${params}`);
+    return result.rows || [];
+}
+
+function _sdStudioPatch(patch) {
+    return _fetchAdminJson(`/api/admin/studios/${encodeURIComponent(currentStudioDetailId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
+    });
+}
+
+function _sdFmtCell(v) {
+    if (v === null || v === undefined) return '<span class="text-muted">null</span>';
+    if (typeof v === 'object') {
+        const j = JSON.stringify(v);
+        return `<code title="${escapeHtml(j)}">${escapeHtml(j.length > 50 ? j.slice(0, 50) + '…' : j)}</code>`;
+    }
+    const s = String(v);
+    return escapeHtml(s.length > 60 ? s.slice(0, 60) + '…' : s);
+}
+
+// ---- Shell ----
+async function openStudioDetail(id) {
+    currentStudioDetailId = id;
+    sdLocations = []; sdSpots = []; sdRoster = []; sdGalleryUploader = null;
+    document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-studio-detail').classList.add('active');
+
+    try {
+        const res = await _fetchAdminJson(`/api/admin/database/tables/studios?filterColumn=id&filterValue=${encodeURIComponent(id)}&limit=1`);
+        const s = (res.rows && res.rows[0]) || currentStudios.find(x => x.id === id);
+        if (!s) { showToast('Estudio no encontrado', 'error'); closeStudioDetail(); return; }
+        currentStudioDetail = s;
+        const titleEl = document.getElementById('section-title');
+        if (titleEl) titleEl.textContent = 'Estudio: ' + (s.name || '');
+        renderStudioDetailHeader(s);
+        populateStudioGeneral(s);
+        populateStudioContact(s);
+        switchStudioTab('general');
+    } catch (err) {
+        showToast('Error al cargar el estudio: ' + err.message, 'error');
+    }
+}
+
+function closeStudioDetail() {
+    if (typeof window.showSection === 'function') window.showSection('studios');
+}
+
+function reloadStudioDetail() {
+    if (currentStudioDetailId) openStudioDetail(currentStudioDetailId);
+}
+
+function renderStudioDetailHeader(s) {
+    const logoEl = document.getElementById('sd-logo');
+    logoEl.innerHTML = s.logo_image ? `<img src="${escapeHtml(s.logo_image)}" alt="">` : escapeHtml(avatarInitials(s.name));
+    document.getElementById('sd-name').textContent = s.name || '—';
+    const badges = [];
+    badges.push(s.is_verified ? '<span class="status-badge verified">Verificado</span>' : '<span class="status-badge not-verified">No verif.</span>');
+    badges.push(s.is_active ? '<span class="status-badge success">Activo</span>' : '<span class="status-badge error">Inactivo</span>');
+    if (s.is_seeking_artists) badges.push('<span class="status-badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;"><i class="fa-solid fa-bullhorn"></i> Buscando artistas</span>');
+    if (s.slug) badges.push(`<span class="status-badge">/${escapeHtml(s.slug)}</span>`);
+    if (s.email) badges.push(`<span class="status-badge">${escapeHtml(s.email)}</span>`);
+    document.getElementById('sd-badges').innerHTML = badges.join(' ');
+}
+
+function populateStudioGeneral(s) {
+    setVal('sd-id', s.id);
+    setVal('sd-user-id', s.user_id || '');
+    setVal('sd-name-input', s.name);
+    setVal('sd-slug', s.slug);
+    setVal('sd-email', s.email);
+    setVal('sd-founded-year', s.founded_year);
+    setVal('sd-tagline', s.tagline);
+    setVal('sd-bio', s.bio);
+    setVal('sd-languages', studioLanguagesArray(s.languages).join(', '));
+    setVal('sd-is-verified', s.is_verified);
+    setVal('sd-is-active', s.is_active);
+    setVal('sd-profile-complete', s.profile_complete);
+    setVal('sd-is-seeking-artists', s.is_seeking_artists);
+    setVal('sd-new-password', '');
+}
+
+function populateStudioContact(s) {
+    setVal('sd-instagram', s.instagram);
+    setVal('sd-tiktok', s.tiktok);
+    setVal('sd-whatsapp', s.whatsapp);
+    setVal('sd-contact-phone', s.contact_phone);
+    setVal('sd-phone', s.phone);
+    setVal('sd-website', s.website);
+    setVal('sd-google-maps-url', s.google_maps_url);
+}
+
+function switchStudioTab(tab) {
+    document.querySelectorAll('#section-studio-detail .sd-tab').forEach(b => b.classList.toggle('active', b.dataset.sdTab === tab));
+    document.querySelectorAll('#section-studio-detail .sd-panel').forEach(p => p.classList.toggle('active', p.dataset.sdPanel === tab));
+    if (tab === 'images') loadStudioImagesTab();
+    else if (tab === 'locations') loadStudioLocations();
+    else if (tab === 'spots') loadStudioSpots();
+    else if (tab === 'roster') loadStudioRoster();
+    else if (tab === 'ops') switchOpsTable(currentOpsTable, currentOpsTitle);
+}
+
+async function deleteStudioFromDetail() {
+    const s = currentStudioDetail;
+    const id = currentStudioDetailId;
+    if (!id) return;
+    if (!confirm(`¿Eliminar el estudio "${(s && s.name) || id}"?\nSe borrarán sus sedes, spots, roster y su cuenta de acceso. No se puede deshacer.`)) return;
+    try {
+        await _fetchAdminJson('/api/admin/delete-studio', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+        });
+        showToast('Estudio eliminado', 'success');
+        closeStudioDetail();
+    } catch (err) {
+        showToast('Error al eliminar: ' + err.message, 'error');
+    }
+}
+
+// ---- General / Contacto ----
+async function saveStudioGeneral(event) {
+    event.preventDefault();
+    const newPassword = getVal('sd-new-password');
+    if (newPassword && newPassword.length < 6) { showToast('La contraseña debe tener al menos 6 caracteres', 'error'); return; }
+    const foundedRaw = getVal('sd-founded-year');
+    const patch = {
+        name: getVal('sd-name-input'),
+        slug: getVal('sd-slug') || null,
+        email: getVal('sd-email'),
+        founded_year: foundedRaw === '' ? null : Number(foundedRaw),
+        tagline: getVal('sd-tagline') || null,
+        bio: getVal('sd-bio') || null,
+        languages: csvToArray(getVal('sd-languages')),
+        is_verified: getVal('sd-is-verified'),
+        is_active: getVal('sd-is-active'),
+        profile_complete: getVal('sd-profile-complete'),
+        is_seeking_artists: getVal('sd-is-seeking-artists')
+    };
+    try {
+        await _sdStudioPatch(patch);
+        const authUserId = (currentStudioDetail && currentStudioDetail.user_id) || getVal('sd-user-id') || '';
+        let pw = false;
+        if (newPassword) {
+            if (!authUserId) showToast('Sin cuenta de acceso: no se cambió la contraseña.', 'warning');
+            else {
+                await _fetchAdminJson('/api/admin/update-user-password', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: authUserId, newPassword })
+                });
+                pw = true;
+            }
+        }
+        Object.assign(currentStudioDetail, patch);
+        renderStudioDetailHeader(currentStudioDetail);
+        setVal('sd-new-password', '');
+        showToast(pw ? 'General y contraseña actualizados' : 'General actualizado', 'success');
+    } catch (err) {
+        showToast('Error al guardar: ' + err.message, 'error');
+    }
+}
+
+async function saveStudioContact(event) {
+    event.preventDefault();
+    const patch = {
+        instagram: getVal('sd-instagram') || null,
+        tiktok: getVal('sd-tiktok') || null,
+        whatsapp: getVal('sd-whatsapp') || null,
+        contact_phone: getVal('sd-contact-phone') || null,
+        phone: getVal('sd-phone') || null,
+        website: getVal('sd-website') || null,
+        google_maps_url: getVal('sd-google-maps-url') || null
+    };
+    try {
+        await _sdStudioPatch(patch);
+        Object.assign(currentStudioDetail, patch);
+        showToast('Contacto actualizado', 'success');
+    } catch (err) {
+        showToast('Error al guardar: ' + err.message, 'error');
+    }
+}
+
+// ---- Imágenes ----
+function loadStudioImagesTab() {
+    const s = currentStudioDetail;
+    if (!s) return;
+    const client = _sdSupabase();
+    const panel = document.querySelector('#section-studio-detail [data-sd-panel="images"]');
+    const grid = panel.querySelector('.sd-images-grid');
+    // Rebuild inputs fresh each time so re-attaching the uploader never double-wraps.
+    grid.innerHTML = `
+        <div class="sd-image-field"><label>Logo</label><input type="url" id="sd-logo-input" placeholder="URL del logo"></div>
+        <div class="sd-image-field"><label>Portada (cover)</label><input type="url" id="sd-cover-input" placeholder="URL de portada"></div>`;
+    const gallery = document.getElementById('sd-gallery');
+    gallery.innerHTML = '';
+    const logoInput = document.getElementById('sd-logo-input');
+    const coverInput = document.getElementById('sd-cover-input');
+    logoInput.value = s.logo_image || '';
+    coverInput.value = s.cover_image || '';
+
+    const photoUrls = _sdPhotoUrls(s.photo_feed_items);
+
+    if (window.WeOtziUploader && client) {
+        WeOtziUploader.attach(logoInput, { supabase: client, bucket: 'studio-photos', pathPrefix: s.id + '/brand', accept: 'image/*' });
+        WeOtziUploader.attach(coverInput, { supabase: client, bucket: 'studio-photos', pathPrefix: s.id + '/brand', accept: 'image/*' });
+        sdGalleryUploader = WeOtziUploader.attachGallery(gallery, { supabase: client, bucket: 'studio-photos', pathPrefix: s.id + '/gallery', initialUrls: photoUrls, accept: 'image/*' });
+    } else {
+        sdGalleryUploader = null;
+        gallery.innerHTML = '<p class="sd-panel-hint">Subida no disponible (sin cliente Supabase). Pegá URLs en los campos de arriba.</p>';
+    }
+}
+
+// Normalizes a JSONB photo array (items are {url,...} objects or plain strings)
+// to a flat list of URLs.
+function _sdPhotoUrls(value) {
+    return (Array.isArray(value) ? value : [])
+        .map(it => (typeof it === 'string' ? it : (it && it.url)))
+        .filter(Boolean);
+}
+
+async function saveStudioImages() {
+    if (!currentStudioDetailId) return;
+    const logo = (document.getElementById('sd-logo-input') || {}).value || '';
+    const cover = (document.getElementById('sd-cover-input') || {}).value || '';
+    const photoUrls = sdGalleryUploader ? sdGalleryUploader.getUrls() : _sdPhotoUrls(currentStudioDetail.photo_feed_items);
+    const photo_feed_items = photoUrls.map((url, i) => ({ url, kind: 'image', category: 'studio', sort: i }));
+    try {
+        await _sdStudioPatch({ logo_image: logo || null, cover_image: cover || null, photo_feed_items });
+        currentStudioDetail.logo_image = logo || null;
+        currentStudioDetail.cover_image = cover || null;
+        currentStudioDetail.photo_feed_items = photo_feed_items;
+        renderStudioDetailHeader(currentStudioDetail);
+        showToast('Imágenes guardadas', 'success');
+    } catch (err) {
+        showToast('Error al guardar imágenes: ' + err.message, 'error');
+    }
+}
+
+// ---- Sedes (studio_locations) ----
+async function loadStudioLocations() {
+    const listEl = document.getElementById('sd-locations-list');
+    listEl.innerHTML = '<div class="section-loader"><div class="spinner"></div><span class="loader-text">Cargando sedes...</span></div>';
+    try {
+        sdLocations = await _sdFetchChildren('studio_locations', 'studio_id', currentStudioDetailId, 'sort_order.asc');
+        if (!sdLocations.length) {
+            listEl.innerHTML = '<p class="sd-panel-hint">Sin sedes. Agregá la primera con "Nueva sede".</p>';
+            return;
+        }
+
+        // Derived per-sede counts (best-effort — failures just hide the badges):
+        //   "Artistas en la sede"  -> active memberships grouped by location_id
+        //   "Spots disponibles"    -> open spots grouped by location_id
+        const artistsByLoc = {};
+        const openSpotsByLoc = {};
+        let unassigned = 0;
+        try {
+            const members = await _sdFetchChildren('studio_artist_memberships', 'studio_id', currentStudioDetailId);
+            members.filter(m => m.status === 'active').forEach(m => {
+                if (m.location_id) artistsByLoc[m.location_id] = (artistsByLoc[m.location_id] || 0) + 1;
+                else unassigned += 1;
+            });
+        } catch (_) { /* counts optional */ }
+        try {
+            const spots = await _sdFetchChildren('studio_spots', 'studio_id', currentStudioDetailId);
+            spots.filter(s => s.status === 'open' && s.location_id).forEach(s => {
+                openSpotsByLoc[s.location_id] = (openSpotsByLoc[s.location_id] || 0) + 1;
+            });
+        } catch (_) { /* counts optional */ }
+
+        const cards = sdLocations.map(loc => {
+            const addr = loc.formatted_address || [loc.street, loc.street_number, loc.city, loc.country].filter(Boolean).join(', ');
+            const badges = (loc.is_primary ? '<span class="status-badge verified">Principal</span> ' : '')
+                + (loc.is_active !== false ? '<span class="status-badge success">Activa</span>' : '<span class="status-badge error">Inactiva</span>')
+                + (loc.is_seeking_artists ? ' <span class="status-badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;"><i class="fa-solid fa-bullhorn"></i> Buscando</span>' : '');
+            const artistCount = artistsByLoc[loc.id] || 0;
+            const spotCount = openSpotsByLoc[loc.id] || 0;
+            const photoCount = _sdPhotoUrls(loc.photo_feed_items).length + _sdPhotoUrls(loc.workstation_photos).length;
+            const mapsHref = loc.google_maps_url
+                || (loc.formatted_address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.formatted_address)}` : '');
+            const mapsLink = mapsHref ? ` · <a href="${escapeHtml(mapsHref)}" target="_blank" rel="noopener">Maps</a>` : '';
+            return `<div class="sd-card"><div class="sd-card-main">
+                <div class="sd-card-title">${escapeHtml(loc.label || 'Sede')} ${badges}
+                    <span class="badge-sm" title="Artistas en esta sede"><i class="fa-solid fa-user"></i> ${artistCount}</span>
+                    <span class="badge-sm" title="Spots disponibles en esta sede"><i class="fa-solid fa-bullseye"></i> ${spotCount}</span>
+                    <span class="badge-sm" title="Fotos de esta sede"><i class="fa-solid fa-image"></i> ${photoCount}</span></div>
+                <div class="sd-card-sub">${escapeHtml(addr || '—')}${loc.phone ? ' · ' + escapeHtml(loc.phone) : ''}${mapsLink}</div>
+            </div><div class="sd-card-actions">
+                <button class="btn-icon" onclick="openSedeForm('${escapeHtml(loc.id)}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon danger-hover" onclick="deleteSede('${escapeHtml(loc.id)}')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+            </div></div>`;
+        }).join('');
+
+        const note = unassigned
+            ? `<p class="sd-panel-hint"><i class="fa-solid fa-circle-info"></i> ${unassigned} artista(s) del roster sin sede asignada.</p>`
+            : '';
+        listEl.innerHTML = cards + note;
+    } catch (err) {
+        listEl.innerHTML = `<p class="sd-panel-hint" style="color:var(--error-color);">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function openSedeForm(locId) {
+    const loc = locId ? sdLocations.find(l => l.id === locId) : null;
+    setVal('sede-id', loc ? loc.id : '');
+    setVal('sede-studio-id', currentStudioDetailId);
+    setVal('sede-label', loc ? loc.label : '');
+    setVal('sede-sort-order', loc ? (loc.sort_order != null ? loc.sort_order : 0) : sdLocations.length);
+    // The first sede ever, and the only sede, must be primary — force + lock it.
+    const isNewFirst = !loc && sdLocations.length === 0;
+    const isEditOnly = loc && sdLocations.length === 1;
+    setVal('sede-is-primary', loc ? !!loc.is_primary : isNewFirst);
+    const primaryToggle = document.getElementById('sede-is-primary');
+    if (primaryToggle) {
+        if (isNewFirst || isEditOnly) { primaryToggle.checked = true; primaryToggle.disabled = true; }
+        else primaryToggle.disabled = false;
+    }
+    setVal('sede-is-active', loc ? loc.is_active !== false : true);
+    setVal('sede-country', loc ? loc.country : '');
+    setVal('sede-country-code', loc ? loc.country_code : '');
+    setVal('sede-state-province', loc ? loc.state_province : '');
+    setVal('sede-city', loc ? loc.city : '');
+    setVal('sede-locality', loc ? loc.locality : '');
+    setVal('sede-street', loc ? loc.street : '');
+    setVal('sede-street-number', loc ? loc.street_number : '');
+    setVal('sede-unit', loc ? loc.unit : '');
+    setVal('sede-postal-code', loc ? loc.postal_code : '');
+    setVal('sede-formatted-address', loc ? loc.formatted_address : '');
+    setVal('sede-latitude', loc ? loc.latitude : '');
+    setVal('sede-longitude', loc ? loc.longitude : '');
+    setVal('sede-phone', loc ? loc.phone : '');
+    setVal('sede-google-maps-url', loc ? loc.google_maps_url : '');
+    setVal('sede-is-seeking-artists', loc ? !!loc.is_seeking_artists : false);
+
+    // Per-sede galleries. attachGallery resets its container, so re-mounting on
+    // every open is safe (no double-wrap). Files land under <studioId>/sedes so
+    // the studio-photos bucket RLS (path prefix = studio UUID) still passes.
+    const client = _sdSupabase();
+    const photosC = document.getElementById('sede-photos-gallery');
+    const wsC = document.getElementById('sede-workstation-gallery');
+    const prefix = currentStudioDetailId + '/sedes';
+    if (window.WeOtziUploader && client) {
+        sedePhotosUploader = WeOtziUploader.attachGallery(photosC, { supabase: client, bucket: 'studio-photos', pathPrefix: prefix, initialUrls: _sdPhotoUrls(loc && loc.photo_feed_items), accept: 'image/*' });
+        sedeWorkstationUploader = WeOtziUploader.attachGallery(wsC, { supabase: client, bucket: 'studio-photos', pathPrefix: prefix, initialUrls: _sdPhotoUrls(loc && loc.workstation_photos), accept: 'image/*' });
+    } else {
+        sedePhotosUploader = null;
+        sedeWorkstationUploader = null;
+        if (photosC) photosC.innerHTML = '<p class="sd-panel-hint">Subida no disponible (sin cliente Supabase).</p>';
+        if (wsC) wsC.innerHTML = '';
+    }
+
+    document.getElementById('sede-modal-title').textContent = loc ? 'Editar Sede' : 'Nueva Sede';
+    document.getElementById('sede-delete-btn').style.display = loc ? '' : 'none';
+    openModal('sede-modal');
+}
+
+async function saveSede(event) {
+    event.preventDefault();
+    const id = getVal('sede-id');
+    const latRaw = getVal('sede-latitude');
+    const lngRaw = getVal('sede-longitude');
+    const lat = latRaw === '' ? null : Number(latRaw);
+    const lng = lngRaw === '' ? null : Number(lngRaw);
+    if ((lat === null) !== (lng === null)) { showToast('Latitud y longitud deben ir juntas (ambas o ninguna).', 'error'); return; }
+
+    // Photo arrays come from the gallery uploaders; if the uploader couldn't
+    // mount (no client), fall back to the sede's existing photos so we don't
+    // wipe them on save.
+    const existing = id ? sdLocations.find(l => l.id === id) : null;
+    const sedePhotoUrls = sedePhotosUploader ? sedePhotosUploader.getUrls() : _sdPhotoUrls(existing && existing.photo_feed_items);
+    const sedeWsUrls = sedeWorkstationUploader ? sedeWorkstationUploader.getUrls() : _sdPhotoUrls(existing && existing.workstation_photos);
+
+    const values = {
+        studio_id: currentStudioDetailId,
+        label: getVal('sede-label') || null,
+        is_primary: getVal('sede-is-primary'),
+        is_active: getVal('sede-is-active'),
+        sort_order: getVal('sede-sort-order') === '' ? 0 : Number(getVal('sede-sort-order')),
+        country: getVal('sede-country') || null,
+        country_code: getVal('sede-country-code') || null,
+        state_province: getVal('sede-state-province') || null,
+        city: getVal('sede-city') || null,
+        locality: getVal('sede-locality') || null,
+        street: getVal('sede-street') || null,
+        street_number: getVal('sede-street-number') || null,
+        unit: getVal('sede-unit') || null,
+        postal_code: getVal('sede-postal-code') || null,
+        formatted_address: getVal('sede-formatted-address') || null,
+        latitude: lat,
+        longitude: lng,
+        phone: getVal('sede-phone') || null,
+        google_maps_url: getVal('sede-google-maps-url') || null,
+        is_seeking_artists: getVal('sede-is-seeking-artists'),
+        photo_feed_items: sedePhotoUrls.map((url, i) => ({ url, kind: 'image', category: 'studio', sort: i })),
+        workstation_photos: sedeWsUrls.map((url, i) => ({ url, kind: 'image', category: 'workstation', sort: i }))
+    };
+
+    // A studio must always have exactly one primary sede. The first sede (and
+    // the only sede) is forced primary; un-checking primary is rejected unless
+    // another sede is already primary.
+    const isFirstSede = sdLocations.length === 0;
+    const isOnlySede = id && sdLocations.length === 1;
+    if (isFirstSede || isOnlySede) {
+        values.is_primary = true;
+    } else if (!values.is_primary) {
+        const anotherPrimary = sdLocations.some(l => l.id !== id && l.is_primary);
+        if (!anotherPrimary) {
+            values.is_primary = true;
+            showToast('Debe haber una sede principal; se mantuvo esta como principal.', 'warning');
+        }
+    }
+
+    const rowUrl = '/api/admin/database/tables/studio_locations/row';
+    try {
+        // Single-primary invariant: clear other primaries first.
+        if (values.is_primary) {
+            const others = sdLocations.filter(l => l.is_primary && l.id !== id);
+            for (const o of others) {
+                await _fetchAdminJson(rowUrl, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idColumn: 'id', idValue: o.id, patch: { is_primary: false } })
+                });
+            }
+        }
+        if (id) {
+            await _fetchAdminJson(rowUrl, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idColumn: 'id', idValue: id, patch: values })
+            });
+        } else {
+            await _fetchAdminJson(rowUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values })
+            });
+        }
+        showToast('Sede guardada', 'success');
+        closeModal();
+        loadStudioLocations();
+    } catch (err) {
+        showToast('Error al guardar sede: ' + err.message, 'error');
+    }
+}
+
+async function deleteSede(locId) {
+    const loc = sdLocations.find(l => l.id === locId);
+    // A studio must keep at least one sede.
+    if (sdLocations.length <= 1) {
+        showToast('Un estudio debe tener al menos una sede. No se puede eliminar la última.', 'error');
+        return;
+    }
+    if (!confirm(`¿Eliminar la sede "${(loc && loc.label) || 'sede'}"?\nEsta acción no se puede deshacer.`)) return;
+
+    const rowUrl = '/api/admin/database/tables/studio_locations/row';
+    try {
+        await _fetchAdminJson(rowUrl, {
+            method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idColumn: 'id', idValue: locId })
+        });
+        // If the deleted sede was the primary, promote another so a primary
+        // always exists.
+        if (loc && loc.is_primary) {
+            const remaining = sdLocations.filter(l => l.id !== locId)
+                .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            if (remaining[0]) {
+                await _fetchAdminJson(rowUrl, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idColumn: 'id', idValue: remaining[0].id, patch: { is_primary: true } })
+                });
+            }
+        }
+        showToast('Sede eliminada', 'success');
+        loadStudioLocations();
+    } catch (err) {
+        showToast('Error al eliminar sede: ' + err.message, 'error');
+    }
+}
+
+function deleteSedeFromModal() {
+    const id = getVal('sede-id');
+    if (!id) return;
+    closeModal();
+    deleteSede(id);
+}
+
+// ---- Spots ----
+const SPOT_KIND_LABELS = { resident: 'Residente', itinerant: 'Itinerante', guest_spot: 'Guest spot' };
+const SPOT_STATUS_BADGE = {
+    draft: 'pending', open: 'success', filled: 'verified', closed: 'none', expired: 'error'
+};
+
+async function loadStudioSpots() {
+    const listEl = document.getElementById('sd-spots-list');
+    listEl.innerHTML = '<div class="section-loader"><div class="spinner"></div><span class="loader-text">Cargando spots...</span></div>';
+    try {
+        sdSpots = await _sdFetchChildren('studio_spots', 'studio_id', currentStudioDetailId, 'created_at.desc');
+        if (!sdSpots.length) {
+            listEl.innerHTML = '<p class="sd-panel-hint">Sin spots. Creá uno con "Nuevo spot".</p>';
+            return;
+        }
+        const openCount = sdSpots.filter(s => s.status === 'open').length;
+        const summary = `<p class="sd-panel-hint"><i class="fa-solid fa-circle-check" style="color:var(--success-color);"></i> <strong>${openCount}</strong> spot(s) disponible(s) (estado <code>open</code>) de ${sdSpots.length} total.</p>`;
+        listEl.innerHTML = summary + sdSpots.map(sp => {
+            const statusCls = SPOT_STATUS_BADGE[sp.status] || 'none';
+            const dates = [sp.start_date, sp.end_date].filter(Boolean).join(' → ');
+            return `<div class="sd-card"><div class="sd-card-main">
+                <div class="sd-card-title">${escapeHtml(sp.title || 'Spot')}
+                    <span class="status-badge ${statusCls}">${escapeHtml(sp.status || '')}</span>
+                    <span class="badge-sm">${escapeHtml(SPOT_KIND_LABELS[sp.kind] || sp.kind || '')}</span>
+                </div>
+                <div class="sd-card-sub">${dates ? escapeHtml(dates) + ' · ' : ''}${sp.application_count || 0} postulación(es)</div>
+            </div><div class="sd-card-actions">
+                <button class="btn-icon" onclick="openSpotForm('${escapeHtml(sp.id)}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon danger-hover" onclick="deleteSpot('${escapeHtml(sp.id)}')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+            </div></div>`;
+        }).join('');
+    } catch (err) {
+        listEl.innerHTML = `<p class="sd-panel-hint" style="color:var(--error-color);">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+async function openSpotForm(spotId) {
+    if (!sdLocations.length) {
+        try { sdLocations = await _sdFetchChildren('studio_locations', 'studio_id', currentStudioDetailId, 'sort_order.asc'); } catch (_) {}
+    }
+    const sel = document.getElementById('spot-location-id');
+    sel.innerHTML = '<option value="">— Sin sede —</option>' +
+        sdLocations.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.label || l.city || l.id)}</option>`).join('');
+
+    const sp = spotId ? sdSpots.find(s => s.id === spotId) : null;
+    sdCurrentSpotId = sp ? sp.id : null;
+    setVal('spot-id', sp ? sp.id : '');
+    setVal('spot-studio-id', currentStudioDetailId);
+    setVal('spot-title', sp ? sp.title : '');
+    setVal('spot-kind', sp ? sp.kind : 'guest_spot');
+    setVal('spot-status', sp ? sp.status : 'draft');
+    setVal('spot-description', sp ? sp.description : '');
+    setVal('spot-styles-wanted', sp && Array.isArray(sp.styles_wanted) ? sp.styles_wanted.join(', ') : '');
+    setVal('spot-language-requirements', sp && Array.isArray(sp.language_requirements) ? sp.language_requirements.join(', ') : '');
+    setVal('spot-experience-min-years', sp ? sp.experience_min_years : '');
+    setVal('spot-location-id', sp ? (sp.location_id || '') : '');
+    setVal('spot-includes-housing', sp ? !!sp.includes_housing : false);
+    setVal('spot-revenue-split-pct', sp ? sp.revenue_split_pct : '');
+    setVal('spot-stipend-amount', sp ? sp.stipend_amount : '');
+    setVal('spot-stipend-currency', sp ? sp.stipend_currency : '');
+    setVal('spot-start-date', sp ? sp.start_date : '');
+    setVal('spot-end-date', sp ? sp.end_date : '');
+    setVal('spot-expires-at', sp && sp.expires_at ? String(sp.expires_at).slice(0, 10) : '');
+    setVal('spot-weeks-minimum', sp ? sp.weeks_minimum : '');
+    setVal('spot-weeks-maximum', sp ? sp.weeks_maximum : '');
+    setVal('spot-max-applications', sp ? sp.max_applications : '');
+
+    // Rebuild cover field fresh so the uploader never double-wraps.
+    const coverGroup = document.getElementById('spot-cover-image').closest('.form-group');
+    coverGroup.innerHTML = '<label>Imagen de portada del spot</label><input type="url" id="spot-cover-image" placeholder="URL de portada">';
+    const coverInput = document.getElementById('spot-cover-image');
+    coverInput.value = sp ? (sp.cover_image || '') : '';
+    const client = _sdSupabase();
+    if (window.WeOtziUploader && client) {
+        WeOtziUploader.attach(coverInput, { supabase: client, bucket: 'studio-photos', pathPrefix: currentStudioDetailId + '/spots', accept: 'image/*' });
+    }
+
+    document.getElementById('spot-modal-title').textContent = sp ? 'Editar Spot' : 'Nuevo Spot';
+    document.getElementById('spot-delete-btn').style.display = sp ? '' : 'none';
+
+    const appsWrap = document.getElementById('spot-applications-wrap');
+    if (sp) { appsWrap.style.display = ''; loadSpotApplications(sp.id); }
+    else { appsWrap.style.display = 'none'; }
+
+    openModal('spot-modal');
+}
+
+async function saveSpot(event) {
+    event.preventDefault();
+    const id = getVal('spot-id');
+    const num = v => (v === '' ? null : Number(v));
+    const values = {
+        studio_id: currentStudioDetailId,
+        title: getVal('spot-title'),
+        kind: getVal('spot-kind'),
+        status: getVal('spot-status'),
+        description: getVal('spot-description') || null,
+        styles_wanted: csvToArray(getVal('spot-styles-wanted')),
+        language_requirements: csvToArray(getVal('spot-language-requirements')),
+        experience_min_years: num(getVal('spot-experience-min-years')),
+        includes_housing: getVal('spot-includes-housing'),
+        revenue_split_pct: num(getVal('spot-revenue-split-pct')),
+        stipend_amount: num(getVal('spot-stipend-amount')),
+        stipend_currency: getVal('spot-stipend-currency') || null,
+        start_date: getVal('spot-start-date') || null,
+        end_date: getVal('spot-end-date') || null,
+        expires_at: getVal('spot-expires-at') || null,
+        weeks_minimum: num(getVal('spot-weeks-minimum')),
+        weeks_maximum: num(getVal('spot-weeks-maximum')),
+        max_applications: num(getVal('spot-max-applications')),
+        cover_image: (document.getElementById('spot-cover-image') || {}).value || null,
+        location_id: getVal('spot-location-id') || null
+    };
+    const rowUrl = '/api/admin/database/tables/studio_spots/row';
+    try {
+        if (id) {
+            await _fetchAdminJson(rowUrl, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idColumn: 'id', idValue: id, patch: values })
+            });
+        } else {
+            await _fetchAdminJson(rowUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values })
+            });
+        }
+        showToast('Spot guardado', 'success');
+        closeModal();
+        loadStudioSpots();
+    } catch (err) {
+        showToast('Error al guardar spot: ' + err.message, 'error');
+    }
+}
+
+function deleteSpot(spotId) {
+    const sp = sdSpots.find(s => s.id === spotId);
+    deleteRowGeneric('studio_spots', 'id', spotId, (sp && sp.title) || 'spot', loadStudioSpots);
+}
+
+function deleteSpotFromModal() {
+    const id = getVal('spot-id');
+    if (!id) return;
+    closeModal();
+    deleteSpot(id);
+}
+
+async function loadSpotApplications(spotId) {
+    const listEl = document.getElementById('spot-applications-list');
+    listEl.innerHTML = '<p class="sd-panel-hint">Cargando postulaciones…</p>';
+    try {
+        const apps = await _sdFetchChildren('studio_spot_applications', 'spot_id', spotId, 'created_at.desc');
+        document.getElementById('spot-applications-count').textContent = apps.length;
+        if (!apps.length) { listEl.innerHTML = '<p class="sd-panel-hint">Sin postulaciones.</p>'; return; }
+        listEl.innerHTML = apps.map(app => {
+            return `<div class="sd-card"><div class="sd-card-main">
+                <div class="sd-card-title">Artista ${escapeHtml(String(app.artist_user_id).slice(0, 8))}…
+                    <span class="badge-sm">${escapeHtml(app.status || '')}</span></div>
+                <div class="sd-card-sub">${escapeHtml(app.message || '—')}${app.portfolio_url ? ` · <a href="${escapeHtml(app.portfolio_url)}" target="_blank" rel="noopener">portfolio</a>` : ''}</div>
+            </div><div class="sd-card-actions">
+                <button class="btn btn-secondary btn-sm" onclick="setApplicationStatus('${escapeHtml(app.id)}','shortlisted')">Preseleccionar</button>
+                <button class="btn btn-secondary btn-sm" onclick="setApplicationStatus('${escapeHtml(app.id)}','accepted')">Aceptar</button>
+                <button class="btn btn-secondary btn-sm danger-hover" onclick="setApplicationStatus('${escapeHtml(app.id)}','rejected')">Rechazar</button>
+            </div></div>`;
+        }).join('');
+    } catch (err) {
+        listEl.innerHTML = `<p class="sd-panel-hint" style="color:var(--error-color);">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+async function setApplicationStatus(appId, status) {
+    try {
+        await _fetchAdminJson('/api/admin/database/tables/studio_spot_applications/row', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idColumn: 'id', idValue: appId, patch: { status, decided_at: new Date().toISOString() } })
+        });
+        showToast('Postulación: ' + status, 'success');
+        if (sdCurrentSpotId) loadSpotApplications(sdCurrentSpotId);
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+// ---- Roster (studio_artist_memberships) ----
+async function loadStudioRoster() {
+    const tbody = document.getElementById('sd-roster-body');
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;">Cargando…</td></tr>';
+    try {
+        // Refresh the sedes cache so the assignment dropdown is current.
+        try { sdLocations = await _sdFetchChildren('studio_locations', 'studio_id', currentStudioDetailId, 'sort_order.asc'); } catch (_) {}
+
+        sdRoster = await _sdFetchChildren('studio_artist_memberships', 'studio_id', currentStudioDetailId, 'created_at.desc');
+        if (!sdRoster.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;opacity:.6;">Sin artistas en el roster.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = sdRoster.map(m => {
+            const sedeOptions = sdLocations.map(l =>
+                `<option value="${escapeHtml(l.id)}" ${l.id === m.location_id ? 'selected' : ''}>${escapeHtml(l.label || l.city || l.id)}</option>`
+            ).join('');
+            const sedeSelect = `<select class="rowedit-input" style="min-width:150px;" onchange="assignMembershipSede('${escapeHtml(m.id)}', this.value)">
+                <option value="">— Sin sede —</option>${sedeOptions}</select>`;
+            return `<tr>
+                <td title="${escapeHtml(m.artist_user_id)}">${escapeHtml(String(m.artist_user_id).slice(0, 8))}…</td>
+                <td>${escapeHtml(m.role || '—')}</td>
+                <td>${escapeHtml(m.status || '—')}</td>
+                <td>${m.revenue_split_pct != null ? escapeHtml(String(m.revenue_split_pct)) : '—'}</td>
+                <td>${m.started_at ? new Date(m.started_at).toLocaleDateString('es-ES') : '—'}</td>
+                <td>${sedeSelect}</td>
+                <td><div class="action-buttons">
+                    <button class="btn-icon" onclick="editMembership('${escapeHtml(m.id)}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-icon danger-hover" onclick="removeMembership('${escapeHtml(m.id)}')" title="Quitar"><i class="fa-solid fa-user-minus"></i></button>
+                </div></td></tr>`;
+        }).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--error-color);">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+async function assignMembershipSede(mId, locationId) {
+    try {
+        await _fetchAdminJson('/api/admin/database/tables/studio_artist_memberships/row', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idColumn: 'id', idValue: mId, patch: { location_id: locationId || null } })
+        });
+        const m = sdRoster.find(x => x.id === mId);
+        if (m) m.location_id = locationId || null;
+        showToast('Artista vinculado a la sede', 'success');
+    } catch (err) {
+        showToast('Error al asignar sede: ' + err.message, 'error');
+        loadStudioRoster();
+    }
+}
+
+function editMembership(mId) {
+    const m = sdRoster.find(x => x.id === mId);
+    if (!m) return;
+    openRowEditor({ table: 'studio_artist_memberships', row: m, isNew: false, idColumn: 'id', idValue: mId, onSaved: loadStudioRoster });
+}
+
+function removeMembership(mId) {
+    deleteRowGeneric('studio_artist_memberships', 'id', mId, 'membresía', loadStudioRoster);
+}
+
+// ---- Operaciones (generic studio-filtered tables) ----
+function switchOpsTable(table, title) {
+    currentOpsTable = table;
+    currentOpsTitle = title || table;
+    document.querySelectorAll('#sd-ops-subtabs .sd-subtab').forEach(b => b.classList.toggle('active', b.dataset.ops === table));
+    const titleEl = document.getElementById('sd-ops-title');
+    if (titleEl) titleEl.textContent = currentOpsTitle;
+    loadOpsTable();
+}
+
+async function loadOpsTable() {
+    const head = document.getElementById('sd-ops-head');
+    const body = document.getElementById('sd-ops-body');
+    head.innerHTML = '';
+    body.innerHTML = '<tr><td style="padding:16px;">Cargando…</td></tr>';
+    try {
+        sdOpsRows = await _sdFetchChildren(currentOpsTable, 'studio_id', currentStudioDetailId, 'created_at.desc');
+        if (!sdOpsRows.length) {
+            head.innerHTML = '<tr><th>Sin datos</th></tr>';
+            body.innerHTML = '<tr><td style="padding:16px;opacity:.6;">Sin registros. Usá "Agregar".</td></tr>';
+            return;
+        }
+        const cols = Object.keys(sdOpsRows[0]);
+        head.innerHTML = `<tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}<th>Acciones</th></tr>`;
+        body.innerHTML = sdOpsRows.map((r, i) => `<tr>${cols.map(c => `<td>${_sdFmtCell(r[c])}</td>`).join('')}<td><div class="action-buttons">
+            <button class="btn-icon" onclick="editOpsRow(${i})" title="Editar"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-icon danger-hover" onclick="deleteOpsRow(${i})" title="Borrar"><i class="fa-solid fa-trash"></i></button>
+        </div></td></tr>`).join('');
+    } catch (err) {
+        head.innerHTML = '<tr><th>Error</th></tr>';
+        body.innerHTML = `<tr><td style="padding:16px;color:var(--error-color);">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function editOpsRow(index) {
+    const row = sdOpsRows[index];
+    if (!row) return;
+    const key = pickRowKey(row);
+    if (!key) { showToast('Sin clave única; no editable.', 'error'); return; }
+    openRowEditor({ table: currentOpsTable, row, isNew: false, idColumn: key.column, idValue: key.value, onSaved: loadOpsTable });
+}
+
+function deleteOpsRow(index) {
+    const row = sdOpsRows[index];
+    if (!row) return;
+    const key = pickRowKey(row);
+    if (!key) { showToast('Sin clave única; no borrable.', 'error'); return; }
+    deleteRowGeneric(currentOpsTable, key.column, key.value, String(key.value), loadOpsTable);
+}
+
+function addOpsRow() {
+    const sample = sdOpsRows[0];
+    if (sample) {
+        const template = {};
+        Object.keys(sample).forEach(c => {
+            if (['id', 'created_at', 'updated_at'].includes(c)) return;
+            const v = sample[c];
+            if (c === 'studio_id') template[c] = currentStudioDetailId;
+            else if (typeof v === 'boolean') template[c] = false;
+            else template[c] = null;
+        });
+        openRowEditor({ table: currentOpsTable, row: template, isNew: true, onSaved: loadOpsTable, subtitle: `Nueva fila en ${escapeHtml(currentOpsTitle)}.` });
+    } else {
+        // Empty table: can't infer columns — fall back to raw JSON seeded with studio_id.
+        openRowEditor({ table: currentOpsTable, row: { studio_id: currentStudioDetailId }, isNew: true, raw: true, onSaved: loadOpsTable });
+    }
+}

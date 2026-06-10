@@ -20,7 +20,7 @@ async function initializeSupabase() {
     if (!_supabase && window.supabase) {
         const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
         const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-        _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        _supabase = window._supabase = window._supabase || window.supabase.createClient(supabaseUrl, supabaseKey);
     }
 
     if (!_supabase) {
@@ -324,10 +324,15 @@ function setupFilters() {
     }
 }
 
-function formatCurrency(amount) {
+function formatCurrency(amount, currencyCode) {
+    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.format === 'function') {
+        var pref = window.WeOtziCurrency.getDisplayPreference();
+        var displayCode = pref === 'local' ? (currencyCode || 'USD') : pref;
+        return window.WeOtziCurrency.format(amount, displayCode, { decimals: 0 });
+    }
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'USD', // Or dynamic based on user settings
+        currency: currencyCode || 'USD',
         minimumFractionDigits: 0
-    }).format(amount);
+    }).format(amount || 0);
 }

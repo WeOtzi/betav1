@@ -1,11 +1,12 @@
 import paramiko
 import sys
+from remote_credentials import load_ssh_password
 
 # Configuration
 HOST = "92.112.189.44"
 PORT = 65002
 USERNAME = "u795331143"
-PASSWORD = "Abnerisai24."
+PASSWORD = load_ssh_password()
 
 def check_path():
     try:

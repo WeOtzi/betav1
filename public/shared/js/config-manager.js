@@ -14,7 +14,24 @@ const ConfigManager = (function () {
 
     // Storage keys
     const STORAGE_KEY = 'weotzi_config';
-    const CONFIG_FILE = '/shared/js/app-config.json';
+    const CONFIG_FILE = appUrl('/shared/js/app-config.json');
+    const CONFIG_FETCH_TIMEOUT_MS = 5000;
+
+    function getAppBasePath() {
+        if (typeof window === 'undefined') return '';
+        if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+        const path = window.location?.pathname || '';
+        return path === '/beta' || path.startsWith('/beta/') ? '/beta' : '';
+    }
+
+    function appUrl(path) {
+        const normalized = String(path || '').startsWith('/') ? String(path || '') : '/' + String(path || '');
+        const basePath = getAppBasePath();
+        if (basePath && (normalized === basePath || normalized.startsWith(basePath + '/'))) {
+            return normalized;
+        }
+        return basePath + normalized;
+    }
 
     // Default configuration
     const defaultConfig = {
@@ -230,6 +247,8 @@ const ConfigManager = (function () {
                 _dbg('Configuration merged with localStorage');
             }
 
+            currentConfig = preserveServerSupabaseConfig(currentConfig, fileConfig);
+
             // Resolve the ready promise
             if (configManagerReadyResolve) {
                 configManagerReadyResolve(currentConfig);
@@ -259,15 +278,26 @@ const ConfigManager = (function () {
      * Load configuration from JSON file
      */
     async function loadFromFile() {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timeoutId = controller
+            ? setTimeout(() => controller.abort(), CONFIG_FETCH_TIMEOUT_MS)
+            : null;
+
         try {
-            const response = await fetch(CONFIG_FILE + '?t=' + Date.now()); // Cache bust
+            const response = await fetch(
+                CONFIG_FILE + '?t=' + Date.now(), // Cache bust
+                controller ? { signal: controller.signal } : undefined
+            );
             if (!response.ok) return null;
 
             const config = await response.json();
             return config;
         } catch (error) {
-            console.warn('Could not load config file:', error.message);
+            const timedOut = error?.name === 'AbortError';
+            console.warn(timedOut ? 'Config file load timed out.' : 'Could not load config file:', error.message);
             return null;
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
         }
     }
 
@@ -303,6 +333,26 @@ const ConfigManager = (function () {
         }
 
         return result;
+    }
+
+    function preserveServerSupabaseConfig(config, fileConfig) {
+        const serverSupabase = fileConfig?.supabase;
+        if (!serverSupabase) return config;
+
+        const hasServerSupabase = Boolean(
+            serverSupabase.url || serverSupabase.anonKey || serverSupabase.storageBucket
+        );
+        if (!hasServerSupabase) return config;
+
+        return {
+            ...config,
+            supabase: {
+                ...(config.supabase || {}),
+                ...(serverSupabase.url ? { url: serverSupabase.url } : {}),
+                ...(serverSupabase.anonKey ? { anonKey: serverSupabase.anonKey } : {}),
+                ...(serverSupabase.storageBucket ? { storageBucket: serverSupabase.storageBucket } : {})
+            }
+        };
     }
 
     // ========== GETTERS ==========
@@ -504,14 +554,19 @@ const ConfigManager = (function () {
             return null;
         }
 
-        // Return existing instance if available
+        // Return existing instance if available (local cache or global singleton)
         if (supabaseInstance) return supabaseInstance;
+        if (window._supabase) {
+            supabaseInstance = window._supabase;
+            return supabaseInstance;
+        }
 
         const url = getValue('supabase.url');
         const key = getValue('supabase.anonKey');
 
         try {
             supabaseInstance = window.supabase.createClient(url, key);
+            window._supabase = supabaseInstance;
             _dbg('Supabase client initialized');
             return supabaseInstance;
         } catch (err) {
@@ -1152,7 +1207,6 @@ const ConfigManager = (function () {
             'artists_db', 
             'quotations_db', 
             'support_users_db', 
-            'feedback_tickets',
             'body_parts', 
             'quotation_flow_config', 
             'tattoo_styles',
@@ -1243,7 +1297,7 @@ const ConfigManager = (function () {
 
         // Try real health check endpoint first
         try {
-            const response = await fetch('/api/health/all');
+            const response = await fetch(appUrl('/api/health/all'));
             if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.services) {
@@ -1554,6 +1608,17 @@ const ConfigManager = (function () {
      * @returns {Promise<{success: boolean, error?: string}>}
      */
     async function sendN8NEvent(eventId, payload) {
+        if (typeof window !== 'undefined' && window.EmailClient && typeof window.EmailClient.sendEmail === 'function') {
+            try {
+                const res = await window.EmailClient.sendEmail(eventId, payload);
+                return res;
+            } catch (err) {
+                console.error(`❌ EmailClient failed for ${eventId}, falling back to legacy n8n:`, err);
+                // Fall through to legacy path below.
+            }
+        }
+
+        // Legacy path (kept as a safety net).
         try {
             const event = await getN8NEvent(eventId);
 
@@ -1572,7 +1637,6 @@ const ConfigManager = (function () {
                 return { success: false, error: 'No webhook URL configured' };
             }
 
-            // Build the full payload with metadata
             const fullPayload = {
                 event_id: eventId,
                 event_name: event.name,
@@ -1581,13 +1645,11 @@ const ConfigManager = (function () {
                 data: payload
             };
 
-            _dbg(`Sending n8n event: ${eventId}...`);
+            _dbg(`Sending n8n event (legacy direct path): ${eventId}...`);
 
             const response = await fetch(event.webhookUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(fullPayload)
             });
 
@@ -1595,7 +1657,7 @@ const ConfigManager = (function () {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            _dbg(`n8n event sent successfully: ${eventId}`);
+            _dbg(`n8n event sent successfully (legacy): ${eventId}`);
             return { success: true };
         } catch (err) {
             console.error(`❌ Error sending n8n event ${eventId}:`, err);
@@ -1716,6 +1778,44 @@ const ConfigManager = (function () {
         infoTexts: config.infoTexts || [],
         routes: config.routes || {}
     };
+
+    // ============================================
+    // ARTIST_PUBLIC_COLUMNS
+    // Explicit column list for queries on `artists_db` that run on a PUBLIC
+    // path (anonymous or marketplace consumers). MUST exclude `password` —
+    // see migration `add_password_column_to_artists_db` for context. PostgREST
+    // has no "exclude" syntax, so we enumerate every column we want to
+    // expose. When a new column is added to artists_db, append it here.
+    // Use `select('*')` only on paths that hit RLS rows the user owns
+    // (own dashboard, own register, own quotations) or admin/support paths.
+    window.ARTIST_PUBLIC_COLUMNS = [
+        'id', 'user_id', 'username', 'name', 'email', 'instagram',
+        'whatsapp_number', 'whatsapp_url', 'portafolio',
+        'ubicacion', 'city', 'country', 'country_code', 'state_province',
+        'locality', 'street', 'street_number', 'unit', 'postal_code',
+        'formatted_address', 'google_place_id', 'latitude', 'longitude',
+        'geocoded_at', 'geocoded_address',
+        'estudios', 'studio_id', 'work_type',
+        'estilo', 'styles_array',
+        'session_price', 'session_price_amount', 'session_price_currency',
+        'session_price_amount_usd', 'session_price_amount_eur',
+        'preferred_display_currency',
+        'years_experience', 'bio_description', 'birth_date',
+        'profile_picture', 'gallery_images', 'gallery_feed_items',
+        'languages', 'custom_canvas_labels',
+        'vacation_start', 'vacation_end',
+        'embajador', 'nivel', 'is_recommended', 'verification_state',
+        'email_confirmed', 'subscribed_newsletter',
+        'ms_profile_complete', 'ms_first_quote_received',
+        'ms_whatsapp_shared', 'ms_profile_shared', 'ms_first_quote_completed',
+        'artist_index', 'idx', 'profile_completeness', 'index_updated_at',
+        'dashboard_config',
+        'registration_status', 'registration_step',
+        'registration_source', 'registration_started_at',
+        'registration_submitted_at', 'registration_last_saved_at',
+        'registration_draft_id'
+        // INTENTIONALLY OMITTED: password
+    ].join(', ');
 
     if (window.__WEOTZI_DEBUG) console.log('ConfigManager ready',
         '| Supabase:', ConfigManager.isSupabaseConfigured() ? 'OK' : 'N/A',

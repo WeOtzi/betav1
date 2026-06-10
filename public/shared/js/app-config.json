@@ -1,6 +1,6 @@
 {
-    "version": "2.0.0",
-    "lastModified": "",
+    "version": "2.0.1",
+    "lastModified": "2026-05-27",
     "supabase": {
         "url": "https://flbgmlvfiejfttlawnfu.supabase.co",
         "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888",
@@ -155,12 +155,6 @@
                 "id": "request_rating",
                 "name": "Solicitar Calificacion",
                 "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-request-rating",
-                "enabled": true
-            },
-            {
-                "id": "admin_new_feedback",
-                "name": "Admin Nuevo Feedback",
-                "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/weotzi-admin-feedback",
                 "enabled": true
             },
             {

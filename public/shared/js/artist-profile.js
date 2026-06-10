@@ -1,7 +1,7 @@
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
 const _supabase = window.supabase?.createClient
-    ? window.supabase.createClient(supabaseUrl, supabaseKey)
+    ? (window._supabase = window._supabase || window.supabase.createClient(supabaseUrl, supabaseKey))
     : null;
 
 const ARTIST_PUBLIC_FIELDS = [
@@ -965,11 +965,55 @@ async function loadArtistData(username) {
         populateProfile();
         hideLoading();
         showContent();
+        renderArtistReviews();
         void renderArtistDynamicMap();
+
+        // Track this profile visit (fire-and-forget, throttled client-side to 1h)
+        trackProfileVisit(artist.username).catch(() => { /* noop */ });
     } catch (error) {
         console.error('Error loading artist data:', error);
         showError('technical', { requestedArtist: searchUsername });
     }
+}
+
+/**
+ * Fire-and-forget tracking of a profile visit.
+ * Throttled client-side: one ping per (visitor device × artist username) per hour
+ * via localStorage. Server also dedupes by ip_hash to cover cross-device cases.
+ */
+async function trackProfileVisit(username) {
+    if (!username) return;
+    try {
+        const key = `wo_pv_${String(username).toLowerCase()}`;
+        const last = Number(localStorage.getItem(key) || 0);
+        if (Date.now() - last < 60 * 60 * 1000) return; // 1h throttle
+        localStorage.setItem(key, String(Date.now()));
+
+        let isAuthenticated = false;
+        try {
+            if (_supabase?.auth?.getSession) {
+                const { data } = await _supabase.auth.getSession();
+                isAuthenticated = !!data?.session;
+            }
+        } catch (_) { /* unauth — ignore */ }
+
+        const fp = (window.__loggingService?.getFingerprint?.())
+            || window.__deviceFingerprint
+            || null;
+
+        await fetch('/api/artist/profile-visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                artist_username: username,
+                device_fingerprint: fp,
+                user_agent: navigator.userAgent,
+                is_authenticated: isAuthenticated,
+                referrer: document.referrer || null
+            }),
+            keepalive: true
+        });
+    } catch (_) { /* silent */ }
 }
 
 async function loadArtistTattooLocations(artistUserId) {
@@ -1087,6 +1131,16 @@ function populateProfile() {
     renderTattooPresence();
     renderGallery();
     setQuoteLinks();
+}
+
+function renderArtistReviews() {
+    if (!artistData?.user_id || !window.WeOtziReviews) return;
+    window.WeOtziReviews.renderPublicReviews({
+        mount: 'artist-reviews',
+        revieweeType: 'artist',
+        revieweeId: artistData.user_id,
+        title: 'Resenas del artista'
+    });
 }
 
 function setText(id, value) {

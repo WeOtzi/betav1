@@ -9,8 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <link rel="stylesheet" href="/shared/css/client.css">
+    <link rel="stylesheet" href="/shared/css/reviews.css">
     <style>
         .jb-badge {
             display: inline-flex;
@@ -235,6 +239,14 @@
                         <input type="text" id="edit-full-name" name="full_name" placeholder="Tu nombre completo">
                     </div>
                     <div class="form-field">
+                        <label for="edit-public-username">Alias Publico</label>
+                        <input type="text" id="edit-public-username" name="public_username" placeholder="tu_alias">
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-country">Pais</label>
+                        <input type="text" id="edit-country" name="country" placeholder="Tu pais">
+                    </div>
+                    <div class="form-field">
                         <label for="edit-whatsapp">WhatsApp</label>
                         <input type="tel" id="edit-whatsapp" name="whatsapp" placeholder="+52 123 456 7890">
                     </div>
@@ -370,6 +382,7 @@
         </div>
     </div>
 
+    <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/client-dashboard.js"></script>
 </body>
 </html>

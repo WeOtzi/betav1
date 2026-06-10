@@ -2,13 +2,52 @@
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
+const WEOTZI_WHATSAPP_FALLBACK = '+541127015926';
 
-// Pre-set password for new registrations - Uses config.js
-const PRESET_PASSWORD = window.CONFIG?.registration?.presetPassword || '';
+function getAppBasePath() {
+    if (typeof window === 'undefined') return '';
+    if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+    const path = window.location?.pathname || '';
+    return path === '/beta' || path.startsWith('/beta/') ? '/beta' : '';
+}
+
+function appUrl(path) {
+    const normalized = String(path || '').startsWith('/') ? String(path || '') : '/' + String(path || '');
+    const basePath = getAppBasePath();
+    if (basePath && (normalized === basePath || normalized.startsWith(basePath + '/'))) {
+        return normalized;
+    }
+    return basePath + normalized;
+}
+
+// Note: the historical `resolvePresetPassword()` / `DEFAULT_ARTIST_PASSWORD`
+// helpers used to seed every new artist with the shared "OtziArtist2025"
+// password. They were removed when the wizard switched to per-user passwords
+// — there is no longer any codepath in main.js that needs a fallback.
 // [CH-07 / CH-08] END
 
 const DASHBOARD_MOBILE_MENU_BREAKPOINT = 768;
+const ARTIST_PROFILE_SELECT = [
+    'user_id',
+    'username',
+    'name',
+    'email',
+    'ubicacion',
+    'styles_array',
+    'estilo',
+    'years_experience',
+    'session_price',
+    'portafolio',
+    'instagram',
+    'work_type',
+    'estudios',
+    'birth_date',
+    'subscribed_newsletter',
+    'ms_profile_complete',
+    'profile_completeness'
+].join(', ');
+let pendingLoginEmail = '';
 
 // [CH-04 / CH-05 / CH-06] START: Logo interaction logic
 document.addEventListener('DOMContentLoaded', () => {
@@ -134,6 +173,25 @@ async function checkAuthState() {
     };
     
     const { data: { session } } = await _supabase.auth.getSession();
+    let artist = null;
+    let artistProgress = null;
+    let artistLookupFailed = false;
+
+    if (session) {
+        const { data: artistData, error: artistError } = await _supabase
+            .from('artists_db')
+            .select(ARTIST_PROFILE_SELECT)
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+        if (artistError) {
+            console.warn('checkAuthState artist lookup error:', artistError);
+            artistLookupFailed = true;
+        } else {
+            artist = artistData || null;
+            artistProgress = getArtistRegistrationProgress(artist);
+        }
+    }
 
     const isLoggedIn = Boolean(session);
     document.body.classList.toggle('menu-authenticated', isLoggedIn);
@@ -174,28 +232,94 @@ async function checkAuthState() {
 
     // Skip redirect logic if on landing page - users should be able to stay there
     if (isLandingPage) {
+        clearLandingResumeState();
+        // Surface stale sessions explicitly. The login button already turns
+        // into LOG OUT, but that's easy to miss and was the proximate cause
+        // of users completing a fresh signup while a previous account's
+        // session was still active in localStorage — leading the dashboard
+        // to load the wrong identity afterwards. The banner forces a
+        // decision: continue with this account, or sign out to start over.
+        if (session) {
+            renderActiveSessionBanner({
+                email: session.user?.email || '',
+                dashboardUrl: appUrl(authUrls.dashboard),
+                artistComplete: Boolean(artistProgress?.isComplete)
+            });
+        } else {
+            removeActiveSessionBanner();
+        }
         return;
     }
-    
+
     if (session) {
-        // User is logged in, check if profile is complete
-        // Use maybeSingle() instead of single() to handle 0 rows gracefully (prevents 406 error)
-        const { data: artist, error } = await _supabase
-            .from('artists_db')
-            .select('name')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-        
-        if (error) {
-            console.warn('checkAuthState error:', error);
+        if (artistLookupFailed) {
             return;
         }
-        
+
         // If no artist record exists OR profile is incomplete, redirect to complete it
-        if (!artist || !artist.name) {
-            window.location.href = authUrls.registerArtist;
+        if (!artist || !artistProgress || !artistProgress.isComplete) {
+            window.location.href = appUrl(getArtistResumeUrl(authUrls.registerArtist, artistProgress));
         }
     }
+}
+
+const ACTIVE_SESSION_BANNER_ID = 'active-session-banner';
+
+function renderActiveSessionBanner({ email, dashboardUrl, artistComplete }) {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(ACTIVE_SESSION_BANNER_ID)) return;
+
+    const banner = document.createElement('div');
+    banner.id = ACTIVE_SESSION_BANNER_ID;
+    banner.setAttribute('role', 'status');
+    banner.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
+        'padding:12px 16px', 'background:#15110D', 'color:#F2EFE6',
+        'border-bottom:2px solid #F2B519', 'font:600 14px/1.35 system-ui,sans-serif',
+        'display:flex', 'gap:12px', 'align-items:center', 'justify-content:center',
+        'flex-wrap:wrap', 'text-align:center'
+    ].join(';');
+
+    const message = document.createElement('span');
+    message.innerHTML = `Ya hay sesion activa con <strong>${escapeHtmlForBanner(email || 'tu cuenta')}</strong>. ${
+        artistComplete
+            ? 'Si querés registrar otra cuenta, cerra sesion primero.'
+            : 'Tu perfil esta incompleto — podes continuarlo, o cerrar sesion para usar otra cuenta.'
+    }`;
+    banner.appendChild(message);
+
+    if (dashboardUrl) {
+        const dashLink = document.createElement('a');
+        dashLink.href = dashboardUrl;
+        dashLink.textContent = 'Ir al dashboard';
+        dashLink.style.cssText = 'background:#F2B519;color:#15110D;padding:6px 12px;text-decoration:none;border-radius:2px;';
+        banner.appendChild(dashLink);
+    }
+
+    const logoutBtn = document.createElement('button');
+    logoutBtn.type = 'button';
+    logoutBtn.textContent = 'Cerrar sesion';
+    logoutBtn.style.cssText = 'background:transparent;color:#F2EFE6;border:1px solid #F2EFE6;padding:6px 12px;cursor:pointer;border-radius:2px;font:inherit;';
+    logoutBtn.addEventListener('click', () => { handleLogout().catch(() => {}); });
+    banner.appendChild(logoutBtn);
+
+    document.body.appendChild(banner);
+    document.body.style.paddingTop = `${banner.offsetHeight}px`;
+}
+
+function removeActiveSessionBanner() {
+    if (typeof document === 'undefined') return;
+    const banner = document.getElementById(ACTIVE_SESSION_BANNER_ID);
+    if (banner) {
+        banner.remove();
+        document.body.style.paddingTop = '';
+    }
+}
+
+function escapeHtmlForBanner(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -209,7 +333,7 @@ async function handleLogout() {
         const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, '') || {
             registerClosedBeta: '/registerclosedbeta'
         };
-        window.location.href = authUrls.registerClosedBeta;
+        window.location.href = appUrl(authUrls.registerClosedBeta);
     } catch (error) {
         console.error('Logout error:', error.message);
     }
@@ -234,10 +358,16 @@ function toggleTheme() {
 // ============================================
 
 function openLoginModal() {
-    const modal = document.getElementById('login-modal');
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    document.getElementById('login-email').focus();
+    const params = new URLSearchParams();
+    const currentReturnTo = new URLSearchParams(window.location.search).get('returnTo');
+    if (currentReturnTo) {
+        params.set('returnTo', currentReturnTo);
+    }
+    if (pendingLoginEmail) {
+        params.set('email', pendingLoginEmail);
+    }
+    const query = params.toString();
+    window.location.href = appUrl('/artist/login' + (query ? '?' + query : ''));
 }
 
 function closeLoginModal() {
@@ -279,6 +409,56 @@ function clearFormMessage() {
         messageDiv.innerHTML = '';
         messageDiv.className = 'form-message';
     }
+    if (typeof hideResumeBanner === 'function') hideResumeBanner();
+}
+
+async function readJsonResponse(res) {
+    const text = await res.text();
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch (_) {
+        return { success: false, error: `Respuesta invalida del servidor (${res.status}).` };
+    }
+}
+
+function withUrlParams(url, params) {
+    const [path, queryString = ''] = String(url || '').split('?');
+    const search = new URLSearchParams(queryString);
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        search.set(key, String(value));
+    });
+    const query = search.toString();
+    return query ? `${path}?${query}` : path;
+}
+
+async function createOrResumeArtistDraft({ email = '', source = 'email' } = {}) {
+    const response = await fetch(appUrl('/api/register/artist-draft'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email,
+            source,
+            step: email ? 3 : 1,
+            data: { email, registration_source: source }
+        })
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok || !payload.success) {
+        const error = new Error(payload.error || 'No se pudo iniciar el registro.');
+        error.code = payload.code;
+        error.payload = payload;
+        throw error;
+    }
+    return payload;
+}
+
+function buildDraftWizardUrl(registerArtistUrl, draftPayload, source, email) {
+    return withUrlParams(registerArtistUrl || '/register-artist', {
+        draft: draftPayload?.draft_id,
+        source,
+        email
+    });
 }
 
 function showLoginMessage(message, type = 'info') {
@@ -314,13 +494,40 @@ async function checkEmailExists(email) {
     return data === true;
 }
 
+async function getIncompleteArtistByEmail(email) {
+    try {
+        const { data: artist, error: artistError } = await _supabase
+            .from('artists_db')
+            .select(ARTIST_PROFILE_SELECT)
+            .eq('email', email)
+            .maybeSingle();
+
+        if (artistError || !artist) {
+            return null;
+        }
+
+        const artistProgress = getArtistRegistrationProgress(artist);
+        if (!artistProgress || artistProgress.isComplete) {
+            return null;
+        }
+
+        return {
+            artist,
+            progress: artistProgress
+        };
+    } catch (error) {
+        console.warn('Incomplete registration lookup failed:', error);
+        return null;
+    }
+}
+
 // ============================================
 // Registration Handler (Email + Password)
 // ============================================
 
 async function handleRegistration(e) {
     e.preventDefault();
-    const btn = document.querySelector('.btn-register');
+    const btn = document.querySelector('#beta-form .btn-register-primary');
     const originalText = btn.innerHTML;
     const emailInput = document.querySelector('.input-email');
     const email = emailInput.value.trim().toLowerCase();
@@ -341,98 +548,29 @@ async function handleRegistration(e) {
             registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist'
         };
 
-        // Check if email already exists
-        const emailExists = await checkEmailExists(email);
+        btn.innerHTML = 'GUARDANDO...';
+        const draftPayload = await createOrResumeArtistDraft({ email, source: 'email' });
+        const artistProgress = getArtistRegistrationProgress(draftPayload.artist);
+        const targetUrl = buildDraftWizardUrl(
+            getArtistResumeUrl(authUrls.registerArtist, artistProgress),
+            draftPayload,
+            'email',
+            email
+        );
 
-        if (emailExists) {
-            // User already registered - show login prompt
-            btn.innerHTML = originalText;
-            btn.style.background = '';
-            btn.style.color = '';
-            btn.disabled = false;
-            
-            showFormMessage(
-                'Usuario registrado. <a href="#" onclick="openLoginModal(); return false;">Iniciar sesion</a>',
-                'info'
-            );
-            return;
-        }
+        btn.innerHTML = 'REDIRIGIENDO...';
+        btn.style.background = '#4CAF50';
+        btn.style.color = 'white';
+        showFormMessage('Registro iniciado. Continuaremos sin iniciar sesion automaticamente.', 'success');
 
-        // Email does not exist, proceed with registration using password
-        btn.innerHTML = 'REGISTRANDO...';
+        setTimeout(() => {
+            window.location.href = appUrl(targetUrl);
+        }, 700);
+        return;
+/*
 
-        // Get base URL for redirects (handles subdirectory deployments)
-        const baseUrl = window.location.origin;
-
-        // [CH-16] Generate temporary username from email prefix
-        const emailPrefix = email.split('@')[0];
-        const tempUsername = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '') + '.wo';
-        
-        // [CH-16] Generate WhatsApp link with username
-        const weOtziWA = window.CONFIG?.weOtzi?.whatsapp || '+541127015926';
         const whatsappMessage = encodeURIComponent(`Hola Ötzi, quiero cotizar con ${tempUsername}`);
-        const whatsappLink = `https://api.whatsapp.com/send?phone=${weOtziWA.replace(/\+/g, '')}&text=${whatsappMessage}`;
-
-        const { data: authData, error: authError } = await _supabase.auth.signUp({
-            email: email,
-            password: PRESET_PASSWORD,
-            options: {
-                emailRedirectTo: baseUrl + authUrls.registerArtist,
-                data: {
-                    username: tempUsername,
-                    temp_password: PRESET_PASSWORD,
-                    display_name: 'Artista',
-                    whatsapp_link: whatsappLink
-                }
-            }
-        });
-
-        if (authError) throw authError;
-
-        // If user was created successfully, insert initial record in artists_db
-        if (authData.user) {
-            const { error: insertError } = await _supabase
-                .from('artists_db')
-                .insert({
-                    user_id: authData.user.id,
-                    email: email,
-                    username: tempUsername,
-                    password: PRESET_PASSWORD,
-                    email_confirmed: false
-                });
-
-            if (insertError) {
-                console.error('Error inserting artist record:', insertError);
-                // Don't throw - the auth user was created, we can update later
-            }
-
-            // Success - redirect to complete profile
-            btn.innerHTML = 'REDIRIGIENDO...';
-            btn.style.background = '#4CAF50';
-            btn.style.color = 'white';
-
-            showFormMessage(
-                `Cuenta creada. Tu contrasena temporal es: <strong>${PRESET_PASSWORD}</strong>. Revisa tu email para confirmar.`,
-                'success'
-            );
-
-            // Sign in the user to establish session (signUp doesn't create session automatically)
-            const { error: signInError } = await _supabase.auth.signInWithPassword({
-                email: email,
-                password: PRESET_PASSWORD
-            });
-
-            if (signInError) {
-                console.warn('Could not auto-login after signup:', signInError.message);
-                // Still show success but user may need to login manually
-            }
-
-            // Auto-redirect after a moment
-            setTimeout(() => {
-                window.location.href = authUrls.registerArtist;
-            }, 2500);
-        }
-
+*/
     } catch (error) {
         console.error('Error in registration:', error.message);
         btn.innerHTML = 'ERROR';
@@ -440,8 +578,9 @@ async function handleRegistration(e) {
         btn.style.color = 'white';
         
         let errorMessage = 'Error al registrar. Por favor, intenta de nuevo.';
-        if (error.message.includes('already registered')) {
-            errorMessage = 'Este email ya esta registrado. <a href="#" onclick="openLoginModal(); return false;">Iniciar sesion</a>';
+        if (error.code === 'ALREADY_REGISTERED') {
+            pendingLoginEmail = email;
+            errorMessage = 'Este email ya tiene un registro enviado. <a href="#" onclick="openLoginModal(); return false;">Inicia sesion</a>.';
         }
         
         showFormMessage(errorMessage, 'error');
@@ -452,6 +591,56 @@ async function handleRegistration(e) {
             btn.style.color = '';
             btn.disabled = false;
         }, 3000);
+    }
+}
+
+async function handleContinueRegistration(e) {
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+    }
+
+    const btn = document.querySelector('#beta-form .btn-continue-registration');
+    const originalText = btn ? btn.innerHTML : 'Continuar';
+    const emailInput = document.querySelector('.input-email');
+    const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+
+    clearFormMessage();
+
+    if (!email) {
+        showFormMessage('Ingresa tu correo para continuar.', 'info');
+        return;
+    }
+
+    if (btn) {
+        btn.innerHTML = 'VALIDANDO...';
+        btn.disabled = true;
+    }
+
+    try {
+        const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
+        const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
+            registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist'
+        };
+
+        const draftPayload = await createOrResumeArtistDraft({ email, source: 'email' });
+        const artistProgress = getArtistRegistrationProgress(draftPayload.artist);
+        const targetUrl = buildDraftWizardUrl(
+            getArtistResumeUrl(authUrls.registerArtist, artistProgress),
+            draftPayload,
+            'email',
+            email
+        );
+        clearFormMessage();
+        showFormMessage(`<a href="${targetUrl}">Continuar registro</a>`, 'success');
+        pendingLoginEmail = email;
+    } catch (error) {
+        console.error('Continue registration error:', error);
+        showFormMessage('Error al validar el registro. Intenta nuevamente.', 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 }
 
@@ -487,6 +676,7 @@ async function handleLogin(e) {
         });
 
         if (error) throw error;
+        pendingLoginEmail = '';
 
         // Success - check if profile is complete
         btn.innerHTML = 'BIENVENIDO!';
@@ -496,7 +686,7 @@ async function handleLogin(e) {
         // Use maybeSingle() instead of single() to handle 0 rows gracefully (prevents 406 error)
         const { data: artist, error: artistError } = await _supabase
             .from('artists_db')
-            .select('name')
+            .select(ARTIST_PROFILE_SELECT)
             .eq('user_id', data.user.id)
             .maybeSingle();
 
@@ -504,18 +694,22 @@ async function handleLogin(e) {
             console.warn('Artist lookup error:', artistError);
         }
 
+        const artistProgress = getArtistRegistrationProgress(artist);
+
         // If no artist record exists OR profile is incomplete, redirect to register
-        if (!artist || !artist.name) {
-            showLoginMessage('Redirigiendo para completar tu perfil...', 'success');
+        if (!artist || !artistProgress || !artistProgress.isComplete) {
+            const resumeUrl = getArtistResumeUrl(authUrls.registerArtist, artistProgress);
+            const resumeStepLabel = artistProgress?.nextStep ? `paso ${String(artistProgress.nextStep).padStart(2, '0')}` : 'siguiente paso';
+            showLoginMessage(`Perfil en progreso. Te redirigimos al ${resumeStepLabel}.`, 'success');
             setTimeout(() => {
-                window.location.href = authUrls.registerArtist;
+                window.location.href = appUrl(resumeUrl);
             }, 1500);
         } else {
             showLoginMessage('Sesion iniciada correctamente.', 'success');
             setTimeout(() => {
                 closeLoginModal();
                 // Redirect to dashboard
-                window.location.href = requestedReturnTo || authUrls.dashboard;
+                window.location.href = requestedReturnTo ? appUrl(requestedReturnTo) : appUrl(authUrls.dashboard);
             }, 1500);
         }
 
@@ -533,32 +727,142 @@ async function handleLogin(e) {
     }
 }
 
+function getArtistRegistrationProgress(artist) {
+    if (window.ArtistRegistrationProgress?.analyzeArtistProfile) {
+        return window.ArtistRegistrationProgress.analyzeArtistProfile(artist);
+    }
+
+    const hasName = Boolean(artist && String(artist.name || '').trim());
+    return {
+        isComplete: hasName,
+        nextStep: hasName ? null : 2,
+        completedCount: hasName ? 1 : 0,
+        requiredCount: 11,
+        completedLabels: hasName ? ['Nombre completo'] : [],
+        remainingLabels: hasName ? [] : ['Nombre completo']
+    };
+}
+
+function getArtistResumeUrl(registerArtistUrl, progress) {
+    if (window.ArtistRegistrationProgress?.withResumeStep) {
+        return window.ArtistRegistrationProgress.withResumeStep(registerArtistUrl, progress?.nextStep || null);
+    }
+    return registerArtistUrl;
+}
+
+function getArtistStartOverUrl(registerArtistUrl) {
+    const [path, queryString = ''] = String(registerArtistUrl || '/register-artist').split('?');
+    const params = new URLSearchParams(queryString);
+    params.delete('resumeStep');
+    params.set('startOver', '1');
+    const query = params.toString();
+    return query ? `${path}?${query}` : path;
+}
+
+function buildResumeActionLinks(authUrls, progress, allowStartOver) {
+    const resumeUrl = getArtistResumeUrl(authUrls.registerArtist, progress);
+    const continueLink = `<a href="${resumeUrl}">Continuar registro</a>`;
+    if (!allowStartOver) {
+        return continueLink;
+    }
+
+    const startOverUrl = getArtistStartOverUrl(authUrls.registerArtist);
+    const startOverLink = `<a href="${startOverUrl}">Empezar de 0</a>`;
+    return `${continueLink} o ${startOverLink}`;
+}
+
+function showResumeBanner(authUrls, progress, allowStartOver) {
+    const banner = document.getElementById('resume-registration-banner');
+    if (!banner) return;
+
+    const resumeUrl = getArtistResumeUrl(authUrls.registerArtist, progress);
+    let secondaryHtml = '';
+    if (allowStartOver) {
+        const startOverUrl = getArtistStartOverUrl(authUrls.registerArtist);
+        secondaryHtml = `<a href="${startOverUrl}" class="resume-banner__btn resume-banner__btn--secondary">Empezar de 0</a>`;
+    }
+
+    banner.innerHTML = `
+        <div class="resume-banner__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="square">
+                <path d="M12 9v4l3 2"/>
+                <circle cx="12" cy="12" r="9"/>
+            </svg>
+        </div>
+        <div class="resume-banner__body">
+            <p class="resume-banner__label">Registro en progreso detectado</p>
+            <p class="resume-banner__hint">Tienes un registro sin completar con este correo</p>
+        </div>
+        <div class="resume-banner__actions">
+            <a href="${resumeUrl}" class="resume-banner__btn">
+                Continuar registro
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            ${secondaryHtml}
+        </div>`;
+    banner.hidden = false;
+}
+
+function hideResumeBanner() {
+    const banner = document.getElementById('resume-registration-banner');
+    if (banner) {
+        banner.hidden = true;
+        banner.innerHTML = '';
+    }
+}
+
+function clearLandingResumeState() {
+    const resumePanel = document.getElementById('resume-registration-state');
+    const betaForm = document.getElementById('beta-form');
+    if (resumePanel) resumePanel.hidden = true;
+    if (betaForm) betaForm.hidden = false;
+    hideResumeBanner();
+}
+
 // ============================================
 // Social Login Handler
 // ============================================
 
 async function handleSocialLogin(provider) {
+    // Instagram is special: Meta deprecated Basic Display API in Dec 2024 and
+    // their official Login API requires Business/Creator accounts + 4-6 weeks
+    // of app review. Instead of OAuth, we offer a "quick-start" flow: the
+    // user pastes their handle, we scrape the public profile via Apify, then
+    // they confirm what to import and finish signup with email/password.
+    if (provider === 'instagram') {
+        return handleInstagramQuickStart();
+    }
+
     try {
-        // Get base URL for redirects (handles subdirectory deployments)
-        const baseUrl = window.location.origin;
         const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
         const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
             registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist'
         };
 
-        const { data, error } = await _supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: {
-                redirectTo: baseUrl + authUrls.registerArtist,
-                scopes: provider === 'instagram' ? 'user_profile,user_media' : undefined
-            }
-        });
-
-        if (error) throw error;
+        const draftPayload = await createOrResumeArtistDraft({ source: provider });
+        const targetUrl = buildDraftWizardUrl(authUrls.registerArtist, draftPayload, provider, '');
+        window.location.href = appUrl(targetUrl);
     } catch (error) {
         console.error(`Error logging in with ${provider}:`, error.message);
         showFormMessage(`Error al conectar con ${provider}. Por favor, intentalo de nuevo.`, 'error');
     }
+}
+
+// Instagram quick-start: redirect straight to the wizard with ?source=instagram.
+// The wizard is special-cased to allow an unauthenticated caller in this flow:
+// the user pastes their @handle on Step 0, the import runs (Apify, no auth
+// required in signup mode), and the wizard then collects email/password as
+// part of its normal sequence. Auth creation happens server-side only on the
+// final confirmation step, without creating a browser session.
+function handleInstagramQuickStart() {
+    try { localStorage.setItem('weotzi_signup_via_instagram', '1'); } catch (_) {}
+    createOrResumeArtistDraft({ source: 'instagram' })
+        .then((draftPayload) => {
+            window.location.href = appUrl(buildDraftWizardUrl('/register-artist/', draftPayload, 'instagram', ''));
+        })
+        .catch(() => {
+            window.location.href = appUrl('/register-artist/?source=instagram');
+        });
 }
 
 // ============================================
@@ -594,7 +898,7 @@ async function handlePasswordRecovery(e) {
         const tempPassword = generateTempPassword();
         
         // Call backend to reset password
-        const response = await fetch('/api/auth/reset-temp-password', {
+        const response = await fetch(appUrl('/api/auth/reset-temp-password'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -622,7 +926,7 @@ async function handlePasswordRecovery(e) {
                     email: email,
                     temp_password: tempPassword,
                     user_type: 'artist',
-                    login_url: window.location.origin + '/registerclosedbeta'
+                        login_url: window.location.origin + appUrl('/registerclosedbeta')
                 });
                 console.log('n8n event sent: password_reset_temp (artist)');
             } catch (webhookErr) {

@@ -6,7 +6,7 @@
 // Supabase Configuration
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
 
 // ============================================
 // Global Variables
@@ -196,7 +196,13 @@ async function loadClientProfile() {
     const avatarEl = document.getElementById('profile-avatar');
     
     if (nameEl) nameEl.textContent = currentClient.full_name || 'Cliente';
-    if (emailEl) emailEl.textContent = currentClient.email || '';
+    if (emailEl) {
+        const publicParts = [
+            currentClient.public_username ? `@${currentClient.public_username}` : currentClient.email,
+            currentClient.country || ''
+        ].filter(Boolean);
+        emailEl.textContent = publicParts.join(' · ');
+    }
     
     if (avatarEl) {
         if (currentClient.profile_picture) {
@@ -264,7 +270,7 @@ function updateStats() {
     const completedEl = document.getElementById('stat-completed');
     
     const total = currentQuotations.length;
-    const active = currentQuotations.filter(q => ['pending', 'responded'].includes(q.quote_status)).length;
+    const active = currentQuotations.filter(q => ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'].includes(q.quote_status)).length;
     const pending = currentQuotations.filter(q => q.quote_status === 'pending').length;
     const completed = currentQuotations.filter(q => q.quote_status === 'completed').length;
     
@@ -286,7 +292,7 @@ function renderQuotations() {
     let filtered = currentQuotations;
     if (currentFilter !== 'all') {
         if (currentFilter === 'active') {
-            filtered = currentQuotations.filter(q => ['pending', 'responded'].includes(q.quote_status));
+            filtered = currentQuotations.filter(q => ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'].includes(q.quote_status));
         } else {
             filtered = currentQuotations.filter(q => q.quote_status === currentFilter);
         }
@@ -315,6 +321,9 @@ function renderQuotationCard(quotation) {
     const statusLabels = {
         'pending': 'Pendiente',
         'responded': 'Respondida',
+        'client_approved': 'Aprobada',
+        'client_rejected': 'Rechazada',
+        'artist_completed': 'Por finalizar',
         'completed': 'Completada',
         'in_progress': 'En Proceso'
     };
@@ -543,6 +552,8 @@ async function viewQuotationDetail(quoteId) {
         <button class="expand-info-btn" onclick="toggleAdditionalInfo()" id="expand-info-btn">
             Ampliar informacion
         </button>
+
+        ${renderReviewWorkflowPanel(quotation)}
         
         <div class="detail-section additional-info-section" id="additional-info-section" style="display: none;">
             <h3 class="detail-section-title">Informacion Adicional</h3>
@@ -575,6 +586,126 @@ async function viewQuotationDetail(quoteId) {
     
     // Subscribe to chat for this quotation
     subscribeToChatMessages(quoteId);
+}
+
+function getQuotationDisputeStatus(quotation) {
+    return quotation.dispute_status || 'none';
+}
+
+function renderReviewWorkflowPanel(quotation) {
+    const disputeStatus = getQuotationDisputeStatus(quotation);
+    if (disputeStatus === 'open') {
+        return `
+            <div class="review-completion-panel">
+                <p>Esta cotizacion tiene un reclamo abierto. No se puede finalizar ni reseñar hasta que soporte lo resuelva.</p>
+            </div>
+        `;
+    }
+
+    if (quotation.quote_status === 'artist_completed') {
+        return `
+            <div class="review-completion-panel">
+                <p>El artista marco el trabajo como terminado. Confirma el cierre si el servicio fue entregado correctamente.</p>
+                <div class="review-completion-actions">
+                    <button type="button" class="review-finalize-btn" onclick="acceptQuotationCompletion('${quotation.quote_id}')">Aceptar finalizacion</button>
+                </div>
+            </div>
+        `;
+    }
+
+    if (quotation.quote_status === 'completed') {
+        const studioId = quotation.studio_id || quotation.artist_studio_id || quotation.artist_studio_user_id || '';
+        return `
+            <div class="review-completion-panel">
+                <p>Trabajo finalizado. Puedes dejar resenas verificadas para esta experiencia.</p>
+                <div class="review-completion-actions">
+                    ${quotation.artist_id ? `<button type="button" class="review-write-btn" onclick="openQuotationArtistReview('${quotation.quote_id}')">Resenar artista</button>` : ''}
+                    ${studioId ? `<button type="button" class="review-write-btn" onclick="openQuotationStudioReview('${quotation.quote_id}')">Resenar estudio</button>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    return '';
+}
+
+async function acceptQuotationCompletion(quoteId) {
+    const quotation = currentQuotations.find(q => q.quote_id === quoteId);
+    if (!quotation) return;
+
+    if (!confirm('Confirmas que el trabajo fue finalizado correctamente?')) return;
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) {
+            window.location.href = '/client/login';
+            return;
+        }
+
+        const response = await fetch(`/api/client/quotations/${encodeURIComponent(quoteId)}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            }
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'No se pudo finalizar la cotizacion');
+        }
+
+        quotation.quote_status = 'completed';
+        quotation.client_completed_at = result.client_completed_at || new Date().toISOString();
+        quotation.completed_by_client_user_id = session.user.id;
+        updateStats();
+        renderQuotations();
+        await viewQuotationDetail(quoteId);
+    } catch (error) {
+        console.error('Error accepting completion:', error);
+        alert(error.message || 'No se pudo finalizar la cotizacion');
+    }
+}
+
+function openQuotationArtistReview(quoteId) {
+    const quotation = currentQuotations.find(q => q.quote_id === quoteId);
+    if (!quotation || !window.WeOtziReviews) return;
+    if (getQuotationDisputeStatus(quotation) === 'open') {
+        alert('No se puede reseñar mientras exista un reclamo abierto.');
+        return;
+    }
+    if (!quotation.id || !quotation.artist_id) {
+        alert('Esta cotizacion no tiene datos suficientes para crear una resena verificada.');
+        return;
+    }
+
+    window.WeOtziReviews.openReviewModal({
+        title: `Calificar a ${quotation.artist_name || 'artista'}`,
+        contextType: 'quotation',
+        contextId: quotation.id,
+        revieweeType: 'artist',
+        revieweeUserId: quotation.artist_id,
+        revieweeDisplayName: quotation.artist_name || 'Artista'
+    });
+}
+
+function openQuotationStudioReview(quoteId) {
+    const quotation = currentQuotations.find(q => q.quote_id === quoteId);
+    if (!quotation || !window.WeOtziReviews) return;
+    const studioId = quotation.studio_id || quotation.artist_studio_id || quotation.artist_studio_user_id;
+    if (!studioId) {
+        alert('Esta cotizacion no tiene un estudio vinculado para reseñar.');
+        return;
+    }
+
+    window.WeOtziReviews.openReviewModal({
+        title: `Calificar a ${quotation.artist_studio_name || 'estudio'}`,
+        contextType: 'quotation',
+        contextId: quotation.id,
+        revieweeType: 'studio',
+        revieweeUserId: studioId,
+        revieweeDisplayName: quotation.artist_studio_name || 'Estudio'
+    });
 }
 
 // ============================================
@@ -850,6 +981,15 @@ function getInitials(name) {
     return name.substring(0, 2).toUpperCase();
 }
 
+function normalizePublicUsername(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^@+/, '')
+        .replace(/[^a-z0-9._-]/g, '')
+        .slice(0, 32);
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
@@ -1100,6 +1240,8 @@ function openEditProfileModal() {
     
     // Populate form with current data
     const fullNameInput = document.getElementById('edit-full-name');
+    const publicUsernameInput = document.getElementById('edit-public-username');
+    const countryInput = document.getElementById('edit-country');
     const whatsappInput = document.getElementById('edit-whatsapp');
     const cityInput = document.getElementById('edit-city');
     const avatarPreview = document.getElementById('avatar-preview');
@@ -1107,6 +1249,12 @@ function openEditProfileModal() {
     
     if (fullNameInput && currentClient) {
         fullNameInput.value = currentClient.full_name || '';
+    }
+    if (publicUsernameInput && currentClient) {
+        publicUsernameInput.value = currentClient.public_username || '';
+    }
+    if (countryInput && currentClient) {
+        countryInput.value = currentClient.country || '';
     }
     if (whatsappInput && currentClient) {
         whatsappInput.value = currentClient.whatsapp || '';
@@ -1201,6 +1349,8 @@ async function handleProfileUpdate(event) {
         }
         
         const fullName = document.getElementById('edit-full-name').value.trim();
+        const publicUsername = normalizePublicUsername(document.getElementById('edit-public-username')?.value || '');
+        const country = document.getElementById('edit-country')?.value.trim() || '';
         const whatsapp = document.getElementById('edit-whatsapp').value.trim();
         const city = document.getElementById('edit-city').value.trim();
         
@@ -1248,9 +1398,16 @@ async function handleProfileUpdate(event) {
         // Update client record
         const updateData = {
             full_name: fullName || currentClient.full_name,
+            public_username: publicUsername || null,
+            country: country || null,
+            public_profile_enabled: true,
             whatsapp: whatsapp || null,
             city_residence: city || null
         };
+
+        if ((fullName || currentClient.full_name) && publicUsername && country) {
+            updateData.profile_completed_at = currentClient.profile_completed_at || new Date().toISOString();
+        }
         
         if (profilePictureUrl) {
             updateData.profile_picture = profilePictureUrl;

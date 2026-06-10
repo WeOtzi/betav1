@@ -1,6 +1,6 @@
 const feedSupabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const feedSupabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const feedSupabase = supabase.createClient(feedSupabaseUrl, feedSupabaseKey);
+const feedSupabase = (window._supabase = window._supabase || supabase.createClient(feedSupabaseUrl, feedSupabaseKey));
 
 const FEED_CATEGORIES = ['realizados', 'flash', 'proyectos'];
 const FEED_CATEGORY_LABELS = {
@@ -65,9 +65,18 @@ function normalizeUsernameFromUrl(username) {
     return username.endsWith('.wo') ? username : `${username}.wo`;
 }
 
+function sanitizeArtistHandle(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^@+/, '')
+        .replace(/\/+$/, '');
+}
+
 function readArtistQueryFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    return params.get('artist') || params.get('u') || '';
+    const artist = params.get('artist');
+    const short = params.get('u');
+    return sanitizeArtistHandle(artist || short || '');
 }
 
 function getQuotationUrlWithArtist(username) {
@@ -82,11 +91,29 @@ function maybeMissingAnyColumnError(error, columnNames) {
 }
 
 async function queryArtistByUsername(username, fields) {
-    return feedSupabase
+    const exactResponse = await feedSupabase
         .from('artists_db')
         .select(fields)
         .eq('username', username)
-        .maybeSingle();
+        .limit(1);
+
+    if (!exactResponse.error) {
+        return {
+            data: Array.isArray(exactResponse.data) ? exactResponse.data[0] || null : null,
+            error: null
+        };
+    }
+
+    const fallbackResponse = await feedSupabase
+        .from('artists_db')
+        .select(fields)
+        .ilike('username', username)
+        .limit(1);
+
+    return {
+        data: Array.isArray(fallbackResponse.data) ? fallbackResponse.data[0] || null : null,
+        error: fallbackResponse.error
+    };
 }
 
 async function fetchArtistForFeed() {
@@ -98,7 +125,20 @@ async function fetchArtistForFeed() {
 
     const rawQuery = readArtistQueryFromUrl();
     const normalized = normalizeUsernameFromUrl(rawQuery);
-    const candidates = [normalized, rawQuery].filter(Boolean);
+    const withoutSuffix = rawQuery.endsWith('.wo') ? rawQuery.slice(0, -3) : rawQuery;
+    const lowerQuery = rawQuery.toLowerCase();
+    const lowerWithoutSuffix = withoutSuffix.toLowerCase();
+    const lowerNormalized = normalizeUsernameFromUrl(lowerWithoutSuffix);
+
+    const candidates = Array.from(new Set([
+        normalized,
+        rawQuery,
+        withoutSuffix,
+        lowerNormalized,
+        lowerQuery,
+        lowerWithoutSuffix
+    ].filter(Boolean)));
+
     if (!candidates.length) return null;
 
     for (const candidate of candidates) {
@@ -168,6 +208,10 @@ function normalizeBioText(rawValue) {
     const fallback = 'Este artista todavía no agregó una bio pública.';
     if (rawValue == null) return fallback;
 
+    if (window.BioFormatting) {
+        return window.BioFormatting.bioHtmlToPlainText(rawValue) || fallback;
+    }
+
     const html = String(rawValue);
     if (!html.trim()) return fallback;
 
@@ -197,7 +241,15 @@ function updateArtistSummary() {
 
     if (artistNameEl) artistNameEl.textContent = feedArtist?.name || 'Artista';
     if (artistUsernameEl) artistUsernameEl.textContent = `@${username || 'artista.wo'}`;
-    if (artistBioEl) artistBioEl.textContent = normalizeBioText(feedArtist?.bio_description);
+    if (artistBioEl) {
+        if (window.BioFormatting) {
+            window.BioFormatting.renderBioHtml(artistBioEl, feedArtist?.bio_description, {
+                emptyMessage: 'Este artista todavia no agrego una bio publica.'
+            });
+        } else {
+            artistBioEl.textContent = normalizeBioText(feedArtist?.bio_description);
+        }
+    }
 
     const avatar = document.getElementById('artist-avatar');
     const avatarFallback = document.getElementById('artist-avatar-fallback');

@@ -4,12 +4,13 @@ import zipfile
 import sys
 import time
 from scp import SCPClient
+from remote_credentials import load_ssh_password
 
 # Configuration
 HOST = "92.112.189.44"
 PORT = 65002
 USERNAME = "u795331143"
-PASSWORD = "Abnerisai24."
+PASSWORD = load_ssh_password()
 REMOTE_DIR = "/home/u795331143/domains/weotzi.com/public_html/beta"
 LOCAL_ZIP = "deploy_package.zip"
 
@@ -17,18 +18,19 @@ def create_zip():
     print("Creating deployment package...")
     with zipfile.ZipFile(LOCAL_ZIP, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk('.'):
-            # Exclude directories
-            if 'node_modules' in dirs:
-                dirs.remove('node_modules')
-            if '.git' in dirs:
-                dirs.remove('.git')
-            if 'scripts' in dirs:
-                dirs.remove('scripts')
-            if '.cursor' in dirs:
-                dirs.remove('.cursor')
+            exclude_dirs = [
+                'node_modules', '.git', 'scripts', '.cursor',
+                '.deploy_backups', '.agents', 'docs', 'Database Dashboard',
+                'supabase', '.vscode', '__pycache__', 'agent-transcripts',
+            ]
+            for excl in exclude_dirs:
+                if excl in dirs:
+                    dirs.remove(excl)
             
             for file in files:
-                if file == LOCAL_ZIP or file.endswith('.py') or file.endswith('.zip') or file == "beta.htaccess":
+                skip_ext = ('.py', '.zip', '.sql', '.md')
+                skip_names = (LOCAL_ZIP, 'beta.htaccess', 'output.txt', '.server-credentials', '.gitignore')
+                if file.endswith(skip_ext) or file in skip_names:
                     continue
                 
                 file_path = os.path.join(root, file)

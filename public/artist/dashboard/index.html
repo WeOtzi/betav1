@@ -7,130 +7,125 @@
     <title>WE ÖTZI | Dashboard</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
-    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
     <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+        (function(){
+            var id = window.CLARITY_PROJECT_ID;
+            if (!id || id === 'CLARITY_TRACKING_ID') return;
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script",id);
+        })();
     </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/shared/css/landing-style.css">
-    <link rel="stylesheet" href="/shared/css/dashboard.css">
-    <link rel="stylesheet" href="/shared/css/feedback.css">
+    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260602-artist-dashboard-12">
+    <link rel="stylesheet" href="/shared/css/address-picker.css">
+    <link rel="stylesheet" href="/shared/css/instagram-import.css">
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/shared/js/qrcode-generator.js"></script>
-    <script src="/shared/js/config-manager.js"></script>
-    <script src="/shared/js/logging-loader.js"></script>
-    <!-- Google Maps Places API - Key configured in config-manager.js -->
+    <script src="/shared/js/config-manager.js?v=20260602-artist-dashboard-12"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/logging-loader.js?v=20260515-dashboard"></script>
+    <!-- Google Maps Places API (legacy profile-form location autocomplete) -->
     <script>
-        // Define callback before loading the script to avoid "callback not defined" errors
-        window.initDashboardGooglePlaces = function() {
-            // Will be overridden by dashboard.js once it loads
-            // This prevents "callback not defined" errors from Google Maps
-        };
+        window.initDashboardGooglePlaces = function() {};
         function loadDashboardGoogleMapsWhenReady() {
             if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initDashboardGooglePlaces`;
-                script.async = true;
-                document.head.appendChild(script);
+                const s = document.createElement('script');
+                s.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initDashboardGooglePlaces`;
+                s.async = true;
+                document.head.appendChild(s);
             } else {
-                if (!window._dashboardGMapsRetry) window._dashboardGMapsRetry = 0;
-                window._dashboardGMapsRetry++;
-                if (window._dashboardGMapsRetry < 50) {
-                    setTimeout(loadDashboardGoogleMapsWhenReady, 100);
-                } else {
-                    console.warn('[Dashboard] Google Maps API key not available after 50 retries; Places autocomplete disabled.');
-                }
+                window._dashboardGMapsRetry = (window._dashboardGMapsRetry || 0) + 1;
+                if (window._dashboardGMapsRetry < 50) setTimeout(loadDashboardGoogleMapsWhenReady, 100);
             }
         }
         document.addEventListener('DOMContentLoaded', loadDashboardGoogleMapsWhenReady);
     </script>
 </head>
 
-<body class="artist-dashboard-page">
-    <header class="top-nav-header">
-        <div class="header-edition-info">
-            Edición Bauhaus | Beta Cerrada
+<body class="artist-dashboard-page wod-body">
+<div class="wod-stage">
+<div class="wod-frame">
+
+    <!-- ============================ TOP NAV ============================ -->
+    <header class="wod-nav">
+        <div class="wod-nav__left">
+            <a href="/artist/dashboard" class="wod-nav__logo">
+                <span class="wod-nav__marks"><span class="sq"></span><span class="ci"></span><span class="tr"></span></span>
+                <span>WE&nbsp;ÖTZI</span>
+            </a>
+            <span class="wod-nav__tag"><span class="dot"></span><span>EDICIÓN BAUHAUS · BETA</span></span>
         </div>
-        <div class="nav-row">
-            <div class="nav-col nav-col-dashboard-links">
-                <nav class="dashboard-quick-nav" aria-label="Navegacion principal de artista">
-                    <a href="/my-quotations" class="dashboard-quick-link">Cotizaciones</a>
-                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
-                    <a href="/calendar" class="dashboard-quick-link">Calendario</a>
-                    <a href="/my-quotations/statistics" class="dashboard-quick-link">Estadisticas</a>
-                </nav>
-                <button class="mobile-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
-                    Menu
-                </button>
-            </div>
-            <div class="nav-col">
-                <button class="login-toggle" onclick="handleLogout()" aria-label="Cerrar sesion">
-                    LOG OUT
-                </button>
-            </div>
-            <div class="nav-col">
-                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
-                    Ö
-                </button>
-            </div>
+        <button class="wod-nav__burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="wod-nav__right">
+            <nav class="wod-nav__links" aria-label="Navegación principal de artista">
+                <a href="/my-quotations">COTIZACIONES</a>
+                <a href="/job-board">JOB BOARD</a>
+                <a href="/studio-spots" data-overflow>SPOTS</a>
+                <a href="/artist/invitations" data-overflow>INVITACIONES</a>
+                <a href="/calendar">CALENDARIO</a>
+                <a href="/my-quotations/statistics" data-overflow>ESTADÍSTICAS</a>
+                <a href="/artist/visitors/" data-overflow>VISITANTES</a>
+                <a href="/calendar" data-overflow>TRAVEL</a>
+            </nav>
+            <button class="wod-nav__more" id="wod-nav-more" type="button" aria-expanded="false">+ MÁS</button>
+            <button class="wod-login-btn" onclick="handleLogout()" aria-label="Cerrar sesión">LOG OUT</button>
+            <a class="wod-nav__msg" href="/my-quotations" aria-label="Cotizaciones">✉<span class="wod-nav__msg-badge" id="wod-nav-msg-badge" hidden>0</span></a>
+            <button class="wod-otzi-mark" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
+        </div>
+        <div class="wod-nav__overflow" id="dashboard-mobile-menu" aria-label="Navegación móvil">
+            <a href="/my-quotations">COTIZACIONES</a>
+            <a href="/job-board">JOB BOARD</a>
+            <a href="/studio-spots">SPOTS</a>
+            <a href="/artist/invitations">INVITACIONES</a>
+            <a href="/calendar">CALENDARIO</a>
+            <a href="/my-quotations/statistics">ESTADÍSTICAS</a>
+            <a href="/artist/visitors/">VISITANTES</a>
+            <a href="/calendar">TRAVEL</a>
+            <a href="/artist/profile/details">PERFIL</a>
         </div>
     </header>
-    <nav class="dashboard-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegacion movil de artista" hidden>
-        <a href="/my-quotations" class="dashboard-mobile-menu-link">Cotizaciones</a>
-        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
-        <a href="/calendar" class="dashboard-mobile-menu-link">Calendario</a>
-        <a href="/my-quotations/statistics" class="dashboard-mobile-menu-link">Estadisticas</a>
-    </nav>
 
-    <!-- Top Progress Banner (Expandable + Rotatable Notices) -->
+    <!-- ===================== ONBOARDING / VERIFICATION BANNER ===================== -->
     <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">
         <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">
             <div class="banner-top-row">
                 <div class="banner-notice-switch" role="tablist" aria-label="Avisos del dashboard">
-                    <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">
-                        Inicio
-                    </button>
-                    <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">
-                        Verificacion
-                    </button>
+                    <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">Inicio</button>
+                    <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">Verificación</button>
                 </div>
                 <div class="banner-actions">
                     <button class="banner-nav-btn" id="banner-prev-btn" type="button" aria-label="Aviso anterior">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="15 18 9 12 15 6"/>
-                        </svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                     </button>
                     <button class="banner-nav-btn" id="banner-next-btn" type="button" aria-label="Siguiente aviso">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="9 18 15 12 9 6"/>
-                        </svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                     <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button" aria-expanded="false" aria-controls="banner-expanded-content">
                         <span id="banner-toggle-label">Ver tareas</span>
-                        <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
+                        <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
                 </div>
             </div>
             <div class="banner-summary" id="banner-summary">
-                <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE OTZI</p>
+                <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE ÖTZI</p>
                 <p class="banner-summary-meta" id="banner-summary-meta">0/4 TAREAS</p>
                 <p class="banner-summary-note" id="banner-summary-note">Un perfil sólido te ayuda a destacarte y atraer mejores oportunidades.</p>
-                <div class="banner-progress-track">
-                    <div class="banner-progress-fill" id="banner-progress-fill"></div>
-                </div>
+                <div class="banner-progress-track"><div class="banner-progress-fill" id="banner-progress-fill"></div></div>
             </div>
             <div class="banner-expanded-content" id="banner-expanded-content" hidden>
                 <section class="banner-panel banner-panel-onboarding" id="banner-panel-onboarding">
@@ -143,593 +138,455 @@
         </div>
     </div>
 
-    <!-- Main Dashboard Grid -->
-    <main class="dashboard-layout">
-        <!-- Identity Block: Avatar + Name -->
-            <section class="dashboard-card block-identity block">
-            <div class="identity-main-row">
-                <div class="avatar-container">
-                    <div class="avatar-wrapper" id="avatar-wrapper">
-                        <img src="" alt="Avatar" class="avatar-image" id="avatar-image">
-                        <div class="avatar-placeholder" id="avatar-placeholder">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                            </svg>
+    <!-- ============================ HERO CAROUSEL ============================ -->
+    <div class="wod-hero" id="wod-hero" data-animate="off">
+        <div class="wod-hero__top">
+            <div class="mono-sm wod-hero__kicker" id="wod-hero-kicker">◍ PANEL DE CONTROL</div>
+            <div class="wod-hero__dots" id="wod-hero-dots" role="tablist" aria-label="Avisos"></div>
+        </div>
+        <h1 class="wod-hero__title" id="wod-hero-title">Hola.</h1>
+        <p class="wod-hero__body" id="wod-hero-body">Este es tu panel de control en We Ötzi.</p>
+        <div class="wod-hero__actions" id="wod-hero-actions"></div>
+        <div class="wod-hero__progress"><div class="wod-hero__progress-fill" id="wod-hero-progress"></div></div>
+    </div>
+
+    <!-- ============================ STAT STRIP ============================ -->
+    <div class="wod-statstrip" id="wod-statstrip">
+        <div class="wod-statstrip__cell">
+            <div class="wod-statstrip__cap"><span class="mark mark--sq mark--red"></span><span class="mono-sm">Pendientes</span></div>
+            <div class="stat"><div class="stat__value stat__value--red" id="ws-pending">—</div><div class="stat__hint" id="ws-pending-h">&nbsp;</div></div>
+        </div>
+        <div class="wod-statstrip__cell">
+            <div class="wod-statstrip__cap"><span class="mark mark--ci mark--ink"></span><span class="mono-sm">Respondidas · mes</span></div>
+            <div class="stat"><div class="stat__value" id="ws-answered">—</div><div class="stat__hint" id="ws-answered-h">&nbsp;</div></div>
+        </div>
+        <div class="wod-statstrip__cell">
+            <div class="wod-statstrip__cap"><span class="mark mark--tr"></span><span class="mono-sm">Postulaciones</span></div>
+            <div class="stat"><div class="stat__value" id="ws-applications">—</div><div class="stat__hint" id="ws-applications-h">&nbsp;</div></div>
+        </div>
+        <div class="wod-statstrip__cell">
+            <div class="wod-statstrip__cap"><span class="mark mark--sq mark--ink"></span><span class="mono-sm">Spots / Invit.</span></div>
+            <div class="stat"><div class="stat__value" id="ws-spots">—</div><div class="stat__hint" id="ws-spots-h">&nbsp;</div></div>
+        </div>
+        <div class="wod-statstrip__cell">
+            <div class="wod-statstrip__cap"><span class="mark mark--ci mark--ink"></span><span class="mono-sm">Visitas · 7 días</span></div>
+            <div class="stat"><div class="stat__value" id="ws-visits">—</div><div class="stat__hint" id="ws-visits-h">&nbsp;</div></div>
+        </div>
+    </div>
+
+    <!-- ============================ BODY: 2 COLUMNS ============================ -->
+    <div class="wod-body">
+        <!-- LEFT MAIN COLUMN -->
+        <div class="wod-col-main">
+
+            <!-- Cotizaciones -->
+            <section class="card wod-sec wod-sec--cotiz">
+                <header class="card__head">
+                    <div class="card__head-l"><span>Cotizaciones · últimos 7 días</span></div>
+                    <div class="card__head-actions">
+                        <div class="tabs" id="wod-cotiz-tabs">
+                            <button class="tabs__tab" data-cf="all">TODAS · <span id="wod-ct-all">0</span></button>
+                            <button class="tabs__tab is-active" data-cf="pending">PENDIENTES · <span id="wod-ct-pending">0</span></button>
+                            <button class="tabs__tab" data-cf="responded">RESPONDIDAS · <span id="wod-ct-resp">0</span></button>
                         </div>
-                        <div class="avatar-loading" id="avatar-loading">
-                            <div class="loading-spinner"></div>
-                        </div>
+                        <a class="wbtn wbtn--dark wbtn--sm" href="/my-quotations">IR AL PANEL →</a>
                     </div>
-                    <button class="avatar-upload-btn" id="avatar-upload-btn" type="button" aria-label="Cambiar foto">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                            <circle cx="12" cy="13" r="4"/>
-                        </svg>
-                    </button>
-                    <button class="avatar-ai-btn" id="avatar-ai-btn" type="button" aria-label="Generar con IA" title="Generar con IA">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="2" x2="12" y2="22"/>
-                            <line x1="2" y1="12" x2="22" y2="12"/>
-                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                            <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
-                        </svg>
-                    </button>
-                    <input type="file" id="avatar-input" accept="image/*,image/heic,image/heif" hidden>
-                </div>
-                <div class="identity-copy">
-                    <h1 class="artist-name" id="artist-name">Cargando...</h1>
-                    <p class="artist-username" id="artist-username">@usuario.wo</p>
-                </div>
-            </div>
-            <div class="identity-status-row">
-                <!-- Verification Badge -->
-                <div class="verification-badge" id="verification-badge" data-state="No" style="display: none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                    <span id="verification-text">No Verificado</span>
-                </div>
-                <!-- Artist Level Badge -->
-                <div class="artist-level-badge" id="artist-level-badge">
-                    <span class="level-text" id="level-text">Nuevo</span>
-                </div>
-                <div class="embajador-badge" id="embajador-badge" style="display: none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                    <span>Embajador</span>
-                </div>
-            </div>
-            <p class="artist-location" id="artist-location">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                </svg>
-                <a id="location-link" class="artist-location-link" href="#" target="_blank" rel="noopener noreferrer">
-                    <span id="location-text">-</span>
-                </a>
-            </p>
-            <section class="tattoo-presence" id="tattoo-presence">
-                <div class="tattoo-presence-group">
-                    <h3 class="tattoo-presence-title">Tatuando en</h3>
-                    <div class="tattoo-presence-list" id="current-tattoo-locations">
-                        <p class="tattoo-presence-empty">Sin estudios cargados.</p>
+                </header>
+                <div class="card__body">
+                    <div class="wod-thead wod-cols-cotiz">
+                        <span></span><span>Cliente / Pedido</span><span>Recibido</span><span>Estado</span><span>Acción</span>
                     </div>
-                </div>
-                <div class="tattoo-presence-group">
-                    <h3 class="tattoo-presence-title">Proximamente tatuando en</h3>
-                    <div class="tattoo-presence-list" id="upcoming-tattoo-locations">
-                        <p class="tattoo-presence-empty">Sin estudios cargados.</p>
+                    <div id="wod-cotiz-rows">
+                        <div class="wod-empty">Cargando cotizaciones…</div>
                     </div>
                 </div>
             </section>
-            <div class="artist-social-links">
-                <a href="#" id="instagram-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-                    </svg>
-                </a>
-                <a href="#" id="whatsapp-link" target="_blank" rel="noopener" class="social-link-btn" style="display: none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                    </svg>
-                </a>
-                <button type="button" id="copy-whatsapp-btn" class="social-link-btn copy-btn" style="display: none;" aria-label="Copiar enlace WhatsApp">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                </button>
-                <button type="button" id="share-profile-btn" class="social-link-btn share-btn" aria-label="Compartir perfil">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="18" cy="5" r="3"/>
-                        <circle cx="6" cy="12" r="3"/>
-                        <circle cx="18" cy="19" r="3"/>
-                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                    </svg>
-                </button>
-                <button type="button" id="qr-profile-btn" class="social-link-btn" onclick="openQRModal()" aria-label="Generar código QR">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7"/>
-                        <rect x="14" y="3" width="7" height="7"/>
-                        <rect x="3" y="14" width="7" height="7"/>
-                        <rect x="5" y="5" width="3" height="3" fill="currentColor"/>
-                        <rect x="16" y="5" width="3" height="3" fill="currentColor"/>
-                        <rect x="5" y="16" width="3" height="3" fill="currentColor"/>
-                        <rect x="14" y="14" width="2" height="2" fill="currentColor"/>
-                        <rect x="17" y="14" width="2" height="2" fill="currentColor"/>
-                        <rect x="20" y="14" width="2" height="2" fill="currentColor"/>
-                        <rect x="14" y="17" width="2" height="2" fill="currentColor"/>
-                        <rect x="20" y="20" width="2" height="2" fill="currentColor"/>
-                    </svg>
-                </button>
-            </div>
 
-            <!-- Moved Artist Stats -->
-            <div class="artist-compact-stats">
-                <div class="compact-stat">
-                    <span class="compact-stat-value" id="stat-experience">-</span>
-                    <span class="compact-stat-label">Exp.</span>
-                </div>
-                <div class="compact-stat">
-                    <span class="compact-stat-value" id="stat-styles">-</span>
-                    <span class="compact-stat-label">Estilos</span>
-                </div>
-                <div class="compact-stat">
-                    <span class="compact-stat-value" id="stat-price">-</span>
-                    <span class="compact-stat-label">Tarifa</span>
-                </div>
-            </div>
-        </section>
-        <!-- Info Block: Bio & Portfolio -->
-        <section class="dashboard-card block-info-panel block">
-            <div class="info-header">
-                <h2 class="info-title">Sobre Mi</h2>
-                <button class="edit-btn" id="edit-bio-btn" aria-label="Editar bio">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="bio-content" id="bio-content">
-                <div class="bio-text" id="bio-text" data-empty-message="Sin bio aun. Edita tu perfil para agregar una descripcion.">-</div>
-            </div>
-            <div class="bio-edit-mode" id="bio-edit-mode" style="display: none;">
-                <div class="bio-editor-wrapper bio-editor-wrapper--dashboard">
-                    <div class="bio-toolbar" id="dashboard-bio-toolbar">
-                        <button type="button" class="toolbar-btn" data-command="bold" title="Negrita"><strong>B</strong></button>
-                        <button type="button" class="toolbar-btn" data-command="italic" title="Cursiva"><em>I</em></button>
-                        <button type="button" class="toolbar-btn" data-command="underline" title="Subrayado"><u>U</u></button>
-                        <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Tachado"><s>S</s></button>
-                        <div class="toolbar-separator"></div>
-                        <button type="button" class="toolbar-btn color-btn" data-command="foreColor" title="Color de texto">
-                            <span class="color-icon text-color"></span>
-                            <input type="color" class="color-picker" id="dash-text-color-picker" value="#E53935">
-                        </button>
-                        <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo">
-                            <span class="color-icon bg-color"></span>
-                            <input type="color" class="color-picker" id="dash-bg-color-picker" value="#FFEB3B">
-                        </button>
-                        <div class="toolbar-separator"></div>
-                        <button type="button" class="toolbar-btn" data-command="createLink" title="Insertar enlace">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                            </svg>
-                        </button>
+            <!-- Agenda · próximos turnos -->
+            <section class="card wod-sec wod-sec--agenda">
+                <header class="card__head">
+                    <div class="card__head-l"><span id="wod-agenda-cap">Agenda · próximos turnos</span></div>
+                    <div class="card__head-actions">
+                        <a class="wbtn wbtn--dashed wbtn--sm" href="/calendar">BLOQUEAR DÍA</a>
+                        <a class="wbtn wbtn--dark wbtn--sm" href="/calendar">CALENDARIO →</a>
                     </div>
-                    <div id="bio-editor" class="bio-editor" contenteditable="true" data-placeholder="Escribe tu bio aqui... Se creativo!"></div>
-                </div>
-                <div class="edit-actions">
-                    <button class="btn-cancel" id="bio-cancel">Cancelar</button>
-                    <button class="btn-save" id="bio-save">Guardar</button>
-                </div>
-            </div>
-            <div class="portfolio-link">
-                <a href="#" id="portfolio-url" target="_blank" rel="noopener">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                        <polyline points="15 3 21 3 21 9"/>
-                        <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                    <span>Ver Portfolio</span>
-                </a>
-            </div>
-        </section>
-        <!-- Actions Block -->
-        <section class="dashboard-card block-actions block">
-            <h3 class="actions-title">Acciones</h3>
-            <button class="action-btn action-btn-preview" id="preview-profile-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>
-                Ver Mi Perfil Publico
-            </button>
-            <button class="action-btn action-btn-verify" id="request-verification-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <path d="M9 12l2 2 4-4"/>
-                </svg>
-                Verificar Perfil
-            </button>
-            <button class="action-btn" id="change-password-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                Cambiar Contrasena
-            </button>
-            <button class="action-btn action-btn-danger" id="logout-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-                Cerrar Sesion
-            </button>
-        </section>
-
-        <!-- Quotes Block -->
-        <section class="dashboard-card block-quotes block">
-            <h2 class="quotes-title">Cotizaciones</h2>
-            <div class="quotes-stats">
-                <div class="quote-stat-item">
-                    <span class="quote-stat-value" id="quote-total">0</span>
-                    <span class="quote-stat-label">Totales</span>
-                </div>
-                <div class="quote-stat-item">
-                    <span class="quote-stat-value highlight-red" id="quote-pending">0</span>
-                    <span class="quote-stat-label">Pendientes</span>
-                </div>
-                <div class="quote-stat-item">
-                    <span class="quote-stat-value" id="quote-answered">0</span>
-                    <span class="quote-stat-label">Respondidas</span>
-                </div>
-                <div class="quote-stat-item" style="cursor:pointer;" onclick="window.location.href='/my-quotations?tab=applications'" title="Ver mis postulaciones">
-                    <span class="quote-stat-value" id="quote-applications">0</span>
-                    <span class="quote-stat-label">Postulaciones</span>
-                </div>
-            </div>
-            <div class="quotes-admin-actions">
-                <button class="quotes-admin-btn" id="go-to-quotes-btn" onclick="window.location.href='/my-quotations'">
-                    Ir al Panel
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <a href="/job-board" class="quotes-admin-btn">
-                    Job Board
-                </a>
-            </div>
-        </section>
-        <!-- Gallery Management Block -->
-        <section class="block-gallery-admin dashboard-card block">
-            <div class="gallery-admin-header">
-                <h2 class="gallery-admin-title">Galeria de Trabajos</h2>
-                <select id="gallery-category-select" class="gallery-category-select" aria-label="Categoria para nuevos archivos">
-                    <option value="realizados">Trabajos realizados</option>
-                    <option value="flash">Flash disponibles</option>
-                    <option value="proyectos">Proyectos</option>
-                </select>
-                <label class="gallery-upload-btn" for="gallery-input">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    <span>Subir Fotos/Videos</span>
-                </label>
-                <input type="file" id="gallery-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
-            </div>
-            <p class="gallery-admin-description">Sube fotos o videos de tus trabajos para mostrar en tu perfil publico (max 12 archivos, hasta 2 videos MP4/MOV de 30s).</p>
-            <div class="gallery-admin-grid" id="gallery-admin-grid">
-                <div class="gallery-empty" id="gallery-empty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                    <p>Aun no has subido archivos</p>
-                </div>
-            </div>
-            <div class="gallery-admin-loading" id="gallery-admin-loading" style="display: none;">
-                <div class="gallery-upload-progress">
-                    <div class="gallery-upload-progress-header">
-                        <span class="gallery-upload-label">Subiendo archivos</span>
-                        <span class="gallery-upload-counter" id="gallery-upload-counter">0 / 0</span>
+                </header>
+                <div class="card__body">
+                    <div class="wod-thead wod-cols-agenda">
+                        <span>Cuándo</span><span>Cliente</span><span>Detalle</span><span class="wod-agenda__ref">Referencia</span><span>Acción</span>
                     </div>
-                    <div class="gallery-progress-track">
-                        <div class="gallery-progress-fill" id="gallery-progress-fill"></div>
+                    <div id="wod-agenda-rows">
+                        <div class="wod-empty">Cargando agenda…</div>
                     </div>
                 </div>
-            </div>
-        </section>
-        <!-- Profile Edit Block -->
-        <section class="block-profile dashboard-card block">
-            <div class="profile-header">
-                <h2 class="profile-title">Mi Perfil</h2>
-                <div class="profile-header-actions">
-                    <button class="profile-gallery-upload-btn" id="profile-gallery-upload-btn" type="button">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        <span>Subir Fotos</span>
-                    </button>
-                    <button class="edit-toggle-btn" id="edit-toggle-btn" type="button">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                        <span>Editar</span>
-                    </button>
-                </div>
-            </div>
+            </section>
 
-            <form id="profile-form" class="profile-form">
-                <!-- Artistic Name -->
-                <div class="form-row">
-                    <label class="form-label">Nombre Artistico</label>
-                    <div class="form-value" id="display-artistic-name">-</div>
-                    <input type="text" class="form-input-dashboard" id="input-artistic-name" style="display: none;">
-                </div>
-
-                <!-- Full Name -->
-                <div class="form-row">
-                    <label class="form-label">Nombre Completo</label>
-                    <div class="form-value" id="display-full-name">-</div>
-                    <input type="text" class="form-input-dashboard" id="input-full-name" style="display: none;">
-                </div>
-
-                <!-- Email (read-only) -->
-                <div class="form-row">
-                    <label class="form-label">Email</label>
-                    <div class="form-value form-value-readonly" id="display-email">-</div>
-                </div>
-
-                <!-- Location -->
-                <div class="form-row">
-                    <label class="form-label">Ubicacion</label>
-                    <div class="form-value" id="display-location">-</div>
-                    <div class="dashboard-location-group" id="location-input-group" style="display: none;">
-                        <div class="dashboard-location-wrapper">
-                            <input type="text" class="form-input-dashboard" id="input-location"
-                                placeholder="Ciudad, Pais" autocomplete="off">
-                            <button type="button" class="dashboard-geolocation-btn"
-                                id="dashboard-geolocation-btn"
-                                onclick="getDashboardGeolocation()"
-                                aria-label="Detectar mi ubicacion automaticamente"
-                                title="Detectar ubicacion">
-                                <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="3"/>
-                                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <p class="dashboard-location-hint" id="dashboard-location-hint" aria-live="polite"></p>
+            <!-- Job Board -->
+            <section class="card wod-sec wod-sec--jobs">
+                <header class="card__head">
+                    <div class="card__head-l"><span id="wod-jobs-cap">Job Board · spots abiertos para vos</span></div>
+                    <div class="card__head-actions">
+                        <a class="wbtn wbtn--sm" href="/studio-spots">VER TODOS →</a>
+                    </div>
+                </header>
+                <div class="card__body">
+                    <div class="wod-jobgrid" id="wod-jobs-grid">
+                        <div class="wod-empty">Cargando spots…</div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Styles -->
-                <div class="form-row">
-                    <label class="form-label">Estilos</label>
-                    <div class="form-value styles-value" id="display-styles">-</div>
-                    <button type="button" class="styles-edit-trigger" id="styles-edit-trigger" style="display: none;" onclick="openStylesModal()">
-                        <div class="styles-trigger-tags" id="styles-trigger-tags">
-                            <span class="styles-trigger-placeholder">Seleccionar estilos...</span>
-                        </div>
-                        <svg class="styles-trigger-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Experience -->
-                <div class="form-row">
-                    <label class="form-label">Experiencia</label>
-                    <div class="form-value" id="display-experience">-</div>
-                    <select class="form-select-dashboard" id="input-experience" style="display: none;">
-                        <option value="0-1">Menos de 1 ano</option>
-                        <option value="1-3">1 - 3 anos</option>
-                        <option value="3-5">3 - 5 anos</option>
-                        <option value="5-10">5 - 10 anos</option>
-                        <option value="10+">Mas de 10 anos</option>
-                    </select>
-                </div>
-
-                <!-- Session Price -->
-                <div class="form-row">
-                    <label class="form-label">Tarifa por Sesion</label>
-                    <div class="form-value" id="display-price">-</div>
-                    <div class="price-input-group" id="price-input-group" style="display: none;">
-                        <input type="number" class="form-input-dashboard" id="input-price" placeholder="150" min="0">
-                        <select class="form-select-dashboard currency-select" id="input-currency">
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="MXN">MXN</option>
-                            <option value="COP">COP</option>
-                            <option value="ARS">ARS</option>
-                            <option value="CLP">CLP</option>
-                            <option value="PEN">PEN</option>
-                            <option value="BRL">BRL</option>
-                            <option value="GBP">GBP</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Portfolio URL -->
-                <div class="form-row">
-                    <label class="form-label">Portfolio / Web</label>
-                    <div class="form-value" id="display-portfolio">-</div>
-                    <input type="url" class="form-input-dashboard" id="input-portfolio" placeholder="https://..." style="display: none;">
-                </div>
-
-                <!-- Work Type -->
-                <div class="form-row">
-                    <label class="form-label">Modalidad</label>
-                    <div class="form-value" id="display-work-type">-</div>
-                    <select class="form-select-dashboard" id="input-work-type" style="display: none;">
-                        <option value="independent">Independiente</option>
-                        <option value="studio">Estudio</option>
-                        <option value="both">Ambos</option>
-                    </select>
-                </div>
-
-                <!-- Studio Name -->
-                <div class="form-row" id="studio-row" style="display: none;">
-                    <label class="form-label">Nombre del Estudio</label>
-                    <div class="form-value" id="display-studio">-</div>
-                    <div class="dashboard-studio-autocomplete" style="position:relative;">
-                        <input type="text" class="form-input-dashboard" id="input-studio" style="display: none;" autocomplete="off">
-                        <div class="studio-suggestions" id="dashboard-studio-suggestions"></div>
-                    </div>
-                </div>
-
-                <!-- Tattoo Presence (Current + Upcoming) -->
-                <div class="form-row">
-                    <label class="form-label">Disponibilidad por Estudios</label>
-                    <div class="form-value" id="display-tattoo-schedule-summary">-</div>
-                    <div class="tattoo-locations-editor" id="tattoo-locations-editor" style="display: none;">
-                        <div class="tattoo-editor-group">
-                            <div class="tattoo-editor-group-header">
-                                <span>Tatuando en</span>
-                                <button type="button" class="tattoo-editor-add-btn" id="add-current-tattoo-location-btn">+ Agregar Estudio</button>
-                            </div>
-                            <div class="tattoo-location-form-list" id="current-tattoo-location-editor-list"></div>
-                        </div>
-                        <div class="tattoo-editor-group">
-                            <div class="tattoo-editor-group-header">
-                                <span>Proximamente tatuando en</span>
-                                <button type="button" class="tattoo-editor-add-btn" id="add-upcoming-tattoo-location-btn">+ Agregar Viaje</button>
-                            </div>
-                            <div class="tattoo-location-form-list" id="upcoming-tattoo-location-editor-list"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Instagram -->
-                <div class="form-row">
-                    <label class="form-label">Instagram</label>
-                    <div class="form-value" id="display-instagram">-</div>
-                    <input type="text" class="form-input-dashboard" id="input-instagram" placeholder="@tuusuario" style="display: none;">
-                </div>
-
-                <!-- WhatsApp Number -->
-                <div class="form-row">
-                    <label class="form-label">WhatsApp</label>
-                    <div class="form-value" id="display-whatsapp">-</div>
-                    <input type="tel" class="form-input-dashboard" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display: none;" data-clarity-mask="true">
-                </div>
-
-                <!-- Embajador (Managed by Support) -->
-                <div class="form-row">
-                    <label class="form-label">Embajador <span class="form-label-note">(Manejado por Soporte)</span></label>
-                    <div class="form-value form-value-readonly" id="display-embajador">-</div>
-                </div>
-
-                <!-- Birth Date -->
-                <div class="form-row">
-                    <label class="form-label">Fecha de Nacimiento</label>
-                    <div class="form-value" id="display-birthdate">-</div>
-                    <input type="date" class="form-input-dashboard" id="input-birthdate" style="display: none;">
-                </div>
-
-                <!-- Newsletter -->
-                <div class="form-row">
-                    <label class="form-label">Newsletter</label>
-                    <div class="form-value" id="display-newsletter">-</div>
-                    <label class="toggle-switch" id="toggle-newsletter" style="display: none;">
-                        <input type="checkbox" id="input-newsletter">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-
-                <!-- Gallery Upload Section (Edit Mode Only) -->
-                <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display: none;">
-                    <label class="form-label">Galeria de Trabajos</label>
-                    <div class="gallery-edit-content">
-                        <p class="gallery-edit-description">Administra las fotos y videos de tu portafolio (max 12 archivos, hasta 2 videos MP4/MOV de 30s).</p>
-                        <div class="gallery-edit-preview" id="gallery-edit-preview">
-                            <!-- Thumbnails will be inserted here -->
-                        </div>
-                        <select id="gallery-edit-category-select" class="gallery-edit-category-select" aria-label="Categoria para nuevos archivos">
+            <!-- Gallery (preserves dashboard.js gallery-admin hooks) -->
+            <section class="card block-gallery-admin wod-sec wod-sec--gallery">
+                <header class="card__head">
+                    <div class="card__head-l"><span class="gallery-admin-title" id="wod-gallery-cap">Galería de trabajos</span></div>
+                    <div class="card__head-actions">
+                        <select id="gallery-category-select" class="modal-input" style="width:auto;padding:6px 8px;font-size:11px;" aria-label="Categoría para nuevos archivos">
                             <option value="realizados">Trabajos realizados</option>
                             <option value="flash">Flash disponibles</option>
                             <option value="proyectos">Proyectos</option>
                         </select>
-                        <label class="gallery-edit-upload-btn" for="gallery-edit-input">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="17 8 12 3 7 8"/>
-                                <line x1="12" y1="3" x2="12" y2="15"/>
-                            </svg>
-                            <span>Subir Fotos/Videos</span>
-                        </label>
-                        <input type="file" id="gallery-edit-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
-                        <div class="gallery-edit-loading" id="gallery-edit-loading" style="display: none;">
-                            <div class="gallery-upload-progress">
-                                <div class="gallery-upload-progress-header">
-                                    <span class="gallery-upload-label">Subiendo archivos</span>
-                                    <span class="gallery-upload-counter" id="gallery-edit-upload-counter">0 / 0</span>
-                                </div>
-                                <div class="gallery-progress-track">
-                                    <div class="gallery-progress-fill" id="gallery-edit-progress-fill"></div>
-                                </div>
+                        <div id="ig-import-mount-dashboard"></div>
+                        <label class="wbtn wbtn--yellow wbtn--sm" for="gallery-input" id="profile-gallery-upload-btn">+ SUBIR FOTOS / VIDEOS</label>
+                        <input type="file" id="gallery-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+                    </div>
+                </header>
+                <div class="card__body">
+                    <div class="wod-gallery__bar">
+                        <span class="mono-sm">Máx 12 archivos · hasta 2 videos · MP4 / MOV · 30 s</span>
+                        <span class="mono-sm">Arrastrá para reordenar</span>
+                    </div>
+                    <div class="wod-gallery__grid" id="gallery-admin-grid">
+                        <div class="gallery-empty wod-empty" id="gallery-empty" style="grid-column:1/-1;">Aún no has subido archivos</div>
+                    </div>
+                    <div class="gallery-admin-loading" id="gallery-admin-loading" style="display:none;padding:12px 16px;">
+                        <div class="gallery-upload-progress">
+                            <div class="gallery-upload-progress-header" style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;">
+                                <span class="gallery-upload-label">Subiendo archivos</span>
+                                <span class="gallery-upload-counter" id="gallery-upload-counter">0 / 0</span>
+                            </div>
+                            <div class="gallery-progress-track" style="height:6px;border:1.5px solid var(--ink);margin-top:6px;">
+                                <div class="gallery-progress-fill" id="gallery-progress-fill" style="height:100%;background:var(--yellow);width:0;"></div>
                             </div>
                         </div>
-                        <span class="gallery-edit-count" id="gallery-edit-count">0/12 archivos</span>
                     </div>
                 </div>
+            </section>
+        </div>
 
-                <!-- Save/Cancel Buttons -->
-                <div class="form-actions" id="form-actions" style="display: none;">
-                    <button type="button" class="btn-cancel" id="profile-cancel">Cancelar</button>
-                    <button type="submit" class="btn-save" id="profile-save">Guardar Cambios</button>
+        <!-- RIGHT RAIL -->
+        <div class="wod-col-rail">
+
+            <!-- Slim Profile Card -->
+            <section class="card wod-sec wod-sec--profile">
+                <header class="card__head card__head--red">
+                    <div class="card__head-l"><span class="card__head-dot"></span><span>Mi perfil</span></div>
+                    <div class="card__head-actions">
+                        <a class="wbtn wbtn--dashed wbtn--xs" href="/artist/profile/details" style="background:var(--cream);">EDITAR</a>
+                    </div>
+                </header>
+                <div class="card__body">
+                    <div class="wod-profile__id">
+                        <div class="wod-profile__id-row">
+                            <!-- Avatar (dashboard.js avatar hooks preserved) -->
+                            <div class="wod-profile__avatar" id="avatar-wrapper">
+                                <img src="" alt="Avatar" class="avatar-image" id="avatar-image" style="display:none;">
+                                <span id="avatar-placeholder">AVATAR</span>
+                                <div class="avatar-loading" id="avatar-loading" style="display:none;"><div class="loading-spinner"></div></div>
+                            </div>
+                            <div class="wod-profile__names">
+                                <div class="wod-profile__name" id="artist-name">Cargando…</div>
+                                <div class="wod-profile__handle" id="artist-username">@usuario.wo</div>
+                                <div class="wod-profile__full" id="wod-profile-fullname">—</div>
+                            </div>
+                        </div>
+                        <div class="wod-profile__badges">
+                            <span class="pill pill--red verification-badge" id="verification-badge" data-state="No" style="display:none;"><span id="verification-text">NO VERIFICADO</span></span>
+                            <span class="pill pill--blue artist-level-badge" id="artist-level-badge"><span class="level-text" id="level-text">NUEVO</span></span>
+                            <span class="pill pill--outline embajador-badge" id="embajador-badge" style="display:none;">EMBAJADOR</span>
+                        </div>
+                        <div class="wod-profile__stats">
+                            <div class="stat"><div class="stat__value" id="stat-experience">—</div><div class="stat__label">Años</div></div>
+                            <div class="stat"><div class="stat__value" id="stat-styles">—</div><div class="stat__label">Estilos</div></div>
+                            <div class="stat"><div class="stat__value stat__value--red" id="stat-price">—</div><div class="stat__label">Tarifa / sesión</div></div>
+                        </div>
+                    </div>
+                    <a href="/artist/profile/details" class="wod-profile__link">
+                        <div class="wod-profile__link-l">
+                            <span class="wod-profile__link-t">Ver perfil completo</span>
+                            <span class="wod-profile__link-s">Email, ubicación, estudio, redes y más</span>
+                        </div>
+                        <span class="wod-profile__link-arrow">→</span>
+                    </a>
                 </div>
-            </form>
+            </section>
 
-            <!-- Status Message -->
-            <div class="status-message" id="status-message"></div>
-        </section>
-    </main>
+            <!-- Sobre mí (bio display + inline edit preserved) -->
+            <section class="card block-info-panel wod-sec wod-sec--about">
+                <header class="card__head">
+                    <div class="card__head-l"><span>Sobre mí</span></div>
+                    <div class="card__head-actions">
+                        <button class="wbtn wbtn--dashed wbtn--xs" id="edit-bio-btn" type="button" style="background:var(--cream);">EDITAR</button>
+                    </div>
+                </header>
+                <div class="card__body">
+                    <div class="wod-about" id="bio-content">
+                        <div class="bio-text" id="bio-text" data-empty-message="Sin bio aún. Editá para agregar una descripción.">—</div>
+                        <p class="wod-about__count" id="wod-bio-count">0 / 280 caracteres</p>
+                    </div>
+                    <div class="bio-edit-mode" id="bio-edit-mode" style="display:none;padding:14px;">
+                        <div class="bio-editor-wrapper bio-editor-wrapper--dashboard">
+                            <div class="bio-toolbar" id="dashboard-bio-toolbar" style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs" data-command="bold" title="Negrita"><strong>B</strong></button>
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs" data-command="italic" title="Cursiva"><em>I</em></button>
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs" data-command="underline" title="Subrayado"><u>U</u></button>
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs" data-command="strikeThrough" title="Tachado"><s>S</s></button>
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs color-btn" data-command="foreColor" title="Color de texto">A<input type="color" class="color-picker" id="dash-text-color-picker" value="#E63A1F" style="width:0;height:0;opacity:0;position:absolute;"></button>
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs color-btn" data-command="hiliteColor" title="Color de fondo">H<input type="color" class="color-picker" id="dash-bg-color-picker" value="#F2B519" style="width:0;height:0;opacity:0;position:absolute;"></button>
+                                <button type="button" class="toolbar-btn wbtn wbtn--xs" data-command="createLink" title="Enlace">🔗</button>
+                            </div>
+                            <div id="bio-editor" class="bio-editor" contenteditable="true" data-placeholder="Escribí tu bio aquí…" style="border:1.5px solid var(--ink);min-height:90px;padding:10px;background:var(--cream);font-family:var(--sans);font-size:13px;"></div>
+                        </div>
+                        <div class="edit-actions" style="display:flex;gap:8px;margin-top:10px;">
+                            <button class="wbtn wbtn--dashed wbtn--sm" id="bio-cancel" type="button">Cancelar</button>
+                            <button class="wbtn wbtn--dark wbtn--sm" id="bio-save" type="button">Guardar</button>
+                        </div>
+                    </div>
+                    <div class="portfolio-link" style="padding:0 14px 14px;">
+                        <a href="#" id="portfolio-url" target="_blank" rel="noopener" class="wod-profile__link-s" style="display:none;">↗ Ver portfolio</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Próximos pasos (live ONBOARDING_MILESTONES) -->
+            <section class="card wod-sec wod-sec--pasos">
+                <header class="card__head card__head--yellow">
+                    <div class="card__head-l"><span class="card__head-dot"></span><span>Próximos pasos · acciones que mueven tus cotizaciones</span></div>
+                    <div class="card__head-actions">
+                        <span class="mono-sm" id="wod-steps-meta">0 / 4 COMPLETADAS</span>
+                    </div>
+                </header>
+                <div class="card__body">
+                    <div class="wod-steps__bar">
+                        <div class="wod-steps__track"><div class="wod-steps__fill" id="wod-steps-fill"></div></div>
+                    </div>
+                    <div class="wod-steps__list" id="wod-steps-list">
+                        <div class="wod-empty">Cargando…</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Acciones rápidas (preserves dashboard.js action hooks) -->
+            <section class="card block-actions wod-sec wod-sec--actions">
+                <header class="card__head card__head--blue">
+                    <div class="card__head-l"><span class="card__head-dot"></span><span>Acciones rápidas</span></div>
+                </header>
+                <div class="card__body">
+                    <div class="wod-actions">
+                        <button class="wod-action wod-action--yellow" id="preview-profile-btn" type="button">
+                            <span class="wod-action__ic">◍</span><span class="wod-action__l">Ver mi perfil público</span><span class="wod-action__arrow">→</span>
+                        </button>
+                        <button class="wod-action wod-action--yellow" id="request-verification-btn" type="button">
+                            <span class="wod-action__ic">✓</span><span class="wod-action__l">Verificar mi perfil</span><span class="wod-action__arrow">→</span>
+                        </button>
+                        <label class="wod-action" for="gallery-input">
+                            <span class="wod-action__ic">+</span><span class="wod-action__l">Subir fotos / videos</span><span class="wod-action__arrow">→</span>
+                        </label>
+                        <button class="wod-action" id="share-profile-btn" type="button">
+                            <span class="wod-action__ic">↗</span><span class="wod-action__l">Compartir mi perfil</span><span class="wod-action__arrow">→</span>
+                        </button>
+                        <button class="wod-action" id="qr-profile-btn" type="button" onclick="openQRModal()">
+                            <span class="wod-action__ic">▦</span><span class="wod-action__l">Generar tarjeta QR</span><span class="wod-action__arrow">→</span>
+                        </button>
+                        <button class="wod-action" id="change-password-btn" type="button">
+                            <span class="wod-action__ic">⚷</span><span class="wod-action__l">Cambiar contraseña</span><span class="wod-action__arrow">→</span>
+                        </button>
+                        <button class="wod-action wod-action--danger" id="logout-btn" type="button">
+                            <span class="wod-action__ic">→</span><span class="wod-action__l">Cerrar sesión</span><span class="wod-action__arrow">→</span>
+                        </button>
+                    </div>
+                    <!-- ============================================================
+                         HIDDEN HOOK CLUSTER — the complete legacy profile form +
+                         identity/social/quote hooks live here so dashboard.js runs
+                         100% unmodified on the dashboard page (no null crashes).
+                         The user-facing editable copy is the /artist/profile/details
+                         page. Do not surface this block visually.
+                         ============================================================ -->
+                    <div class="wod-hook-hidden" aria-hidden="true">
+                        <!-- identity / social -->
+                        <p id="artist-location"><a id="location-link" href="#"><span id="location-text">-</span></a></p>
+                        <a href="#" id="instagram-link"></a>
+                        <a href="#" id="whatsapp-link"></a>
+                        <button id="copy-whatsapp-btn" type="button"></button>
+                        <button class="avatar-upload-btn" id="avatar-upload-btn" type="button"></button>
+                        <button class="avatar-ai-btn" id="avatar-ai-btn" type="button"></button>
+                        <input type="file" id="avatar-input" accept="image/*,image/heic,image/heif" hidden>
+                        <span id="quote-total">0</span><span id="quote-pending">0</span>
+                        <span id="quote-answered">0</span><span id="quote-applications">0</span>
+                        <button id="go-to-quotes-btn" type="button"></button>
+
+                        <!-- tattoo presence (display) -->
+                        <section class="tattoo-presence" id="tattoo-presence">
+                            <div class="tattoo-presence-list" id="current-tattoo-locations"></div>
+                            <div class="tattoo-presence-list" id="upcoming-tattoo-locations"></div>
+                        </section>
+
+                        <!-- full legacy profile form (hidden hook; editable copy on /details) -->
+                        <form id="profile-form" class="profile-form">
+                            <div class="form-row"><label class="form-label">Nombre Artistico</label>
+                                <div class="form-value" id="display-artistic-name">-</div>
+                                <input type="text" class="form-input-dashboard" id="input-artistic-name" style="display:none;"></div>
+                            <div class="form-row"><label class="form-label">Nombre Completo</label>
+                                <div class="form-value" id="display-full-name">-</div>
+                                <input type="text" class="form-input-dashboard" id="input-full-name" style="display:none;"></div>
+                            <div class="form-row"><label class="form-label">Email</label>
+                                <div class="form-value form-value-readonly" id="display-email">-</div></div>
+                            <div class="form-row"><label class="form-label">Ubicacion</label>
+                                <div class="form-value" id="display-location">-</div>
+                                <div class="dashboard-location-group" id="location-input-group" style="display:none;">
+                                    <div class="dashboard-location-wrapper">
+                                        <input type="text" class="form-input-dashboard" id="input-location" placeholder="Ciudad, Pais" autocomplete="off">
+                                        <button type="button" class="dashboard-geolocation-btn" id="dashboard-geolocation-btn" onclick="getDashboardGeolocation()" aria-label="Detectar ubicacion"></button>
+                                    </div>
+                                    <p class="dashboard-location-hint" id="dashboard-location-hint" aria-live="polite"></p>
+                                </div></div>
+                            <div class="form-row"><label class="form-label">Estilos</label>
+                                <div class="form-value styles-value" id="display-styles">-</div>
+                                <button type="button" class="styles-edit-trigger" id="styles-edit-trigger" style="display:none;" onclick="openStylesModal()">
+                                    <div class="styles-trigger-tags" id="styles-trigger-tags"><span class="styles-trigger-placeholder">Seleccionar estilos...</span></div>
+                                </button></div>
+                            <div class="form-row"><label class="form-label">Experiencia</label>
+                                <div class="form-value" id="display-experience">-</div>
+                                <select class="form-select-dashboard" id="input-experience" style="display:none;">
+                                    <option value="0-1">Menos de 1 ano</option><option value="1-3">1 - 3 anos</option>
+                                    <option value="3-5">3 - 5 anos</option><option value="5-10">5 - 10 anos</option>
+                                    <option value="10+">Mas de 10 anos</option></select></div>
+                            <div class="form-row"><label class="form-label">Tarifa por Sesion</label>
+                                <div class="form-value" id="display-price">-</div>
+                                <div class="price-input-group" id="price-input-group" style="display:none;">
+                                    <input type="number" class="form-input-dashboard" id="input-price" placeholder="150" min="0">
+                                    <select class="form-select-dashboard currency-select" id="input-currency">
+                                        <option value="USD">USD</option><option value="EUR">EUR</option><option value="MXN">MXN</option>
+                                        <option value="COP">COP</option><option value="ARS">ARS</option><option value="CLP">CLP</option>
+                                        <option value="PEN">PEN</option><option value="BRL">BRL</option><option value="GBP">GBP</option></select>
+                                </div></div>
+                            <div class="form-row"><label class="form-label">Portfolio / Web</label>
+                                <div class="form-value" id="display-portfolio">-</div>
+                                <input type="url" class="form-input-dashboard" id="input-portfolio" placeholder="https://..." style="display:none;"></div>
+                            <div class="form-row"><label class="form-label">Modalidad</label>
+                                <div class="form-value" id="display-work-type">-</div>
+                                <select class="form-select-dashboard" id="input-work-type" style="display:none;">
+                                    <option value="independent">Independiente</option><option value="studio">Estudio</option>
+                                    <option value="both">Ambos</option></select></div>
+                            <div class="form-row" id="studio-row" style="display:none;"><label class="form-label">Nombre del Estudio</label>
+                                <div class="form-value" id="display-studio">-</div>
+                                <div class="dashboard-studio-autocomplete" style="position:relative;">
+                                    <input type="text" class="form-input-dashboard" id="input-studio" style="display:none;" autocomplete="off">
+                                    <div class="studio-suggestions" id="dashboard-studio-suggestions"></div></div></div>
+                            <div class="form-row" id="address-row" style="display:none;"><label class="form-label" id="address-row-label">Direccion del estudio</label>
+                                <div class="form-value" id="display-address">-</div>
+                                <div class="dashboard-address-editor" style="display:none;" id="dashboard-address-editor">
+                                    <input type="text" class="form-input-dashboard weotzi-address-picker-input" id="input-address-search" placeholder="Buscar direccion…" autocomplete="off">
+                                    <div class="weotzi-address-fields" id="dashboard-address-preview" hidden></div></div></div>
+                            <div class="form-row"><label class="form-label">Disponibilidad por Estudios</label>
+                                <div class="form-value" id="display-tattoo-schedule-summary">-</div>
+                                <div class="tattoo-locations-editor" id="tattoo-locations-editor" style="display:none;">
+                                    <div class="tattoo-editor-group">
+                                        <div class="tattoo-editor-group-header"><span>Tatuando en</span>
+                                            <button type="button" class="tattoo-editor-add-btn" id="add-current-tattoo-location-btn">+ Agregar Estudio</button></div>
+                                        <div class="tattoo-location-form-list" id="current-tattoo-location-editor-list"></div></div>
+                                    <div class="tattoo-editor-group">
+                                        <div class="tattoo-editor-group-header"><span>Proximamente tatuando en</span>
+                                            <button type="button" class="tattoo-editor-add-btn" id="add-upcoming-tattoo-location-btn">+ Agregar Viaje</button></div>
+                                        <div class="tattoo-location-form-list" id="upcoming-tattoo-location-editor-list"></div></div></div></div>
+                            <div class="form-row"><label class="form-label">Instagram</label>
+                                <div class="form-value" id="display-instagram">-</div>
+                                <input type="text" class="form-input-dashboard" id="input-instagram" placeholder="@tuusuario" style="display:none;"></div>
+                            <div class="form-row"><label class="form-label">WhatsApp</label>
+                                <div class="form-value" id="display-whatsapp">-</div>
+                                <input type="tel" class="form-input-dashboard" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display:none;" data-clarity-mask="true"></div>
+                            <div class="form-row"><label class="form-label">Embajador</label>
+                                <div class="form-value form-value-readonly" id="display-embajador">-</div></div>
+                            <div class="form-row"><label class="form-label">Fecha de Nacimiento</label>
+                                <div class="form-value" id="display-birthdate">-</div>
+                                <input type="date" class="form-input-dashboard" id="input-birthdate" style="display:none;"></div>
+                            <div class="form-row"><label class="form-label">Newsletter</label>
+                                <div class="form-value" id="display-newsletter">-</div>
+                                <label class="toggle-switch" id="toggle-newsletter" style="display:none;">
+                                    <input type="checkbox" id="input-newsletter"><span class="toggle-slider"></span></label></div>
+                            <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display:none;">
+                                <label class="form-label">Galeria de Trabajos</label>
+                                <div class="gallery-edit-content">
+                                    <div class="gallery-edit-preview" id="gallery-edit-preview"></div>
+                                    <select id="gallery-edit-category-select" class="gallery-edit-category-select">
+                                        <option value="realizados">Trabajos realizados</option><option value="flash">Flash disponibles</option>
+                                        <option value="proyectos">Proyectos</option></select>
+                                    <label class="gallery-edit-upload-btn" for="gallery-edit-input"><span>Subir Fotos/Videos</span></label>
+                                    <input type="file" id="gallery-edit-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+                                    <div class="gallery-edit-loading" id="gallery-edit-loading" style="display:none;">
+                                        <span class="gallery-upload-counter" id="gallery-edit-upload-counter">0 / 0</span>
+                                        <div class="gallery-progress-fill" id="gallery-edit-progress-fill"></div></div>
+                                    <span class="gallery-edit-count" id="gallery-edit-count">0/12 archivos</span></div></div>
+                            <div class="form-actions" id="form-actions" style="display:none;">
+                                <button type="button" class="btn-cancel" id="profile-cancel">Cancelar</button>
+                                <button type="submit" class="btn-save" id="profile-save">Guardar Cambios</button></div>
+                        </form>
+                        <div class="status-message" id="status-message"></div>
+                        <button class="edit-toggle-btn" id="edit-toggle-btn" type="button"><span>Editar</span></button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- ===================== VISITOR ANALYTICS ENTRY ===================== -->
+    <section class="wod-analytics-entry" id="dashboard-analytics-entry" aria-label="Analiticas de visitantes">
+        <div class="wod-analytics-entry__copy">
+            <div class="mono-sm" style="color:var(--ink-2);">ANALITICAS</div>
+            <h2>Mapa de visitantes</h2>
+            <p>Consulta visitas, paises, ciudades y actividad en vivo en una vista dedicada.</p>
+        </div>
+        <a class="wbtn wbtn--dark" href="/artist/visitors/">ABRIR MAPA &rarr;</a>
+    </section>
+
+    <!-- ============================ FOOTER ============================ -->
+    <footer class="wod-footer">
+        <div class="wod-footer__cur" data-weotzi-currency-mount></div>
+        <div class="wod-footer__mid">HECHO CON AMOR POR WE ÖTZI · PARA ARTISTAS · © 2026 · TODOS LOS DERECHOS RESERVADOS</div>
+        <div class="wod-footer__soc"><a href="#">IG</a><a href="#">TT</a><a href="#">X</a><a href="#">YT</a></div>
+    </footer>
+
+    <!-- Mobile bottom tab bar -->
+    <nav class="wod-bottombar" aria-label="Navegación rápida">
+        <a class="wod-bottombar__tab is-active" href="/artist/dashboard"><span class="wod-bottombar__ic">◉</span><span class="wod-bottombar__l">Inicio</span></a>
+        <a class="wod-bottombar__tab" href="/my-quotations"><span class="wod-bottombar__ic">✉</span><span class="wod-bottombar__l">Cotiz</span><span class="wod-bottombar__badge" id="wod-bb-cotiz" hidden>0</span></a>
+        <a class="wod-bottombar__tab" href="/studio-spots"><span class="wod-bottombar__ic">◍</span><span class="wod-bottombar__l">Spots</span></a>
+        <a class="wod-bottombar__tab" href="/calendar"><span class="wod-bottombar__ic">▦</span><span class="wod-bottombar__l">Agenda</span></a>
+        <a class="wod-bottombar__tab" href="/artist/profile/details"><span class="wod-bottombar__ic">◎</span><span class="wod-bottombar__l">Perfil</span></a>
+    </nav>
+
+</div><!-- /wod-frame -->
+</div><!-- /wod-stage -->
+
+    <!-- ============================ MODALS (dashboard.js controlled) ============================ -->
 
     <!-- Password Change Modal -->
     <div id="password-modal" class="modal-overlay" onclick="closePasswordModalOnOverlay(event)">
         <div class="modal-container">
-            <button class="modal-close" onclick="closePasswordModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-            <div class="modal-header">
-                <h2 class="modal-title">Cambiar Contrasena</h2>
-                <p class="modal-subtitle">Ingresa tu nueva contrasena</p>
-            </div>
+            <button class="modal-close" onclick="closePasswordModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Cambiar contraseña</h2>
+            <p class="modal-subtitle">Ingresá tu nueva contraseña</p>
             <form id="password-form" onsubmit="handlePasswordChange(event)">
                 <div class="modal-form-group">
-                    <label for="new-password">NUEVA CONTRASENA</label>
-                    <input type="password" id="new-password" class="modal-input" placeholder="Minimo 8 caracteres" required minlength="8" data-clarity-mask="true">
+                    <label for="new-password">Nueva contraseña</label>
+                    <input type="password" id="new-password" class="modal-input" placeholder="Mínimo 8 caracteres" required minlength="8" data-clarity-mask="true">
                 </div>
                 <div class="modal-form-group">
-                    <label for="confirm-password">CONFIRMAR CONTRASENA</label>
-                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repite la contrasena" required data-clarity-mask="true">
+                    <label for="confirm-password">Confirmar contraseña</label>
+                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repetí la contraseña" required data-clarity-mask="true">
                 </div>
                 <div id="password-message" class="form-message"></div>
-                <button type="submit" class="btn-modal-submit">
-                    Actualizar
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                        <path d="M20 6L9 17l-5-5"/>
-                    </svg>
-                </button>
+                <button type="submit" class="btn-modal-submit">Actualizar →</button>
             </form>
         </div>
     </div>
@@ -737,257 +594,81 @@
     <!-- Verification Request Modal -->
     <div id="verification-modal" class="modal-overlay" onclick="closeVerificationModalOnOverlay(event)">
         <div class="modal-container verification-modal-container">
-            <button class="modal-close" onclick="closeVerificationModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-            <div class="modal-header">
-                <div class="verification-modal-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                        <path d="M9 12l2 2 4-4"/>
-                    </svg>
-                </div>
-                <h2 class="modal-title">Verificar tu Perfil</h2>
-                <p class="modal-subtitle">Accede a funciones exclusivas</p>
-            </div>
+            <button class="modal-close" onclick="closeVerificationModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Verificar tu perfil</h2>
+            <p class="modal-subtitle">Accedé a funciones exclusivas</p>
             <div class="verification-benefits">
-                <h4>Beneficios de la verificacion:</h4>
-                <ul class="benefits-list">
-                    <li>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        <span>Acceso anticipado a nuevas funciones</span>
-                    </li>
-                    <li>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        <span>Perfil destacado en busquedas</span>
-                    </li>
-                    <li>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        <span>Insignia de verificacion visible</span>
-                    </li>
-                    <li>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        <span>Mayor confianza de los clientes</span>
-                    </li>
+                <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:.12em;">Beneficios:</h4>
+                <ul class="benefits-list" style="font-size:13px;line-height:1.7;">
+                    <li>Acceso anticipado a nuevas funciones</li>
+                    <li>Perfil destacado en búsquedas</li>
+                    <li>Insignia de verificación visible</li>
+                    <li>Mayor confianza de los clientes</li>
                 </ul>
             </div>
             <div class="verification-requirements">
-                <h4>Requisitos de verificacion:</h4>
-                <p>Para verificar tu perfil necesitaras:</p>
-                <ul class="requirements-list">
-                    <li>Documento de identidad valido</li>
-                    <li>Verificacion del estudio o local (si aplica)</li>
-                    <li>Metodo de contacto verificable</li>
+                <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:.12em;">Requisitos:</h4>
+                <ul class="requirements-list" style="font-size:13px;line-height:1.7;">
+                    <li>Documento de identidad válido</li>
+                    <li>Verificación del estudio o local (si aplica)</li>
+                    <li>Método de contacto verificable</li>
                 </ul>
             </div>
-            <div class="verification-process">
-                <p class="process-note">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="16" x2="12" y2="12"/>
-                        <line x1="12" y1="8" x2="12.01" y2="8"/>
-                    </svg>
-                    Una vez enviada tu solicitud, nuestro equipo de soporte se pondra en contacto contigo para iniciar el proceso de verificacion.
-                </p>
-            </div>
+            <p class="process-note" style="font-size:12px;color:var(--ink-2);">Una vez enviada tu solicitud, soporte se pondrá en contacto para iniciar el proceso.</p>
             <div id="verification-message" class="form-message"></div>
-            <button type="button" class="btn-modal-submit btn-verification-submit" id="submit-verification-btn" onclick="submitVerificationRequest()">
-                Solicitar Verificacion
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                </svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- Upcoming Travel Modal -->
-    <div id="upcoming-travel-modal" class="modal-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
-        <div class="modal-container upcoming-travel-modal-container">
-            <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-            <div class="modal-header">
-                <h2 class="modal-title" id="upcoming-travel-modal-title">Agregar Viaje</h2>
-                <p class="modal-subtitle">Completa estudio, ciudad, fechas y agenda</p>
-            </div>
-            <form id="upcoming-travel-form">
-                <div class="modal-form-group">
-                    <label for="upcoming-travel-studio">ESTUDIO</label>
-                    <div class="upcoming-travel-autocomplete">
-                        <input type="text" id="upcoming-travel-studio" class="modal-input" placeholder="Nombre del estudio" autocomplete="off" required>
-                        <div class="upcoming-travel-suggestions" id="upcoming-travel-studio-suggestions"></div>
-                    </div>
-                </div>
-                <div class="modal-form-group">
-                    <label for="upcoming-travel-city">CIUDAD</label>
-                    <div class="upcoming-travel-autocomplete">
-                        <input type="text" id="upcoming-travel-city" class="modal-input" placeholder="Ciudad" autocomplete="off">
-                        <div class="upcoming-travel-suggestions" id="upcoming-travel-city-suggestions"></div>
-                    </div>
-                </div>
-                <div class="upcoming-travel-dates-grid">
-                    <div class="modal-form-group">
-                        <label for="upcoming-travel-start">FECHA INICIO</label>
-                        <input type="date" id="upcoming-travel-start" class="modal-input" required>
-                    </div>
-                    <div class="modal-form-group">
-                        <label for="upcoming-travel-end">FECHA FIN</label>
-                        <input type="date" id="upcoming-travel-end" class="modal-input" required>
-                    </div>
-                </div>
-                <div class="modal-form-group">
-                    <label for="upcoming-travel-agenda">ESTADO DE AGENDA</label>
-                    <select id="upcoming-travel-agenda" class="modal-input" required>
-                        <option value="open">Agenda abierta</option>
-                        <option value="closed">Agenda cerrada</option>
-                    </select>
-                </div>
-                <div id="upcoming-travel-message" class="form-message"></div>
-                <button type="submit" class="btn-modal-submit">
-                    Guardar Viaje
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                        <path d="M20 6L9 17l-5-5"/>
-                    </svg>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
-
-    <!-- Feedback Floating Button -->
-    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
-        <span id="feedback-tooltip" class="feedback-tooltip">Ayudanos a mejorar We Ötzi, deja tus comentarios</span>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-    </button>
-
-    <!-- Feedback Modal -->
-    <div id="feedback-modal" class="feedback-modal">
-        <div class="feedback-container">
-            <button class="feedback-close" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-            <div class="feedback-header">
-                <h2 class="feedback-title">Feedback</h2>
-                <p class="feedback-subtitle">Ayudanos a mejorar We Ötzi</p>
-            </div>
-            <form id="feedback-form">
-                <div class="feedback-form-group">
-                    <label for="feedback-reason">Motivo</label>
-                    <select id="feedback-reason" class="feedback-select" required>
-                        <option value="" disabled selected>Selecciona un motivo</option>
-                        <option value="error">Reportar un Error</option>
-                        <option value="sugerencia">Sugerencia de Mejora</option>
-                        <option value="pregunta">Pregunta / Duda</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                <div class="feedback-form-group">
-                    <label for="feedback-cause">Causa / Area</label>
-                    <select id="feedback-cause" class="feedback-select" required>
-                        <option value="" disabled selected>Selecciona el area</option>
-                        <option value="registro">Registro / Acceso</option>
-                        <option value="perfil">Perfil de Artista</option>
-                        <option value="dashboard">Dashboard</option>
-                        <option value="interfaz">Interfaz / Diseño</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                <div class="feedback-form-group">
-                    <label for="feedback-message">Mensaje</label>
-                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuentanos mas detalles..." required></textarea>
-                </div>
-                <div id="feedback-message-status" class="form-message"></div>
-                <button type="submit" class="btn-feedback-submit">
-                    Enviar Feedback
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                    </svg>
-                </button>
-            </form>
-        </div>
-    </div>
-
+            <button type="button" class="btn-modal-submit btn-verification-submit" id="submit-verification-btn" onclick="submitVerificationRequest()">Solicitar verificación →</button>
         </div>
     </div>
 
     <!-- AI Avatar Generator Modal -->
     <div id="ai-avatar-modal" class="modal-overlay" onclick="closeAIAvatarModalOnOverlay(event)">
         <div class="modal-container">
-            <button class="modal-close" onclick="closeAIAvatarModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-            <div class="modal-header">
-                <div class="verification-modal-icon" style="background: linear-gradient(135deg, #1e88e5, #d81b60);">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 3l1.912 5.813L21 12l-7.088 3.187L12 21l-1.912-5.813L3 12l7.088-3.187L12 3z"/>
-                    </svg>
-                </div>
-                <h2 class="modal-title">Generar Foto con IA</h2>
-                <p class="modal-subtitle">Describe cómo quieres que sea tu foto de perfil</p>
+            <button class="modal-close" onclick="closeAIAvatarModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Generar foto con IA</h2>
+            <p class="modal-subtitle">Describí cómo querés tu foto de perfil</p>
+            <div class="modal-form-group">
+                <label for="ai-avatar-prompt">Prompt / descripción</label>
+                <textarea id="ai-avatar-prompt" class="modal-input" rows="4" placeholder="Ej: artista del tatuaje en su estudio, estilo cinemático…"></textarea>
             </div>
-            <div class="modal-body">
-                <div class="modal-form-group">
-                    <label for="ai-avatar-prompt">PROMPT / DESCRIPCIÓN</label>
-                    <textarea id="ai-avatar-prompt" class="modal-input" rows="4" placeholder="Ej: Un artista del tatuaje trabajando en su estudio, estilo cinemático, luces suaves..."></textarea>
-                </div>
-                
-                <div id="ai-avatar-preview-container" class="ai-avatar-preview-container" style="display: none; text-align: center; margin: 20px 0;">
-                    <p class="preview-label" style="font-size: 0.8em; color: #888; margin-bottom: 10px;">Imagen Generada:</p>
-                    <img id="ai-avatar-preview" src="" alt="Vista previa IA" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
-                </div>
-
-                <div id="ai-avatar-message" class="form-message"></div>
-                
-                <div class="modal-actions-grid" style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px;">
-                    <button type="button" class="btn-modal-submit" id="generate-ai-avatar-btn" onclick="generateAIAvatar()">
-                        Generar Imagen
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 3l1.912 5.813L21 12l-7.088 3.187L12 21l-1.912-5.813L3 12l7.088-3.187L12 3z"/>
-                        </svg>
-                    </button>
-                    <button type="button" class="btn-modal-submit" id="use-ai-avatar-btn" style="display: none; background: #3ecf8e; color: white; border: none;" onclick="useAIAvatar()">
-                        Usar esta Foto
-                    </button>
-                </div>
+            <div id="ai-avatar-preview-container" style="display:none;text-align:center;margin:16px 0;">
+                <p class="mono-sm" style="color:var(--ink-2);">Imagen generada:</p>
+                <img id="ai-avatar-preview" src="" alt="Vista previa IA" style="max-width:100%;border:1.5px solid var(--ink);">
+            </div>
+            <div id="ai-avatar-message" class="form-message"></div>
+            <div style="display:grid;gap:10px;margin-top:14px;">
+                <button type="button" class="btn-modal-submit" id="generate-ai-avatar-btn" onclick="generateAIAvatar()">Generar imagen ✦</button>
+                <button type="button" class="btn-modal-submit" id="use-ai-avatar-btn" style="display:none;background:var(--blue);" onclick="useAIAvatar()">Usar esta foto</button>
             </div>
         </div>
     </div>
 
-    <!-- Styles Selector Modal -->
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="modal-overlay" onclick="closeQRModalOnOverlay(event)">
+        <div class="modal-container qr-modal-container">
+            <button class="modal-close" onclick="closeQRModal()" aria-label="Cerrar">✕</button>
+            <h2 class="qr-modal-title">QR de perfil</h2>
+            <div class="qr-destination-tabs">
+                <button class="qr-tab active" data-dest="profile">PERFIL</button>
+                <button class="qr-tab" data-dest="gallery">GALERÍA</button>
+            </div>
+            <div class="qr-canvas-wrapper"><canvas id="qr-canvas"></canvas></div>
+            <p class="qr-url-display" id="qr-url-display"></p>
+            <div class="qr-actions">
+                <button type="button" class="qr-action-btn qr-action-primary" onclick="downloadQRPNG()">↓ PNG</button>
+                <button type="button" class="qr-action-btn" onclick="downloadQRSVG()">↓ SVG</button>
+                <button type="button" class="qr-action-btn" id="qr-copy-btn" onclick="copyQRUrl()">⎘ Copiar URL</button>
+                <button type="button" class="qr-action-btn qr-action-share" id="qr-share-btn" onclick="shareQRUrl()" style="display:none">↗ Compartir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Styles Selector Modal (legacy hook; used on /artist/profile/details) -->
     <div id="styles-modal" class="modal-overlay" onclick="closeStylesModalOnOverlay(event)">
         <div class="modal-container styles-modal-container">
-            <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-            <div class="modal-header">
-                <h2 class="modal-title">Estilos</h2>
-                <p class="modal-subtitle">Selecciona los estilos que manejas</p>
-            </div>
-            <div id="dashboard-styles-grid" class="dashboard-styles-grid">
-                <span style="opacity:0.5;font-size:0.85rem;">Cargando estilos...</span>
-            </div>
+            <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Estilos</h2>
+            <p class="modal-subtitle">Seleccioná los estilos que manejás</p>
+            <div id="dashboard-styles-grid" class="dashboard-styles-grid"><span class="wod-skel">Cargando estilos...</span></div>
             <div class="dashboard-custom-style-row">
                 <input type="text" id="dashboard-custom-style-input" class="modal-input" placeholder="Agregar estilo personalizado..." onkeydown="if(event.key==='Enter'){event.preventDefault();addDashboardCustomStyle();}">
                 <button type="button" class="dashboard-custom-style-add-btn" onclick="addDashboardCustomStyle()">+</button>
@@ -999,63 +680,56 @@
         </div>
     </div>
 
-    <!-- QR Code Modal -->
-    <div id="qr-modal" class="modal-overlay" onclick="closeQRModalOnOverlay(event)">
-        <div class="modal-container qr-modal-container">
-            <button class="modal-close" onclick="closeQRModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-            <h2 class="qr-modal-title">QR DE PERFIL</h2>
-            <div class="qr-destination-tabs">
-                <button class="qr-tab active" data-dest="profile">PERFIL</button>
-                <button class="qr-tab" data-dest="gallery">GALERÍA</button>
-            </div>
-            <div class="qr-canvas-wrapper">
-                <canvas id="qr-canvas"></canvas>
-            </div>
-            <p class="qr-url-display" id="qr-url-display"></p>
-            <div class="qr-actions">
-                <button type="button" class="qr-action-btn qr-action-primary" onclick="downloadQRPNG()">↓ Descargar PNG</button>
-                <button type="button" class="qr-action-btn" onclick="downloadQRSVG()">↓ Descargar SVG</button>
-                <button type="button" class="qr-action-btn" id="qr-copy-btn" onclick="copyQRUrl()">⎘ Copiar URL</button>
-                <button type="button" class="qr-action-btn qr-action-share" id="qr-share-btn" onclick="shareQRUrl()" style="display:none">↗ Compartir</button>
-            </div>
+    <!-- Upcoming Travel Modal (legacy hook; used on /artist/profile/details) -->
+    <div id="upcoming-travel-modal" class="modal-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
+        <div class="modal-container upcoming-travel-modal-container">
+            <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title" id="upcoming-travel-modal-title">Agregar Viaje</h2>
+            <p class="modal-subtitle">Completá estudio, ciudad, fechas y agenda</p>
+            <form id="upcoming-travel-form">
+                <div class="modal-form-group"><label for="upcoming-travel-studio">Estudio</label>
+                    <div class="upcoming-travel-autocomplete">
+                        <input type="text" id="upcoming-travel-studio" class="modal-input" placeholder="Nombre del estudio" autocomplete="off" required>
+                        <div class="upcoming-travel-suggestions" id="upcoming-travel-studio-suggestions"></div></div></div>
+                <div class="modal-form-group"><label for="upcoming-travel-city">Ciudad</label>
+                    <div class="upcoming-travel-autocomplete">
+                        <input type="text" id="upcoming-travel-city" class="modal-input" placeholder="Ciudad" autocomplete="off">
+                        <div class="upcoming-travel-suggestions" id="upcoming-travel-city-suggestions"></div></div></div>
+                <div class="upcoming-travel-dates-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div class="modal-form-group"><label for="upcoming-travel-start">Fecha inicio</label>
+                        <input type="date" id="upcoming-travel-start" class="modal-input" required></div>
+                    <div class="modal-form-group"><label for="upcoming-travel-end">Fecha fin</label>
+                        <input type="date" id="upcoming-travel-end" class="modal-input" required></div></div>
+                <div class="modal-form-group"><label for="upcoming-travel-agenda">Estado de agenda</label>
+                    <select id="upcoming-travel-agenda" class="modal-input" required>
+                        <option value="open">Agenda abierta</option><option value="closed">Agenda cerrada</option></select></div>
+                <div id="upcoming-travel-message" class="form-message"></div>
+                <button type="submit" class="btn-modal-submit">Guardar Viaje →</button>
+            </form>
         </div>
     </div>
 
     <!-- Dashboard Gallery Lightbox -->
     <div class="dashboard-gallery-lightbox" id="dashboard-gallery-lightbox" aria-hidden="true">
-        <button class="dashboard-lightbox-close" id="dashboard-lightbox-close" aria-label="Cerrar visor">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-        </button>
-        <button class="dashboard-lightbox-nav dashboard-lightbox-prev" id="dashboard-lightbox-prev" aria-label="Anterior">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M15 18l-6-6 6-6"/>
-            </svg>
-        </button>
+        <button class="dashboard-lightbox-close" id="dashboard-lightbox-close" aria-label="Cerrar visor">✕</button>
+        <button class="dashboard-lightbox-nav dashboard-lightbox-prev" id="dashboard-lightbox-prev" aria-label="Anterior">‹</button>
         <div class="dashboard-lightbox-content">
             <img src="" alt="Trabajo" id="dashboard-lightbox-image">
-            <video id="dashboard-lightbox-video" controls playsinline preload="metadata"></video>
+            <video id="dashboard-lightbox-video" controls playsinline preload="metadata" style="display:none;"></video>
         </div>
-        <button class="dashboard-lightbox-nav dashboard-lightbox-next" id="dashboard-lightbox-next" aria-label="Siguiente">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M9 18l6-6-6-6"/>
-            </svg>
-        </button>
+        <button class="dashboard-lightbox-nav dashboard-lightbox-next" id="dashboard-lightbox-next" aria-label="Siguiente">›</button>
         <div class="dashboard-lightbox-counter" id="dashboard-lightbox-counter">1 / 1</div>
     </div>
 
+    <!-- ============================ SCRIPTS ============================ -->
     <script src="/shared/js/bio-formatting.js"></script>
-    <script src="/shared/js/bauhaus-footer.js"></script>
-    <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/artist-auth.js?v=20260602-artist-dashboard-12"></script>
     <script src="/shared/js/heic-converter.js"></script>
-    <script src="/shared/js/dashboard.js"></script>
-    <script src="/shared/js/feedback.js"></script>
-    <script src="/shared/js/header-effects.js"></script>
+    <script src="/shared/js/geocoder.js"></script>
+    <script src="/shared/js/address-picker.js"></script>
+    <script src="/shared/js/instagram-import.js"></script>
+    <script src="/shared/js/dashboard.js?v=20260602-artist-dashboard-12"></script>
+    <script src="/shared/js/dashboard-redesign.js?v=20260602-artist-dashboard-12"></script>
 </body>
 
 </html>

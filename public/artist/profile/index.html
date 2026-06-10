@@ -7,13 +7,17 @@
     <title>WE OTZI | Perfil del Artista</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
-    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
     <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+        (function(){
+            var id = window.CLARITY_PROJECT_ID;
+            if (!id || id === 'CLARITY_TRACKING_ID') return;
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script",id);
+        })();
     </script>
 
     <meta name="description" content="Conoce el trabajo de este artista tatuador en We Otzi">
@@ -30,8 +34,12 @@
         href="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/jsvectormap.min.css"
     >
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
+    <link rel="stylesheet" href="/shared/css/reviews.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <script>
         window.initArtistProfileGoogleMaps = function () {
@@ -326,6 +334,10 @@
             </article>
         </section>
 
+        <section class="profile-panel reveal-block" id="artist-reviews-panel">
+            <div id="artist-reviews"></div>
+        </section>
+
         <section class="profile-panel cta-footer-panel reveal-block">
             <div>
                 <p class="section-kicker">Siguiente paso</p>
@@ -372,6 +384,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/jsvectormap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/maps/world.js"></script>
     <script src="/shared/js/bauhaus-footer.js"></script>
+    <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
 </body>
 

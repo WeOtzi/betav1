@@ -216,7 +216,7 @@ El plan se divide en **3 fases**: reparaciones críticas, mejoras a features exi
 - Alertas visuales en el dashboard cuando un servicio falla
 - Tiempo de latencia de cada servicio
 
-### 3.5 Tickets de Soporte Centralizados (mejora de feedback_tickets en backoffice)
+### 3.5 Conversaciones de Soporte Centralizadas
 
 - Vista unificada de tickets manuales + auto-generados
 - Asignación a agentes de soporte

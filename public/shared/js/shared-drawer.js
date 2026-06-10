@@ -564,12 +564,115 @@ window.saveRating = async function(quoteId, rating, reason) {
 // ============================================
 
 // Valid state transitions map
+// ============ TIMELINE VISUAL ============
+
+const TIMELINE_STEPS = [
+    { status: 'pending',          icon: 'fa-clock',              label: 'Pendiente' },
+    { status: 'responded',        icon: 'fa-reply',              label: 'Respondida' },
+    { status: 'client_approved',  icon: 'fa-thumbs-up',          label: 'Aprobada' },
+    { status: 'in_progress',      icon: 'fa-paint-brush',        label: 'En Progreso' },
+    { status: 'artist_completed', icon: 'fa-clipboard-check',    label: 'Lista para Cliente' },
+    { status: 'completed',        icon: 'fa-circle-check',       label: 'Completada' }
+];
+
+const TERMINAL_STEPS = {
+    'client_rejected': { icon: 'fa-thumbs-down', label: 'Rechazada', color: '#ef4444' },
+    'expired':         { icon: 'fa-hourglass-end', label: 'Expirada', color: '#9ca3af' }
+};
+
+function renderQuoteTimeline(quote) {
+    const currentStatus = quote.quote_status;
+    const createdAt = quote.created_at;
+    const updatedAt = quote.updated_at;
+
+    const isTerminal = TERMINAL_STEPS[currentStatus];
+
+    // Find index of current status in the main flow
+    let currentIdx = TIMELINE_STEPS.findIndex(s => s.status === currentStatus);
+
+    const steps = TIMELINE_STEPS.map((step, idx) => {
+        let state = 'future'; // default: grey/disabled
+        let timestamp = '';
+
+        if (isTerminal) {
+            // If terminal state: mark steps up to where it diverged as completed
+            // client_rejected diverges after responded (idx 1)
+            // expired can happen at any point
+            const divergeIdx = currentStatus === 'client_rejected' ? 1 : currentIdx >= 0 ? currentIdx : 0;
+            if (idx < divergeIdx) state = 'completed';
+            else if (idx === divergeIdx) state = 'completed';
+            else state = 'future';
+        } else if (currentIdx >= 0) {
+            if (idx < currentIdx) state = 'completed';
+            else if (idx === currentIdx) state = 'current';
+        }
+
+        if (idx === 0 && createdAt) {
+            timestamp = formatTimelineDate(createdAt);
+        } else if (state === 'current' && updatedAt && idx > 0) {
+            timestamp = formatTimelineDate(updatedAt);
+        }
+
+        return { ...step, state, timestamp };
+    });
+
+    // Add terminal step if applicable
+    let terminalHtml = '';
+    if (isTerminal) {
+        const t = TERMINAL_STEPS[currentStatus];
+        terminalHtml = `
+            <div class="timeline-step timeline-step--terminal">
+                <div class="timeline-connector timeline-connector--terminal" style="border-color: ${t.color};"></div>
+                <div class="timeline-dot timeline-dot--terminal" style="background: ${t.color};">
+                    <i class="fa-solid ${t.icon}"></i>
+                </div>
+                <div class="timeline-label">
+                    <span class="timeline-status" style="color: ${t.color};">${t.label}</span>
+                    ${updatedAt ? `<span class="timeline-time">${formatTimelineDate(updatedAt)}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="quote-timeline">
+            <div class="timeline-track">
+                ${steps.map((step, idx) => `
+                    <div class="timeline-step timeline-step--${step.state}">
+                        ${idx > 0 ? `<div class="timeline-connector timeline-connector--${step.state}"></div>` : ''}
+                        <div class="timeline-dot timeline-dot--${step.state}">
+                            <i class="fa-solid ${step.icon}"></i>
+                        </div>
+                        <div class="timeline-label">
+                            <span class="timeline-status">${step.label}</span>
+                            ${step.timestamp ? `<span class="timeline-time">${step.timestamp}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+                ${terminalHtml}
+            </div>
+        </div>
+    `;
+}
+
+function formatTimelineDate(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    const day = d.getDate();
+    const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const month = months[d.getMonth()];
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${day} ${month} ${hours}:${mins}`;
+}
+
 const VALID_STATUS_TRANSITIONS = {
     'pending': ['responded', 'expired'],
     'responded': ['client_approved', 'client_rejected', 'expired'],
     'client_approved': ['in_progress', 'expired'],
     'client_rejected': ['responded'],
-    'in_progress': ['completed'],
+    'in_progress': ['artist_completed'],
+    'artist_completed': ['in_progress', 'completed'],
     'completed': [],
     'expired': []
 };
@@ -580,6 +683,7 @@ const STATUS_LABELS = {
     'client_approved': 'APROBADA',
     'client_rejected': 'RECHAZADA',
     'in_progress': 'EN PROGRESO',
+    'artist_completed': 'LISTA PARA CLIENTE',
     'completed': 'COMPLETADA',
     'expired': 'EXPIRADA'
 };
@@ -600,6 +704,7 @@ window.updateQuoteStatus = async function(quoteId, newStatus) {
         const { error } = await _supabase.from('quotations_db').update({ quote_status: newStatus }).eq('id', quoteId);
         if (error) throw error;
         quote.quote_status = newStatus;
+        if (newStatus === 'artist_completed') quote.artist_completed_at = new Date().toISOString();
         window.showToast?.(`Estado actualizado: ${STATUS_LABELS[newStatus] || newStatus}`, 'success');
 
         try {
@@ -632,6 +737,36 @@ window.updateQuoteStatus = async function(quoteId, newStatus) {
         if (typeof updateStats === 'function') updateStats();
         inspectQuote(quoteId);
     } catch (err) { console.error('Error updating status:', err); }
+};
+
+window.openArtistClientReview = function(quoteId) {
+    const quote = quotations.find(q => q.id.toString() === quoteId.toString());
+    if (!quote || !window.WeOtziReviews) return;
+
+    if (quote.quote_status !== 'completed') {
+        window.showToast?.('Solo puedes reseñar al cliente cuando la cotizacion este completada', 'warning');
+        return;
+    }
+
+    if ((quote.dispute_status || 'none') === 'open') {
+        window.showToast?.('No se puede reseñar con un reclamo abierto', 'warning');
+        return;
+    }
+
+    if (!quote.client_user_id) {
+        window.showToast?.('El cliente debe estar registrado para recibir una resena verificada', 'warning');
+        return;
+    }
+
+    window.WeOtziReviews.openReviewModal({
+        title: `Calificar a ${quote.client_full_name || 'cliente'}`,
+        reviewerType: 'artist',
+        contextType: 'quotation',
+        contextId: quote.id,
+        revieweeType: 'client',
+        revieweeUserId: quote.client_user_id,
+        revieweeDisplayName: quote.client_full_name || 'Cliente'
+    });
 };
 
 window.updateQuotePriority = async function(quoteId, newPriority) {
@@ -1756,7 +1891,7 @@ window.submitConfirmation = async function(quoteId) {
             final_budget_currency: currency,
             final_sessions: sessions,
             final_comment: comment || null,
-            quote_status: 'completed'
+            quote_status: 'client_approved'
         };
 
         const { error } = await _supabase.from('quotations_db').update(updateData).eq('id', quoteId);
@@ -1786,11 +1921,11 @@ window.submitConfirmation = async function(quoteId) {
             quote.final_budget_currency = currency;
             quote.final_sessions = sessions;
             quote.final_comment = comment || null;
-            quote.quote_status = 'completed';
+            quote.quote_status = 'client_approved';
         }
 
         try {
-            window.ConfigManager.sendN8NEvent('quotation_completed_summary', {
+            window.ConfigManager.sendN8NEvent('client_approved_quotation', {
                 quote_id: quote ? quote.quote_id : quoteId,
                 client_name: quote ? (quote.client_full_name || '') : '',
                 client_email: quote ? (quote.client_email || '') : '',
@@ -2120,6 +2255,7 @@ window.inspectQuote = async function(quoteId, options = {}) {
             </div>`;
     } else if (!readOnly) {
         let primaryAction = '';
+        let reviewAction = '';
         const qs = quote.quote_status;
         if (qs === 'pending') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="openResponseModal('${quote.id}')">RESPONDER</button>`;
@@ -2130,9 +2266,14 @@ window.inspectQuote = async function(quoteId, options = {}) {
         } else if (qs === 'client_rejected') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-red, #C62828); color: white;" onclick="openResponseModal('${quote.id}')">REENVIAR</button>`;
         } else if (qs === 'in_progress') {
-            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;" onclick="updateQuoteStatus('${quote.id}', 'completed')">MARCAR COMPLETADO</button>`;
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;" onclick="updateQuoteStatus('${quote.id}', 'artist_completed')">MARCAR LISTO PARA CLIENTE</button>`;
+        } else if (qs === 'artist_completed') {
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>ESPERANDO CIERRE DEL CLIENTE</button>`;
         } else if (qs === 'completed') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>COMPLETADO</button>`;
+            if (quote.client_user_id) {
+                reviewAction = `<button class="action-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-yellow, #F5C518); color: var(--text-on-light, #1A1A1A);" onclick="openArtistClientReview('${quote.id}')">RESENAR CLIENTE</button>`;
+            }
         } else if (qs === 'expired') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>EXPIRADA</button>`;
         } else {
@@ -2142,6 +2283,7 @@ window.inspectQuote = async function(quoteId, options = {}) {
         actionButtonsHtml = `
             <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                 ${primaryAction}
+                ${reviewAction}
                 <button class="action-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-yellow, #F5C518); color: var(--text-on-light, #1A1A1A);" onclick="openEditQuoteModal('${quote.id}')">EDITAR</button>
                 <button class="action-btn archive-btn" style="flex: 1; padding: 1rem;" onclick="bulkArchiveSingle('${quote.id}')">Archive</button>
             </div>`;
@@ -2163,11 +2305,12 @@ window.inspectQuote = async function(quoteId, options = {}) {
                 </select>
             </div>
         </div>
+        ${renderQuoteTimeline(quote)}
         <h2 style="margin-bottom: 2rem;">Quotation<br>Details</h2>
         <div class="info-grid" style="gap: 2rem 1.5rem; margin-bottom: 2rem;">
             <div class="info-block"><label>Client</label><p>${quote.client_full_name || '-'}</p></div>
             <div class="info-block"><label>Cliente Budget</label><p>${quote.client_budget_amount ? `${quote.client_budget_amount} ${quote.client_budget_currency || ''}` : '-'}</p></div>
-            <div class="info-block"><label>Tu Presupuesto</label><p>${quote.artist_budget_amount ? `${quote.artist_budget_amount} ${quote.artist_budget_currency || ''}` : '-'}</p></div>
+            <div class="info-block"><label>Tu Presupuesto</label><p>${quote.artist_budget_amount ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.artist_budget_amount, quote.artist_budget_currency || 'USD') : `${quote.artist_budget_amount} ${quote.artist_budget_currency || ''}`) : '-'}</p></div>
             <div class="info-block"><label>Sesiones</label><p>${quote.tattoo_estimated_sessions || '-'}</p></div>
             <div class="info-block"><label>Placement</label><p>${quote.tattoo_body_part || '-'}</p></div>
             <div class="info-block"><label>Style</label><p>${getStyleDisplayName(quote.tattoo_style)}</p></div>
@@ -2177,7 +2320,7 @@ window.inspectQuote = async function(quoteId, options = {}) {
         ${quote.final_budget_amount ? `
         <div class="info-block" style="margin-top: 2rem; padding: 1.5rem; background: var(--bauhaus-yellow, #F5C518); border-radius: 4px;">
             <label style="color: var(--text-on-light, #1A1A1A); margin-bottom: 0.75rem;">PRESUPUESTO FINAL APROBADO</label>
-            <p style="font-size: 1.25rem; font-weight: bold; color: var(--text-on-light, #1A1A1A); margin-bottom: 0.5rem;">${quote.final_budget_amount} ${quote.final_budget_currency || ''}</p>
+            <p style="font-size: 1.25rem; font-weight: bold; color: var(--text-on-light, #1A1A1A); margin-bottom: 0.5rem;">${window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.final_budget_amount, quote.final_budget_currency || 'USD') : `${quote.final_budget_amount} ${quote.final_budget_currency || ''}`}</p>
             ${quote.final_sessions ? `<p style="font-size: 0.95rem; font-weight: 500; color: var(--text-on-light, #1A1A1A); margin-bottom: 0.5rem;">SESIONES: ${quote.final_sessions}</p>` : ''}
             ${quote.final_comment ? `<p style="font-size: 0.9rem; margin-top: 0.75rem; color: var(--text-on-light, #1A1A1A); font-style: italic;">"${quote.final_comment}"</p>` : ''}
         </div>

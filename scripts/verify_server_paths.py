@@ -1,9 +1,10 @@
 import paramiko
+from remote_credentials import load_ssh_password
 
 HOST = '92.112.189.44'
 PORT = 65002
 USERNAME = 'u795331143'
-PASSWORD = 'Abnerisai24.'
+PASSWORD = load_ssh_password()
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

@@ -1,0 +1,416 @@
+{
+  "generatedAt": "2026-05-11T21:05:00-03:00",
+  "summary": "Registro de la migracion web-local de We Otzi. La base fue la version local en C:\\dev\\weotzi-unified y se integraron cambios seleccionados del snapshot del servidor web para construir una version unificada sin perder avances locales.",
+  "status": [
+    {
+      "label": "Rama",
+      "value": "codex/web-local-unified-merge"
+    },
+    {
+      "label": "Base",
+      "value": "Local avanzada"
+    },
+    {
+      "label": "Snapshot web",
+      "value": "Hostinger beta"
+    },
+    {
+      "label": "Estado",
+      "value": "Validado y listo para publicar"
+    }
+  ],
+  "timeline": [
+    {
+      "when": "01",
+      "title": "Comparacion de fuentes",
+      "detail": "Se contrasto el snapshot web contra el repositorio local y se clasificaron archivos iguales, cambiados, solo web y solo local."
+    },
+    {
+      "when": "02",
+      "title": "Backend integrado",
+      "detail": "Se portaron servicios y rutas de email, soporte y monedas, ajustando autenticacion al modelo local de superadmin y soporte."
+    },
+    {
+      "when": "03",
+      "title": "Frontend integrado",
+      "detail": "Se preservo el header visual del servidor en registro y se mantuvieron flujos locales avanzados como address picker e importacion Instagram."
+    },
+    {
+      "when": "04",
+      "title": "Datos y RLS",
+      "detail": "Se agrego migracion para soporte, mensajes, monedas, logs y app_settings con politicas compatibles."
+    },
+    {
+      "when": "05",
+      "title": "Registro publico",
+      "detail": "Se creo esta pagina para exponer resumen, decisiones, archivos y estado de validacion de la migracion."
+    }
+  ],
+  "decisions": [
+    {
+      "title": "La base queda en local",
+      "detail": "La version local tenia mas funcionalidades recientes; por eso el merge no reemplazo archivos completos si eso eliminaba flujos locales."
+    },
+    {
+      "title": "Header remoto sin perder registro local",
+      "detail": "El servidor tenia un header visual mas reciente para registro, pero el JS local de registro tenia address picker e Instagram. Se porto la capa visual y se conservo la logica local."
+    },
+    {
+      "title": "Backoffice sigue siendo superadmin",
+      "detail": "Las rutas nuevas de email y monedas se protegieron con el guard local de superadmin, no con usuarios de soporte ni con token cron expuesto en navegador."
+    },
+    {
+      "title": "Soporte separado de admin",
+      "detail": "Los endpoints de agente ahora validan que exista un usuario de soporte activo asociado al bearer token antes de tomar, responder o cerrar conversaciones."
+    },
+    {
+      "title": "Log detallado sin secretos",
+      "detail": "El registro documenta decisiones tecnicas y evidencias de merge, pero no publica tokens, passwords, trazas internas privadas ni variables sensibles."
+    }
+  ],
+  "modules": [
+    {
+      "name": "Email routing",
+      "summary": "Se integro el servicio remoto de email por evento y su administracion desde backoffice.",
+      "items": [
+        "Cliente compartido con bearer de superadmin.",
+        "Endpoints admin protegidos.",
+        "Templates BillionMail versionados."
+      ]
+    },
+    {
+      "name": "Soporte",
+      "summary": "Se porto chat publico y flujo de agente, ajustado a la separacion local entre soporte y backoffice.",
+      "items": [
+        "Chat publico con anonimo persistente.",
+        "Dashboard de soporte con asignacion inferida desde sesion.",
+        "Validacion server-side de agente activo."
+      ]
+    },
+    {
+      "name": "Monedas",
+      "summary": "Se agregaron endpoints y UI de administracion para monedas y tasas.",
+      "items": [
+        "Tabla currencies.",
+        "Logs de refresco.",
+        "Refresco manual desde backoffice con bearer de superadmin."
+      ]
+    },
+    {
+      "name": "Registro",
+      "summary": "Se fusiono el header visual remoto con el registro local avanzado.",
+      "items": [
+        "Header Bauhaus y drawer.",
+        "Address picker local preservado.",
+        "Importacion Instagram local preservada."
+      ]
+    },
+    {
+      "name": "Dashboard artista",
+      "summary": "Se agrego bloque de visitantes del servidor web sin reemplazar el dashboard local.",
+      "items": [
+        "Seccion visitors map.",
+        "Chart.js.",
+        "Modulo visitors-map.js."
+      ]
+    },
+    {
+      "name": "Cotizacion",
+      "summary": "Se agrego encuesta post-cotizacion del servidor y se mantuvo el flujo local de quotation.",
+      "items": [
+        "CSS de encuesta.",
+        "JS de survey.",
+        "Carga al final de quotation."
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "server.js",
+      "type": "security",
+      "badge": "security",
+      "change": "Merge backend de email, soporte y monedas con guards locales.",
+      "rationale": "Integra funcionalidades web y evita que endpoints administrativos queden abiertos o dependan de soporte."
+    },
+    {
+      "path": "services/email-service.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Servicio remoto de envio de emails versionado localmente.",
+      "rationale": "Permite centralizar canales, templates y envio transaccional."
+    },
+    {
+      "path": "services/email-event-mapping.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Mapa de eventos de email portado desde web.",
+      "rationale": "Define configuracion por evento sin hardcodear cada pantalla."
+    },
+    {
+      "path": "templates/email/billionmail/*",
+      "type": "added",
+      "badge": "added",
+      "change": "Templates de email del servidor web.",
+      "rationale": "Conserva contenido transaccional existente en produccion."
+    },
+    {
+      "path": "public/shared/js/email-client.js",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Cliente de email con headers bearer cuando hay sesion admin.",
+      "rationale": "El cliente remoto necesitaba autenticacion para operar con las rutas protegidas locales."
+    },
+    {
+      "path": "public/shared/js/email-routing-admin.js",
+      "type": "added",
+      "badge": "added",
+      "change": "UI de administracion de eventos de email.",
+      "rationale": "Permite gestionar routing desde backoffice."
+    },
+    {
+      "path": "public/shared/js/config-manager.js",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Envio de eventos ahora delega en EmailClient con fallback legado.",
+      "rationale": "Une el nuevo sistema de email con llamadas existentes sin romper compatibilidad."
+    },
+    {
+      "path": "public/shared/js/support-chat.js",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Chat publico envia anonymous_id y renderiza respuesta directa si realtime no esta disponible.",
+      "rationale": "Evita respuestas duplicadas y mantiene feedback visible bajo RLS mas estricta."
+    },
+    {
+      "path": "public/shared/js/support-loader.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Loader compartido del widget de soporte.",
+      "rationale": "Carga el chat de soporte en paginas publicas y de producto."
+    },
+    {
+      "path": "public/shared/css/support-chat.css",
+      "type": "added",
+      "badge": "added",
+      "change": "Estilos del chat de soporte.",
+      "rationale": "Preserva la experiencia visual agregada en la version web."
+    },
+    {
+      "path": "public/shared/js/support-faq.json",
+      "type": "added",
+      "badge": "added",
+      "change": "FAQ local del chat.",
+      "rationale": "Da respuestas inmediatas antes de escalar a soporte humano."
+    },
+    {
+      "path": "public/shared/js/currency-utils.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Utilidades compartidas de monedas.",
+      "rationale": "Permiten formatear y consumir tasas en frontend."
+    },
+    {
+      "path": "public/shared/js/admin.js",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Backoffice carga secciones de email routing y monedas.",
+      "rationale": "Expone administracion de las funcionalidades web dentro del panel local."
+    },
+    {
+      "path": "public/backoffice/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Sidebar y secciones nuevas para email routing y monedas.",
+      "rationale": "Centraliza la operacion en backoffice."
+    },
+    {
+      "path": "public/register-artist/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Header visual remoto integrado sobre registro local.",
+      "rationale": "Mantiene el cambio visual del servidor sin perder el flujo avanzado local."
+    },
+    {
+      "path": "public/registerclosedbeta/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Header Bauhaus y drawer portados desde web.",
+      "rationale": "Alinea visualmente ambos registros."
+    },
+    {
+      "path": "public/shared/js/register.js",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Google Places ahora es opcional si Autocomplete no esta disponible.",
+      "rationale": "Evita que una carga parcial de Google Maps rompa el wizard de registro o fuerce redireccion al landing."
+    },
+    {
+      "path": "public/shared/css/register-nav-header.css",
+      "type": "added",
+      "badge": "added",
+      "change": "CSS del header de registro remoto.",
+      "rationale": "Preserva el cambio visual hecho directamente en servidor."
+    },
+    {
+      "path": "public/shared/js/register-nav-header.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Interacciones del drawer y header de registro.",
+      "rationale": "Completa el header remoto en local."
+    },
+    {
+      "path": "public/shared/js/artist-registration-progress.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Helper de progreso de perfil de artista portado desde web.",
+      "rationale": "Evita referencias rotas en registro y conserva la logica remota de continuidad del onboarding."
+    },
+    {
+      "path": "public/artist/dashboard/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Bloque de visitors map y scripts asociados.",
+      "rationale": "Recupera funcionalidad visual del servidor sin reemplazar dashboard local."
+    },
+    {
+      "path": "public/shared/js/visitors-map.js",
+      "type": "added",
+      "badge": "added",
+      "change": "Modulo de mapa/analytics de visitantes.",
+      "rationale": "Soporta el bloque nuevo en dashboard de artista."
+    },
+    {
+      "path": "supabase/migrations/20260329000000_verification_history_and_status_history.sql",
+      "type": "added",
+      "badge": "added",
+      "change": "Migracion remota faltante copiada a local.",
+      "rationale": "Evita drift de esquema respecto al servidor."
+    },
+    {
+      "path": "supabase/migrations/20260329100000_support_tables_and_job_board_bids.sql",
+      "type": "added",
+      "badge": "added",
+      "change": "Migracion remota faltante copiada a local.",
+      "rationale": "Sincroniza soporte y job board con web."
+    },
+    {
+      "path": "supabase/migrations/20260511000000_web_merge_support_email_currency.sql",
+      "type": "added",
+      "badge": "added",
+      "change": "Migracion nueva para soporte, monedas y app_settings.",
+      "rationale": "Formaliza tablas y politicas necesarias para los modulos integrados."
+    },
+    {
+      "path": "public/artist/login/index.html",
+      "type": "added",
+      "badge": "added",
+      "change": "Pagina remota de login de artista agregada.",
+      "rationale": "El servidor tenia esta entrada publica y se conserva en la version unificada."
+    },
+    {
+      "path": ".htaccess",
+      "type": "added",
+      "badge": "added",
+      "change": "Reglas web del servidor versionadas.",
+      "rationale": "Mantiene comportamiento de hosting Apache/proxy para beta."
+    },
+    {
+      "path": "server_status.php",
+      "type": "added",
+      "badge": "added",
+      "change": "Archivo de estado del servidor portado.",
+      "rationale": "Conserva herramienta operativa del hosting."
+    },
+    {
+      "path": "default.php",
+      "type": "added",
+      "badge": "added",
+      "change": "Entrada PHP remota copiada.",
+      "rationale": "Preserva archivo presente en public_html/beta."
+    },
+    {
+      "path": "public/*/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Se agregaron scripts compartidos de email, monedas y soporte donde corresponde.",
+      "rationale": "Asegura que los modulos integrados esten disponibles en las vistas publicas, cliente y artista."
+    },
+    {
+      "path": "public/backoffice/login/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Carga clientes compartidos compatibles con backoffice.",
+      "rationale": "Mantiene consistencia de librerias sin alterar el flujo dedicado de login superadmin."
+    },
+    {
+      "path": "public/support/dashboard/index.html",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Carga clientes compartidos para soporte.",
+      "rationale": "Permite convivir con el chat y servicios nuevos sin dar privilegios admin."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-05-11-web-local-merge.md",
+      "type": "added",
+      "badge": "added",
+      "change": "Plan de merge persistido.",
+      "rationale": "Deja rastro revisable de la ejecucion del plan."
+    },
+    {
+      "path": "public/migration-log/*",
+      "type": "added",
+      "badge": "added",
+      "change": "Pagina publica de log de migracion.",
+      "rationale": "Cumple el requisito de mostrar resumen, razonamiento tecnico resumido y archivos modificados."
+    },
+    {
+      "path": "docs/CHANGELOG.md",
+      "type": "changed",
+      "badge": "changed",
+      "change": "Entrada de migracion agregada.",
+      "rationale": "Registra el estado actual de la version unificada."
+    }
+  ],
+  "validation": [
+    {
+      "name": "Sintaxis",
+      "items": [
+        {
+          "status": "OK",
+          "statusClass": "result-ok",
+          "detail": "node --check paso sobre server.js y scripts tocados de frontend/servicios."
+        }
+      ]
+    },
+    {
+      "name": "Tests",
+      "items": [
+        {
+          "status": "OK",
+          "statusClass": "result-ok",
+          "detail": "node --test auth/backoffice/whatsapp, npm run test:prequote, npm run test:instagram y npm audit pasaron."
+        }
+      ]
+    },
+    {
+      "name": "Navegador",
+      "items": [
+        {
+          "status": "OK",
+          "statusClass": "result-ok",
+          "detail": "Browser QA local en /migration-log, /register-artist?source=instagram, /registerclosedbeta, /quotation y /backoffice/login paso."
+        }
+      ]
+    },
+    {
+      "name": "Deploy",
+      "items": [
+        {
+          "status": "OK",
+          "statusClass": "result-ok",
+          "detail": "Publicacion ejecutada con weotzi-deploy-web; el script genera backup remoto antes de extraer."
+        }
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
 
 // State - These are used by shared-drawer.js
 let currentUser = null;
@@ -300,8 +300,12 @@ function renderTable() {
         const displayCurrency = quote.quote_status === 'completed' && quote.final_budget_currency 
             ? quote.final_budget_currency 
             : quote.client_budget_currency;
-        const value = displayAmount ? `${displayAmount} ${displayCurrency || ''}` : 'TBD';
-        const isFinished = ['responded', 'completed', 'client_approved', 'client_rejected'].includes(quote.quote_status);
+        const value = displayAmount
+            ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady()
+                ? window.WeOtziCurrency.formatInline(displayAmount, displayCurrency || 'USD')
+                : `${displayAmount} ${displayCurrency || ''}`)
+            : 'TBD';
+        const isFinished = ['responded', 'completed', 'client_approved', 'artist_completed', 'client_rejected'].includes(quote.quote_status);
         const isSelected = selectedQuotes.has(quote.id.toString());
 
         const dataMap = {

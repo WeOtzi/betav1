@@ -9,20 +9,24 @@
         content="Cotiza tu próximo tatuaje con los mejores artistas del mundo a través de We Ötzi.">
 
     <!-- Microsoft Clarity - Behavior Analytics -->
-    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
     <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+        (function(){
+            var id = window.CLARITY_PROJECT_ID;
+            if (!id || id === 'CLARITY_TRACKING_ID') return;
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script",id);
+        })();
     </script>
 
     <!-- Fonts - Bauhaus Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
 
     <!-- Icons -->
@@ -66,27 +70,43 @@
 
     <!-- Styles -->
     <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/feedback.css">
 </head>
 
-<body>
+<body class="quotation-page">
     <div class="app-container">
-        <!-- Progress Header -->
-        <header class="app-header">
-            <button id="back-btn" class="nav-btn hidden" aria-label="Volver" onclick="prevStep()">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
+        <!-- Client Header -->
+        <header class="app-header quotation-client-header" role="banner">
+            <div class="q-client-nav-left">
+                <button id="back-btn" class="nav-btn q-client-back hidden" aria-label="Volver" onclick="prevStep()">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
 
-            <div class="header-logo">We Ötzi</div>
+                <a href="/" class="q-client-brand" aria-label="We Ötzi inicio">
+                    <span class="q-client-brand-marks" aria-hidden="true">
+                        <span class="sq"></span>
+                        <span class="ci"></span>
+                        <span class="tr"></span>
+                    </span>
+                    <span class="q-client-brand-text">WE<span class="umlaut">Ö</span>TZI</span>
+                </a>
 
-            <div class="header-actions">
-                <button id="header-login-btn" class="nav-btn nav-btn-login" aria-label="Iniciar sesion" onclick="openQuotationLoginModal()">
+                <p class="q-client-tag" aria-label="Cotizador para clientes">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span class="q-client-tag-full">COTIZADOR CLIENTE &middot; WE &Ouml;TZI</span>
+                    <span class="q-client-tag-short">COTIZADOR</span>
+                </p>
+            </div>
+
+            <div></div>
+
+            <div class="header-actions q-client-actions">
+                <button id="header-login-btn" class="nav-btn nav-btn-login q-client-login" aria-label="Iniciar sesion" onclick="openQuotationLoginModal()">
                     <i class="fa-solid fa-user"></i>
                 </button>
-                <button id="header-user-btn" class="nav-btn nav-btn-logged hidden" aria-label="Mi cuenta" onclick="openQuotationLoginModal()">
+                <button id="header-user-btn" class="nav-btn nav-btn-logged q-client-user hidden" aria-label="Mi cuenta" onclick="openQuotationLoginModal()">
                     <i class="fa-solid fa-user-check"></i>
                 </button>
-                <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
+                <button id="theme-toggle" class="nav-btn q-client-theme" aria-label="Cambiar Tema" onclick="toggleTheme()">
                     <i id="theme-icon" class="fa-solid fa-moon"></i>
                 </button>
             </div>
@@ -97,7 +117,7 @@
             <!-- Centered Progress Bar -->
             <div class="progress-wrapper">
                 <div class="progress-info">
-                    <span id="progress-step-text" class="progress-step-info">Paso 1 de 20</span>
+                    <span id="progress-step-text" class="progress-step-info">Paso 1 de 27</span>
                 </div>
                 <div class="progress-container">
                     <div id="progress-bar" class="progress-bar"></div>
@@ -114,7 +134,18 @@
 
             <!-- TEMPLATE: WELCOME -->
             <template id="tmpl-welcome">
-                <div class="hero-content">
+                <div class="hero-content q-quote-start q-quote-intro">
+                    <p class="q-ink-note">&iexcl;Empecemos la tinta! <span aria-hidden="true">/</span></p>
+
+                    <section class="q-intro-mark" aria-label="Inicio del cotizador We Otzi">
+                        <img class="q-otzi-symbol" src="/shared/img/weotzi-isotipo.svg" alt="" aria-hidden="true" loading="eager" decoding="async">
+                        <p class="hero-text">Cotiza tu pr&oacute;ximo tatuaje con los mejores artistas del mundo.</p>
+                        <button class="btn btn-primary btn-large q-primary-action" onclick="nextStep()">
+                            Comenzar <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </section>
+                </div>
+                <div class="hero-content q-legacy-step" aria-hidden="true">
                     <div class="hero-icon">🖤</div>
                     <h1 class="brand-title">We Ötzi</h1>
                     <p class="hero-text">Cotiza tu próximo tatuaje con los mejores artistas del mundo.</p>
@@ -126,17 +157,70 @@
 
             <!-- TEMPLATE: ARTIST SEARCH -->
             <template id="tmpl-artist-search">
-                <div class="question-container">
+                <div class="question-container q-artist-search-step">
+                    <aside class="q-search-poster" aria-label="Seleccion de artista">
+                        <p class="q-panel-kicker"><span></span> Paso 02 - Artista</p>
+                        <div class="q-search-number" aria-hidden="true">02</div>
+                        <div class="q-search-shapes" aria-hidden="true">
+                            <i class="q-shape q-shape-red"></i>
+                            <i class="q-shape q-shape-yellow"></i>
+                            <i class="q-shape q-shape-triangle"></i>
+                        </div>
+                        <p>Busca por usuario o deja que We Otzi recomiende una ruta para tu idea.</p>
+                    </aside>
+
+                    <section class="q-search-panel" aria-label="Buscar artista">
+                        <p class="q-panel-kicker q-panel-kicker-red"><span></span> Buscar artista</p>
+                        <h2>&iquest;Con qu&eacute; artista te gustar&iacute;a tatuarte?</h2>
+                        <p class="subtitle">Ingresa el usuario del artista. Ejemplo: yomicoart.wo</p>
+
+                        <div class="input-group q-artist-input-wrap">
+                            <label class="q-field-label" for="artist-username">Usuario del artista</label>
+                            <div class="q-input-row">
+                                <input type="text" id="artist-username" placeholder="usuario.wo" autocomplete="off" aria-describedby="artist-hint artist-error">
+                                <button class="btn-icon q-search-submit" onclick="searchArtist()" aria-label="Buscar artista">
+                                    <i class="fa-solid fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p id="artist-error" class="error-msg hidden">Artista no encontrado. Verifica el usuario e intenta de nuevo.</p>
+
+                        <p id="artist-hint" class="hint-text">Presiona Enter para buscar</p>
+
+                        <div class="artist-search-extras q-search-actions">
+                            <div class="search-help q-action-row">
+                                <div>
+                                    <p class="search-hint">&iquest;No sabes el usuario?</p>
+                                    <p class="q-action-copy">Explora artistas disponibles y vuelve con su usuario.</p>
+                                </div>
+                                <a href="/marketplace" class="btn btn-secondary q-secondary-action" id="btn-find-artists-manual">
+                                    <i class="fa-solid fa-magnifying-glass"></i> Buscar artistas
+                                </a>
+                            </div>
+
+                            <div class="recommendation-path q-action-row q-action-row-blue">
+                                <div>
+                                    <p class="search-hint">Sin artista definido</p>
+                                    <p class="recommendation-promo">Prueba nuestra funci&oacute;n de recomendaci&oacute;n 100% personalizada.</p>
+                                </div>
+                                <button class="btn btn-secondary q-secondary-action" id="btn-skip-artist" onclick="continueWithoutArtist()">
+                                    Continuar sin artista
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                <div class="question-container q-legacy-step" aria-hidden="true">
                     <h2>¿Con qué artista te gustaría tatuarte?</h2>
                     <p class="subtitle">Ingresa el usuario del artista (ej: yomicoart.wo)</p>
 
                     <div class="input-group">
-                        <input type="text" id="artist-username" placeholder="usuario.wo" autocomplete="off">
+                        <input type="text" id="artist-username-legacy" placeholder="usuario.wo" autocomplete="off">
                         <button class="btn-icon" onclick="searchArtist()">
                             <i class="fa-solid fa-search"></i>
                         </button>
                     </div>
-                    <p id="artist-error" class="error-msg hidden">Artista no encontrado. Verifica el usuario e intenta
+                    <p id="artist-error-legacy" class="error-msg hidden">Artista no encontrado. Verifica el usuario e intenta
                         de nuevo.</p>
 
                     <p class="hint-text">Presiona Enter para buscar</p>
@@ -144,13 +228,13 @@
                     <div class="artist-search-extras">
                         <div class="search-help">
                             <p class="search-hint">¿No sabes el usuario?</p>
-                            <a href="/marketplace" class="btn btn-secondary" id="btn-find-artists-manual">
+                            <a href="/marketplace" class="btn btn-secondary" id="btn-find-artists-manual-legacy">
                                 <i class="fa-solid fa-magnifying-glass"></i> Buscar artistas
                             </a>
                         </div>
                         
                         <div class="recommendation-path">
-                            <button class="btn btn-secondary" id="btn-skip-artist" onclick="continueWithoutArtist()">
+                            <button class="btn btn-secondary" id="btn-skip-artist-legacy" onclick="continueWithoutArtist()">
                                 Continuar sin artista
                             </button>
                             <p class="recommendation-promo">Prueba nuestra función de recomendación 100% personalizada</p>
@@ -346,7 +430,7 @@
         </main>
 
         <!-- Bauhaus Footer -->
-        <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
+        <footer class="bauhaus-footer quotation-client-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
     </div>
 
     <!-- Loading Overlay -->
@@ -357,6 +441,9 @@
 
     <!-- Configuration Manager -->
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/bauhaus-footer.js"></script>
 
@@ -364,65 +451,11 @@
     <script src="/shared/js/client-auth.js"></script>
     <script src="/shared/js/heic-converter.js"></script>
 
+    <!-- Shared quotation constants (must load before script.js) -->
+    <script src="/shared/js/quotation-shared.js"></script>
+
     <!-- App Logic -->
     <script src="/shared/js/script.js"></script>
-
-    <!-- Feedback System -->
-    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-    </button>
-
-    <div id="feedback-modal" class="feedback-modal">
-        <div class="feedback-container">
-            <button class="feedback-close" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-            <div class="feedback-header">
-                <h2 class="feedback-title">Feedback</h2>
-                <p class="feedback-subtitle">Ayúdanos a mejorar We Ötzi</p>
-            </div>
-            <form id="feedback-form">
-                <div class="feedback-form-group">
-                    <label for="feedback-reason">Motivo</label>
-                    <select id="feedback-reason" class="feedback-select" required>
-                        <option value="" disabled selected>Selecciona un motivo</option>
-                        <option value="error">Reportar un Error</option>
-                        <option value="sugerencia">Sugerencia de Mejora</option>
-                        <option value="pregunta">Pregunta / Duda</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                <div class="feedback-form-group">
-                    <label for="feedback-cause">Causa / Área</label>
-                    <select id="feedback-cause" class="feedback-select" required>
-                        <option value="" disabled selected>Selecciona el área</option>
-                        <option value="registro">Registro / Acceso</option>
-                        <option value="perfil">Perfil de Artista</option>
-                        <option value="dashboard">Dashboard</option>
-                        <option value="interfaz">Interfaz / Diseño</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                <div class="feedback-form-group">
-                    <label for="feedback-message">Mensaje</label>
-                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuéntanos más detalles..." required></textarea>
-                </div>
-                <div id="feedback-message-status" class="form-message"></div>
-                <button type="submit" class="btn-feedback-submit">
-                    Enviar Feedback
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                    </svg>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <script src="/shared/js/feedback.js"></script>
 
     <!-- Style Detail Modal -->
     <div id="style-detail-overlay" class="style-detail-overlay hidden">

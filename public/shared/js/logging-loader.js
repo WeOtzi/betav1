@@ -16,7 +16,7 @@
 
     // Load Logging Service
     const loggingScript = document.createElement('script');
-    loggingScript.src = '/shared/js/logging-service.js';
+    loggingScript.src = '/shared/js/logging-service.js?v=20260515-dashboard';
     loggingScript.async = false;
     document.head.appendChild(loggingScript);
 

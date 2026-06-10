@@ -7,7 +7,29 @@
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
+
+function getAppBasePath() {
+    if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+    const path = window.location?.pathname || '';
+    return path === '/beta' || path.startsWith('/beta/') ? '/beta' : '';
+}
+
+function appUrl(path) {
+    const normalized = String(path || '').startsWith('/') ? String(path || '') : '/' + String(path || '');
+    const basePath = getAppBasePath();
+    if (basePath && (normalized === basePath || normalized.startsWith(basePath + '/'))) {
+        return normalized;
+    }
+    return basePath + normalized;
+}
+
+function buildArtistLoginUrl(returnTo = '/my-quotations') {
+    const params = new URLSearchParams();
+    if (returnTo) params.set('returnTo', returnTo);
+    const query = params.toString();
+    return appUrl('/registerclosedbeta' + (query ? `?${query}` : ''));
+}
 
 // State - These are used by shared-drawer.js
 let currentUser = null;
@@ -47,7 +69,7 @@ async function handleLogout() {
         const { error } = await _supabase.auth.signOut();
         if (error) throw error;
         
-        window.location.href = 'https://beta.weotzi.com/registerclosedbeta/';
+        window.location.href = appUrl('/registerclosedbeta');
     } catch (error) {
         console.error('Logout error:', error);
     }
@@ -72,7 +94,7 @@ async function initializeAdmin() {
         
         if (authError || !session) {
             console.log('No authenticated session. Redirecting...');
-            window.location.href = 'https://beta.weotzi.com/registerclosedbeta/';
+            window.location.href = buildArtistLoginUrl('/my-quotations');
             return;
         }
 
@@ -87,7 +109,7 @@ async function initializeAdmin() {
 
         if (artistError || !artist) {
             console.error('Artist profile not found');
-            window.location.href = 'dashboard.html';
+            window.location.href = appUrl('/artist/dashboard');
             return;
         }
 
@@ -357,8 +379,12 @@ function renderTable() {
         const displayCurrency = quote.quote_status === 'completed' && quote.final_budget_currency 
             ? quote.final_budget_currency 
             : quote.client_budget_currency;
-        const value = displayAmount ? `${displayAmount} ${displayCurrency || ''}` : 'TBD';
-        const isFinished = ['responded', 'completed', 'client_approved', 'client_rejected'].includes(quote.quote_status);
+        const value = displayAmount
+            ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady()
+                ? window.WeOtziCurrency.formatInline(displayAmount, displayCurrency || 'USD')
+                : `${displayAmount} ${displayCurrency || ''}`)
+            : 'TBD';
+        const isFinished = ['responded', 'completed', 'client_approved', 'artist_completed', 'client_rejected'].includes(quote.quote_status);
         const isSelected = selectedQuotes.has(quote.id.toString());
 
         const dataMap = {
@@ -636,8 +662,11 @@ function renderApplicationsView() {
         const req = app.job_board_requests || {};
         const date = new Date(app.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
         const idea = (req.tattoo_idea_description || '').substring(0, 60) + ((req.tattoo_idea_description || '').length > 60 ? '...' : '');
+        const reqCurrency = req.client_budget_currency || 'USD';
         const budget = req.client_budget_min && req.client_budget_max
-            ? `$${req.client_budget_min}-$${req.client_budget_max} ${req.client_budget_currency || 'USD'}`
+            ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady()
+                ? `${window.WeOtziCurrency.formatInline(req.client_budget_min, reqCurrency, { showSecondary: false })} - ${window.WeOtziCurrency.formatInline(req.client_budget_max, reqCurrency)}`
+                : `$${req.client_budget_min}-$${req.client_budget_max} ${reqCurrency}`)
             : '-';
         const isAccepted = app.status === 'accepted';
         const msgPreview = (app.message || '').substring(0, 80) + ((app.message || '').length > 80 ? '...' : '');

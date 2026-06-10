@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Otzi - Explorar Tatuadores en el Mapa</title>
-    <meta name="description" content="Encuentra tatuadores cerca de ti. Filtra por estilo, ciudad y precio en un mapa interactivo.">
+    <title>We Ötzi · Atlas — Explora Tatuadores en el Mapa</title>
+    <meta name="description" content="Atlas interactivo de tatuadores. Filtra por estilo, ciudad y precio sobre un mapa editorial.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -25,9 +24,25 @@
                 <a href="/marketplace" class="nav-btn" aria-label="Volver al marketplace">
                     <i class="fa-solid fa-arrow-left"></i>
                 </a>
-                <div class="explore-header-title">Explorar Tatuadores</div>
+                <div class="explore-header-title">
+                    <span class="atlas-eyebrow"><span>Live</span> · Atlas — Edición 2026</span>
+                    <span class="atlas-wordmark">Mapa de <span class="accent">tatuadores</span></span>
+                </div>
             </div>
+
+            <div class="explore-header-center">
+                <div class="atlas-counter" id="atlas-counter">
+                    <span class="value" id="atlas-counter-value">000</span>
+                    <span class="label">Pins activos · <span id="atlas-counter-countries">0</span> países</span>
+                </div>
+            </div>
+
             <div class="explore-header-right">
+                <a href="/explore/globe" class="explore-globe-cta" aria-label="Abrir vista de globo interactivo">
+                    <i class="fa-solid fa-earth-americas" aria-hidden="true"></i>
+                    <span class="explore-globe-cta-label">Vista Globo</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square explore-globe-cta-arrow" aria-hidden="true"></i>
+                </a>
                 <nav class="dashboard-quick-nav explore-nav-links" aria-label="Navegación principal">
                     <a href="/marketplace" class="dashboard-quick-link">Marketplace</a>
                     <a href="/quotation" class="dashboard-quick-link">Cotizar</a>
@@ -35,7 +50,7 @@
                     <a href="/client/login" class="dashboard-quick-link">Acceder</a>
                 </nav>
                 <button class="mobile-menu-toggle explore-menu-toggle" id="explore-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="explore-mobile-menu">
-                    Menu
+                    Menú
                 </button>
                 <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
                     <i class="fa-solid fa-moon"></i>
@@ -44,23 +59,26 @@
         </header>
 
         <nav class="dashboard-mobile-menu explore-mobile-menu" id="explore-mobile-menu" aria-label="Navegación móvil" hidden>
+            <a href="/explore/globe" class="dashboard-mobile-menu-link explore-mobile-menu-link-globe">
+                <i class="fa-solid fa-earth-americas" aria-hidden="true"></i> Vista Globo
+            </a>
             <a href="/marketplace" class="dashboard-mobile-menu-link">Marketplace</a>
             <a href="/quotation" class="dashboard-mobile-menu-link">Cotizar</a>
             <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
             <a href="/client/login" class="dashboard-mobile-menu-link">Acceder</a>
         </nav>
 
-        <section class="explore-filters">
+        <section class="explore-filters" aria-label="Filtros">
             <div class="filter-pill-group" id="style-filter-pills" aria-label="Filtros por estilo">
-                <!-- Pills de estilos populares (Realismo, Tradicional, etc.) inyectadas por JS -->
+                <!-- Pills de estilos + Estudios toggle inyectados por explore-map.js -->
             </div>
             <div class="filter-select-group">
-                <select id="filter-country" aria-label="Pais">
-                    <option value="">Todos los paises</option>
+                <select id="filter-country" aria-label="País">
+                    <option value="">Todos los países</option>
                 </select>
                 <select id="filter-price" aria-label="Rango de precio">
                     <option value="">Cualquier precio</option>
-                    <option value="low">Economico (&lt; 200 USD)</option>
+                    <option value="low">Económico (&lt; 200 USD)</option>
                     <option value="medium">Medio (200 - 800 USD)</option>
                     <option value="high">Premium (&gt; 800 USD)</option>
                 </select>
@@ -69,9 +87,9 @@
                 </select>
                 <select id="filter-experience" aria-label="Experiencia">
                     <option value="">Cualquier experiencia</option>
-                    <option value="junior">Junior (1-3 anos)</option>
-                    <option value="mid">Intermedio (4-7 anos)</option>
-                    <option value="senior">Senior (8+ anos)</option>
+                    <option value="junior">Junior (1-3 años)</option>
+                    <option value="mid">Intermedio (4-7 años)</option>
+                    <option value="senior">Senior (8+ años)</option>
                 </select>
                 <button class="explore-clear-btn" id="explore-clear-btn">Limpiar</button>
             </div>
@@ -89,7 +107,7 @@
         <main class="explore-main" id="explore-main" data-view="map">
             <aside class="explore-list-panel" id="explore-list-panel" aria-label="Lista de artistas filtrados">
                 <div class="explore-list-meta">
-                    <span id="explore-results-count" class="technical-label">Cargando...</span>
+                    <span id="explore-results-count">Cargando…</span>
                 </div>
                 <div class="explore-list" id="explore-list">
                     <!-- Cards inyectadas por explore-map.js -->
@@ -103,7 +121,7 @@
             <section class="explore-map-panel" aria-label="Mapa de artistas">
                 <div id="explore-map" class="explore-map" role="application" aria-label="Mapa interactivo"></div>
                 <div id="explore-map-empty" class="explore-map-empty hidden">
-                    <span>Cargando mapa...</span>
+                    <span>Cargando atlas…</span>
                 </div>
             </section>
         </main>
@@ -117,14 +135,16 @@
                 <div class="modal-body">
                     <div class="modal-styles" id="modal-styles"></div>
                     <h2 class="modal-name" id="modal-artist-name">Artista</h2>
+                    <span class="modal-source-badge" id="modal-source-badge" hidden></span>
                     <div class="modal-meta">
-                        <div class="modal-meta-row"><i class="fa-solid fa-location-dot"></i> <span id="modal-location">-</span></div>
-                        <div class="modal-meta-row"><i class="fa-solid fa-bolt"></i> <span id="modal-experience">-</span></div>
+                        <div class="modal-meta-row"><i class="fa-solid fa-location-dot"></i> <span id="modal-location">—</span></div>
+                        <div class="modal-meta-row" id="modal-address-row" hidden><i class="fa-solid fa-signs-post"></i> <span id="modal-address">—</span></div>
+                        <div class="modal-meta-row"><i class="fa-solid fa-bolt"></i> <span id="modal-experience">—</span></div>
                     </div>
-                    <p class="modal-bio" id="modal-bio"></p>
+                    <div class="modal-bio" id="modal-bio"></div>
                     <div class="modal-price-row">
-                        <span class="price-label">SESION DESDE</span>
-                        <span class="price-value" id="modal-price">-</span>
+                        <span class="price-label">Sesión desde</span>
+                        <span class="price-value" id="modal-price">—</span>
                     </div>
                     <div class="modal-cta-row">
                         <button class="btn-primary modal-cta-quote" id="modal-cta-quote">
@@ -134,17 +154,24 @@
                             <i class="fa-solid fa-user"></i> Ver perfil
                         </button>
                     </div>
+                    <a class="modal-cta-directions" id="modal-cta-directions" target="_blank" rel="noopener" hidden>
+                        <i class="fa-solid fa-route"></i> Cómo llegar
+                    </a>
                 </div>
             </div>
         </div>
 
         <div id="loading-overlay" class="loading-overlay hidden">
             <div class="loader"></div>
-            <p>Cargando artistas...</p>
+            <p>Cargando atlas…</p>
         </div>
     </div>
 
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/bio-formatting.js"></script>
     <script src="/shared/js/geocoder.js"></script>
     <script src="/shared/js/explore-map.js"></script>
     <script>

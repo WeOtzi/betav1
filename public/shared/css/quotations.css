@@ -2743,3 +2743,118 @@ header {
         font-size: 13px !important;
     }
 }
+
+/* ============ QUOTE TIMELINE ============ */
+
+.quote-timeline {
+    margin: 1.5rem 0 2rem;
+    padding: 1rem 0;
+}
+
+.timeline-track {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.timeline-step:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-connector {
+    position: absolute;
+    left: 15px;
+    top: -20px;
+    width: 2px;
+    height: 20px;
+    border-left: 2px solid var(--border-color, #e5e7eb);
+}
+
+.timeline-connector--completed {
+    border-color: #3ecf8e;
+}
+
+.timeline-connector--current {
+    border-color: #3ecf8e;
+}
+
+.timeline-connector--future {
+    border-color: var(--border-color, #e5e7eb);
+    border-style: dashed;
+}
+
+.timeline-connector--terminal {
+    border-style: dashed;
+}
+
+.timeline-dot {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    z-index: 1;
+    transition: all 0.2s;
+}
+
+.timeline-dot--completed {
+    background: #3ecf8e;
+    color: white;
+}
+
+.timeline-dot--current {
+    background: var(--bauhaus-blue, #1A4B8E);
+    color: white;
+    box-shadow: 0 0 0 4px rgba(26, 75, 142, 0.2);
+}
+
+.timeline-dot--future {
+    background: var(--bg-tertiary, #f3f4f6);
+    color: var(--text-tertiary, #9ca3af);
+}
+
+.timeline-dot--terminal {
+    color: white;
+}
+
+.timeline-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 5px;
+}
+
+.timeline-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--text-primary, #1a1a2e);
+}
+
+.timeline-step--future .timeline-status {
+    color: var(--text-tertiary, #9ca3af);
+}
+
+.timeline-step--current .timeline-status {
+    color: var(--bauhaus-blue, #1A4B8E);
+}
+
+.timeline-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-secondary, #6b7280);
+}

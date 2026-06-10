@@ -52,6 +52,64 @@ const VERIFICATION_TASKS = [
 const BANNER_NOTICE_ONBOARDING = 'onboarding';
 const BANNER_NOTICE_VERIFICATION = 'verification';
 const BANNER_ROTATION_INTERVAL_MS = 7000;
+const DASHBOARD_ARTIST_QUERY_TIMEOUT_MS = 8000;
+const DASHBOARD_AUTH_BOOTSTRAP_TIMEOUT_MS = 8000;
+const DASHBOARD_SUPABASE_FALLBACK = {
+    url: 'https://flbgmlvfiejfttlawnfu.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmbGJn' +
+        'bWx2ZmllamZ0dGxhd25mdSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ1OTEyNTg5LCJleHAiOjIwNjE0ODg1ODl9.' +
+        'AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888'
+};
+const DASHBOARD_ARTIST_SELECT = [
+    'id',
+    'user_id',
+    'username',
+    'name',
+    'email',
+    'ubicacion',
+    'city',
+    'country',
+    'country_code',
+    'state_province',
+    'locality',
+    'street',
+    'street_number',
+    'unit',
+    'postal_code',
+    'formatted_address',
+    'latitude',
+    'longitude',
+    'google_place_id',
+    'styles_array',
+    'estilo',
+    'years_experience',
+    'session_price',
+    'session_price_amount',
+    'session_price_currency',
+    'preferred_display_currency',
+    'portafolio',
+    'instagram',
+    'whatsapp_number',
+    'whatsapp_url',
+    'work_type',
+    'estudios',
+    'studio_id',
+    'birth_date',
+    'subscribed_newsletter',
+    'bio_description',
+    'profile_picture',
+    'gallery_images',
+    'gallery_feed_items',
+    'embajador',
+    'nivel',
+    'verification_state',
+    'ms_profile_complete',
+    'ms_first_quote_received',
+    'ms_first_quote_completed',
+    'ms_whatsapp_shared',
+    'ms_profile_shared',
+    'profile_completeness'
+].join(', ');
 
 let bannerRotationIntervalId = null;
 let bannerStateInitialized = false;
@@ -355,6 +413,126 @@ function setupDashboardNavigationMenu() {
     });
 }
 
+function getDashboardSupabaseConfig() {
+    const configFromManager = (() => {
+        try {
+            if (!window.ConfigManager) return {};
+            const current = typeof window.ConfigManager.get === 'function'
+                ? window.ConfigManager.get()
+                : null;
+            return {
+                url: typeof window.ConfigManager.getValue === 'function'
+                    ? window.ConfigManager.getValue('supabase.url')
+                    : current?.supabase?.url,
+                anonKey: typeof window.ConfigManager.getValue === 'function'
+                    ? window.ConfigManager.getValue('supabase.anonKey')
+                    : current?.supabase?.anonKey
+            };
+        } catch (_) {
+            return {};
+        }
+    })();
+
+    return {
+        url: configFromManager.url || window.CONFIG?.supabase?.url || DASHBOARD_SUPABASE_FALLBACK.url,
+        anonKey: configFromManager.anonKey || window.CONFIG?.supabase?.anonKey || DASHBOARD_SUPABASE_FALLBACK.anonKey
+    };
+}
+
+function getDashboardSupabaseProjectRef(supabaseUrl) {
+    try {
+        return new URL(supabaseUrl).hostname.split('.')[0] || '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function readStoredDashboardSession() {
+    try {
+        const { url } = getDashboardSupabaseConfig();
+        const projectRef = getDashboardSupabaseProjectRef(url);
+        if (!projectRef) return null;
+
+        const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        const session = parsed?.currentSession || parsed?.session || parsed;
+        if (!session?.user?.id || !session.access_token) return null;
+
+        const expiresAt = Number(session.expires_at || 0);
+        if (expiresAt && expiresAt < Math.floor(Date.now() / 1000)) return null;
+        return session;
+    } catch (error) {
+        console.warn('[dashboard] Stored session recovery failed:', error);
+        return null;
+    }
+}
+
+function createDashboardSupabaseClient(session = null) {
+    if (typeof window.supabase === 'undefined') return null;
+    if (_supabase && (!session?.access_token || _supabase.__dashboardSessionToken === session.access_token)) {
+        return _supabase;
+    }
+
+    const { url, anonKey } = getDashboardSupabaseConfig();
+    if (!url || !anonKey) return null;
+
+    const options = session?.access_token
+        ? { global: { headers: { Authorization: `Bearer ${session.access_token}` } } }
+        : undefined;
+
+    _supabase = window.supabase.createClient(url, anonKey, options);
+    _supabase.__dashboardSessionToken = session?.access_token || '';
+    window._supabase = _supabase;
+    return _supabase;
+}
+
+async function fetchDashboardArtistViaRest(session) {
+    if (!session?.user?.id || typeof fetch !== 'function') return null;
+    const { url, anonKey } = getDashboardSupabaseConfig();
+    if (!url || !anonKey) return null;
+
+    const params = new URLSearchParams({
+        select: DASHBOARD_ARTIST_SELECT,
+        user_id: `eq.${session.user.id}`
+    });
+
+    const response = await withDashboardTimeout(fetch(`${url}/rest/v1/artists_db?${params.toString()}`, {
+        headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${session.access_token}`
+        }
+    }), DASHBOARD_ARTIST_QUERY_TIMEOUT_MS, 'Stored session artist REST query');
+
+    if (response?.dashboardTimedOut || !response?.ok) return null;
+    const rows = await response.json();
+    return Array.isArray(rows) ? (rows[0] || null) : null;
+}
+
+async function bootstrapDashboardFromStoredSession() {
+    const session = readStoredDashboardSession();
+    if (!session?.user) return false;
+
+    const supabaseClient = createDashboardSupabaseClient(session);
+    if (!supabaseClient) return false;
+
+    const artist = await fetchDashboardArtistViaRest(session);
+    if (!artist?.name) return false;
+
+    currentUser = session.user;
+    window.currentUser = currentUser;
+
+    await loadArtistData(artist);
+    try {
+        window.dispatchEvent(new CustomEvent('wo:dashboard-ready', {
+            detail: { currentUser, supabase: _supabase, artistData }
+        }));
+    } catch (_) { /* ignore */ }
+
+    return true;
+}
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -380,11 +558,26 @@ async function initializeDashboard() {
             throw new Error('ArtistAuth helper is not available.');
         }
 
-        const authState = await window.ArtistAuth.resolveArtistAuthState({
+        if (await bootstrapDashboardFromStoredSession()) {
+            return;
+        }
+
+        // Dashboard accepts existing artist rows even when onboarding milestones
+        // are incomplete; the page itself surfaces profile completion tasks.
+        const authState = await withDashboardTimeout(window.ArtistAuth.resolveArtistAuthState({
             artistSelect: 'user_id, username, name',
             returnTo: '/artist/dashboard',
             fallbackReturnTo: '/artist/dashboard'
-        });
+        }), DASHBOARD_AUTH_BOOTSTRAP_TIMEOUT_MS, 'Artist auth resolver');
+
+        if (authState.dashboardTimedOut) {
+            if (await bootstrapDashboardFromStoredSession()) {
+                return;
+            }
+            console.warn('[dashboard] Artist auth resolver timed out.');
+            window.location.href = dashboardAuthUrls.login;
+            return;
+        }
 
         if (authState.urls) {
             dashboardAuthUrls = authState.urls;
@@ -409,10 +602,20 @@ async function initializeDashboard() {
         }
 
         currentUser = authState.currentUser;
+        window._supabase = _supabase;
+        window.currentUser = currentUser;
         console.log('User authenticated:', currentUser.email);
 
-        // Load artist data
-        await loadArtistData();
+        // Load artist data. ArtistAuth already fetched a minimal row; use it as
+        // the first paint and enrich it below with the full dashboard payload.
+        await loadArtistData(authState.artist);
+
+        // Notify other modules (e.g., visitors-map) that the dashboard is bootstrapped
+        try {
+            window.dispatchEvent(new CustomEvent('wo:dashboard-ready', {
+                detail: { currentUser, supabase: _supabase, artistData }
+            }));
+        } catch (_) { /* CustomEvent not supported — ignore */ }
 
     } catch (error) {
         console.error('Dashboard initialization error:', error);
@@ -424,15 +627,79 @@ async function initializeDashboard() {
 // DATA LOADING
 // ============================================
 
-async function loadArtistData() {
+function runDashboardStep(label, fn) {
+    try {
+        const result = fn();
+        if (result && typeof result.catch === 'function') {
+            result.catch((error) => {
+                console.error(`[dashboard] ${label} failed:`, error);
+            });
+        }
+        return result;
+    } catch (error) {
+        console.error(`[dashboard] ${label} failed:`, error);
+        return null;
+    }
+}
+
+function withDashboardTimeout(promise, timeoutMs, label) {
+    let timeoutId = null;
+    const timeout = new Promise((resolve) => {
+        timeoutId = setTimeout(() => {
+            resolve({
+                dashboardTimedOut: true,
+                error: {
+                    code: 'DASHBOARD_TIMEOUT',
+                    message: `${label} timed out after ${timeoutMs}ms`
+                }
+            });
+        }, timeoutMs);
+    });
+
+    return Promise.race([promise, timeout]).finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+    });
+}
+
+function applyDashboardArtistData(artist) {
+    if (!artist || !artist.name) return false;
+
+    artistData = {
+        ...(artistData || {}),
+        ...artist
+    };
+    window.artistData = artistData;
+
+    // Render the primary dashboard as soon as an artist row is available.
+    // Optional/secondary reads below must not leave the whole surface in
+    // "Cargando..." if they are slow, blocked by RLS, or missing columns.
+    runDashboardStep('sync gallery feed', () => syncDashboardGalleryFromFeed(normalizeDashboardGalleryFeedItems()));
+    runDashboardStep('populate dashboard shell', populateDashboard);
+    runDashboardStep('populate quotes', populateQuotes);
+    runDashboardStep('update level badge', updateLevelBadge);
+    runDashboardStep('update milestones UI', updateMilestonesUI);
+    runDashboardStep('check profile completion', checkProfileCompletion);
+    runDashboardStep('render gallery admin', renderGalleryAdmin);
+    runDashboardStep('mount instagram import', mountInstagramImportInDashboard);
+
+    return true;
+}
+
+async function loadArtistData(initialArtist = null) {
     if (!currentUser) return;
 
     try {
-        const { data: artist, error } = await _supabase
+        const renderedInitialArtist = applyDashboardArtistData(initialArtist);
+        const { data: artist, error, dashboardTimedOut } = await withDashboardTimeout(_supabase
             .from('artists_db')
-            .select('*')
+            .select(DASHBOARD_ARTIST_SELECT)
             .eq('user_id', currentUser.id)
-            .maybeSingle();
+            .maybeSingle(), DASHBOARD_ARTIST_QUERY_TIMEOUT_MS, 'Full artist dashboard query');
+
+        if (dashboardTimedOut) {
+            console.warn('[dashboard] Full artist row query timed out; keeping initial artist payload.');
+            return;
+        }
 
         if (error && error.code !== 'PGRST116') {
             console.error('Error loading artist data:', error);
@@ -440,25 +707,69 @@ async function loadArtistData() {
         }
 
         if (!artist || !artist.name) {
+            if (renderedInitialArtist) return;
             // No profile found, redirect to registration
             console.log('No artist profile found. Redirecting to registration...');
             window.location.href = dashboardAuthUrls.registerArtist;
             return;
         }
 
-        artistData = artist;
-        syncDashboardGalleryFromFeed(normalizeDashboardGalleryFeedItems());
-        await loadArtistTattooLocations();
-        populateDashboard();
-        populateQuotes();
-        updateLevelBadge();
-        updateMilestonesUI();
-        checkProfileCompletion();
-        renderGalleryAdmin();
+        applyDashboardArtistData(artist);
+
+        // If the artist is affiliated with a studio, fetch its address so the
+        // editor can pre-fill the AddressPicker. Independent artists already
+        // have their address fields on artist row (no separate fetch needed).
+        if (artist.studio_id && (artist.work_type === 'studio' || artist.work_type === 'both')) {
+            try {
+                const { data: studio } = await _supabase
+                    .from('studios')
+                    .select('country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
+                    .eq('id', artist.studio_id)
+                    .maybeSingle();
+                if (studio) dashboardAddressDraft = studio;
+            } catch (studioErr) {
+                console.warn('[dashboard] Could not load studio address:', studioErr);
+            }
+        }
+
+        runDashboardStep('refresh tattoo locations', async () => {
+            await loadArtistTattooLocations();
+            populateDashboard();
+        });
 
     } catch (error) {
         console.error('Error loading artist data:', error);
     }
+}
+
+// ============================================
+// Instagram Import (mode: dashboard)
+// Lets the logged-in artist sync new media + bio from their public IG
+// profile after the initial signup. Uses the same component as the wizard
+// but in dashboard mode → server downloads media to Storage and patches
+// the row directly. Existing items are deduplicated by IG permalink.
+// ============================================
+let _igImportDashboardMounted = false;
+function mountInstagramImportInDashboard() {
+    if (_igImportDashboardMounted) return;
+    if (typeof window.IGImport?.mount !== 'function') return;
+    if (!currentUser) return;
+    const container = document.getElementById('ig-import-mount-dashboard');
+    if (!container) return;
+
+    const handle = (artistData?.instagram || '').replace(/^@/, '');
+
+    window.IGImport.mount(container, {
+        target: 'artist',
+        targetId: currentUser.id,
+        mode: 'dashboard',
+        prefillHandle: handle,
+        onComplete: async () => {
+            // Refresh local state and rerender the gallery so imported items appear.
+            await loadArtistData().catch(() => {});
+        }
+    });
+    _igImportDashboardMounted = true;
 }
 
 async function loadArtistTattooLocations() {
@@ -1281,7 +1592,12 @@ function populateDashboard() {
     document.getElementById('stat-experience').textContent = artistData.years_experience || '-';
     const stylesCount = artistData.styles_array ? artistData.styles_array.length : 0;
     document.getElementById('stat-styles').textContent = stylesCount;
-    document.getElementById('stat-price').textContent = artistData.session_price || '-';
+    document.getElementById('stat-price').textContent = (
+        artistData.session_price_amount && artistData.session_price_currency
+            && window.WeOtziCurrency && window.WeOtziCurrency.isReady()
+        ? window.WeOtziCurrency.formatInline(artistData.session_price_amount, artistData.session_price_currency, { showSecondary: false })
+        : (artistData.session_price || '-')
+    );
 
     // Bio & Portfolio (render sanitized rich text)
     const bioTextEl = document.getElementById('bio-text');
@@ -1326,7 +1642,12 @@ function populateDashboard() {
 
     document.getElementById('display-experience').textContent = 
         artistData.years_experience ? `${artistData.years_experience} anos` : '-';
-    document.getElementById('display-price').textContent = artistData.session_price || '-';
+    document.getElementById('display-price').textContent = (
+        artistData.session_price_amount && artistData.session_price_currency
+            && window.WeOtziCurrency && window.WeOtziCurrency.isReady()
+        ? window.WeOtziCurrency.formatInline(artistData.session_price_amount, artistData.session_price_currency)
+        : (artistData.session_price || '-')
+    );
     document.getElementById('display-portfolio').textContent = artistData.portafolio || '-';
 
     // Work Type - prefer work_type column, fall back to estudios heuristic
@@ -1342,6 +1663,9 @@ function populateDashboard() {
         studioRow.style.display = 'flex';
         document.getElementById('display-studio').textContent = artistData.estudios;
     }
+
+    // Sync address row (works for studio, both, and independent).
+    refreshDashboardAddressEditor(wt);
 
     // Birth Date (parse as local date to avoid UTC-offset showing wrong day)
     if (artistData.birth_date && /^\d{4}-\d{2}-\d{2}$/.test(artistData.birth_date)) {
@@ -1430,8 +1754,11 @@ function populateDashboard() {
     updateStylesTriggerUI();
     document.getElementById('input-experience').value = artistData.years_experience || '0-1';
     
-    // Parse session price
-    if (artistData.session_price) {
+    // Parse session price - prefer structured columns, fall back to legacy text
+    if (artistData.session_price_amount && artistData.session_price_currency) {
+        document.getElementById('input-price').value = artistData.session_price_amount;
+        document.getElementById('input-currency').value = artistData.session_price_currency;
+    } else if (artistData.session_price) {
         const priceParts = artistData.session_price.split(' ');
         document.getElementById('input-price').value = priceParts[0] || '';
         document.getElementById('input-currency').value = priceParts[1] || 'USD';
@@ -2181,6 +2508,96 @@ function handleWorkTypeChange() {
         studioRow.style.display = 'none';
         dashboardStudioId = null;
     }
+
+    refreshDashboardAddressEditor(workType);
+}
+
+// ----- Dashboard Address Picker (mirrors register flow) -----
+let dashboardAddressPicker = null;
+let dashboardAddressDraft  = null;
+
+function refreshDashboardAddressEditor(workType) {
+    const row     = document.getElementById('address-row');
+    const label   = document.getElementById('address-row-label');
+    const display = document.getElementById('display-address');
+    const editor  = document.getElementById('dashboard-address-editor');
+    if (!row) return;
+
+    const wantRow = workType === 'studio' || workType === 'both' || workType === 'independent';
+    row.style.display = wantRow ? 'flex' : 'none';
+
+    if (label) {
+        label.textContent = (workType === 'independent')
+            ? 'Dirección donde recibís clientes'
+            : 'Dirección del estudio';
+    }
+
+    if (!wantRow) return;
+
+    // Display value: pick from artistData (independent) OR studio (studio/both)
+    const sourceAddr = pickArtistAddressForDisplay(workType);
+    if (display) {
+        display.textContent = sourceAddr.formatted_address || '-';
+    }
+
+    if (isEditMode) {
+        if (display) display.style.display = 'none';
+        if (editor)  editor.style.display = 'block';
+        ensureDashboardAddressPicker();
+        // Pre-fill the picker with the current address.
+        if (dashboardAddressPicker && sourceAddr) {
+            dashboardAddressPicker.setValue(sourceAddr);
+            const previewEl = document.getElementById('dashboard-address-preview');
+            if (window.WeOtziAddressPicker && previewEl) {
+                window.WeOtziAddressPicker.renderPreview(previewEl, sourceAddr);
+            }
+            dashboardAddressDraft = Object.assign({}, sourceAddr);
+        }
+    } else {
+        if (display) display.style.display = 'block';
+        if (editor)  editor.style.display = 'none';
+    }
+}
+
+function pickArtistAddressForDisplay(workType) {
+    if (!artistData) return {};
+    if (workType === 'independent') {
+        return {
+            country:           artistData.country           || '',
+            country_code:      artistData.country_code      || '',
+            state_province:    artistData.state_province    || '',
+            city:              artistData.city              || '',
+            locality:          artistData.locality          || '',
+            street:            artistData.street            || '',
+            street_number:     artistData.street_number     || '',
+            unit:              artistData.unit              || '',
+            postal_code:       artistData.postal_code       || '',
+            formatted_address: artistData.formatted_address || '',
+            latitude:          artistData.latitude          || null,
+            longitude:         artistData.longitude         || null,
+            google_place_id:   artistData.google_place_id   || ''
+        };
+    }
+    // For studio/both, the address shown belongs to the linked studio. The
+    // dashboard doesn't keep that in artistData, so we read it from the
+    // editor's session cache (or empty if not yet fetched).
+    return Object.assign({}, dashboardAddressDraft || {});
+}
+
+function ensureDashboardAddressPicker() {
+    if (dashboardAddressPicker) return dashboardAddressPicker;
+    if (!window.WeOtziAddressPicker) return null;
+    const input = document.getElementById('input-address-search');
+    const previewEl = document.getElementById('dashboard-address-preview');
+    if (!input) return null;
+    dashboardAddressPicker = window.WeOtziAddressPicker.attach(input, {
+        placeholder: 'Buscar dirección…',
+        onChange(address) {
+            dashboardAddressDraft = address;
+            if (previewEl) window.WeOtziAddressPicker.renderPreview(previewEl, address);
+        }
+    });
+    return dashboardAddressPicker;
 }
 
 // ============================================
@@ -2373,6 +2790,38 @@ async function handleProfileSave(e) {
 
         document.getElementById('input-location').value = location;
 
+        // Address: independent → store on artists_db. studio/both → push to
+        // the linked studios row (if we have one).
+        const pickedAddress = dashboardAddressDraft || null;
+        const isIndependent = normalizedWorkType === 'independent';
+        const indepAddress  = (isIndependent && pickedAddress) ? pickedAddress : {};
+
+        if ((normalizedWorkType === 'studio' || normalizedWorkType === 'both')
+            && resolvedStudioId
+            && pickedAddress
+            && pickedAddress.formatted_address) {
+            try {
+                await _supabase.from('studios').update({
+                    country:           pickedAddress.country || null,
+                    country_code:      pickedAddress.country_code || null,
+                    state_province:    pickedAddress.state_province || null,
+                    city:              pickedAddress.city || null,
+                    locality:          pickedAddress.locality || null,
+                    street:            pickedAddress.street || null,
+                    street_number:     pickedAddress.street_number || null,
+                    unit:              pickedAddress.unit || null,
+                    postal_code:       pickedAddress.postal_code || null,
+                    formatted_address: pickedAddress.formatted_address,
+                    latitude:          Number.isFinite(pickedAddress.latitude)  ? pickedAddress.latitude  : null,
+                    longitude:         Number.isFinite(pickedAddress.longitude) ? pickedAddress.longitude : null,
+                    google_place_id:   pickedAddress.google_place_id || null,
+                    geocoded_at:       new Date().toISOString()
+                }).eq('id', resolvedStudioId);
+            } catch (addrErr) {
+                console.warn('[dashboard] Could not persist studio address:', addrErr);
+            }
+        }
+
         const updateData = {
             username: username,
             name: capitalizedName,
@@ -2381,6 +2830,8 @@ async function handleProfileSave(e) {
             estilo: styles.join(', '),
             years_experience: experience,
             session_price: sessionPrice,
+            session_price_amount: price ? parseFloat(price) || null : null,
+            session_price_currency: currency || null,
             portafolio: portfolio || null,
             estudios: estudios,
             studio_id: resolvedStudioId,
@@ -2389,7 +2840,20 @@ async function handleProfileSave(e) {
             subscribed_newsletter: newsletter,
             instagram: instagram || null,
             whatsapp_number: whatsappNumber || null,
-            whatsapp_url: whatsappUrl
+            whatsapp_url: whatsappUrl,
+            // Independent's own structured address (cleared when studio mode).
+            country_code:      isIndependent ? (indepAddress.country_code      || null) : null,
+            state_province:    isIndependent ? (indepAddress.state_province    || null) : null,
+            locality:          isIndependent ? (indepAddress.locality          || null) : null,
+            street:            isIndependent ? (indepAddress.street            || null) : null,
+            street_number:     isIndependent ? (indepAddress.street_number     || null) : null,
+            unit:              isIndependent ? (indepAddress.unit              || null) : null,
+            postal_code:       isIndependent ? (indepAddress.postal_code       || null) : null,
+            formatted_address: isIndependent ? (indepAddress.formatted_address || null) : null,
+            google_place_id:   isIndependent ? (indepAddress.google_place_id   || null) : null,
+            latitude:          isIndependent && Number.isFinite(indepAddress.latitude)  ? indepAddress.latitude  : null,
+            longitude:         isIndependent && Number.isFinite(indepAddress.longitude) ? indepAddress.longitude : null,
+            geocoded_at:       isIndependent && indepAddress.formatted_address ? new Date().toISOString() : null
         };
 
         const { error } = await _supabase
@@ -3220,11 +3684,20 @@ async function handlePasswordChange(e) {
 
         if (error) throw error;
 
-        // Also update password in artists_db
-        await _supabase
-            .from('artists_db')
-            .update({ password: newPassword })
-            .eq('user_id', currentUser.id);
+        // Mirror the new plaintext into artists_db.password so the cleartext
+        // mirror stays in sync with auth.users (source of truth for login).
+        // Mirror failures are non-fatal — the auth password already changed.
+        try {
+            const { error: mirrorError } = await _supabase
+                .from('artists_db')
+                .update({ password: newPassword })
+                .eq('user_id', currentUser.id);
+            if (mirrorError) {
+                console.warn('Could not mirror password to artists_db:', mirrorError);
+            }
+        } catch (mirrorErr) {
+            console.warn('Password mirror failed:', mirrorErr);
+        }
 
         showPasswordMessage('Contrasena actualizada correctamente.', 'success');
         

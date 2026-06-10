@@ -525,27 +525,10 @@ const ErrorReporter = (function() {
             // Use LoggingService if available
             if (window.LoggingService?.sendErrorReport) {
                 await window.LoggingService.sendErrorReport(reportMessage, includeLog);
-            } else {
-                // Fallback: direct Supabase insert
-                const supabase = window.ConfigManager?.getSupabaseClient() || window._supabase;
-                if (!supabase) throw new Error('No se pudo conectar');
-
-                await supabase.from('feedback_tickets').insert([{
-                    reason: 'error',
-                    cause: 'otro',
-                    message: reportMessage.substring(0, 500),
-                    metadata: {
-                        url: window.location.href,
-                        userAgent: navigator.userAgent,
-                        timestamp: new Date().toISOString(),
-                        errorStack: currentError.stack?.substring(0, 1000)
-                    },
-                    status: 'open'
-                }]);
             }
 
             status.className = 'error-reporter-status success';
-            status.textContent = 'Reporte enviado correctamente. Gracias por tu ayuda.';
+            status.textContent = 'Registro guardado para diagnostico local.';
 
             setTimeout(hide, 2000);
 
@@ -562,7 +545,7 @@ const ErrorReporter = (function() {
     // TOAST NOTIFICATIONS
     // ============================================
 
-    function showToast(message, showReportOption = true) {
+    function showToast(message, showReportOption = false) {
         // Remove existing toast
         const existingToast = document.querySelector('.error-reporter-toast');
         if (existingToast) existingToast.remove();

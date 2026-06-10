@@ -7,485 +7,949 @@
     <title>WE ÖTZI | BETA</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
-    <!-- TODO: Replace CLARITY_TRACKING_ID with real project ID from clarity.microsoft.com -->
+    <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
     <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window,document,"clarity","script","CLARITY_TRACKING_ID");
+        (function(){
+            var id = window.CLARITY_PROJECT_ID;
+            if (!id || id === 'CLARITY_TRACKING_ID') return;
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script",id);
+        })();
     </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/landing-style.css">
-    <link rel="stylesheet" href="/shared/css/feedback.css">
+    <link rel="stylesheet" href="/shared/css/instagram-import.css">
     <style>
-        /* Page-specific layout with CSS custom properties */
-        :root {
-            --footer-height: 90px;
-            --header-height: 60px;
-            --margin-horizontal: 15%;
-            --margin-vertical: 10vh;
+        /* ============================================
+           Bauhaus Redesign tokens · Variant C
+           ============================================ */
+        .registerclosedbeta-page {
+            --cream: #F2EFE6;
+            --cream-2: #E8E4D6;
+            --ink: #15110D;
+            --ink-2: #2A2520;
+            --red: #E63A1F;
+            --red-deep: #C42E15;
+            --yellow: #F2B519;
+            --yellow-deep: #E0A30C;
+            --blue: #1E3FA6;
+            --blue-deep: #163080;
+
+            --display: "Archivo Black", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+            --header-h: 64px;
         }
 
-        body {
-            padding-left: var(--margin-horizontal);
-            padding-right: var(--margin-horizontal);
-            padding-top: calc(var(--margin-vertical) + var(--header-height));
-            padding-bottom: 0;
+        /* Dark-mode aware: re-map the legacy bg/fg vars to the new tokens so
+           the page reads as cream/ink while keeping the modal styles working. */
+        .registerclosedbeta-page {
+            --bg: var(--cream);
+            --fg: var(--ink);
+            --primary-red: var(--red);
+            --primary-yellow: var(--yellow);
+        }
+        body.dark-mode.registerclosedbeta-page {
+            --cream: #15110D;
+            --cream-2: #1F1B16;
+            --ink: #F2EFE6;
+            --ink-2: #C9C3B3;
+            --bg: var(--cream);
+            --fg: var(--ink);
+        }
+
+        /* Reset the legacy monolith padding from base styles */
+        body.registerclosedbeta-page {
+            padding: 0 !important;
+            margin: 0;
             min-height: 100vh;
             min-height: 100dvh;
+            background: var(--cream);
+            color: var(--ink);
+            font-family: var(--sans);
+            display: flex;
+            flex-direction: column;
         }
 
-        .monolith-grid {
-            max-height: none;
-            height: auto;
-        }
+        .registerclosedbeta-page * { box-sizing: border-box; }
 
-        /* Tablet */
-        @media (max-width: 1024px) {
-            :root {
-                --margin-vertical: 8vh;
-            }
-        }
-
-        /* Mobile - half horizontal margin, account for footer */
-        @media (max-width: 768px) {
-            :root {
-                --margin-horizontal: 7.5%;
-                --margin-vertical: 5vh;
-                --footer-height: 100px;
-            }
-        }
-
-        /* Small mobile */
-        @media (max-width: 480px) {
-            :root {
-                --margin-horizontal: 5%;
-                --margin-vertical: 3vh;
-                --footer-height: 110px;
-            }
-        }
-
-        .registerclosedbeta-page .nav-col-dashboard-links {
-            margin-right: 0.35rem;
-        }
-
-        .registerclosedbeta-page .dashboard-quick-nav {
-            display: inline-flex;
+        /* ============================================
+           Top nav · "wo-nav"
+           ============================================ */
+        .wo-nav {
+            height: var(--header-h);
+            min-height: var(--header-h);
+            border-bottom: 1.5px solid var(--ink);
+            display: grid;
+            grid-template-columns: auto 1fr auto;
             align-items: center;
-            height: 36px;
-            border: 2px solid var(--fg);
-            background: var(--bg);
+            padding: 0 24px;
+            gap: 32px;
+            background: var(--cream);
+            position: sticky;
+            top: 0;
+            z-index: 90;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            align-self: stretch;
         }
-
-        .registerclosedbeta-page .dashboard-quick-link {
-            height: 100%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 0.85rem;
-            border-right: 2px solid var(--fg);
-            text-decoration: none;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.62rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            font-weight: 700;
-            color: var(--fg);
-            background: var(--bg);
-            transition: background 0.18s ease, color 0.18s ease;
-        }
-
-        .registerclosedbeta-page .dashboard-quick-link:last-child {
-            border-right: none;
-        }
-
-        .registerclosedbeta-page .dashboard-quick-link:hover {
-            background: var(--fg);
-            color: var(--bg);
-        }
-
-        .registerclosedbeta-page .dashboard-quick-link-job-board:hover {
-            background: var(--primary-red);
-            color: var(--bg);
-        }
-
-        .registerclosedbeta-page.menu-authenticated #login-btn {
-            height: 36px;
-            padding: 0 0.85rem;
-            font-size: 0.62rem;
-            letter-spacing: 0.08em;
-            font-weight: 700;
-        }
-
-        .registerclosedbeta-page .mobile-menu-toggle {
-            display: none;
-        }
-
-        .registerclosedbeta-page .dashboard-mobile-menu {
-            display: none;
-        }
-
-        .registerclosedbeta-page .dashboard-mobile-menu[hidden] {
-            display: none !important;
-        }
-
-        @keyframes register-dashboard-menu-reveal {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @media (max-width: 1200px) {
-            .registerclosedbeta-page .dashboard-quick-link {
-                padding: 0 0.62rem;
-                font-size: 0.56rem;
-            }
-
-            .registerclosedbeta-page.menu-authenticated #login-btn {
-                padding: 0 0.62rem;
-                font-size: 0.56rem;
-            }
-
-            .registerclosedbeta-page .nav-col-dashboard-links {
-                margin-right: 0.15rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .registerclosedbeta-page.menu-authenticated .nav-row {
-                left: 0.75rem !important;
-                right: 0.75rem !important;
-                width: auto !important;
-                border-left: 3px solid var(--fg);
-                border-right: 3px solid var(--fg);
-            }
-
-            .registerclosedbeta-page.menu-authenticated .nav-col {
-                min-width: 0;
-            }
-
-            .registerclosedbeta-page.menu-authenticated .nav-row .login-toggle {
-                font-size: 14px !important;
-                letter-spacing: 0.12em !important;
-                font-weight: 800 !important;
-            }
-
-            .registerclosedbeta-page .nav-col-dashboard-links {
-                margin-right: 0;
-            }
-
-            .registerclosedbeta-page .dashboard-quick-nav {
-                display: none;
-            }
-
-            .registerclosedbeta-page .mobile-menu-toggle {
-                display: inline-flex;
-                width: 100% !important;
-                height: 100% !important;
-                align-items: center;
-                justify-content: center;
-                border: none !important;
-                background: var(--bg) !important;
-                color: var(--fg) !important;
-                font-family: 'JetBrains Mono', monospace;
-                font-size: 14px !important;
-                letter-spacing: 0.11em !important;
-                text-transform: uppercase;
-                font-weight: 800;
-                cursor: pointer;
-                transition: background 0.15s ease, color 0.15s ease;
-            }
-
-            .registerclosedbeta-page .mobile-menu-toggle:hover,
-            .registerclosedbeta-page .mobile-menu-toggle[aria-expanded="true"] {
-                background: var(--primary-yellow) !important;
-                color: var(--text-on-light) !important;
-            }
-
-            .registerclosedbeta-page .dashboard-mobile-menu {
-                position: fixed;
-                left: 0.75rem;
-                right: 0.75rem;
-                bottom: calc(60px + env(safe-area-inset-bottom));
-                z-index: 1100;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 0;
-                border: 3px solid var(--fg);
-                background: var(--fg);
-                animation: register-dashboard-menu-reveal 0.2s ease;
-            }
-
-            .registerclosedbeta-page .dashboard-mobile-menu-link {
-                min-height: 56px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                text-decoration: none;
-                font-family: 'JetBrains Mono', monospace;
-                font-size: 14px !important;
-                letter-spacing: 0.08em !important;
-                text-transform: uppercase;
-                font-weight: 700;
-                color: var(--fg);
-                background: var(--bg);
-                border-right: 2px solid var(--fg);
-                border-bottom: 2px solid var(--fg);
-                transition: background 0.16s ease, color 0.16s ease;
-            }
-
-            .registerclosedbeta-page .dashboard-mobile-menu-link:nth-child(2n) {
-                border-right: none;
-            }
-
-            .registerclosedbeta-page .dashboard-mobile-menu-link:nth-last-child(-n + 2) {
-                border-bottom: none;
-            }
-
-            .registerclosedbeta-page .dashboard-mobile-menu-link:hover {
-                background: var(--fg);
-                color: var(--bg);
-            }
-
-            .registerclosedbeta-page .dashboard-mobile-menu-link-job-board {
-                background: var(--primary-red);
-                color: var(--bg);
-            }
-        }
-
-        .welcome-video-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 2600;
+        .wo-nav-left {
             display: flex;
             align-items: center;
+            height: 100%;
+        }
+        .wo-nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--display);
+            font-size: 18px;
+            letter-spacing: 0.02em;
+            margin-right: 28px;
+            color: var(--ink);
+            text-decoration: none;
+        }
+        .wo-nav-logo-marks { display: flex; align-items: center; gap: 4px; }
+        .wo-nav-logo-marks .sq { width: 14px; height: 14px; background: var(--red); }
+        .wo-nav-logo-marks .ci { width: 14px; height: 14px; background: var(--yellow); border-radius: 50%; }
+        .wo-nav-logo-marks .tr {
+            width: 0; height: 0;
+            border-left: 7px solid transparent;
+            border-right: 7px solid transparent;
+            border-bottom: 14px solid var(--blue);
+        }
+        .wo-nav-logo-text .umlaut { display: inline-block; transform: translateY(-1px); }
+
+        .wo-nav-tag {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            color: var(--ink);
+            padding-left: 24px;
+            border-left: 1.5px solid var(--ink);
+            height: var(--header-h);
+            text-transform: uppercase;
+        }
+        .wo-nav-tag .dot {
+            width: 8px; height: 8px; background: var(--red); border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .wo-nav-tag-full { display: inline; }
+        .wo-nav-tag-short { display: none; }
+
+        .wo-nav-right { display: flex; align-items: center; gap: 24px; }
+        .wo-nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            font-family: var(--sans);
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .wo-nav-links a { color: var(--ink); text-decoration: none; }
+        .wo-nav-links a:hover { color: var(--red); }
+
+        .wo-login-btn {
+            background: var(--red);
+            color: var(--cream);
+            font-family: var(--sans);
+            font-weight: 800;
+            font-size: 12px;
+            letter-spacing: 0.16em;
+            padding: 10px 18px;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.15s ease, transform 0.12s ease;
+        }
+        .wo-login-btn:hover { background: var(--red-deep); transform: translateY(-1px); }
+
+        .wo-theme-mark {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 1.5px solid var(--ink) !important;
+            background: var(--cream) !important;
+            color: var(--ink);
+            display: grid; place-items: center;
+            font-family: var(--display);
+            font-size: 14px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .wo-theme-mark:hover { background: var(--yellow); }
+
+        .wo-burger {
+            display: none;
+            width: 36px; height: 36px;
+            border: 1.5px solid var(--ink);
+            background: var(--cream);
+            cursor: pointer;
+            flex-direction: column;
             justify-content: center;
-            padding: 1.5rem;
-            background: rgba(10, 10, 10, 0.85);
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.22s ease, visibility 0.22s ease;
+            align-items: center;
+            gap: 4px;
+            padding: 0;
+        }
+        .wo-burger i {
+            width: 18px; height: 2px; background: var(--ink); display: block;
+            transition: transform 0.18s ease, opacity 0.18s ease;
+        }
+        .wo-burger[aria-expanded="true"] i:nth-child(1) {
+            transform: translateY(6px) rotate(45deg);
+        }
+        .wo-burger[aria-expanded="true"] i:nth-child(2) { opacity: 0; }
+        .wo-burger[aria-expanded="true"] i:nth-child(3) {
+            transform: translateY(-6px) rotate(-45deg);
         }
 
-        .welcome-video-modal.active {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
+        /* Auth (logged-in) links — hidden by default, shown by main.js */
+        .wo-nav-links-auth { display: none; gap: 20px; }
+        .registerclosedbeta-page.menu-authenticated .wo-nav-links-auth { display: flex; }
+        .registerclosedbeta-page.menu-authenticated .wo-nav-links-public { display: none; }
+
+        /* ============================================
+           Main layout (Variant C)
+           ============================================ */
+        .wo-shell {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 460px;
+            min-height: calc(100vh - var(--header-h));
+            min-height: calc(100dvh - var(--header-h));
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            align-self: stretch;
         }
 
-        .welcome-video-modal__panel {
-            width: min(86vw, 900px);
-            background: #141414;
-            border: 3px solid var(--fg);
-            padding: clamp(12px, 1.2vw, 18px);
-            --video-inline-gutter: clamp(30px, 4.8vw, 56px);
-            --video-bottom-gutter: clamp(16px, 2vw, 24px);
-            --close-size: 40px;
-            --close-offset: clamp(12px, 1.1vw, 16px);
-            --close-safe-inline: calc(var(--close-size) + var(--close-offset) + 22px);
+        /* LEFT poster */
+        .wo-poster {
             position: relative;
-            transform: translateY(14px);
-            transition: transform 0.22s ease;
+            padding: 56px 64px 36px;
+            overflow: hidden;
+            border-right: 1.5px solid var(--ink);
+            background: var(--cream);
+            display: flex;
+            flex-direction: column;
         }
 
-        .welcome-video-modal.active .welcome-video-modal__panel {
-            transform: translateY(0);
+        .wo-mono {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-2);
         }
+        .wo-mono .accent-red { color: var(--red); }
 
-        .welcome-video-modal__close {
+        .wo-poster-step {
             position: absolute;
-            top: var(--close-offset);
-            right: var(--close-offset);
-            width: var(--close-size);
-            height: var(--close-size);
-            border: 2px solid var(--fg);
-            background: var(--bg);
-            color: var(--fg);
+            top: 28px;
+            left: 64px;
+        }
+        .wo-poster-step-row { display: none; }
+
+        .wo-display {
+            font-family: var(--display);
+            font-size: clamp(72px, 16vw, 220px);
+            line-height: 0.82;
+            letter-spacing: -0.03em;
+            color: var(--ink);
+            margin-top: 56px;
+        }
+        .wo-display-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 28px;
+        }
+        .wo-display-row + .wo-display-row { margin-top: 12px; }
+        .wo-display-row .blue { color: var(--blue); }
+
+        /* Shapes scale with the type using container size */
+        .wo-shape {
+            flex-shrink: 0;
+            margin-bottom: clamp(6px, 1.5vw, 18px);
+        }
+        .wo-shape.square {
+            width: clamp(40px, 8.6vw, 124px);
+            height: clamp(40px, 8.6vw, 124px);
+            background: var(--red);
+        }
+        .wo-shape.triangle {
+            width: 0; height: 0;
+            border-left: clamp(20px, 4.3vw, 62px) solid transparent;
+            border-right: clamp(20px, 4.3vw, 62px) solid transparent;
+            border-bottom: clamp(40px, 8.6vw, 124px) solid var(--yellow);
+        }
+        .wo-shape.circle {
+            width: clamp(40px, 8.6vw, 124px);
+            height: clamp(40px, 8.6vw, 124px);
+            border-radius: 50%;
+            background: var(--ink);
+            position: relative;
+        }
+        .wo-shape.circle::after {
+            content: "";
+            position: absolute;
+            right: 22px;
+            bottom: 22px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--red);
+        }
+
+        .wo-poster-footer {
+            margin-top: auto;
+            padding-top: 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 40px;
+        }
+        .wo-poster-manifesto {
+            font-size: 15px;
+            line-height: 1.5;
+            max-width: 360px;
+            color: var(--ink-2);
+        }
+        .wo-poster-manifesto strong { color: var(--ink); }
+        .wo-manifesto-mobile { display: none; }
+        .wo-poster-build { color: var(--ink-2); white-space: nowrap; }
+
+        /* RIGHT auth column */
+        .wo-auth {
+            padding: 44px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            background: var(--cream);
+        }
+        .wo-auth-eyebrow {
+            color: var(--ink-2);
+            margin-bottom: 14px;
+        }
+        .wo-auth-title {
+            font-family: var(--display);
+            font-size: 42px;
+            line-height: 0.92;
+            letter-spacing: -0.01em;
+            color: var(--ink);
+            margin: 0;
+        }
+        .wo-auth-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .wo-auth-row-wrap { position: relative; }
+        .wo-auth-row {
+            display: grid;
+            grid-template-columns: 56px 1fr 28px;
+            align-items: center;
+            background: var(--cream);
+            border: 1.5px solid var(--ink);
+            padding: 0;
+            cursor: pointer;
+            height: 56px;
+            width: 100%;
+            font-family: var(--sans);
+            text-align: left;
+            overflow: hidden;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            color: var(--ink);
+        }
+        .wo-auth-row:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--ink);
+        }
+        .wo-auth-row.recommended { border-width: 1.5px; }
+        .wo-auth-icon-cell {
+            height: 100%;
+            display: grid;
+            place-items: center;
+            border-right: 1.5px solid var(--ink);
+        }
+        .wo-auth-icon-cell.google { background: var(--yellow); color: var(--ink); }
+        .wo-auth-icon-cell.instagram { background: var(--blue); color: var(--cream); }
+        .wo-auth-icon-cell.apple { background: var(--ink); color: var(--cream); }
+        .wo-auth-label {
+            padding: 0 18px;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .wo-label-short { display: none; }
+        .wo-auth-label .wo-auth-arrow { display: none; }
+        .wo-auth-arrow {
+            font-size: 18px;
+            padding-right: 16px;
+            transition: transform 0.15s ease;
+        }
+        .wo-auth-row:hover .wo-auth-arrow { transform: translateX(4px); }
+        .wo-auth-badge {
+            position: absolute;
+            top: -9px;
+            right: 14px;
+            background: var(--red);
+            color: var(--cream);
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 0.14em;
+            font-weight: 700;
+            padding: 3px 8px;
+            border: 1.5px solid var(--ink);
+            z-index: 2;
+            pointer-events: none;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+
+        .wo-divider {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 6px;
+        }
+        .wo-divider .line { flex: 1; height: 1.5px; background: var(--ink); }
+        .wo-divider .label { color: var(--ink-2); }
+
+        .wo-form { display: contents; }
+        .wo-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1.5px solid var(--ink);
+            font-family: var(--display);
+            font-size: 22px;
+            padding: 8px 0 12px;
+            color: var(--ink);
+            outline: none;
+            letter-spacing: 0.02em;
+            text-transform: none !important;
+        }
+        .wo-input::placeholder {
+            color: var(--ink);
+            opacity: 0.2;
+            text-transform: none !important;
+        }
+        body.dark-mode.registerclosedbeta-page .wo-input::placeholder { color: rgba(242,239,230,0.22); }
+        .wo-input:focus { border-bottom-color: var(--red); }
+        .registerclosedbeta-page #beta-form { display: contents; }
+        .registerclosedbeta-page #beta-form .form-group { margin: 0; }
+
+        .wo-btn-primary {
+            font-family: var(--sans);
+            font-weight: 800;
+            font-size: 13px;
+            letter-spacing: 0.14em;
+            border: 1.5px solid var(--ink);
+            padding: 16px 18px;
+            background: var(--ink);
+            color: var(--cream);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
-        }
-
-        .welcome-video-modal__close:hover {
-            background: var(--fg);
-            color: var(--bg);
-            transform: translateY(-1px);
-        }
-
-        .welcome-video-modal__title {
-            margin: 0 var(--close-safe-inline) clamp(14px, 1.6vw, 20px) var(--video-inline-gutter);
-            color: #f2f2f2;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            font-weight: 700;
+            gap: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .welcome-video-modal__frame-wrap {
-            width: calc(100% - (var(--video-inline-gutter) * 2));
-            max-width: 700px;
-            position: relative;
-            padding-top: 56.25%;
-            background: #202020;
-            border: 2px solid #2a2a2a;
-            margin: clamp(8px, 1vw, 14px) auto var(--video-bottom-gutter) auto;
-        }
-
-        .welcome-video-modal__frame {
-            position: absolute;
-            inset: 0;
             width: 100%;
-            height: 100%;
-            border: 0;
+            transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+        }
+        .wo-btn-primary:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--ink);
+            background: var(--ink-2);
+        }
+        .wo-btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
-        .welcome-video-modal__fallback {
-            position: absolute;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
+        .wo-already {
+            color: var(--ink-2);
             text-align: center;
-            color: #f2f2f2;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            letter-spacing: 0.05em;
+            margin-top: -6px;
+        }
+        .wo-already a {
+            color: var(--ink);
+            border-bottom: 1.5px solid var(--ink);
+            padding-bottom: 1px;
+            margin-left: 4px;
+            text-decoration: none;
+        }
+
+        .wo-terms {
+            color: var(--ink-2);
+            font-size: 10px;
+            line-height: 1.6;
+            margin-top: auto;
+            font-family: var(--mono);
+            letter-spacing: 0.12em;
             text-transform: uppercase;
         }
+        .wo-terms a {
+            color: inherit;
+            border-bottom: 1px solid var(--ink-2);
+            text-decoration: none;
+        }
+        .wo-terms .terms-full,
+        .wo-terms .terms-mobile { display: none; }
+        .wo-terms .terms-desktop { display: inline; }
 
-        .welcome-video-modal__fallback.active {
-            display: flex;
+        /* Form message override (uses landing-style.css base, retint to design) */
+        .registerclosedbeta-page #form-message.form-message {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            color: var(--ink-2);
+            text-transform: none;
+        }
+        .registerclosedbeta-page #form-message.form-message:not(:empty) {
+            padding: 10px 12px;
+            border: 1.5px solid var(--ink);
+            background: var(--cream-2);
+        }
+        .registerclosedbeta-page #form-message.form-message:empty {
+            display: none;
+        }
+        .registerclosedbeta-page #form-message.error { color: var(--red); border-color: var(--red); }
+        .registerclosedbeta-page #form-message.success { color: var(--ink); border-color: var(--ink); }
+        .registerclosedbeta-page #form-message a { color: var(--red); text-decoration: underline; }
+
+        /* ============================================
+           Tablet (≤1024px) · iPad Pro 11" portrait
+           ============================================ */
+        @media (max-width: 1024px) {
+            .wo-nav {
+                padding: 0 20px;
+                gap: 20px;
+            }
+            .wo-nav-logo { margin-right: 20px; }
+            .wo-nav-tag { padding-left: 18px; }
+            .wo-nav-tag-full { display: none; }
+            .wo-nav-tag-short { display: inline; }
+            .wo-nav-links { gap: 18px; }
+            .wo-nav-logo,
+            .wo-nav-logo-text,
+            .wo-nav-tag,
+            .wo-nav-links {
+                white-space: nowrap;
+            }
+
+            .wo-shell {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto minmax(0, 1fr);
+            }
+
+            .wo-poster {
+                padding: 36px 44px 32px;
+                border-right: none;
+                border-bottom: 1.5px solid var(--ink);
+            }
+            .wo-poster-step {
+                position: static;
+                margin-bottom: 24px;
+            }
+            .wo-display {
+                font-size: 132px;
+                margin-top: 0;
+            }
+            .wo-display-row { gap: 20px; }
+            .wo-display-row + .wo-display-row { margin-top: 8px; }
+            .wo-shape.square { width: 78px; height: 78px; margin-bottom: 14px; }
+            .wo-shape.triangle {
+                border-left-width: 39px;
+                border-right-width: 39px;
+                border-bottom-width: 78px;
+                margin-bottom: 14px;
+            }
+            .wo-shape.circle { width: 78px; height: 78px; margin-bottom: 14px; }
+            .wo-shape.circle::after { display: none; }
+            .wo-poster-footer { padding-top: 32px; gap: 32px; }
+            .wo-poster-manifesto { font-size: 14px; max-width: 380px; }
+            .wo-poster-build { text-align: right; line-height: 1.6; }
+
+            .wo-auth {
+                padding: 32px 44px 36px;
+                gap: 18px;
+                min-height: 0;
+            }
+            .wo-auth-eyebrow { margin-bottom: 8px; }
+            .wo-auth-title { font-size: 48px; line-height: 0.95; }
+            .wo-auth-title br { display: none; }
+            .wo-terms .terms-desktop { display: none; }
+            .wo-terms .terms-full { display: inline; }
+
+            /* Tablet: horizontal trio of tile-style auth buttons */
+            .wo-auth-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 12px;
+                margin-top: 6px;
+            }
+            .wo-auth-row {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                height: auto;
+                grid-template-columns: none;
+            }
+            .wo-auth-row:hover {
+                transform: translate(-3px, -3px);
+                box-shadow: 5px 5px 0 var(--ink);
+            }
+            .wo-auth-icon-cell {
+                padding: 20px 18px;
+                border-right: none;
+                border-bottom: 1.5px solid var(--ink);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .wo-auth-icon-cell::after {
+                content: "OAUTH";
+                font-family: var(--mono);
+                font-size: 11px;
+                letter-spacing: 0.12em;
+                opacity: 0.7;
+            }
+            .wo-auth-label {
+                padding: 14px 18px;
+                font-size: 14px;
+                font-weight: 800;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .wo-label-full { display: none; }
+            .wo-label-short { display: inline; }
+            .wo-auth-arrow {
+                font-size: 16px;
+                padding-right: 0;
+            }
+            /* Move the arrow into the label cell on tablet (after the label text) */
+            .wo-auth-row .wo-auth-label .wo-auth-arrow {
+                margin-left: auto;
+            }
+            /* Hide the standalone arrow grid cell since arrow is now inside label */
+            .wo-auth-row > .wo-auth-arrow { display: none; }
+
+            .wo-auth-badge {
+                top: -10px;
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 10px;
+                letter-spacing: 0.16em;
+                padding: 4px 10px;
+            }
+
+            .wo-input { font-size: 26px; }
+            .wo-btn-primary { padding: 18px; font-size: 14px; }
+            .wo-already { margin-top: -4px; }
         }
 
-        @media (max-width: 768px) {
-            .welcome-video-modal {
-                padding: 0.9rem;
+        /* ============================================
+           Mobile (≤600px) · iPhone 14
+           ============================================ */
+        @media (max-width: 600px) {
+            .registerclosedbeta-page { --header-h: 54px; }
+            .wo-nav {
+                padding: 0 18px;
+                gap: 12px;
+                grid-template-columns: auto 1fr auto;
+            }
+            .wo-nav-logo {
+                font-size: 15px;
+                margin-right: 0;
+                gap: 7px;
+            }
+            .wo-nav-logo-marks { gap: 3px; }
+            .wo-nav-logo-marks .sq,
+            .wo-nav-logo-marks .ci { width: 11px; height: 11px; }
+            .wo-nav-logo-marks .tr {
+                border-left-width: 5.5px;
+                border-right-width: 5.5px;
+                border-bottom-width: 11px;
+            }
+            .wo-nav-tag { display: none; }
+            .wo-nav-links { display: none; }
+            .wo-nav-right { gap: 10px; }
+            .wo-login-btn {
+                font-size: 10px;
+                padding: 7px 12px;
+                letter-spacing: 0.16em;
+            }
+            .wo-theme-mark {
+                width: 28px !important;
+                height: 28px !important;
+                border: 1.5px solid var(--ink) !important;
+                background: var(--cream) !important;
+                color: var(--ink) !important;
+                font-size: 11px;
+            }
+            .wo-burger { display: none; width: 30px; height: 30px; }
+
+            .wo-poster {
+                margin-top: 10px;
+                padding: 14px 18px 18px;
+                scroll-margin-top: calc(var(--header-h) + 10px);
+            }
+            .wo-poster-step {
+                display: none;
+            }
+            .wo-poster-step-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 14px;
+            }
+            .wo-poster-build-mini { font-family: var(--mono); font-size: 10px; color: var(--ink-2); letter-spacing: 0.12em; }
+
+            .wo-display { font-size: 64px; line-height: 0.85; margin-top: 0; }
+            .wo-display-row { gap: 10px; }
+            .wo-display-row + .wo-display-row { margin-top: 4px; }
+            .wo-shape.square { width: 36px; height: 36px; margin-bottom: 6px; }
+            .wo-shape.triangle {
+                border-left-width: 18px;
+                border-right-width: 18px;
+                border-bottom-width: 36px;
+                margin-bottom: 6px;
+            }
+            .wo-shape.circle { width: 36px; height: 36px; margin-bottom: 6px; }
+
+            .wo-poster-footer {
+                margin-top: 14px;
+                padding-top: 0;
+                display: block;
+            }
+            .wo-poster-manifesto {
+                font-size: 13px;
+                line-height: 1.35;
+                max-width: none;
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+            .wo-manifesto-full { display: none; }
+            .wo-manifesto-mobile { display: inline; }
+            .wo-poster-build { display: none; }
+
+            .wo-auth {
+                padding: 18px 18px;
+                gap: 10px;
+            }
+            .wo-auth > header { display: none; }
+            .wo-auth-title { font-size: 26px; }
+            .wo-auth-eyebrow { font-size: 10px; }
+            .wo-terms .terms-full { display: none; }
+            .wo-terms .terms-mobile { display: inline; }
+
+            /* Back to stacked rows on mobile */
+            .wo-auth-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 0;
+            }
+            .wo-auth-row {
+                display: grid;
+                grid-template-columns: 48px 1fr 28px;
+                height: 50px;
+                flex-direction: row;
+                align-items: center;
+                line-height: 1;
+            }
+            .registerclosedbeta-page .wo-auth-row.social-btn:hover,
+            .registerclosedbeta-page .wo-auth-row.social-btn:focus,
+            .registerclosedbeta-page .wo-auth-row.social-btn:focus-visible {
+                background: var(--cream);
+                color: var(--ink);
+            }
+            .wo-auth-row:hover {
+                transform: translate(-2px, -2px);
+                box-shadow: 3px 3px 0 var(--ink);
+            }
+            .wo-auth-icon-cell {
+                padding: 0;
+                border-right: 1.5px solid var(--ink);
+                border-bottom: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+            }
+            .wo-auth-icon-cell::after { display: none; }
+            .wo-auth-label {
+                padding: 1px 14px 0;
+                font-size: 11.5px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                height: 100%;
+                line-height: 1;
+            }
+            .wo-label-full { display: inline; }
+            .wo-label-short { display: none; }
+            .wo-auth-row .wo-auth-label .wo-auth-arrow { display: none; }
+            .wo-auth-row > .wo-auth-arrow {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                height: 100%;
+                font-size: 16px;
+                padding-right: 12px;
+                line-height: 1;
+            }
+            .wo-auth-badge {
+                top: -8px;
+                right: 12px;
+                left: auto;
+                transform: none;
+                font-size: 8px;
+                padding: 3px 7px;
+                letter-spacing: 0.14em;
             }
 
-            .welcome-video-modal__panel {
-                width: 100%;
-                padding: 0.95rem;
-                --video-inline-gutter: 22px;
-                --video-bottom-gutter: 12px;
-                --close-size: 36px;
-                --close-offset: 10px;
-                --close-safe-inline: calc(var(--close-size) + var(--close-offset) + 14px);
-            }
-
-            .welcome-video-modal__close {
-                width: var(--close-size);
-                height: var(--close-size);
-                top: var(--close-offset);
-                right: var(--close-offset);
-            }
-
-            .welcome-video-modal__title {
-                margin: 0 var(--close-safe-inline) 0.9rem var(--video-inline-gutter);
-                font-size: 0.72rem;
-            }
-
-            .welcome-video-modal__frame-wrap {
-                width: min(calc(100% - 2.25rem), 320px);
-                max-width: 320px;
-                margin: 0.5rem auto var(--video-bottom-gutter) auto;
-            }
+            .wo-input { font-size: 20px; padding-bottom: 8px; }
+            .wo-btn-primary { padding: 16px 14px; font-size: 12px; }
+            .wo-divider .label { font-size: 10px; }
+            .wo-already { font-size: 10px; margin-top: -2px; }
+            .wo-terms { font-size: 9px; text-align: center; padding-top: 10px; }
         }
 
-        @media (max-width: 480px) {
-            .welcome-video-modal__panel {
-                --video-inline-gutter: 18px;
-            }
+        /* Hide mobile drawer when JS hasn't initialised */
+        #wo-drawer { display: none; }
+        #wo-drawer.open { display: flex; }
+        #wo-drawer {
+            position: fixed;
+            left: 0; right: 0;
+            top: var(--header-h);
+            background: var(--ink);
+            color: var(--cream);
+            flex-direction: column;
+            z-index: 80;
+            border-bottom: 1.5px solid var(--ink);
+            padding: 18px 18px 22px;
+            gap: 14px;
         }
+        #wo-drawer a {
+            color: var(--cream);
+            text-decoration: none;
+            font-family: var(--sans);
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(242,239,230,0.18);
+        }
+        #wo-drawer a:last-child { border-bottom: none; }
+        #wo-drawer .drawer-label {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            color: var(--cream-2);
+            opacity: 0.7;
+            margin: 0;
+        }
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
 </head>
 
 <body class="registerclosedbeta-page">
 
-    <header class="top-nav-header">
-        <div class="header-edition-info">
-            Edición Bauhaus | Beta Cerrada
+    <!-- =====================================================
+         TOP NAV · Bauhaus
+         ===================================================== -->
+    <header class="wo-nav" role="banner">
+        <div class="wo-nav-left">
+            <a href="/" class="wo-nav-logo" aria-label="We Ötzi inicio">
+                <span class="wo-nav-logo-marks" aria-hidden="true">
+                    <span class="sq"></span>
+                    <span class="ci"></span>
+                    <span class="tr"></span>
+                </span>
+                <span class="wo-nav-logo-text">WE<span class="umlaut">Ö</span>TZI</span>
+            </a>
+            <p class="wo-nav-tag" aria-label="Edición Bauhaus, Beta Cerrada">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="wo-nav-tag-full">EDICI&Oacute;N BAUHAUS &middot; BETA CERRADA</span>
+                <span class="wo-nav-tag-short">BAUHAUS &middot; BETA</span>
+            </p>
         </div>
-        <div class="nav-row">
-            <div class="nav-col nav-col-dashboard-links" id="dashboard-nav-links-col" hidden>
-                <nav class="dashboard-quick-nav" aria-label="Navegacion principal de artista">
-                    <a href="/artist/dashboard" class="dashboard-quick-link">Dashboard</a>
-                    <a href="/my-quotations" class="dashboard-quick-link">Cotizaciones</a>
-                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
-                    <a href="/calendar" class="dashboard-quick-link">Calendario</a>
-                    <a href="/my-quotations/statistics" class="dashboard-quick-link">Estadisticas</a>
-                </nav>
-                <button class="mobile-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
-                    Menu
-                </button>
-            </div>
-            <div class="nav-col">
-                <button id="login-btn" class="login-toggle" onclick="openLoginModal()" aria-label="Iniciar sesion">
-                    LOG IN
-                </button>
-            </div>
-            <div class="nav-col">
-                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar modo">
-                    Ö
-                </button>
-            </div>
+
+        <div></div>
+
+        <div class="wo-nav-right">
+            <nav class="wo-nav-links wo-nav-links-public" aria-label="Navegación pública">
+                <a href="/tutorial/">Cómo funciona</a>
+                <a href="/marketplace/">Explorar</a>
+            </nav>
+            <nav class="wo-nav-links wo-nav-links-auth" id="dashboard-nav-links-col" aria-label="Navegación de artista" hidden>
+                <a href="/artist/dashboard">Dashboard</a>
+                <a href="/my-quotations">Cotizaciones</a>
+                <a href="/job-board">Job Board</a>
+                <a href="/calendar">Calendario</a>
+                <a href="/my-quotations/statistics">Estadísticas</a>
+            </nav>
+            <button id="login-btn" class="wo-login-btn" type="button" onclick="openLoginModal()">LOG IN</button>
+            <button class="wo-theme-mark theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
+            <button class="wo-burger" id="dashboard-mobile-menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="wo-drawer" onclick="toggleWoDrawer()">
+                <i></i><i></i><i></i>
+            </button>
         </div>
     </header>
-    <nav class="dashboard-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegacion movil de artista" hidden>
-        <a href="/artist/dashboard" class="dashboard-mobile-menu-link">Dashboard</a>
-        <a href="/my-quotations" class="dashboard-mobile-menu-link">Cotizaciones</a>
-        <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
-        <a href="/calendar" class="dashboard-mobile-menu-link">Calendario</a>
-        <a href="/my-quotations/statistics" class="dashboard-mobile-menu-link">Estadisticas</a>
-    </nav>
 
-    <div id="welcome-video-modal"
-         class="welcome-video-modal"
-         data-youtube-id="hDQTu9WhObc"
-         onclick="closeWelcomeVideoModalOnOverlay(event)"
-         aria-hidden="true">
-        <div class="welcome-video-modal__panel" role="dialog" aria-modal="true" aria-labelledby="welcome-video-modal-title">
-            <button class="welcome-video-modal__close" type="button" onclick="closeWelcomeVideoModal()" aria-label="Cerrar video de bienvenida">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-            <p id="welcome-video-modal-title" class="welcome-video-modal__title">Video de Bienvenida</p>
-            <div class="welcome-video-modal__frame-wrap">
-                <iframe id="welcome-video-frame"
-                        class="welcome-video-modal__frame"
-                        src=""
-                        title="Video de bienvenida de We Otzi"
-                        loading="lazy"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        allowfullscreen></iframe>
-                <div id="welcome-video-fallback" class="welcome-video-modal__fallback">
-                    Define un ID de YouTube en <code>data-youtube-id</code> para mostrar el video
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Mobile drawer (used on small screens) -->
+    <aside id="wo-drawer" aria-hidden="true" aria-label="Menú móvil">
+        <p class="drawer-label">Navegación</p>
+        <a href="/tutorial/">Cómo funciona</a>
+        <a href="/marketplace/">Explorar</a>
+        <a href="/artist/dashboard" class="drawer-auth">Dashboard</a>
+        <a href="/my-quotations" class="drawer-auth">Cotizaciones</a>
+        <a href="/job-board" class="drawer-auth">Job Board</a>
+        <a href="/calendar" class="drawer-auth">Calendario</a>
+        <a href="/my-quotations/statistics" class="drawer-auth">Estadísticas</a>
+        <a href="#" onclick="event.preventDefault(); toggleWoDrawer(false); openLoginModal();">Log in</a>
+    </aside>
+    <!-- Compatibility shim: main.js looks for #dashboard-mobile-menu; keep it
+         present (and empty) so its show/hide logic doesn't error out. -->
+    <div id="dashboard-mobile-menu" hidden></div>
 
-    <!-- Login Modal -->
+    <!-- =====================================================
+         LOGIN MODAL (legacy markup, kept verbatim for main.js)
+         ===================================================== -->
     <div id="login-modal" class="modal-overlay" onclick="closeLoginModalOnOverlay(event)">
         <div class="modal-container">
             <button class="modal-close" onclick="closeLoginModal()" aria-label="Cerrar">
@@ -525,201 +989,198 @@
         </div>
     </div>
 
-    <main class="monolith-grid">
-        <section class="block block-logo">
-            <div id="logo-secret-message" class="secret-message">Bauhaus, first edition. For artists worldwide. We love
-                you</div>
-            <span class="logo-text">We<br>Ötzi</span>
-        </section>
+    <!-- =====================================================
+         MAIN — Variant C poster + auth panel
+         ===================================================== -->
+    <main class="wo-shell">
 
-        <section class="block block-shape">
-            <div class="circle"></div>
-        </section>
+        <!-- LEFT: poster -->
+        <section class="wo-poster" aria-labelledby="wo-poster-headline">
+            <!-- Desktop step indicator (absolute top-left) -->
+            <p class="wo-poster-step wo-mono">◍ PASO 0 — CREAR CUENTA</p>
 
-        <section class="block block-info">
-            <p style="margin-bottom: 2rem; font-size: 16px; font-weight: 800;">[ PHASE_01: CLOSED BETA ]</p>
-            <p>We Ötzi is a modular ecosystem for digital nomads. Form follows utility. Data follows ethics.</p>
-            <div style="margin-top: auto;">
-                <p>Status: <span style="color: var(--primary-red)">REC_READY</span></p>
-                <p>Build: 0.9.4-Bauhaus</p>
+            <!-- Mobile-only step row (top-right shows build) -->
+            <div class="wo-poster-step-row" aria-hidden="true">
+                <span class="wo-mono">◍ PASO 0 — CREAR CUENTA</span>
+                <span class="wo-poster-build-mini">0.9.4</span>
+            </div>
+
+            <div class="wo-display" id="wo-poster-headline" aria-label="Un solo paso para crear tu cuenta">
+                <div class="wo-display-row">
+                    <span>UN</span>
+                    <span class="wo-shape square" aria-hidden="true"></span>
+                </div>
+                <div class="wo-display-row">
+                    <span class="blue">SOLO</span>
+                    <span class="wo-shape triangle" aria-hidden="true"></span>
+                </div>
+                <div class="wo-display-row">
+                    <span>PASO.</span>
+                    <span class="wo-shape circle" aria-hidden="true"></span>
+                </div>
+            </div>
+
+            <div class="wo-poster-footer">
+                <p class="wo-poster-manifesto">
+                    <span class="wo-manifesto-full">
+                        <strong>El artista merece m&aacute;s apoyo y menos complicaciones.</strong>
+                        Crecer y conectar &mdash; gratis para siempre.
+                    </span>
+                    <span class="wo-manifesto-mobile">
+                        <strong>M&aacute;s apoyo, menos complicaciones.</strong>
+                        Gratis para siempre.
+                    </span>
+                </p>
+                <p class="wo-poster-build wo-mono">
+                    BUILD 0.9.4 · STATUS <span class="accent-red">REC_READY</span>
+                </p>
             </div>
         </section>
 
-        <section class="block block-form">
-            <h2
-                style="font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 2rem; font-size: 2rem;">
-                Acceso Anticipado</h2>
-            <form id="beta-form" onsubmit="handleRegistration(event)">
-                <div class="form-group">
-                    <input type="email" class="input-email" placeholder="TU@EMAIL.COM" required data-clarity-mask="true">
+        <!-- RIGHT: unified auth column -->
+        <section class="wo-auth" aria-labelledby="wo-auth-title">
+            <header>
+                <p class="wo-auth-eyebrow wo-mono">[ ACCESO ANTICIPADO · BETA CERRADA ]</p>
+                <h1 class="wo-auth-title" id="wo-auth-title">Crea tu <br>cuenta de <br>artista.</h1>
+            </header>
+
+            <!-- OAuth list -->
+            <div class="wo-auth-list" role="group" aria-label="Métodos de registro social">
+                <div class="wo-auth-row-wrap">
+                    <button type="button" class="wo-auth-row social-btn" onclick="handleSocialLogin('google')" aria-label="Continuar con Google">
+                        <span class="wo-auth-icon-cell google" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M10 6v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+                            </svg>
+                        </span>
+                        <span class="wo-auth-label">
+                            <span class="wo-label-full">Continuar con Google</span>
+                            <span class="wo-label-short">Google</span>
+                            <span class="wo-auth-arrow" aria-hidden="true">→</span>
+                        </span>
+                        <span class="wo-auth-arrow" aria-hidden="true">→</span>
+                    </button>
                 </div>
-                <button type="submit" class="btn-register">
-                    Registrarse
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                        stroke-linecap="square" stroke-linejoin="arcs">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
+
+                <div class="wo-auth-row-wrap">
+                    <span class="wo-auth-badge">★ RECOMENDADO</span>
+                    <button type="button" class="wo-auth-row recommended social-btn" onclick="handleSocialLogin('instagram')" aria-label="Continuar con Instagram (recomendado)">
+                        <span class="wo-auth-icon-cell instagram" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                                <rect x="2.75" y="2.75" width="14.5" height="14.5" rx="3.5" stroke="currentColor" stroke-width="1.5"/>
+                                <circle cx="10" cy="10" r="3.25" stroke="currentColor" stroke-width="1.5"/>
+                                <circle cx="14.25" cy="5.75" r="0.9" fill="currentColor"/>
+                            </svg>
+                        </span>
+                        <span class="wo-auth-label">
+                            <span class="wo-label-full">Continuar con Instagram</span>
+                            <span class="wo-label-short">Instagram</span>
+                            <span class="wo-auth-arrow" aria-hidden="true">→</span>
+                        </span>
+                        <span class="wo-auth-arrow" aria-hidden="true">→</span>
+                    </button>
+                </div>
+
+                <div class="wo-auth-row-wrap">
+                    <button type="button" class="wo-auth-row social-btn" onclick="handleSocialLogin('apple')" aria-label="Continuar con Apple ID">
+                        <span class="wo-auth-icon-cell apple" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                                <path d="M13.5 10.4c0-2 1.6-2.95 1.7-3-0.9-1.35-2.4-1.55-2.9-1.55-1.25-0.13-2.4 0.73-3.05 0.73-0.65 0-1.6-0.7-2.65-0.7-1.35 0.02-2.6 0.8-3.3 2-1.4 2.45-0.36 6.05 1 8 0.65 0.97 1.45 2.05 2.5 2.02 1-0.04 1.4-0.65 2.6-0.65 1.2 0 1.55 0.65 2.65 0.62 1.1-0.02 1.78-0.99 2.45-1.96 0.5-0.74 0.95-1.55 1.25-2.43-1.45-0.55-2.25-1.94-2.25-3.08z" fill="currentColor"/>
+                                <path d="M11.7 4.7c0.55-0.67 0.92-1.6 0.82-2.52-0.78 0.04-1.74 0.53-2.32 1.2-0.52 0.6-0.97 1.54-0.85 2.45 0.88 0.07 1.78-0.45 2.35-1.13z" fill="currentColor"/>
+                            </svg>
+                        </span>
+                        <span class="wo-auth-label">
+                            <span class="wo-label-full">Continuar con Apple ID</span>
+                            <span class="wo-label-short">Apple ID</span>
+                            <span class="wo-auth-arrow" aria-hidden="true">→</span>
+                        </span>
+                        <span class="wo-auth-arrow" aria-hidden="true">→</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="wo-divider" role="separator" aria-label="O regístrate con email">
+                <span class="line" aria-hidden="true"></span>
+                <span class="label wo-mono">O CON EMAIL</span>
+                <span class="line" aria-hidden="true"></span>
+            </div>
+
+            <!-- Email registration form (keeps main.js selectors intact) -->
+            <form id="beta-form" onsubmit="handleRegistration(event)" novalidate>
+                <div class="form-group">
+                    <label for="beta-email" class="visually-hidden" style="position:absolute;left:-9999px;">Email</label>
+                    <input id="beta-email" type="email" class="wo-input input-email" placeholder="tu@email.com" required data-clarity-mask="true" autocomplete="email">
+                </div>
+                <button type="submit" class="wo-btn-primary btn-register btn-register-primary">
+                    REGISTRARSE
+                    <span aria-hidden="true">→</span>
                 </button>
                 <div id="form-message" class="form-message"></div>
             </form>
-        </section>
 
-        <section class="block block-social">
-            <p style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--bg); margin-bottom: 1rem;">O CONECTA
-                CON:</p>
-            <button onclick="handleSocialLogin('google')" class="social-btn">Google</button>
-            <button onclick="handleSocialLogin('instagram')" class="social-btn">Instagram</button>
-            <button onclick="handleSocialLogin('apple')" class="social-btn">Apple ID</button>
+            <p class="wo-already wo-mono">
+                ¿YA TIENES CUENTA?
+                <a href="#" onclick="event.preventDefault(); openLoginModal();">INICIA SESIÓN →</a>
+            </p>
+
+            <p class="wo-terms">
+                <span class="terms-desktop">
+                    AL CONTINUAR ACEPTAS LOS <a href="/legal/terms" target="_blank" rel="noopener">T&Eacute;RMINOS</a>
+                    Y LA <a href="/legal/privacy" target="_blank" rel="noopener">POL&Iacute;TICA</a>.
+                </span>
+                <span class="terms-full">
+                    AL CONTINUAR ACEPTAS LOS <a href="/legal/terms" target="_blank" rel="noopener">T&Eacute;RMINOS</a>
+                    Y LA <a href="/legal/privacy" target="_blank" rel="noopener">POL&Iacute;TICA DE PRIVACIDAD</a>.
+                </span>
+                <span class="terms-mobile">
+                    <a href="/legal/terms" target="_blank" rel="noopener">T&Eacute;RMINOS</a>
+                    &middot;
+                    <a href="/legal/privacy" target="_blank" rel="noopener">PRIVACIDAD</a>
+                </span>
+            </p>
         </section>
     </main>
 
     <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
 
-    <!-- Feedback Floating Button -->
-    <button id="feedback-trigger" class="feedback-trigger" aria-label="Reportar problema o sugerencia">
-        <span id="feedback-tooltip" class="feedback-tooltip">Ayudanos a mejorar We Ötzi, deja tus comentarios</span>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-    </button>
-
-    <!-- Feedback Modal -->
-    <div id="feedback-modal" class="feedback-modal">
-        <div class="feedback-container">
-            <button class="feedback-close" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-            <div class="feedback-header">
-                <h2 class="feedback-title">Feedback</h2>
-                <p class="feedback-subtitle">Ayudanos a mejorar We Ötzi</p>
-            </div>
-            <form id="feedback-form">
-                <div class="feedback-form-group">
-                    <label for="feedback-reason">Motivo</label>
-                    <select id="feedback-reason" class="feedback-select" required>
-                        <option value="" disabled selected>Selecciona un motivo</option>
-                        <option value="error">Reportar un Error</option>
-                        <option value="sugerencia">Sugerencia de Mejora</option>
-                        <option value="pregunta">Pregunta / Duda</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                <div class="feedback-form-group">
-                    <label for="feedback-cause">Causa / Area</label>
-                    <select id="feedback-cause" class="feedback-select" required>
-                        <option value="" disabled selected>Selecciona el area</option>
-                        <option value="registro">Registro / Acceso</option>
-                        <option value="perfil">Perfil de Artista</option>
-                        <option value="dashboard">Dashboard</option>
-                        <option value="interfaz">Interfaz / Diseño</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                <div class="feedback-form-group">
-                    <label for="feedback-message">Mensaje</label>
-                    <textarea id="feedback-message" class="feedback-textarea" placeholder="Cuentanos mas detalles..." required></textarea>
-                </div>
-                <div id="feedback-message-status" class="form-message"></div>
-                <button type="submit" class="btn-feedback-submit">
-                    Enviar Feedback
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                    </svg>
-                </button>
-            </form>
-        </div>
-    </div>
-
     <script src="/shared/js/artist-auth.js"></script>
     <script src="/shared/js/bauhaus-footer.js"></script>
+    <script src="/shared/js/artist-registration-progress.js"></script>
+    <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/main.js"></script>
-    <script src="/shared/js/feedback.js"></script>
     <script src="/shared/js/header-effects.js"></script>
+
     <script>
-        (function () {
-            const PLACEHOLDER_VIDEO_ID = 'VIDEO_ID_AQUI';
-
-            function normalizeYoutubeId(value) {
-                const raw = String(value || '').trim();
-                if (!raw) return '';
-                if (/^[a-zA-Z0-9_-]{11}$/.test(raw)) return raw;
-                try {
-                    const url = new URL(raw);
-                    if (url.hostname.includes('youtu.be')) {
-                        return (url.pathname.split('/').filter(Boolean)[0] || '').trim();
-                    }
-                    if (url.searchParams.has('v')) {
-                        return (url.searchParams.get('v') || '').trim();
-                    }
-                    const embedPart = url.pathname.split('/embed/')[1] || '';
-                    return embedPart.split('/')[0].trim();
-                } catch (_) {
-                    return '';
-                }
-            }
-
-            function getWelcomeVideoId() {
-                const modal = document.getElementById('welcome-video-modal');
-                if (!modal) return '';
-                const configId = window.CONFIG?.landing?.welcomeVideoYoutubeId || '';
-                const datasetId = modal.dataset.youtubeId || '';
-                const candidate = configId || datasetId;
-                const normalized = normalizeYoutubeId(candidate);
-                if (normalized === PLACEHOLDER_VIDEO_ID) return '';
-                return normalized;
-            }
-
-            function openWelcomeVideoModal() {
-                const modal = document.getElementById('welcome-video-modal');
-                const frame = document.getElementById('welcome-video-frame');
-                const fallback = document.getElementById('welcome-video-fallback');
-                if (!modal || !frame || !fallback) return;
-
-                const videoId = getWelcomeVideoId();
-                if (videoId) {
-                    frame.src = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?rel=0&modestbranding=1';
-                    fallback.classList.remove('active');
-                } else {
-                    frame.src = '';
-                    fallback.classList.add('active');
-                }
-
-                modal.classList.add('active');
-                modal.setAttribute('aria-hidden', 'false');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeWelcomeVideoModal() {
-                const modal = document.getElementById('welcome-video-modal');
-                const frame = document.getElementById('welcome-video-frame');
-                if (!modal || !frame) return;
-                if (!modal.classList.contains('active')) return;
-                modal.classList.remove('active');
-                modal.setAttribute('aria-hidden', 'true');
-                frame.src = '';
-                document.body.style.overflow = '';
-            }
-
-            function closeWelcomeVideoModalOnOverlay(event) {
-                if (event.target && event.target.id === 'welcome-video-modal') {
-                    closeWelcomeVideoModal();
-                }
-            }
-
-            document.addEventListener('DOMContentLoaded', openWelcomeVideoModal);
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape') {
-                    closeWelcomeVideoModal();
-                }
-            });
-
-            window.openWelcomeVideoModal = openWelcomeVideoModal;
-            window.closeWelcomeVideoModal = closeWelcomeVideoModal;
-            window.closeWelcomeVideoModalOnOverlay = closeWelcomeVideoModalOnOverlay;
-        })();
+        // --- Mobile drawer toggle (local, no shared dependency) ---
+        function toggleWoDrawer(forceState) {
+            const drawer = document.getElementById('wo-drawer');
+            const burger = document.getElementById('dashboard-mobile-menu-toggle');
+            if (!drawer || !burger) return;
+            const isOpen = drawer.classList.contains('open');
+            const shouldOpen = typeof forceState === 'boolean' ? forceState : !isOpen;
+            drawer.classList.toggle('open', shouldOpen);
+            drawer.setAttribute('aria-hidden', String(!shouldOpen));
+            burger.setAttribute('aria-expanded', String(shouldOpen));
+        }
+        window.toggleWoDrawer = toggleWoDrawer;
+        document.addEventListener('click', (e) => {
+            const drawer = document.getElementById('wo-drawer');
+            const burger = document.getElementById('dashboard-mobile-menu-toggle');
+            if (!drawer || !burger) return;
+            if (!drawer.classList.contains('open')) return;
+            if (drawer.contains(e.target) || burger.contains(e.target)) return;
+            toggleWoDrawer(false);
+        });
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 600) toggleWoDrawer(false);
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') toggleWoDrawer(false);
+        });
     </script>
+
 </body>
 
 </html>

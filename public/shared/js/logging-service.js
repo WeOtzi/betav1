@@ -13,9 +13,9 @@ const LoggingService = (function() {
         PERSIST_INTERVAL: 30000,  // Persist every 30 seconds
         BATCH_SIZE: 100,          // Max logs to persist at once
         COMPRESSION_ENABLED: true,
-        AUTO_ERROR_TICKET: true,  // Auto-create tickets for errors
+        AUTO_ERROR_DIAGNOSTIC: true,
         LOG_CONSOLE: false,       // Mirror logs to console (debug)
-        ERROR_COOLDOWN: 5000,     // Min ms between auto-tickets for same error
+        ERROR_COOLDOWN: 5000,     // Min ms between diagnostics for same error
     };
 
     // State
@@ -535,7 +535,7 @@ const LoggingService = (function() {
         const errorMessage = errorObj?.message || String(errorObj);
         const errorStack = errorObj?.stack || null;
         
-        // Create hash to prevent duplicate tickets
+        // Create hash to prevent duplicate diagnostics
         const errorHash = simpleHash(errorMessage + (errorStack?.split('\n')[1] || ''));
         
         // Log the error
@@ -544,15 +544,14 @@ const LoggingService = (function() {
             stack: errorStack
         });
 
-        // Check cooldown for auto-ticket
-        const lastTicketTime = errorHashes.get(errorHash) || 0;
+        // Check cooldown for automatic diagnostics
+        const lastDiagnosticTime = errorHashes.get(errorHash) || 0;
         const now = Date.now();
         
-        if (CONFIG.AUTO_ERROR_TICKET && (now - lastTicketTime) > CONFIG.ERROR_COOLDOWN) {
+        if (CONFIG.AUTO_ERROR_DIAGNOSTIC && (now - lastDiagnosticTime) > CONFIG.ERROR_COOLDOWN) {
             errorHashes.set(errorHash, now);
             
-            // Create automatic ticket
-            await createErrorTicket(errorMessage, errorStack, context, additionalData, true);
+            await persistDiagnosticSnapshot(errorMessage, errorStack, context, additionalData, true);
         }
     }
 
@@ -566,52 +565,13 @@ const LoggingService = (function() {
         return Math.abs(hash).toString(36);
     }
 
-    async function createErrorTicket(errorMessage, errorStack, context, additionalData, isAuto = false) {
+    async function persistDiagnosticSnapshot(errorMessage, errorStack, context, additionalData, isAuto = false) {
         try {
-            const supabase = window.ConfigManager?.getSupabaseClient() || window._supabase;
-            if (!supabase) return null;
-
-            // Persist current logs first to get session_log_id
             await persist();
-
-            const ticketData = {
-                reason: 'error',
-                cause: context === 'network' ? 'interfaz' : 'otro',
-                message: `[AUTO] ${errorMessage}`.substring(0, 500),
-                metadata: {
-                    url: window.location.href,
-                    userAgent: navigator.userAgent,
-                    resolution: sessionMeta.screenResolution,
-                    viewport: sessionMeta.viewport,
-                    timestamp: new Date().toISOString(),
-                    language: navigator.language,
-                    context,
-                    ...additionalData
-                },
-                user_id: userIdentifiers.userId || null,
-                user_email: userIdentifiers.email || null,
-                user_ip: userIdentifiers.ip || null,
-                session_log_id: sessionLogId || null,
-                is_auto_generated: isAuto,
-                error_stack: errorStack?.substring(0, 2000) || null,
-                status: 'open'
-            };
-
-            const { data, error: insertError } = await supabase
-                .from('feedback_tickets')
-                .insert([ticketData])
-                .select()
-                .single();
-
-            if (insertError) {
-                originalConsole.error('[LoggingService] Failed to create ticket:', insertError);
-                return null;
-            }
-
-            info('ticket', `Error ticket created: ${data.id}`, { ticketId: data.id, auto: isAuto });
-            return data;
+            info('diagnostic', 'Diagnostic snapshot persisted', { auto: isAuto, context });
+            return null;
         } catch (err) {
-            originalConsole.error('[LoggingService] Error creating ticket:', err);
+            originalConsole.warn('[LoggingService] Error persisting diagnostic snapshot:', err);
             return null;
         }
     }
@@ -633,7 +593,7 @@ const LoggingService = (function() {
             const base64 = btoa(String.fromCharCode.apply(null, compressed));
             return base64;
         } catch (err) {
-            originalConsole.error('[LoggingService] Compression error:', err);
+            originalConsole.warn('[LoggingService] Compression error:', err);
             return JSON.stringify(data);
         }
     }
@@ -664,7 +624,7 @@ const LoggingService = (function() {
             const decompressed = pako.ungzip(bytes, { to: 'string' });
             return JSON.parse(decompressed);
         } catch (err) {
-            originalConsole.error('[LoggingService] Decompression error:', err);
+            originalConsole.warn('[LoggingService] Decompression error:', err);
             return [];
         }
     }
@@ -731,7 +691,7 @@ const LoggingService = (function() {
                     .eq('id', sessionLogId);
 
                 if (updateError) {
-                    originalConsole.error('[LoggingService] Update error:', updateError);
+                    originalConsole.warn('[LoggingService] Update error:', updateError);
                 }
             } else {
                 // Insert new record
@@ -742,13 +702,13 @@ const LoggingService = (function() {
                     .single();
 
                 if (insertError) {
-                    originalConsole.error('[LoggingService] Insert error:', insertError);
+                    originalConsole.warn('[LoggingService] Insert error:', insertError);
                 } else {
                     sessionLogId = data.id;
                 }
             }
         } catch (err) {
-            originalConsole.error('[LoggingService] Persist error:', err);
+            originalConsole.warn('[LoggingService] Persist error:', err);
         } finally {
             isPersisting = false;
         }
@@ -799,49 +759,13 @@ const LoggingService = (function() {
 
     async function sendErrorReport(userMessage, includeLog = true) {
         try {
-            const supabase = window.ConfigManager?.getSupabaseClient() || window._supabase;
-            if (!supabase) {
-                throw new Error('Supabase not available');
-            }
-
-            // Persist current logs first
             if (includeLog) {
                 await persist();
             }
-
-            const ticketData = {
-                reason: 'error',
-                cause: 'otro',
-                message: userMessage.substring(0, 500),
-                metadata: {
-                    url: window.location.href,
-                    userAgent: navigator.userAgent,
-                    resolution: sessionMeta.screenResolution,
-                    viewport: sessionMeta.viewport,
-                    timestamp: new Date().toISOString(),
-                    language: navigator.language,
-                    sessionId
-                },
-                user_id: userIdentifiers.userId || null,
-                user_email: userIdentifiers.email || null,
-                user_ip: userIdentifiers.ip || null,
-                session_log_id: includeLog ? sessionLogId : null,
-                is_auto_generated: false,
-                status: 'open'
-            };
-
-            const { data, error: insertError } = await supabase
-                .from('feedback_tickets')
-                .insert([ticketData])
-                .select()
-                .single();
-
-            if (insertError) throw insertError;
-
-            info('ticket', `Manual error report sent: ${data.id}`, { ticketId: data.id });
-            return data;
+            info('diagnostic', 'Manual diagnostic report disabled');
+            return null;
         } catch (err) {
-            originalConsole.error('[LoggingService] Error sending report:', err);
+            originalConsole.warn('[LoggingService] Error sending report:', err);
             throw err;
         }
     }
@@ -873,7 +797,7 @@ const LoggingService = (function() {
         action,
         network,
         captureError,
-        createErrorTicket,
+        persistDiagnosticSnapshot,
         getSessionLog,
         sendErrorReport,
         persist,

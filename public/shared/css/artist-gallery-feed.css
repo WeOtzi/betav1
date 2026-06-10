@@ -182,7 +182,29 @@
     font-size: clamp(0.9rem, 2.2vw, 1.08rem);
     max-width: 62ch;
     line-height: 1.42;
-    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.artist-bio p,
+.artist-bio div {
+    margin: 0 0 0.62em;
+}
+
+.artist-bio p:last-child,
+.artist-bio div:last-child {
+    margin-bottom: 0;
+}
+
+.artist-bio ul,
+.artist-bio ol {
+    margin: 0.5em 0 0.5em 1.25em;
+    padding: 0;
+}
+
+.artist-bio a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.16em;
 }
 
 .artist-stats {

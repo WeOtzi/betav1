@@ -7,7 +7,29 @@
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
+
+function getAppBasePath() {
+    if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+    const path = window.location?.pathname || '';
+    return path === '/beta' || path.startsWith('/beta/') ? '/beta' : '';
+}
+
+function appUrl(path) {
+    const normalized = String(path || '').startsWith('/') ? String(path || '') : '/' + String(path || '');
+    const basePath = getAppBasePath();
+    if (basePath && (normalized === basePath || normalized.startsWith(basePath + '/'))) {
+        return normalized;
+    }
+    return basePath + normalized;
+}
+
+function buildArtistLoginUrl(returnTo = '/calendar') {
+    const params = new URLSearchParams();
+    if (returnTo) params.set('returnTo', returnTo);
+    const query = params.toString();
+    return appUrl('/registerclosedbeta' + (query ? `?${query}` : ''));
+}
 
 // State - These are used by shared-drawer.js
 let currentUser = null;
@@ -63,7 +85,7 @@ async function initializeCalendar() {
         
         if (authError || !session) {
             console.log('No authenticated session. Redirecting...');
-            window.location.href = 'index.html';
+            window.location.href = buildArtistLoginUrl('/calendar');
             return;
         }
 
@@ -78,7 +100,7 @@ async function initializeCalendar() {
 
         if (artistError || !artist) {
             console.error('Artist profile not found');
-            window.location.href = 'dashboard.html';
+            window.location.href = appUrl('/artist/dashboard');
             return;
         }
 
@@ -641,7 +663,11 @@ function initFullCalendar() {
             const props = info.event.extendedProps;
             let tooltipContent = info.event.title;
             if (props.budget) {
-                tooltipContent += ` | ${props.budget} ${props.currency || ''}`;
+                if (window.WeOtziCurrency && window.WeOtziCurrency.isReady()) {
+                    tooltipContent += ` | ${window.WeOtziCurrency.formatInline(props.budget, props.currency || 'USD')}`;
+                } else {
+                    tooltipContent += ` | ${props.budget} ${props.currency || ''}`;
+                }
             }
             if (props.tattooIdea) {
                 const shortIdea = props.tattooIdea.length > 50 
@@ -701,6 +727,11 @@ window.bulkArchiveSingle = async function(id) {
 const originalUpdateQuoteStatus = window.updateQuoteStatus;
 window.updateQuoteStatus = async function(quoteId, newStatus) {
     try {
+        if (typeof originalUpdateQuoteStatus === 'function') {
+            await originalUpdateQuoteStatus(quoteId, newStatus);
+            refreshCalendar();
+            return;
+        }
         const { error } = await _supabase.from('quotations_db').update({ quote_status: newStatus }).eq('id', quoteId);
         if (error) throw error;
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());

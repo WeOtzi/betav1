@@ -6,15 +6,16 @@ Uploads modified files to beta.weotzi.com server.
 import paramiko
 import os
 import sys
+from remote_credentials import load_ssh_password
 
 # Server credentials
 HOST = '92.112.189.44'
 PORT = 65002
 USERNAME = 'u795331143'
-PASSWORD = 'Abnerisai24.'
+PASSWORD = load_ssh_password()
 
 # Local workspace root
-LOCAL_ROOT = r'c:\Users\Isaí\OneDrive\Compartida MacWin\We Otzi\Beta Cerrada V1\weotzi-unified'
+LOCAL_ROOT = r'C:\dev\weotzi-unified'
 
 # Confirmed remote base path (where the main server.js lives)
 REMOTE_BASE = '/home/u795331143/domains/weotzi.com/public_html/beta'

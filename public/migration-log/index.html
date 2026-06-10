@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>We Otzi | Migration Log</title>
+  <link rel="stylesheet" href="./migration-log.css">
+  <script src="./migration-log.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../">We Otzi</a>
+    <nav aria-label="Secciones">
+      <a href="#resumen">Resumen</a>
+      <a href="#decisiones">Decisiones</a>
+      <a href="#archivos">Archivos</a>
+      <a href="#validacion">Validacion</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="intro" id="resumen">
+      <div>
+        <p class="eyebrow">Migration Log</p>
+        <h1>Merge web-local unificado</h1>
+        <p id="intro-copy" class="intro-copy">Cargando registro de migracion...</p>
+      </div>
+      <dl class="status-grid" id="status-grid" aria-label="Estado de migracion"></dl>
+    </section>
+
+    <section class="band">
+      <div class="section-head">
+        <p class="eyebrow">Registro</p>
+        <h2>Linea de ejecucion</h2>
+      </div>
+      <ol class="timeline" id="timeline"></ol>
+    </section>
+
+    <section class="band split" id="decisiones">
+      <div class="section-head">
+        <p class="eyebrow">LLM</p>
+        <h2>Decisiones tecnicas resumidas</h2>
+        <p class="muted">Este registro documenta criterios y justificaciones de merge. No incluye trazas internas privadas ni secretos.</p>
+      </div>
+      <div class="decision-list" id="decision-list"></div>
+    </section>
+
+    <section class="band">
+      <div class="section-head">
+        <p class="eyebrow">Modulos</p>
+        <h2>Resumen por area</h2>
+      </div>
+      <div class="module-grid" id="module-grid"></div>
+    </section>
+
+    <section class="band" id="archivos">
+      <div class="section-head files-head">
+        <div>
+          <p class="eyebrow">Inventario</p>
+          <h2>Archivos modificados</h2>
+        </div>
+        <label class="filter">
+          <span>Filtrar</span>
+          <input id="file-filter" type="search" placeholder="Ruta, modulo o cambio">
+        </label>
+      </div>
+      <div class="file-table" id="file-table"></div>
+    </section>
+
+    <section class="band" id="validacion">
+      <div class="section-head">
+        <p class="eyebrow">QA</p>
+        <h2>Validacion y despliegue</h2>
+      </div>
+      <div class="validation-grid" id="validation-grid"></div>
+    </section>
+  </main>
+</body>
+</html>

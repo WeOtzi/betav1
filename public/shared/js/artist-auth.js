@@ -12,9 +12,46 @@
     'use strict';
 
     const DEFAULT_MAX_WAIT = 3000;
+    const AUTH_SESSION_TIMEOUT_MS = 8000;
+    const ARTIST_LOOKUP_TIMEOUT_MS = 8000;
+    const ARTIST_PROGRESS_FIELDS = [
+        'user_id',
+        'username',
+        'name',
+        'email',
+        'ubicacion',
+        'styles_array',
+        'estilo',
+        'years_experience',
+        'session_price',
+        'portafolio',
+        'instagram',
+        'work_type',
+        'estudios',
+        'birth_date',
+        'subscribed_newsletter',
+        'ms_profile_complete',
+        'profile_completeness'
+    ];
 
     function delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function withTimeout(promise, timeoutMs, code, message) {
+        let timeoutId = null;
+        const timeout = new Promise((resolve) => {
+            timeoutId = setTimeout(() => {
+                resolve({
+                    timedOut: true,
+                    error: { code, message }
+                });
+            }, timeoutMs);
+        });
+
+        return Promise.race([promise, timeout]).finally(() => {
+            if (timeoutId) clearTimeout(timeoutId);
+        });
     }
 
     function getRoutes(configManager) {
@@ -109,7 +146,11 @@
             if (targetRoot.ConfigManager) {
                 if (typeof targetRoot.ConfigManager.ready === 'function') {
                     try {
-                        await targetRoot.ConfigManager.ready();
+                        const remaining = Math.max(0, maxWait - (Date.now() - startTime));
+                        await Promise.race([
+                            targetRoot.ConfigManager.ready(),
+                            delay(remaining)
+                        ]);
                     } catch (error) {
                         console.warn('ArtistAuth: ConfigManager.ready failed', error);
                     }
@@ -135,6 +176,108 @@
         return configManager.getSupabaseClient();
     }
 
+    function getSupabaseConfig(configManager) {
+        const fromGetter = (key) => (
+            typeof configManager?.getValue === 'function'
+                ? configManager.getValue(`supabase.${key}`)
+                : null
+        );
+        const config = typeof configManager?.get === 'function' ? configManager.get() : null;
+        return {
+            url: fromGetter('url') || config?.supabase?.url || root?.CONFIG?.supabase?.url || '',
+            anonKey: fromGetter('anonKey') || config?.supabase?.anonKey || root?.CONFIG?.supabase?.anonKey || ''
+        };
+    }
+
+    function getSupabaseProjectRef(supabaseUrl) {
+        try {
+            return new URL(supabaseUrl).hostname.split('.')[0] || '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function readStoredSupabaseSession(configManager) {
+        try {
+            if (!root?.localStorage) return null;
+            const { url } = getSupabaseConfig(configManager);
+            const projectRef = getSupabaseProjectRef(url);
+            if (!projectRef) return null;
+            const raw = root.localStorage.getItem(`sb-${projectRef}-auth-token`);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const session = parsed?.currentSession || parsed?.session || parsed;
+            if (!session?.user || !session.access_token) return null;
+            const expiresAt = Number(session.expires_at || 0);
+            if (expiresAt && expiresAt < Math.floor(Date.now() / 1000)) return null;
+            return session;
+        } catch (error) {
+            console.warn('ArtistAuth: stored session recovery failed', error);
+            return null;
+        }
+    }
+
+    async function fetchArtistViaRest(configManager, session, artistSelect) {
+        try {
+            if (typeof fetch !== 'function' || !session?.user?.id) return null;
+            const { url, anonKey } = getSupabaseConfig(configManager);
+            if (!url || !anonKey) return null;
+            const searchParams = new URLSearchParams();
+            searchParams.set('select', artistSelect);
+            searchParams.set('user_id', `eq.${session.user.id}`);
+            const response = await withTimeout(
+                fetch(`${url}/rest/v1/artists_db?${searchParams.toString()}`, {
+                    headers: {
+                        apikey: anonKey,
+                        Authorization: `Bearer ${session.access_token || anonKey}`
+                    }
+                }),
+                ARTIST_LOOKUP_TIMEOUT_MS,
+                'ARTIST_REST_TIMEOUT',
+                `Artist REST lookup timed out after ${ARTIST_LOOKUP_TIMEOUT_MS}ms`
+            );
+            if (response?.timedOut || !response?.ok) return null;
+            const rows = await response.json();
+            return Array.isArray(rows) ? (rows[0] || null) : null;
+        } catch (error) {
+            console.warn('ArtistAuth: REST artist lookup failed', error);
+            return null;
+        }
+    }
+
+    function mergeArtistSelect(artistSelect) {
+        const columns = new Set();
+
+        ARTIST_PROGRESS_FIELDS.forEach((field) => {
+            columns.add(field);
+        });
+
+        if (typeof artistSelect === 'string' && artistSelect.trim()) {
+            artistSelect.split(',').forEach((field) => {
+                const normalized = field.trim();
+                if (normalized) {
+                    columns.add(normalized);
+                }
+            });
+        }
+
+        return Array.from(columns).join(', ');
+    }
+
+    function getArtistProgress(artist, targetRoot = root) {
+        if (!artist) return null;
+
+        if (targetRoot?.ArtistRegistrationProgress?.analyzeArtistProfile) {
+            return targetRoot.ArtistRegistrationProgress.analyzeArtistProfile(artist);
+        }
+
+        const hasName = Boolean(String(artist.name || '').trim());
+        return {
+            isComplete: hasName,
+            nextStep: hasName ? null : 2
+        };
+    }
+
     function buildBaseState({
         status,
         urls,
@@ -143,10 +286,12 @@
         session = null,
         currentUser = null,
         artist = null,
-        artistError = null
+        artistError = null,
+        artistProgress = null
     }) {
         const hasArtistProfile = Boolean(artist);
-        const hasCompleteProfile = Boolean(artist && String(artist.name || '').trim());
+        const resolvedArtistProgress = artistProgress || getArtistProgress(artist);
+        const hasCompleteProfile = Boolean(artist && resolvedArtistProgress?.isComplete);
 
         return {
             status,
@@ -157,6 +302,7 @@
             currentUser,
             artist,
             artistError,
+            artistProgress: resolvedArtistProgress,
             isArtist: hasArtistProfile,
             hasArtistProfile,
             hasCompleteProfile
@@ -198,7 +344,31 @@
             });
         }
 
-        const { data: authData, error: authError } = await supabase.auth.getSession();
+        let {
+            data: authData,
+            error: authError,
+            timedOut: authTimedOut
+        } = await withTimeout(
+            supabase.auth.getSession(),
+            AUTH_SESSION_TIMEOUT_MS,
+            'AUTH_SESSION_TIMEOUT',
+            `Supabase session lookup timed out after ${AUTH_SESSION_TIMEOUT_MS}ms`
+        );
+        if (authTimedOut) {
+            const storedSession = readStoredSupabaseSession(configManager);
+            if (storedSession?.user) {
+                authData = { session: storedSession };
+                authError = null;
+            } else {
+                return buildBaseState({
+                    status: 'auth_error',
+                    urls,
+                    configManager,
+                    supabase,
+                    artistError: authError
+                });
+            }
+        }
         if (authError) {
             return buildBaseState({
                 status: 'auth_error',
@@ -220,7 +390,7 @@
         }
 
         const currentUser = session.user;
-        const artistSelect = options.artistSelect || 'user_id, username, name';
+        const artistSelect = mergeArtistSelect(options.artistSelect);
 
         let artist = null;
         let artistError = null;
@@ -232,9 +402,19 @@
                 .eq('user_id', currentUser.id);
 
             if (typeof lookup.maybeSingle === 'function') {
-                ({ data: artist, error: artistError } = await lookup.maybeSingle());
+                ({ data: artist, error: artistError } = await withTimeout(
+                    lookup.maybeSingle(),
+                    ARTIST_LOOKUP_TIMEOUT_MS,
+                    'ARTIST_LOOKUP_TIMEOUT',
+                    `Artist lookup timed out after ${ARTIST_LOOKUP_TIMEOUT_MS}ms`
+                ));
             } else {
-                ({ data: artist, error: artistError } = await lookup.single());
+                ({ data: artist, error: artistError } = await withTimeout(
+                    lookup.single(),
+                    ARTIST_LOOKUP_TIMEOUT_MS,
+                    'ARTIST_LOOKUP_TIMEOUT',
+                    `Artist lookup timed out after ${ARTIST_LOOKUP_TIMEOUT_MS}ms`
+                ));
             }
         } catch (error) {
             artistError = error;
@@ -251,29 +431,46 @@
                     .eq('user_id', currentUser.id);
 
                 if (typeof retryLookup.maybeSingle === 'function') {
-                    ({ data: artist, error: artistError } = await retryLookup.maybeSingle());
+                    ({ data: artist, error: artistError } = await withTimeout(
+                        retryLookup.maybeSingle(),
+                        ARTIST_LOOKUP_TIMEOUT_MS,
+                        'ARTIST_LOOKUP_TIMEOUT',
+                        `Artist lookup timed out after ${ARTIST_LOOKUP_TIMEOUT_MS}ms`
+                    ));
                 } else {
-                    ({ data: artist, error: artistError } = await retryLookup.single());
+                    ({ data: artist, error: artistError } = await withTimeout(
+                        retryLookup.single(),
+                        ARTIST_LOOKUP_TIMEOUT_MS,
+                        'ARTIST_LOOKUP_TIMEOUT',
+                        `Artist lookup timed out after ${ARTIST_LOOKUP_TIMEOUT_MS}ms`
+                    ));
                 }
             } catch (retryErr) {
                 artistError = retryErr;
             }
 
             if (artistError && artistError.code !== 'PGRST116') {
-                return buildBaseState({
-                    status: 'artist_lookup_failed',
-                    urls,
-                    configManager,
-                    supabase,
-                    session,
-                    currentUser,
-                    artistError
-                });
+                const restArtist = await fetchArtistViaRest(configManager, session, artistSelect);
+                if (restArtist) {
+                    artist = restArtist;
+                    artistError = null;
+                } else {
+                    return buildBaseState({
+                        status: 'artist_lookup_failed',
+                        urls,
+                        configManager,
+                        supabase,
+                        session,
+                        currentUser,
+                        artistError
+                    });
+                }
             }
         }
 
         const hasArtistProfile = Boolean(artist);
-        const hasCompleteProfile = Boolean(artist && String(artist.name || '').trim());
+        const artistProgress = getArtistProgress(artist, targetRoot);
+        const hasCompleteProfile = Boolean(artistProgress?.isComplete);
 
         if (!hasArtistProfile) {
             return buildBaseState({
@@ -294,7 +491,8 @@
                 supabase,
                 session,
                 currentUser,
-                artist
+                artist,
+                artistProgress
             });
         }
 
@@ -305,7 +503,8 @@
             supabase,
             session,
             currentUser,
-            artist
+            artist,
+            artistProgress
         });
     }
 

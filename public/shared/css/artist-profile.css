@@ -2158,6 +2158,22 @@
     color: var(--accent-blue);
 }
 
+.bio-text p,
+.bio-text div {
+    margin: 0 0 0.72em;
+}
+
+.bio-text p:last-child,
+.bio-text div:last-child {
+    margin-bottom: 0;
+}
+
+.bio-text ul,
+.bio-text ol {
+    margin: 0.5em 0 0.5em 1.25em;
+    padding: 0;
+}
+
 .large-style-tags {
     display: flex;
     flex-wrap: wrap;

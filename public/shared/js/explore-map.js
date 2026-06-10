@@ -22,7 +22,12 @@
         activeArtistId: null,
         map: null,
         overlayClass: null,
-        infoWindow: null
+        studioOverlayClass: null,
+        infoWindow: null,
+        // Studios layer: fetched once, toggleable.
+        studios: [],
+        studioMarkers: new Map(),
+        showStudios: true
     };
 
     var TOP_STYLES = [
@@ -33,19 +38,83 @@
         { label: 'Minimalista', icon: 'fa-solid fa-minus' },
         { label: 'Japones', icon: 'fa-solid fa-dragon' },
         { label: 'Geometrico', icon: 'fa-solid fa-shapes' },
-        { label: 'Acuarela', icon: 'fa-solid fa-droplet' }
+        { label: 'Acuarela', icon: 'fa-solid fa-droplet' },
+        { label: 'Black & Grey', icon: 'fa-solid fa-circle-half-stroke' },
+        { label: 'Microrealismo', icon: 'fa-solid fa-magnifying-glass' },
+        { label: 'Hiperrealismo', icon: 'fa-solid fa-eye' },
+        { label: 'Ornamental', icon: 'fa-solid fa-fan' },
+        { label: 'Mandala', icon: 'fa-solid fa-circle-dot' },
+        { label: 'Tribal', icon: 'fa-solid fa-bolt' },
+        { label: 'Polinesio', icon: 'fa-solid fa-water' },
+        { label: 'Maori', icon: 'fa-solid fa-shield-halved' },
+        { label: 'Haida', icon: 'fa-solid fa-feather' },
+        { label: 'Celta', icon: 'fa-solid fa-ring' },
+        { label: 'Nordico / Viking', icon: 'fa-solid fa-mountain' },
+        { label: 'Lettering', icon: 'fa-solid fa-font' },
+        { label: 'Blackletter / Gotico', icon: 'fa-solid fa-book' },
+        { label: 'Caligrafia', icon: 'fa-solid fa-pen-fancy' },
+        { label: 'Ignorant', icon: 'fa-solid fa-pencil' },
+        { label: 'Handpoke / Stick and Poke', icon: 'fa-solid fa-hand-point-up' },
+        { label: 'Abstracto', icon: 'fa-solid fa-shapes' },
+        { label: 'Sketch / Boceto', icon: 'fa-solid fa-pencil' },
+        { label: 'Etching / Grabado', icon: 'fa-solid fa-layer-group' },
+        { label: 'Woodcut / Xilografia', icon: 'fa-solid fa-tree' },
+        { label: 'Linework', icon: 'fa-solid fa-pen-nib' },
+        { label: 'Ilustracion botanica', icon: 'fa-solid fa-leaf' },
+        { label: 'Floral', icon: 'fa-solid fa-spa' },
+        { label: 'Fineline botanico', icon: 'fa-solid fa-seedling' },
+        { label: 'Biomecanico', icon: 'fa-solid fa-gears' },
+        { label: 'Bioorganico', icon: 'fa-solid fa-dna' },
+        { label: 'Horror', icon: 'fa-solid fa-ghost' },
+        { label: 'Dark Art', icon: 'fa-solid fa-moon' },
+        { label: 'Glitch', icon: 'fa-solid fa-wave-square' },
+        { label: 'Pixel Art', icon: 'fa-solid fa-border-all' },
+        { label: 'Graffiti', icon: 'fa-solid fa-spray-can' },
+        { label: 'Pop Art', icon: 'fa-solid fa-star' },
+        { label: 'Art Nouveau', icon: 'fa-solid fa-fan' },
+        { label: 'Art Deco', icon: 'fa-solid fa-gem' },
+        { label: 'Barroco', icon: 'fa-solid fa-landmark' },
+        { label: 'Abstract Brush', icon: 'fa-solid fa-brush' },
+        { label: 'Patchwork', icon: 'fa-solid fa-table-cells-large' },
+        { label: 'Religious / Sacro', icon: 'fa-solid fa-church' },
+        { label: 'Ornamental Blackwork', icon: 'fa-solid fa-circle' },
+        { label: 'Pointillism', icon: 'fa-solid fa-braille' }
     ];
 
-    var BAUHAUS_MAP_STYLE = [
-        { elementType: 'geometry', stylers: [{ color: '#f3f3f3' }] },
-        { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
-        { elementType: 'labels.text.fill', stylers: [{ color: '#555555' }] },
-        { featureType: 'administrative.country', elementType: 'geometry.stroke', stylers: [{ color: '#000000' }, { weight: 0.8 }] },
-        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#e6e6e6' }] },
+    var BAUHAUS_MAP_STYLE_LIGHT = [
+        { elementType: 'geometry', stylers: [{ color: '#f0ede4' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#f0ede4' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#5c5c5c' }] },
+        { featureType: 'administrative.country', elementType: 'geometry.stroke', stylers: [{ color: '#0A0A0A' }, { weight: 1 }] },
+        { featureType: 'administrative.province', elementType: 'geometry.stroke', stylers: [{ color: '#0A0A0A' }, { weight: 0.4 }] },
+        { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#0A0A0A' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dcd8cb' }] },
+        { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#8a8675' }] },
+        { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#e9e6dc' }] },
         { featureType: 'road', stylers: [{ visibility: 'off' }] },
         { featureType: 'poi', stylers: [{ visibility: 'off' }] },
         { featureType: 'transit', stylers: [{ visibility: 'off' }] }
     ];
+
+    var BAUHAUS_MAP_STYLE_DARK = [
+        { elementType: 'geometry', stylers: [{ color: '#141414' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#141414' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#7a7a7a' }] },
+        { featureType: 'administrative.country', elementType: 'geometry.stroke', stylers: [{ color: '#F2F0E9' }, { weight: 1 }] },
+        { featureType: 'administrative.province', elementType: 'geometry.stroke', stylers: [{ color: '#F2F0E9' }, { weight: 0.3 }] },
+        { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#F2F0E9' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0A0A0A' }] },
+        { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#5a5a5a' }] },
+        { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#1c1c1c' }] },
+        { featureType: 'road', stylers: [{ visibility: 'off' }] },
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] }
+    ];
+
+    function currentMapStyle() {
+        var theme = document.body.getAttribute('data-theme') || 'light';
+        return theme === 'dark' ? BAUHAUS_MAP_STYLE_DARK : BAUHAUS_MAP_STYLE_LIGHT;
+    }
 
     function showLoading() { document.getElementById('loading-overlay')?.classList.remove('hidden'); }
     function hideLoading() { document.getElementById('loading-overlay')?.classList.add('hidden'); }
@@ -79,6 +148,31 @@
             .join(' ');
     }
 
+    // Builds a Google Maps "directions to" URL from an artist row. Prefers
+    // place_id (most precise), then formatted address + lat/lng, then just
+    // coordinates. Returns null if there's nothing geographic to point at.
+    function buildDirectionsUrl(artist) {
+        var lat = Number(artist && artist.latitude);
+        var lng = Number(artist && artist.longitude);
+        var placeId = artist && artist.google_place_id;
+        var addr = artist && (artist.formatted_address || '').trim();
+
+        if (placeId) {
+            var base = 'https://www.google.com/maps/dir/?api=1&destination=';
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return base + lat + '%2C' + lng + '&destination_place_id=' + encodeURIComponent(placeId);
+            }
+            return base + encodeURIComponent(addr || '') + '&destination_place_id=' + encodeURIComponent(placeId);
+        }
+        if (addr) {
+            return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr);
+        }
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + '%2C' + lng;
+        }
+        return null;
+    }
+
     function waitForConfigManager(maxWait) {
         maxWait = maxWait || 5000;
         return new Promise(function (resolve) {
@@ -97,13 +191,26 @@
             console.warn('[explore-map] Demo mode or no Supabase. Using empty list.');
             return [];
         }
-        var fullCols = 'user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended,latitude,longitude';
-        var safeCols = 'user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended';
+        // Prefer the artists_with_location view: it COALESCEs the studio's
+        // address (when work_type ∈ {studio, both} and studio_id is set) onto
+        // the artist's row, so we get one ready-to-render record per artist.
+        // Falls back to artists_db if the view isn't deployed yet.
+        var viewCols = [
+            'user_id', 'username', 'name', 'profile_picture', 'styles_array',
+            'session_price', 'years_experience', 'languages', 'bio_description',
+            'is_recommended', 'work_type', 'studio_id', 'location_source',
+            'studio_name', 'studio_phone', 'studio_website',
+            'country', 'country_code', 'state_province', 'city', 'locality',
+            'street', 'street_number', 'unit', 'postal_code', 'formatted_address',
+            'latitude', 'longitude', 'google_place_id', 'geocoded_at'
+        ].join(',');
 
-        var resp = await supabase.from('artists_db').select(fullCols);
+        var resp = await supabase.from('artists_with_location').select(viewCols);
+
         if (resp.error) {
-            console.warn('[explore-map] Full SELECT failed (likely missing geo columns), retrying without lat/lng:', resp.error.message);
-            resp = await supabase.from('artists_db').select(safeCols);
+            console.warn('[explore-map] artists_with_location view unavailable, falling back to artists_db:', resp.error.message);
+            var fallbackCols = 'user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended,latitude,longitude,formatted_address,locality,street,street_number,postal_code,work_type,studio_id';
+            resp = await supabase.from('artists_db').select(fallbackCols);
         }
         if (resp.error) {
             console.error('[explore-map] Supabase error:', resp.error);
@@ -111,8 +218,8 @@
         }
         return (resp.data || []).map(function (a) {
             return Object.assign({}, a, {
-                languages: a.languages || ['Espanol'],
-                country: a.country || (a.ubicacion ? a.ubicacion.split(', ').pop() : 'Desconocido')
+                languages: a.languages || ['Español'],
+                country: a.country || 'Desconocido'
             });
         });
     }
@@ -150,7 +257,8 @@
     function initFilterUI() {
         var pillsContainer = document.getElementById('style-filter-pills');
         if (pillsContainer) {
-            pillsContainer.innerHTML = TOP_STYLES.map(function (s) {
+            // Build the style pills HTML.
+            var stylePillsHtml = TOP_STYLES.map(function (s) {
                 var count = STATE.all.filter(function (a) {
                     return parseStyles(a.styles_array).some(function (x) { return x.toLowerCase() === s.label.toLowerCase(); });
                 }).length;
@@ -161,12 +269,26 @@
                     + '</button>';
             }).join('');
 
+            // Plus a separator button that toggles the studios layer.
+            var studioToggleHtml = '<button class="filter-pill is-active" id="toggle-studios-btn" type="button" aria-pressed="true" title="Mostrar/ocultar estudios">'
+                + '<i class="fa-solid fa-building"></i>'
+                + '<span>Estudios</span>'
+                + '</button>';
+
+            pillsContainer.innerHTML = stylePillsHtml + studioToggleHtml;
+
             pillsContainer.addEventListener('click', function (e) {
                 var btn = e.target.closest('.filter-pill');
                 if (!btn) return;
+                // Studios toggle bypasses the style filter logic.
+                if (btn.id === 'toggle-studios-btn') {
+                    toggleStudiosLayer();
+                    return;
+                }
                 var style = btn.dataset.style;
                 STATE.currentFilters.style = STATE.currentFilters.style === style ? null : style;
                 document.querySelectorAll('.filter-pill').forEach(function (b) {
+                    if (b.id === 'toggle-studios-btn') return; // skip the toggle when re-styling
                     b.classList.toggle('is-active', b.dataset.style === STATE.currentFilters.style);
                 });
                 applyFilters();
@@ -250,6 +372,22 @@
         return el;
     }
 
+    function setBioHtml(id, value, emptyMessage) {
+        var el = document.getElementById(id);
+        if (!el) {
+            console.warn('[explore-map] Missing modal element:', id);
+            return null;
+        }
+
+        if (window.BioFormatting) {
+            window.BioFormatting.renderBioHtml(el, value, { emptyMessage: emptyMessage });
+            return el;
+        }
+
+        el.textContent = value || emptyMessage || '';
+        return el;
+    }
+
     function safeCssEscape(value) {
         var str = String(value == null ? '' : value);
         if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -301,14 +439,66 @@
 
             setText('modal-artist-name', toTitleCase(artist.name || artist.username || 'Artista'));
 
-            var location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ') || (artist.ubicacion || 'Ubicacion no disponible');
+            // Source badge: studio name when affiliated, "Independiente" otherwise.
+            var badgeEl = document.getElementById('modal-source-badge');
+            if (badgeEl) {
+                if (artist.location_source === 'studio' && artist.studio_name) {
+                    badgeEl.textContent = 'Estudio · ' + artist.studio_name;
+                    badgeEl.classList.add('is-studio');
+                    badgeEl.classList.remove('is-independent');
+                    badgeEl.hidden = false;
+                } else if (artist.work_type === 'independent' || artist.location_source === 'independent') {
+                    badgeEl.textContent = 'Independiente';
+                    badgeEl.classList.add('is-independent');
+                    badgeEl.classList.remove('is-studio');
+                    badgeEl.hidden = false;
+                } else {
+                    badgeEl.hidden = true;
+                }
+            }
+
+            var location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ') || 'Ubicación no disponible';
             setText('modal-location', location);
 
-            var exp = artist.years_experience ? artist.years_experience + ' anos exp.' : 'Experiencia no especificada';
+            // Detailed street address row (only when we actually have one).
+            var addrRow = document.getElementById('modal-address-row');
+            var addr = (artist.formatted_address || '').trim();
+            if (!addr) {
+                var parts = [
+                    [artist.street, artist.street_number].filter(Boolean).join(' '),
+                    artist.unit,
+                    artist.locality,
+                    artist.postal_code
+                ].filter(Boolean);
+                addr = parts.join(', ');
+            }
+            if (addrRow) {
+                if (addr) {
+                    setText('modal-address', addr);
+                    addrRow.hidden = false;
+                } else {
+                    addrRow.hidden = true;
+                }
+            }
+
+            // "Cómo llegar" button: only show when we have coordinates or a
+            // formatted address Google can parse.
+            var directionsEl = document.getElementById('modal-cta-directions');
+            if (directionsEl) {
+                var directionsUrl = buildDirectionsUrl(artist);
+                if (directionsUrl) {
+                    directionsEl.href = directionsUrl;
+                    directionsEl.hidden = false;
+                } else {
+                    directionsEl.removeAttribute('href');
+                    directionsEl.hidden = true;
+                }
+            }
+
+            var exp = artist.years_experience ? artist.years_experience + ' años exp.' : 'Experiencia no especificada';
             setText('modal-experience', exp);
 
-            var bio = (artist.bio_description || '').trim();
-            setText('modal-bio', bio ? (bio.length > 220 ? bio.slice(0, 220) + '...' : bio) : 'Este artista todavia no escribio una bio.');
+            setBioHtml('modal-bio', artist.bio_description, 'Este artista todavia no escribio una bio.');
 
             var price = artist.session_price ? String(artist.session_price).replace(',00', '') : 'Consultar';
             setText('modal-price', price);
@@ -351,7 +541,11 @@
         var countEl = document.getElementById('explore-results-count');
         if (!listEl) return;
 
-        if (countEl) countEl.textContent = STATE.filtered.length + ' artistas';
+        if (countEl) {
+            var n = STATE.filtered.length;
+            countEl.textContent = (n < 1000 ? String(n).padStart(3, '0') : String(n)) + ' Artistas';
+        }
+        updateAtlasCounter();
 
         if (STATE.filtered.length === 0) {
             listEl.innerHTML = '';
@@ -360,21 +554,22 @@
         }
         if (emptyEl) emptyEl.classList.add('hidden');
 
-        listEl.innerHTML = STATE.filtered.map(function (a) {
+        listEl.innerHTML = STATE.filtered.map(function (a, idx) {
             var styles = parseStyles(a.styles_array).slice(0, 3);
             var img = a.profile_picture
                 ? 'style="background-image: url(\'' + escapeHtml(a.profile_picture) + '\')"'
                 : '';
             var imgClass = a.profile_picture ? '' : ' no-image';
             var price = a.session_price ? String(a.session_price).replace(',00', '') : 'Consultar';
-            return '<article class="explore-card" data-user-id="' + escapeHtml(a.user_id) + '">'
+            var indexLabel = '№ ' + String(idx + 1).padStart(3, '0');
+            return '<article class="explore-card" data-user-id="' + escapeHtml(a.user_id) + '" data-index="' + escapeHtml(indexLabel) + '">'
                 +   '<div class="explore-card-img' + imgClass + '" ' + img + '></div>'
                 +   '<div class="explore-card-body">'
                 +     '<div class="explore-card-styles">'
                 +       styles.map(function (s) { return '<span class="tag-mini">' + escapeHtml(s) + '</span>'; }).join('')
                 +     '</div>'
                 +     '<h3 class="explore-card-name">' + escapeHtml(toTitleCase(a.name || a.username)) + '</h3>'
-                +     '<div class="explore-card-meta">' + escapeHtml(toTitleCase(a.city || a.country || '')) + '</div>'
+                +     '<div class="explore-card-meta">' + escapeHtml(toTitleCase(a.city || a.country || 'Ubicación reservada')) + '</div>'
                 +     '<span class="explore-card-price">' + escapeHtml(price) + '</span>'
                 +   '</div>'
                 + '</article>';
@@ -419,50 +614,198 @@
             return;
         }
 
+        var isDark = document.body.getAttribute('data-theme') === 'dark';
         STATE.map = new google.maps.Map(mapEl, {
-            center: { lat: -15, lng: -60 },
+            center: { lat: 4, lng: -55 },
             zoom: 3,
+            minZoom: 2,
             disableDefaultUI: true,
             zoomControl: true,
-            styles: BAUHAUS_MAP_STYLE,
-            backgroundColor: '#f3f3f3'
+            zoomControlOptions: {
+                position: google.maps.ControlPosition.RIGHT_BOTTOM
+            },
+            styles: currentMapStyle(),
+            backgroundColor: isDark ? '#0A0A0A' : '#f0ede4',
+            gestureHandling: 'greedy',
+            clickableIcons: false
         });
+
+        // Re-style on theme toggle.
+        var themeObserver = new MutationObserver(function () {
+            if (!STATE.map) return;
+            STATE.map.setOptions({ styles: currentMapStyle() });
+        });
+        themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
         document.getElementById('explore-map-empty')?.classList.add('hidden');
 
         defineOverlayClass();
         await renderMarkers();
+        await renderStudioMarkers();
+    }
+
+    // ---- Studios layer ------------------------------------------------
+    async function fetchStudios() {
+        var supabase = window.ConfigManager && window.ConfigManager.getSupabaseClient();
+        if (!supabase || window.ConfigManager.isDemoMode()) return [];
+        // Studios with their primary location's coords (resolved through FK).
+        // We query studio_locations directly and JOIN the studios columns we need.
+        var resp = await supabase
+            .from('studio_locations')
+            .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website)')
+            .eq('is_active', true)
+            .eq('is_primary', true)
+            .not('latitude', 'is', null);
+        if (resp.error) {
+            console.warn('[explore-map] studios fetch failed:', resp.error.message);
+            return [];
+        }
+        return (resp.data || []).map(function (loc) {
+            return {
+                id:        loc.studios && loc.studios.id,
+                slug:      loc.studios && loc.studios.slug,
+                name:      (loc.studios && loc.studios.name) || 'Estudio',
+                tagline:   loc.studios && loc.studios.tagline,
+                cover:     loc.studios && loc.studios.cover_image,
+                instagram: loc.studios && loc.studios.instagram,
+                website:   loc.studios && loc.studios.website,
+                location_label:    loc.label,
+                formatted_address: loc.formatted_address,
+                city:      loc.city,
+                country:   loc.country,
+                latitude:  loc.latitude,
+                longitude: loc.longitude
+            };
+        });
+    }
+
+    function defineStudioOverlayClass() {
+        if (STATE.studioOverlayClass) return;
+        function StudioOverlay(position, html, onClick) {
+            this.position = position; this.html = html; this.onClick = onClick; this.div = null;
+        }
+        StudioOverlay.prototype = new google.maps.OverlayView();
+        StudioOverlay.prototype.onAdd = function () {
+            var div = document.createElement('div');
+            div.className = 'bauhaus-pin-wrap is-studio';
+            div.innerHTML = this.html;
+            var handler = this.onClick;
+            ['click', 'touchend', 'mousedown', 'pointerdown'].forEach(function (ev) {
+                div.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: false });
+            });
+            div.addEventListener('click', function (e) {
+                if (e) e.stopPropagation();
+                if (typeof handler === 'function') handler();
+            });
+            this.div = div;
+            var panes = this.getPanes();
+            (panes && (panes.overlayMouseTarget || panes.floatPane)).appendChild(div);
+        };
+        StudioOverlay.prototype.draw = function () {
+            if (!this.div) return;
+            var proj = this.getProjection();
+            if (!proj) return;
+            var p = proj.fromLatLngToDivPixel(this.position);
+            if (!p) return;
+            this.div.style.left = p.x + 'px';
+            this.div.style.top  = p.y + 'px';
+        };
+        StudioOverlay.prototype.onRemove = function () {
+            if (this.div && this.div.parentNode) this.div.parentNode.removeChild(this.div);
+            this.div = null;
+        };
+        STATE.studioOverlayClass = StudioOverlay;
+    }
+
+    async function renderStudioMarkers() {
+        if (!STATE.map) return;
+        // Tear down existing.
+        STATE.studioMarkers.forEach(function (m) { try { m.overlay.setMap(null); } catch (e) {} });
+        STATE.studioMarkers.clear();
+        if (!STATE.showStudios) return;
+
+        if (STATE.studios.length === 0) {
+            STATE.studios = await fetchStudios();
+        }
+
+        defineStudioOverlayClass();
+        STATE.studios.forEach(function (s) {
+            var lat = Number(s.latitude), lng = Number(s.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+            var html = '<div class="bauhaus-pin bauhaus-pin-studio" title="' + escapeHtml(s.formatted_address || '') + '">'
+                     + '<i class="fa-solid fa-building" style="margin-right:4px;"></i>'
+                     + escapeHtml(s.name)
+                     + '</div>';
+            var overlay = new STATE.studioOverlayClass(
+                new google.maps.LatLng(lat, lng),
+                html,
+                function () {
+                    var ref = s.slug || s.id;
+                    if (ref) window.open('/studio/profile?studio=' + encodeURIComponent(ref), '_blank');
+                }
+            );
+            overlay.setMap(STATE.map);
+            STATE.studioMarkers.set(s.id, { overlay: overlay, studio: s });
+        });
+    }
+
+    function toggleStudiosLayer() {
+        STATE.showStudios = !STATE.showStudios;
+        var btn = document.getElementById('toggle-studios-btn');
+        if (btn) {
+            btn.classList.toggle('is-active', STATE.showStudios);
+            btn.setAttribute('aria-pressed', STATE.showStudios ? 'true' : 'false');
+        }
+        renderStudioMarkers();
     }
 
     function defineOverlayClass() {
         if (STATE.overlayClass) return;
-        function PriceOverlay(position, html, onClick) {
+        function PriceOverlay(position, html, onClick, options) {
             this.position = position;
             this.html = html;
             this.onClick = onClick;
+            this.options = options || {};
+            this.onReady = (options && options.onReady) || null;
             this.div = null;
         }
         PriceOverlay.prototype = new google.maps.OverlayView();
         PriceOverlay.prototype.onAdd = function () {
             var div = document.createElement('div');
             div.className = 'bauhaus-pin-wrap';
+            if (this.options.recommended) div.classList.add('is-recommended');
             div.innerHTML = this.html;
             var handler = this.onClick;
             var clickHandler = function (event) {
                 if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+                if (event && typeof event.preventDefault === 'function') event.preventDefault();
                 if (typeof handler === 'function') handler();
             };
+            // Stop click bubbling so the map doesn't swallow our click.
+            ['click', 'touchend', 'mousedown', 'pointerdown'].forEach(function (ev) {
+                div.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: false });
+            });
             div.addEventListener('click', clickHandler);
-            div.addEventListener('touchend', clickHandler);
+            div.addEventListener('touchend', clickHandler, { passive: false });
+
             this.div = div;
+            // overlayMouseTarget is the right pane for clickable map overlays — it
+            // sits above the map but below floatPane (which is reserved for InfoWindows).
             var panes = this.getPanes();
-            if (panes && panes.floatPane) panes.floatPane.appendChild(div);
+            var pane = panes && (panes.overlayMouseTarget || panes.floatPane);
+            if (pane) pane.appendChild(div);
+            // Tell the caller the DOM node is ready (onAdd may be deferred to
+            // map-idle on the very first render — we don't want to race on it).
+            if (typeof this.onReady === 'function') {
+                try { this.onReady(div); } catch (e) {}
+            }
         };
         PriceOverlay.prototype.draw = function () {
             if (!this.div) return;
             var proj = this.getProjection();
             if (!proj) return;
             var p = proj.fromLatLngToDivPixel(this.position);
+            if (!p) return;
             this.div.style.left = p.x + 'px';
             this.div.style.top = p.y + 'px';
         };
@@ -496,34 +839,53 @@
             });
     }
 
+    function fitBoundsSafely(points) {
+        if (!STATE.map || !points || points.length === 0) return;
+        if (points.length === 1) {
+            STATE.map.setCenter({ lat: points[0].lat, lng: points[0].lng });
+            STATE.map.setZoom(8);
+            return;
+        }
+        var bounds = new google.maps.LatLngBounds();
+        points.forEach(function (p) { bounds.extend({ lat: p.lat, lng: p.lng }); });
+        STATE.map.fitBounds(bounds, { top: 80, right: 80, bottom: 80, left: 80 });
+        google.maps.event.addListenerOnce(STATE.map, 'idle', function () {
+            if (STATE.map.getZoom() > 12) STATE.map.setZoom(12);
+        });
+    }
+
     async function renderMarkers() {
         if (!STATE.map) return;
 
+        // Clear any pre-existing overlays.
         STATE.markers.forEach(function (m) { try { m.overlay.setMap(null); } catch (e) {} });
         STATE.markers.clear();
 
-        var bounds = new google.maps.LatLngBounds();
-        var anyPlotted = false;
+        var plotted = [];
         var pendingGeocode = [];
 
         STATE.filtered.forEach(function (artist) {
             var lat = Number(artist.latitude);
             var lng = Number(artist.longitude);
-            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
                 plotArtistMarker(artist, lat, lng);
-                bounds.extend({ lat: lat, lng: lng });
-                anyPlotted = true;
+                plotted.push({ lat: lat, lng: lng });
             } else if (artist.city || artist.country) {
                 pendingGeocode.push(artist);
             }
         });
 
-        if (anyPlotted) {
-            STATE.map.fitBounds(bounds, 64);
-            google.maps.event.addListenerOnce(STATE.map, 'idle', function () {
-                if (STATE.map.getZoom() > 11) STATE.map.setZoom(11);
-            });
-        }
+        fitBoundsSafely(plotted);
+
+        // Geocode missing artists with a debounced re-fit so the map zooms to
+        // include new pins as they trickle in (rate-limited by the geocoder).
+        if (!pendingGeocode.length) return;
+
+        var refitTimer = null;
+        var scheduleRefit = function () {
+            if (refitTimer) clearTimeout(refitTimer);
+            refitTimer = setTimeout(function () { fitBoundsSafely(plotted); }, 250);
+        };
 
         for (var i = 0; i < pendingGeocode.length; i++) {
             var artist = pendingGeocode[i];
@@ -535,6 +897,8 @@
                 artist.latitude = point.lat;
                 artist.longitude = point.lng;
                 plotArtistMarker(artist, point.lat, point.lng);
+                plotted.push({ lat: point.lat, lng: point.lng });
+                scheduleRefit();
                 persistGeocode(artist.user_id, point.lat, point.lng, point.displayName);
             } catch (err) {
                 console.warn('[explore-map] Geocode loop error:', err);
@@ -542,21 +906,54 @@
         }
     }
 
+    function formatPriceShort(rawPrice) {
+        if (!rawPrice) return '$$';
+        var n = parsePrice(rawPrice);
+        if (!n) return String(rawPrice).replace(',00', '');
+        if (n >= 1000) return '$' + Math.round(n / 100) / 10 + 'k';
+        return '$' + n;
+    }
+
     function plotArtistMarker(artist, lat, lng) {
-        var price = artist.session_price ? String(artist.session_price).replace(',00', '') : '$$';
-        var html = '<div class="bauhaus-pin">' + escapeHtml(price) + '</div>';
+        var label = formatPriceShort(artist.session_price);
+        var html = '<div class="bauhaus-pin">' + escapeHtml(label) + '</div>';
         var artistRef = artist;
+        // Pre-register the marker entry so highlightMarker etc. can find it
+        // even if onAdd hasn't fired yet (Google Maps may defer onAdd until
+        // the map is fully idle on the very first render).
+        var entry = { overlay: null, wrap: null, artist: artistRef };
+        STATE.markers.set(artistRef.user_id, entry);
+
         var overlay = new STATE.overlayClass(
             new google.maps.LatLng(lat, lng),
             html,
-            function () { openArtistModal(artistRef); }
+            function () { openArtistModal(artistRef); },
+            {
+                recommended: !!artist.is_recommended,
+                onReady: function (div) { entry.wrap = div; }
+            }
         );
+        entry.overlay = overlay;
         overlay.setMap(STATE.map);
 
-        setTimeout(function () {
-            var wrap = overlay.getDiv && overlay.getDiv();
-            STATE.markers.set(artistRef.user_id, { overlay: overlay, wrap: wrap, artist: artistRef });
-        }, 50);
+        // Best-effort sync capture in case onReady already fired.
+        if (!entry.wrap && overlay.getDiv) entry.wrap = overlay.getDiv();
+    }
+
+    function updateAtlasCounter() {
+        var valueEl = document.getElementById('atlas-counter-value');
+        var countriesEl = document.getElementById('atlas-counter-countries');
+        if (valueEl) {
+            var count = STATE.filtered.length;
+            valueEl.textContent = count < 1000
+                ? String(count).padStart(3, '0')
+                : String(count);
+        }
+        if (countriesEl) {
+            var countries = new Set();
+            STATE.filtered.forEach(function (a) { if (a.country) countries.add(a.country); });
+            countriesEl.textContent = countries.size;
+        }
     }
 
     document.addEventListener('DOMContentLoaded', async function () {

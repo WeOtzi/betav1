@@ -1,0 +1,112 @@
+/* ============================================
+   WE ÖTZI — ADDRESS PICKER
+   Reusable styling for the Google Places-backed
+   address autocomplete + structured preview.
+   ============================================ */
+
+.weotzi-address-picker-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-technical, 'JetBrains Mono', monospace);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+}
+
+.weotzi-address-picker-input:focus {
+    outline: none;
+    box-shadow: 4px 4px 0 var(--fg);
+    transform: translate(-2px, -2px);
+}
+
+/* Google's autocomplete dropdown — blend it with the Bauhaus style. */
+.pac-container {
+    border: 2px solid var(--fg);
+    border-top: none;
+    background: var(--bg);
+    box-shadow: 4px 4px 0 var(--fg);
+    font-family: var(--font-technical, 'JetBrains Mono', monospace);
+    font-size: 0.85rem;
+    z-index: 9999;
+}
+
+.pac-item {
+    padding: 8px 12px;
+    border-top: 1px solid rgba(10, 10, 10, 0.08);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.pac-item:hover,
+.pac-item-selected {
+    background: var(--primary-yellow, #F4B942);
+    color: #0A0A0A;
+}
+
+.pac-icon { display: none; }
+
+.pac-item-query {
+    font-weight: 700;
+    color: var(--fg);
+}
+
+[data-theme="dark"] .pac-container {
+    background: var(--bg);
+    color: var(--fg);
+}
+
+[data-theme="dark"] .pac-item-query {
+    color: var(--fg);
+}
+
+/* Structured fields preview block. */
+.weotzi-address-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    padding: 12px 14px;
+    margin-top: 10px;
+    box-shadow: 4px 4px 0 var(--fg);
+}
+
+.weotzi-address-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-family: var(--font-technical, 'JetBrains Mono', monospace);
+}
+
+.weotzi-address-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary, #6b6b75);
+}
+
+.weotzi-address-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--fg);
+    word-break: break-word;
+}
+
+/* Inline help text under the picker input. */
+.weotzi-address-help {
+    font-family: var(--font-technical, 'JetBrains Mono', monospace);
+    font-size: 0.72rem;
+    color: var(--text-secondary, #6b6b75);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+    .weotzi-address-fields { grid-template-columns: 1fr; }
+}

@@ -2,12 +2,13 @@ import paramiko
 import time
 from scp import SCPClient
 import os
+from remote_credentials import load_ssh_password
 
 # Configuration
 HOST = "92.112.189.44"
 PORT = 65002
 USERNAME = "u795331143"
-PASSWORD = "Abnerisai24."
+PASSWORD = load_ssh_password()
 REMOTE_DIR = "/home/u795331143/domains/weotzi.com/public_html/beta"
 NEW_APP_PORT = 4545
 

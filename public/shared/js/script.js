@@ -4,6 +4,79 @@
 
 const _dbg = (...args) => { if (window.__WEOTZI_DEBUG) console.log(...args); };
 
+// ============ SHARED OPTIONS ============
+// Reused across /quotation and /pre-cotizador via /shared/js/quotation-shared.js.
+// Inline fallbacks ensure backward compatibility if the shared script is missing.
+const QUOTATION_SHARED = (typeof window !== 'undefined' && window.WeotziQuotationShared) || {};
+const SHARED_TATTOO_SIZE_OPTIONS = QUOTATION_SHARED.TATTOO_SIZE_OPTIONS || [
+    { label: 'Pequeño', value: 'pequeño', icon: '📏', subtitle: '< 5cm' },
+    { label: 'Mediano', value: 'mediano', icon: '📐', subtitle: '5-15cm' },
+    { label: 'Grande', value: 'grande', icon: '🖼️', subtitle: '15-30cm' },
+    { label: 'Muy Grande', value: 'muy_grande', icon: '🎨', subtitle: '> 30cm' },
+    { label: 'Media Manga', value: 'media_manga', icon: '💪', subtitle: '' },
+    { label: 'Manga Completa', value: 'manga_completa', icon: '🦾', subtitle: '' },
+    { label: 'Espalda Completa', value: 'espalda_completa', icon: '🔙', subtitle: '' },
+    { label: 'Pecho Completo', value: 'pecho_completo', icon: '👔', subtitle: '' }
+];
+const SHARED_TATTOO_STYLE_OPTIONS = QUOTATION_SHARED.TATTOO_STYLE_OPTIONS || [
+    { label: 'Realismo', value: 'realismo' },
+    { label: 'Tradicional', value: 'tradicional' },
+    { label: 'Neo-Tradicional', value: 'neo_tradicional' },
+    { label: 'Japonés', value: 'japones' },
+    { label: 'Minimalista', value: 'minimalista' },
+    { label: 'Fine Line', value: 'fine_line' },
+    { label: 'Blackwork', value: 'blackwork' },
+    { label: 'Dotwork', value: 'dotwork' },
+    { label: 'Acuarela', value: 'acuarela' },
+    { label: 'Geométrico', value: 'geometrico' },
+    { label: 'Trash Polka', value: 'trash_polka' },
+    { label: 'Chicano', value: 'chicano' },
+    { label: 'New School', value: 'new_school' },
+    { label: 'Anime', value: 'anime' },
+    { label: 'Ilustrativo', value: 'ilustrativo' },
+    { label: 'Surrealista', value: 'surrealista' },
+    { label: 'Black & Grey', value: 'black_grey' },
+    { label: 'Microrealismo', value: 'microrealismo' },
+    { label: 'Hiperrealismo', value: 'hiperrealismo' },
+    { label: 'Ornamental', value: 'ornamental' },
+    { label: 'Mandala', value: 'mandala' },
+    { label: 'Tribal', value: 'tribal' },
+    { label: 'Polinesio', value: 'polinesio' },
+    { label: 'Maori', value: 'maori' },
+    { label: 'Haida', value: 'haida' },
+    { label: 'Celta', value: 'celta' },
+    { label: 'Nordico / Viking', value: 'nordico_viking' },
+    { label: 'Lettering', value: 'lettering' },
+    { label: 'Blackletter / Gotico', value: 'blackletter_gotico' },
+    { label: 'Caligrafia', value: 'caligrafia' },
+    { label: 'Ignorant', value: 'ignorant' },
+    { label: 'Handpoke / Stick and Poke', value: 'handpoke_stick_and_poke' },
+    { label: 'Abstracto', value: 'abstracto' },
+    { label: 'Sketch / Boceto', value: 'sketch_boceto' },
+    { label: 'Etching / Grabado', value: 'etching_grabado' },
+    { label: 'Woodcut / Xilografia', value: 'woodcut_xilografia' },
+    { label: 'Linework', value: 'linework' },
+    { label: 'Ilustracion botanica', value: 'ilustracion_botanica' },
+    { label: 'Floral', value: 'floral' },
+    { label: 'Fineline botanico', value: 'fineline_botanico' },
+    { label: 'Biomecanico', value: 'biomecanico' },
+    { label: 'Bioorganico', value: 'bioorganico' },
+    { label: 'Horror', value: 'horror' },
+    { label: 'Dark Art', value: 'dark_art' },
+    { label: 'Glitch', value: 'glitch' },
+    { label: 'Pixel Art', value: 'pixel_art' },
+    { label: 'Graffiti', value: 'graffiti' },
+    { label: 'Pop Art', value: 'pop_art' },
+    { label: 'Art Nouveau', value: 'art_nouveau' },
+    { label: 'Art Deco', value: 'art_deco' },
+    { label: 'Barroco', value: 'barroco' },
+    { label: 'Abstract Brush', value: 'abstract_brush' },
+    { label: 'Patchwork', value: 'patchwork' },
+    { label: 'Religious / Sacro', value: 'religious_sacro' },
+    { label: 'Ornamental Blackwork', value: 'ornamental_blackwork' },
+    { label: 'Pointillism', value: 'pointillism' }
+];
+
 // ============ CONFIGURATION ============
 // DEFAULT_QUESTIONS_CONFIG - Synced with admin.js questionsConfig
 // This is the fallback if no localStorage config exists
@@ -15,37 +88,11 @@ const DEFAULT_QUESTIONS_CONFIG = [
     { id: 5, step: 'description', type: 'textarea', title: 'Cuéntanos tu idea', field: 'tattoo_idea_description', placeholder: 'Describe tu idea de tatuaje con el mayor detalle posible...', minLength: 10, maxLength: 1000 },
     {
         id: 6, step: 'size', type: 'cards', title: '¿Qué tamaño aproximado?', field: 'tattoo_size',
-        options: [
-            { label: 'Pequeño', value: 'pequeño', icon: '📏', subtitle: '< 5cm' },
-            { label: 'Mediano', value: 'mediano', icon: '📐', subtitle: '5-15cm' },
-            { label: 'Grande', value: 'grande', icon: '🖼️', subtitle: '15-30cm' },
-            { label: 'Muy Grande', value: 'muy_grande', icon: '🎨', subtitle: '> 30cm' },
-            { label: 'Media Manga', value: 'media_manga', icon: '💪', subtitle: '' },
-            { label: 'Manga Completa', value: 'manga_completa', icon: '🦾', subtitle: '' },
-            { label: 'Espalda Completa', value: 'espalda_completa', icon: '🔙', subtitle: '' },
-            { label: 'Pecho Completo', value: 'pecho_completo', icon: '👔', subtitle: '' }
-        ]
+        options: SHARED_TATTOO_SIZE_OPTIONS
     },
     {
         id: 7, step: 'style', type: 'cards', title: '¿Qué estilo prefieres?', field: 'tattoo_style',
-        options: [
-            { label: 'Realismo', value: 'realismo' },
-            { label: 'Tradicional', value: 'tradicional' },
-            { label: 'Neo-Tradicional', value: 'neo_tradicional' },
-            { label: 'Japonés', value: 'japones' },
-            { label: 'Minimalista', value: 'minimalista' },
-            { label: 'Fine Line', value: 'fine_line' },
-            { label: 'Blackwork', value: 'blackwork' },
-            { label: 'Dotwork', value: 'dotwork' },
-            { label: 'Acuarela', value: 'acuarela' },
-            { label: 'Geométrico', value: 'geometrico' },
-            { label: 'Trash Polka', value: 'trash_polka' },
-            { label: 'Chicano', value: 'chicano' },
-            { label: 'New School', value: 'new_school' },
-            { label: 'Anime', value: 'anime' },
-            { label: 'Ilustrativo', value: 'ilustrativo' },
-            { label: 'Surrealista', value: 'surrealista' }
-        ]
+        options: SHARED_TATTOO_STYLE_OPTIONS
     },
     {
         id: 8, step: 'color', type: 'options', title: '¿Color o Blanco y Negro?', field: 'tattoo_color_type',
@@ -107,6 +154,46 @@ let _authenticatedUserId = null;
 
 // ============ DRAFT PERSISTENCE (LocalStorage) ============
 const DRAFT_STORAGE_KEY = 'weotzi_quotation_draft';
+const PREQUOTE_HANDOFF_KEY = 'weotzi_prequote_handoff';
+
+/**
+ * Load and consume the optional pre-quote handoff stored by /pre-cotizador.
+ * Expired or malformed handoffs are silently dropped so they cannot taint
+ * regular quotation visits.
+ */
+function loadPrequoteHandoff() {
+    try {
+        const raw = localStorage.getItem(PREQUOTE_HANDOFF_KEY);
+        if (!raw) return null;
+        const handoff = JSON.parse(raw);
+        if (!handoff || !handoff.formData || !handoff.expiresAt || handoff.expiresAt < Date.now()) {
+            localStorage.removeItem(PREQUOTE_HANDOFF_KEY);
+            return null;
+        }
+        return handoff;
+    } catch (e) {
+        try { localStorage.removeItem(PREQUOTE_HANDOFF_KEY); } catch (_) {}
+        return null;
+    }
+}
+
+/**
+ * Apply the pre-quote handoff to formData. Only runs when explicitly
+ * requested (URL param `source=prequote` or a fresh handoff exists). Existing
+ * draft/quotation flows are not touched if no handoff is present.
+ */
+function applyPrequoteHandoff() {
+    const handoff = loadPrequoteHandoff();
+    if (!handoff || !handoff.formData) return false;
+    formData = { ...formData, ...handoff.formData };
+    formData.quote_id = formData.quote_id || generateQuoteId();
+    formData.quote_status = 'in_progress';
+    formData.quotation_source = 'prequote';
+    try { localStorage.removeItem(PREQUOTE_HANDOFF_KEY); } catch (_) {}
+    saveDraftToLocalStorage();
+    _dbg('Applied prequote handoff:', formData.quote_id);
+    return true;
+}
 
 /**
  * Save draft state to localStorage for recovery on page reload/close
@@ -400,11 +487,21 @@ function initApp() {
     // Detect existing client session for header state
     _detectClientSession();
 
+    // Pre-cotizador handoff: only applies when source=prequote is in URL or
+    // a non-expired handoff is present. We check the URL flag first to avoid
+    // affecting regular /quotation visits.
+    const initialUrlParams = new URLSearchParams(window.location.search);
+    const prequoteSource = initialUrlParams.get('source') === 'prequote';
+    let hasPrequoteHandoff = false;
+    if (prequoteSource) {
+        hasPrequoteHandoff = applyPrequoteHandoff();
+    }
+
     // Check for saved draft FIRST (before URL params)
     const draft = loadDraftFromLocalStorage();
-    
+
     // If there's a valid draft with quote_id and in_progress status, show recovery modal
-    if (draft && draft.formData?.quote_id && draft.formData?.quote_status === 'in_progress') {
+    if (!hasPrequoteHandoff && draft && draft.formData?.quote_id && draft.formData?.quote_status === 'in_progress') {
         // Check if URL has artist param - if so, let URL param take precedence for new quote
         const urlParams = new URLSearchParams(window.location.search);
         const artistUsername = urlParams.get('artist');
@@ -444,10 +541,11 @@ async function handleUrlArtist(username) {
         const usernameLower = username.toLowerCase();
 
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
-            // Case-insensitive lookup using ilike
+            // Case-insensitive lookup using ilike. Public path — exclude
+            // password via the shared column list (config-manager.js).
             const { data, error } = await supabaseClient
                 .from('artists_db')
-                .select('*')
+                .select(window.ARTIST_PUBLIC_COLUMNS || '*')
                 .ilike('username', usernameLower)
                 .single();
             if (!error) artist = data;
@@ -1393,6 +1491,8 @@ function preparePayload() {
         client_allergies: formData.client_allergies || 'Ninguna',
         client_user_id: _authenticatedUserId || null,
         quotation_medium: 'web',
+        source: formData.quotation_source || 'web_chat',
+        tattoo_estimated_sessions: formData.tattoo_estimated_sessions || null,
         updated_at: new Date().toISOString()
     };
 }
@@ -1762,10 +1862,11 @@ async function searchArtist() {
         const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
 
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
-            // Case-insensitive lookup using ilike
+            // Case-insensitive lookup using ilike. Public path — exclude
+            // password via the shared column list (config-manager.js).
             const { data, error } = await supabaseClient
                 .from('artists_db')
-                .select('*')
+                .select(window.ARTIST_PUBLIC_COLUMNS || '*')
                 .ilike('username', usernameLower)
                 .single();
 
@@ -1929,6 +2030,9 @@ function parseCurrency(priceStr) {
 
 // Helper to format tattoo_style (JSONB or string) for display
 function formatTattooStyleForDisplay(tattooStyle) {
+    if (window.WeotziQuotationShared && typeof window.WeotziQuotationShared.formatTattooStyleForDisplay === 'function') {
+        return window.WeotziQuotationShared.formatTattooStyleForDisplay(tattooStyle);
+    }
     if (!tattooStyle) return '-';
     
     // Handle JSONB object format
@@ -2056,9 +2160,11 @@ async function getRecommendedArtists() {
 async function fetchAllArtists() {
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (supabaseClient && !window.ConfigManager.isDemoMode()) {
+        // Public path — exclude password via the shared column list
+        // (config-manager.js ARTIST_PUBLIC_COLUMNS).
         const { data, error } = await supabaseClient
             .from('artists_db')
-            .select('*');
+            .select(window.ARTIST_PUBLIC_COLUMNS || '*');
         if (error) throw error;
         return data;
     } else {
@@ -2187,6 +2293,18 @@ function selectRecommendedArtist(artistId) {
 }
 
 function confirmArtist() {
+    // When the user comes from /pre-cotizador, basic tattoo fields are already
+    // filled. Skip those steps and land on the first missing field instead of
+    // forcing the user to retype them.
+    if (formData.quotation_source === 'prequote') {
+        const bodyPartIdx = questionsConfig.findIndex(q => q.step === 'body-part');
+        const startIdx = bodyPartIdx !== -1 ? bodyPartIdx : currentStepIndex + 1;
+        const nextIncomplete = findNextIncompleteStepIndex(startIdx);
+        if (nextIncomplete !== -1) {
+            commitStepChange(nextIncomplete);
+            return;
+        }
+    }
     nextStep();
 }
 
@@ -3430,7 +3548,7 @@ async function submitQuotation() {
 
     showLoading();
 
-    // Track warnings for user feedback
+    // Track warnings for user guidance
     let uploadWarnings = [];
 
     try {

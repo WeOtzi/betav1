@@ -64,7 +64,47 @@ const TOP_STYLES = [
     { label: 'Minimalista', icon: 'fa-solid fa-minus' },
     { label: 'Japonés', icon: 'fa-solid fa-dragon' },
     { label: 'Geométrico', icon: 'fa-solid fa-shapes' },
-    { label: 'Acuarela', icon: 'fa-solid fa-droplet' }
+    { label: 'Acuarela', icon: 'fa-solid fa-droplet' },
+    { label: 'Black & Grey', icon: 'fa-solid fa-circle-half-stroke' },
+    { label: 'Microrealismo', icon: 'fa-solid fa-magnifying-glass' },
+    { label: 'Hiperrealismo', icon: 'fa-solid fa-eye' },
+    { label: 'Ornamental', icon: 'fa-solid fa-fan' },
+    { label: 'Mandala', icon: 'fa-solid fa-circle-dot' },
+    { label: 'Tribal', icon: 'fa-solid fa-bolt' },
+    { label: 'Polinesio', icon: 'fa-solid fa-water' },
+    { label: 'Maori', icon: 'fa-solid fa-shield-halved' },
+    { label: 'Haida', icon: 'fa-solid fa-feather' },
+    { label: 'Celta', icon: 'fa-solid fa-ring' },
+    { label: 'Nordico / Viking', icon: 'fa-solid fa-mountain' },
+    { label: 'Lettering', icon: 'fa-solid fa-font' },
+    { label: 'Blackletter / Gotico', icon: 'fa-solid fa-book' },
+    { label: 'Caligrafia', icon: 'fa-solid fa-pen-fancy' },
+    { label: 'Ignorant', icon: 'fa-solid fa-pencil' },
+    { label: 'Handpoke / Stick and Poke', icon: 'fa-solid fa-hand-point-up' },
+    { label: 'Abstracto', icon: 'fa-solid fa-shapes' },
+    { label: 'Sketch / Boceto', icon: 'fa-solid fa-pencil' },
+    { label: 'Etching / Grabado', icon: 'fa-solid fa-layer-group' },
+    { label: 'Woodcut / Xilografia', icon: 'fa-solid fa-tree' },
+    { label: 'Linework', icon: 'fa-solid fa-pen-nib' },
+    { label: 'Ilustracion botanica', icon: 'fa-solid fa-leaf' },
+    { label: 'Floral', icon: 'fa-solid fa-spa' },
+    { label: 'Fineline botanico', icon: 'fa-solid fa-seedling' },
+    { label: 'Biomecanico', icon: 'fa-solid fa-gears' },
+    { label: 'Bioorganico', icon: 'fa-solid fa-dna' },
+    { label: 'Horror', icon: 'fa-solid fa-ghost' },
+    { label: 'Dark Art', icon: 'fa-solid fa-moon' },
+    { label: 'Glitch', icon: 'fa-solid fa-wave-square' },
+    { label: 'Pixel Art', icon: 'fa-solid fa-border-all' },
+    { label: 'Graffiti', icon: 'fa-solid fa-spray-can' },
+    { label: 'Pop Art', icon: 'fa-solid fa-star' },
+    { label: 'Art Nouveau', icon: 'fa-solid fa-fan' },
+    { label: 'Art Deco', icon: 'fa-solid fa-gem' },
+    { label: 'Barroco', icon: 'fa-solid fa-landmark' },
+    { label: 'Abstract Brush', icon: 'fa-solid fa-brush' },
+    { label: 'Patchwork', icon: 'fa-solid fa-table-cells-large' },
+    { label: 'Religious / Sacro', icon: 'fa-solid fa-church' },
+    { label: 'Ornamental Blackwork', icon: 'fa-solid fa-circle' },
+    { label: 'Pointillism', icon: 'fa-solid fa-braille' }
 ];
 
 // ============ INIT ============
@@ -96,9 +136,12 @@ async function fetchArtists() {
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (supabaseClient && !window.ConfigManager.isDemoMode()) {
         try {
+            // Public path — anon can read finalized rows via the marketplace
+            // RLS policy. Use the shared public column list so we don't leak
+            // password (see config-manager.js ARTIST_PUBLIC_COLUMNS).
             const { data, error } = await supabaseClient
                 .from('artists_db')
-                .select('*');
+                .select(window.ARTIST_PUBLIC_COLUMNS || '*');
             if (error) throw error;
             
             return (data || []).map(a => ({
@@ -226,7 +269,17 @@ function renderArtists(artists) {
 
     grid.innerHTML = artists.map((artist, index) => {
         const styles = parseStyles(artist.styles_array);
-        const price = artist.session_price || 'Consultar';
+        let price;
+        if (artist.session_price_amount && artist.session_price_currency
+            && window.WeOtziCurrency && window.WeOtziCurrency.isReady()) {
+            price = window.WeOtziCurrency.formatInline(
+                artist.session_price_amount,
+                artist.session_price_currency,
+                { showSecondary: false }
+            );
+        } else {
+            price = artist.session_price || 'Consultar';
+        }
         const profilePic = artist.profile_picture;
         const experience = artist.years_experience ? `${artist.years_experience} años exp.` : 'Pro';
         const rotation = (index % 2 === 0 ? 0.5 : -0.5);
