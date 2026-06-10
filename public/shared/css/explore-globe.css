@@ -1,0 +1,2000 @@
+/* ============================================================
+   WE ÖTZI · /explore/globe
+   Bauhaus editorial dark — premium global discovery experience.
+   Page-scoped: only applies under .globe-page so it cannot leak
+   into /explore (Google Maps view).
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;700&family=Inter:wght@400;700;900&display=swap');
+
+/* ----- TOKENS (page-scoped) ----- */
+.globe-page {
+    --g-display: 'Archivo Black', 'Inter', sans-serif;
+    --g-mono:    'IBM Plex Mono', 'JetBrains Mono', 'Consolas', monospace;
+    --g-body:    'Inter', system-ui, sans-serif;
+
+    /* Hard editorial-dark palette. Locked regardless of [data-theme]. */
+    --g-bg:        #050505;
+    --g-bg-alt:    #0d0d0d;
+    --g-fg:        #F2F0E9;
+    --g-fg-muted:  #8a8780;
+    --g-fg-soft:   #c8c5bc;
+    --g-rule:      #1c1c1c;
+    --g-rule-hi:   #2a2a2a;
+
+    --g-red:       #E23E28;
+    --g-red-soft:  #ff5b46;
+    --g-yellow:    #F4B942;
+    --g-blue:      #1A4B8E;
+    --g-blue-hi:   #3A86FF;
+
+    --g-rule-w:    2px;
+    --g-rule-w-hi: 3px;
+    --g-pad:       clamp(14px, 2vw, 28px);
+
+    --g-grid-line: rgba(242, 240, 233, 0.04);
+    --g-shadow-sm: 4px 4px 0 var(--g-fg);
+    --g-shadow-md: 6px 6px 0 var(--g-fg);
+    --g-shadow-lg: 10px 10px 0 var(--g-fg);
+    --g-shadow-red: 6px 6px 0 var(--g-red);
+}
+
+/* ----- PAGE BODY ----- */
+body.globe-page {
+    margin: 0;
+    background: var(--g-bg);
+    color: var(--g-fg);
+    font-family: var(--g-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+/* Hide any global noise/grid overlay that styles.css may stack;
+   we control the texture ourselves below. */
+body.globe-page::before { display: none !important; opacity: 0 !important; }
+
+.globe-page .skip-link {
+    position: absolute;
+    top: -100px;
+    left: 12px;
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    padding: 10px 14px;
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    z-index: 100;
+    transition: top 0.2s ease;
+}
+.globe-page .skip-link:focus { top: 12px; }
+
+/* ============================================================
+   SHELL
+   ============================================================ */
+.globe-app {
+    height: 100vh;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+        "header"
+        "filters"
+        "main";
+    background: var(--g-bg);
+    position: relative;
+
+    /* Subtle topographic grid baked into the page. Scoped so the texture
+       only shows on the dark canvas, not on light overlays. */
+    background-image:
+        linear-gradient(var(--g-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--g-grid-line) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px;
+    background-position: -1px -1px;
+}
+
+/* ============================================================
+   HEADER · masthead
+   ============================================================ */
+.globe-header {
+    grid-area: header;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: stretch;
+    height: 84px;
+    background: var(--g-bg);
+    border-bottom: var(--g-rule-w-hi) solid var(--g-fg);
+    position: relative;
+    z-index: 30;
+}
+
+.globe-header-left,
+.globe-header-right {
+    display: flex;
+    align-items: stretch;
+}
+
+.globe-header-left { border-right: var(--g-rule-w) solid var(--g-fg); }
+
+.globe-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 18px;
+    border: none;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    font-family: var(--g-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    text-decoration: none;
+    transition: background 0.18s, color 0.18s, transform 0.18s;
+}
+.globe-back-btn:hover { background: var(--g-fg); color: var(--g-bg); }
+.globe-back-btn i { font-size: 0.95rem; }
+.globe-back-label { display: inline; }
+
+.globe-masthead {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 22px;
+    min-width: 0;
+}
+.globe-eyebrow {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.globe-eyebrow-dot {
+    width: 8px; height: 8px;
+    background: var(--g-red);
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--g-bg), 0 0 12px var(--g-red);
+    animation: globe-pulse 1.6s ease-in-out infinite;
+}
+@keyframes globe-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+.globe-wordmark {
+    font-family: var(--g-display);
+    font-size: clamp(1.6rem, 2.4vw, 2.05rem);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.globe-wordmark .accent { color: var(--g-red); font-style: italic; }
+
+/* CENTER counter */
+.globe-header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+    padding: 0 18px;
+    background:
+        repeating-linear-gradient(
+            45deg,
+            transparent 0, transparent 8px,
+            rgba(242, 240, 233, 0.04) 8px, rgba(242, 240, 233, 0.04) 9px
+        );
+}
+.globe-counter {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    background: var(--g-bg-alt);
+    border: var(--g-rule-w) solid var(--g-fg);
+    padding: 6px 14px;
+    box-shadow: var(--g-shadow-sm);
+    font-family: var(--g-mono);
+    color: var(--g-fg);
+}
+.globe-counter-value {
+    font-family: var(--g-display);
+    font-size: 1.4rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--g-fg);
+    font-variant-numeric: tabular-nums;
+}
+.globe-counter-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+}
+
+/* RIGHT nav */
+.globe-nav-links {
+    display: inline-flex;
+    align-items: stretch;
+    height: 100%;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+}
+.globe-nav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 1.05rem;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+    text-decoration: none;
+    font-family: var(--g-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--g-fg);
+    background: var(--g-bg);
+    white-space: nowrap;
+    transition: background 0.18s, color 0.18s;
+    position: relative;
+}
+.globe-nav-link:last-child { border-right: none; }
+.globe-nav-link:hover { background: var(--g-fg); color: var(--g-bg); }
+.globe-nav-link::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 0;
+    background: var(--g-red);
+    transition: height 0.2s ease;
+}
+.globe-nav-link:hover::after { height: 4px; }
+.globe-nav-link.is-job-board { background: var(--g-red); color: var(--g-bg); }
+.globe-nav-link.is-job-board:hover { background: var(--g-fg); color: var(--g-bg); }
+
+.globe-menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 76px;
+    padding: 0;
+    border: none;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-bg);
+    color: var(--g-fg);
+    font-family: var(--g-mono);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.globe-menu-toggle[aria-expanded="true"],
+.globe-menu-toggle:hover { background: var(--g-yellow); color: #0a0a0a; }
+
+.globe-mobile-menu { display: none; }
+.globe-mobile-menu[hidden] { display: none !important; }
+
+/* ============================================================
+   FILTERS
+   ============================================================ */
+.globe-filters {
+    grid-area: filters;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 12px var(--g-pad);
+    background: var(--g-bg);
+    border-bottom: var(--g-rule-w-hi) solid var(--g-fg);
+    position: relative;
+    z-index: 25;
+}
+
+.globe-filter-pills {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 24px), transparent);
+    min-width: 0;
+}
+
+.globe-filter-pills .filter-pill {
+    flex: 0 0 auto;
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    padding: 8px 14px;
+    border: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-bg);
+    color: var(--g-fg);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: background 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+.globe-filter-pills .filter-pill i { font-size: 0.85em; }
+.globe-filter-pills .filter-pill:hover {
+    background: var(--g-fg);
+    color: var(--g-bg);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--g-shadow-sm);
+}
+.globe-filter-pills .filter-pill.is-active {
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    border-color: var(--g-fg);
+    box-shadow: var(--g-shadow-sm);
+    transform: translate(-2px, -2px);
+}
+.globe-filter-pills .filter-pill .pill-count { opacity: 0.55; font-size: 0.92em; }
+
+.globe-filter-selects {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    align-items: center;
+    justify-self: end;
+}
+.globe-filter-selects select {
+    flex: 0 0 auto;
+    width: 168px;
+    height: 40px;
+    padding: 0 32px 0 12px;
+    border: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-bg);
+    color: var(--g-fg);
+    font-family: var(--g-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23F2F0E9' stroke-width='2' fill='none'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: background-color 0.15s, color 0.15s;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.globe-filter-selects #globe-filter-country { width: 188px; }
+.globe-filter-selects #globe-filter-experience { width: 192px; }
+.globe-filter-selects select:hover {
+    background-color: var(--g-fg);
+    color: var(--g-bg);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%230A0A0A' stroke-width='2' fill='none'/></svg>");
+}
+.globe-filter-selects select option {
+    background: var(--g-bg);
+    color: var(--g-fg);
+}
+
+.globe-clear-btn {
+    height: 40px;
+    padding: 0 16px;
+    border: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-red);
+    color: var(--g-bg);
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.globe-clear-btn:hover {
+    background: var(--g-fg);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--g-shadow-sm);
+}
+
+/* ============================================================
+   MAIN · stage + side panel
+   ============================================================ */
+.globe-main {
+    grid-area: main;
+    display: grid;
+    grid-template-columns: 1fr minmax(360px, 32%);
+    grid-template-rows: 1fr;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    max-width: none;
+    width: 100%;
+    align-items: stretch;
+    background: var(--g-bg);
+}
+
+/* ----- STAGE (globe canvas) ----- */
+.globe-stage {
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 45%, #0d0d0d 0%, #050505 60%, #000 100%);
+    border-right: var(--g-rule-w-hi) solid var(--g-fg);
+    min-width: 0;
+    min-height: 0;
+}
+
+.globe-stage-frame {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* When an artist is selected the stage flips into a 2-column grid:
+   [card 380px] [globe 1fr]. The globe shrinks to fit the remaining
+   width and the card stops being absolutely positioned, so they no
+   longer overlap. Mobile breakpoint below stacks them vertically. */
+.globe-stage.has-selection {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) 1fr;
+    grid-template-rows: 1fr;
+    gap: 0;
+}
+.globe-stage.has-selection .globe-stage-frame {
+    position: relative;
+    inset: auto;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+}
+.globe-stage.has-selection .globe-selected-card {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    grid-column: 1;
+    grid-row: 1;
+    border-right: var(--g-rule-w-hi) solid var(--g-fg);
+    box-shadow: none;
+    animation: none;
+}
+/* Hide the legend chip when the card is open — the card already
+   names the artist + arc colors, the chip becomes redundant noise. */
+.globe-stage.has-selection .globe-legend {
+    display: none;
+}
+/* Loading veil shouldn't block the canvas column when it's narrower. */
+.globe-stage.has-selection .globe-loading,
+.globe-stage.has-selection .globe-empty {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.globe-canvas {
+    /* Sized via JS to match devicePixelRatio. CSS only clamps max display size. */
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    cursor: grab;
+    contain: paint;
+    /* Subtle red glow under the globe to anchor it in the dark page. */
+    filter: drop-shadow(0 8px 60px rgba(226, 62, 40, 0.18));
+}
+.globe-canvas:active { cursor: grabbing; }
+.globe-canvas:focus-visible { outline: 2px dashed var(--g-yellow); outline-offset: -8px; }
+
+/* Labels container — DOM overlay positioned by JS in pixel coords. */
+.globe-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.globe-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -120%);
+    pointer-events: auto;
+    cursor: pointer;
+    background: var(--g-bg);
+    color: var(--g-fg);
+    border: var(--g-rule-w) solid var(--g-fg);
+    padding: 4px 10px;
+    font-family: var(--g-mono);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    box-shadow: 3px 3px 0 var(--g-fg);
+    white-space: nowrap;
+    transition: opacity 0.18s ease, filter 0.18s ease, transform 0.18s ease, background 0.18s, color 0.18s, box-shadow 0.18s;
+    user-select: none;
+    opacity: 0;
+    filter: blur(6px);
+    will-change: opacity, transform;
+}
+.globe-label::after {
+    content: '';
+    position: absolute;
+    bottom: -7px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 7px solid var(--g-fg);
+}
+.globe-label.is-visible {
+    opacity: 1;
+    filter: blur(0);
+}
+.globe-label.is-muted { opacity: 0.35; }
+.globe-label.is-selected,
+.globe-label:hover {
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    transform: translate(-50%, calc(-120% - 2px)) scale(1.04);
+    box-shadow: 5px 5px 0 var(--g-fg);
+    z-index: 6;
+}
+
+.globe-label.is-recommended {
+    background: var(--g-red);
+    color: var(--g-bg);
+}
+.globe-label.is-recommended::after { border-top-color: var(--g-fg); }
+
+/* City clusters use a flat red+black palette with a white outline so they
+   read clearly against the dark globe without competing with the artist
+   labels. No shadow on purpose — the cluster pins are visual anchors,
+   not raised UI; the simpler form lets the eye focus on counts. */
+.globe-label.is-cluster {
+    background: var(--g-red);
+    color: #0a0a0a;
+    border: 2px solid #ffffff;
+    box-shadow: none;
+    font-family: var(--g-display);
+    font-size: 0.74rem;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    padding: 5px 11px;
+}
+.globe-label.is-cluster::after { border-top-color: #ffffff; }
+.globe-label.is-cluster:hover,
+.globe-label.is-cluster.is-selected {
+    background: #0a0a0a;
+    color: var(--g-red);
+    border-color: #ffffff;
+    box-shadow: none;
+    transform: translate(-50%, calc(-120% - 2px)) scale(1.04);
+}
+.globe-label.is-cluster:hover::after,
+.globe-label.is-cluster.is-selected::after { border-top-color: #ffffff; }
+.globe-label.is-cluster .globe-label-count {
+    background: #0a0a0a;
+    color: #ffffff;
+    border: 1px solid #ffffff;
+}
+.globe-label.is-cluster:hover .globe-label-count,
+.globe-label.is-cluster.is-selected .globe-label-count {
+    background: var(--g-red);
+    color: #0a0a0a;
+    border-color: #ffffff;
+}
+
+.globe-label .globe-label-count {
+    margin-left: 6px;
+    padding: 1px 5px;
+    background: var(--g-bg);
+    color: var(--g-fg);
+    border: 1px solid var(--g-fg);
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+}
+.globe-label.is-cluster .globe-label-count { background: var(--g-bg); color: var(--g-fg); }
+.globe-label.is-recommended .globe-label-count { background: var(--g-bg); color: var(--g-fg); }
+
+/* ----- SPOTLIGHT (rotating reveal in GLOBAL view) -----
+   A single floating chip the JS reuses to highlight a random visible
+   artist for ~2s. Anchored at (artist.x, artist.y) and pushed up so the
+   chip sits ABOVE the corresponding dot, with a small triangle pointer
+   tying them together. Pure CSS animation; the JS only toggles classes
+   so the fade-in/out feels consistent across browsers. */
+.globe-spotlight {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 16px));
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 6;
+    background: var(--g-bg);
+    color: var(--g-fg);
+    border: 2px solid #ffffff;
+    padding: 6px 12px 7px;
+    box-shadow: 0 0 0 4px rgba(244, 185, 66, 0.18);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 100px;
+    max-width: 240px;
+    text-align: center;
+    opacity: 0;
+    filter: blur(6px) brightness(0.6);
+    transition:
+        opacity 0.28s ease,
+        filter 0.28s ease,
+        transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    will-change: transform, opacity, filter;
+}
+
+.globe-spotlight::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 8px solid #ffffff;
+}
+
+.globe-spotlight.is-visible {
+    opacity: 1;
+    filter: blur(0) brightness(1);
+    transform: translate(-50%, calc(-100% - 18px)) scale(1);
+    /* Subtle pulse halo so the eye catches the new pick. */
+    animation: spotlight-pulse 1.6s ease-out 1;
+}
+.globe-spotlight.is-leaving {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translate(-50%, calc(-100% - 12px)) scale(0.96);
+}
+
+@keyframes spotlight-pulse {
+    0%   { box-shadow: 0 0 0 4px rgba(244, 185, 66, 0.65); }
+    60%  { box-shadow: 0 0 0 14px rgba(244, 185, 66, 0); }
+    100% { box-shadow: 0 0 0 4px rgba(244, 185, 66, 0.18); }
+}
+
+.globe-spotlight-name {
+    font-family: var(--g-display);
+    font-size: 0.95rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+.globe-spotlight-meta {
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+.globe-spotlight-badge {
+    align-self: center;
+    margin-bottom: 2px;
+    padding: 1px 6px;
+    background: var(--g-red);
+    color: var(--g-bg);
+    border: 1px solid #ffffff;
+    font-family: var(--g-mono);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+/* ------- Carousel inside the spotlight chip -------
+   When the artist has 2+ itinerary stops the chip cycles through them
+   (3s each). Each stop is a single block with: period chip, place name,
+   date range. A small counter at the top tells the user how many stops
+   are left. The plane DOM element flies along the bézier between two
+   consecutive stops. */
+.globe-spotlight {
+    max-width: 280px;
+    min-width: 180px;
+}
+
+.globe-spotlight-counter {
+    font-family: var(--g-mono);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+    margin-top: 2px;
+}
+
+/* Each stop block re-mounts on every cycle so the entrance animation
+   plays clean. The block uses a key animation that slides+fades in. */
+.globe-spotlight-stop {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.35);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    animation: spotlight-stop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.globe-spotlight-period {
+    font-family: var(--g-mono);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid var(--g-yellow);
+    align-self: center;
+}
+.globe-spotlight-period.is-current {
+    background: var(--g-yellow);
+    color: #0a0a0a;
+}
+.globe-spotlight-period.is-upcoming {
+    background: transparent;
+    color: var(--g-yellow);
+}
+
+.globe-spotlight-place {
+    font-family: var(--g-display);
+    font-size: 0.92rem;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.globe-spotlight-date {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--g-yellow);
+    white-space: nowrap;
+}
+
+@keyframes spotlight-stop-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.94);
+        filter: blur(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+/* ------- Plane that flies between stops ------- */
+/* The plane is built from three nested layers so each rotation axis
+   acts in its own clean local frame:
+     .globe-plane         → screen position (left/top)
+     .globe-plane-rot     → heading rotateZ (yaw, in screen plane)
+     .globe-plane-tilt    → pitch rotateX + bank rotateY (in body frame)
+   `perspective` on .globe-plane is what turns rotateX/Y from a flat
+   2D shear into a real 3D tilt. */
+.globe-plane {
+    position: absolute;
+    left: 0;
+    top: 0;
+    /* 48px keeps the plane readable on FullHD without dominating the
+       globe; perspective scales with width, so this also makes the
+       3D bank/pitch tilts noticeable. */
+    width: 48px;
+    height: 48px;
+    /* Center the plane on its (left,top) coordinates without conflicting
+       with the heading rotation on the inner layer. */
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 7;
+    perspective: 220px;
+    transform-style: preserve-3d;
+    transition: opacity 0.18s ease;
+    will-change: left, top;
+    animation: plane-bob 0.9s ease-in-out infinite;
+    /* Yellow glow halo around the plane — sells the "light crossing
+       the dark globe" idea even when the SVG is small. */
+    filter:
+        drop-shadow(0 0 4px rgba(244, 185, 66, 0.95))
+        drop-shadow(0 0 10px rgba(244, 185, 66, 0.45))
+        drop-shadow(0 0 20px rgba(244, 185, 66, 0.18));
+}
+
+.globe-plane[hidden] { display: none; }
+
+.globe-plane-rot,
+.globe-plane-tilt {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform-origin: 50% 50%;
+}
+.globe-plane-rot  { transform: rotate(0deg); }
+.globe-plane-tilt { transform: rotateX(0deg) rotateY(0deg); }
+
+.globe-plane svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    /* Keep the SVG's internal coordinate frame stable so JS rotations
+       stay clean. */
+    transform-origin: 50% 50%;
+}
+
+.globe-plane.is-back {
+    /* Plane crossed to the back hemisphere; dim it so the user reads
+       it as "behind the globe" without losing track. */
+    opacity: 0.22;
+    filter: none;
+}
+
+/* Tiny brightness pulse during cruise — adds life to the otherwise
+   smooth bézier without touching transforms (which JS owns). */
+@keyframes plane-bob {
+    0%, 100% { filter:
+        drop-shadow(0 0 4px rgba(244, 185, 66, 0.85))
+        drop-shadow(0 0 10px rgba(244, 185, 66, 0.40))
+        drop-shadow(0 0 18px rgba(244, 185, 66, 0.16)); }
+    50%      { filter:
+        drop-shadow(0 0 5px rgba(244, 185, 66, 1.00))
+        drop-shadow(0 0 14px rgba(244, 185, 66, 0.55))
+        drop-shadow(0 0 26px rgba(244, 185, 66, 0.28)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .globe-spotlight-stop {
+        animation: none !important;
+    }
+    .globe-plane {
+        animation: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .globe-spotlight,
+    .globe-spotlight.is-visible,
+    .globe-spotlight.is-leaving {
+        animation: none !important;
+        transition: opacity 0.15s linear !important;
+        filter: none !important;
+    }
+}
+
+/* Loading veil — visible until first paint of the globe. */
+.globe-loading {
+    position: absolute;
+    inset: auto auto 16px 16px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--g-bg-alt);
+    border: var(--g-rule-w) solid var(--g-fg);
+    box-shadow: var(--g-shadow-sm);
+    font-family: var(--g-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--g-fg);
+    transition: opacity 0.3s ease;
+}
+.globe-loading.is-hidden { opacity: 0; pointer-events: none; }
+.globe-loading-dot {
+    width: 10px; height: 10px;
+    background: var(--g-yellow);
+    box-shadow: 0 0 12px var(--g-yellow);
+    animation: globe-pulse 1.2s ease-in-out infinite;
+}
+
+/* Empty state inside the stage. */
+.globe-empty {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 6;
+    background: var(--g-bg-alt);
+    border: var(--g-rule-w-hi) solid var(--g-fg);
+    box-shadow: var(--g-shadow-md);
+    padding: 24px 28px;
+    max-width: 360px;
+    text-align: center;
+}
+.globe-empty h2 {
+    font-family: var(--g-display);
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+    color: var(--g-fg);
+}
+.globe-empty p {
+    font-family: var(--g-mono);
+    font-size: 0.75rem;
+    color: var(--g-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0 0 14px;
+}
+.globe-empty-btn {
+    height: 40px;
+    padding: 0 18px;
+    border: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.globe-empty-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--g-shadow-sm);
+    background: var(--g-fg);
+    color: var(--g-bg);
+}
+
+/* ----- SELECTED CARD (floating preview) -----
+   Editorial card sitting in the bottom-left corner of the globe stage.
+   Width is intentionally wider than a thumbnail so the rich body
+   (bio + facts + price + actions) fits without becoming tower-tall. */
+.globe-selected-card {
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
+    width: clamp(320px, 30vw, 420px);
+    max-height: calc(100% - 48px);
+    overflow-y: auto;
+    background: var(--g-bg-alt);
+    border: var(--g-rule-w-hi) solid var(--g-fg);
+    box-shadow: var(--g-shadow-md);
+    z-index: 7;
+    display: grid;
+    grid-template-columns: 1fr;
+    animation: globe-card-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    scrollbar-width: thin;
+    scrollbar-color: var(--g-fg) transparent;
+}
+.globe-selected-card::-webkit-scrollbar { width: 6px; }
+.globe-selected-card::-webkit-scrollbar-thumb { background: var(--g-fg); }
+
+@keyframes globe-card-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.globe-selected-close {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 32px; height: 32px;
+    border: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-bg);
+    color: var(--g-fg);
+    cursor: pointer;
+    z-index: 3;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.globe-selected-close:hover {
+    background: var(--g-red);
+    color: var(--g-bg);
+    transform: rotate(90deg);
+}
+
+/* Recommended ribbon — top-left chip, only renders when artist is recommended. */
+.globe-selected-recommended {
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 2;
+    background: var(--g-red);
+    color: var(--g-bg);
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+    border-bottom: var(--g-rule-w) solid var(--g-fg);
+}
+
+.globe-selected-cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--g-fg);
+    background-size: cover;
+    background-position: center;
+    border-bottom: var(--g-rule-w-hi) solid var(--g-fg);
+}
+/* Bauhaus pattern fallback when the artist has no profile picture. */
+.globe-selected-cover.no-image {
+    background:
+        radial-gradient(circle at 30% 30%, var(--g-red) 30%, transparent 30.5%),
+        linear-gradient(135deg, var(--g-blue) 28%, transparent 28.5%),
+        linear-gradient(225deg, var(--g-yellow) 22%, transparent 22.5%),
+        var(--g-bg-alt);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+
+.globe-selected-body {
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.globe-selected-toprow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.globe-selected-eyebrow {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+}
+
+.globe-selected-source {
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border: 1px solid var(--g-fg);
+    background: var(--g-bg);
+    color: var(--g-fg);
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.globe-selected-source.is-studio { background: var(--g-yellow); color: #0a0a0a; border-color: var(--g-fg); }
+.globe-selected-source.is-independent { background: var(--g-bg); color: var(--g-fg); }
+.globe-selected-source[hidden] { display: none !important; }
+
+.globe-selected-name {
+    font-family: var(--g-display);
+    font-size: 1.45rem;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    margin: 0;
+}
+
+.globe-selected-styles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.globe-selected-styles .tag-mini {
+    font-family: var(--g-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--g-fg);
+    padding: 2px 6px;
+    color: var(--g-fg);
+    background: var(--g-bg);
+}
+
+.globe-selected-bio {
+    font-family: var(--g-body);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--g-fg-soft);
+    margin: 2px 0 0;
+    border-left: 2px solid var(--g-red);
+    padding: 1px 0 1px 10px;
+}
+.globe-selected-bio[hidden] { display: none !important; }
+
+.globe-selected-facts {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+    border-top: 1px solid var(--g-rule-hi);
+    border-bottom: 1px solid var(--g-rule-hi);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.globe-selected-facts:has(.globe-selected-fact:not([hidden])) { /* keep border */ }
+/* Hide the whole list if every fact is hidden so we don't render an empty
+   set of horizontal rules. */
+.globe-selected-facts:not(:has(.globe-selected-fact:not([hidden]))) {
+    display: none;
+}
+.globe-selected-fact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--g-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    color: var(--g-fg);
+}
+.globe-selected-fact[hidden] { display: none !important; }
+.globe-selected-fact i {
+    color: var(--g-red);
+    width: 12px;
+    text-align: center;
+}
+.globe-selected-fact[data-fact="address"] span {
+    color: var(--g-fg-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.globe-selected-pricerow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.globe-selected-pricelabel {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+}
+.globe-selected-price {
+    font-family: var(--g-mono);
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    border: var(--g-rule-w) solid var(--g-fg);
+    padding: 3px 9px;
+    box-shadow: 3px 3px 0 var(--g-fg);
+}
+
+.globe-selected-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 2px;
+}
+.globe-cta {
+    height: 42px;
+    border: var(--g-rule-w-hi) solid var(--g-fg);
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.globe-cta.primary { background: var(--g-fg); color: var(--g-bg); }
+.globe-cta.primary:hover {
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--g-fg);
+}
+.globe-cta.secondary { background: var(--g-red); color: var(--g-bg); }
+.globe-cta.secondary:hover {
+    background: var(--g-fg);
+    color: var(--g-bg);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--g-fg);
+}
+
+.globe-selected-directions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    margin-top: 4px;
+    background: var(--g-bg);
+    color: var(--g-fg);
+    border: var(--g-rule-w) solid var(--g-fg);
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.globe-selected-directions:hover {
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    transform: translate(-2px, -2px);
+    box-shadow: 3px 3px 0 var(--g-fg);
+}
+.globe-selected-directions[hidden] { display: none !important; }
+
+/* ----- ITINERARY block (inside selected card) -----
+   Lists every "current"/"upcoming" location for the selected artist.
+   Gold accents echo the itinerary pins on the globe. */
+.globe-selected-itinerary {
+    border-top: var(--g-rule-w) solid var(--g-fg);
+    border-bottom: var(--g-rule-w) solid var(--g-fg);
+    padding: 10px 0 12px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.globe-selected-itinerary[hidden] { display: none !important; }
+
+.globe-selected-itinerary-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.globe-selected-itinerary-title {
+    font-family: var(--g-display);
+    font-size: 0.95rem;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: var(--g-fg);
+}
+.globe-selected-itinerary-hint {
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+}
+
+.globe-selected-itinerary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    counter-reset: none;
+}
+
+.itinerary-row { margin: 0; padding: 0; }
+
+.itinerary-row-btn {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--g-bg);
+    border: 1px solid var(--g-rule-hi);
+    color: var(--g-fg);
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--g-body);
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.itinerary-row-btn:hover {
+    background: #0a0a0a;
+    border-color: var(--g-yellow);
+    transform: translate(-2px, -2px);
+}
+
+.itinerary-order {
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--g-fg-muted);
+    align-self: start;
+    padding-top: 2px;
+}
+
+.itinerary-dot {
+    width: 10px; height: 10px;
+    border: 1px solid #ffffff;
+    align-self: center;
+    box-shadow: 0 0 8px rgba(255, 200, 60, 0.5);
+}
+.itinerary-dot.dot-current   { background: var(--g-yellow); }
+.itinerary-dot.dot-upcoming  { background: transparent; box-shadow: 0 0 0 1px var(--g-yellow) inset; }
+
+.itinerary-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.itinerary-venue {
+    font-family: var(--g-display);
+    font-size: 0.78rem;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.itinerary-where {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--g-fg-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.itinerary-range {
+    font-family: var(--g-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--g-yellow);
+    margin-top: 2px;
+}
+
+/* ----- LEGEND ----- */
+.globe-legend {
+    position: absolute;
+    right: 16px; bottom: 16px;
+    z-index: 4;
+    background: var(--g-bg-alt);
+    border: var(--g-rule-w) solid var(--g-fg);
+    box-shadow: var(--g-shadow-sm);
+    padding: 8px 12px;
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    color: var(--g-fg);
+    pointer-events: none;
+    max-width: 220px;
+}
+.globe-legend-title {
+    display: block;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+    margin-bottom: 6px;
+}
+.globe-legend ul {
+    list-style: none;
+    padding: 0; margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+}
+.globe-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.globe-legend .legend-dot {
+    width: 9px; height: 9px;
+    display: inline-block;
+    border: 1px solid var(--g-fg);
+}
+.globe-legend .dot-recommended { background: var(--g-red); }
+.globe-legend .dot-artist { background: var(--g-yellow); }
+.globe-legend .dot-cluster { background: var(--g-blue); }
+.globe-legend .dot-arc {
+    background: linear-gradient(90deg, var(--g-blue-hi), var(--g-yellow));
+    border-color: var(--g-blue-hi);
+}
+
+/* ============================================================
+   SIDE PANEL · filtered artists list
+   ============================================================ */
+.globe-panel {
+    background: var(--g-bg-alt);
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--g-fg) transparent;
+    padding: 14px var(--g-pad) 24px;
+    gap: 12px;
+}
+.globe-panel::-webkit-scrollbar { width: 8px; }
+.globe-panel::-webkit-scrollbar-track { background: transparent; }
+.globe-panel::-webkit-scrollbar-thumb { background: var(--g-fg); border-radius: 0; }
+
+.globe-panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: var(--g-rule-w) solid var(--g-fg);
+    padding-bottom: 10px;
+    position: sticky;
+    top: 0;
+    background: var(--g-bg-alt);
+    z-index: 2;
+}
+.globe-panel-count {
+    font-family: var(--g-display);
+    font-size: 1.4rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--g-fg);
+    font-variant-numeric: tabular-nums;
+}
+.globe-panel-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-family: var(--g-mono);
+    text-transform: uppercase;
+}
+.globe-panel-label-main {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--g-fg);
+}
+.globe-panel-label-sub {
+    font-size: 0.55rem;
+    letter-spacing: 0.18em;
+    color: var(--g-fg-muted);
+}
+
+.globe-panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ----- panel card ----- */
+.globe-card {
+    border: var(--g-rule-w-hi) solid var(--g-fg);
+    background: var(--g-bg);
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s, background 0.18s;
+    position: relative;
+    overflow: hidden;
+}
+.globe-card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: var(--g-shadow-md);
+}
+.globe-card.is-active {
+    border-color: var(--g-red);
+    box-shadow: var(--g-shadow-red);
+    transform: translate(-3px, -3px);
+    background: var(--g-bg-alt);
+}
+.globe-card.is-active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--g-red);
+}
+.globe-card-img {
+    background: var(--g-fg);
+    aspect-ratio: 1 / 1;
+    background-size: cover;
+    background-position: center;
+    border-right: var(--g-rule-w) solid var(--g-fg);
+    position: relative;
+}
+.globe-card-img.no-image {
+    background:
+        radial-gradient(circle at 30% 30%, var(--g-red) 30%, transparent 30.5%),
+        linear-gradient(135deg, var(--g-blue) 28%, transparent 28.5%),
+        linear-gradient(225deg, var(--g-yellow) 22%, transparent 22.5%),
+        var(--g-bg-alt);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+.globe-card-body {
+    padding: 12px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.globe-card-name {
+    font-family: var(--g-display);
+    font-size: 0.95rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.globe-card-meta {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.globe-card-meta::before {
+    content: '◉';
+    color: var(--g-red);
+    font-size: 0.55rem;
+}
+.globe-card-styles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.globe-card-styles .tag-mini {
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--g-fg);
+    padding: 1px 5px;
+    color: var(--g-fg);
+    background: var(--g-bg);
+}
+.globe-card-price {
+    margin-top: auto;
+    align-self: flex-start;
+    font-family: var(--g-mono);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    border: var(--g-rule-w) solid var(--g-fg);
+    padding: 2px 7px;
+    box-shadow: 3px 3px 0 var(--g-fg);
+}
+.globe-card-recommended-tag {
+    position: absolute;
+    top: 0; right: 0;
+    font-family: var(--g-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    background: var(--g-red);
+    color: var(--g-bg);
+    padding: 3px 7px;
+    border-left: var(--g-rule-w) solid var(--g-fg);
+    border-bottom: var(--g-rule-w) solid var(--g-fg);
+    z-index: 2;
+}
+
+.globe-panel-empty {
+    border: var(--g-rule-w) solid var(--g-fg);
+    padding: 20px;
+    text-align: center;
+    background:
+        repeating-linear-gradient(
+            45deg,
+            transparent 0, transparent 8px,
+            rgba(242, 240, 233, 0.05) 8px, rgba(242, 240, 233, 0.05) 9px
+        );
+    color: var(--g-fg-muted);
+    font-family: var(--g-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* ============================================================
+   ARTIST MODAL (dark variant)
+   ============================================================ */
+.globe-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(5, 5, 5, 0.78);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.globe-modal {
+    background: var(--g-bg-alt);
+    border: var(--g-rule-w-hi) solid var(--g-fg);
+    box-shadow: var(--g-shadow-lg);
+    width: min(580px, 100%);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    position: relative;
+    color: var(--g-fg);
+    animation: globe-modal-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes globe-modal-in {
+    from { opacity: 0; transform: translate(8px, 12px) scale(0.97); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+.globe-modal-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 38px; height: 38px;
+    background: var(--g-bg);
+    color: var(--g-fg);
+    border: var(--g-rule-w) solid var(--g-fg);
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.globe-modal-close:hover {
+    background: var(--g-red);
+    color: var(--g-bg);
+    transform: rotate(90deg);
+}
+.globe-modal-cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--g-fg);
+    background-size: cover;
+    background-position: center;
+    border-bottom: var(--g-rule-w-hi) solid var(--g-fg);
+}
+.globe-modal-body {
+    padding: 20px 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.globe-modal-source-badge {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border: var(--g-rule-w) solid var(--g-fg);
+    background: var(--g-bg);
+    color: var(--g-fg);
+    box-shadow: 3px 3px 0 var(--g-fg);
+}
+.globe-modal-source-badge.is-studio { background: var(--g-yellow); color: #0a0a0a; }
+.globe-modal-source-badge.is-independent { background: var(--g-bg); color: var(--g-fg); }
+
+.globe-modal-styles {
+    display: flex; flex-wrap: wrap; gap: 6px;
+}
+.globe-modal-styles .tag-mini {
+    font-family: var(--g-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--g-fg);
+    padding: 2px 7px;
+    color: var(--g-fg);
+    background: var(--g-bg);
+}
+.globe-modal-name {
+    font-family: var(--g-display);
+    font-size: 1.85rem;
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    color: var(--g-fg);
+    margin: 0;
+}
+.globe-modal-meta { display: flex; flex-direction: column; gap: 6px; }
+.globe-modal-meta-row {
+    font-family: var(--g-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--g-fg);
+}
+.globe-modal-meta-row i { color: var(--g-red); width: 14px; text-align: center; }
+.globe-modal-bio {
+    font-family: var(--g-body);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--g-fg-soft);
+    border-left: var(--g-rule-w-hi) solid var(--g-red);
+    padding-left: 12px;
+    overflow-wrap: anywhere;
+}
+.globe-modal-bio p,
+.globe-modal-bio div {
+    margin: 0 0 0.62em;
+}
+.globe-modal-bio p:last-child,
+.globe-modal-bio div:last-child {
+    margin-bottom: 0;
+}
+.globe-modal-bio ul,
+.globe-modal-bio ol {
+    margin: 0.5em 0 0.5em 1.25em;
+    padding: 0;
+}
+.globe-modal-bio a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.16em;
+}
+.globe-modal-price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    border-top: var(--g-rule-w) solid var(--g-fg);
+    border-bottom: var(--g-rule-w) solid var(--g-fg);
+    padding: 12px 0;
+}
+.globe-modal-price-row .price-label {
+    font-family: var(--g-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-fg-muted);
+}
+.globe-modal-price-row .price-value {
+    font-family: var(--g-display);
+    font-size: 1.5rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--g-fg);
+}
+.globe-modal-cta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.globe-modal-cta-quote,
+.globe-modal-cta-profile,
+.globe-modal-cta-directions {
+    height: 50px;
+    border: var(--g-rule-w-hi) solid var(--g-fg);
+    font-family: var(--g-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.globe-modal-cta-quote { background: var(--g-red); color: var(--g-bg); }
+.globe-modal-cta-quote:hover { background: var(--g-fg); color: var(--g-bg); transform: translate(-2px, -2px); box-shadow: var(--g-shadow-sm); }
+.globe-modal-cta-profile { background: var(--g-bg); color: var(--g-fg); }
+.globe-modal-cta-profile:hover { background: var(--g-yellow); color: #0a0a0a; transform: translate(-2px, -2px); box-shadow: var(--g-shadow-sm); }
+.globe-modal-cta-directions {
+    background: var(--g-fg);
+    color: var(--g-bg);
+    margin-top: 4px;
+}
+.globe-modal-cta-directions:hover {
+    background: var(--g-yellow);
+    color: #0a0a0a;
+    transform: translate(-2px, -2px);
+    box-shadow: var(--g-shadow-sm);
+}
+.globe-modal-cta-directions[hidden] { display: none !important; }
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+.hidden { display: none !important; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1180px) {
+    .globe-header-center { display: none; }
+    .globe-header { grid-template-columns: auto 1fr auto; }
+    .globe-main { grid-template-columns: 1fr minmax(320px, 36%); }
+    .globe-selected-card { left: 18px; bottom: 18px; }
+
+    /* Tablet selection layout: same 2-column shape, narrower card so
+       the globe still has reasonable breathing room. */
+    .globe-stage.has-selection {
+        grid-template-columns: minmax(280px, 320px) 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .globe-header { height: 72px; }
+    .globe-back-label { display: none; }
+    .globe-back-btn { padding: 0 14px; }
+    .globe-nav-links { display: none; }
+    .globe-menu-toggle { display: inline-flex; }
+    .globe-mobile-menu {
+        position: fixed;
+        left: 12px; right: 12px;
+        top: calc(72px + 8px);
+        z-index: 35;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        border: var(--g-rule-w-hi) solid var(--g-fg);
+        background: var(--g-bg-alt);
+        box-shadow: var(--g-shadow-md);
+        animation: globe-menu-in 0.18s ease;
+    }
+    @keyframes globe-menu-in {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .globe-mobile-link {
+        min-height: 56px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-family: var(--g-mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-fg);
+        background: var(--g-bg);
+        border-right: var(--g-rule-w) solid var(--g-fg);
+        border-bottom: var(--g-rule-w) solid var(--g-fg);
+    }
+    .globe-mobile-link:nth-child(2n) { border-right: none; }
+    .globe-mobile-link:nth-last-child(-n+2) { border-bottom: none; }
+    .globe-mobile-link.is-job-board { background: var(--g-red); color: var(--g-bg); }
+
+    .globe-filters { grid-template-columns: 1fr; padding: 10px 12px; }
+    .globe-filter-selects { justify-self: stretch; overflow-x: auto; }
+    .globe-filter-selects select { font-size: 0.7rem; padding-right: 28px; }
+
+    /* Stack stage on top, panel below — bottom-sheet feel. */
+    .globe-main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 60vh 1fr;
+    }
+    .globe-stage { border-right: none; border-bottom: var(--g-rule-w-hi) solid var(--g-fg); }
+    .globe-panel { padding-top: 10px; }
+    .globe-selected-card {
+        left: 12px; right: 12px; bottom: 12px;
+        width: auto;
+    }
+    .globe-legend { display: none; }
+
+    /* Mobile selection layout: stack globe ON TOP, card BELOW.
+       Mirrors the bottom-sheet pattern the rest of the app uses. */
+    .globe-stage.has-selection {
+        grid-template-columns: 1fr;
+        grid-template-rows: 50vh 1fr;
+    }
+    .globe-stage.has-selection .globe-stage-frame {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    .globe-stage.has-selection .globe-selected-card {
+        grid-column: 1;
+        grid-row: 2;
+        border-right: none;
+        border-top: var(--g-rule-w-hi) solid var(--g-fg);
+        max-height: none;
+        overflow-y: auto;
+    }
+    .globe-stage.has-selection .globe-loading,
+    .globe-stage.has-selection .globe-empty {
+        grid-column: 1;
+        grid-row: 1;
+    }
+}
+
+@media (max-width: 540px) {
+    .globe-modal-name { font-size: 1.5rem; }
+    .globe-modal-cta-row { grid-template-columns: 1fr; }
+    .globe-card { grid-template-columns: 88px 1fr; }
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    .globe-eyebrow-dot,
+    .globe-loading-dot { animation: none; }
+    .globe-label,
+    .globe-card,
+    .globe-cta,
+    .globe-modal-cta-quote,
+    .globe-modal-cta-profile,
+    .globe-modal-cta-directions,
+    .globe-clear-btn,
+    .globe-empty-btn,
+    .globe-filter-pills .filter-pill {
+        transition: none !important;
+    }
+    .globe-modal,
+    .globe-mobile-menu,
+    .globe-selected-card { animation: none; }
+}
