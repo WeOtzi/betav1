@@ -1,0 +1,524 @@
+/* =========================================================================
+   register-nav-header.css
+   Scoped Bauhaus header for /register-artist/ and /registerclosedbeta/.
+   Does NOT touch .top-nav-header (used by other pages).
+   ========================================================================= */
+
+:root {
+    --rnh-height: 72px;
+    --rnh-gutter: 1.5rem;
+    --rnh-border: var(--border-width, 3px) solid var(--fg);
+    --rnh-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+body:has(.register-nav-header) {
+    padding-top: calc(var(--rnh-height) + 0.5rem);
+}
+
+.register-nav-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    height: var(--rnh-height);
+    background: var(--bg);
+    border-bottom: var(--rnh-border);
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: stretch;
+    column-gap: 0;
+    font-family: 'Inter', -apple-system, Helvetica, sans-serif;
+    transition: background-color 0.4s var(--rnh-ease),
+                border-color 0.4s var(--rnh-ease),
+                transform 0.4s var(--rnh-ease);
+}
+
+.register-nav-header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--noise);
+    opacity: 0.035;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+}
+
+/* ---------- BRAND ---------- */
+.rnh-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 var(--rnh-gutter);
+    border-right: var(--rnh-border);
+    text-decoration: none;
+    color: var(--fg);
+    transition: background-color 0.3s var(--rnh-ease);
+}
+
+.rnh-brand:hover {
+    background: var(--primary-yellow);
+}
+
+.rnh-emblem {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 16px;
+}
+
+.rnh-emblem-square,
+.rnh-emblem-circle,
+.rnh-emblem-triangle {
+    display: block;
+    width: 14px;
+    height: 14px;
+    transition: transform 0.4s var(--rnh-ease);
+}
+
+.rnh-emblem-square {
+    background: var(--primary-red);
+}
+
+.rnh-emblem-circle {
+    background: var(--primary-yellow);
+    border-radius: 50%;
+}
+
+.rnh-emblem-triangle {
+    background: var(--primary-blue);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.rnh-brand:hover .rnh-emblem-square {
+    transform: rotate(45deg);
+}
+
+.rnh-brand:hover .rnh-emblem-circle {
+    transform: translateY(-3px);
+}
+
+.rnh-brand:hover .rnh-emblem-triangle {
+    transform: rotate(-15deg);
+}
+
+.rnh-wordmark {
+    font-weight: 900;
+    font-size: 1.15rem;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0;
+}
+
+.rnh-wordmark-umlaut {
+    color: var(--primary-red);
+    font-size: 1.25rem;
+    margin: 0 0.04em;
+    display: inline-block;
+    transform: translateY(0.04em);
+    transition: transform 0.4s var(--rnh-ease), color 0.4s var(--rnh-ease);
+}
+
+.rnh-brand:hover .rnh-wordmark-umlaut {
+    transform: translateY(0.04em) rotate(360deg);
+}
+
+/* ---------- EDITION ---------- */
+.rnh-edition {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--rnh-gutter);
+    border-right: var(--rnh-border);
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg);
+    opacity: 0.78;
+    white-space: nowrap;
+}
+
+.rnh-edition::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--primary-red);
+    border-radius: 50%;
+    margin-right: 0.6rem;
+    animation: rnhPulse 2.4s var(--rnh-ease) infinite;
+}
+
+@keyframes rnhPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.55; }
+}
+
+/* ---------- NAV ---------- */
+.rnh-nav {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    padding-right: var(--rnh-gutter);
+    gap: 0.25rem;
+}
+
+.rnh-nav[hidden] { display: none !important; }
+
+.rnh-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 1rem;
+    font-weight: 900;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg);
+    text-decoration: none;
+    transition: color 0.3s var(--rnh-ease);
+}
+
+.rnh-link::after {
+    content: "";
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    bottom: 18px;
+    height: 3px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.4s var(--rnh-ease);
+}
+
+.rnh-link:hover::after {
+    transform: scaleX(1);
+}
+
+/* Rotating Bauhaus color per link position */
+.rnh-nav .rnh-link:nth-child(3n+1)::after { background: var(--primary-red); }
+.rnh-nav .rnh-link:nth-child(3n+2)::after { background: var(--primary-yellow); }
+.rnh-nav .rnh-link:nth-child(3n+3)::after { background: var(--primary-blue); }
+
+/* When authenticated, hide public nav, show auth nav */
+body.menu-authenticated .rnh-nav-public { display: none !important; }
+
+/* Default state: auth nav hidden via [hidden] attribute; main.js unhides when authed */
+
+/* ---------- ACTIONS ---------- */
+.rnh-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 var(--rnh-gutter) 0 1rem;
+    border-left: var(--rnh-border);
+    height: 100%;
+}
+
+.rnh-login {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 1rem;
+    border: var(--rnh-border);
+    background: var(--primary-red);
+    color: #F2F0E9;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.25s var(--rnh-ease),
+                background-color 0.3s var(--rnh-ease),
+                box-shadow 0.25s var(--rnh-ease),
+                color 0.3s var(--rnh-ease);
+    box-shadow: 4px 4px 0 0 var(--fg);
+}
+
+.rnh-login svg {
+    transition: transform 0.3s var(--rnh-ease);
+}
+
+.rnh-login:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 var(--fg);
+    background: var(--primary-blue);
+}
+
+.rnh-login:hover svg {
+    transform: translateX(3px);
+}
+
+.rnh-login:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 var(--fg);
+}
+
+.rnh-theme {
+    width: 40px;
+    height: 40px;
+    border: var(--rnh-border);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    line-height: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s var(--rnh-ease),
+                transform 0.4s var(--rnh-ease),
+                color 0.3s var(--rnh-ease);
+}
+
+.rnh-theme:hover {
+    background: var(--primary-yellow);
+    transform: rotate(180deg);
+    color: var(--fg);
+}
+
+/* ---------- BURGER ---------- */
+.rnh-burger {
+    display: none;
+    width: 40px;
+    height: 40px;
+    border: var(--rnh-border);
+    background: var(--bg);
+    cursor: pointer;
+    padding: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: background-color 0.3s var(--rnh-ease);
+}
+
+.rnh-burger i {
+    display: block;
+    width: 18px;
+    height: 3px;
+    transition: transform 0.35s var(--rnh-ease),
+                opacity 0.25s var(--rnh-ease),
+                background-color 0.3s var(--rnh-ease);
+}
+
+.rnh-burger i:nth-child(1) { background: var(--primary-red); }
+.rnh-burger i:nth-child(2) { background: var(--primary-yellow); }
+.rnh-burger i:nth-child(3) { background: var(--primary-blue); }
+
+.rnh-burger[aria-expanded="true"] i:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+    background: var(--fg);
+}
+
+.rnh-burger[aria-expanded="true"] i:nth-child(2) {
+    opacity: 0;
+}
+
+.rnh-burger[aria-expanded="true"] i:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+    background: var(--fg);
+}
+
+/* ---------- MOBILE DRAWER ---------- */
+.rnh-drawer {
+    position: fixed;
+    top: var(--rnh-height);
+    right: 0;
+    bottom: 0;
+    width: min(82vw, 360px);
+    background: var(--bg);
+    border-left: var(--rnh-border);
+    z-index: 999;
+    transform: translateX(101%);
+    transition: transform 0.45s var(--rnh-ease);
+    display: flex;
+    flex-direction: column;
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+}
+
+.rnh-drawer[aria-hidden="false"] {
+    transform: translateX(0);
+    box-shadow: -12px 0 0 0 var(--fg);
+}
+
+.rnh-drawer-label {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+    border-left: 3px solid var(--primary-red);
+}
+
+.rnh-drawer-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 0.5rem;
+    border-bottom: 1px solid var(--fg);
+    font-weight: 900;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--fg);
+    text-decoration: none;
+    transition: padding 0.25s var(--rnh-ease),
+                color 0.3s var(--rnh-ease);
+}
+
+.rnh-drawer-link::after {
+    content: "→";
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 400;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.25s var(--rnh-ease),
+                transform 0.25s var(--rnh-ease);
+}
+
+.rnh-drawer-link:hover {
+    padding-left: 1rem;
+    color: var(--primary-red);
+}
+
+.rnh-drawer-link:hover::after {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.rnh-drawer-link:first-of-type { border-top: 1px solid var(--fg); }
+
+/* Drawer auth/public visibility mirrors the header nav behaviour. */
+.rnh-drawer .rnh-drawer-auth { display: none; }
+body.menu-authenticated .rnh-drawer .rnh-drawer-auth { display: flex; }
+body.menu-authenticated .rnh-drawer .rnh-drawer-public { display: none; }
+
+.rnh-drawer-footer {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    opacity: 0.5;
+    text-transform: uppercase;
+}
+
+.rnh-drawer-backdrop {
+    position: fixed;
+    inset: var(--rnh-height) 0 0 0;
+    background: rgba(10, 10, 10, 0.35);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s var(--rnh-ease);
+}
+
+.rnh-drawer-backdrop[aria-hidden="false"] {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ---------- DARK MODE OVERRIDES ---------- */
+.dark-mode .register-nav-header {
+    background: var(--bg);
+    border-bottom-color: var(--fg);
+}
+
+.dark-mode .rnh-login {
+    color: var(--fg);
+    box-shadow: 4px 4px 0 0 var(--fg);
+}
+
+.dark-mode .rnh-login:hover {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+
+.dark-mode .rnh-theme:hover {
+    background: var(--primary-blue);
+    color: var(--bg);
+}
+
+.dark-mode .rnh-brand:hover {
+    background: var(--primary-blue);
+    color: var(--bg);
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 960px) {
+    .rnh-edition {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --rnh-height: 60px;
+        --rnh-gutter: 1rem;
+    }
+
+    .register-nav-header {
+        grid-template-columns: auto 1fr auto;
+    }
+
+    .rnh-nav {
+        display: none;
+    }
+
+    .rnh-burger {
+        display: inline-flex;
+    }
+
+    .rnh-login {
+        display: none;
+    }
+
+    .rnh-theme {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .rnh-wordmark {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .rnh-brand {
+        padding: 0 0.85rem;
+        gap: 0.5rem;
+    }
+
+    .rnh-emblem {
+        gap: 3px;
+    }
+
+    .rnh-emblem-square,
+    .rnh-emblem-circle,
+    .rnh-emblem-triangle {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* ---------- PAGE-SPECIFIC: register-artist already has a back-arrow in the form header.
+   When the nav header is fixed on top, offset the form container slightly. */
+body.register-artist-page .register-container,
+body:has(.register-nav-header) .register-container {
+    padding-top: 2rem;
+}

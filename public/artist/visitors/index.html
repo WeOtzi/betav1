@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE OTZI | Visitantes</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/logging-loader.js?v=20260515-dashboard"></script>
+    <script>
+        window.initDashboardGooglePlaces = function() {};
+        function loadDashboardGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                const s = document.createElement('script');
+                s.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initDashboardGooglePlaces`;
+                s.async = true;
+                document.head.appendChild(s);
+            } else {
+                window._dashboardGMapsRetry = (window._dashboardGMapsRetry || 0) + 1;
+                if (window._dashboardGMapsRetry < 50) setTimeout(loadDashboardGoogleMapsWhenReady, 100);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadDashboardGoogleMapsWhenReady);
+    </script>
+</head>
+
+<body class="artist-dashboard-page wod-body wod-visitors-page">
+<div class="wod-stage">
+<div class="wod-frame">
+
+    <header class="wod-nav">
+        <div class="wod-nav__left">
+            <a href="/artist/dashboard" class="wod-nav__logo">
+                <span class="wod-nav__marks"><span class="sq"></span><span class="ci"></span><span class="tr"></span></span>
+                <span>WE&nbsp;OTZI</span>
+            </a>
+            <span class="wod-nav__tag"><span class="dot"></span><span>ANALITICAS · VISITANTES</span></span>
+        </div>
+        <button class="wod-nav__burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="wod-nav__right">
+            <nav class="wod-nav__links" aria-label="Navegacion principal de artista">
+                <a href="/artist/dashboard">DASHBOARD</a>
+                <a href="/my-quotations">COTIZACIONES</a>
+                <a href="/job-board">JOB BOARD</a>
+                <a href="/my-quotations/statistics" data-overflow>ESTADISTICAS</a>
+                <a href="/artist/profile/details" data-overflow>PERFIL</a>
+            </nav>
+            <button class="wod-nav__more" id="wod-nav-more" type="button" aria-expanded="false">+ MAS</button>
+            <button class="wod-login-btn" onclick="handleVisitorsLogout()" aria-label="Cerrar sesion">LOG OUT</button>
+            <a class="wod-nav__msg" href="/my-quotations" aria-label="Cotizaciones">MSG</a>
+            <button class="wod-otzi-mark" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
+        </div>
+        <div class="wod-nav__overflow" id="dashboard-mobile-menu" aria-label="Navegacion movil">
+            <a href="/artist/dashboard">DASHBOARD</a>
+            <a href="/my-quotations">COTIZACIONES</a>
+            <a href="/job-board">JOB BOARD</a>
+            <a href="/my-quotations/statistics">ESTADISTICAS</a>
+            <a href="/artist/profile/details">PERFIL</a>
+        </div>
+    </header>
+
+    <main class="wod-visitors-main">
+        <section class="wod-visitors-hero" aria-label="Vista dedicada de analiticas">
+            <div>
+                <div class="mono-sm" style="color:var(--ink-2);">PANEL DE VISITANTES</div>
+                <h1>Mapa de visitantes.</h1>
+                <p>Lectura en vivo del movimiento de tu perfil: visitas, paises, ciudades y evolucion por periodo.</p>
+            </div>
+            <a class="wbtn wbtn--dashed" href="/artist/dashboard">&larr; VOLVER AL DASHBOARD</a>
+        </section>
+
+    <section class="wod-analytics block-visitors-map" id="block-visitors-map" aria-label="Mapa de visitantes">
+        <div class="wod-analytics__head">
+            <div>
+                <div class="mono-sm" style="color:var(--ink-2);">◍ ANALÍTICAS</div>
+                <h2 class="wod-analytics__title">Mapa de visitantes</h2>
+            </div>
+            <div class="wod-analytics__tools">
+                <div class="tabs visitors-period-tabs" role="tablist" aria-label="Periodo">
+                    <button type="button" class="tabs__tab visitors-period-btn is-active" data-period="today" role="tab" aria-selected="true">HOY</button>
+                    <button type="button" class="tabs__tab visitors-period-btn" data-period="week" role="tab" aria-selected="false">SEMANA</button>
+                    <button type="button" class="tabs__tab visitors-period-btn" data-period="month" role="tab" aria-selected="false">MES</button>
+                    <button type="button" class="tabs__tab visitors-period-btn" data-period="all" role="tab" aria-selected="false">HISTÓRICO</button>
+                </div>
+                <span class="wod-analytics__live visitors-live-indicator" id="visitors-live" aria-live="polite">● EN VIVO</span>
+            </div>
+        </div>
+
+        <div class="wod-analytics__statrow visitors-stats-row">
+            <div class="visitor-stat"><span class="stat__value visitor-stat-value" id="vs-total">0</span><span class="stat__label visitor-stat-label">Visitas</span></div>
+            <div class="visitor-stat"><span class="stat__value visitor-stat-value" id="vs-unique">0</span><span class="stat__label visitor-stat-label">Únicos</span></div>
+            <div class="visitor-stat"><span class="stat__value visitor-stat-value" id="vs-countries">0</span><span class="stat__label visitor-stat-label">Países</span></div>
+            <div class="visitor-stat"><span class="stat__value visitor-stat-value" id="vs-cities">0</span><span class="stat__label visitor-stat-label">Ciudades</span></div>
+        </div>
+
+        <div class="wod-analytics__mapgrid visitors-main-grid">
+            <div class="card"><div id="visitors-map" class="visitors-map-canvas wod-analytics__map" aria-label="Mapa geográfico"></div></div>
+            <aside class="card visitors-live-list">
+                <header class="card__head"><div class="card__head-l"><span>Últimas visitas</span></div></header>
+                <div class="card__body">
+                    <ul id="visitors-live-feed" class="wod-vlist visitors-live-feed" style="list-style:none;"></ul>
+                    <p class="wod-empty visitors-empty" id="visitors-empty" hidden>Sin visitas recientes.</p>
+                </div>
+            </aside>
+        </div>
+
+        <div class="wod-analytics__bottomgrid visitors-bottom-grid">
+            <div class="card visitors-chart-wrap">
+                <header class="card__head"><div class="card__head-l"><span>Evolución</span></div></header>
+                <div class="wod-chart-wrap"><canvas id="visitors-evolution-chart" aria-label="Evolución de visitas"></canvas></div>
+            </div>
+            <div class="card">
+                <header class="card__head"><div class="card__head-l"><span>Top países</span></div></header>
+                <ol id="visitors-top-countries" class="wod-toplist visitors-top-list"></ol>
+            </div>
+            <div class="card">
+                <header class="card__head"><div class="card__head-l"><span>Top ciudades</span></div></header>
+                <ol id="visitors-top-cities" class="wod-toplist visitors-top-list"></ol>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    <footer class="wod-footer">
+        <div class="wod-footer__cur" data-weotzi-currency-mount></div>
+        <div class="wod-footer__mid">WE OTZI · MAPA DE VISITANTES · PARA ARTISTAS · 2026</div>
+        <div class="wod-footer__soc"><a href="/artist/dashboard">DASHBOARD</a><a href="/artist/profile/details">PERFIL</a></div>
+    </footer>
+
+    <nav class="wod-bottombar" aria-label="Navegacion rapida">
+        <a class="wod-bottombar__tab" href="/artist/dashboard"><span class="wod-bottombar__ic">IN</span><span class="wod-bottombar__l">Inicio</span></a>
+        <a class="wod-bottombar__tab" href="/my-quotations"><span class="wod-bottombar__ic">CO</span><span class="wod-bottombar__l">Cotiz</span></a>
+        <a class="wod-bottombar__tab" href="/studio-spots"><span class="wod-bottombar__ic">SP</span><span class="wod-bottombar__l">Spots</span></a>
+        <a class="wod-bottombar__tab" href="/calendar"><span class="wod-bottombar__ic">AG</span><span class="wod-bottombar__l">Agenda</span></a>
+        <a class="wod-bottombar__tab is-active" href="/artist/visitors/"><span class="wod-bottombar__ic">VI</span><span class="wod-bottombar__l">Visitas</span></a>
+    </nav>
+
+</div>
+</div>
+
+    </div>
+
+    <script src="/shared/js/artist-auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="/shared/js/visitors-map.js" defer></script>
+    <script>
+    function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+    async function handleVisitorsLogout() {
+        try { if (window._supabase) await window._supabase.auth.signOut(); } catch (_) {}
+        window.location.href = '/registerclosedbeta';
+    }
+    (function () {
+        function wireNav() {
+            var more = document.getElementById('wod-nav-more');
+            var burger = document.getElementById('dashboard-mobile-menu-toggle');
+            var menu = document.getElementById('dashboard-mobile-menu');
+            function toggle(btn) {
+                if (!menu) return;
+                var open = menu.classList.toggle('is-open');
+                if (btn) { btn.classList.toggle('is-open', open); btn.setAttribute('aria-expanded', String(open)); }
+            }
+            if (more) more.addEventListener('click', function () { toggle(more); });
+            if (burger) burger.addEventListener('click', function () { toggle(burger); });
+        }
+        async function bootVisitorsPage() {
+            wireNav();
+            if (!window.ArtistAuth || typeof window.ArtistAuth.resolveArtistAuthState !== 'function') {
+                window.location.href = '/registerclosedbeta';
+                return;
+            }
+            try {
+                var authState = await window.ArtistAuth.resolveArtistAuthState({
+                    artistSelect: 'user_id, username, name',
+                    requireCompleteProfile: true,
+                    returnTo: '/artist/visitors/',
+                    fallbackReturnTo: '/artist/visitors/'
+                });
+                if (authState.status === 'anonymous') {
+                    window.location.href = authState.urls.login || '/registerclosedbeta';
+                    return;
+                }
+                if (authState.status === 'authenticated_non_artist' || authState.status === 'profile_incomplete') {
+                    window.location.href = authState.urls.registerArtist || '/register-artist';
+                    return;
+                }
+                window._supabase = authState.supabase || window._supabase;
+                window.dispatchEvent(new CustomEvent('wo:dashboard-ready', {
+                    detail: { currentUser: authState.currentUser, supabase: window._supabase, artistData: authState.artist }
+                }));
+            } catch (error) {
+                console.error('[visitors] auth bootstrap failed:', error);
+                window.location.href = '/registerclosedbeta';
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootVisitorsPage);
+        } else {
+            bootVisitorsPage();
+        }
+    })();
+    </script>
+</body>
+
+</html>

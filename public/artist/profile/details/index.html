@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Mi perfil · detalle completo</title>
+
+    <script type="text/javascript">
+        (function(){
+            var id = window.CLARITY_PROJECT_ID;
+            if (!id || id === 'CLARITY_TRACKING_ID') return;
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script",id);
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css">
+    <link rel="stylesheet" href="/shared/css/address-picker.css">
+    <link rel="stylesheet" href="/shared/css/instagram-import.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <script src="/shared/js/qrcode-generator.js"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/logging-loader.js?v=20260515-dashboard"></script>
+    <script>
+        window.initDashboardGooglePlaces = function() {};
+        function loadDashboardGoogleMapsWhenReady() {
+            if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
+                const s = document.createElement('script');
+                s.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&libraries=places&loading=async&callback=initDashboardGooglePlaces`;
+                s.async = true; document.head.appendChild(s);
+            } else {
+                window._dashboardGMapsRetry = (window._dashboardGMapsRetry || 0) + 1;
+                if (window._dashboardGMapsRetry < 50) setTimeout(loadDashboardGoogleMapsWhenReady, 100);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadDashboardGoogleMapsWhenReady);
+    </script>
+</head>
+
+<body class="artist-dashboard-page wod-body wod-profile-details-page">
+<div class="wod-stage">
+<div class="wod-frame">
+
+    <!-- NAV (same chrome as dashboard) -->
+    <header class="wod-nav">
+        <div class="wod-nav__left">
+            <a href="/artist/dashboard" class="wod-nav__logo">
+                <span class="wod-nav__marks"><span class="sq"></span><span class="ci"></span><span class="tr"></span></span>
+                <span>WE&nbsp;ÖTZI</span>
+            </a>
+            <span class="wod-nav__tag"><span class="dot"></span><span>EDICIÓN BAUHAUS · BETA</span></span>
+        </div>
+        <button class="wod-nav__burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú"><span></span><span></span><span></span></button>
+        <div class="wod-nav__right">
+            <nav class="wod-nav__links" aria-label="Navegación principal de artista">
+                <a href="/my-quotations">COTIZACIONES</a>
+                <a href="/job-board">JOB BOARD</a>
+                <a href="/studio-spots" data-overflow>SPOTS</a>
+                <a href="/artist/invitations" data-overflow>INVITACIONES</a>
+                <a href="/calendar">CALENDARIO</a>
+                <a href="/my-quotations/statistics" data-overflow>ESTADÍSTICAS</a>
+                <a href="/calendar" data-overflow>TRAVEL</a>
+            </nav>
+            <button class="wod-nav__more" id="wod-nav-more" type="button" aria-expanded="false">+ MÁS</button>
+            <button class="wod-login-btn" onclick="handleLogout()" aria-label="Cerrar sesión">LOG OUT</button>
+            <button class="wod-otzi-mark" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
+        </div>
+        <div class="wod-nav__overflow" id="dashboard-mobile-menu" aria-label="Navegación móvil">
+            <a href="/my-quotations">COTIZACIONES</a><a href="/job-board">JOB BOARD</a>
+            <a href="/studio-spots">SPOTS</a><a href="/artist/invitations">INVITACIONES</a>
+            <a href="/calendar">CALENDARIO</a><a href="/my-quotations/statistics">ESTADÍSTICAS</a>
+            <a href="/artist/dashboard">DASHBOARD</a>
+        </div>
+    </header>
+
+    <!-- PAGE HEADER -->
+    <div class="wod-pd__head">
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
+            <a href="/artist/dashboard" class="wod-pd__back">← VOLVER AL DASHBOARD</a>
+            <div class="mono-sm" style="color:var(--ink-2);">◍ MI PERFIL · DETALLE COMPLETO</div>
+            <h1 class="wod-pd__title">Información de <span class="hl-red" id="wod-pd-username">tu perfil</span></h1>
+            <p class="wod-pd__lead">Todo lo que llena tu perfil público. Los datos marcados como <strong style="color:var(--red);">FALTA</strong> aparecen en blanco para los clientes — completalos para mejorar tu tasa de cotizaciones.</p>
+        </div>
+        <div class="wod-pd__headcta">
+            <button class="wbtn wbtn--dashed" id="wod-pd-preview" type="button">VER PERFIL PÚBLICO</button>
+            <button class="wbtn wbtn--dark" id="wod-pd-editall" type="button">EDITAR TODO →</button>
+        </div>
+    </div>
+
+    <!-- IDENTITY STRIP -->
+    <div class="wod-pd__idstrip">
+        <div class="wod-profile__avatar" style="width:72px;height:72px;" id="wod-pd-avatar"><span>AVATAR</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+            <div class="wod-profile__name" id="wod-pd-name" style="font-size:26px;">—</div>
+            <div class="wod-profile__handle" id="wod-pd-handle">@usuario.wo</div>
+            <div class="wod-profile__badges" style="margin-top:4px;">
+                <span class="pill pill--red" id="wod-pd-badge-verif">NO VERIFICADO</span>
+                <span class="pill pill--blue" id="wod-pd-badge-level">NUEVO</span>
+                <span class="pill pill--outline" id="wod-pd-badge-emb" style="display:none;">EMBAJADOR</span>
+            </div>
+        </div>
+        <div class="wod-pd__idstats">
+            <div class="wod-pd__idstat"><div class="mono-sm" style="color:var(--ink-2);">AÑOS</div><div class="v" id="wod-pd-s-exp">—</div></div>
+            <div class="wod-pd__idstat"><div class="mono-sm" style="color:var(--ink-2);">ESTILOS</div><div class="v" id="wod-pd-s-styles">—</div></div>
+            <div class="wod-pd__idstat"><div class="mono-sm" style="color:var(--ink-2);">TARIFA / SESIÓN</div><div class="v v--red" id="wod-pd-s-price">—</div></div>
+        </div>
+    </div>
+
+    <!-- FIELD GROUPS -->
+    <div class="wod-pd__groups" id="wod-pd-groups">
+        <section class="wod-pd__group">
+            <div class="wod-pd__group-head">
+                <div><div class="mono-sm" style="color:var(--ink-2);">◍ CÓMO TE ENCUENTRAN</div><h2 class="wod-pd__group-title">Contacto</h2></div>
+                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
+            </div>
+            <div class="wod-pd__fields" data-fields='[["Email","display-email"],["WhatsApp","display-whatsapp"],["Instagram","display-instagram"],["Portfolio / Web","display-portfolio"]]'></div>
+        </section>
+        <section class="wod-pd__group">
+            <div class="wod-pd__group-head">
+                <div><div class="mono-sm" style="color:var(--ink-2);">◍ TU PRÁCTICA</div><h2 class="wod-pd__group-title">Trabajo</h2></div>
+                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
+            </div>
+            <div class="wod-pd__fields" data-fields='[["Estilos","display-styles"],["Experiencia","display-experience"],["Tarifa por sesión","display-price"],["Disponibilidad","display-tattoo-schedule-summary"]]'></div>
+        </section>
+        <section class="wod-pd__group">
+            <div class="wod-pd__group-head">
+                <div><div class="mono-sm" style="color:var(--ink-2);">◍ DÓNDE TRABAJÁS</div><h2 class="wod-pd__group-title">Estudio</h2></div>
+                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
+            </div>
+            <div class="wod-pd__fields" data-fields='[["Modalidad","display-work-type"],["Estudio","display-studio"],["Dirección","display-address"],["Ubicación","display-location"]]'></div>
+        </section>
+        <section class="wod-pd__group">
+            <div class="wod-pd__group-head">
+                <div><div class="mono-sm" style="color:var(--ink-2);">◍ AJUSTES DE PERFIL</div><h2 class="wod-pd__group-title">Cuenta</h2></div>
+                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
+            </div>
+            <div class="wod-pd__fields" data-fields='[["Fecha de nacimiento","display-birthdate"],["Embajador","display-embajador"],["Newsletter","display-newsletter"]]'></div>
+        </section>
+    </div>
+
+    <!-- EDIT PANEL: the legacy profile form (real editor, restyled) -->
+    <section class="card" id="wod-pd-editor" style="margin:0;border-left:none;border-right:none;display:none;">
+        <header class="card__head card__head--red">
+            <div class="card__head-l"><span class="card__head-dot"></span><span>Editar perfil</span></div>
+            <div class="card__head-actions">
+                <button class="wbtn wbtn--dashed wbtn--xs" id="profile-gallery-upload-btn" type="button" style="background:var(--cream);">SUBIR FOTOS</button>
+                <button class="wbtn wbtn--dark wbtn--xs edit-toggle-btn" id="edit-toggle-btn" type="button"><span>Editar</span></button>
+            </div>
+        </header>
+        <div class="card__body" style="padding:20px 28px;">
+            <form id="profile-form" class="profile-form">
+                <div class="form-row"><label class="form-label">Nombre artístico</label>
+                    <div class="form-value" id="display-artistic-name">-</div>
+                    <input type="text" class="form-input-dashboard modal-input" id="input-artistic-name" style="display:none;"></div>
+                <div class="form-row"><label class="form-label">Nombre completo</label>
+                    <div class="form-value" id="display-full-name">-</div>
+                    <input type="text" class="form-input-dashboard modal-input" id="input-full-name" style="display:none;"></div>
+                <div class="form-row"><label class="form-label">Email</label>
+                    <div class="form-value form-value-readonly" id="display-email">-</div></div>
+                <div class="form-row"><label class="form-label">Ubicación</label>
+                    <div class="form-value" id="display-location">-</div>
+                    <div class="dashboard-location-group" id="location-input-group" style="display:none;">
+                        <div class="dashboard-location-wrapper" style="display:flex;gap:8px;">
+                            <input type="text" class="form-input-dashboard modal-input" id="input-location" placeholder="Ciudad, País" autocomplete="off">
+                            <button type="button" class="dashboard-geolocation-btn wbtn wbtn--sm" id="dashboard-geolocation-btn" onclick="getDashboardGeolocation()" aria-label="Detectar ubicación">◎</button>
+                        </div>
+                        <p class="dashboard-location-hint mono-sm" id="dashboard-location-hint" aria-live="polite" style="color:var(--ink-2);"></p>
+                    </div></div>
+                <div class="form-row"><label class="form-label">Estilos</label>
+                    <div class="form-value styles-value" id="display-styles">-</div>
+                    <button type="button" class="styles-edit-trigger wbtn wbtn--dashed wbtn--sm" id="styles-edit-trigger" style="display:none;" onclick="openStylesModal()">
+                        <span class="styles-trigger-tags" id="styles-trigger-tags"><span class="styles-trigger-placeholder">Seleccionar estilos...</span></span></button></div>
+                <div class="form-row"><label class="form-label">Experiencia</label>
+                    <div class="form-value" id="display-experience">-</div>
+                    <select class="form-select-dashboard modal-input" id="input-experience" style="display:none;">
+                        <option value="0-1">Menos de 1 año</option><option value="1-3">1 - 3 años</option>
+                        <option value="3-5">3 - 5 años</option><option value="5-10">5 - 10 años</option>
+                        <option value="10+">Más de 10 años</option></select></div>
+                <div class="form-row"><label class="form-label">Tarifa por sesión</label>
+                    <div class="form-value" id="display-price">-</div>
+                    <div class="price-input-group" id="price-input-group" style="display:none;gap:8px;">
+                        <input type="number" class="form-input-dashboard modal-input" id="input-price" placeholder="150" min="0">
+                        <select class="form-select-dashboard currency-select modal-input" id="input-currency">
+                            <option value="USD">USD</option><option value="EUR">EUR</option><option value="MXN">MXN</option>
+                            <option value="COP">COP</option><option value="ARS">ARS</option><option value="CLP">CLP</option>
+                            <option value="PEN">PEN</option><option value="BRL">BRL</option><option value="GBP">GBP</option></select></div></div>
+                <div class="form-row"><label class="form-label">Portfolio / Web</label>
+                    <div class="form-value" id="display-portfolio">-</div>
+                    <input type="url" class="form-input-dashboard modal-input" id="input-portfolio" placeholder="https://..." style="display:none;"></div>
+                <div class="form-row"><label class="form-label">Modalidad</label>
+                    <div class="form-value" id="display-work-type">-</div>
+                    <select class="form-select-dashboard modal-input" id="input-work-type" style="display:none;">
+                        <option value="independent">Independiente</option><option value="studio">Estudio</option>
+                        <option value="both">Ambos</option></select></div>
+                <div class="form-row" id="studio-row" style="display:none;"><label class="form-label">Nombre del estudio</label>
+                    <div class="form-value" id="display-studio">-</div>
+                    <div class="dashboard-studio-autocomplete" style="position:relative;">
+                        <input type="text" class="form-input-dashboard modal-input" id="input-studio" style="display:none;" autocomplete="off">
+                        <div class="studio-suggestions" id="dashboard-studio-suggestions"></div></div></div>
+                <div class="form-row" id="address-row" style="display:none;"><label class="form-label" id="address-row-label">Dirección del estudio</label>
+                    <div class="form-value" id="display-address">-</div>
+                    <div class="dashboard-address-editor" style="display:none;" id="dashboard-address-editor">
+                        <input type="text" class="form-input-dashboard modal-input weotzi-address-picker-input" id="input-address-search" placeholder="Buscar dirección…" autocomplete="off">
+                        <div class="weotzi-address-fields" id="dashboard-address-preview" hidden></div></div></div>
+                <div class="form-row"><label class="form-label">Disponibilidad por estudios</label>
+                    <div class="form-value" id="display-tattoo-schedule-summary">-</div>
+                    <div class="tattoo-locations-editor" id="tattoo-locations-editor" style="display:none;">
+                        <div class="tattoo-editor-group">
+                            <div class="tattoo-editor-group-header"><span>Tatuando en</span>
+                                <button type="button" class="tattoo-editor-add-btn wbtn wbtn--xs" id="add-current-tattoo-location-btn">+ Agregar estudio</button></div>
+                            <div class="tattoo-location-form-list" id="current-tattoo-location-editor-list"></div></div>
+                        <div class="tattoo-editor-group">
+                            <div class="tattoo-editor-group-header"><span>Próximamente tatuando en</span>
+                                <button type="button" class="tattoo-editor-add-btn wbtn wbtn--xs" id="add-upcoming-tattoo-location-btn">+ Agregar viaje</button></div>
+                            <div class="tattoo-location-form-list" id="upcoming-tattoo-location-editor-list"></div></div></div></div>
+                <div class="form-row"><label class="form-label">Instagram</label>
+                    <div class="form-value" id="display-instagram">-</div>
+                    <input type="text" class="form-input-dashboard modal-input" id="input-instagram" placeholder="@tuusuario" style="display:none;"></div>
+                <div class="form-row"><label class="form-label">WhatsApp</label>
+                    <div class="form-value" id="display-whatsapp">-</div>
+                    <input type="tel" class="form-input-dashboard modal-input" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display:none;" data-clarity-mask="true"></div>
+                <div class="form-row"><label class="form-label">Embajador <span class="form-label-note">(Manejado por Soporte)</span></label>
+                    <div class="form-value form-value-readonly" id="display-embajador">-</div></div>
+                <div class="form-row"><label class="form-label">Fecha de nacimiento</label>
+                    <div class="form-value" id="display-birthdate">-</div>
+                    <input type="date" class="form-input-dashboard modal-input" id="input-birthdate" style="display:none;"></div>
+                <div class="form-row"><label class="form-label">Newsletter</label>
+                    <div class="form-value" id="display-newsletter">-</div>
+                    <label class="toggle-switch" id="toggle-newsletter" style="display:none;">
+                        <input type="checkbox" id="input-newsletter"><span class="toggle-slider"></span></label></div>
+                <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display:none;">
+                    <label class="form-label">Galería de trabajos</label>
+                    <div class="gallery-edit-content">
+                        <div class="gallery-edit-preview" id="gallery-edit-preview"></div>
+                        <select id="gallery-edit-category-select" class="gallery-edit-category-select modal-input">
+                            <option value="realizados">Trabajos realizados</option><option value="flash">Flash disponibles</option>
+                            <option value="proyectos">Proyectos</option></select>
+                        <label class="gallery-edit-upload-btn wbtn wbtn--sm" for="gallery-edit-input"><span>Subir fotos/videos</span></label>
+                        <input type="file" id="gallery-edit-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+                        <div class="gallery-edit-loading" id="gallery-edit-loading" style="display:none;">
+                            <span class="gallery-upload-counter" id="gallery-edit-upload-counter">0 / 0</span>
+                            <div class="gallery-progress-fill" id="gallery-edit-progress-fill"></div></div>
+                        <span class="gallery-edit-count mono-sm" id="gallery-edit-count">0/12 archivos</span></div></div>
+                <div class="form-actions" id="form-actions" style="display:none;gap:10px;margin-top:14px;">
+                    <button type="button" class="btn-cancel wbtn wbtn--dashed" id="profile-cancel">Cancelar</button>
+                    <button type="submit" class="btn-save wbtn wbtn--dark" id="profile-save">Guardar cambios</button></div>
+            </form>
+            <div class="status-message form-message" id="status-message"></div>
+        </div>
+    </section>
+
+    <!-- DANGER ZONE -->
+    <section class="wod-pd__danger">
+        <div>
+            <div class="mono-sm" style="color:var(--ink-2);margin-bottom:4px;">◍ ZONA DE RIESGO</div>
+            <div style="font-family:var(--sans);font-weight:700;font-size:14px;">Cambiar contraseña o cerrar sesión.</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="wbtn wbtn--dashed" id="change-password-btn" type="button">CAMBIAR CONTRASEÑA</button>
+            <button class="wbtn" style="color:var(--red);border-color:var(--red);" id="logout-btn" type="button">CERRAR SESIÓN</button>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="wod-footer">
+        <div class="wod-footer__cur" data-weotzi-currency-mount></div>
+        <div class="wod-footer__mid">WE ÖTZI · DETALLE DE PERFIL · HECHO CON AMOR POR WE ÖTZI · PARA ARTISTAS · © 2026</div>
+        <a class="wod-pd__back" style="color:var(--cream);justify-self:end;" href="/artist/dashboard">← VOLVER AL DASHBOARD</a>
+    </footer>
+
+    <!-- HIDDEN HOOK CLUSTER — dashboard-only elements dashboard.js touches
+         unconditionally (banner, quotes, gallery admin, ig mount, avatar, bio).
+         Kept so dashboard.js runs unmodified on this page too. -->
+    <div class="wod-hook-hidden" aria-hidden="true">
+        <div class="verification-pending-banner" id="verification-pending-banner" style="display:none;">
+            <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">
+                <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding"></button>
+                <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification"></button>
+                <button class="banner-nav-btn" id="banner-prev-btn" type="button"></button>
+                <button class="banner-nav-btn" id="banner-next-btn" type="button"></button>
+                <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button"><span id="banner-toggle-label"></span></button>
+                <div class="banner-summary" id="banner-summary">
+                    <p id="banner-summary-title"></p><p id="banner-summary-meta"></p><p id="banner-summary-note"></p>
+                    <div class="banner-progress-fill" id="banner-progress-fill"></div></div>
+                <div class="banner-expanded-content" id="banner-expanded-content" hidden>
+                    <section id="banner-panel-onboarding"><ul id="banner-onboarding-checklist"></ul></section>
+                    <section id="banner-panel-verification" hidden><ul id="banner-verification-checklist"></ul></section>
+                </div>
+            </div>
+        </div>
+        <span id="quote-total">0</span><span id="quote-pending">0</span>
+        <span id="quote-answered">0</span><span id="quote-applications">0</span>
+        <button id="go-to-quotes-btn" type="button"></button>
+        <div id="avatar-wrapper"><img id="avatar-image" alt=""><span id="avatar-placeholder"></span>
+            <div id="avatar-loading"><div class="loading-spinner"></div></div></div>
+        <button class="avatar-upload-btn" id="avatar-upload-btn" type="button"></button>
+        <button class="avatar-ai-btn" id="avatar-ai-btn" type="button"></button>
+        <input type="file" id="avatar-input" accept="image/*,image/heic,image/heif" hidden>
+        <h1 id="artist-name"></h1><p id="artist-username"></p>
+        <span class="verification-badge" id="verification-badge" data-state="No"><span id="verification-text"></span></span>
+        <span class="artist-level-badge" id="artist-level-badge"><span class="level-text" id="level-text"></span></span>
+        <span class="embajador-badge" id="embajador-badge"></span>
+        <p id="artist-location"><a id="location-link" href="#"><span id="location-text"></span></a></p>
+        <a href="#" id="instagram-link"></a><a href="#" id="whatsapp-link"></a>
+        <button id="copy-whatsapp-btn" type="button"></button>
+        <button id="share-profile-btn" type="button"></button>
+        <button id="qr-profile-btn" type="button"></button>
+        <button id="preview-profile-btn" type="button"></button>
+        <button id="request-verification-btn" type="button"></button>
+        <span id="stat-experience"></span><span id="stat-styles"></span><span id="stat-price"></span>
+        <section class="tattoo-presence" id="tattoo-presence">
+            <div id="current-tattoo-locations"></div><div id="upcoming-tattoo-locations"></div></section>
+        <div id="bio-content"><div id="bio-text" data-empty-message="Sin bio aún.">-</div></div>
+        <div id="bio-edit-mode" style="display:none;">
+            <div id="dashboard-bio-toolbar"></div>
+            <div id="bio-editor" contenteditable="true"></div>
+            <button id="bio-cancel" type="button"></button><button id="bio-save" type="button"></button></div>
+        <button id="edit-bio-btn" type="button"></button>
+        <a href="#" id="portfolio-url"></a>
+        <select id="gallery-category-select"><option value="realizados">realizados</option></select>
+        <input type="file" id="gallery-input" multiple hidden>
+        <div id="ig-import-mount-dashboard"></div>
+        <div id="gallery-admin-grid"><div id="gallery-empty"></div></div>
+        <div id="gallery-admin-loading"><span id="gallery-upload-counter"></span><div id="gallery-progress-fill"></div></div>
+        <div class="dashboard-gallery-lightbox" id="dashboard-gallery-lightbox" aria-hidden="true">
+            <button id="dashboard-lightbox-close"></button><button id="dashboard-lightbox-prev"></button>
+            <img id="dashboard-lightbox-image" alt=""><video id="dashboard-lightbox-video"></video>
+            <button id="dashboard-lightbox-next"></button><span id="dashboard-lightbox-counter"></span></div>
+    </div>
+
+</div><!-- /wod-frame -->
+</div><!-- /wod-stage -->
+
+    <!-- Styles Selector Modal -->
+    <div id="styles-modal" class="modal-overlay" onclick="closeStylesModalOnOverlay(event)">
+        <div class="modal-container styles-modal-container">
+            <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Estilos</h2>
+            <p class="modal-subtitle">Seleccioná los estilos que manejás</p>
+            <div id="dashboard-styles-grid" class="dashboard-styles-grid"><span class="wod-skel">Cargando estilos...</span></div>
+            <div class="dashboard-custom-style-row">
+                <input type="text" id="dashboard-custom-style-input" class="modal-input" placeholder="Agregar estilo personalizado..." onkeydown="if(event.key==='Enter'){event.preventDefault();addDashboardCustomStyle();}">
+                <button type="button" class="dashboard-custom-style-add-btn" onclick="addDashboardCustomStyle()">+</button>
+            </div>
+            <div class="styles-modal-actions">
+                <button type="button" class="styles-modal-btn styles-modal-btn-cancel" onclick="closeStylesModal()">Cancelar</button>
+                <button type="button" class="styles-modal-btn styles-modal-btn-confirm" onclick="confirmStylesSelection()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Travel Modal -->
+    <div id="upcoming-travel-modal" class="modal-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
+        <div class="modal-container upcoming-travel-modal-container">
+            <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title" id="upcoming-travel-modal-title">Agregar viaje</h2>
+            <p class="modal-subtitle">Completá estudio, ciudad, fechas y agenda</p>
+            <form id="upcoming-travel-form">
+                <div class="modal-form-group"><label for="upcoming-travel-studio">Estudio</label>
+                    <div class="upcoming-travel-autocomplete">
+                        <input type="text" id="upcoming-travel-studio" class="modal-input" placeholder="Nombre del estudio" autocomplete="off" required>
+                        <div class="upcoming-travel-suggestions" id="upcoming-travel-studio-suggestions"></div></div></div>
+                <div class="modal-form-group"><label for="upcoming-travel-city">Ciudad</label>
+                    <div class="upcoming-travel-autocomplete">
+                        <input type="text" id="upcoming-travel-city" class="modal-input" placeholder="Ciudad" autocomplete="off">
+                        <div class="upcoming-travel-suggestions" id="upcoming-travel-city-suggestions"></div></div></div>
+                <div class="upcoming-travel-dates-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div class="modal-form-group"><label for="upcoming-travel-start">Fecha inicio</label>
+                        <input type="date" id="upcoming-travel-start" class="modal-input" required></div>
+                    <div class="modal-form-group"><label for="upcoming-travel-end">Fecha fin</label>
+                        <input type="date" id="upcoming-travel-end" class="modal-input" required></div></div>
+                <div class="modal-form-group"><label for="upcoming-travel-agenda">Estado de agenda</label>
+                    <select id="upcoming-travel-agenda" class="modal-input" required>
+                        <option value="open">Agenda abierta</option><option value="closed">Agenda cerrada</option></select></div>
+                <div id="upcoming-travel-message" class="form-message"></div>
+                <button type="submit" class="btn-modal-submit">Guardar viaje →</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="password-modal" class="modal-overlay" onclick="closePasswordModalOnOverlay(event)">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closePasswordModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Cambiar contraseña</h2>
+            <p class="modal-subtitle">Ingresá tu nueva contraseña</p>
+            <form id="password-form" onsubmit="handlePasswordChange(event)">
+                <div class="modal-form-group"><label for="new-password">Nueva contraseña</label>
+                    <input type="password" id="new-password" class="modal-input" placeholder="Mínimo 8 caracteres" required minlength="8" data-clarity-mask="true"></div>
+                <div class="modal-form-group"><label for="confirm-password">Confirmar contraseña</label>
+                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repetí la contraseña" required data-clarity-mask="true"></div>
+                <div id="password-message" class="form-message"></div>
+                <button type="submit" class="btn-modal-submit">Actualizar →</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Verification + AI avatar modals (legacy hooks) -->
+    <div id="verification-modal" class="modal-overlay" onclick="closeVerificationModalOnOverlay(event)">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeVerificationModal()" aria-label="Cerrar">✕</button>
+            <h2 class="modal-title">Verificar tu perfil</h2>
+            <div id="verification-message" class="form-message"></div>
+            <button type="button" class="btn-modal-submit" id="submit-verification-btn" onclick="submitVerificationRequest()">Solicitar verificación →</button>
+        </div>
+    </div>
+    <div id="ai-avatar-modal" class="modal-overlay" onclick="closeAIAvatarModalOnOverlay(event)">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeAIAvatarModal()" aria-label="Cerrar">✕</button>
+            <textarea id="ai-avatar-prompt" class="modal-input"></textarea>
+            <div id="ai-avatar-preview-container" style="display:none;"><img id="ai-avatar-preview" alt=""></div>
+            <div id="ai-avatar-message" class="form-message"></div>
+            <button type="button" id="generate-ai-avatar-btn" onclick="generateAIAvatar()">Generar</button>
+            <button type="button" id="use-ai-avatar-btn" style="display:none;" onclick="useAIAvatar()">Usar</button>
+        </div>
+    </div>
+
+    <script src="/shared/js/bio-formatting.js"></script>
+    <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/heic-converter.js"></script>
+    <script src="/shared/js/geocoder.js"></script>
+    <script src="/shared/js/address-picker.js"></script>
+    <script src="/shared/js/instagram-import.js"></script>
+    <script src="/shared/js/dashboard.js"></script>
+
+    <!-- Project legacy #display-* values into the Bauhaus grouped view -->
+    <script>
+    (function () {
+        function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+        function isEmpty(v){ v=(v||'').trim(); return !v || v==='-' || v==='—' || /^sin\b/i.test(v); }
+        function paint() {
+            document.querySelectorAll('.wod-pd__fields').forEach(function (box) {
+                var defs; try { defs = JSON.parse(box.getAttribute('data-fields')); } catch (e) { defs = []; }
+                box.innerHTML = defs.map(function (d) {
+                    var src = document.getElementById(d[1]);
+                    var val = src ? (src.textContent || '').trim() : '';
+                    var miss = isEmpty(val);
+                    return '<div class="wod-field"><div class="wod-field__top">' +
+                        '<span class="wod-field__label">' + esc(d[0]) + '</span>' +
+                        (miss ? '<span class="pill pill--outline" style="color:var(--red);border-color:var(--red);">FALTA</span>' : '') +
+                        '</div><div class="wod-field__value">' + (miss ? '— · sin definir' : esc(val)) + '</div></div>';
+                }).join('');
+            });
+            // identity strip
+            var nm = document.getElementById('artist-name');
+            var un = document.getElementById('artist-username');
+            if (nm) { var v=(nm.textContent||'').trim(); if(v){ document.getElementById('wod-pd-name').textContent=v.toUpperCase(); document.getElementById('wod-pd-username').textContent=v; } }
+            if (un) { var h=(un.textContent||'').trim(); if(h) document.getElementById('wod-pd-handle').textContent=h; }
+            ['exp','styles','price'].forEach(function(k){
+                var srcId = k==='exp'?'stat-experience':k==='styles'?'stat-styles':'stat-price';
+                var s=document.getElementById(srcId), t=document.getElementById('wod-pd-s-'+k);
+                if(s&&t){ var v=(s.textContent||'').trim(); if(v && v!=='-') t.textContent=v; }
+            });
+            var av=document.getElementById('avatar-image');
+            if(av&&av.src&&!/^https?:\/\/[^/]+\/?$/.test(av.src)&&av.getAttribute('src')){
+                var pd=document.getElementById('wod-pd-avatar');
+                if(pd) pd.innerHTML='<img src="'+esc(av.src)+'" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">';
+            }
+            var vb=document.getElementById('verification-text');
+            if(vb&&vb.textContent.trim()){ var pb=document.getElementById('wod-pd-badge-verif'); pb.textContent=vb.textContent.toUpperCase(); }
+            var lt=document.getElementById('level-text');
+            if(lt&&lt.textContent.trim()) document.getElementById('wod-pd-badge-level').textContent=lt.textContent.toUpperCase();
+        }
+        function openEditor(){
+            var ed=document.getElementById('wod-pd-editor');
+            if(ed){ ed.style.display='block'; ed.scrollIntoView({behavior:'smooth'}); }
+            if(typeof window.toggleEditMode==='function' && !window.isEditMode){ try{ window.toggleEditMode(); }catch(e){} }
+        }
+        document.getElementById('wod-pd-editall').addEventListener('click', openEditor);
+        document.querySelectorAll('.wod-pd-edit').forEach(function(b){ b.addEventListener('click', openEditor); });
+        var pv=document.getElementById('wod-pd-preview');
+        if(pv) pv.addEventListener('click', function(){ var b=document.getElementById('preview-profile-btn'); if(b) b.click(); });
+        // nav overflow + burger
+        var more=document.getElementById('wod-nav-more'), burger=document.getElementById('dashboard-mobile-menu-toggle'), ov=document.getElementById('dashboard-mobile-menu');
+        function tog(btn){ if(!ov)return; var o=ov.classList.toggle('is-open'); if(btn){btn.classList.toggle('is-open',o);} }
+        if(more) more.addEventListener('click',function(){tog(more);});
+        if(burger) burger.addEventListener('click',function(){tog(burger);});
+
+        window.addEventListener('wo:dashboard-ready', function () { setTimeout(paint, 120); });
+        // dashboard.js may finish before listener attaches; also poll a few times
+        var n=0, iv=setInterval(function(){ paint(); if(++n>20) clearInterval(iv); }, 600);
+    })();
+    </script>
+</body>
+
+</html>
