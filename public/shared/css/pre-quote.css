@@ -1,0 +1,1076 @@
+/* ============================================
+   WE ÖTZI · PRE COTIZADOR
+   Bauhaus brutalist editorial layout — adapter
+   on top of /shared/css/styles.css. All shared
+   button / card / typography classes come from
+   styles.css to keep visual parity with /quotation.
+   ============================================ */
+
+/* ---------- LOCAL TOKENS ---------- */
+.prequote-app {
+    --pq-accent: var(--primary-red);
+    --pq-accent-soft: rgba(226, 62, 40, 0.08);
+    --pq-yellow: var(--primary-yellow);
+    --pq-blue: var(--primary-blue);
+    --pq-shadow: clamp(6px, 1.4vw, 10px);
+    --pq-radius: 0;
+}
+
+[data-theme="dark"] .prequote-app {
+    --pq-accent-soft: rgba(255, 77, 53, 0.14);
+}
+
+/* ---------- MAIN / SHELL OVERRIDES ----------
+   The shared `.brand-title` class adds `margin-top: 100px`
+   which doesn't fit our editorial layout. We use a
+   custom title and a tight padding-top tuned to the
+   80px fixed header.
+*/
+.prequote-main {
+    width: 100%;
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: clamp(96px, 12vw, 128px) clamp(16px, 4vw, 40px) 64px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(32px, 5vw, 56px);
+}
+
+.prequote-main > .step {
+    padding: 0;
+    margin: 0;
+}
+
+.prequote-shell {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    display: grid;
+    gap: clamp(28px, 4vw, 48px);
+}
+
+/* ---------- HERO ---------- */
+.prequote-hero {
+    position: relative;
+    display: grid;
+    gap: clamp(16px, 2.4vw, 24px);
+    padding: clamp(20px, 3vw, 32px) 0 clamp(16px, 2.4vw, 24px);
+    border-bottom: var(--border-width) solid var(--fg);
+}
+
+.prequote-hero::after {
+    /* Floating red dot — a single Bauhaus geometric punctuation */
+    content: '';
+    position: absolute;
+    top: -14px;
+    right: clamp(8px, 3vw, 24px);
+    width: clamp(28px, 4vw, 40px);
+    height: clamp(28px, 4vw, 40px);
+    background: var(--pq-accent);
+    border: var(--border-width) solid var(--fg);
+    border-radius: 50%;
+    box-shadow: 4px 4px 0 var(--fg);
+    z-index: 1;
+}
+
+[data-theme="dark"] .prequote-hero::after {
+    box-shadow: 4px 4px 0 var(--pq-yellow);
+}
+
+.prequote-hero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.prequote-eyebrow-tag {
+    font-family: var(--font-technical);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg);
+    padding: 6px 10px;
+    border: 2px solid var(--fg);
+    background: var(--bg);
+    line-height: 1;
+}
+
+.prequote-eyebrow-tag:nth-child(3) {
+    background: var(--pq-yellow);
+    color: var(--text-on-light);
+    border-color: var(--fg);
+}
+
+.prequote-eyebrow-rule {
+    flex: 1 1 24px;
+    min-width: 24px;
+    height: 2px;
+    background: var(--fg);
+}
+
+/* ---- TITLE ---- */
+.prequote-title {
+    font-family: var(--font-primary);
+    font-weight: 900;
+    font-size: clamp(2.4rem, 7.5vw, 4.8rem);
+    line-height: 0.92;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--fg);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2px, 0.4vw, 6px);
+}
+
+.prequote-title__line {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3em;
+}
+
+.prequote-title__line--accent {
+    color: var(--pq-accent);
+    position: relative;
+}
+
+.prequote-title__dot {
+    display: inline-block;
+    width: clamp(10px, 1.5vw, 14px);
+    height: clamp(10px, 1.5vw, 14px);
+    background: var(--pq-yellow);
+    border: 2px solid var(--fg);
+    border-radius: 50%;
+    transform: translateY(-0.1em);
+    flex-shrink: 0;
+}
+
+.prequote-title__line--mono {
+    font-family: var(--font-technical);
+    font-weight: 700;
+    font-size: clamp(1rem, 2.4vw, 1.4rem);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-top: clamp(6px, 1.2vw, 10px);
+}
+
+.prequote-lede {
+    font-family: var(--font-primary);
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    line-height: 1.55;
+    color: var(--text-secondary);
+    max-width: 56ch;
+    margin: 0;
+}
+
+.prequote-lede strong {
+    color: var(--fg);
+    font-weight: 700;
+}
+
+/* ---- PILLS ---- */
+.prequote-pills {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.prequote-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-technical);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border: 2px solid var(--fg);
+    background: var(--fg);
+    color: var(--bg);
+    line-height: 1;
+}
+
+.prequote-pill i {
+    font-size: 0.8rem;
+    color: var(--pq-yellow);
+}
+
+.prequote-pill--ghost {
+    background: var(--bg);
+    color: var(--fg);
+}
+
+.prequote-pill--ghost i {
+    color: var(--pq-accent);
+}
+
+/* ---------- FORM ---------- */
+.prequote-form {
+    display: grid;
+    gap: clamp(20px, 3vw, 32px);
+    margin: 0;
+}
+
+/* ---- FIELDSET ---- */
+.prequote-fieldset {
+    border: var(--border-width) solid var(--fg);
+    background: var(--bg);
+    padding: clamp(20px, 3vw, 32px);
+    margin: 0;
+    display: grid;
+    gap: clamp(14px, 2vw, 20px);
+    position: relative;
+}
+
+.prequote-fieldset:hover {
+    box-shadow: var(--pq-shadow) var(--pq-shadow) 0 var(--fg);
+    transform: translate(calc(var(--pq-shadow) * -0.5), calc(var(--pq-shadow) * -0.5));
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.prequote-fieldset:focus-within {
+    box-shadow: var(--pq-shadow) var(--pq-shadow) 0 var(--pq-accent);
+    transform: translate(calc(var(--pq-shadow) * -0.5), calc(var(--pq-shadow) * -0.5));
+}
+
+[data-theme="dark"] .prequote-fieldset:hover {
+    box-shadow: var(--pq-shadow) var(--pq-shadow) 0 var(--pq-yellow);
+}
+
+/* ---- STEP LEGEND ---- */
+.prequote-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0;
+    margin: 0 0 clamp(4px, 1vw, 8px);
+    float: left; /* Align with grid sibling on supported browsers */
+    width: 100%;
+}
+
+.prequote-step__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    height: 36px;
+    padding: 0 12px;
+    background: var(--fg);
+    color: var(--bg);
+    font-family: var(--font-technical);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1;
+}
+
+.prequote-step__label {
+    font-family: var(--font-primary);
+    font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+}
+
+/* ---- FIELDS ---- */
+.prequote-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(16px, 2.4vw, 24px);
+}
+
+.prequote-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0; /* Prevent grid blowout from long select option labels */
+}
+
+.prequote-field--full {
+    grid-column: 1 / -1;
+}
+
+.prequote-field .technical-label {
+    font-family: var(--font-technical);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--text-secondary);
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.prequote-field .technical-label::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--pq-accent);
+    flex-shrink: 0;
+}
+
+/* ---- INPUT / SELECT / TEXTAREA OVERRIDES ----
+   The shared styles.css applies a brutalist
+   underline-only style to native inputs. For a
+   form-dense interface we want bordered boxes,
+   so we override fully scoped to our form.
+*/
+.prequote-form input[type="text"],
+.prequote-form input[type="email"],
+.prequote-form input[type="tel"],
+.prequote-form select,
+.prequote-form textarea {
+    width: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    border: 2px solid var(--fg);
+    border-radius: var(--pq-radius);
+    padding: 14px 16px;
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.4;
+    margin: 0;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+    min-height: 48px;
+    outline: none;
+}
+
+.prequote-form input[type="text"]::placeholder,
+.prequote-form textarea::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.prequote-form input[type="text"]:hover,
+.prequote-form select:hover,
+.prequote-form textarea:hover {
+    background: var(--surface-hover);
+}
+
+.prequote-form input[type="text"]:focus,
+.prequote-form select:focus,
+.prequote-form textarea:focus {
+    border-color: var(--pq-accent);
+    box-shadow: 4px 4px 0 var(--pq-accent);
+    background: var(--bg);
+}
+
+.prequote-form textarea {
+    resize: vertical;
+    min-height: 128px;
+    font-size: 1.02rem;
+    line-height: 1.5;
+}
+
+.prequote-form select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding-right: 44px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--fg) 50%),
+        linear-gradient(135deg, var(--fg) 50%, transparent 50%);
+    background-position:
+        calc(100% - 22px) 22px,
+        calc(100% - 16px) 22px;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+.prequote-form select:focus {
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--pq-accent) 50%),
+        linear-gradient(135deg, var(--pq-accent) 50%, transparent 50%);
+}
+
+.prequote-form select[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.prequote-hint {
+    margin: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-technical);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+}
+
+/* ---- CHECKBOX GRID (subzonas) ---- */
+.prequote-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    border: 2px solid var(--fg);
+    padding: 12px;
+    background: var(--surface-color);
+    min-height: 96px;
+    align-content: flex-start;
+    border-radius: var(--pq-radius);
+}
+
+.prequote-checkbox-grid--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-style: dashed;
+}
+
+.prequote-checkbox-empty {
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-technical);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.prequote-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 2px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+    font-size: 0.92rem;
+    font-weight: 500;
+    line-height: 1.2;
+    min-height: 44px;
+    border-radius: var(--pq-radius);
+}
+
+.prequote-checkbox:hover {
+    border-color: var(--fg);
+    background: var(--surface-hover);
+}
+
+.prequote-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--pq-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.prequote-checkbox--special {
+    border-color: var(--fg);
+    background: var(--pq-yellow);
+    color: var(--text-on-light);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+}
+
+.prequote-checkbox--special:hover {
+    background: var(--pq-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--fg);
+}
+
+.prequote-checkbox--checked {
+    border-color: var(--pq-accent);
+    background: var(--pq-accent-soft);
+    color: var(--fg);
+}
+
+.prequote-checkbox--checked.prequote-checkbox--special {
+    background: var(--pq-accent);
+    color: var(--bg);
+    border-color: var(--pq-accent);
+}
+
+.prequote-checkbox--disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.prequote-checkbox span {
+    line-height: 1.2;
+    flex: 1;
+}
+
+/* ---- GOOGLE PLACES AUTOCOMPLETE ---- */
+.pac-container {
+    z-index: 10000;
+    border: var(--border-width) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-primary);
+    box-shadow: 6px 6px 0 var(--fg);
+    margin-top: 4px;
+    border-radius: 0;
+}
+
+.pac-item {
+    border-top: 1px solid rgba(10, 10, 10, 0.12);
+    padding: 10px 14px;
+    color: var(--fg);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+[data-theme="dark"] .pac-item {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.pac-item:first-child { border-top: none; }
+
+.pac-item:hover,
+.pac-item-selected {
+    background: var(--pq-accent-soft);
+}
+
+.pac-matched {
+    color: var(--pq-accent);
+    font-weight: 700;
+}
+
+.pac-icon {
+    filter: grayscale(1);
+    opacity: 0.6;
+}
+
+[data-theme="dark"] .pac-icon {
+    filter: grayscale(1) invert(1);
+}
+
+/* ---------- SUBMIT ---------- */
+.prequote-submit-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: clamp(8px, 1.5vw, 16px);
+}
+
+.prequote-submit {
+    appearance: none;
+    -webkit-appearance: none;
+    border: var(--border-width) solid var(--fg);
+    background: var(--fg);
+    color: var(--bg);
+    cursor: pointer;
+    padding: clamp(18px, 2.4vw, 22px) clamp(20px, 3vw, 32px);
+    border-radius: 0;
+    font-family: var(--font-primary);
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    box-shadow: 6px 6px 0 var(--pq-accent);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+    min-height: 56px;
+    width: 100%;
+    text-align: left;
+}
+
+.prequote-submit:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 9px 9px 0 var(--pq-accent);
+    background: var(--pq-accent);
+    color: var(--bg);
+    border-color: var(--pq-accent);
+}
+
+.prequote-submit:active {
+    transform: translate(0, 0);
+    box-shadow: 3px 3px 0 var(--pq-accent);
+}
+
+.prequote-submit:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 6px 6px 0 var(--fg);
+}
+
+.prequote-submit__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--pq-yellow);
+    color: var(--text-on-light);
+    border: 2px solid var(--bg);
+    flex-shrink: 0;
+}
+
+.prequote-submit:hover .prequote-submit__icon {
+    background: var(--bg);
+    color: var(--pq-accent);
+    border-color: var(--bg);
+}
+
+.prequote-submit__note {
+    margin: 0;
+    font-family: var(--font-technical);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-align: center;
+}
+
+/* ---------- ERROR ---------- */
+.prequote-form .error-msg {
+    margin: 0;
+    padding: 14px 16px;
+    background: var(--pq-accent-soft);
+    border: 2px solid var(--pq-accent);
+    color: var(--pq-accent);
+    font-family: var(--font-technical);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] .prequote-form .error-msg {
+    color: var(--bg);
+    background: var(--pq-accent);
+}
+
+/* ---------- RESULTS ---------- */
+.prequote-results {
+    width: 100%;
+    max-width: 1080px;
+    margin: clamp(24px, 4vw, 40px) auto 0;
+    padding: 0 clamp(16px, 4vw, 40px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(28px, 4vw, 40px);
+    animation: pq-fade-up 0.5s var(--transition);
+}
+
+@keyframes pq-fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.prequote-estimate-card {
+    position: relative;
+    background: var(--bg);
+    border: var(--border-width) solid var(--fg);
+    padding: clamp(24px, 4vw, 40px);
+    box-shadow: 10px 10px 0 var(--fg);
+    display: grid;
+    gap: clamp(12px, 2vw, 18px);
+    overflow: hidden;
+}
+
+.prequote-estimate-card::before {
+    /* A diagonal yellow band as decorative accent */
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -20%;
+    width: 60%;
+    height: 220%;
+    background: var(--pq-yellow);
+    transform: rotate(20deg);
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+}
+
+[data-theme="dark"] .prequote-estimate-card {
+    box-shadow: 10px 10px 0 var(--pq-yellow);
+}
+
+[data-theme="dark"] .prequote-estimate-card::before {
+    opacity: 0.12;
+}
+
+.prequote-estimate-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.prequote-estimate-card .technical-label {
+    font-family: var(--font-technical);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.prequote-estimate-card .technical-label::before {
+    content: '';
+    width: 28px;
+    height: 3px;
+    background: var(--pq-accent);
+}
+
+.prequote-range {
+    font-family: var(--font-primary);
+    font-weight: 900;
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    line-height: 1;
+    margin: 0;
+    color: var(--fg);
+    text-transform: uppercase;
+    letter-spacing: -0.025em;
+    word-break: break-word;
+}
+
+.prequote-meta {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-family: var(--font-technical);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.prequote-meta li {
+    padding-left: 22px;
+    position: relative;
+}
+
+.prequote-meta li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--pq-accent);
+    font-weight: 900;
+    font-size: 1.1rem;
+    line-height: 1.5;
+}
+
+.prequote-meta strong {
+    color: var(--fg);
+    font-weight: 700;
+}
+
+.prequote-disclaimer {
+    margin: 0;
+    padding-top: clamp(8px, 1.5vw, 14px);
+    border-top: 1px dashed var(--fg);
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+/* ---- ARTISTS SECTION ---- */
+.prequote-artists-section {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 24px);
+}
+
+.prequote-section-title {
+    font-family: var(--font-primary);
+    font-weight: 900;
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    text-transform: uppercase;
+    letter-spacing: -0.015em;
+    margin: 0;
+    color: var(--fg);
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.prequote-section-title::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: var(--pq-accent);
+    border: 2px solid var(--fg);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.prequote-artists-section .subtitle {
+    margin: 0;
+    font-family: var(--font-technical);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.prequote-artists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(16px, 2.4vw, 24px);
+}
+
+.prequote-artist-card {
+    margin: 0;
+    padding: clamp(20px, 2.6vw, 28px);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.prequote-artist-card:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 8px 8px 0 var(--pq-accent);
+    border-color: var(--fg);
+}
+
+.prequote-artist-card .artist-meta {
+    flex-wrap: wrap;
+}
+
+.prequote-artist-card .actions-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: clamp(14px, 2vw, 18px);
+}
+
+.prequote-artist-card .actions-stack .btn {
+    width: 100%;
+}
+
+.prequote-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-family: var(--font-technical);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    padding: clamp(28px, 5vw, 48px) clamp(20px, 3vw, 32px);
+    border: var(--border-width) dashed var(--fg);
+    background: var(--surface-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   - Tablet: ≤968px (compress padding, tighter step labels)
+   - Mobile: ≤640px (single column, stacked submit row)
+   - Small mobile: ≤420px (further tighten, tighter pills)
+   ============================================ */
+
+@media (max-width: 968px) {
+    .prequote-shell {
+        max-width: 100%;
+    }
+
+    .prequote-fieldset {
+        padding: clamp(18px, 3vw, 24px);
+    }
+
+    .prequote-fieldset:hover,
+    .prequote-fieldset:focus-within {
+        /* Disable hover lift on touch — looks broken without precise pointer */
+        transform: none;
+        box-shadow: 4px 4px 0 var(--fg);
+    }
+
+    [data-theme="dark"] .prequote-fieldset:hover {
+        box-shadow: 4px 4px 0 var(--pq-yellow);
+    }
+
+    .prequote-fieldset:focus-within {
+        box-shadow: 4px 4px 0 var(--pq-accent);
+    }
+}
+
+@media (max-width: 640px) {
+    .prequote-main {
+        padding: clamp(88px, 16vw, 104px) 16px 48px;
+        gap: 28px;
+    }
+
+    .prequote-shell {
+        gap: 24px;
+    }
+
+    .prequote-hero {
+        padding: 16px 0 14px;
+    }
+
+    .prequote-hero::after {
+        top: -10px;
+        right: 4px;
+    }
+
+    .prequote-title {
+        font-size: clamp(2rem, 11vw, 3rem);
+        line-height: 0.94;
+    }
+
+    .prequote-title__line--mono {
+        font-size: 0.95rem;
+    }
+
+    .prequote-lede {
+        font-size: 0.98rem;
+    }
+
+    .prequote-eyebrow-tag {
+        font-size: 0.65rem;
+        padding: 5px 8px;
+    }
+
+    .prequote-pills {
+        gap: 6px;
+    }
+
+    .prequote-pill {
+        font-size: 0.65rem;
+        padding: 7px 10px;
+    }
+
+    /* Stack the form into single column */
+    .prequote-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .prequote-fieldset {
+        padding: 18px 16px;
+        gap: 14px;
+    }
+
+    .prequote-step__num {
+        min-width: 48px;
+        height: 32px;
+        font-size: 0.85rem;
+    }
+
+    .prequote-step__label {
+        font-size: 1.05rem;
+    }
+
+    .prequote-checkbox-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 10px;
+    }
+
+    .prequote-checkbox {
+        padding: 9px 10px;
+        font-size: 0.88rem;
+        min-height: 42px;
+    }
+
+    .prequote-form input[type="text"],
+    .prequote-form select,
+    .prequote-form textarea {
+        font-size: 16px; /* Prevent iOS zoom on focus */
+        padding: 13px 14px;
+    }
+
+    .prequote-submit {
+        font-size: 1rem;
+        padding: 18px 18px;
+        gap: 12px;
+        box-shadow: 5px 5px 0 var(--pq-accent);
+    }
+
+    .prequote-submit:hover {
+        transform: none;
+        box-shadow: 5px 5px 0 var(--pq-accent);
+    }
+
+    .prequote-submit__icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+
+    /* Results adapt */
+    .prequote-results {
+        padding: 0 16px;
+    }
+
+    .prequote-estimate-card {
+        padding: 22px 18px;
+        box-shadow: 6px 6px 0 var(--fg);
+    }
+
+    [data-theme="dark"] .prequote-estimate-card {
+        box-shadow: 6px 6px 0 var(--pq-yellow);
+    }
+
+    .prequote-artists-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 420px) {
+    .prequote-main {
+        padding: 92px 12px 40px;
+    }
+
+    .prequote-fieldset {
+        padding: 16px 14px;
+    }
+
+    .prequote-pills {
+        gap: 5px;
+    }
+
+    .prequote-pill {
+        font-size: 0.6rem;
+        padding: 6px 9px;
+    }
+
+    .prequote-pill i {
+        font-size: 0.7rem;
+    }
+
+    .prequote-checkbox-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .prequote-eyebrow-tag {
+        font-size: 0.6rem;
+        letter-spacing: 0.14em;
+    }
+}
+
+/* ============================================
+   MOTION PREFERENCES
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .prequote-fieldset,
+    .prequote-fieldset:hover,
+    .prequote-fieldset:focus-within,
+    .prequote-submit,
+    .prequote-submit:hover,
+    .prequote-artist-card,
+    .prequote-artist-card:hover,
+    .prequote-results {
+        transition: none !important;
+        animation: none !important;
+        transform: none !important;
+    }
+}
