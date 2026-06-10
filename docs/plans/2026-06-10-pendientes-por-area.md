@@ -1,8 +1,21 @@
-# Pendientes por área — revisión del 2026-06-10
+# Pendientes por área — revisión del 2026-06-10 (act. 2026-06-11)
 
-Resultado de la revisión conjunta del trabajo en curso (limpieza de junio 2026).
-Estado verificado contra: suite de tests (111/111 en verde), base de datos viva
-(`flbgmlvfiejfttlawnfu`) y pruebas manuales de scripts.
+**Este es el documento maestro de trabajo pendiente** — retomar desde aquí en
+cada sesión. Resultado de la revisión conjunta del trabajo en curso (limpieza
+de junio 2026). Estado verificado contra: suite de tests en verde, base de
+datos viva (`flbgmlvfiejfttlawnfu`) y pruebas manuales/en navegador.
+
+## Orden sugerido para las próximas sesiones
+
+1. **Globo 3D — ajustes finales (F4) y merge**: rama `feature/globe-redesign`
+   ya construida y aprobada; plan detallado y guía de reanudación en
+   [2026-06-11-globo-3d-redesign.md](2026-06-11-globo-3d-redesign.md).
+2. **Rediseño dashboard/área artista** (van juntos): aplicar el diseño que ya
+   tiene Isaí + UI de invitaciones de estudio (la BD está lista).
+3. **Backoffice**: arreglar conexión a BD, panel de estudios, interfaz.
+4. **Perfil/dashboard de cliente**: incorporar reseñas verificadas.
+5. **Soporte + emails**: completar BillionMail (rama de referencia en origin).
+6. Backlog menor de seguridad (abajo) cuando se toque cada área.
 
 ## Seguridad
 
@@ -91,9 +104,12 @@ verificadas con anon key (10/10 checks) y suite 109/109:
 
 ## Áreas funcionales pero incompletas
 
-### Globo 3D (`/explore/globe`)
-- Funcional, pero la interfaz es confusa y está sobrecargada.
-- Pendiente: rediseñar UI, mejorar animaciones y el globo en general.
+### Globo 3D (`/explore/globe`) — ✅ reconstruido 2026-06-11, falta F4
+- Reconstruido con Three.js WebGPU/TSL en `feature/globe-redesign`: tierra
+  nocturna, search-first, sedes de estudio, tour de itinerario con avión.
+  Verificado en navegador; a Isaí le gustó el resultado.
+- Pendiente: ajustes de pulido (F4) y merge a main — ver
+  [2026-06-11-globo-3d-redesign.md](2026-06-11-globo-3d-redesign.md).
 
 ### Rediseño de dashboard de artista (`dashboard-redesign.js/css`)
 - Existe un diseño ya elegido; falta aplicarlo y mejorarlo.
