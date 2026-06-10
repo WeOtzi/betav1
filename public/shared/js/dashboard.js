@@ -3684,21 +3684,6 @@ async function handlePasswordChange(e) {
 
         if (error) throw error;
 
-        // Mirror the new plaintext into artists_db.password so the cleartext
-        // mirror stays in sync with auth.users (source of truth for login).
-        // Mirror failures are non-fatal — the auth password already changed.
-        try {
-            const { error: mirrorError } = await _supabase
-                .from('artists_db')
-                .update({ password: newPassword })
-                .eq('user_id', currentUser.id);
-            if (mirrorError) {
-                console.warn('Could not mirror password to artists_db:', mirrorError);
-            }
-        } catch (mirrorErr) {
-            console.warn('Password mirror failed:', mirrorErr);
-        }
-
         showPasswordMessage('Contrasena actualizada correctamente.', 'success');
         
         setTimeout(() => {

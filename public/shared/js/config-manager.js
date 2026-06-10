@@ -1782,10 +1782,11 @@ const ConfigManager = (function () {
     // ============================================
     // ARTIST_PUBLIC_COLUMNS
     // Explicit column list for queries on `artists_db` that run on a PUBLIC
-    // path (anonymous or marketplace consumers). MUST exclude `password` —
-    // see migration `add_password_column_to_artists_db` for context. PostgREST
-    // has no "exclude" syntax, so we enumerate every column we want to
-    // expose. When a new column is added to artists_db, append it here.
+    // path (anonymous or marketplace consumers). Enumerar columnas evita
+    // exponer datos sensibles por accidente (la columna `password` que motivo
+    // esta lista ya fue eliminada de la tabla). PostgREST has no "exclude"
+    // syntax, so we enumerate every column we want to expose. When a new
+    // column is added to artists_db, append it here.
     // Use `select('*')` only on paths that hit RLS rows the user owns
     // (own dashboard, own register, own quotations) or admin/support paths.
     window.ARTIST_PUBLIC_COLUMNS = [

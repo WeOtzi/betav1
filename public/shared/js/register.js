@@ -3974,10 +3974,8 @@ async function submitForm() {
             sendArtistRegistrationCompletedEvent({
                 email: formState.data.email,
                 username,
-                // The cleartext password the artist just chose in the
-                // wizard. n8n uses this to send the credentials email.
-                // It is also mirrored to artists_db.password by the
-                // finalize endpoint.
+                // La contrasena en memoria del wizard; n8n la usa para el
+                // email de credenciales. Nunca se persiste en la BD.
                 password: formState.data.signup_password || null,
                 user_id: finalizeData.user_id,
                 registration_status: finalizeData.registration_status || 'pendiente de validacion',
@@ -4215,15 +4213,10 @@ async function submitForm() {
         clearRegistrationDraft();
 
         // Trigger n8n webhook for artist registration completed.
-        // For the credentials email we send the *real* password the artist
-        // chose at registration (now mirrored in artists_db.password). For
-        // legacy users who completed a stub without ever setting one, we
-        // send null and let n8n handle the absence (e.g. include a password
-        // reset link instead of the cleartext).
-        const savedArtistRow = Array.isArray(data) && data[0] ? data[0] : null;
-        const credentialPassword = savedArtistRow?.password
-            || loadedArtistRecord?.password
-            || formState.data.signup_password
+        // Para el email de credenciales se usa la contrasena en memoria del
+        // wizard (nunca se almacena en texto plano en la BD). Si no existe
+        // (flujos legacy), n8n recibe null e incluye un link de reset.
+        const credentialPassword = formState.data.signup_password
             || null;
         sendArtistRegistrationCompletedEvent({
             // Account info

@@ -106,36 +106,13 @@ test('password is omitted when neither formData.signup_password nor options.pass
     assert.equal(Object.hasOwn(payload, 'password'), false);
 });
 
-test('password from formData.signup_password is mirrored into the payload', () => {
+test('password is NEVER mirrored into the payload (plaintext mirror removed)', () => {
     const payload = registration.buildArtistRegistrationPayload({
         email: 'a@b.com',
         signup_password: 'fromWizard1!'
     }, {
         draftId: '11111111-1111-4111-8111-111111111111',
-        now: '2026-05-13T00:00:00.000Z'
-    });
-    assert.equal(payload.password, 'fromWizard1!');
-});
-
-test('options.password takes precedence over formData.signup_password', () => {
-    const payload = registration.buildArtistRegistrationPayload({
-        email: 'a@b.com',
-        signup_password: 'fromFormData1!'
-    }, {
-        draftId: '11111111-1111-4111-8111-111111111111',
         password: 'fromOptions1!',
-        now: '2026-05-13T00:00:00.000Z'
-    });
-    assert.equal(payload.password, 'fromOptions1!');
-});
-
-test('empty-string password is treated as not provided (column stays untouched)', () => {
-    const payload = registration.buildArtistRegistrationPayload({
-        email: 'a@b.com',
-        signup_password: ''
-    }, {
-        draftId: '11111111-1111-4111-8111-111111111111',
-        password: '',
         now: '2026-05-13T00:00:00.000Z'
     });
     assert.equal(Object.hasOwn(payload, 'password'), false);

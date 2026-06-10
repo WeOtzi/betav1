@@ -956,8 +956,10 @@ function renderArtistDrawer(artist) {
         <div class="drawer-section" style="background: #fff0f0;">
             <div class="drawer-section-title">Admin Information</div>
             <div class="drawer-form-group">
-                <label>Temporary Password</label>
-                <input type="text" value="${escapeHtml(artist.password || '')}" onchange="updateArtistField('${artist.user_id}', 'password', this.value)">
+                <label>Asignar contrasena temporal</label>
+                <!-- Escribir un valor la establece via /api/auth/reset-temp-password.
+                     Las contrasenas nunca se almacenan ni se muestran. -->
+                <input type="text" value="" placeholder="Nueva contrasena temporal (min 6)" onchange="updateArtistField('${artist.user_id}', 'password', this.value)">
             </div>
             <div class="info-block">
                 <label>User ID</label>
@@ -1621,7 +1623,6 @@ async function syncArtistPasswordViaApi(userId, newPassword) {
     if (!res.ok || !result.success) {
         throw new Error(result.error || `Reset failed (${res.status})`);
     }
-    artist.password = String(newPassword);
     applyFiltersAndSort();
     updateStats();
     inspectRecord('artists', userId);

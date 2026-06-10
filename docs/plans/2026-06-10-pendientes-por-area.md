@@ -26,18 +26,38 @@ verificada con la anon key contra la API REST):
 prefill ERA la fuga (cualquiera que tecleara un email ajeno obtenía whatsapp, fecha
 de nacimiento y condiciones de salud). El cliente logueado sigue viendo todo lo suyo.
 
-### Backlog de hardening (advisors de Supabase, preexistentes)
-- 62 funciones sin `search_path` fijo (WARN).
-- 28 políticas `USING (true)` señaladas (varias intencionales: lecturas públicas).
-- Versión de Postgres con parches de seguridad pendientes → programar upgrade.
-- Protección de contraseñas filtradas (HaveIBeenPwned) deshabilitada en Auth.
-- 6 buckets públicos permiten listar archivos.
+### ✅ RESUELTO 2026-06-10 (tarde): contraseñas en texto plano + hardening
+- **CRÍTICO encontrado y eliminado**: `artists_db.password` almacenaba contraseñas
+  en texto plano legibles con la anon key (3 cuentas expuestas, verificado vía API
+  REST). Valores anulados de inmediato, columna eliminada
+  (`20260610210000`), y todo el código del "espejo" removido (server.js,
+  lib/artist-registration.js, dashboard.js, register.js, support-dashboard.js).
+  Soporte sigue pudiendo ASIGNAR contraseñas temporales vía
+  `/api/auth/reset-temp-password`; ya nunca se muestran ni persisten.
+  **⚠️ Rotar las contraseñas de las 3 cuentas que estuvieron expuestas**:
+  lalal3647@gmail.com, isainazar24@gmail.com, prueba@prie.com.
+- `handle_new_user` ya NO crea fila de artista para signups de cliente/estudio
+  (misma migración). A la fecha no había filas contaminadas (verificado: 0
+  solapamientos artists/clients/studios).
+- 62 funciones sin `search_path` fijo → todas fijadas a `public, extensions`
+  (`20260610220000`, quedan 0; se excluyen las ~120 de pgvector que gestiona la
+  extensión).
+- 6 buckets públicos permitían enumerar archivos como anon → listado restringido
+  a autenticados (`20260610230000`); descargas por URL pública intactas
+  (verificado HTTP 200).
 
-### Deuda detectada en el modelo de usuarios
-- **`handle_new_user` crea una fila en `artists_db` para TODO usuario nuevo,
-  incluidos clientes** (por eso artists_db tiene 110 filas). No se tocó porque hay
-  flujos que pueden depender de ello, pero conviene separar: solo crear artists_db
-  cuando `user_type` sea artista. Revisar impacto en artist-login/explore/marketplace.
+### Pendiente manual (solo desde el dashboard de Supabase, no por API)
+1. **Upgrade de Postgres** (parches de seguridad): Dashboard → Settings →
+   Infrastructure → Upgrade. Programar en horario de poco uso; reinicia la BD.
+2. **Protección de contraseñas filtradas** (HaveIBeenPwned): Dashboard →
+   Authentication → Providers/Policies → "Leaked password protection" → habilitar.
+
+### Backlog menor restante
+- 28 políticas `USING (true)` señaladas por el advisor (varias intencionales:
+  lecturas públicas de catálogos y el insert anónimo del wizard). Revisar caso
+  por caso cuando se toque cada área.
+- 7 vistas SECURITY DEFINER y 14 funciones SECURITY DEFINER ejecutables por
+  anon — revisar si todas lo necesitan.
 
 ## Áreas funcionales pero incompletas
 

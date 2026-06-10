@@ -1698,8 +1698,8 @@ app.post('/api/admin/delete-artist', async (req, res) => {
  * Flow:
  * 1. Lookup user by email in artists_db or clients_db
  * 2. Update auth password via Supabase Admin API
- * 3. For artists, also update artists_db.password
- * 4. Return success (caller then triggers n8n webhook)
+ * 3. Return success (caller then triggers n8n webhook)
+ * La contrasena solo vive en auth.users; nunca se espeja a tablas de perfil.
  */
 app.post('/api/auth/reset-temp-password', async (req, res) => {
     // Authorization: this endpoint can set ANY user's auth password to a
@@ -1828,34 +1828,9 @@ app.post('/api/auth/reset-temp-password', async (req, res) => {
         
         console.log(`[Auth] Auth password updated for user: ${userId}`);
 
-        // Step 3: mirror the new plaintext into the user's profile row so the
-        // app keeps a single SQL view of "who this user is + how to reach
-        // them" (used by n8n credentials emails and support tooling). Auth is
-        // still the source of truth for login; this is a best-effort mirror
-        // and a failure here doesn't roll back the auth update.
-        const mirrorTable = (
-            userType === 'artist' ? 'artists_db'
-          : userType === 'studio' ? 'studios'
-          : 'clients_db'
-        );
-        const mirrorHasPasswordColumn = userType === 'artist';
-        if (mirrorHasPasswordColumn) {
-            const dbUpdateResponse = await fetch(`${supabaseUrl}/rest/v1/${mirrorTable}?user_id=eq.${userId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': serviceRoleKey,
-                    'Authorization': `Bearer ${serviceRoleKey}`,
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify({ password: tempPassword })
-            });
-            if (!dbUpdateResponse.ok) {
-                console.warn(`[Auth] Warning: Could not mirror password to ${mirrorTable}`);
-            } else {
-                console.log(`[Auth] ${mirrorTable}.password mirrored for user: ${userId}`);
-            }
-        }
+        // auth.users es la unica fuente de verdad de la contrasena. No se
+        // espeja texto plano a tablas de perfil (la columna artists_db.password
+        // se elimino: era legible con la anon key).
 
         console.log(`[Auth] Temporary password reset complete for: ${email}`);
         
@@ -5755,11 +5730,6 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             step: 12,
             studioId,
             estudiosValue,
-            // Explicit password mirror — the auth user we just created above
-            // holds the bcrypt hash; artists_db stores the cleartext so n8n
-            // can email credentials and support can resolve lost-password
-            // requests. Source of truth for login is still auth.users.
-            password,
             status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             submitted: true
         });
