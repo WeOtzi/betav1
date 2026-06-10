@@ -16,7 +16,10 @@ yarn-error.log*
 __pycache__/
 
 # Directorios de agentes/herramientas IA (locales, no del proyecto)
-.claude/
+# Excepción: .claude/skills/ SÍ se versiona (skills compartidos del equipo);
+# el resto de .claude/ (settings.local.json, etc.) permanece local.
+.claude/*
+!.claude/skills/
 .agents/
 .codex/
 .kiro/
