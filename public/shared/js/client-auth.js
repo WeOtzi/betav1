@@ -198,7 +198,16 @@ async function handleClientRegistration(e) {
             options: {
                 data: {
                     full_name: name,
-                    user_type: 'client'
+                    user_type: 'client',
+                    // El perfil en clients_db lo crea el trigger handle_new_user
+                    // desde estos metadatos (el insert client-side corre sin
+                    // sesion y RLS lo bloquea).
+                    whatsapp: whatsapp || '',
+                    birth_date: birthdate || '',
+                    instagram: instagram || '',
+                    city_residence: city || '',
+                    health_conditions: currentClientData?.client_health_conditions || '',
+                    allergies: currentClientData?.client_allergies || ''
                 },
                 emailRedirectTo: window.location.origin + '/client/dashboard'
             }

@@ -4,16 +4,40 @@ Resultado de la revisión conjunta del trabajo en curso (limpieza de junio 2026)
 Estado verificado contra: suite de tests (111/111 en verde), base de datos viva
 (`flbgmlvfiejfttlawnfu`) y pruebas manuales de scripts.
 
-## Seguridad (prioridad alta)
+## Seguridad
 
-- **RLS deshabilitado en 8 tablas** del esquema público: `quotations_db` (192 filas),
-  `clients_db` (102 filas), `quotations_attachments`, `quotation_flow_config`,
-  `conversation_history`, `pending_messages`, `body_parts`, `pending_images`.
-  Cualquiera con la anon key (pública por diseño) puede leer y modificar todas las filas,
-  incluyendo datos personales de clientes y cotizaciones.
-  **No** habilitar RLS sin diseñar las políticas primero: el flujo de cotización del
-  chatbot escribe con anon key y se rompería. Tarea: mapear qué rol necesita qué
-  operación por tabla, escribir políticas y habilitar RLS en una migración.
+### ✅ RESUELTO 2026-06-10: RLS habilitado en las 8 tablas expuestas
+Migración `20260610200000_enable_rls_remaining_tables.sql` (aplicada en vivo y
+verificada con la anon key contra la API REST):
+- `quotations_db`: anon solo ve/edita borradores `in_progress`; clientes y artistas
+  solo lo suyo; soporte/superadmin todo.
+- `clients_db`: bloqueada para anon; el perfil se crea ahora en el trigger
+  `handle_new_user` desde los metadatos del signUp (la confirmación de email está
+  activa, así que el INSERT client-side corría sin sesión). El trigger también
+  vincula cotizaciones huérfanas por email.
+- `quotations_attachments` y `quotation_flow_config`: políticas nuevas (espejan la
+  visibilidad del padre / lectura pública + escritura de soporte).
+- `body_parts`: se eliminó "Public write access" (cualquiera podía editar el catálogo).
+- `conversation_history`, `pending_messages`, `pending_images` (chatbot legacy, sin
+  uso en el código): RLS sin políticas = solo service role.
+
+**Cambio de comportamiento aceptado**: el prefill por email del wizard de cotización
+(autocompletar datos de un email ya usado SIN login) ya no devuelve datos — ese
+prefill ERA la fuga (cualquiera que tecleara un email ajeno obtenía whatsapp, fecha
+de nacimiento y condiciones de salud). El cliente logueado sigue viendo todo lo suyo.
+
+### Backlog de hardening (advisors de Supabase, preexistentes)
+- 62 funciones sin `search_path` fijo (WARN).
+- 28 políticas `USING (true)` señaladas (varias intencionales: lecturas públicas).
+- Versión de Postgres con parches de seguridad pendientes → programar upgrade.
+- Protección de contraseñas filtradas (HaveIBeenPwned) deshabilitada en Auth.
+- 6 buckets públicos permiten listar archivos.
+
+### Deuda detectada en el modelo de usuarios
+- **`handle_new_user` crea una fila en `artists_db` para TODO usuario nuevo,
+  incluidos clientes** (por eso artists_db tiene 110 filas). No se tocó porque hay
+  flujos que pueden depender de ello, pero conviene separar: solo crear artists_db
+  cuando `user_type` sea artista. Revisar impacto en artist-login/explore/marketplace.
 
 ## Áreas funcionales pero incompletas
 
