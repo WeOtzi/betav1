@@ -678,7 +678,9 @@ const LoggingService = (function() {
             };
 
             if (sessionLogId) {
-                // Update existing record
+                // Update existing record. Se filtra por session_id (generado
+                // en el cliente): la lectura de session_logs es solo-soporte
+                // vía RLS, así que el INSERT no puede devolver el id de fila.
                 const { error: updateError } = await supabase
                     .from('session_logs')
                     .update({
@@ -688,23 +690,22 @@ const LoggingService = (function() {
                         error_count: errorCount,
                         ended_at: new Date().toISOString()
                     })
-                    .eq('id', sessionLogId);
+                    .eq('session_id', sessionId);
 
                 if (updateError) {
                     originalConsole.warn('[LoggingService] Update error:', updateError);
                 }
             } else {
-                // Insert new record
-                const { data, error: insertError } = await supabase
+                // Insert new record (sin .select(): RETURNING exigiría una
+                // política SELECT que anon ya no tiene)
+                const { error: insertError } = await supabase
                     .from('session_logs')
-                    .insert([logData])
-                    .select()
-                    .single();
+                    .insert([logData]);
 
                 if (insertError) {
                     originalConsole.warn('[LoggingService] Insert error:', insertError);
                 } else {
-                    sessionLogId = data.id;
+                    sessionLogId = sessionId; // marcador: la fila ya existe
                 }
             }
         } catch (err) {
@@ -724,10 +725,12 @@ const LoggingService = (function() {
             const errorCount = logs.filter(l => l.l === 'error').length;
             const compressedLogs = compress(logs);
 
-            // Use sendBeacon for reliable delivery
+            // Use sendBeacon for reliable delivery.
+            // session_log_id ya no es el id de fila (ver persist()): se envía
+            // null para que el servidor filtre por session_id.
             const payload = JSON.stringify({
                 session_id: sessionId,
-                session_log_id: sessionLogId,
+                session_log_id: null,
                 log_data: compressedLogs,
                 log_entries_count: logs.length,
                 has_errors: hasErrors,

@@ -2,329 +2,91 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Globo — Descubrí tatuadores en el mundo</title>
-    <meta name="description" content="Explorá tatuadores alrededor del mundo en un globo interactivo. Filtros por estilo, país, precio y más; experiencia editorial premium.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>We Ötzi · Globo — Artistas y estudios en el mundo</title>
+    <meta name="description" content="Explora artistas tatuadores y estudios en un globo 3D: busca por ciudad o estilo y sigue los viajes de tus artistas favoritos.">
 
     <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="We Ötzi · Globo de tatuadores">
-    <meta property="og:description" content="Atlas global de tatuadores We Ötzi. Filtrá por estilo y país sobre un globo interactivo.">
+    <meta property="og:description" content="Atlas global de artistas y estudios We Ötzi sobre una tierra nocturna 3D.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <link rel="stylesheet" href="/shared/css/styles.css">
     <link rel="stylesheet" href="/shared/css/explore-globe.css">
-</head>
-
-<!--
-    /explore/globe forces dark mode regardless of the user's saved theme:
-    the Bauhaus editorial-dark aesthetic is part of the experience and the
-    light theme would wash out the globe and the arcs. We still respect
-    the user's preference inside the modal-driven flows that link out
-    (e.g. /quotation), but the page itself is intentionally dark.
--->
-<body data-theme="dark" class="globe-page">
-    <a class="skip-link" href="#globe-content">Saltar al contenido</a>
-
-    <div class="globe-app" id="globe-app">
-
-        <!-- ============================================
-             HEADER · masthead editorial
-             ============================================ -->
-        <header class="globe-header" role="banner">
-            <div class="globe-header-left">
-                <a href="/explore" class="globe-back-btn" aria-label="Volver al mapa">
-                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-                    <span class="globe-back-label">Mapa</span>
-                </a>
-                <div class="globe-masthead">
-                    <span class="globe-eyebrow"><span class="globe-eyebrow-dot" aria-hidden="true"></span>Live · Globe Edition 2026</span>
-                    <span class="globe-wordmark">Atlas <span class="accent">global</span></span>
-                </div>
-            </div>
-
-            <div class="globe-header-center" aria-live="polite">
-                <div class="globe-counter">
-                    <span class="globe-counter-value" id="globe-counter-value">000</span>
-                    <span class="globe-counter-label">
-                        artistas · <span id="globe-counter-countries">0</span> países ·
-                        <span id="globe-counter-cities">0</span> ciudades
-                    </span>
-                </div>
-            </div>
-
-            <div class="globe-header-right">
-                <nav class="globe-nav-links" aria-label="Navegación principal">
-                    <a href="/marketplace" class="globe-nav-link">Marketplace</a>
-                    <a href="/quotation" class="globe-nav-link">Cotizar</a>
-                    <a href="/job-board" class="globe-nav-link is-job-board">Job Board</a>
-                    <a href="/client/login" class="globe-nav-link">Acceder</a>
-                </nav>
-                <button class="globe-menu-toggle" id="globe-menu-toggle" type="button"
-                        aria-expanded="false" aria-controls="globe-mobile-menu">
-                    Menú
-                </button>
-            </div>
-        </header>
-
-        <nav class="globe-mobile-menu" id="globe-mobile-menu" aria-label="Navegación móvil" hidden>
-            <a href="/explore" class="globe-mobile-link">Mapa</a>
-            <a href="/marketplace" class="globe-mobile-link">Marketplace</a>
-            <a href="/quotation" class="globe-mobile-link">Cotizar</a>
-            <a href="/job-board" class="globe-mobile-link is-job-board">Job Board</a>
-            <a href="/client/login" class="globe-mobile-link">Acceder</a>
-        </nav>
-
-        <!-- ============================================
-             FILTERS · pill rail + selects
-             ============================================ -->
-        <section class="globe-filters" aria-label="Filtros">
-            <div class="globe-filter-pills" id="globe-style-pills">
-                <!-- Estilo pills inyectados por explore-globe.js -->
-            </div>
-            <div class="globe-filter-selects">
-                <select id="globe-filter-country" aria-label="País">
-                    <option value="">Todos los países</option>
-                </select>
-                <select id="globe-filter-price" aria-label="Rango de precio">
-                    <option value="">Cualquier precio</option>
-                    <option value="low">Económico (&lt; 200 USD)</option>
-                    <option value="medium">Medio (200 - 800 USD)</option>
-                    <option value="high">Premium (&gt; 800 USD)</option>
-                </select>
-                <select id="globe-filter-language" aria-label="Idioma">
-                    <option value="">Cualquier idioma</option>
-                </select>
-                <select id="globe-filter-experience" aria-label="Experiencia">
-                    <option value="">Cualquier experiencia</option>
-                    <option value="junior">Junior (1-3 años)</option>
-                    <option value="mid">Intermedio (4-7 años)</option>
-                    <option value="senior">Senior (8+ años)</option>
-                </select>
-                <button class="globe-clear-btn" id="globe-clear-btn" type="button">Limpiar</button>
-            </div>
-        </section>
-
-        <!-- ============================================
-             MAIN · stage with globe + side panel
-             ============================================ -->
-        <main class="globe-main" id="globe-content" role="main">
-
-            <!-- LEFT/CENTER · globe stage --------------------------------- -->
-            <section class="globe-stage" aria-label="Globo interactivo">
-                <div class="globe-stage-frame">
-                    <canvas id="globe-canvas"
-                            class="globe-canvas"
-                            aria-label="Globo interactivo con marcadores de tatuadores"
-                            role="img"></canvas>
-                    <div class="globe-labels" id="globe-labels" aria-hidden="true">
-                        <!-- Labels DOM clickeables inyectados por explore-globe.js -->
-                    </div>
-
-                    <div class="globe-loading" id="globe-loading">
-                        <span class="globe-loading-dot" aria-hidden="true"></span>
-                        <span>Cargando atlas…</span>
-                    </div>
-
-                    <div class="globe-empty hidden" id="globe-empty" role="status">
-                        <h2>Sin tatuadores en este filtro</h2>
-                        <p>Probá ajustar los criterios o limpiar filtros.</p>
-                        <button class="globe-empty-btn" type="button" data-action="clear-filters">Limpiar filtros</button>
-                    </div>
-                </div>
-
-                <!-- Panel inferior con el artista actualmente seleccionado.
-                     Cards flotantes que el plan menciona como narrativa visual. -->
-                <aside class="globe-selected-card hidden"
-                       id="globe-selected-card"
-                       aria-live="polite">
-                    <button class="globe-selected-close"
-                            type="button"
-                            data-action="clear-selection"
-                            aria-label="Quitar selección">
-                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                    </button>
-                    <span class="globe-selected-recommended" id="globe-selected-recommended" hidden>Recomendado</span>
-                    <div class="globe-selected-cover" id="globe-selected-cover" aria-hidden="true"></div>
-                    <div class="globe-selected-body">
-                        <div class="globe-selected-toprow">
-                            <span class="globe-selected-eyebrow" id="globe-selected-location">—</span>
-                            <span class="globe-selected-source" id="globe-selected-source" hidden></span>
-                        </div>
-                        <h3 class="globe-selected-name" id="globe-selected-name">Artista</h3>
-                        <div class="globe-selected-styles" id="globe-selected-styles"></div>
-                        <p class="globe-selected-bio" id="globe-selected-bio" hidden></p>
-                        <ul class="globe-selected-facts" id="globe-selected-facts">
-                            <li class="globe-selected-fact" data-fact="experience" hidden>
-                                <i class="fa-solid fa-bolt" aria-hidden="true"></i>
-                                <span id="globe-selected-experience">—</span>
-                            </li>
-                            <li class="globe-selected-fact" data-fact="languages" hidden>
-                                <i class="fa-solid fa-language" aria-hidden="true"></i>
-                                <span id="globe-selected-languages">—</span>
-                            </li>
-                            <li class="globe-selected-fact" data-fact="address" hidden>
-                                <i class="fa-solid fa-signs-post" aria-hidden="true"></i>
-                                <span id="globe-selected-address">—</span>
-                            </li>
-                        </ul>
-                        <!-- Itinerary block: filled when the artist has rows in
-                             artist_tattoo_locations. Hidden when empty. -->
-                        <section class="globe-selected-itinerary" id="globe-selected-itinerary" hidden>
-                            <header class="globe-selected-itinerary-header">
-                                <span class="globe-selected-itinerary-title">Itinerario</span>
-                                <span class="globe-selected-itinerary-hint">Tocá un destino para enfocarlo</span>
-                            </header>
-                            <ol class="globe-selected-itinerary-list" id="globe-selected-itinerary-list"></ol>
-                        </section>
-
-                        <div class="globe-selected-pricerow">
-                            <span class="globe-selected-pricelabel">Sesión desde</span>
-                            <span class="globe-selected-price" id="globe-selected-price">—</span>
-                        </div>
-                        <div class="globe-selected-actions">
-                            <button class="globe-cta primary" type="button" data-action="open-modal">
-                                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Ver detalle
-                            </button>
-                            <button class="globe-cta secondary" type="button" data-action="quote">
-                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Cotizar
-                            </button>
-                        </div>
-                        <a class="globe-selected-directions"
-                           id="globe-selected-directions"
-                           target="_blank" rel="noopener"
-                           hidden>
-                            <i class="fa-solid fa-route" aria-hidden="true"></i>
-                            Cómo llegar
-                        </a>
-                    </div>
-                </aside>
-
-                <!-- Hint legend — explica qué representan los pins y arcos.
-                     Discreta, en la esquina inferior izquierda. -->
-                <div class="globe-legend" aria-hidden="false">
-                    <span class="globe-legend-title">Atlas</span>
-                    <ul>
-                        <li><span class="legend-dot dot-recommended"></span> Recomendado</li>
-                        <li><span class="legend-dot dot-artist"></span> Artista</li>
-                        <li><span class="legend-dot dot-cluster"></span> Cluster (≥ 2)</li>
-                        <li><span class="legend-dot dot-arc"></span> Arco a selección</li>
-                    </ul>
-                </div>
-            </section>
-
-            <!-- RIGHT · side panel with filtered artists ------------------- -->
-            <aside class="globe-panel" id="globe-panel" aria-label="Lista de tatuadores filtrados">
-                <header class="globe-panel-header">
-                    <span class="globe-panel-count" id="globe-panel-count">000</span>
-                    <span class="globe-panel-label">
-                        <span class="globe-panel-label-main">Artistas</span>
-                        <span class="globe-panel-label-sub">en el atlas</span>
-                    </span>
-                </header>
-
-                <div class="globe-panel-list" id="globe-panel-list" role="list">
-                    <!-- Cards inyectadas por explore-globe.js -->
-                </div>
-
-                <div class="globe-panel-empty hidden" id="globe-panel-empty">
-                    <p>Sin resultados para los filtros activos.</p>
-                </div>
-            </aside>
-        </main>
-
-        <!-- ============================================
-             ARTIST MODAL · reutilizable
-             ============================================ -->
-        <div class="globe-modal-backdrop hidden"
-             id="globe-modal-backdrop"
-             aria-hidden="true">
-            <div class="globe-modal" role="dialog" aria-labelledby="globe-modal-name" aria-modal="true">
-                <button class="globe-modal-close" id="globe-modal-close" type="button" aria-label="Cerrar">
-                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                </button>
-                <div class="globe-modal-cover" id="globe-modal-cover" aria-hidden="true"></div>
-                <div class="globe-modal-body">
-                    <span class="globe-modal-source-badge" id="globe-modal-source-badge" hidden></span>
-                    <div class="globe-modal-styles" id="globe-modal-styles"></div>
-                    <h2 class="globe-modal-name" id="globe-modal-name">Artista</h2>
-                    <div class="globe-modal-meta">
-                        <div class="globe-modal-meta-row"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <span id="globe-modal-location">—</span></div>
-                        <div class="globe-modal-meta-row" id="globe-modal-address-row" hidden><i class="fa-solid fa-signs-post" aria-hidden="true"></i> <span id="globe-modal-address">—</span></div>
-                        <div class="globe-modal-meta-row"><i class="fa-solid fa-bolt" aria-hidden="true"></i> <span id="globe-modal-experience">—</span></div>
-                    </div>
-                    <div class="globe-modal-bio" id="globe-modal-bio"></div>
-                    <div class="globe-modal-price-row">
-                        <span class="price-label">Sesión desde</span>
-                        <span class="price-value" id="globe-modal-price">—</span>
-                    </div>
-                    <div class="globe-modal-cta-row">
-                        <button class="globe-modal-cta-quote" id="globe-modal-cta-quote" type="button">
-                            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Cotizar
-                        </button>
-                        <button class="globe-modal-cta-profile" id="globe-modal-cta-profile" type="button">
-                            <i class="fa-solid fa-user" aria-hidden="true"></i> Ver perfil
-                        </button>
-                    </div>
-                    <a class="globe-modal-cta-directions"
-                       id="globe-modal-cta-directions"
-                       target="_blank" rel="noopener"
-                       hidden>
-                        <i class="fa-solid fa-route" aria-hidden="true"></i> Cómo llegar
-                    </a>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!--
-        Theme toggle is intentionally NOT rendered on /explore/globe:
-        the dark editorial aesthetic is part of the discovery experience.
-        We still preserve the user's saved theme for the rest of the app.
-    -->
 
     <script src="/shared/js/config-manager.js"></script>
-    <script src="/shared/js/email-client.js"></script>
-    <script src="/shared/js/currency-utils.js"></script>
-    <script src="/shared/js/support-loader.js" defer></script>
-    <script src="/shared/js/bio-formatting.js"></script>
-    <!-- Geocoder is needed when an artist's itinerary entry has no studio_id
-         (only a city), so we can place that location on the globe. -->
     <script src="/shared/js/geocoder.js"></script>
-    <script src="/shared/js/explore-globe.js" type="module"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
 
-    <script>
-        // Mobile menu toggle — same pattern as /explore.
-        document.addEventListener('DOMContentLoaded', () => {
-            const toggle = document.getElementById('globe-menu-toggle');
-            const menu = document.getElementById('globe-mobile-menu');
-            if (!toggle || !menu) return;
-            const setOpen = (open) => {
-                toggle.setAttribute('aria-expanded', String(open));
-                menu.hidden = !open;
-            };
-            setOpen(false);
-            toggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                setOpen(toggle.getAttribute('aria-expanded') !== 'true');
-            });
-            menu.querySelectorAll('a').forEach((a) => {
-                a.addEventListener('click', () => setOpen(false));
-            });
-            document.addEventListener('click', (e) => {
-                if (menu.hidden) return;
-                if (!menu.contains(e.target) && !toggle.contains(e.target)) setOpen(false);
-            });
-            window.addEventListener('resize', () => {
-                if (window.innerWidth > 900) setOpen(false);
-            });
-        });
+    <!-- Three.js WebGPU vendorizado (sin build step) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "/shared/vendor/three/three.webgpu.js",
+            "three/webgpu": "/shared/vendor/three/three.webgpu.js",
+            "three/tsl": "/shared/vendor/three/three.tsl.js",
+            "three/addons/": "/shared/vendor/three/addons/"
+        }
+    }
     </script>
+</head>
+
+<!-- El globo es intencionalmente oscuro: la tierra nocturna ES la página. -->
+<body data-theme="dark" class="globe-page">
+
+    <!-- Escenario 3D (canvas a pantalla completa) -->
+    <div id="globe-stage" aria-label="Globo terráqueo interactivo"></div>
+
+    <!-- Barra superior mínima -->
+    <header class="globe-topbar">
+        <a class="globe-back" href="/explore" title="Volver al mapa">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <a class="globe-brand" href="/">WE<span>ÖTZI</span></a>
+        <span id="globe-counter" class="globe-counter"></span>
+    </header>
+
+    <!-- Buscador (search-first) -->
+    <div class="globe-search" role="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="globe-search-input" type="search" autocomplete="off"
+               placeholder="Busca artistas, estudios, ciudades o estilos…"
+               aria-label="Buscar artistas, estudios, ciudades o estilos">
+        <div id="globe-search-results" class="globe-search-results" hidden></div>
+    </div>
+
+    <!-- Tarjeta de selección (artista / estudio / ciudad / estilo) -->
+    <aside id="globe-card" class="globe-card" hidden>
+        <button id="card-close" class="card-close" aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="card-body"></div>
+    </aside>
+
+    <!-- Overlay del tour (avión recorriendo el itinerario) -->
+    <div id="globe-tour" class="globe-tour" hidden>
+        <div class="tour-head">
+            <i class="fa-solid fa-plane"></i>
+            <span>Viaje de <strong id="tour-artist"></strong></span>
+        </div>
+        <div id="tour-stop" class="tour-stop"></div>
+        <div class="tour-controls">
+            <button id="tour-next" class="btn-ghost"><i class="fa-solid fa-forward"></i> Siguiente</button>
+            <button id="tour-exit" class="btn-ghost"><i class="fa-solid fa-xmark"></i> Salir</button>
+        </div>
+    </div>
+
+    <!-- Tooltip al pasar por un marcador -->
+    <div id="globe-tip" class="globe-tip" hidden></div>
+
+    <!-- Estado de carga / errores -->
+    <div id="globe-status" class="globe-status">Cargando el mundo…</div>
+
+    <script type="module" src="/shared/js/globe/globe-app.js"></script>
 </body>
 </html>
