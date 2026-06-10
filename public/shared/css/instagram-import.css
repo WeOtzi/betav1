@@ -1,0 +1,500 @@
+/* Instagram Import — modal + 3 screens (input → preview → result).
+   Hooked up by public/shared/js/instagram-import.js via IGImport.mount(). */
+
+.ig-import-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #C13584, #833AB4, #405DE6);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ig-import-trigger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(193, 53, 132, 0.35);
+}
+.ig-import-trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ig-import-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+    animation: ig-fade 0.18s ease-out;
+}
+@keyframes ig-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.ig-import-modal {
+    background: #1a1a1a;
+    color: #f0f0f0;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100vh - 32px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.ig-import-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #2a2a2a;
+}
+.ig-import-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ig-import-header h3 i {
+    background: linear-gradient(135deg, #C13584, #833AB4);
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.ig-import-close {
+    background: transparent;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+    line-height: 1;
+}
+.ig-import-close:hover { color: #fff; }
+
+.ig-import-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.ig-import-body label {
+    display: block;
+    font-size: 13px;
+    color: #ccc;
+    margin-bottom: 6px;
+}
+.ig-import-body input[type="text"],
+.ig-import-body select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0f0f0f;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-size: 14px;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+}
+.ig-import-body input[type="text"]:focus,
+.ig-import-body select:focus {
+    outline: none;
+    border-color: #C13584;
+}
+.ig-import-body small {
+    display: block;
+    color: #888;
+    font-size: 11px;
+    margin: -10px 0 14px;
+    line-height: 1.4;
+}
+
+.ig-import-disclaimer {
+    background: #2a1f15;
+    border: 1px solid #5a3d20;
+    color: #ddc7a8;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.ig-preview-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+.ig-preview-profile img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid #C13584;
+    object-fit: cover;
+}
+.ig-preview-profile .ig-preview-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+.ig-preview-profile .ig-preview-handle {
+    color: #999;
+    font-size: 12px;
+}
+
+.ig-checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.ig-checkbox-list label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 0;
+    transition: border-color 0.15s ease;
+}
+.ig-checkbox-list label:hover { border-color: #444; }
+.ig-checkbox-list label.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.ig-checkbox-list input[type="checkbox"] {
+    margin: 2px 0 0 0;
+    accent-color: #C13584;
+    cursor: pointer;
+}
+.ig-checkbox-list label.disabled input { cursor: not-allowed; }
+.ig-checkbox-list .ig-cb-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #f0f0f0;
+    display: block;
+}
+.ig-checkbox-list .ig-cb-detail {
+    font-size: 12px;
+    color: #999;
+    display: block;
+    margin-top: 2px;
+    word-break: break-word;
+}
+
+.ig-import-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid #2a2a2a;
+    background: #141414;
+}
+.ig-btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+.ig-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ig-btn-primary {
+    background: linear-gradient(135deg, #C13584, #833AB4);
+    color: #fff;
+}
+.ig-btn-secondary {
+    background: #2a2a2a;
+    color: #ddd;
+}
+.ig-btn-secondary:hover { background: #333; }
+
+.ig-status {
+    text-align: center;
+    padding: 32px 20px;
+    color: #ccc;
+}
+.ig-status .ig-spinner {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border: 3px solid #2a2a2a;
+    border-top-color: #C13584;
+    border-radius: 50%;
+    animation: ig-spin 0.8s linear infinite;
+    margin-bottom: 14px;
+}
+@keyframes ig-spin { to { transform: rotate(360deg); } }
+.ig-status .ig-progress-text {
+    font-size: 13px;
+    color: #aaa;
+    margin-top: 8px;
+}
+
+.ig-error-box {
+    background: #2a1515;
+    border: 1px solid #5a2020;
+    color: #f5b8b8;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+}
+
+.ig-success-box {
+    background: #15291a;
+    border: 1px solid #2d5530;
+    color: #b8e8c0;
+    padding: 14px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 14px;
+}
+.ig-success-box strong { color: #d8f7df; }
+
+/* Artist registration keeps the Bauhaus form language instead of the
+   dashboard dark/Instagram treatment. */
+body.register-page .ig-import-trigger {
+    border: 1.5px solid var(--ink, #15110D);
+    border-radius: 0;
+    background: var(--ink, #15110D);
+    color: var(--cream, #F2EFE6);
+    min-height: 52px;
+    padding: 0 18px;
+    font-family: var(--sans, "Inter", sans-serif);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: none;
+}
+body.register-page .ig-import-trigger:hover {
+    transform: translateY(-2px);
+    background: var(--red, #E63A1F);
+    box-shadow: none;
+}
+body.register-page .ig-import-overlay {
+    background: rgba(21, 17, 13, 0.64);
+    padding: 18px;
+}
+body.register-page .ig-import-modal {
+    width: min(720px, 94vw);
+    max-height: min(720px, calc(100vh - 36px));
+    border: 1.5px solid var(--ink, #15110D);
+    border-radius: 0;
+    background: var(--cream, #F2EFE6);
+    color: var(--ink, #15110D);
+    box-shadow: none;
+}
+body.register-page .ig-import-header {
+    min-height: 86px;
+    padding: 18px 20px;
+    border-bottom: 1.5px solid var(--ink, #15110D);
+    background: var(--cream, #F2EFE6);
+}
+body.register-page .ig-import-header h3 {
+    font-family: var(--display, "Archivo Black", sans-serif);
+    font-size: clamp(26px, 4.5vw, 42px);
+    line-height: 0.94;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+body.register-page .ig-import-header h3 i {
+    width: 38px;
+    height: 38px;
+    border-radius: 0;
+    border: 1.5px solid var(--ink, #15110D);
+    background: var(--red, #E63A1F);
+    color: var(--cream, #F2EFE6);
+    font-size: 18px;
+    flex: 0 0 38px;
+}
+body.register-page .ig-import-close {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1.5px solid var(--ink, #15110D);
+    background: var(--ink, #15110D);
+    color: var(--cream, #F2EFE6);
+    font-size: 30px;
+    line-height: 1;
+    flex: 0 0 44px;
+}
+body.register-page .ig-import-close:hover {
+    background: var(--red, #E63A1F);
+    color: var(--cream, #F2EFE6);
+}
+body.register-page .ig-import-body {
+    padding: 22px 20px;
+}
+body.register-page .ig-import-body label {
+    margin: 0 0 8px;
+    color: var(--ink-2, #2A2520);
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+body.register-page .ig-import-body input[type="text"],
+body.register-page .ig-import-body select {
+    min-height: 52px;
+    margin-bottom: 16px;
+    padding: 0 14px;
+    border: 1.5px solid var(--ink, #15110D);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink, #15110D);
+    font-family: var(--sans, "Inter", sans-serif);
+    font-size: 18px;
+    font-weight: 800;
+}
+body.register-page .ig-import-body select {
+    background-color: var(--cream, #F2EFE6);
+}
+body.register-page .ig-import-body input[type="text"]::placeholder {
+    color: rgba(21, 17, 13, 0.4);
+}
+body.register-page .ig-import-body input[type="text"]:focus,
+body.register-page .ig-import-body select:focus {
+    border-color: var(--red, #E63A1F);
+    box-shadow: inset 0 -4px 0 var(--red, #E63A1F);
+}
+body.register-page .ig-import-disclaimer {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--ink, #15110D);
+    border-left: 10px solid var(--yellow, #F2B519);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink, #15110D);
+    font-family: var(--sans, "Inter", sans-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+body.register-page .ig-preview-profile,
+body.register-page .ig-checkbox-list label,
+body.register-page .ig-error-box,
+body.register-page .ig-success-box {
+    border: 1.5px solid var(--ink, #15110D);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink, #15110D);
+}
+body.register-page .ig-preview-profile img {
+    border: 1.5px solid var(--ink, #15110D);
+    border-radius: 0;
+}
+body.register-page .ig-preview-profile .ig-preview-name,
+body.register-page .ig-checkbox-list .ig-cb-title,
+body.register-page .ig-success-box strong {
+    color: var(--ink, #15110D);
+    font-weight: 900;
+}
+body.register-page .ig-preview-profile .ig-preview-handle,
+body.register-page .ig-checkbox-list .ig-cb-detail,
+body.register-page .ig-status,
+body.register-page .ig-status .ig-progress-text {
+    color: var(--ink-2, #2A2520);
+}
+body.register-page .ig-checkbox-list label:hover {
+    border-color: var(--red, #E63A1F);
+}
+body.register-page .ig-checkbox-list input[type="checkbox"] {
+    accent-color: var(--red, #E63A1F);
+}
+body.register-page .ig-import-footer {
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1.5px solid var(--ink, #15110D);
+    background: var(--cream, #F2EFE6);
+}
+body.register-page .ig-btn {
+    min-height: 56px;
+    padding: 0 28px;
+    border: 1.5px solid var(--ink, #15110D);
+    border-radius: 0;
+    font-family: var(--sans, "Inter", sans-serif);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+body.register-page .ig-btn-primary {
+    background: var(--red, #E63A1F);
+    color: var(--cream, #F2EFE6);
+}
+body.register-page .ig-btn-secondary {
+    background: transparent;
+    color: var(--ink, #15110D);
+}
+body.register-page .ig-btn:hover {
+    transform: translateY(-2px);
+    background: var(--ink, #15110D);
+    color: var(--cream, #F2EFE6);
+}
+body.register-page .ig-status .ig-spinner {
+    border-color: rgba(21, 17, 13, 0.18);
+    border-top-color: var(--red, #E63A1F);
+}
+body.register-page .ig-error-box {
+    border-left: 10px solid var(--red, #E63A1F);
+}
+body.register-page .ig-success-box {
+    border-left: 10px solid var(--blue, #1E3FA6);
+}
+
+@media (max-width: 600px) {
+    body.register-page .ig-import-overlay {
+        align-items: flex-end;
+        padding: 12px;
+    }
+    body.register-page .ig-import-modal {
+        width: 100%;
+        max-height: calc(100vh - 24px);
+    }
+    body.register-page .ig-import-header h3 {
+        font-size: 24px;
+    }
+    body.register-page .ig-import-header h3 i {
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
+    }
+    body.register-page .ig-import-footer {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+    body.register-page .ig-btn {
+        width: 100%;
+    }
+}
