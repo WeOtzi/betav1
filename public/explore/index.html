@@ -21,39 +21,35 @@
     <div class="explore-app">
         <header class="explore-header">
             <div class="explore-header-left">
-                <a href="/marketplace" class="nav-btn" aria-label="Volver al marketplace">
-                    <i class="fa-solid fa-arrow-left"></i>
+                <a href="/marketplace" class="explore-back" aria-label="Volver al marketplace">←</a>
+                <a href="/" class="explore-logo" aria-label="We Ötzi inicio">
+                    <span class="explore-logo-marks" aria-hidden="true">
+                        <span class="sq"></span>
+                        <span class="ci"></span>
+                        <span class="tr"></span>
+                    </span>
+                    <span class="explore-logo-text">WE<span class="umlaut">Ö</span>TZI</span>
                 </a>
-                <div class="explore-header-title">
-                    <span class="atlas-eyebrow"><span>Live</span> · Atlas — Edición 2026</span>
-                    <span class="atlas-wordmark">Mapa de <span class="accent">tatuadores</span></span>
-                </div>
+                <p class="explore-tag" id="atlas-counter">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span class="explore-tag-label">Atlas</span>
+                    <span class="explore-tag-counter"><span id="atlas-counter-value">000</span> pins · <span id="atlas-counter-countries">0</span> países</span>
+                </p>
             </div>
 
-            <div class="explore-header-center">
-                <div class="atlas-counter" id="atlas-counter">
-                    <span class="value" id="atlas-counter-value">000</span>
-                    <span class="label">Pins activos · <span id="atlas-counter-countries">0</span> países</span>
-                </div>
-            </div>
+            <div></div>
 
             <div class="explore-header-right">
-                <a href="/explore/globe" class="explore-globe-cta" aria-label="Abrir vista de globo interactivo">
-                    <i class="fa-solid fa-earth-americas" aria-hidden="true"></i>
-                    <span class="explore-globe-cta-label">Vista Globo</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square explore-globe-cta-arrow" aria-hidden="true"></i>
-                </a>
-                <nav class="dashboard-quick-nav explore-nav-links" aria-label="Navegación principal">
-                    <a href="/marketplace" class="dashboard-quick-link">Marketplace</a>
-                    <a href="/quotation" class="dashboard-quick-link">Cotizar</a>
-                    <a href="/job-board" class="dashboard-quick-link dashboard-quick-link-job-board">Job Board</a>
-                    <a href="/client/login" class="dashboard-quick-link">Acceder</a>
+                <nav class="explore-nav-links" aria-label="Navegación principal">
+                    <a href="/marketplace">Marketplace</a>
+                    <a href="/quotation">Cotizar</a>
+                    <a href="/job-board">Job Board</a>
+                    <a href="/client/login">Acceder</a>
                 </nav>
-                <button class="mobile-menu-toggle explore-menu-toggle" id="explore-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="explore-mobile-menu">
-                    Menú
-                </button>
-                <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
-                    <i class="fa-solid fa-moon"></i>
+                <a href="/explore/globe" class="explore-globe-cta" aria-label="Abrir vista de globo interactivo">Vista Globo</a>
+                <button id="theme-toggle" class="explore-theme-mark" type="button" aria-label="Cambiar tema" onclick="toggleTheme()">Ö</button>
+                <button class="explore-burger" id="explore-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="explore-mobile-menu" aria-label="Abrir menú">
+                    <i></i><i></i><i></i>
                 </button>
             </div>
         </header>
@@ -69,29 +65,38 @@
         </nav>
 
         <section class="explore-filters" aria-label="Filtros">
-            <div class="filter-pill-group" id="style-filter-pills" aria-label="Filtros por estilo">
-                <!-- Pills de estilos + Estudios toggle inyectados por explore-map.js -->
+            <div class="explore-filters-row">
+                <div class="filter-pill-group" id="style-filter-pills" aria-label="Filtros por estilo">
+                    <!-- Pills de estilos + Estudios toggle inyectados por explore-map.js -->
+                </div>
+                <button class="explore-filters-toggle" id="explore-filters-toggle" type="button" aria-expanded="false" aria-controls="explore-filter-drawer">
+                    <span class="explore-filters-toggle-dot" aria-hidden="true" hidden></span>
+                    Filtros
+                    <span class="chev" aria-hidden="true">↓</span>
+                </button>
             </div>
-            <div class="filter-select-group">
-                <select id="filter-country" aria-label="País">
-                    <option value="">Todos los países</option>
-                </select>
-                <select id="filter-price" aria-label="Rango de precio">
-                    <option value="">Cualquier precio</option>
-                    <option value="low">Económico (&lt; 200 USD)</option>
-                    <option value="medium">Medio (200 - 800 USD)</option>
-                    <option value="high">Premium (&gt; 800 USD)</option>
-                </select>
-                <select id="filter-language" aria-label="Idioma">
-                    <option value="">Cualquier idioma</option>
-                </select>
-                <select id="filter-experience" aria-label="Experiencia">
-                    <option value="">Cualquier experiencia</option>
-                    <option value="junior">Junior (1-3 años)</option>
-                    <option value="mid">Intermedio (4-7 años)</option>
-                    <option value="senior">Senior (8+ años)</option>
-                </select>
-                <button class="explore-clear-btn" id="explore-clear-btn">Limpiar</button>
+            <div class="explore-filter-drawer" id="explore-filter-drawer" hidden>
+                <div class="filter-select-group">
+                    <select id="filter-country" aria-label="País">
+                        <option value="">Todos los países</option>
+                    </select>
+                    <select id="filter-price" aria-label="Rango de precio">
+                        <option value="">Cualquier precio</option>
+                        <option value="low">Económico (&lt; 200 USD)</option>
+                        <option value="medium">Medio (200 - 800 USD)</option>
+                        <option value="high">Premium (&gt; 800 USD)</option>
+                    </select>
+                    <select id="filter-language" aria-label="Idioma">
+                        <option value="">Cualquier idioma</option>
+                    </select>
+                    <select id="filter-experience" aria-label="Experiencia">
+                        <option value="">Cualquier experiencia</option>
+                        <option value="junior">Junior (1-3 años)</option>
+                        <option value="mid">Intermedio (4-7 años)</option>
+                        <option value="senior">Senior (8+ años)</option>
+                    </select>
+                    <button class="explore-clear-btn" id="explore-clear-btn">Limpiar</button>
+                </div>
             </div>
         </section>
 
@@ -213,6 +218,30 @@
                 });
                 window.addEventListener('resize', () => {
                     if (window.innerWidth > 768) setOpen(false);
+                });
+            }
+
+            // Drawer de filtros avanzados (selects + limpiar)
+            const filtersToggle = document.getElementById('explore-filters-toggle');
+            const filterDrawer = document.getElementById('explore-filter-drawer');
+            if (filtersToggle && filterDrawer) {
+                filtersToggle.addEventListener('click', () => {
+                    const open = filtersToggle.getAttribute('aria-expanded') !== 'true';
+                    filtersToggle.setAttribute('aria-expanded', String(open));
+                    filterDrawer.hidden = !open;
+                });
+
+                // Punto rojo en el botón cuando hay algún filtro avanzado activo
+                const dot = filtersToggle.querySelector('.explore-filters-toggle-dot');
+                const updateDot = () => {
+                    if (!dot) return;
+                    const active = Array.from(filterDrawer.querySelectorAll('select'))
+                        .some((s) => s.value !== '');
+                    dot.hidden = !active;
+                };
+                filterDrawer.addEventListener('change', updateDot);
+                document.getElementById('explore-clear-btn')?.addEventListener('click', () => {
+                    setTimeout(updateDot, 0);
                 });
             }
         });

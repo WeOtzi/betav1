@@ -1,33 +1,42 @@
 /* ============================================
    WE ÖTZI — ATLAS DE TATUADORES (/explore)
-   Editorial Bauhaus. Big, dense, magazine-grade.
+   Bauhaus unificado (mismo lenguaje que /registerclosedbeta):
+   regla fina 1.5px, cream/ink del tema global, un solo set de acentos.
    Typography:  Archivo Black (display)
-                IBM Plex Mono (technical)
-                Inter (body, falls through from styles.css)
+                JetBrains Mono (technical)
+                Inter (body)
    ============================================ */
 
 /* Page-scoped font import (does not pollute the rest of the app). */
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;700&family=Inter:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;700;800&display=swap');
 
-/* ----- TOKENS (page-scoped overrides; inherits theme tokens from styles.css) ----- */
+/* ----- TOKENS (page-scoped; bg/fg inherit theme tokens from styles.css) ----- */
 .explore-app {
     --atlas-display: 'Archivo Black', 'Inter', sans-serif;
-    --atlas-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Consolas', monospace;
+    --atlas-mono: 'JetBrains Mono', 'Consolas', monospace;
     --atlas-body: 'Inter', system-ui, sans-serif;
 
-    --atlas-rule: 2px;
-    --atlas-rule-thick: 3px;
-    --atlas-pad: clamp(14px, 2vw, 28px);
-    --atlas-grid-line: rgba(10, 10, 10, 0.07);
+    /* Acentos alineados a la edición Bauhaus del registro. */
+    --primary-red: #E63A1F;
+    --primary-yellow: #F2B519;
+    --primary-blue: #1E3FA6;
+    --atlas-red-deep: #C42E15;
 
-    --atlas-shadow-sm: 4px 4px 0 var(--fg);
-    --atlas-shadow-md: 6px 6px 0 var(--fg);
-    --atlas-shadow-lg: 10px 10px 0 var(--fg);
+    --atlas-rule: 1.5px;
+    --atlas-pad: clamp(16px, 2.2vw, 32px);
+    --atlas-header-h: 64px;
+
+    --atlas-shadow-sm: 3px 3px 0 var(--fg);
+    --atlas-shadow-md: 4px 4px 0 var(--fg);
+    --atlas-shadow-lg: 8px 8px 0 var(--fg);
 
     height: 100vh;
     height: 100dvh;
     display: grid;
     grid-template-rows: auto auto auto 1fr;
+    /* minmax(0, 1fr) evita que el rail de pills (overflow-x) ensanche
+       la única columna del grid más allá del viewport. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
         "masthead"
         "filters"
@@ -38,520 +47,418 @@
     font-family: var(--atlas-body);
     overflow: hidden;
     position: relative;
-    /* Subtle atlas paper grid that reads as topo-paper, not noise. */
-    background-image:
-        linear-gradient(var(--atlas-grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--atlas-grid-line) 1px, transparent 1px);
-    background-size: 48px 48px, 48px 48px;
-    background-position: -1px -1px;
 }
 
-[data-theme="dark"] .explore-app {
-    --atlas-grid-line: rgba(242, 240, 233, 0.06);
-}
-
-/* Hide the global noise overlay only on this page — it muddies the map. */
+/* Hide the global noise overlay on this page — it muddies the map. */
 .explore-app ~ *,
 body:has(.explore-app)::before { opacity: 0 !important; }
 
 /* ============================================================
-   MASTHEAD — editorial dateline + wordmark + nav
+   MASTHEAD — nav unificado WEÖTZI + tag Atlas
    ============================================================ */
 .explore-header {
     grid-area: masthead;
     position: relative;
     z-index: 30;
     background: var(--bg);
-    border-bottom: var(--atlas-rule-thick) solid var(--fg);
+    border-bottom: var(--atlas-rule) solid var(--fg);
     display: grid;
     grid-template-columns: auto 1fr auto;
-    grid-template-rows: auto;
-    align-items: stretch;
-    column-gap: 0;
-    height: 84px;
+    align-items: center;
+    height: var(--atlas-header-h);
+    padding: 0 var(--atlas-pad);
+    gap: 24px;
 }
 
-/* LEFT — back button + ATLAS wordmark */
+/* LEFT — back + logo + tag Atlas con contador */
 .explore-header-left {
     display: flex;
-    align-items: stretch;
-    gap: 0;
-    border-right: var(--atlas-rule) solid var(--fg);
+    align-items: center;
+    height: 100%;
     min-width: 0;
 }
 
-.explore-header-left .nav-btn {
-    width: 56px;
-    height: 100%;
-    border: none;
-    border-right: var(--atlas-rule) solid var(--fg);
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-    font-size: 1rem;
-    transition: background 0.18s, color 0.18s, transform 0.18s;
+.explore-back {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: var(--atlas-rule) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--atlas-mono);
+    font-size: 0.95rem;
+    margin-right: 18px;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.explore-header-left .nav-btn:hover {
+.explore-back:hover {
     background: var(--fg);
     color: var(--bg);
-    transform: none;
 }
 
-.explore-header-title {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
-    padding: 0 18px;
-    min-width: 0;
-}
-
-.explore-header-title .atlas-eyebrow {
-    font-family: var(--atlas-mono);
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
+.explore-logo {
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.explore-header-title .atlas-eyebrow::before {
-    content: '';
-    width: 8px;
-    height: 8px;
-    background: var(--primary-red);
-    display: inline-block;
-    border-radius: 50%;
-    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--primary-red);
-    animation: atlas-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes atlas-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-}
-
-.explore-header-title .atlas-wordmark {
+    gap: 10px;
     font-family: var(--atlas-display);
-    font-size: clamp(1.6rem, 2.5vw, 2.1rem);
-    line-height: 0.92;
-    letter-spacing: -0.04em;
+    font-size: 17px;
+    letter-spacing: 0.02em;
+    color: var(--fg);
+    text-decoration: none;
+    margin-right: 22px;
+    flex-shrink: 0;
+}
+
+.explore-logo-marks {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.explore-logo-marks .sq { width: 13px; height: 13px; background: var(--primary-red); }
+.explore-logo-marks .ci { width: 13px; height: 13px; background: var(--primary-yellow); border-radius: 50%; }
+.explore-logo-marks .tr {
+    width: 0; height: 0;
+    border-left: 6.5px solid transparent;
+    border-right: 6.5px solid transparent;
+    border-bottom: 13px solid var(--primary-blue);
+}
+
+.explore-logo .umlaut { display: inline-block; transform: translateY(-1px); }
+
+.explore-tag {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--atlas-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--fg);
+    padding-left: 22px;
+    border-left: var(--atlas-rule) solid var(--fg);
+    align-self: stretch;
+    margin: 0;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.atlas-wordmark .accent {
-    color: var(--primary-red);
-    font-style: italic;
+.explore-tag .dot {
+    width: 7px;
+    height: 7px;
+    background: var(--primary-red);
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
-/* CENTER — live counter strip */
-.explore-header-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-right: var(--atlas-rule) solid var(--fg);
-    padding: 0 18px;
-    min-width: 0;
-    background:
-        repeating-linear-gradient(
-            45deg,
-            transparent 0,
-            transparent 6px,
-            rgba(10, 10, 10, 0.05) 6px,
-            rgba(10, 10, 10, 0.05) 7px
-        );
+.explore-tag .explore-tag-label {
+    font-weight: 700;
 }
 
-[data-theme="dark"] .explore-header-center {
-    background:
-        repeating-linear-gradient(
-            45deg,
-            transparent 0,
-            transparent 6px,
-            rgba(242, 240, 233, 0.05) 6px,
-            rgba(242, 240, 233, 0.05) 7px
-        );
-}
-
-.atlas-counter {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    background: var(--bg);
-    border: var(--atlas-rule) solid var(--fg);
-    padding: 6px 14px;
-    box-shadow: var(--atlas-shadow-sm);
-    font-family: var(--atlas-mono);
-}
-
-.atlas-counter .value {
-    font-family: var(--atlas-display);
-    font-size: 1.4rem;
-    line-height: 1;
-    letter-spacing: -0.04em;
-    color: var(--fg);
+.explore-tag .explore-tag-counter {
+    color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
 }
 
-.atlas-counter .label {
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-}
-
-/* RIGHT — nav + theme toggle */
+/* RIGHT — nav links + globo + toggle Ö + burger */
 .explore-header-right {
     display: flex;
-    align-items: stretch;
-    gap: 0;
-    min-width: 0;
-}
-
-.explore-nav-links.dashboard-quick-nav {
-    display: inline-flex;
-    align-items: stretch;
-    height: 100%;
-    border: none;
-    border-right: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-}
-
-.explore-nav-links .dashboard-quick-link {
-    height: 100%;
-    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 0 1.05rem;
-    border-right: var(--atlas-rule) solid var(--fg);
+    gap: 22px;
+}
+
+.explore-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: var(--atlas-body);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.explore-nav-links a {
+    color: var(--fg);
     text-decoration: none;
-    font-family: var(--atlas-mono);
-    font-size: 0.66rem;
+    transition: color 0.15s ease;
+}
+
+.explore-nav-links a:hover { color: var(--primary-red); }
+
+.explore-globe-cta {
+    background: var(--primary-red);
+    color: #F2EFE6;
+    font-family: var(--atlas-body);
+    font-weight: 800;
+    font-size: 12px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    font-weight: 700;
-    color: var(--fg);
-    background: var(--bg);
-    transition: background 0.18s, color 0.18s, transform 0.18s;
+    padding: 9px 16px;
+    border: none;
+    text-decoration: none;
     white-space: nowrap;
-    position: relative;
+    transition: background 0.15s ease, transform 0.12s ease;
 }
 
-.explore-nav-links .dashboard-quick-link:last-child { border-right: none; }
-
-.explore-nav-links .dashboard-quick-link:hover {
-    background: var(--fg);
-    color: var(--bg);
+.explore-globe-cta:hover {
+    background: var(--atlas-red-deep);
+    transform: translateY(-1px);
 }
 
-.explore-nav-links .dashboard-quick-link::after {
-    content: '';
-    position: absolute;
-    inset: auto 0 0 0;
-    height: 0;
-    background: var(--primary-red);
-    transition: height 0.2s ease;
-}
-
-.explore-nav-links .dashboard-quick-link:hover::after { height: 4px; }
-
-.explore-nav-links .dashboard-quick-link-job-board {
-    background: var(--primary-red);
-    color: var(--bg);
-}
-.explore-nav-links .dashboard-quick-link-job-board:hover { background: var(--fg); }
-
-#theme-toggle.nav-btn {
-    width: 56px;
-    height: 100%;
-    border: none;
+#theme-toggle.explore-theme-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: var(--atlas-rule) solid var(--fg);
     background: var(--bg);
     color: var(--fg);
-    font-size: 1rem;
-}
-
-#theme-toggle.nav-btn:hover {
-    background: var(--fg);
-    color: var(--bg);
-    transform: none;
-}
-
-.explore-menu-toggle.mobile-menu-toggle {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    width: 64px;
-    padding: 0;
-    border: none;
-    border-right: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--atlas-mono);
-    font-size: 0.62rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    font-weight: 800;
+    display: grid;
+    place-items: center;
+    font-family: var(--atlas-display);
+    font-size: 13px;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.explore-menu-toggle.mobile-menu-toggle:hover,
-.explore-menu-toggle.mobile-menu-toggle[aria-expanded="true"] {
+#theme-toggle.explore-theme-mark:hover {
     background: var(--primary-yellow);
     color: var(--text-on-light);
 }
+
+.explore-burger {
+    display: none;
+    width: 34px;
+    height: 34px;
+    border: var(--atlas-rule) solid var(--fg);
+    background: var(--bg);
+    cursor: pointer;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.explore-burger i {
+    width: 16px;
+    height: 2px;
+    background: var(--fg);
+    display: block;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.explore-burger[aria-expanded="true"] i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.explore-burger[aria-expanded="true"] i:nth-child(2) { opacity: 0; }
+.explore-burger[aria-expanded="true"] i:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
 .explore-mobile-menu.dashboard-mobile-menu { display: none; }
 .explore-mobile-menu.dashboard-mobile-menu[hidden] { display: none !important; }
 
 /* ============================================================
-   GLOBE ENTRYPOINT — pre-nav anchor that takes the user to the
-   premium /explore/globe experience. Yellow + globe icon makes it
-   pop next to the muted mono nav links without changing the
-   masthead's information hierarchy.
-   ============================================================ */
-.explore-header-right .explore-globe-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    height: 100%;
-    padding: 0 16px;
-    border-right: var(--atlas-rule) solid var(--fg);
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-    text-decoration: none;
-    font-family: var(--atlas-mono);
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-size: 0.7rem;
-    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.explore-header-right .explore-globe-cta::before {
-    /* Diagonal stripes hint at the editorial-dark globe page beyond. */
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        repeating-linear-gradient(
-            45deg,
-            transparent 0, transparent 10px,
-            rgba(10, 10, 10, 0.06) 10px, rgba(10, 10, 10, 0.06) 11px
-        );
-    opacity: 0.85;
-    pointer-events: none;
-}
-
-.explore-header-right .explore-globe-cta > * {
-    position: relative;
-    z-index: 1;
-}
-
-.explore-header-right .explore-globe-cta i.fa-earth-americas {
-    font-size: 1.05rem;
-}
-
-.explore-header-right .explore-globe-cta .explore-globe-cta-arrow {
-    font-size: 0.65rem;
-    opacity: 0.75;
-    transition: transform 0.18s ease;
-}
-
-.explore-header-right .explore-globe-cta:hover {
-    background: var(--fg);
-    color: var(--bg);
-}
-
-.explore-header-right .explore-globe-cta:hover .explore-globe-cta-arrow {
-    transform: translate(2px, -2px);
-    opacity: 1;
-}
-
-@media (max-width: 1100px) {
-    .explore-header-right .explore-globe-cta-label { display: none; }
-    .explore-header-right .explore-globe-cta { padding: 0 14px; }
-}
-
-@media (max-width: 768px) {
-    /* On mobile the header collapses; the entrypoint moves into the
-       drawer (.explore-mobile-menu-link-globe), so we hide the header
-       version to keep the masthead breathable. */
-    .explore-header-right .explore-globe-cta { display: none; }
-}
-
-.explore-mobile-menu .explore-mobile-menu-link-globe {
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    grid-column: 1 / -1; /* span both columns of the 2-col mobile menu */
-}
-
-.explore-mobile-menu .explore-mobile-menu-link-globe:hover {
-    background: var(--fg);
-    color: var(--bg);
-}
-
-/* ============================================================
-   FILTERS BAR — pill rail + selects + clear
+   FILTERS — pills visibles + drawer de filtros avanzados
    ============================================================ */
 .explore-filters {
     grid-area: filters;
-    border-bottom: var(--atlas-rule-thick) solid var(--fg);
-    padding: 12px var(--atlas-pad);
+    border-bottom: var(--atlas-rule) solid var(--fg);
     background: var(--bg);
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    column-gap: 18px;
-    row-gap: 10px;
     position: relative;
     z-index: 25;
+    min-width: 0;
+}
+
+.explore-filters-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px var(--atlas-pad);
 }
 
 .explore-app .filter-pill-group {
+    flex: 1;
     display: flex;
     gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: thin;
-    padding-bottom: 4px;
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 24px), transparent);
     min-width: 0;
+    /* Aire para que translate+sombra del hover no se recorte. */
+    padding: 4px 4px 6px 0;
+    margin: -4px 0 -2px;
 }
+
+.explore-app .filter-pill-group::-webkit-scrollbar { display: none; }
 
 .explore-app .filter-pill {
     flex: 0 0 auto;
     font-family: var(--atlas-mono);
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.7rem;
+    font-size: 0.64rem;
     letter-spacing: 0.08em;
-    padding: 8px 14px;
+    padding: 8px 13px;
     border: var(--atlas-rule) solid var(--fg);
     background: var(--bg);
     color: var(--fg);
     cursor: pointer;
-    transition: background 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    position: relative;
+    gap: 7px;
     white-space: nowrap;
 }
 
 .explore-app .filter-pill i { font-size: 0.85em; }
 
 .explore-app .filter-pill:hover {
-    background: var(--fg);
-    color: var(--bg);
-    transform: translate(-2px, -2px);
+    transform: translate(-1px, -1px);
     box-shadow: var(--atlas-shadow-sm);
 }
 
 .explore-app .filter-pill.is-active {
     background: var(--primary-yellow);
     color: var(--text-on-light);
-    border-color: var(--fg);
-    box-shadow: var(--atlas-shadow-sm);
-    transform: translate(-2px, -2px);
 }
 
-.explore-app .filter-pill .pill-count { opacity: 0.55; font-size: 0.92em; }
+.explore-app .filter-pill .pill-count { opacity: 0.5; font-size: 0.92em; }
 
-/* Important: scoped under .explore-app to override marketplace.css which sets
-   .filter-select-group { display: flex; flex-direction: column } and would
-   otherwise stack our 4 selects + button vertically into a 250px-tall column. */
+.explore-filters-toggle {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 14px;
+    border: var(--atlas-rule) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--atlas-mono);
+    font-weight: 700;
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s ease, color 0.15s ease;
+    position: relative;
+}
+
+.explore-filters-toggle:hover,
+.explore-filters-toggle[aria-expanded="true"] {
+    background: var(--fg);
+    color: var(--bg);
+}
+
+.explore-filters-toggle .chev {
+    font-size: 0.8em;
+    transition: transform 0.18s ease;
+}
+
+.explore-filters-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+/* Punto rojo = hay filtros avanzados activos. */
+.explore-filters-toggle .explore-filters-toggle-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary-red);
+    flex-shrink: 0;
+}
+
+.explore-filters-toggle .explore-filters-toggle-dot[hidden] { display: none; }
+
+/* Drawer */
+.explore-filter-drawer {
+    border-top: var(--atlas-rule) solid var(--fg);
+    background: var(--surface-color);
+    padding: 14px var(--atlas-pad);
+    animation: explore-drawer-in 0.18s ease;
+}
+
+.explore-filter-drawer[hidden] { display: none; }
+
+@keyframes explore-drawer-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scoped under .explore-app to override marketplace.css, which stacks
+   .filter-select-group vertically. */
 .explore-app .filter-select-group {
     display: flex;
     flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 10px;
     align-items: center;
-    justify-self: end;
     min-width: 0;
 }
 
 .explore-app .filter-select-group select {
     flex: 0 0 auto;
-    width: 168px;
-    max-width: 200px;
-    height: 40px;
+    width: auto; /* marketplace.css fuerza width:100% y apila los selects */
+    min-width: 168px;
+    height: 38px;
     padding: 0 32px 0 12px;
     border: var(--atlas-rule) solid var(--fg);
-    border-bottom: var(--atlas-rule) solid var(--fg);
     background: var(--bg);
     color: var(--fg);
     font-family: var(--atlas-mono);
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: 0.68rem;
+    font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     cursor: pointer;
     margin: 0;
     appearance: none;
     -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%230A0A0A' stroke-width='2' fill='none'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%230A0A0A' stroke-width='1.5' fill='none'/></svg>");
     background-repeat: no-repeat;
-    background-position: right 8px center;
-    transition: background-color 0.15s, color 0.15s;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+    transition: border-color 0.15s ease;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
 }
 
-.explore-app .filter-select-group #filter-country { width: 188px; }
-.explore-app .filter-select-group #filter-price { width: 176px; }
-.explore-app .filter-select-group #filter-language { width: 168px; }
-.explore-app .filter-select-group #filter-experience { width: 192px; }
-
 [data-theme="dark"] .explore-app .filter-select-group select {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23F2F0E9' stroke-width='2' fill='none'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23F2F0E9' stroke-width='1.5' fill='none'/></svg>");
 }
 
-.explore-app .filter-select-group select:hover {
-    background-color: var(--fg);
-    color: var(--bg);
-}
-
-[data-theme="dark"] .explore-app .filter-select-group select:hover {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%230A0A0A' stroke-width='2' fill='none'/></svg>");
+.explore-app .filter-select-group select:hover,
+.explore-app .filter-select-group select:focus {
+    border-color: var(--primary-red);
+    outline: none;
 }
 
 .explore-clear-btn {
-    height: 40px;
+    height: 38px;
     padding: 0 16px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--primary-red);
-    color: var(--bg);
+    border: var(--atlas-rule) solid var(--primary-red);
+    background: transparent;
+    color: var(--primary-red);
     font-family: var(--atlas-mono);
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     letter-spacing: 0.1em;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+    margin-left: auto;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .explore-clear-btn:hover {
-    background: var(--fg);
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-sm);
+    background: var(--primary-red);
+    color: #F2EFE6;
 }
 
 /* ============================================================
@@ -565,12 +472,12 @@ body:has(.explore-app)::before { opacity: 0 !important; }
 @media (max-width: 900px) {
     .explore-tabs {
         display: flex;
-        border-bottom: var(--atlas-rule-thick) solid var(--fg);
+        border-bottom: var(--atlas-rule) solid var(--fg);
         background: var(--bg);
     }
     .explore-tab {
         flex: 1;
-        height: 50px;
+        height: 46px;
         background: transparent;
         border: none;
         border-right: var(--atlas-rule) solid var(--fg);
@@ -578,32 +485,25 @@ body:has(.explore-app)::before { opacity: 0 !important; }
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.12em;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         cursor: pointer;
         display: flex; align-items: center; justify-content: center; gap: 8px;
         color: var(--fg);
-        position: relative;
+        transition: background 0.15s ease, color 0.15s ease;
     }
     .explore-tab:last-child { border-right: none; }
     .explore-tab.is-active {
         background: var(--fg);
         color: var(--bg);
     }
-    .explore-tab.is-active::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 4px;
-        background: var(--primary-yellow);
-    }
 }
 
 /* ============================================================
    MAIN — split shell (list rail + map atlas)
    ============================================================ */
-/* The global `main {}` rule in styles.css adds 105/70px padding, max-width:
-   1400px, align-items: center, and flex-grow. We override every property here
-   so the split layout fills its grid track edge-to-edge. */
+/* The global `main {}` rule in styles.css adds padding, max-width: 1400px,
+   align-items: center, and flex-grow. We override every property here so
+   the split layout fills its grid track edge-to-edge. */
 main.explore-main {
     grid-area: main;
     display: grid;
@@ -623,17 +523,16 @@ main.explore-main {
 /* ----- LIST RAIL -----
    min-height: 0 + min-width: 0 are required so the panel can shrink below
    its content's intrinsic size and trigger overflow-y: auto correctly inside
-   the grid track. Without these, the panel grows to the size of all 76 cards
-   (~11000px) and the map track collapses to 0. */
+   the grid track. */
 .explore-list-panel {
-    border-right: var(--atlas-rule-thick) solid var(--fg);
+    border-right: var(--atlas-rule) solid var(--fg);
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--bg);
-    padding: 16px var(--atlas-pad) 24px;
+    padding: 0 var(--atlas-pad) 28px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
     min-height: 0;
     min-width: 0;
     height: 100%;
@@ -641,41 +540,28 @@ main.explore-main {
     scrollbar-color: var(--fg) transparent;
 }
 
-.explore-list-panel::-webkit-scrollbar { width: 8px; }
+.explore-list-panel::-webkit-scrollbar { width: 6px; }
 .explore-list-panel::-webkit-scrollbar-track { background: transparent; }
 .explore-list-panel::-webkit-scrollbar-thumb { background: var(--fg); border-radius: 0; }
 
 .explore-list-meta {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
     border-bottom: var(--atlas-rule) solid var(--fg);
-    padding-bottom: 10px;
-    margin-bottom: 2px;
+    padding: 16px 0 10px;
     position: sticky;
     top: 0;
     background: var(--bg);
     z-index: 2;
 }
 
-.explore-list-meta::before {
-    content: 'EDICIÓN';
-    position: absolute;
-    top: 4px;
-    right: 0;
-    font-family: var(--atlas-mono);
-    font-size: 0.55rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    color: var(--text-secondary);
-}
-
 .explore-list-meta #explore-results-count {
-    font-family: var(--atlas-display);
-    font-size: 1.45rem;
-    line-height: 1;
-    letter-spacing: -0.03em;
+    font-family: var(--atlas-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--fg);
     font-variant-numeric: tabular-nums;
@@ -685,75 +571,53 @@ main.explore-main {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    /* Aire para el desplazamiento del hover. */
+    padding: 4px 4px 4px 0;
+    margin: -4px 0;
 }
 
 /* ----- ARTIST CARD ----- */
 .explore-card {
-    border: var(--atlas-rule-thick) solid var(--fg);
+    border: var(--atlas-rule) solid var(--fg);
     background: var(--bg);
     cursor: pointer;
     display: grid;
-    grid-template-columns: 112px 1fr;
-    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+    grid-template-columns: 96px 1fr;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     position: relative;
     overflow: hidden;
 }
 
-.explore-card::before {
-    content: attr(data-index);
-    position: absolute;
-    top: 6px;
-    left: 118px;
-    font-family: var(--atlas-mono);
-    font-size: 0.55rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    color: var(--text-secondary);
-    z-index: 2;
-    pointer-events: none;
-}
-
 .explore-card:hover {
-    transform: translate(-3px, -3px);
+    transform: translate(-2px, -2px);
     box-shadow: var(--atlas-shadow-md);
 }
 
 .explore-card.is-active {
     border-color: var(--primary-red);
-    box-shadow: 6px 6px 0 var(--primary-red);
-    transform: translate(-3px, -3px);
-}
-
-.explore-card.is-active::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 4px;
-    height: 100%;
-    background: var(--primary-red);
+    box-shadow: 4px 4px 0 var(--primary-red);
+    transform: translate(-2px, -2px);
 }
 
 .explore-card-img {
-    background: var(--fg);
+    background: var(--surface-color);
     aspect-ratio: 1 / 1;
     background-size: cover;
     background-position: center;
     border-right: var(--atlas-rule) solid var(--fg);
-    position: relative;
 }
 
 .explore-card-img.no-image {
     background:
-        radial-gradient(circle at 30% 30%, var(--primary-red) 30%, transparent 30.5%),
-        linear-gradient(135deg, var(--primary-blue) 28%, transparent 28.5%),
-        linear-gradient(225deg, var(--primary-yellow) 22%, transparent 22.5%),
-        var(--bg);
+        radial-gradient(circle at 32% 36%, var(--primary-yellow) 26%, transparent 26.5%),
+        linear-gradient(135deg, var(--primary-red) 22%, transparent 22.5%),
+        var(--surface-color);
     background-repeat: no-repeat;
     background-size: 100% 100%;
 }
 
 .explore-card-body {
-    padding: 22px 14px 12px;
+    padding: 13px 15px;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -762,9 +626,9 @@ main.explore-main {
 
 .explore-card-name {
     font-family: var(--atlas-display);
-    font-size: 1.05rem;
+    font-size: 1rem;
     line-height: 1;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     text-transform: uppercase;
     color: var(--fg);
     white-space: nowrap;
@@ -774,56 +638,48 @@ main.explore-main {
 
 .explore-card-meta {
     font-family: var(--atlas-mono);
-    font-size: 0.66rem;
-    font-weight: 700;
+    font-size: 0.64rem;
+    font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.explore-card-meta::before {
-    content: '◉';
-    color: var(--primary-red);
-    font-size: 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .explore-card-styles {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
+    order: -1;
 }
 
 .explore-card-styles .tag-mini {
     font-family: var(--atlas-mono);
-    font-size: 0.56rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-size: 0.55rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    border: 1px solid var(--fg);
-    padding: 2px 6px;
-    color: var(--fg);
-    background: var(--bg);
+    border: 1px solid var(--text-secondary);
+    padding: 1px 6px;
+    color: var(--text-secondary);
+    background: transparent;
 }
 
 .explore-card-price {
-    margin-top: 4px;
+    margin-top: auto;
+    padding-top: 4px;
     font-family: var(--atlas-mono);
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     letter-spacing: 0.05em;
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-    border: var(--atlas-rule) solid var(--fg);
-    padding: 3px 8px;
-    align-self: flex-start;
-    box-shadow: 3px 3px 0 var(--fg);
+    color: var(--primary-red);
+    font-variant-numeric: tabular-nums;
 }
 
 /* ============================================================
-   MAP PANEL — full-bleed atlas
+   MAP PANEL — full-bleed atlas, sin overlays decorativos
    ============================================================ */
 .explore-map-panel {
     position: relative;
@@ -845,44 +701,9 @@ main.explore-main {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.16em;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     background: var(--bg);
     z-index: 5;
-}
-
-/* Compass / corner overlays */
-.explore-map-panel::before {
-    content: 'N ↑';
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    z-index: 4;
-    font-family: var(--atlas-display);
-    font-size: 1rem;
-    color: var(--fg);
-    background: var(--bg);
-    border: var(--atlas-rule) solid var(--fg);
-    padding: 6px 10px;
-    box-shadow: var(--atlas-shadow-sm);
-    pointer-events: none;
-    letter-spacing: 0.05em;
-}
-
-.explore-map-panel::after {
-    content: 'WE ÖTZI · ATLAS · 2026';
-    position: absolute;
-    bottom: 14px;
-    left: 14px;
-    z-index: 4;
-    font-family: var(--atlas-mono);
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    color: var(--text-secondary);
-    background: var(--bg);
-    border: var(--atlas-rule) solid var(--fg);
-    padding: 4px 8px;
-    pointer-events: none;
 }
 
 /* ============================================================
@@ -896,7 +717,6 @@ main.explore-main {
     transform: translate(-50%, calc(-100% - 6px));
     cursor: pointer;
     pointer-events: auto;
-    /* Keep pins above the map but below modals & noise. */
     z-index: 20;
     will-change: transform;
 }
@@ -905,15 +725,15 @@ main.explore-main {
     position: relative;
     background: var(--bg);
     color: var(--fg);
-    border: var(--atlas-rule-thick) solid var(--fg);
+    border: var(--atlas-rule) solid var(--fg);
     padding: 5px 11px;
     font-family: var(--atlas-mono);
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     letter-spacing: 0.04em;
-    box-shadow: 3px 3px 0 var(--fg);
+    box-shadow: 2px 2px 0 var(--fg);
     white-space: nowrap;
-    transition: transform 0.18s, background 0.18s, color 0.18s, box-shadow 0.18s;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
     user-select: none;
 }
 
@@ -928,8 +748,6 @@ main.explore-main {
     border-left: 7px solid transparent;
     border-right: 7px solid transparent;
     border-top: 8px solid var(--fg);
-    /* A second triangle 1px smaller painted via background trick:
-       use a sibling pseudo for a clean inner fill. */
 }
 
 /* Active / hovered pin: punches forward, fills with yellow. */
@@ -939,39 +757,35 @@ main.explore-main {
     background: var(--primary-yellow);
     color: var(--text-on-light);
     transform: translate(-2px, -2px);
-    box-shadow: 5px 5px 0 var(--fg);
+    box-shadow: var(--atlas-shadow-md);
     z-index: 22;
 }
 
 .bauhaus-pin-wrap.is-recommended .bauhaus-pin {
     background: var(--primary-red);
-    color: var(--bg);
+    color: #F2EFE6;
 }
 
 .bauhaus-pin-wrap.is-recommended .bauhaus-pin::after { border-top-color: var(--fg); }
 
-/* Studio pin variant: blue accent + building icon, slightly larger to read
-   the studio name. Distinguished from price pins so the user can tell at
-   a glance which pins are venues vs artists. */
+/* Studio pin variant: blue accent, reads the studio name. */
 .bauhaus-pin-wrap.is-studio { z-index: 18; }
 .bauhaus-pin.bauhaus-pin-studio {
     background: var(--primary-blue);
-    color: var(--bg);
+    color: #F2EFE6;
     border-color: var(--fg);
     font-family: var(--atlas-display);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     letter-spacing: -0.01em;
     text-transform: uppercase;
     padding: 4px 10px;
-    box-shadow: 3px 3px 0 var(--fg);
+    box-shadow: 2px 2px 0 var(--fg);
 }
-.bauhaus-pin.bauhaus-pin-studio::after {
-    border-top-color: var(--fg);
-}
+.bauhaus-pin.bauhaus-pin-studio::after { border-top-color: var(--fg); }
 .bauhaus-pin-wrap.is-studio:hover { z-index: 22; }
 .bauhaus-pin-wrap.is-studio:hover .bauhaus-pin {
     transform: translate(-2px, -2px);
-    box-shadow: 5px 5px 0 var(--fg);
+    box-shadow: var(--atlas-shadow-md);
     background: var(--primary-yellow);
     color: var(--text-on-light);
 }
@@ -981,42 +795,40 @@ main.explore-main {
    ============================================================ */
 .explore-modal-backdrop {
     position: fixed; inset: 0; z-index: 80;
-    background: rgba(10, 10, 10, 0.7);
+    background: rgba(10, 10, 10, 0.6);
     display: flex; align-items: center; justify-content: center;
     padding: 16px;
-    backdrop-filter: blur(2px);
 }
 
 .explore-modal {
     background: var(--bg);
-    border: var(--atlas-rule-thick) solid var(--fg);
+    border: var(--atlas-rule) solid var(--fg);
     box-shadow: var(--atlas-shadow-lg);
-    width: min(580px, 100%);
+    width: min(560px, 100%);
     max-height: calc(100dvh - 32px);
     overflow-y: auto;
     position: relative;
-    animation: explore-modal-in 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: explore-modal-in 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 @keyframes explore-modal-in {
-    from { opacity: 0; transform: translate(8px, 12px) scale(0.97); }
-    to { opacity: 1; transform: translate(0, 0) scale(1); }
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .explore-modal-close {
     position: absolute; top: 10px; right: 10px;
     background: var(--bg); color: var(--fg);
     border: var(--atlas-rule) solid var(--fg);
-    width: 38px; height: 38px;
+    width: 36px; height: 36px;
     cursor: pointer;
     z-index: 5;
-    transition: background 0.15s, color 0.15s, transform 0.15s;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .explore-modal-close:hover {
     background: var(--primary-red);
-    color: var(--bg);
-    transform: rotate(90deg);
+    color: #F2EFE6;
 }
 
 .modal-cover {
@@ -1024,27 +836,12 @@ main.explore-main {
     aspect-ratio: 16 / 9;
     background-size: cover;
     background-position: center;
-    background-color: var(--fg);
-    border-bottom: var(--atlas-rule-thick) solid var(--fg);
-    position: relative;
-}
-
-.modal-cover::after {
-    content: 'PORTFOLIO';
-    position: absolute;
-    bottom: 8px;
-    left: 8px;
-    font-family: var(--atlas-mono);
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    color: var(--bg);
-    background: var(--fg);
-    padding: 3px 7px;
+    background-color: var(--surface-color);
+    border-bottom: var(--atlas-rule) solid var(--fg);
 }
 
 .modal-body {
-    padding: 20px 22px 24px;
+    padding: 22px 24px 26px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -1053,21 +850,21 @@ main.explore-main {
 .modal-styles { display: flex; flex-wrap: wrap; gap: 6px; }
 .modal-styles .tag-mini {
     font-family: var(--atlas-mono);
-    font-size: 0.62rem;
-    font-weight: 700;
+    font-size: 0.6rem;
+    font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    border: 1px solid var(--fg);
+    border: 1px solid var(--text-secondary);
     padding: 2px 7px;
-    color: var(--fg);
-    background: var(--bg);
+    color: var(--text-secondary);
+    background: transparent;
 }
 
 .modal-name {
     font-family: var(--atlas-display);
-    font-size: 1.85rem;
+    font-size: 1.8rem;
     line-height: 0.95;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     text-transform: uppercase;
     color: var(--fg);
 }
@@ -1075,7 +872,7 @@ main.explore-main {
 .modal-meta { display: flex; flex-direction: column; gap: 6px; }
 .modal-meta-row {
     font-family: var(--atlas-mono);
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     letter-spacing: 0.04em;
     display: flex;
     align-items: center;
@@ -1087,25 +884,18 @@ main.explore-main {
 .modal-bio {
     font-family: var(--atlas-body);
     font-size: 0.92rem;
-    line-height: 1.5;
+    line-height: 1.55;
     color: var(--text-secondary);
-    border-left: var(--atlas-rule-thick) solid var(--fg);
-    padding-left: 12px;
+    border-left: var(--atlas-rule) solid var(--fg);
+    padding-left: 14px;
     overflow-wrap: anywhere;
 }
 .modal-bio p,
-.modal-bio div {
-    margin: 0 0 0.62em;
-}
+.modal-bio div { margin: 0 0 0.62em; }
 .modal-bio p:last-child,
-.modal-bio div:last-child {
-    margin-bottom: 0;
-}
+.modal-bio div:last-child { margin-bottom: 0; }
 .modal-bio ul,
-.modal-bio ol {
-    margin: 0.5em 0 0.5em 1.25em;
-    padding: 0;
-}
+.modal-bio ol { margin: 0.5em 0 0.5em 1.25em; padding: 0; }
 .modal-bio a {
     color: inherit;
     text-decoration: underline;
@@ -1123,18 +913,19 @@ main.explore-main {
 }
 .modal-price-row .price-label {
     font-family: var(--atlas-mono);
-    font-size: 0.66rem;
+    font-size: 0.62rem;
     font-weight: 700;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--text-secondary);
 }
 .modal-price-row .price-value {
     font-family: var(--atlas-display);
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     line-height: 1;
     letter-spacing: -0.02em;
     color: var(--fg);
+    font-variant-numeric: tabular-nums;
 }
 
 /* Source badge (Estudio / Independiente) sits between the name and meta. */
@@ -1143,85 +934,80 @@ main.explore-main {
     align-items: center;
     align-self: flex-start;
     font-family: var(--atlas-mono);
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     padding: 4px 9px;
     border: var(--atlas-rule) solid var(--fg);
     background: var(--bg);
     color: var(--fg);
-    box-shadow: 3px 3px 0 var(--fg);
     margin-top: -4px;
 }
 
 .modal-source-badge.is-studio { background: var(--primary-yellow); color: var(--text-on-light); }
 .modal-source-badge.is-independent { background: var(--bg); color: var(--fg); }
 
-.modal-cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modal-cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-/* "Cómo llegar" button — wide, secondary action, opens Google Maps. */
+.modal-cta-quote, .modal-cta-profile {
+    height: 48px;
+    border: var(--atlas-rule) solid var(--fg);
+    font-family: var(--atlas-body);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modal-cta-quote { background: var(--primary-red); color: #F2EFE6; border-color: var(--primary-red); }
+.modal-cta-quote:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--atlas-shadow-sm);
+    background: var(--atlas-red-deep);
+    border-color: var(--atlas-red-deep);
+}
+
+.modal-cta-profile { background: var(--bg); color: var(--fg); }
+.modal-cta-profile:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--atlas-shadow-sm);
+}
+
+/* "Cómo llegar" — wide secondary action, opens Google Maps. */
 .modal-cta-directions {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 46px;
-    margin-top: 4px;
-    border: var(--atlas-rule-thick) solid var(--fg);
+    min-height: 44px;
+    margin-top: 2px;
+    border: var(--atlas-rule) solid var(--fg);
     background: var(--fg);
     color: var(--bg);
-    font-family: var(--atlas-mono);
-    font-weight: 700;
+    font-family: var(--atlas-body);
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 0.74rem;
+    font-size: 0.7rem;
     text-decoration: none;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, background 0.15s, color 0.15s;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .modal-cta-directions:hover {
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
     transform: translate(-2px, -2px);
     box-shadow: var(--atlas-shadow-sm);
 }
 
 .modal-cta-directions[hidden] { display: none !important; }
-
-.modal-cta-quote, .modal-cta-profile {
-    height: 50px;
-    border: var(--atlas-rule-thick) solid var(--fg);
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.78rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
-}
-
-.modal-cta-quote { background: var(--primary-red); color: var(--bg); }
-.modal-cta-quote:hover {
-    background: var(--fg);
-    color: var(--bg);
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-sm);
-}
-
-.modal-cta-profile { background: var(--bg); color: var(--fg); }
-.modal-cta-profile:hover {
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-sm);
-}
 
 /* ----- LOADING OVERLAY ----- */
 .loading-overlay {
@@ -1237,15 +1023,17 @@ main.explore-main {
     font-family: var(--atlas-mono);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
+    font-size: 0.78rem;
     color: var(--fg);
 }
 
 .loading-overlay .loader {
-    width: 64px;
-    height: 64px;
-    border: var(--atlas-rule-thick) solid var(--fg);
+    width: 52px;
+    height: 52px;
+    border: var(--atlas-rule) solid var(--fg);
     border-top-color: var(--primary-red);
+    border-radius: 50%;
     animation: atlas-spin 0.9s linear infinite;
 }
 
@@ -1255,42 +1043,24 @@ main.explore-main {
 
 /* ----- EMPTY STATE ----- */
 .explore-list-empty {
-    border: var(--atlas-rule-thick) solid var(--fg);
-    padding: 24px;
+    border: var(--atlas-rule) solid var(--fg);
+    padding: 28px 24px;
     text-align: center;
-    background:
-        repeating-linear-gradient(
-            45deg,
-            transparent 0,
-            transparent 8px,
-            rgba(10, 10, 10, 0.05) 8px,
-            rgba(10, 10, 10, 0.05) 9px
-        );
-}
-
-[data-theme="dark"] .explore-list-empty {
-    background:
-        repeating-linear-gradient(
-            45deg,
-            transparent 0,
-            transparent 8px,
-            rgba(242, 240, 233, 0.05) 8px,
-            rgba(242, 240, 233, 0.05) 9px
-        );
+    background: var(--surface-color);
 }
 
 .explore-list-empty h2 {
     font-family: var(--atlas-display);
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     text-transform: uppercase;
-    letter-spacing: -0.02em;
-    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
     color: var(--fg);
 }
 
 .explore-list-empty p {
     font-family: var(--atlas-mono);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1302,15 +1072,12 @@ main.explore-main {
 /* ============================================================
    RESPONSIVE
    ============================================================ */
-@media (max-width: 1100px) {
-    .explore-header-center { display: none; }
-    .explore-header { grid-template-columns: auto 1fr auto; }
+@media (max-width: 1200px) {
+    .explore-tag .explore-tag-counter { display: none; }
+    .explore-nav-links { gap: 18px; }
 }
 
 @media (max-width: 900px) {
-    .explore-app {
-        grid-template-rows: auto auto auto 1fr;
-    }
     .explore-main {
         grid-template-columns: 1fr;
     }
@@ -1318,73 +1085,65 @@ main.explore-main {
     .explore-main[data-view="map"] .explore-list-panel { display: none; }
     .explore-main[data-view="list"] .explore-map-panel { display: none; }
 
-    .explore-filters {
-        grid-template-columns: 1fr;
-        padding: 10px 12px;
-    }
-    .filter-select-group {
-        justify-self: stretch;
-        overflow-x: auto;
-    }
-    .filter-select-group select { font-size: 0.7rem; padding-right: 28px; }
+    .explore-filters-row { padding: 10px 16px; }
+    .explore-filter-drawer { padding: 12px 16px; }
+    .explore-app .filter-select-group select { min-width: 0; flex: 1 1 calc(50% - 5px); }
+    .explore-clear-btn { margin-left: 0; flex: 1 1 100%; }
 }
 
 @media (max-width: 768px) {
-    .explore-header { height: 72px; }
-    .explore-nav-links.dashboard-quick-nav { display: none; }
-    .explore-menu-toggle.mobile-menu-toggle { display: inline-flex; }
-
-    .explore-header-left .nav-btn { width: 48px; }
-    .explore-header-title { padding: 0 12px; }
-    .explore-header-title .atlas-wordmark { font-size: 1.3rem; }
-    .explore-header-title .atlas-eyebrow { font-size: 0.55rem; }
+    .explore-app { --atlas-header-h: 56px; }
+    .explore-header { padding: 0 16px; gap: 12px; }
+    .explore-nav-links { display: none; }
+    .explore-globe-cta { display: none; }
+    .explore-burger { display: flex; }
+    .explore-back { margin-right: 12px; width: 30px; height: 30px; }
+    .explore-logo { font-size: 15px; margin-right: 14px; gap: 7px; }
+    .explore-logo-marks .sq,
+    .explore-logo-marks .ci { width: 11px; height: 11px; }
+    .explore-logo-marks .tr {
+        border-left-width: 5.5px;
+        border-right-width: 5.5px;
+        border-bottom-width: 11px;
+    }
+    .explore-tag { padding-left: 14px; }
+    .explore-header-right { gap: 10px; }
+    #theme-toggle.explore-theme-mark { width: 30px; height: 30px; font-size: 11px; }
 
     .explore-mobile-menu.dashboard-mobile-menu {
         position: fixed;
-        left: 12px;
-        right: 12px;
-        top: calc(72px + 8px);
+        left: 0;
+        right: 0;
+        top: var(--atlas-header-h, 56px);
         z-index: 35;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0;
-        border: var(--atlas-rule-thick) solid var(--fg);
-        background: var(--fg);
-        animation: explore-menu-reveal 0.2s ease;
-        box-shadow: var(--atlas-shadow-md);
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        border-bottom: var(--atlas-rule) solid var(--fg);
+        padding: 12px 16px 16px;
+        animation: explore-drawer-in 0.18s ease;
     }
 
     .explore-mobile-menu .dashboard-mobile-menu-link {
-        min-height: 60px;
-        display: inline-flex;
+        min-height: 48px;
+        display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 10px;
         text-decoration: none;
-        font-family: var(--atlas-mono);
+        font-family: var(--atlas-body);
         font-size: 0.78rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-weight: 700;
         color: var(--fg);
-        background: var(--bg);
-        border-right: var(--atlas-rule) solid var(--fg);
-        border-bottom: var(--atlas-rule) solid var(--fg);
-        transition: background 0.16s, color 0.16s;
+        border-bottom: 1px solid var(--text-secondary);
+        transition: color 0.15s ease;
     }
 
-    .explore-mobile-menu .dashboard-mobile-menu-link:nth-child(2n) { border-right: none; }
-    .explore-mobile-menu .dashboard-mobile-menu-link:nth-last-child(-n + 2) { border-bottom: none; }
-    .explore-mobile-menu .dashboard-mobile-menu-link:hover { background: var(--fg); color: var(--bg); }
-    .explore-mobile-menu .dashboard-mobile-menu-link-job-board { background: var(--primary-red); color: var(--bg); }
+    .explore-mobile-menu .dashboard-mobile-menu-link:last-child { border-bottom: none; }
+    .explore-mobile-menu .dashboard-mobile-menu-link:hover { color: var(--primary-red); }
+    .explore-mobile-menu .explore-mobile-menu-link-globe { color: var(--primary-red); }
 
-    .explore-list-meta::before { display: none; }
-    .explore-map-panel::before { top: 10px; right: 10px; padding: 4px 8px; font-size: 0.85rem; }
-    .explore-map-panel::after { display: none; }
-    .modal-name { font-size: 1.5rem; }
+    .modal-name { font-size: 1.45rem; }
     .modal-cta-row { grid-template-columns: 1fr; }
-}
-
-@keyframes explore-menu-reveal {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
 }
