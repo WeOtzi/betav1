@@ -1,4 +1,4 @@
-const test = require('node:test');
+﻿const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
@@ -97,12 +97,12 @@ test('development CORS accepts ngrok preview origins for assets and API prefligh
     try {
         await waitForServer(getOutput);
 
-        const asset = await fetch(`${baseUrl}/shared/js/explore-globe.js`, {
+        const asset = await fetch(`${baseUrl}/shared/js/globe/globe-app.js`, {
             headers: { Origin: origin }
         });
         assert.equal(asset.status, 200);
         assert.equal(asset.headers.get('access-control-allow-origin'), origin);
-        assert.match(await asset.text(), /EXPLORE GLOBE/);
+        assert.match(await asset.text(), /GLOBE APP/);
 
         const preflight = await fetch(`${baseUrl}/api/support-chat/conversation`, {
             method: 'OPTIONS',

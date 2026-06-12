@@ -1487,8 +1487,14 @@ app.post('/api/session-log', async (req, res) => {
     // Respond immediately (fire-and-forget for sendBeacon)
     res.status(200).json({ success: true, received: true });
 
-    // Background: resolve IP geolocation and update the record
-    if (session_log_id) {
+    // Background: resolve IP geolocation and update the record.
+    // El cliente ya no conoce el id de la fila (el INSERT corre sin RETURNING
+    // porque la lectura de session_logs es solo-soporte via RLS), así que se
+    // filtra por session_id cuando session_log_id no llega.
+    const rowFilter = session_log_id
+        ? `id=eq.${encodeURIComponent(session_log_id)}`
+        : `session_id=eq.${encodeURIComponent(session_id)}`;
+    {
         try {
             const cfg = getHealthConfig();
             if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) return;
@@ -1507,7 +1513,7 @@ app.post('/api/session-log', async (req, res) => {
                 const geo = await geoRes.json();
 
                 if (geo.status === 'success' && (geo.country || geo.city)) {
-                    await fetch(`${cfg.supabaseUrl}/rest/v1/session_logs?id=eq.${session_log_id}`, {
+                    await fetch(`${cfg.supabaseUrl}/rest/v1/session_logs?${rowFilter}`, {
                         method: 'PATCH',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1517,11 +1523,11 @@ app.post('/api/session-log', async (req, res) => {
                         },
                         body: JSON.stringify({ country: geo.country, city: geo.city })
                     });
-                    console.log(`[Session Log] Geo resolved for ${session_log_id}: ${geo.city}, ${geo.country}`);
+                    console.log(`[Session Log] Geo resolved for ${session_log_id || session_id}: ${geo.city}, ${geo.country}`);
                 }
             }
         } catch (err) {
-            console.error(`[Session Log] Geo resolution failed for ${session_log_id}:`, err.message);
+            console.error(`[Session Log] Geo resolution failed for ${session_log_id || session_id}:`, err.message);
         }
     }
 });
