@@ -364,5 +364,5 @@ Se carga vía `<script src="/shared/js/data/postgrest-client.js">` + `…/quotat
 - Los analytics NO-cotización (`users`/`devices`/`pages`/`errors`/`locations`/`summary`) siguen usando `supabaseQuery` (anon) — migrar al unificar el dominio analytics.
 - Migrar los demás dominios (artistas, estudios, soporte, job board) a la misma capa, reusando `lib/postgrest.js`.
 
-**Pendiente:** deploy a `beta.weotzi.com` vía `scripts/deploy.py` (esperando visto bueno).
+**Desplegado:** 2026-06-21 a `beta.weotzi.com` vía `scripts/deploy_beta.py` (full deploy + PM2 restart). Smoke en producción OK: `/` 302, `/api/client-info` 200, `/api/analytics/quotations` 401 (§4-A vivo), capa frontend servida (200), `/quotation` 200 con la capa cableada. Commits `f5ab5ba`→`64d12fc` en `main` (push a origin).
 ```
