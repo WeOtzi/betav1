@@ -1411,11 +1411,7 @@ async function autoSaveQuotation() {
     try {
         const payload = preparePayload();
 
-        const { error } = await supabaseClient
-            .from('quotations_db')
-            .upsert([payload], { onConflict: 'quote_id' });
-
-        if (error) throw error;
+        await WeotziData.Quotations.upsert(payload);
     } catch (error) {
         console.error('Auto-save error:', error);
     } finally {
@@ -1653,26 +1649,19 @@ async function checkEmailReuse(email) {
 
         const normalizedEmail = email.trim().toLowerCase();
 
-        const { data, error } = await supabaseClient
-            .from('quotations_db')
-            .select('quote_id, client_full_name, client_whatsapp, client_birth_date, client_instagram, client_city_residence, client_contact_preference, client_health_conditions, client_allergies')
-            .ilike('client_email', normalizedEmail)
-            .neq('quote_status', 'in_progress')
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (error) {
+        let row;
+        try {
+            row = await WeotziData.Quotations.findLatestByEmailForReuse(normalizedEmail);
+        } catch (error) {
             _dbg('Email reuse lookup error:', error.message);
             nextStep();
             return;
         }
 
-        if (!data || data.length === 0) {
+        if (!row) {
             nextStep();
             return;
         }
-
-        const row = data[0];
 
         _emailReusePendingData = {
             client_full_name: row.client_full_name || null,
@@ -3343,16 +3332,8 @@ async function saveAttachmentRecords(quoteId, uploadedFiles, originalFiles) {
             };
         });
         
-        const { data, error } = await supabaseClient
-            .from('quotations_attachments')
-            .insert(attachmentRecords)
-            .select();
-        
-        if (error) {
-            console.error('Error saving attachment records:', error);
-            return { success: false, error: error.message };
-        }
-        
+        const data = await WeotziData.Attachments.insertMany(attachmentRecords);
+
         _dbg(`Successfully saved ${attachmentRecords.length} attachment records`);
         return { success: true, records: data };
     } catch (err) {
@@ -3603,11 +3584,7 @@ async function submitQuotation() {
                 payload.tattoo_references = formData.tattoo_references;
             }
 
-            const { error } = await supabaseClient
-                .from('quotations_db')
-                .upsert([payload], { onConflict: 'quote_id' });
-                
-            if (error) throw error;
+            await WeotziData.Quotations.upsert(payload);
         }
 
         // 3. Email is now handled by n8n webhook (triggered in step 4.5 below)

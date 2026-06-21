@@ -165,18 +165,11 @@ async function checkDashboardAuth() {
 
 async function linkQuotationsByEmail(userId, email) {
     try {
-        const { data: quotations } = await _supabase
-            .from('quotations_db')
-            .select('quote_id')
-            .ilike('client_email', email)
-            .is('client_user_id', null);
-        
+        const quotations = await WeotziData.Quotations.findUnclaimedByEmail(email);
+
         if (quotations && quotations.length > 0) {
             const quoteIds = quotations.map(q => q.quote_id);
-            await _supabase
-                .from('quotations_db')
-                .update({ client_user_id: userId })
-                .in('quote_id', quoteIds);
+            await WeotziData.Quotations.claimByQuoteIds(userId, quoteIds);
         }
     } catch (error) {
         console.error('Error linking quotations:', error);
@@ -230,19 +223,15 @@ async function loadQuotations() {
         if (!session) return;
         
         // Get quotations by client_user_id or by email, excluding client-hidden ones
-        const { data: quotations, error } = await _supabase
-            .from('quotations_db')
-            .select('*')
-            .or(`client_user_id.eq.${session.user.id},client_email.ilike.${currentClient.email}`)
-            .is('client_deleted_at', null)
-            .order('created_at', { ascending: false });
-        
-        if (error) {
+        let quotations;
+        try {
+            quotations = await WeotziData.Quotations.listForClient(session.user.id, currentClient.email);
+        } catch (error) {
             console.error('Error loading quotations:', error);
             listContainer.innerHTML = '<div class="empty-state"><h3>Error al cargar</h3><p>No pudimos cargar tus cotizaciones</p></div>';
             return;
         }
-        
+
         currentQuotations = quotations || [];
         
         // Update stats
@@ -390,19 +379,7 @@ async function hideQuotation(quoteId) {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
 
-        const response = await fetch(`/api/client/quotations/${encodeURIComponent(quoteId)}/hide`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-            }
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || 'Error al ocultar la cotizacion');
-        }
+        await WeotziData.Api.hideForClient(quoteId, session.access_token);
 
         currentQuotations = currentQuotations.filter(q => q.quote_id !== quoteId);
         updateStats();
@@ -427,15 +404,12 @@ async function loadUnreadCounts() {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
         
-        // Get unread counts for each quotation
+        // Get unread counts for all quotations in a single batched query
+        const quoteIds = currentQuotations.map(q => q.quote_id);
+        const counts = await WeotziData.Chat.countUnreadByQuotationIds(quoteIds, 'artist');
+
         for (const quotation of currentQuotations) {
-            const { count } = await _supabase
-                .from('chat_messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('quotation_id', quotation.quote_id)
-                .eq('sender_type', 'artist')
-                .eq('is_read', false);
-            
+            const count = counts[quotation.quote_id] || 0;
             const badge = document.getElementById(`unread-${quotation.quote_id}`);
             if (badge && count > 0) {
                 badge.textContent = count;
@@ -642,18 +616,7 @@ async function acceptQuotationCompletion(quoteId) {
             return;
         }
 
-        const response = await fetch(`/api/client/quotations/${encodeURIComponent(quoteId)}/complete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-            }
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || 'No se pudo finalizar la cotizacion');
-        }
+        const result = await WeotziData.Api.confirmCompletionByClient(quoteId, session.access_token);
 
         quotation.quote_status = 'completed';
         quotation.client_completed_at = result.client_completed_at || new Date().toISOString();
@@ -717,17 +680,14 @@ async function loadChatMessages(quoteId) {
     if (!chatContainer) return;
     
     try {
-        const { data: messages, error } = await _supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('quotation_id', quoteId)
-            .order('created_at', { ascending: true });
-        
-        if (error) {
+        let messages;
+        try {
+            messages = await WeotziData.Chat.listByQuote(quoteId);
+        } catch (error) {
             console.error('Error loading messages:', error);
             return;
         }
-        
+
         if (!messages || messages.length === 0) {
             chatContainer.innerHTML = `
                 <div class="chat-empty">
@@ -757,13 +717,8 @@ async function loadChatMessages(quoteId) {
 
 async function markMessagesAsRead(quoteId) {
     try {
-        await _supabase
-            .from('chat_messages')
-            .update({ is_read: true })
-            .eq('quotation_id', quoteId)
-            .eq('sender_type', 'artist')
-            .eq('is_read', false);
-        
+        await WeotziData.Chat.markRead(quoteId, 'artist');
+
         // Update unread badge
         const badge = document.getElementById(`unread-${quoteId}`);
         if (badge) {
@@ -787,17 +742,13 @@ async function sendChatMessage() {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
         
-        const { error } = await _supabase
-            .from('chat_messages')
-            .insert({
-                quotation_id: currentQuotationId,
-                sender_type: 'client',
-                sender_id: session.user.id,
-                message: message
-            });
-        
-        if (error) throw error;
-        
+        await WeotziData.Chat.sendMessage({
+            quoteId: currentQuotationId,
+            senderType: 'client',
+            senderId: session.user.id,
+            message: message
+        });
+
         // Clear input
         input.value = '';
         
@@ -825,21 +776,13 @@ async function sendChatMessage() {
 function subscribeToChatMessages(quoteId) {
     // Unsubscribe from previous channel
     if (chatChannel) {
-        _supabase.removeChannel(chatChannel);
+        WeotziData.Realtime.remove(chatChannel);
     }
-    
+
     // Subscribe to new messages
-    chatChannel = _supabase
-        .channel(`chat:${quoteId}`)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `quotation_id=eq.${quoteId}`
-        }, (payload) => {
-            addMessageToChat(payload.new);
-        })
-        .subscribe();
+    chatChannel = WeotziData.Realtime.subscribeChatMessages(`chat:${quoteId}`, quoteId, (payload) => {
+        addMessageToChat(payload.new);
+    });
 }
 
 function addMessageToChat(message) {
@@ -918,41 +861,26 @@ function closeModal() {
 
 function setupRealtimeSubscriptions() {
     // Subscribe to quotation updates
-    _supabase
-        .channel('quotations-updates')
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'quotations_db'
-        }, (payload) => {
-            // Update local data
-            const index = currentQuotations.findIndex(q => q.quote_id === payload.new.quote_id);
-            if (index !== -1) {
-                currentQuotations[index] = payload.new;
-                updateStats();
-                renderQuotations();
-            }
-        })
-        .subscribe();
-    
+    WeotziData.Realtime.subscribeQuotationUpdates('quotations-updates', (payload) => {
+        // Update local data
+        const index = currentQuotations.findIndex(q => q.quote_id === payload.new.quote_id);
+        if (index !== -1) {
+            currentQuotations[index] = payload.new;
+            updateStats();
+            renderQuotations();
+        }
+    });
+
     // Subscribe to new messages for notifications
-    _supabase
-        .channel('new-messages')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `sender_type=eq.artist`
-        }, async (payload) => {
-            // Update unread count
-            const badge = document.getElementById(`unread-${payload.new.quotation_id}`);
-            if (badge && payload.new.quotation_id !== currentQuotationId) {
-                const current = parseInt(badge.textContent) || 0;
-                badge.textContent = current + 1;
-                badge.style.display = 'inline-flex';
-            }
-        })
-        .subscribe();
+    WeotziData.Realtime.subscribeNewChatFromSender('new-messages', 'artist', async (payload) => {
+        // Update unread count
+        const badge = document.getElementById(`unread-${payload.new.quotation_id}`);
+        if (badge && payload.new.quotation_id !== currentQuotationId) {
+            const current = parseInt(badge.textContent) || 0;
+            badge.textContent = current + 1;
+            badge.style.display = 'inline-flex';
+        }
+    });
 }
 
 // ============================================

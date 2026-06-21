@@ -176,22 +176,16 @@ function restoreThemeAndZoom() {
 
 async function loadQuotations() {
     try {
-        // Fetch quotations and tattoo styles in parallel (excluding drafts/in_progress)
-        const [quotesResult, stylesResult] = await Promise.all([
-            _supabase
-                .from('quotations_db')
-                .select('*')
-                .eq('artist_id', currentUser.id)
-                .eq('is_archived', false)
-                .neq('quote_status', 'in_progress'),
+        // Cotizaciones activas (capa unificada) + estilos en paralelo.
+        const [quotes, stylesResult] = await Promise.all([
+            WeotziData.Quotations.listActiveForArtist(currentUser.id),
             _supabase
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order', { ascending: true })
         ]);
 
-        if (quotesResult.error) throw quotesResult.error;
-        quotations = quotesResult.data || [];
+        quotations = quotes || [];
 
         if (stylesResult.error) {
             console.warn('Could not load tattoo styles:', stylesResult.error);
@@ -204,31 +198,19 @@ async function loadQuotations() {
         if (quotations.length > 0) {
             const quoteIds = quotations.map(q => q.quote_id).filter(id => id);
             const quoteDbIds = quotations.map(q => q.id);
-            
+
             // Fetch attachments
             if (quoteIds.length > 0) {
-                const { data: attachments, error: attachError } = await _supabase
-                    .from('quotations_attachments')
-                    .select('*')
-                    .in('quotation_id', quoteIds);
-                
-                if (attachError) throw attachError;
-                allAttachments = attachments || [];
+                allAttachments = await WeotziData.Attachments.listByQuoteIds(quoteIds);
             }
-            
-            // Fetch sessions for calendar display
+
+            // Fetch sessions for calendar display (no-fatal: preserva el fallback)
             if (quoteDbIds.length > 0) {
-                const { data: sessions, error: sessionsError } = await _supabase
-                    .from('quotation_sessions')
-                    .select('*')
-                    .in('quotation_id', quoteDbIds)
-                    .order('session_date', { ascending: true });
-                
-                if (sessionsError) {
+                try {
+                    allSessions = await WeotziData.Sessions.listByQuotationIds(quoteDbIds);
+                } catch (sessionsError) {
                     console.warn('Could not load sessions:', sessionsError);
                     allSessions = [];
-                } else {
-                    allSessions = sessions || [];
                 }
             }
         }
@@ -713,8 +695,7 @@ function refreshCalendar() {
 
 window.bulkArchiveSingle = async function(id) {
     try {
-        const { error } = await _supabase.from('quotations_db').update({ is_archived: true }).eq('id', id);
-        if (error) throw error;
+        await WeotziData.Quotations.setArchivedById(id, true);
         document.getElementById('drawer-toggle').checked = false;
         await loadQuotations();
         refreshCalendar();
@@ -732,8 +713,7 @@ window.updateQuoteStatus = async function(quoteId, newStatus) {
             refreshCalendar();
             return;
         }
-        const { error } = await _supabase.from('quotations_db').update({ quote_status: newStatus }).eq('id', quoteId);
-        if (error) throw error;
+        await WeotziData.Quotations.updateStatusById(quoteId, newStatus);
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (quote) quote.quote_status = newStatus;
         updateStats();
@@ -982,10 +962,7 @@ async function listUpcomingEvents() {
                 
                 // Save Google event ID back to our database for future updates
                 if (response.result && response.result.id) {
-                    await _supabase
-                        .from('quotation_sessions')
-                        .update({ google_event_id: response.result.id })
-                        .eq('id', session.id);
+                    await WeotziData.Sessions.setGoogleEventId(session.id, response.result.id);
                     
                     // Update local state
                     session.google_event_id = response.result.id;

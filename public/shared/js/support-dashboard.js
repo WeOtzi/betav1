@@ -195,7 +195,7 @@ async function loadAllData() {
         
         const [artistsResult, quotesResult, sessionsResult, chatsResult, reviewsResult] = await Promise.all([
             _supabase.from('artists_db').select('*'),
-            _supabase.from('quotations_db').select('*').order('created_at', { ascending: false }),
+            WeotziData.Quotations.listAll().then(data => ({ data, error: null }), error => ({ data: null, error })),
             _supabase.from('session_logs').select('*').order('created_at', { ascending: false }).limit(500),
             _supabase.from('support_conversations').select('*').order('last_message_at', { ascending: false }).limit(500),
             _supabase.from('verified_reviews').select('*').order('created_at', { ascending: false }).limit(500)
@@ -1631,12 +1631,8 @@ async function syncArtistPasswordViaApi(userId, newPassword) {
 
 window.updateQuoteField = async function(id, field, value) {
     try {
-        const updateData = {};
-        updateData[field] = value;
-        
-        const { error } = await _supabase.from('quotations_db').update(updateData).eq('id', id);
-        if (error) throw error;
-        
+        await WeotziData.Quotations.updateField(id, field, value);
+
         const quote = quotes.find(q => q.id.toString() === id.toString());
         if (quote) quote[field] = value;
         
@@ -1722,10 +1718,14 @@ window.confirmAction = async function() {
         } else if (type === 'sessions') {
             tableName = 'session_logs';
         }
-        
-        const { error } = await _supabase.from(tableName).delete().eq(idField, id);
-        if (error) throw error;
-        
+
+        if (type === 'quotes') {
+            await WeotziData.Quotations.hardDeleteById(id);
+        } else {
+            const { error } = await _supabase.from(tableName).delete().eq(idField, id);
+            if (error) throw error;
+        }
+
         if (type === 'artists') {
             artists = artists.filter(a => a.user_id !== id);
         } else if (type === 'quotes') {

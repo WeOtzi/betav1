@@ -20,6 +20,10 @@ const artistRegistration = require('./lib/artist-registration');
 const emailService = require('./services/email-service');
 const emailEventMapping = require('./services/email-event-mapping');
 const { startLocalNgrok } = require('./lib/local-ngrok');
+// Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
+const { pgrest } = require('./lib/postgrest');
+const { resolveBearerUser } = require('./lib/auth/supabase-auth');
+const { QuotationsRepo } = require('./lib/repos/quotations');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -347,43 +351,18 @@ function _supabaseConfigForSupport() {
     return { supabaseUrl, serviceKey };
 }
 
+// Delega en la capa PostgREST unificada (lib/postgrest.js). Se conserva la
+// firma para no tocar las ~60 llamadas no-cotizacion (soporte, artistas,
+// estudios, etc.) que aun lo usan; la migracion de esas areas vendra despues.
 async function _supabaseFetch(path, { method = 'GET', body, prefer } = {}) {
-    const { supabaseUrl, serviceKey } = _supabaseConfigForSupport();
-    if (!supabaseUrl || !serviceKey) throw new Error('Supabase service role not configured');
-    const headers = {
-        'Content-Type': 'application/json',
-        'apikey': serviceKey,
-        'Authorization': `Bearer ${serviceKey}`
-    };
-    if (prefer) headers['Prefer'] = prefer;
-    const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined
-    });
-    if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Supabase ${method} ${path} failed: ${res.status} ${errText}`);
-    }
-    if (res.status === 204) return null;
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
+    return pgrest.raw(path, { method, body, prefer });
 }
 
+// Delega en lib/auth/supabase-auth.resolveBearerUser; devuelve el objeto de
+// usuario crudo de Supabase Auth (con .id/.email) para conservar el contrato.
 async function _getAuthUserFromBearer(req) {
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!token) return null;
-    const { supabaseUrl, serviceKey } = _supabaseConfigForSupport();
-    if (!supabaseUrl || !serviceKey) return null;
-    try {
-        const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-            headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data && data.id ? data : null;
-    } catch { return null; }
+    const user = await resolveBearerUser(req);
+    return user ? user.raw : null;
 }
 
 async function _detectUserRole(userId, email) {
@@ -571,13 +550,10 @@ async function _executeTool(toolName, args, ctx) {
     if (toolName === 'get_quotation_status') {
         if (!userId) return { error: 'Usuario no autenticado. Pide que inicie sesión.' };
         try {
-            const qid = args.quotation_id;
-            // Buscar cotizaciones donde el usuario es el cliente (por email del profile o por id)
-            let filter = '';
-            if (qid) filter = `id=eq.${qid}&`;
-            const q = await _supabaseFetch(
-                `quotations_db?${filter}or=(user_id.eq.${userId},client_user_id.eq.${userId})&select=id,status,service_type,created_at,updated_at,artist_id&order=created_at.desc&limit=10`
-            );
+            // Cotizaciones donde el usuario es cliente o artista. Via la capa
+            // unificada con columnas reales (antes pedia status/service_type/
+            // user_id inexistentes y la query fallaba — doc §4-E).
+            const q = await QuotationsRepo.listForUser({ userId, quoteId: args.quotation_id });
             return { quotations: q || [] };
         } catch (err) {
             return { error: err.message };
@@ -2214,40 +2190,33 @@ async function fetchAdminTableRows(tableName, { limit = 50, offset = 0, filterCo
     const safeOffset = parseBoundedInt(offset, 0, { min: 0, max: Number.MAX_SAFE_INTEGER });
 
     // Optional equality filter (e.g. studio_id=eq.<uuid>) and ordering. Column
-    // names are validated so they can never break out of the query.
-    let query = `select=*`;
+    // names are validated so they can never break out of the query. La lectura
+    // pasa por la capa unificada (pgrest) con service-role.
+    const q = pgrest(tableName).select('*').range(safeOffset, safeOffset + safeLimit - 1).count('exact');
     if (filterColumn) {
         if (!SAFE_COLUMN_RE.test(filterColumn)) {
             const err = new Error('Invalid filter column'); err.status = 400; throw err;
         }
-        query += `&${filterColumn}=eq.${encodeURIComponent(filterValue == null ? '' : filterValue)}`;
+        q.eq(filterColumn, filterValue == null ? '' : filterValue);
     }
     if (order) {
         if (!SAFE_ORDER_RE.test(order)) {
             const err = new Error('Invalid order'); err.status = 400; throw err;
         }
-        query += `&order=${order}`;
+        const [orderCol, orderDir] = order.split('.');
+        q.order(orderCol, { ascending: orderDir !== 'desc' });
     }
 
-    const response = await fetch(`${supabaseUrl}/rest/v1/${tableName}?${query}`, {
-        headers: {
-            ...getAdminHeaders(serviceRoleKey),
-            'Range': `${safeOffset}-${safeOffset + safeLimit - 1}`,
-            'Prefer': 'count=exact'
-        }
-    });
-
-    if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        const err = new Error(`Supabase table read failed (${response.status}): ${body.slice(0, 200)}`);
-        err.status = 502;
+    let result;
+    try {
+        result = await q.execute();
+    } catch (err) {
+        err.status = err.status || 502;
         throw err;
     }
-
-    const text = await response.text();
     return {
-        rows: text ? JSON.parse(text) : [],
-        count: parseContentRangeTotal(response),
+        rows: result.rows,
+        count: result.count,
         limit: safeLimit,
         offset: safeOffset
     };
@@ -3056,19 +3025,11 @@ app.post('/api/job-board/accept-application', async (req, res) => {
             created_at: new Date().toISOString()
         };
 
-        const createQuoteResponse = await fetch(
-            `${supabaseUrl}/rest/v1/quotations_db`,
-            {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(quotationPayload)
-            }
-        );
-
-        if (!createQuoteResponse.ok) {
-            const err = await createQuoteResponse.json();
-            console.error('[Job Board] Error creating quotation:', err);
-            throw new Error('Failed to create quotation: ' + (err.message || JSON.stringify(err)));
+        try {
+            await QuotationsRepo.createFromJobBoard(quotationPayload);
+        } catch (err) {
+            console.error('[Job Board] Error creating quotation:', err.message);
+            throw new Error('Failed to create quotation: ' + err.message);
         }
 
         console.log(`[Job Board] Created quotation ${quoteId}`);
@@ -3162,79 +3123,29 @@ app.post('/api/client/quotations/:quoteId/hide', async (req, res) => {
         return res.status(400).json({ success: false, error: 'quoteId is required' });
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ success: false, error: 'Server configuration incomplete' });
-    }
-
-    const headers = {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Prefer': 'return=representation'
-    };
-
     try {
-        // 1. Authenticate caller from Bearer token
-        const authHeader = req.headers['authorization'];
-        let callerUserId = null;
-        let callerEmail = null;
-
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.replace('Bearer ', '');
-            try {
-                const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-                    headers: {
-                        'apikey': serviceRoleKey,
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    callerUserId = userData?.id || null;
-                    callerEmail = userData?.email || null;
-                }
-            } catch (authErr) {
-                console.warn('[Client Hide] Auth check failed:', authErr.message);
-            }
-        }
-
-        if (!callerUserId) {
+        // 1. Authenticate caller from Bearer token (capa unificada)
+        const caller = await resolveBearerUser(req);
+        if (!caller) {
             return res.status(401).json({ success: false, error: 'Authentication required' });
         }
 
         // 2. Fetch the quotation by quote_id
-        const quoteResponse = await fetch(
-            `${supabaseUrl}/rest/v1/quotations_db?quote_id=eq.${encodeURIComponent(quoteId)}&select=id,quote_id,client_user_id,client_email,client_deleted_at`,
-            { headers }
-        );
-        const quoteData = await quoteResponse.json();
-
-        if (!quoteData || quoteData.length === 0) {
+        const quotation = await QuotationsRepo.getByQuoteId(quoteId, {
+            select: 'id,quote_id,client_user_id,client_email,client_deleted_at'
+        });
+        if (!quotation) {
             return res.status(404).json({ success: false, error: 'Quotation not found' });
         }
 
-        const quotation = quoteData[0];
-
-        // 3. Verify ownership: client_user_id must match, or client_email must match
-        let isOwner = quotation.client_user_id === callerUserId;
-
-        if (!isOwner && callerEmail && quotation.client_email &&
-            quotation.client_email.toLowerCase() === callerEmail.toLowerCase()) {
+        // 3. Verify ownership: client_user_id matches, or client_email matches
+        let isOwner = quotation.client_user_id === caller.id;
+        if (!isOwner && caller.email && quotation.client_email &&
+            quotation.client_email.toLowerCase() === caller.email.toLowerCase()) {
             // Link the quotation to this client before hiding
-            await fetch(
-                `${supabaseUrl}/rest/v1/quotations_db?id=eq.${quotation.id}`,
-                {
-                    method: 'PATCH',
-                    headers,
-                    body: JSON.stringify({ client_user_id: callerUserId })
-                }
-            );
+            await QuotationsRepo.claimForClient(quotation.id, caller.id);
             isOwner = true;
         }
-
         if (!isOwner) {
             return res.status(403).json({ success: false, error: 'You do not own this quotation' });
         }
@@ -3243,22 +3154,10 @@ app.post('/api/client/quotations/:quoteId/hide', async (req, res) => {
             return res.json({ success: true, quoteId, message: 'Already hidden' });
         }
 
-        // 4. Set client_deleted_at
-        const patchResponse = await fetch(
-            `${supabaseUrl}/rest/v1/quotations_db?id=eq.${quotation.id}`,
-            {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify({ client_deleted_at: new Date().toISOString() })
-            }
-        );
+        // 4. Soft-delete for the client (set client_deleted_at)
+        await QuotationsRepo.softDeleteForClient(quotation.id);
 
-        if (!patchResponse.ok) {
-            const errBody = await patchResponse.text();
-            throw new Error(`Failed to hide quotation: ${errBody}`);
-        }
-
-        console.log(`[Client Hide] Client ${callerUserId} hid quotation ${quoteId}`);
+        console.log(`[Client Hide] Client ${caller.id} hid quotation ${quoteId}`);
         return res.json({ success: true, quoteId });
 
     } catch (error) {
@@ -3280,71 +3179,23 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
         return res.status(400).json({ success: false, error: 'quoteId is required' });
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ success: false, error: 'Server configuration incomplete' });
-    }
-
-    const headers = {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Prefer': 'return=representation'
-    };
-
     try {
-        const authHeader = req.headers['authorization'];
-        let callerUserId = null;
-        let callerEmail = null;
-
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.replace('Bearer ', '');
-            try {
-                const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-                    headers: {
-                        'apikey': serviceRoleKey,
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    callerUserId = userData?.id || null;
-                    callerEmail = userData?.email || null;
-                }
-            } catch (authErr) {
-                console.warn('[Client Complete] Auth check failed:', authErr.message);
-            }
-        }
-
-        if (!callerUserId) {
+        const caller = await resolveBearerUser(req);
+        if (!caller) {
             return res.status(401).json({ success: false, error: 'Authentication required' });
         }
 
-        const quoteResponse = await fetch(
-            `${supabaseUrl}/rest/v1/quotations_db?quote_id=eq.${encodeURIComponent(quoteId)}&select=id,quote_id,quote_status,client_user_id,client_email,dispute_status,client_completed_at`,
-            { headers }
-        );
-        const quoteData = await quoteResponse.json();
-
-        if (!quoteData || quoteData.length === 0) {
+        const quotation = await QuotationsRepo.getByQuoteId(quoteId, {
+            select: 'id,quote_id,quote_status,client_user_id,client_email,dispute_status,client_completed_at'
+        });
+        if (!quotation) {
             return res.status(404).json({ success: false, error: 'Quotation not found' });
         }
 
-        const quotation = quoteData[0];
-        let isOwner = quotation.client_user_id === callerUserId;
-
-        if (!isOwner && callerEmail && quotation.client_email &&
-            quotation.client_email.toLowerCase() === callerEmail.toLowerCase()) {
-            await fetch(
-                `${supabaseUrl}/rest/v1/quotations_db?id=eq.${quotation.id}`,
-                {
-                    method: 'PATCH',
-                    headers,
-                    body: JSON.stringify({ client_user_id: callerUserId })
-                }
-            );
+        let isOwner = quotation.client_user_id === caller.id;
+        if (!isOwner && caller.email && quotation.client_email &&
+            quotation.client_email.toLowerCase() === caller.email.toLowerCase()) {
+            await QuotationsRepo.claimForClient(quotation.id, caller.id);
             isOwner = true;
         }
 
@@ -3374,25 +3225,9 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
         }
 
         const completedAt = new Date().toISOString();
-        const patchResponse = await fetch(
-            `${supabaseUrl}/rest/v1/quotations_db?id=eq.${quotation.id}`,
-            {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify({
-                    quote_status: 'completed',
-                    client_completed_at: completedAt,
-                    completed_by_client_user_id: callerUserId
-                })
-            }
-        );
+        await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
 
-        if (!patchResponse.ok) {
-            const errBody = await patchResponse.text();
-            throw new Error(`Failed to complete quotation: ${errBody}`);
-        }
-
-        console.log(`[Client Complete] Client ${callerUserId} completed quotation ${quoteId}`);
+        console.log(`[Client Complete] Client ${caller.id} completed quotation ${quoteId}`);
         return res.json({
             success: true,
             quoteId,
@@ -3974,18 +3809,17 @@ app.get('/api/analytics/locations', async (req, res) => {
  * Returns: status breakdown, avg response time, conversion by style, conversion by artist, trend over time
  */
 app.get('/api/analytics/quotations', async (req, res) => {
-    const cfg = getHealthConfig();
-    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
-        return res.status(503).json({ success: false, error: 'Supabase not configured' });
-    }
+    // FIX (doc §4-A): este analytics expone datos de cotizaciones; ahora exige
+    // superadmin y lee con service-role via la capa unificada (antes usaba la
+    // anon key sin auth, dependiendo de RLS de anon).
+    const auth = await appSettings.verifyAdminCaller(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
 
     const days = Math.min(parseInt(req.query.days) || 90, 365);
     const since = new Date(Date.now() - days * 86400000).toISOString();
 
     try {
-        const quotes = await supabaseQuery(cfg,
-            `quotations_db?select=quote_id,quote_status,tattoo_style,artist_id,artist_name,created_at,sent_to_artist_at,artist_responded_at&created_at=gte.${since}`
-        );
+        const quotes = await QuotationsRepo.fetchAnalyticsSince(since);
 
         // 1. Total by status
         const byStatus = {};

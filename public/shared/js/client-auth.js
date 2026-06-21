@@ -337,30 +337,23 @@ async function handleClientRegistration(e) {
 async function linkQuotationsByEmail(userId, email) {
     try {
         // Find quotations with matching email that don't have a client_user_id
-        const { data: quotations, error: fetchError } = await _supabase
-            .from('quotations_db')
-            .select('quote_id')
-            .ilike('client_email', email)
-            .is('client_user_id', null);
-        
-        if (fetchError) {
+        let quotations;
+        try {
+            quotations = await WeotziData.Quotations.findUnclaimedByEmail(email);
+        } catch (fetchError) {
             console.error('Error fetching quotations:', fetchError);
             return;
         }
-        
+
         if (quotations && quotations.length > 0) {
             // Update each quotation with the client_user_id
             const quoteIds = quotations.map(q => q.quote_id);
-            
-            const { error: updateError } = await _supabase
-                .from('quotations_db')
-                .update({ client_user_id: userId })
-                .in('quote_id', quoteIds);
-            
-            if (updateError) {
-                console.error('Error linking quotations:', updateError);
-            } else {
+
+            try {
+                await WeotziData.Quotations.claimByQuoteIds(userId, quoteIds);
                 console.log(`Linked ${quotations.length} quotations to client account`);
+            } catch (updateError) {
+                console.error('Error linking quotations:', updateError);
             }
         }
     } catch (error) {
@@ -375,16 +368,11 @@ async function linkQuotationsByEmail(userId, email) {
 async function linkQuotationById(userId, quoteId) {
     if (!userId || !quoteId) return;
     try {
-        const { error } = await _supabase
-            .from('quotations_db')
-            .update({ client_user_id: userId })
-            .eq('quote_id', quoteId)
-            .is('client_user_id', null);
-        
-        if (error) {
-            console.error('Error linking quotation by ID:', error);
-        } else {
+        try {
+            await WeotziData.Quotations.claimByQuoteId(userId, quoteId);
             console.log(`Linked quotation ${quoteId} to client account`);
+        } catch (error) {
+            console.error('Error linking quotation by ID:', error);
         }
     } catch (error) {
         console.error('Error in linkQuotationById:', error);

@@ -224,22 +224,16 @@ function setupToolbarListeners() {
 
 async function loadQuotations() {
     try {
-        // Fetch quotations and tattoo styles in parallel (excluding drafts/in_progress)
-        const [quotesResult, stylesResult] = await Promise.all([
-            _supabase
-                .from('quotations_db')
-                .select('*')
-                .eq('artist_id', currentUser.id)
-                .eq('is_archived', false)
-                .neq('quote_status', 'in_progress'),
+        // Cotizaciones (capa PostgREST unificada) + estilos en paralelo.
+        const [quotes, stylesResult] = await Promise.all([
+            WeotziData.Quotations.listActiveForArtist(currentUser.id),
             _supabase
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order', { ascending: true })
         ]);
 
-        if (quotesResult.error) throw quotesResult.error;
-        quotations = quotesResult.data || [];
+        quotations = quotes || [];
 
         // Store tattoo styles for later use
         if (stylesResult.error) {
@@ -253,13 +247,7 @@ async function loadQuotations() {
         if (quotations.length > 0) {
             const quoteIds = quotations.map(q => q.quote_id).filter(id => id);
             if (quoteIds.length > 0) {
-                const { data: attachments, error: attachError } = await _supabase
-                    .from('quotations_attachments')
-                    .select('*')
-                    .in('quotation_id', quoteIds);
-                
-                if (attachError) throw attachError;
-                allAttachments = attachments || [];
+                allAttachments = await WeotziData.Attachments.listByQuoteIds(quoteIds);
             }
         }
 
@@ -471,8 +459,7 @@ window.bulkArchive = async function() {
     if (selectedQuotes.size === 0) return;
     const ids = Array.from(selectedQuotes);
     try {
-        const { error } = await _supabase.from('quotations_db').update({ is_archived: true }).in('id', ids);
-        if (error) throw error;
+        await WeotziData.Quotations.setArchivedByIds(ids, true);
         selectedQuotes.clear();
         await loadQuotations();
     } catch (err) { alert('Error archiving: ' + err.message); }
@@ -483,8 +470,7 @@ window.bulkDelete = async function() {
     if (!confirm(`Are you sure?`)) return;
     const ids = Array.from(selectedQuotes);
     try {
-        const { error } = await _supabase.from('quotations_db').delete().in('id', ids);
-        if (error) throw error;
+        await WeotziData.Quotations.hardDeleteByIds(ids);
         selectedQuotes.clear();
         await loadQuotations();
     } catch (err) { alert('Error deleting: ' + err.message); }
@@ -494,8 +480,7 @@ window.bulkUpdateStatus = async function(newStatus) {
     if (selectedQuotes.size === 0) return;
     const ids = Array.from(selectedQuotes);
     try {
-        const { error } = await _supabase.from('quotations_db').update({ quote_status: newStatus }).in('id', ids);
-        if (error) throw error;
+        await WeotziData.Quotations.updateStatusByIds(ids, newStatus);
         selectedQuotes.clear();
         await loadQuotations();
     } catch (err) { alert('Error updating status: ' + err.message); }

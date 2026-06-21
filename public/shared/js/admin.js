@@ -447,33 +447,22 @@ async function loadDashboardStats() {
 
     try {
         // Total quotations
-        const { count: total } = await supabaseClient
-            .from('quotations_db')
-            .select('*', { count: 'exact', head: true });
+        const total = await WeotziData.Quotations.countAll();
 
         document.getElementById('stat-total').textContent = total || 0;
 
         // Pending (Awaiting artist response)
-        const { count: pendingCount } = await supabaseClient
-            .from('quotations_db')
-            .select('*', { count: 'exact', head: true })
-            .eq('quote_status', 'pending');
+        const pendingCount = await WeotziData.Quotations.countByStatus('pending');
 
         document.getElementById('stat-pending-artist').textContent = pendingCount || 0;
 
         // Responded (Addressed by artist)
-        const { count: respondedCount } = await supabaseClient
-            .from('quotations_db')
-            .select('*', { count: 'exact', head: true })
-            .eq('quote_status', 'responded');
+        const respondedCount = await WeotziData.Quotations.countByStatus('responded');
 
         document.getElementById('stat-responded').textContent = respondedCount || 0;
 
         // In progress (Still being filled by client)
-        const { count: inProgressCount } = await supabaseClient
-            .from('quotations_db')
-            .select('*', { count: 'exact', head: true })
-            .eq('quote_status', 'in_progress');
+        const inProgressCount = await WeotziData.Quotations.countByStatus('in_progress');
 
         document.getElementById('stat-in-progress').textContent = inProgressCount || 0;
 
@@ -485,11 +474,7 @@ async function loadDashboardStats() {
         document.getElementById('stat-artists').textContent = artists || 0;
 
         // Recent quotations
-        const { data: recent } = await supabaseClient
-            .from('quotations_db')
-            .select('quote_id, client_full_name, artist_name, created_at, quote_status')
-            .order('created_at', { ascending: false })
-            .limit(5);
+        const recent = await WeotziData.Quotations.listRecent(5);
 
         renderRecentQuotations(recent || []);
 
@@ -548,18 +533,7 @@ async function loadQuotations() {
     showTableLoading('quotations-tbody', 8);
 
     try {
-        let query = supabaseClient
-            .from('quotations_db')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (statusFilter) {
-            query = query.eq('quote_status', statusFilter);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
+        const data = await WeotziData.Quotations.listForAdmin({ status: statusFilter || null });
 
         // Filter by search term
         let filtered = data;
@@ -718,12 +692,7 @@ async function deleteQuotation(quoteId) {
     try {
         if (!supabaseClient) throw new Error("No hay conexión con Supabase");
 
-        const { error } = await supabaseClient
-            .from('quotations_db')
-            .delete()
-            .eq('quote_id', quoteId);
-
-        if (error) throw error;
+        await WeotziData.Quotations.hardDeleteByQuoteId(quoteId);
 
         showToast('Cotización eliminada', 'success');
 
@@ -751,12 +720,7 @@ async function deleteSelectedQuotations() {
 
         const idsToDelete = Array.from(selectedQuotations);
 
-        const { error } = await supabaseClient
-            .from('quotations_db')
-            .delete()
-            .in('quote_id', idsToDelete);
-
-        if (error) throw error;
+        await WeotziData.Quotations.hardDeleteByQuoteIds(idsToDelete);
 
         showToast(`${count} cotizaciones eliminadas`, 'success');
 
@@ -4567,119 +4531,6 @@ async function loadDatabaseSection() {
     await loadDatabaseStats();
 }
 
-async function loadDatabaseStatsLegacy() {
-    const healthIndicator = document.getElementById('db-health-indicator');
-    const tablesGrid = document.getElementById('tables-grid');
-    
-    // Check if Supabase is available
-    const client = window.ConfigManager?.getSupabaseClient();
-    if (!client) {
-        healthIndicator.className = 'db-health-indicator disconnected';
-        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Sin conexion a Supabase</span>';
-        showEmptyState('tables-grid', 'fa-plug', 'Sin conexion a Supabase', 'Configura la conexion en Configuracion para ver las tablas.');
-        return;
-    }
-
-    healthIndicator.className = 'db-health-indicator';
-    healthIndicator.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Cargando...</span>';
-    showSectionLoading('tables-grid');
-    
-    try {
-        let totalRows = 0;
-        const tableCounts = {};
-        
-        // Get row counts for each table
-        for (const table of DB_TABLES) {
-            try {
-                const { count, error } = await client
-                    .from(table)
-                    .select('*', { count: 'exact', head: true });
-                
-                tableCounts[table] = error ? 'Error' : (count || 0);
-                if (!error && count) totalRows += count;
-            } catch {
-                tableCounts[table] = 'Error';
-            }
-        }
-        
-        // Update health indicator
-        healthIndicator.className = 'db-health-indicator connected';
-        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Conectado</span>';
-        
-        // Update stats
-        document.getElementById('db-total-tables').textContent = DB_TABLES.length;
-        document.getElementById('db-total-rows').textContent = totalRows.toLocaleString();
-        
-        // Render tables grid
-        tablesGrid.innerHTML = DB_TABLES.map(table => {
-            const count = tableCounts[table];
-            const isError = count === 'Error';
-            
-            return `
-                <div class="table-card" onclick="inspectTable('${table}')">
-                    <div class="table-card-header">
-                        <div class="table-card-name">
-                            <i class="fa-solid fa-table"></i>
-                            <span>${table}</span>
-                        </div>
-                        <span class="table-card-count ${isError ? 'error' : ''}">${isError ? 'Error' : count}</span>
-                    </div>
-                    <div class="table-card-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); exportTable('${table}')">
-                            <i class="fa-solid fa-download"></i> Exportar
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-    } catch (err) {
-        healthIndicator.className = 'db-health-indicator disconnected';
-        healthIndicator.innerHTML = '<i class="fa-solid fa-database"></i><span>Error de conexión</span>';
-        showToast('Error: ' + err.message, 'error');
-    }
-}
-
-async function inspectTableLegacy(tableName) {
-    const client = window.ConfigManager?.getSupabaseClient();
-    if (!client) {
-        showToast('No hay conexión a Supabase', 'error');
-        return;
-    }
-    
-    currentTableName = tableName;
-    tableInspectorPage = 1;
-    
-    document.getElementById('table-inspector-title').textContent = `Tabla: ${tableName}`;
-    
-    showToast('Cargando datos...', 'info');
-    
-    try {
-        // Get total count
-        const { count } = await client
-            .from(tableName)
-            .select('*', { count: 'exact', head: true });
-        
-        document.getElementById('table-inspector-count').textContent = `${count || 0} registros`;
-        
-        // Get first page of data
-        const { data, error } = await client
-            .from(tableName)
-            .select('*')
-            .range(0, tableInspectorPerPage - 1);
-        
-        if (error) throw error;
-        
-        currentTableData = data || [];
-        renderTableInspector(data);
-        
-        openModal('table-inspector-modal');
-        
-    } catch (err) {
-        showToast('Error: ' + err.message, 'error');
-    }
-}
-
 async function loadDatabaseStats() {
     const healthIndicator = document.getElementById('db-health-indicator');
     const tablesGrid = document.getElementById('tables-grid');
@@ -5070,28 +4921,6 @@ async function deleteTableRow(index) {
     });
 }
 
-async function exportTableLegacy(tableName) {
-    const client = window.ConfigManager?.getSupabaseClient();
-    if (!client) {
-        showToast('No hay conexión a Supabase', 'error');
-        return;
-    }
-    
-    showToast(`Exportando ${tableName}...`, 'info');
-    
-    try {
-        const { data, error } = await client.from(tableName).select('*');
-        if (error) throw error;
-        
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        saveAs(blob, `${tableName}-${new Date().toISOString().split('T')[0]}.json`);
-        
-        showToast('Tabla exportada', 'success');
-    } catch (err) {
-        showToast('Error: ' + err.message, 'error');
-    }
-}
-
 function exportTableJSON() {
     if (!currentTableData || currentTableData.length === 0) {
         showToast('No hay datos para exportar', 'error');
@@ -5127,37 +4956,6 @@ function exportTableCSV() {
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
     saveAs(blob, `${currentTableName}-${new Date().toISOString().split('T')[0]}.csv`);
     showToast('Exportado como CSV', 'success');
-}
-
-async function exportAllTablesLegacy() {
-    const client = window.ConfigManager?.getSupabaseClient();
-    if (!client) {
-        showToast('No hay conexión a Supabase', 'error');
-        return;
-    }
-    
-    showToast('Exportando todas las tablas...', 'info');
-    
-    const zip = new JSZip();
-    
-    for (const table of DB_TABLES) {
-        try {
-            const { data } = await client.from(table).select('*');
-            if (data) {
-                zip.file(`${table}.json`, JSON.stringify(data, null, 2));
-            }
-        } catch (err) {
-            console.warn(`Could not export ${table}:`, err);
-        }
-    }
-    
-    try {
-        const blob = await zip.generateAsync({ type: 'blob' });
-        saveAs(blob, `weotzi-database-${new Date().toISOString().split('T')[0]}.zip`);
-        showToast('Base de datos exportada', 'success');
-    } catch (err) {
-        showToast('Error al crear ZIP', 'error');
-    }
 }
 
 // ============ ROUTES SECTION ============
@@ -7154,9 +6952,8 @@ function initRealtimeSubscriptions() {
     cleanupRealtimeSubscriptions();
 
     // Channel: new/updated quotations
-    const quotationsChannel = supabaseClient
-        .channel('dashboard-quotations')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'quotations_db' }, (payload) => {
+    const quotationsChannel = WeotziData.Realtime.subscribeQuotationsForAdmin('dashboard-quotations', {
+        onInsert: (payload) => {
             const q = payload.new;
             pushRealtimeEvent({
                 type: 'quotation_new',
@@ -7168,8 +6965,8 @@ function initRealtimeSubscriptions() {
             });
             refreshStatValue('stat-total', 1);
             refreshStatValue('stat-pending-artist', 1);
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'quotations_db' }, (payload) => {
+        },
+        onUpdate: (payload) => {
             const q = payload.new;
             const oldStatus = payload.old?.quote_status;
             const newStatus = q.quote_status;
@@ -7194,10 +6991,10 @@ function initRealtimeSubscriptions() {
                 timestamp: new Date().toISOString()
             });
             loadDashboardStats();
-        })
-        .subscribe();
+        }
+    });
 
-    _realtimeChannels.push(quotationsChannel);
+    if (quotationsChannel) _realtimeChannels.push(quotationsChannel);
 
     // Channel: new artists
     const artistsChannel = supabaseClient

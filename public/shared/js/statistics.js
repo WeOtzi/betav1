@@ -46,13 +46,12 @@ async function loadStatisticsData() {
         const user = session.user;
         document.getElementById('logged-as').textContent = `LOGGED_AS: ${user.email.split('@')[0].toUpperCase()}`;
 
-        // Fetch all quotations for the artist
-        const { data: allQuotes, error: fetchError } = await _supabase
-            .from('quotations_db')
-            .select('*')
-            .eq('artist_id', user.id);
-
-        if (fetchError) throw fetchError;
+        // Fetch all quotations for the artist (capa PostgREST unificada).
+        // Sin excluir archivadas ni in_progress para preservar el comportamiento original.
+        const allQuotes = await WeotziData.Quotations.listForArtist(user.id, {
+            excludeArchived: false,
+            excludeInProgress: false
+        });
 
         quotations = allQuotes || [];
         

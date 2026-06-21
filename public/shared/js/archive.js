@@ -163,20 +163,16 @@ function setupToolbarListeners() {
 
 async function loadQuotations() {
     try {
-        const [quotesResult, stylesResult] = await Promise.all([
-            _supabase
-                .from('quotations_db')
-                .select('*')
-                .eq('artist_id', currentUser.id)
-                .eq('is_archived', true),  // ARCHIVED ONLY
+        // Cotizaciones archivadas (capa PostgREST unificada) + estilos en paralelo.
+        const [quotes, stylesResult] = await Promise.all([
+            WeotziData.Quotations.listArchivedForArtist(currentUser.id),  // ARCHIVED ONLY
             _supabase
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order', { ascending: true })
         ]);
 
-        if (quotesResult.error) throw quotesResult.error;
-        quotations = quotesResult.data || [];
+        quotations = quotes || [];
 
         if (stylesResult.error) {
             console.warn('Could not load tattoo styles:', stylesResult.error);
@@ -188,13 +184,7 @@ async function loadQuotations() {
         if (quotations.length > 0) {
             const quoteIds = quotations.map(q => q.quote_id).filter(id => id);
             if (quoteIds.length > 0) {
-                const { data: attachments, error: attachError } = await _supabase
-                    .from('quotations_attachments')
-                    .select('*')
-                    .in('quotation_id', quoteIds);
-                
-                if (attachError) throw attachError;
-                allAttachments = attachments || [];
+                allAttachments = await WeotziData.Attachments.listByQuoteIds(quoteIds);
             }
         }
 
@@ -375,8 +365,7 @@ window.bulkUnarchive = async function() {
     if (selectedQuotes.size === 0) return;
     const ids = Array.from(selectedQuotes);
     try {
-        const { error } = await _supabase.from('quotations_db').update({ is_archived: false }).in('id', ids);
-        if (error) throw error;
+        await WeotziData.Quotations.setArchivedByIds(ids, false);
         selectedQuotes.clear();
         await loadQuotations();
     } catch (err) { alert('Error unarchiving: ' + err.message); }
@@ -387,8 +376,7 @@ window.bulkDelete = async function() {
     if (!confirm(`Are you sure you want to permanently delete ${selectedQuotes.size} archived quote(s)?`)) return;
     const ids = Array.from(selectedQuotes);
     try {
-        const { error } = await _supabase.from('quotations_db').delete().in('id', ids);
-        if (error) throw error;
+        await WeotziData.Quotations.hardDeleteByIds(ids);
         selectedQuotes.clear();
         await loadQuotations();
     } catch (err) { alert('Error deleting: ' + err.message); }
@@ -397,8 +385,7 @@ window.bulkDelete = async function() {
 // Archive-specific single actions (used by shared-drawer.js)
 window.unarchiveSingle = async function(id) {
     try {
-        const { error } = await _supabase.from('quotations_db').update({ is_archived: false }).eq('id', id);
-        if (error) throw error;
+        await WeotziData.Quotations.setArchivedById(id, false);
         document.getElementById('drawer-toggle').checked = false;
         await loadQuotations();
     } catch (err) { alert('Error unarchiving: ' + err.message); }
@@ -407,8 +394,7 @@ window.unarchiveSingle = async function(id) {
 window.deleteSingle = async function(id) {
     if (!confirm('Are you sure you want to permanently delete this quote?')) return;
     try {
-        const { error } = await _supabase.from('quotations_db').delete().eq('id', id);
-        if (error) throw error;
+        await WeotziData.Quotations.hardDeleteById(id);
         document.getElementById('drawer-toggle').checked = false;
         await loadQuotations();
     } catch (err) { alert('Error deleting: ' + err.message); }

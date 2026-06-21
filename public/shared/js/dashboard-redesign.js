@@ -221,14 +221,9 @@
     });
   }
   function loadCotizaciones() {
-    return withLiveTimeout(sb.from('quotations_db').select('*')
-      .eq('artist_id', user.id)
-      .neq('quote_status', 'in_progress')
-      .order('created_at', { ascending: false })
-      .limit(40), 'cotizaciones')
-      .then(function (res) {
-        if (res.error) throw res.error;
-        quotes = (res.data || []).filter(function (q) { return !q.is_archived; });
+    return withLiveTimeout(WeotziData.Quotations.listForArtist(user.id, { limit: 40 }), 'cotizaciones')
+      .then(function (rows) {
+        quotes = (rows || []).filter(function (q) { return !q.is_archived; });
         var total = quotes.length;
         var pending = quotes.filter(function (q) { return q.quote_status === 'pending'; }).length;
         var resp = quotes.filter(function (q) { return q.quote_status === 'responded'; }).length;
@@ -265,15 +260,10 @@
   }
   function loadAgenda() {
     var nowIso = new Date().toISOString();
-    return withLiveTimeout(sb.from('quotation_sessions')
-      .select('id, session_date, session_number, status, notes, quotation_id, quotations_db(client_full_name, tattoo_style, tattoo_body_part)')
-      .gte('session_date', nowIso)
-      .order('session_date', { ascending: true })
-      .limit(20), 'agenda')
-      .then(function (res) {
-        if (res.error) throw res.error;
+    return withLiveTimeout(WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 20 }), 'agenda')
+      .then(function (rows) {
         // sessions are only the artist's via RLS / the quotation join; filter defensively
-        var rows = (res.data || []).filter(function (s) { return s.status !== 'cancelled'; }).slice(0, 5);
+        rows = (rows || []).filter(function (s) { return s.status !== 'cancelled'; }).slice(0, 5);
         var box = $('wod-agenda-rows'); if (!box) return rows.length;
         if (!rows.length) {
           box.innerHTML = '<div class="wod-empty">Sin turnos próximos · <a href="/calendar">abrir calendario →</a></div>';

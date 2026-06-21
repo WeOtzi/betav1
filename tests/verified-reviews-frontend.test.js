@@ -45,13 +45,21 @@ test('client dashboard completes artist_completed quotation before review', () =
     const serverJs = read('server.js');
 
     assert.match(dashboardJs, /quote_status === 'artist_completed'/);
-    assert.match(dashboardJs, /\/api\/client\/quotations\/\$\{encodeURIComponent\(quoteId\)\}\/complete/);
+    // El POST a /complete vive ahora en la capa PostgREST unificada
+    // (WeotziData.Api.confirmCompletionByClient); el dashboard la invoca.
+    assert.match(dashboardJs, /Api\.confirmCompletionByClient/);
+    const quotationsRepoFront = read('public', 'shared', 'js', 'data', 'quotations-repo.js');
+    assert.match(quotationsRepoFront, /\/api\/client\/quotations\/\$\{encodeURIComponent\(quoteId\)\}\/complete/);
     assert.match(dashboardJs, /openQuotationArtistReview/);
     assert.match(dashboardJs, /contextType: 'quotation'/);
 
     assert.match(serverJs, /POST \/api\/client\/quotations\/:quoteId\/complete/);
     assert.match(serverJs, /quotation\.quote_status !== 'artist_completed'/);
-    assert.match(serverJs, /quote_status: 'completed'/);
+    // El seteo de estado vive ahora en la capa PostgREST unificada
+    // (QuotationsRepo.markCompletedByClient), no inline en server.js.
+    assert.match(serverJs, /QuotationsRepo\.markCompletedByClient/);
+    const quotationsRepo = read('lib', 'repos', 'quotations.js');
+    assert.match(quotationsRepo, /quote_status: 'completed'/);
 });
 
 test('support dashboard exposes review moderation queue', () => {

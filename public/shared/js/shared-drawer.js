@@ -539,8 +539,7 @@ window.openRatingModal = function(quoteId, rating) {
 window.saveRating = async function(quoteId, rating, reason) {
     const comment = document.getElementById('rating-comment')?.value || '';
     try {
-        const { error } = await _supabase.from('quotations_db').update({ rating, rating_reason: reason, rating_comment: comment }).eq('id', quoteId);
-        if (error) throw error;
+        await WeotziData.Quotations.setRating(quoteId, { rating, reason, comment });
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (quote) { quote.rating = rating; quote.rating_reason = reason; quote.rating_comment = comment; }
         
@@ -701,8 +700,7 @@ window.updateQuoteStatus = async function(quoteId, newStatus) {
             return;
         }
 
-        const { error } = await _supabase.from('quotations_db').update({ quote_status: newStatus }).eq('id', quoteId);
-        if (error) throw error;
+        await WeotziData.Quotations.updateStatusById(quoteId, newStatus);
         quote.quote_status = newStatus;
         if (newStatus === 'artist_completed') quote.artist_completed_at = new Date().toISOString();
         window.showToast?.(`Estado actualizado: ${STATUS_LABELS[newStatus] || newStatus}`, 'success');
@@ -771,8 +769,7 @@ window.openArtistClientReview = function(quoteId) {
 
 window.updateQuotePriority = async function(quoteId, newPriority) {
     try {
-        const { error } = await _supabase.from('quotations_db').update({ priority: newPriority }).eq('id', quoteId);
-        if (error) throw error;
+        await WeotziData.Quotations.updatePriority(quoteId, newPriority);
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (quote) quote.priority = newPriority;
         if (typeof applyFiltersAndSort === 'function') applyFiltersAndSort();
@@ -790,14 +787,7 @@ window.updateQuotePriority = async function(quoteId, newPriority) {
 
 async function loadNotesForQuote(quoteId) {
     try {
-        const { data, error } = await _supabase
-            .from('quotation_notes')
-            .select('*')
-            .eq('quotation_id', quoteId)
-            .order('note_date', { ascending: false });
-        
-        if (error) throw error;
-        currentQuoteNotes = data || [];
+        currentQuoteNotes = await WeotziData.Notes.listForQuote(quoteId);
         return currentQuoteNotes;
     } catch (err) {
         console.error('Error loading notes:', err);
@@ -911,12 +901,10 @@ window.saveNote = async function() {
     
     try {
         if (editingNoteId) {
-            const { error } = await _supabase.from('quotation_notes').update(noteData).eq('id', editingNoteId);
-            if (error) throw error;
+            await WeotziData.Notes.update(editingNoteId, noteData);
         } else {
             noteData.created_at = new Date().toISOString();
-            const { error } = await _supabase.from('quotation_notes').insert([noteData]);
-            if (error) throw error;
+            await WeotziData.Notes.create(noteData);
         }
         
         closeNoteModal();
@@ -944,9 +932,8 @@ window.confirmDeleteNote = async function() {
     const quoteIdToRefresh = note ? note.quotation_id : null;
     
     try {
-        const { error } = await _supabase.from('quotation_notes').delete().eq('id', noteToDelete);
-        if (error) throw error;
-        
+        await WeotziData.Notes.delete(noteToDelete);
+
         closeDeleteConfirmModal();
         if (quoteIdToRefresh) await inspectQuote(quoteIdToRefresh);
     } catch (err) {
@@ -1030,14 +1017,7 @@ function renderNotesSection(quoteId, notes, readOnly = false) {
 
 async function loadSessionsForQuote(quoteId) {
     try {
-        const { data, error } = await _supabase
-            .from('quotation_sessions')
-            .select('*')
-            .eq('quotation_id', quoteId)
-            .order('session_date', { ascending: true });
-        
-        if (error) throw error;
-        currentQuoteSessions = data || [];
+        currentQuoteSessions = await WeotziData.Sessions.listForQuote(quoteId);
         return currentQuoteSessions;
     } catch (err) {
         console.error('Error loading sessions:', err);
@@ -1172,12 +1152,7 @@ window.saveSession = async function(quoteId) {
                 status: status
             };
             
-            const { error } = await _supabase
-                .from('quotation_sessions')
-                .update(updateData)
-                .eq('id', editingSessionId);
-            
-            if (error) throw error;
+            await WeotziData.Sessions.update(editingSessionId, updateData);
         } else {
             // Create new session
             const nextNumber = currentQuoteSessions.length + 1;
@@ -1190,12 +1165,8 @@ window.saveSession = async function(quoteId) {
                 notes: notes || null
             };
             
-            const { error } = await _supabase
-                .from('quotation_sessions')
-                .insert([sessionData]);
-            
-            if (error) throw error;
-            
+            await WeotziData.Sessions.create(sessionData);
+
             try {
                 const currentQuote = typeof quotations !== 'undefined' ? quotations.find(q => q.id.toString() === quoteId.toString()) : null;
                 if (currentQuote) {
@@ -1223,13 +1194,8 @@ window.saveSession = async function(quoteId) {
 
 window.updateSessionStatus = async function(sessionId, newStatus, quoteId) {
     try {
-        const { error } = await _supabase
-            .from('quotation_sessions')
-            .update({ status: newStatus })
-            .eq('id', sessionId);
-        
-        if (error) throw error;
-        
+        await WeotziData.Sessions.updateStatus(sessionId, newStatus);
+
         // Update local state
         const session = currentQuoteSessions.find(s => s.id === sessionId);
         if (session) session.status = newStatus;
@@ -1313,13 +1279,8 @@ window.confirmDeleteSession = async function() {
     const quoteIdToRefresh = session ? session.quotation_id : null;
     
     try {
-        const { error } = await _supabase
-            .from('quotation_sessions')
-            .delete()
-            .eq('id', sessionToDelete);
-        
-        if (error) throw error;
-        
+        await WeotziData.Sessions.delete(sessionToDelete);
+
         closeDeleteSessionConfirm();
         if (quoteIdToRefresh) await inspectQuote(quoteIdToRefresh);
         
@@ -1420,18 +1381,8 @@ async function loadChatMessages(quoteId) {
     try {
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (!quote || !quote.quote_id) return [];
-        
-        const { data: messages, error } = await _supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('quotation_id', quote.quote_id)
-            .order('created_at', { ascending: true });
-        
-        if (error) {
-            console.error('Error loading chat messages:', error);
-            return [];
-        }
-        
+
+        const messages = await WeotziData.Chat.listByQuote(quote.quote_id);
         return messages || [];
     } catch (err) {
         console.error('Error in loadChatMessages:', err);
@@ -1544,18 +1495,14 @@ window.sendDrawerChatMessage = async function(quoteId) {
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
-        
-        const { error } = await _supabase
-            .from('chat_messages')
-            .insert({
-                quotation_id: quote.quote_id,
-                sender_type: 'artist',
-                sender_id: session.user.id,
-                message: message
-            });
-        
-        if (error) throw error;
-        
+
+        await WeotziData.Chat.sendMessage({
+            quoteId: quote.quote_id,
+            senderType: 'artist',
+            senderId: session.user.id,
+            message: message
+        });
+
         // Clear input
         input.value = '';
         
@@ -1604,13 +1551,8 @@ async function markChatMessagesAsRead(quoteId) {
     if (!quote || !quote.quote_id) return;
     
     try {
-        await _supabase
-            .from('chat_messages')
-            .update({ is_read: true })
-            .eq('quotation_id', quote.quote_id)
-            .eq('sender_type', 'client')
-            .eq('is_read', false);
-        
+        await WeotziData.Chat.markRead(quote.quote_id, 'client');
+
         chatUnreadCount = 0;
     } catch (err) {
         console.error('Error marking messages as read:', err);
@@ -1622,14 +1564,7 @@ async function getUnreadChatCount(quoteId) {
     if (!quote || !quote.quote_id) return 0;
     
     try {
-        const { count } = await _supabase
-            .from('chat_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('quotation_id', quote.quote_id)
-            .eq('sender_type', 'client')
-            .eq('is_read', false);
-        
-        return count || 0;
+        return await WeotziData.Chat.countUnread(quote.quote_id, 'client');
     } catch (err) {
         return 0;
     }
@@ -1653,20 +1588,16 @@ function subscribeToChatUpdates(quoteId) {
     
     // Unsubscribe from previous
     if (chatChannel) {
-        _supabase.removeChannel(chatChannel);
+        WeotziData.Realtime.remove(chatChannel);
     }
-    
+
     currentChatQuoteId = quoteId;
-    
+
     // Subscribe to new messages
-    chatChannel = _supabase
-        .channel(`artist-chat:${quote.quote_id}`)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `quotation_id=eq.${quote.quote_id}`
-        }, async (payload) => {
+    chatChannel = WeotziData.Realtime.subscribeChatMessages(
+        `artist-chat:${quote.quote_id}`,
+        quote.quote_id,
+        async (payload) => {
             // Add message to UI if drawer is open for this quote
             if (currentChatQuoteId === quoteId) {
                 const container = document.getElementById('drawer-chat-messages');
@@ -1699,8 +1630,8 @@ function subscribeToChatUpdates(quoteId) {
                     }
                 }
             }
-        })
-        .subscribe();
+        }
+    );
 }
 
 // ============================================
@@ -1894,9 +1825,7 @@ window.submitConfirmation = async function(quoteId) {
             quote_status: 'client_approved'
         };
 
-        const { error } = await _supabase.from('quotations_db').update(updateData).eq('id', quoteId);
-        
-        if (error) throw error;
+        await WeotziData.Quotations.updateById(quoteId, updateData);
 
         // Create first session record
         const sessionData = {
@@ -1907,9 +1836,9 @@ window.submitConfirmation = async function(quoteId) {
             notes: comment ? `Nota inicial: ${comment}` : null
         };
 
-        const { error: sessionError } = await _supabase.from('quotation_sessions').insert([sessionData]);
-        
-        if (sessionError) {
+        try {
+            await WeotziData.Sessions.create(sessionData);
+        } catch (sessionError) {
             console.error('Error creating session:', sessionError);
             // Don't fail the whole operation, just log the error
         }
@@ -2106,9 +2035,7 @@ window.saveQuoteEdits = async function(quoteId) {
             tattoo_color_type: color || null
         };
 
-        const { error } = await _supabase.from('quotations_db').update(updateData).eq('id', quoteId);
-        
-        if (error) throw error;
+        await WeotziData.Quotations.updateById(quoteId, updateData);
 
         // Update local state
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
@@ -2157,9 +2084,7 @@ window.submitResponse = async function(quoteId) {
             artist_responded_at: new Date().toISOString()
         };
 
-        const { error } = await _supabase.from('quotations_db').update(updateData).eq('id', quoteId);
-        
-        if (error) throw error;
+        await WeotziData.Quotations.updateById(quoteId, updateData);
 
         // Update local state
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
@@ -2401,8 +2326,7 @@ window.bulkArchiveSingle = window.bulkArchiveSingle || async function(id) {
 
 window.unarchiveSingle = window.unarchiveSingle || async function(id) {
     try {
-        const { error } = await _supabase.from('quotations_db').update({ is_archived: false }).eq('id', id);
-        if (error) throw error;
+        await WeotziData.Quotations.setArchivedById(id, false);
         if (chatChannel) {
             _supabase.removeChannel(chatChannel);
             chatChannel = null;
@@ -2416,8 +2340,7 @@ window.unarchiveSingle = window.unarchiveSingle || async function(id) {
 window.deleteSingle = window.deleteSingle || async function(id) {
     if (!confirm('Are you sure you want to permanently delete this quote?')) return;
     try {
-        const { error } = await _supabase.from('quotations_db').delete().eq('id', id);
-        if (error) throw error;
+        await WeotziData.Quotations.hardDeleteById(id);
         if (chatChannel) {
             _supabase.removeChannel(chatChannel);
             chatChannel = null;

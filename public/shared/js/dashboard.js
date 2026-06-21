@@ -1787,13 +1787,7 @@ async function populateQuotes() {
 
     try {
         // Fetch all quotes for the current artist (excluding drafts/in_progress)
-        const { data, error } = await _supabase
-            .from('quotations_db')
-            .select('quote_status')
-            .eq('artist_id', currentUser.id)
-            .neq('quote_status', 'in_progress');
-
-        if (error) throw error;
+        const data = await WeotziData.Quotations.statusCountsForArtist(currentUser.id);
 
         const stats = {
             total: data ? data.length : 0,
