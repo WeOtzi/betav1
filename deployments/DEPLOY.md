@@ -4,6 +4,24 @@
 
 ---
 
+## Estándar de datos (obligatorio desde 2026-06-21)
+
+Todo acceso a datos pasa por la **capa PostgREST unificada** (`lib/postgrest.js` +
+repos en `lib/repos/` en el servidor; `window.WeotziData` en el frontend). **No se
+despliega CRUD ad-hoc nuevo** (`fetch('/rest/v1/...')` inline ni `_supabase.from(...)`
+disperso). Cómo construir sobre la capa: [docs/GUIA_CAPA_DATOS.md](../docs/GUIA_CAPA_DATOS.md).
+
+## Checklist pre-despliegue
+
+1. `node --test "tests/*.test.js"` en verde.
+2. `node --check` en los `.js` tocados (server + módulos frontend).
+3. Cero accesos directos a los dominios ya migrados fuera de los repos
+   (`grep -rnE "\.from\('quotations_db'" public/shared/js --include=*.js | grep -v data/`).
+4. Si cambió el esquema: la migración SQL está aplicada en Supabase (`flbgmlvfiejfttlawnfu`).
+5. Decidir Opción A (solo `public/`) vs Opción B (server.js/lib/package.json → reinicia PM2).
+
+---
+
 ## Datos de Conexión
 
 | Parámetro       | Valor                                                              |
@@ -194,4 +212,7 @@ for label, cmd in checks:
 
 | Archivo                              | Cambio                                          |
 |--------------------------------------|-------------------------------------------------|
+| `lib/postgrest.js`, `lib/repos/`, `lib/auth/` | Capa PostgREST unificada (servidor) — 2026-06-21 |
+| `public/shared/js/data/`             | Capa PostgREST unificada (frontend, `window.WeotziData`) |
+| `server.js` + 13 módulos `public/shared/js/` | Dominio cotizaciones migrado a la capa (Opción B: reinicia PM2) |
 | `public/shared/js/script.js`         | Guard anti-duplicados en `submitQuotation()`    |

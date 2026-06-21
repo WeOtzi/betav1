@@ -36,6 +36,7 @@ npm run test:prequote  # test del estimador de pre-cotización
 ## Convenciones
 
 - Vanilla JS con módulos por página; reutilizar los helpers compartidos (`config-manager.js`, `*-auth.js`, `shared-drawer.js`, `weotzi-uploader.js`) antes de crear nuevos.
+- **Acceso a datos: SIEMPRE vía la capa PostgREST unificada** — `lib/postgrest.js` + repos en `lib/repos/` (servidor) y `window.WeotziData` (frontend). Prohibido el CRUD ad-hoc nuevo (`fetch('/rest/v1/...')` inline o `_supabase.from(...)` disperso). Guía: [docs/GUIA_CAPA_DATOS.md](docs/GUIA_CAPA_DATOS.md).
 - Idioma del producto y la documentación: español.
 - Cambios de esquema siempre como migración nueva en `supabase/migrations/` (timestamp como prefijo); nunca editar migraciones ya aplicadas.
 - Secretos solo en `.env` / `.server-credentials` (ambos gitignored).

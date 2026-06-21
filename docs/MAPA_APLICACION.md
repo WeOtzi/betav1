@@ -354,7 +354,11 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | --- | --- |
 | `server.js` | Servidor Express, APIs, health, analytics, Google, Gemini, Instagram, backup y clean URLs. |
 | `lib/prequote-estimator.js` | Logica pura del pre-cotizador. |
-| `lib/app-settings.js` | Lectura/escritura de settings privados/publicos en Supabase. |
+| `lib/app-settings.js` | Lectura/escritura de settings privados/publicos en Supabase (sobre la capa PostgREST). |
+| `lib/postgrest.js` | **Capa PostgREST unificada (servidor):** query-builder sobre `fetch` + service-role. Fuente unica de acceso a datos del backend. Ver `docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md`. |
+| `lib/repos/quotations.js` | Repositorio de dominio (cotizaciones) sobre `lib/postgrest.js`. |
+| `lib/auth/supabase-auth.js` | Resolucion de usuario por Bearer + `verifyAdminCaller` (unificado). |
+| `public/shared/js/data/postgrest-client.js` + `quotations-repo.js` | **Capa PostgREST unificada (frontend):** envuelve el cliente supabase-js autenticado y expone repos de dominio en `window.WeotziData`. Toda nueva logica de datos del frontend debe construirse aqui en vez de `_supabase.from(...)` disperso. |
 | `lib/instagram-import.js` | Orquestacion Apify -> transform -> Storage -> DB -> audit. |
 | `public/shared/js/script.js` | Flujo principal de cotizacion. |
 | `public/shared/js/dashboard.js` | Dashboard de artista. |
