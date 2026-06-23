@@ -61,11 +61,26 @@ Cargar (después de `config-manager.js`) en la página:
 <script src="/shared/js/data/<dominio>-repo.js"></script>
 ```
 
+Hay **dos niveles** de acceso, ambos sobre el cliente autenticado singleton:
+
+**1. Repos de dominio con nombre** (preferido para lógica reusada; ej. Cotizaciones):
 ```js
-// Reusa el cliente supabase-js AUTENTICADO (RLS bajo la sesión del usuario):
 const rows = await WeotziData.Quotations.listForArtist(userId);
 await WeotziData.Quotations.updateStatusById(id, 'responded');
 ```
+
+**2. Choke-point `WeotziData.from(...)`** (para el resto del CRUD): reemplaza
+`_supabase.from(...)` / `supabaseClient.from(...)` disperso por `WeotziData.from(...)`,
+que enruta por el mismo cliente singleton y **conserva el contrato `{ data, error }`**:
+```js
+const { data, error } = await WeotziData.from('studios').select('*').eq('id', id);
+const ch = WeotziData.channel('mi-canal').on('postgres_changes', {...}, cb).subscribe();
+WeotziData.removeChannel(ch);
+```
+
+Excepciones legítimas (NO van por el choke-point): `client.storage.from(...)` (Storage),
+`client.auth.*`, clientes ad-hoc de prueba (backoffice), y funciones que reciben el
+cliente por **inyección de dependencia** para tests (p.ej. `resolveArtistAuthState`).
 
 - Los métodos de repo **lanzan** en error (no devuelven `{data,error}`): usá
   `try/catch` donde el comportamiento deba ser no-fatal.
@@ -100,6 +115,10 @@ await WeotziData.Quotations.updateStatusById(id, 'responded');
 
 | Dominio | Estado |
 |---|---|
-| Cotizaciones (quotations_db + notes/sessions/attachments/chat) | ✅ Migrado (piloto) |
-| Artistas, Estudios, Soporte, Job board | ⏳ Pendiente (reusar esta capa) |
-| Analytics no-cotización (`/api/analytics/{users,devices,pages,...}`) | ⏳ Siguen en `supabaseQuery` (anon); migrar al unificar analytics |
+| Cotizaciones (quotations_db + notes/sessions/attachments/chat) | ✅ Migrado (piloto, repos con nombre) |
+| Job board (job_board_*) | ✅ Migrado (JobBoardRepo + choke-point) |
+| Artistas, Estudios, Soporte, Clientes, Reviews, Config/catálogos | ✅ Migrado (choke-point `WeotziData.from`) |
+| Currencies, Instagram (servidor) | ✅ Migrado (CurrenciesRepo, InstagramRepo) |
+| Frontend completo | ✅ Cero `<cliente>.from(...)` directo (salvo las excepciones legítimas de arriba) |
+| Servidor | ✅ Cero `fetch('/rest/v1/...')` inline; helpers (`_supabaseFetch`/`fetchAdminTableRows`) delegan en `pgrest` |
+| Analytics NO-cotización (`/api/analytics/{users,devices,pages,errors,locations,summary}`) | ⏳ Único pendiente: usan el helper `supabaseQuery` (anon). Migrar al unificar el dominio analytics. |
