@@ -359,7 +359,7 @@
 
   /* ---- applications count (stat strip) -------------------------------- */
   function loadApplications() {
-    return withLiveTimeout(sb.from('job_board_applications').select('id', { count: 'exact', head: true })
+    return withLiveTimeout(WeotziData.from('job_board_applications').select('id', { count: 'exact', head: true })
       .eq('artist_id', user.id), 'applications')
       .then(function (res) {
         var n = res.count || 0;

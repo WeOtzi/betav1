@@ -1816,7 +1816,7 @@ async function populateQuotes() {
     }
 
     try {
-        const { count, error } = await _supabase
+        const { count, error } = await WeotziData
             .from('job_board_applications')
             .select('id', { count: 'exact', head: true })
             .eq('artist_id', currentUser.id);

@@ -48,8 +48,33 @@
         return '"' + String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
     }
 
+    // Choke-point de acceso a tablas: devuelve el builder supabase-js de la
+    // tabla, SIEMPRE sobre el cliente autenticado singleton. Reemplaza el uso
+    // disperso de `_supabase.from(...)` / `supabaseClient.from(...)` por
+    // `WeotziData.from(...)`, conservando el contrato { data, error } (cero
+    // cambio de manejo de error). NO usar para Storage (.storage.from se queda).
+    function from(table) {
+        const client = getClient();
+        if (!client) throw new Error(`[WeotziData.from] Supabase client unavailable (table=${table})`);
+        return client.from(table);
+    }
+
+    // Realtime sobre el cliente unificado.
+    function channel(name, opts) {
+        const client = getClient();
+        if (!client) throw new Error('[WeotziData.channel] Supabase client unavailable');
+        return opts ? client.channel(name, opts) : client.channel(name);
+    }
+    function removeChannel(ch) {
+        const client = getClient();
+        if (client && ch) client.removeChannel(ch);
+    }
+
     window.WeotziData = window.WeotziData || {};
     window.WeotziData.getClient = getClient;
     window.WeotziData.run = run;
     window.WeotziData.orValue = orValue;
+    window.WeotziData.from = from;
+    window.WeotziData.channel = channel;
+    window.WeotziData.removeChannel = removeChannel;
 })();

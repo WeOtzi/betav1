@@ -1448,7 +1448,7 @@ async function loadJobBoardRequests() {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
 
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('job_board_requests')
             .select('*, job_board_applications(id, artist_id, status, message, estimated_price, estimated_sessions, availability_note, created_at), job_board_attachments(id, file_url)')
             .eq('client_user_id', session.user.id)
@@ -1668,7 +1668,7 @@ async function rejectApplication(applicationId, requestId) {
     if (!confirm('¿Rechazar esta postulacion?')) return;
 
     try {
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('job_board_applications')
             .update({ status: 'rejected', decided_at: new Date().toISOString() })
             .eq('id', applicationId);
@@ -1712,7 +1712,7 @@ function closeJBModal() {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
 
-        const { count, error } = await _supabase
+        const { count, error } = await WeotziData
             .from('job_board_requests')
             .select('*', { count: 'exact', head: true })
             .eq('client_user_id', session.user.id);
@@ -1744,7 +1744,7 @@ function closeJBModal() {
     }
     if (!_supabase) return;
 
-    _supabase
+    WeotziData
         .channel('jb-applications-updates')
         .on('postgres_changes', {
             event: 'INSERT',

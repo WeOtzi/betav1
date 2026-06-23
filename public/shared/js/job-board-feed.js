@@ -346,7 +346,7 @@ async function fetchRequests() {
     }
 
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('job_board_requests')
             .select('*, job_board_attachments(id, file_url, file_name, sort_order)')
             .eq('status', 'open')
@@ -871,7 +871,7 @@ async function handleApply(requestId) {
 
     try {
         // Check if already applied
-        const { data: existingApp, error: checkError } = await _supabase
+        const { data: existingApp, error: checkError } = await WeotziData
             .from('job_board_applications')
             .select('id')
             .eq('request_id', requestId)
@@ -1018,7 +1018,7 @@ async function submitApplication(e) {
         }
 
         // Insert application
-        const { data: application, error: insertError } = await _supabase
+        const { data: application, error: insertError } = await WeotziData
             .from('job_board_applications')
             .insert([{
                 request_id: selectedRequest.id,

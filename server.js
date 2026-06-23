@@ -24,6 +24,7 @@ const { startLocalNgrok } = require('./lib/local-ngrok');
 const { pgrest } = require('./lib/postgrest');
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
 const { QuotationsRepo } = require('./lib/repos/quotations');
+const { JobBoardRepo } = require('./lib/repos/jobboard');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -2912,15 +2913,10 @@ app.post('/api/job-board/accept-application', async (req, res) => {
         }
 
         // 1. Fetch the application with artist data
-        const appResponse = await fetch(
-            `${supabaseUrl}/rest/v1/job_board_applications?id=eq.${applicationId}&select=*`,
-            { headers }
-        );
-        const appData = await appResponse.json();
-        if (!appData || appData.length === 0) {
+        const application = await JobBoardRepo.getApplicationById(applicationId);
+        if (!application) {
             throw new Error('Application not found');
         }
-        const application = appData[0];
 
         // 1b. Race condition guard: application must still be pending
         if (application.status !== 'pending' && application.status !== 'viewed') {
@@ -2931,15 +2927,10 @@ app.post('/api/job-board/accept-application', async (req, res) => {
         }
 
         // 2. Fetch the request with client data
-        const reqResponse = await fetch(
-            `${supabaseUrl}/rest/v1/job_board_requests?id=eq.${requestId}&select=*`,
-            { headers }
-        );
-        const reqData = await reqResponse.json();
-        if (!reqData || reqData.length === 0) {
+        const request = await JobBoardRepo.getRequestById(requestId);
+        if (!request) {
             throw new Error('Request not found');
         }
-        const request = reqData[0];
 
         // 2b. Verify caller owns this request
         if (request.client_user_id !== callerUserId) {
@@ -3034,58 +3025,28 @@ app.post('/api/job-board/accept-application', async (req, res) => {
 
         console.log(`[Job Board] Created quotation ${quoteId}`);
 
-        // 7. Update accepted application
-        const updateAppResponse = await fetch(
-            `${supabaseUrl}/rest/v1/job_board_applications?id=eq.${applicationId}`,
-            {
-                method: 'PATCH',
-                headers: { ...headers, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({
-                    status: 'accepted',
-                    decided_at: new Date().toISOString()
-                })
-            }
-        );
-
-        if (!updateAppResponse.ok) {
+        // 7. Update accepted application (no-fatal: el quote ya se creo)
+        try {
+            await JobBoardRepo.acceptApplication(applicationId);
+        } catch (e) {
             console.warn('[Job Board] Warning: Could not update application status');
         }
 
-        // 8. Reject all other pending applications
-        const rejectResponse = await fetch(
-            `${supabaseUrl}/rest/v1/job_board_applications?request_id=eq.${requestId}&id=neq.${applicationId}&status=in.(pending,viewed)`,
-            {
-                method: 'PATCH',
-                headers: { ...headers, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({
-                    status: 'rejected',
-                    decided_at: new Date().toISOString()
-                })
-            }
-        );
-
-        if (!rejectResponse.ok) {
+        // 8. Reject all other pending applications (no-fatal)
+        try {
+            await JobBoardRepo.rejectOtherApplications(requestId, applicationId);
+        } catch (e) {
             console.warn('[Job Board] Warning: Could not reject other applications');
         }
 
-        // 9. Update request status
-        const updateReqResponse = await fetch(
-            `${supabaseUrl}/rest/v1/job_board_requests?id=eq.${requestId}`,
-            {
-                method: 'PATCH',
-                headers: { ...headers, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({
-                    status: 'accepted',
-                    accepted_at: new Date().toISOString(),
-                    accepted_artist_id: application.artist_id,
-                    accepted_application_id: applicationId,
-                    resulting_quote_id: quoteId,
-                    is_public: false
-                })
-            }
-        );
-
-        if (!updateReqResponse.ok) {
+        // 9. Update request status (no-fatal)
+        try {
+            await JobBoardRepo.closeRequestAsAccepted(requestId, {
+                artistId: application.artist_id,
+                applicationId,
+                quoteId
+            });
+        } catch (e) {
             console.warn('[Job Board] Warning: Could not update request status');
         }
 

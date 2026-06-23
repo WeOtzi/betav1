@@ -610,7 +610,7 @@ async function loadMyApplications() {
     const container = document.getElementById('applications-table-body');
 
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('job_board_applications')
             .select('*, job_board_requests(id, request_code, tattoo_idea_description, tattoo_body_part, tattoo_size, tattoo_style, client_city, client_budget_min, client_budget_max, client_budget_currency, status, resulting_quote_id)')
             .eq('artist_id', currentUser.id)

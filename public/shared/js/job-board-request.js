@@ -1277,7 +1277,7 @@ window.submitRequest = async function() {
             status: 'open'
         };
 
-        const { data: insertedRequest, error: insertError } = await _supabase
+        const { data: insertedRequest, error: insertError } = await WeotziData
             .from('job_board_requests')
             .insert(requestPayload)
             .select()
@@ -1302,7 +1302,7 @@ window.submitRequest = async function() {
                 };
             });
 
-            const { error: attachError } = await _supabase
+            const { error: attachError } = await WeotziData
                 .from('job_board_attachments')
                 .insert(attachmentRecords);
 
