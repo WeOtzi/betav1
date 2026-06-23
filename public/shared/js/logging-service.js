@@ -182,7 +182,7 @@ const LoggingService = (function() {
 
     async function fetchProfileData(supabase, userId) {
         try {
-            const { data: artist } = await supabase
+            const { data: artist } = await WeotziData
                 .from('artists_db')
                 .select('email, whatsapp_number')
                 .eq('user_id', userId)
@@ -194,7 +194,7 @@ const LoggingService = (function() {
                 return;
             }
 
-            const { data: client } = await supabase
+            const { data: client } = await WeotziData
                 .from('clients_db')
                 .select('email, whatsapp')
                 .eq('user_id', userId)
@@ -679,7 +679,7 @@ const LoggingService = (function() {
 
             if (sessionLogId) {
                 // Update existing record
-                const { error: updateError } = await supabase
+                const { error: updateError } = await WeotziData
                     .from('session_logs')
                     .update({
                         log_data: compressedLogs,
@@ -695,7 +695,7 @@ const LoggingService = (function() {
                 }
             } else {
                 // Insert new record
-                const { data, error: insertError } = await supabase
+                const { data, error: insertError } = await WeotziData
                     .from('session_logs')
                     .insert([logData])
                     .select()

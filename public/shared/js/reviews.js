@@ -210,7 +210,7 @@
             const from = (state.page - 1) * REVIEW_PAGE_SIZE;
             const to = from + REVIEW_PAGE_SIZE - 1;
 
-            let query = client
+            let query = WeotziData
                 .from('verified_reviews')
                 .select('id, reviewer_display_name, reviewer_username, reviewer_country, reviewer_avatar_url, rating, comment, tags, photo_urls, response_comment, response_status, created_at', { count: 'exact' })
                 .eq('reviewee_type', revieweeType)
@@ -226,13 +226,13 @@
 
             const [reviewsResult, summaryResult, tagsResult] = await Promise.all([
                 query,
-                client
+                WeotziData
                     .from('public_review_summary')
                     .select('*')
                     .eq('reviewee_type', revieweeType)
                     .eq('reviewee_user_id', revieweeId)
                     .maybeSingle(),
-                client
+                WeotziData
                     .from('public_review_tag_counts')
                     .select('tag, tag_count')
                     .eq('reviewee_type', revieweeType)
@@ -305,7 +305,7 @@
             if (!session) return null;
 
             if (revieweeType === 'studio') {
-                const { data: studio } = await client
+                const { data: studio } = await WeotziData
                     .from('studios')
                     .select('id,user_id')
                     .eq('id', revieweeId)
@@ -329,7 +329,7 @@
         if (authError || !session) return { session: null, profile: null, error: authError || new Error('Sesion requerida') };
 
         if (reviewerType === 'artist') {
-            const { data: profile, error } = await client
+            const { data: profile, error } = await WeotziData
                 .from('artists_db')
                 .select('user_id,email,username,name,country,city,profile_picture')
                 .eq('user_id', session.user.id)
@@ -347,7 +347,7 @@
         }
 
         if (reviewerType === 'studio') {
-            const { data: profile, error } = await client
+            const { data: profile, error } = await WeotziData
                 .from('studios')
                 .select('id,user_id,slug,name,logo_image,country')
                 .eq('user_id', session.user.id)
@@ -364,7 +364,7 @@
             };
         }
 
-        const { data: profile, error } = await client
+        const { data: profile, error } = await WeotziData
             .from('clients_db')
             .select('user_id,email,full_name,public_username,country,city_residence,profile_picture,profile_completed_at')
             .eq('user_id', session.user.id)
@@ -546,7 +546,7 @@
             submitBtn.textContent = 'Enviando...';
 
             const client = getClient();
-            const { error: insertError } = await client.from('verified_reviews').insert(payload);
+            const { error: insertError } = await WeotziData.from('verified_reviews').insert(payload);
             if (insertError) {
                 errorEl.hidden = false;
                 errorEl.textContent = insertError.code === '23505'
@@ -607,7 +607,7 @@
             const client = getClient();
             const { data: authData } = await client.auth.getSession();
             const session = authData?.session;
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('verified_reviews')
                 .update({
                     response_comment: comment,

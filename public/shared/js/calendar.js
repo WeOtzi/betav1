@@ -92,7 +92,7 @@ async function initializeCalendar() {
         currentUser = session.user;
         
         // 2. Load Artist Profile
-        const { data: artist, error: artistError } = await _supabase
+        const { data: artist, error: artistError } = await WeotziData
             .from('artists_db')
             .select('*')
             .eq('user_id', currentUser.id)
@@ -179,7 +179,7 @@ async function loadQuotations() {
         // Cotizaciones activas (capa unificada) + estilos en paralelo.
         const [quotes, stylesResult] = await Promise.all([
             WeotziData.Quotations.listActiveForArtist(currentUser.id),
-            _supabase
+            WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order', { ascending: true })

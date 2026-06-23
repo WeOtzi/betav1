@@ -205,12 +205,12 @@
             'latitude', 'longitude', 'google_place_id', 'geocoded_at'
         ].join(',');
 
-        var resp = await supabase.from('artists_with_location').select(viewCols);
+        var resp = await WeotziData.from('artists_with_location').select(viewCols);
 
         if (resp.error) {
             console.warn('[explore-map] artists_with_location view unavailable, falling back to artists_db:', resp.error.message);
             var fallbackCols = 'user_id,username,name,profile_picture,styles_array,city,country,ubicacion,session_price,years_experience,languages,bio_description,is_recommended,latitude,longitude,formatted_address,locality,street,street_number,postal_code,work_type,studio_id';
-            resp = await supabase.from('artists_db').select(fallbackCols);
+            resp = await WeotziData.from('artists_db').select(fallbackCols);
         }
         if (resp.error) {
             console.error('[explore-map] Supabase error:', resp.error);
@@ -650,7 +650,7 @@
         if (!supabase || window.ConfigManager.isDemoMode()) return [];
         // Studios with their primary location's coords (resolved through FK).
         // We query studio_locations directly and JOIN the studios columns we need.
-        var resp = await supabase
+        var resp = await WeotziData
             .from('studio_locations')
             .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website)')
             .eq('is_active', true)

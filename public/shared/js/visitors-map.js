@@ -154,7 +154,7 @@
 
         try {
             if (since) {
-                const { data, error } = await supabase
+                const { data, error } = await WeotziData
                     .from('artist_profile_visits')
                     .select('id, country, city, latitude, longitude, device_type, os, browser, created_at, ip_hash, device_fingerprint')
                     .eq('artist_id', artistId)
@@ -180,7 +180,7 @@
 
     async function loadHistoricalFromDaily() {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await WeotziData
                 .from('artist_profile_visits_daily')
                 .select('*')
                 .eq('artist_id', artistId)
@@ -460,7 +460,7 @@
     function subscribeRealtime() {
         if (!supabase?.channel) return;
         try {
-            realtimeChannel = supabase
+            realtimeChannel = WeotziData
                 .channel(`artist_profile_visits:${artistId}`)
                 .on('postgres_changes', {
                     event: 'INSERT',

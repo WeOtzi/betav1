@@ -26,7 +26,7 @@
 
     async function renderPending(userId) {
         const list = document.getElementById('invitations-list');
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studio_artist_memberships')
             .select(`
                 id, role, status, location_id, invited_at,
@@ -72,7 +72,7 @@
 
     async function renderActive(userId) {
         const list = document.getElementById('active-list');
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studio_artist_memberships')
             .select(`
                 id, role, status, location_id, started_at,
@@ -108,7 +108,7 @@
         list.querySelectorAll('button[data-action="leave"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (!confirm('¿Salir del roster de este estudio? Tu perfil personal queda intacto.')) return;
-                await _supabase.from('studio_artist_memberships').update({
+                await WeotziData.from('studio_artist_memberships').update({
                     status: 'ended', ended_at: new Date().toISOString()
                 }).eq('id', btn.dataset.id);
                 location.reload();
@@ -120,7 +120,7 @@
         const updates = action === 'accept'
             ? { status: 'active',   started_at: new Date().toISOString() }
             : { status: 'rejected', ended_at:   new Date().toISOString() };
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('studio_artist_memberships')
             .update(updates)
             .eq('id', membershipId)

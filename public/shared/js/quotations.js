@@ -101,7 +101,7 @@ async function initializeAdmin() {
         currentUser = session.user;
         
         // 2. Load Artist Profile
-        const { data: artist, error: artistError } = await _supabase
+        const { data: artist, error: artistError } = await WeotziData
             .from('artists_db')
             .select('*')
             .eq('user_id', currentUser.id)
@@ -227,7 +227,7 @@ async function loadQuotations() {
         // Cotizaciones (capa PostgREST unificada) + estilos en paralelo.
         const [quotes, stylesResult] = await Promise.all([
             WeotziData.Quotations.listActiveForArtist(currentUser.id),
-            _supabase
+            WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order', { ascending: true })
@@ -491,7 +491,7 @@ window.bulkArchiveSingle = async function(id) {
     selectedQuotes.add(id.toString());
     await bulkArchive();
     if (typeof chatChannel !== 'undefined' && chatChannel) {
-        _supabase.removeChannel(chatChannel);
+        WeotziData.removeChannel(chatChannel);
         chatChannel = null;
     }
     if (typeof currentChatQuoteId !== 'undefined') currentChatQuoteId = null;

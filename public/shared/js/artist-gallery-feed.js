@@ -91,7 +91,7 @@ function maybeMissingAnyColumnError(error, columnNames) {
 }
 
 async function queryArtistByUsername(username, fields) {
-    const exactResponse = await feedSupabase
+    const exactResponse = await WeotziData
         .from('artists_db')
         .select(fields)
         .eq('username', username)
@@ -104,7 +104,7 @@ async function queryArtistByUsername(username, fields) {
         };
     }
 
-    const fallbackResponse = await feedSupabase
+    const fallbackResponse = await WeotziData
         .from('artists_db')
         .select(fields)
         .ilike('username', username)

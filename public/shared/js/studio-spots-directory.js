@@ -26,7 +26,7 @@
     });
 
     async function loadSpots() {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studio_spots')
             .select(`
                 id, title, kind, description, styles_wanted, language_requirements,
@@ -209,7 +209,7 @@
         }
 
         // Already applied?
-        const { data: existing } = await _supabase
+        const { data: existing } = await WeotziData
             .from('studio_spot_applications')
             .select('id, status')
             .eq('spot_id', s.id)
@@ -226,7 +226,7 @@
         }
 
         // Verify the user is an artist (has artists_db row).
-        const { data: artist } = await _supabase
+        const { data: artist } = await WeotziData
             .from('artists_db')
             .select('user_id, portafolio')
             .eq('user_id', session.user.id)
@@ -262,7 +262,7 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando…';
 
-            const { error } = await _supabase.from('studio_spot_applications').insert({
+            const { error } = await WeotziData.from('studio_spot_applications').insert({
                 spot_id: s.id,
                 artist_user_id: session.user.id,
                 message: (document.getElementById('apply-message').value || '').trim() || null,

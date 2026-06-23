@@ -57,7 +57,7 @@ async function initializeAdmin() {
 
         currentUser = session.user;
         
-        const { data: artist, error: artistError } = await _supabase
+        const { data: artist, error: artistError } = await WeotziData
             .from('artists_db')
             .select('*')
             .eq('user_id', currentUser.id)
@@ -166,7 +166,7 @@ async function loadQuotations() {
         // Cotizaciones archivadas (capa PostgREST unificada) + estilos en paralelo.
         const [quotes, stylesResult] = await Promise.all([
             WeotziData.Quotations.listArchivedForArtist(currentUser.id),  // ARCHIVED ONLY
-            _supabase
+            WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order', { ascending: true })

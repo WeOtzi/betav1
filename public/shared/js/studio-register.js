@@ -279,7 +279,7 @@
 
             // 2.5) website lives on studios.website (legacy column from prior migrations).
             if (websiteValue) {
-                await supabase.from('studios').update({ website: websiteValue }).eq('id', studio.id);
+                await WeotziData.from('studios').update({ website: websiteValue }).eq('id', studio.id);
             }
 
             // 3) Insert each location.
@@ -310,7 +310,7 @@
             }));
 
             if (locationRows.length) {
-                const { data: insertedLocs, error: locErr } = await supabase
+                const { data: insertedLocs, error: locErr } = await WeotziData
                     .from('studio_locations')
                     .insert(locationRows)
                     .select('id, is_primary');
@@ -318,7 +318,7 @@
 
                 const primary = (insertedLocs || []).find(l => l.is_primary);
                 if (primary) {
-                    await supabase.from('studios').update({
+                    await WeotziData.from('studios').update({
                         primary_location_id: primary.id,
                         profile_complete: true
                     }).eq('id', studio.id);

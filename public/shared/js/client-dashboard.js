@@ -108,7 +108,7 @@ async function checkDashboardAuth() {
         }
         
         // Check if user is a client
-        const { data: client, error } = await _supabase
+        const { data: client, error } = await WeotziData
             .from('clients_db')
             .select('*')
             .eq('user_id', session.user.id)
@@ -116,7 +116,7 @@ async function checkDashboardAuth() {
         
         if (!client) {
             // Check if user is an artist first - artists should not access client dashboard
-            const { data: artist } = await _supabase
+            const { data: artist } = await WeotziData
                 .from('artists_db')
                 .select('user_id')
                 .eq('user_id', session.user.id)
@@ -129,7 +129,7 @@ async function checkDashboardAuth() {
             }
             
             // Not an artist - maybe they logged in via OAuth and need a profile
-            const { error: createError } = await _supabase
+            const { error: createError } = await WeotziData
                 .from('clients_db')
                 .insert({
                     user_id: session.user.id,
@@ -850,7 +850,7 @@ function closeModal() {
     
     // Unsubscribe from chat
     if (chatChannel) {
-        _supabase.removeChannel(chatChannel);
+        WeotziData.removeChannel(chatChannel);
         chatChannel = null;
     }
 }
@@ -1341,7 +1341,7 @@ async function handleProfileUpdate(event) {
             updateData.profile_picture = profilePictureUrl;
         }
         
-        const { error: updateError } = await _supabase
+        const { error: updateError } = await WeotziData
             .from('clients_db')
             .update(updateData)
             .eq('user_id', session.user.id);
@@ -1566,7 +1566,7 @@ async function viewJBRequestDetail(requestId) {
     const artistIds = applications.map(a => a.artist_id);
     let artistsMap = {};
     try {
-        const { data: artists } = await _supabase
+        const { data: artists } = await WeotziData
             .from('artists_db')
             .select('user_id, username, name, profile_picture, styles_array, ubicacion, session_price, years_experience')
             .in('user_id', artistIds);

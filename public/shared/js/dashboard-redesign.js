@@ -304,7 +304,7 @@
   function loadJobSpots() {
     var mine = styleList(artist && (artist.styles_array || artist.styles || artist.estilos))
       .map(function (s) { return s.toLowerCase(); });
-    return withLiveTimeout(sb.from('studio_spots')
+    return withLiveTimeout(WeotziData.from('studio_spots')
       .select('id, title, kind, styles_wanted, start_date, status, studios:studio_id(name), location:location_id(city, country, label)')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
@@ -387,7 +387,7 @@
     }
     var since = new Date();
     since.setDate(since.getDate() - 7);
-    withLiveTimeout(sb.from('artist_profile_visits').select('id', { count: 'exact', head: true })
+    withLiveTimeout(WeotziData.from('artist_profile_visits').select('id', { count: 'exact', head: true })
       .eq('artist_id', user.id)
       .gte('created_at', since.toISOString()), 'visitors')
       .then(function (res) {

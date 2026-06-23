@@ -809,7 +809,7 @@ async function checkUsernameAvailability(username, currentUserId) {
     if (!username) return { available: true };
     
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('artists_db')
             .select('user_id')
             .eq('username', username)
@@ -1048,7 +1048,7 @@ async function loadExistingArtistData() {
 
     try {
         // Use maybeSingle() instead of single() to prevent 406 error when no rows exist
-        const { data: artist, error } = await _supabase
+        const { data: artist, error } = await WeotziData
             .from('artists_db')
             .select('*')
             .eq('user_id', currentUser.id)
@@ -1670,7 +1670,7 @@ async function searchStudios(query) {
 
     try {
         const normalizedQuery = query.toUpperCase();
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studios')
             .select('id, name, normalized_name, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
             .ilike('normalized_name', `%${normalizedQuery}%`)
@@ -1761,7 +1761,7 @@ function fallbackLocationFromStudio(studio) {
 async function loadStudioLocations(studioId, fallbackStudio) {
     if (!studioId) return [];
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studio_locations')
             .select('id, label, is_primary, is_active, sort_order, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
             .eq('studio_id', studioId)
@@ -1889,7 +1889,7 @@ async function findOrCreateStudio(studioName) {
         return formState.data.studio_id;
     }
 
-    const { data: existing, error: findErr } = await _supabase
+    const { data: existing, error: findErr } = await WeotziData
         .from('studios')
         .select('id')
         .eq('normalized_name', normalized)
@@ -1901,7 +1901,7 @@ async function findOrCreateStudio(studioName) {
     }
     if (existing) return existing.id;
 
-    const { data: created, error: createErr } = await _supabase
+    const { data: created, error: createErr } = await WeotziData
         .from('studios')
         .insert({ name: studioName.trim(), normalized_name: normalized })
         .select('id')
@@ -1909,7 +1909,7 @@ async function findOrCreateStudio(studioName) {
 
     if (createErr) {
         if (createErr.code === '23505') {
-            const { data: retry } = await _supabase
+            const { data: retry } = await WeotziData
                 .from('studios')
                 .select('id')
                 .eq('normalized_name', normalized)
@@ -1939,7 +1939,7 @@ async function persistSelectedStudioLocation(studioIdOverride) {
             city: getRegistrationCity() || null,
             agenda_status: 'open'
         };
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('artist_tattoo_locations')
             .upsert(row, { onConflict: 'artist_user_id,period_type,sort_order' });
         if (error) throw error;
@@ -2652,7 +2652,7 @@ async function persistPortfolioMedia() {
     //    wrote IG items, so we read+update to avoid clobbering).
     if (localItemsForFeed.length > 0) {
         try {
-            const { data: existing, error: readErr } = await _supabase
+            const { data: existing, error: readErr } = await WeotziData
                 .from('artists_db')
                 .select('gallery_feed_items')
                 .eq('user_id', currentUser.id)
@@ -2662,7 +2662,7 @@ async function persistPortfolioMedia() {
                 ? existing.gallery_feed_items
                 : [];
             const merged = existingItems.concat(localItemsForFeed);
-            const { error: updErr } = await _supabase
+            const { error: updErr } = await WeotziData
                 .from('artists_db')
                 .update({ gallery_feed_items: merged })
                 .eq('user_id', currentUser.id);
@@ -4077,7 +4077,7 @@ async function submitForm() {
         const pickedAddress = formState.data.address || null;
         if (resolvedStudioId && pickedAddress && pickedAddress.formatted_address && !formState.data.studio_location_id) {
             try {
-                await _supabase.from('studios').update({
+                await WeotziData.from('studios').update({
                     country:           pickedAddress.country || null,
                     country_code:      pickedAddress.country_code || null,
                     state_province:    pickedAddress.state_province || null,
@@ -4163,7 +4163,7 @@ async function submitForm() {
 
         console.log('Saving artist data:', artistData);
 
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('artists_db')
             .upsert(artistData, {
                 onConflict: 'user_id'

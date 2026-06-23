@@ -178,7 +178,7 @@ async function checkAuthState() {
     let artistLookupFailed = false;
 
     if (session) {
-        const { data: artistData, error: artistError } = await _supabase
+        const { data: artistData, error: artistError } = await WeotziData
             .from('artists_db')
             .select(ARTIST_PROFILE_SELECT)
             .eq('user_id', session.user.id)
@@ -496,7 +496,7 @@ async function checkEmailExists(email) {
 
 async function getIncompleteArtistByEmail(email) {
     try {
-        const { data: artist, error: artistError } = await _supabase
+        const { data: artist, error: artistError } = await WeotziData
             .from('artists_db')
             .select(ARTIST_PROFILE_SELECT)
             .eq('email', email)
@@ -684,7 +684,7 @@ async function handleLogin(e) {
 
         // Check if artist profile needs completion
         // Use maybeSingle() instead of single() to handle 0 rows gracefully (prevents 406 error)
-        const { data: artist, error: artistError } = await _supabase
+        const { data: artist, error: artistError } = await WeotziData
             .from('artists_db')
             .select(ARTIST_PROFILE_SELECT)
             .eq('user_id', data.user.id)

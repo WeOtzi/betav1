@@ -467,7 +467,7 @@ async function loadDashboardStats() {
         document.getElementById('stat-in-progress').textContent = inProgressCount || 0;
 
         // Artists
-        const { count: artists } = await supabaseClient
+        const { count: artists } = await WeotziData
             .from('artists_db')
             .select('*', { count: 'exact', head: true });
 
@@ -2210,7 +2210,7 @@ async function saveArtist(event) {
             // .select() forces PostgREST to return affected rows so we can
             // detect silent RLS failures (data:[], error:null) that previously
             // surfaced as a fake "Artista actualizado" toast.
-            const { data, error } = await supabaseClient
+            const { data, error } = await WeotziData
                 .from('artists_db')
                 .update(updates)
                 .eq('user_id', userId)
@@ -5180,7 +5180,7 @@ async function createSystemBackup() {
             let tableCount = 0;
             for (const table of tables) {
                 try {
-                    const { data, error } = await client.from(table).select('*');
+                    const { data, error } = await WeotziData.from(table).select('*');
                     if (!error && data) {
                         dbData[table] = data;
                         console.log(`[System Backup] Exported ${table}: ${data.length} records`);
@@ -5274,7 +5274,7 @@ async function createFullBackup() {
     if (client) {
         for (const table of DB_TABLES) {
             try {
-                const { data } = await client.from(table).select('*');
+                const { data } = await WeotziData.from(table).select('*');
                 if (data) {
                     zip.file(`database/${table}.json`, JSON.stringify(data, null, 2));
                 }
@@ -5330,7 +5330,7 @@ async function createSelectiveBackup() {
     
     for (const table of selectedTables) {
         try {
-            const { data } = await client.from(table).select('*');
+            const { data } = await WeotziData.from(table).select('*');
             if (data) {
                 zip.file(`${table}.json`, JSON.stringify(data, null, 2));
             }
@@ -5695,7 +5695,7 @@ async function loadSupportUsersLegacy() {
     showTableLoading('support-users-tbody', 6);
 
     try {
-        const { data, error } = await client
+        const { data, error } = await WeotziData
             .from('support_users_db')
             .select('*')
             .order('created_at', { ascending: false });
@@ -5787,7 +5787,7 @@ async function editSupportUserLegacy(userId) {
     }
     
     try {
-        const { data, error } = await client
+        const { data, error } = await WeotziData
             .from('support_users_db')
             .select('*')
             .eq('user_id', userId)
@@ -5875,7 +5875,7 @@ async function saveSupportUserLegacy(event) {
             }
             
             // Step 2: Insert record in support_users_db
-            const { error: insertError } = await client
+            const { error: insertError } = await WeotziData
                 .from('support_users_db')
                 .insert({
                     user_id: authData.user.id,
@@ -5930,7 +5930,7 @@ async function saveSupportUserLegacy(event) {
             }
             
             // Update user data in support_users_db
-            const { error: updateError } = await client
+            const { error: updateError } = await WeotziData
                 .from('support_users_db')
                 .update({
                     full_name: fullName,
@@ -5971,7 +5971,7 @@ async function toggleSupportUserStatusLegacy(userId, newStatus) {
     }
     
     try {
-        const { error } = await client
+        const { error } = await WeotziData
             .from('support_users_db')
             .update({
                 is_active: newStatus,
@@ -6399,7 +6399,7 @@ async function loadCurrenciesAdmin() {
             return;
         }
 
-        const { data: currencies, error } = await supabaseClient
+        const { data: currencies, error } = await WeotziData
             .from('currencies')
             .select('code,name,symbol,decimals,units_per_usd,units_per_eur,is_active,last_updated_at,source')
             .order('code', { ascending: true });
@@ -6432,7 +6432,7 @@ async function loadCurrenciesAdmin() {
             }).join('');
         }
 
-        const { data: logs, error: logsErr } = await supabaseClient
+        const { data: logs, error: logsErr } = await WeotziData
             .from('currency_refresh_logs')
             .select('source,status,currencies_updated,error_message,refreshed_at')
             .order('refreshed_at', { ascending: false })
@@ -6464,7 +6464,7 @@ async function loadCurrenciesAdmin() {
 async function toggleCurrencyActive(code, isActive) {
     try {
         if (!supabaseClient) throw new Error('Supabase no inicializado');
-        const { error } = await supabaseClient
+        const { error } = await WeotziData
             .from('currencies')
             .update({ is_active: !!isActive })
             .eq('code', code);
@@ -6997,7 +6997,7 @@ function initRealtimeSubscriptions() {
     if (quotationsChannel) _realtimeChannels.push(quotationsChannel);
 
     // Channel: new artists
-    const artistsChannel = supabaseClient
+    const artistsChannel = WeotziData
         .channel('dashboard-artists')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'artists_db' }, (payload) => {
             const a = payload.new;
@@ -7016,7 +7016,7 @@ function initRealtimeSubscriptions() {
     _realtimeChannels.push(artistsChannel);
 
     // Channel: job board applications
-    const applicationsChannel = supabaseClient
+    const applicationsChannel = WeotziData
         .channel('dashboard-applications')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'job_board_applications' }, (payload) => {
             const app = payload.new;
@@ -7041,7 +7041,7 @@ function initRealtimeSubscriptions() {
 function cleanupRealtimeSubscriptions() {
     if (!supabaseClient) return;
     for (const channel of _realtimeChannels) {
-        supabaseClient.removeChannel(channel);
+        WeotziData.removeChannel(channel);
     }
     _realtimeChannels.length = 0;
 

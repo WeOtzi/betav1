@@ -943,7 +943,7 @@ async function loadArtistData(username) {
     }
 
     try {
-        const { data: artist, error } = await _supabase
+        const { data: artist, error } = await WeotziData
             .from('artists_db')
             .select(ARTIST_PUBLIC_FIELDS)
             .eq('username', searchUsername)
@@ -1020,7 +1020,7 @@ async function loadArtistTattooLocations(artistUserId) {
     if (!artistUserId) return getLegacyTattooLocations();
 
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('artist_tattoo_locations')
             .select('id, period_type, studio_name, city, agenda_status, start_date, end_date, sort_order')
             .eq('artist_user_id', artistUserId)

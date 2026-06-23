@@ -589,7 +589,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('body_parts')
                 .select('*')
                 .order('sort_order');
@@ -663,7 +663,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('body_parts')
                 .insert([{
                     part_id: partData.id,
@@ -705,7 +705,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('body_parts')
                 .update({
                     part_id: partData.id,
@@ -746,7 +746,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('body_parts')
                 .delete()
                 .eq('id', dbId);
@@ -773,7 +773,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('quotation_flow_config')
                 .select('*')
                 .order('step_number');
@@ -817,7 +817,7 @@ const ConfigManager = (function () {
 
         try {
             // First, clear existing questions
-            const { error: deleteError } = await client
+            const { error: deleteError } = await WeotziData
                 .from('quotation_flow_config')
                 .delete()
                 .neq('step_number', -1); // Delete all
@@ -843,7 +843,7 @@ const ConfigManager = (function () {
                 subtitle_text: q.subtitle
             }));
 
-            const { error: insertError } = await client
+            const { error: insertError } = await WeotziData
                 .from('quotation_flow_config')
                 .insert(rows);
 
@@ -882,7 +882,7 @@ const ConfigManager = (function () {
                 subtitle_text: questionData.subtitle
             };
 
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('quotation_flow_config')
                 .update(row)
                 .eq('step_number', id);
@@ -909,7 +909,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order');
@@ -982,7 +982,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .order('sort_order');
@@ -1019,7 +1019,7 @@ const ConfigManager = (function () {
         try {
             const slug = styleData.slug || generateSlug(styleData.name);
 
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('tattoo_styles')
                 .insert([{
                     name: styleData.name,
@@ -1068,7 +1068,7 @@ const ConfigManager = (function () {
                 updateData.substyles_display_mode = styleData.substyles_display_mode;
             }
 
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('tattoo_styles')
                 .update(updateData)
                 .eq('id', id)
@@ -1093,7 +1093,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('tattoo_styles')
                 .delete()
                 .eq('id', id);
@@ -1116,7 +1116,7 @@ const ConfigManager = (function () {
         if (!client) return { data: null, error: 'Supabase not configured' };
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .eq('id', id)
@@ -1183,7 +1183,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { count, error } = await client
+            const { count, error } = await WeotziData
                 .from('artists_db')
                 .select('*', { count: 'exact', head: true });
 
@@ -1217,7 +1217,7 @@ const ConfigManager = (function () {
 
         for (const table of tables) {
             try {
-                const { count, error } = await client
+                const { count, error } = await WeotziData
                     .from(table)
                     .select('*', { count: 'exact', head: true });
 
@@ -1352,7 +1352,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('app_settings')
                 .select('*')
                 .eq('is_public', true);
@@ -1390,7 +1390,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('app_settings')
                 .select('setting_value, setting_type')
                 .eq('setting_key', key)
@@ -1417,7 +1417,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('app_settings')
                 .upsert([{
                     setting_key: key,
@@ -1446,7 +1446,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('app_settings')
                 .delete()
                 .eq('setting_key', key);
@@ -1489,7 +1489,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { data, error } = await client
+            const { data, error } = await WeotziData
                 .from('app_settings')
                 .select('setting_value')
                 .eq('setting_key', 'n8n_events')
@@ -1527,7 +1527,7 @@ const ConfigManager = (function () {
         if (!client) return { error: 'Supabase not configured' };
 
         try {
-            const { error } = await client
+            const { error } = await WeotziData
                 .from('app_settings')
                 .upsert([{
                     setting_key: 'n8n_events',

@@ -74,7 +74,7 @@ async function loadConfig() {
     // Load tattoo styles from Supabase
     if (_supabase) {
         try {
-            const { data, error } = await _supabase
+            const { data, error } = await WeotziData
                 .from('tattoo_styles')
                 .select('*')
                 .is('parent_id', null)
@@ -806,7 +806,7 @@ async function renderAccountGate(el) {
 
         if (session) {
             // Check if client profile exists
-            const { data: client } = await _supabase
+            const { data: client } = await WeotziData
                 .from('clients_db')
                 .select('*')
                 .eq('user_id', session.user.id)
@@ -942,7 +942,7 @@ window.handleJBRegister = async function() {
 
         if (authData.user) {
             // Insert client profile
-            const { error: insertError } = await _supabase
+            const { error: insertError } = await WeotziData
                 .from('clients_db')
                 .insert({
                     user_id: authData.user.id,
@@ -1032,7 +1032,7 @@ window.handleJBLogin = async function() {
         if (error) throw error;
 
         // Check or create client profile
-        const { data: client } = await _supabase
+        const { data: client } = await WeotziData
             .from('clients_db')
             .select('*')
             .eq('user_id', data.user.id)
@@ -1040,7 +1040,7 @@ window.handleJBLogin = async function() {
 
         if (!client) {
             // Create client profile
-            await _supabase
+            await WeotziData
                 .from('clients_db')
                 .insert({
                     user_id: data.user.id,

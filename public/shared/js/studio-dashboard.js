@@ -171,7 +171,7 @@
                 photo_feed_items: photoFeedItems
             };
 
-            const { error } = await supabase.from('studios').update(update).eq('id', studio.id);
+            const { error } = await WeotziData.from('studios').update(update).eq('id', studio.id);
             if (error) {
                 showStatus('profile-status', 'error', error.message || 'No se pudo guardar.');
                 return;
@@ -188,7 +188,7 @@
         const list = document.getElementById('sedes-list');
         list.innerHTML = '<em>Cargando sedes…</em>';
 
-        const { data: locations, error } = await supabase
+        const { data: locations, error } = await WeotziData
             .from('studio_locations')
             .select('*')
             .eq('studio_id', studio.id)
@@ -309,7 +309,7 @@
         try {
             // If marking primary, demote any other primary first.
             if (isPrimary) {
-                await supabase.from('studio_locations')
+                await WeotziData.from('studio_locations')
                     .update({ is_primary: false })
                     .eq('studio_id', studio.id)
                     .eq('is_primary', true);
@@ -317,10 +317,10 @@
 
             let result;
             if (entry.locationId) {
-                result = await supabase.from('studio_locations')
+                result = await WeotziData.from('studio_locations')
                     .update(payload).eq('id', entry.locationId).select().single();
             } else {
-                result = await supabase.from('studio_locations')
+                result = await WeotziData.from('studio_locations')
                     .insert(payload).select().single();
                 entry.locationId = result.data && result.data.id;
             }
@@ -328,7 +328,7 @@
 
             // If primary, also patch studios.primary_location_id.
             if (isPrimary && entry.locationId) {
-                await supabase.from('studios')
+                await WeotziData.from('studios')
                     .update({ primary_location_id: entry.locationId })
                     .eq('id', studio.id);
             }
@@ -347,7 +347,7 @@
             return;
         }
         if (!confirm('¿Quitar esta sede? Los artistas asignados solo a esta sede pierden la referencia.')) return;
-        const { error } = await supabase.from('studio_locations').delete().eq('id', entry.locationId);
+        const { error } = await WeotziData.from('studio_locations').delete().eq('id', entry.locationId);
         if (error) { showStatus('sedes-status', 'error', error.message); return; }
         entry.row.remove();
         const i = sedePickers.indexOf(entry);
@@ -367,7 +367,7 @@
 
     async function renderMySpots() {
         const container = document.getElementById('my-spots-list');
-        const { data: list, error } = await supabase
+        const { data: list, error } = await WeotziData
             .from('studio_spots')
             .select(`
                 id, title, kind, status, application_count, max_applications,
@@ -414,18 +414,18 @@
 
     async function onSpotAction(action, id, status) {
         if (action === 'edit') {
-            const { data: spot } = await supabase.from('studio_spots').select('*').eq('id', id).maybeSingle();
+            const { data: spot } = await WeotziData.from('studio_spots').select('*').eq('id', id).maybeSingle();
             if (spot) openSpotEditor(spot);
         } else if (action === 'apps') {
             openSpotApplications(id);
         } else if (action === 'toggle') {
             const next = status === 'open' ? 'closed' : 'open';
-            const { error } = await supabase.from('studio_spots').update({ status: next }).eq('id', id);
+            const { error } = await WeotziData.from('studio_spots').update({ status: next }).eq('id', id);
             if (error) showStatus('spots-status', 'error', error.message);
             else { showStatus('spots-status', 'success', 'Estado actualizado a ' + next + '.'); await renderMySpots(); }
         } else if (action === 'delete') {
             if (!confirm('¿Eliminar este spot? Las postulaciones asociadas también se eliminarán.')) return;
-            const { error } = await supabase.from('studio_spots').delete().eq('id', id);
+            const { error } = await WeotziData.from('studio_spots').delete().eq('id', id);
             if (error) showStatus('spots-status', 'error', error.message);
             else { showStatus('spots-status', 'success', 'Spot eliminado.'); await renderMySpots(); }
         }
@@ -529,8 +529,8 @@
         if (!payload.title) { showStatus('spots-status', 'error', 'El título es obligatorio.'); return; }
 
         const result = existing
-            ? await supabase.from('studio_spots').update(payload).eq('id', existing.id).select().single()
-            : await supabase.from('studio_spots').insert(payload).select().single();
+            ? await WeotziData.from('studio_spots').update(payload).eq('id', existing.id).select().single()
+            : await WeotziData.from('studio_spots').insert(payload).select().single();
 
         if (result.error) {
             showStatus('spots-status', 'error', result.error.message);
@@ -545,7 +545,7 @@
     async function syncSpotCoverAttachment(savedSpot, coverImage) {
         if (!savedSpot?.id) return;
 
-        const del = await supabase
+        const del = await WeotziData
             .from('studio_spot_attachments')
             .delete()
             .eq('spot_id', savedSpot.id);
@@ -565,7 +565,7 @@
             mime_type: guessMimeFromUrl(coverImage),
             sort_order: 0
         };
-        const ins = await supabase.from('studio_spot_attachments').insert(attachment);
+        const ins = await WeotziData.from('studio_spot_attachments').insert(attachment);
         if (ins.error) {
             console.warn('[studio-dashboard] spot attachment insert failed:', ins.error);
             showStatus('spots-status', 'error', 'Spot guardado, pero no pudimos registrar la imagen como adjunto.');
@@ -577,8 +577,8 @@
         c.innerHTML = '<em class="studio-help">Cargando postulaciones…</em>';
 
         const [spotRes, appsRes] = await Promise.all([
-            supabase.from('studio_spots').select('id, title, kind').eq('id', spotId).single(),
-            supabase.from('studio_spot_applications')
+            WeotziData.from('studio_spots').select('id, title, kind').eq('id', spotId).single(),
+            WeotziData.from('studio_spot_applications')
                 .select('id, status, message, portfolio_url, created_at, decided_at, artists_db ( user_id, username, name, profile_picture, styles_array, city, country, session_price )')
                 .eq('spot_id', spotId)
                 .order('created_at', { ascending: false })
@@ -631,7 +631,7 @@
 
     async function onAppDecision(action, applicationId, artistUserId, spot) {
         const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-        const { error: updErr } = await supabase
+        const { error: updErr } = await WeotziData
             .from('studio_spot_applications')
             .update({ status: newStatus, decided_at: new Date().toISOString() })
             .eq('id', applicationId);
@@ -641,7 +641,7 @@
             // Create the membership.
             const role = spot.kind === 'resident' ? 'resident'
                        : spot.kind === 'itinerant' ? 'itinerant' : 'guest';
-            const { error: memErr } = await supabase
+            const { error: memErr } = await WeotziData
                 .from('studio_artist_memberships')
                 .insert({
                     studio_id: studio.id,
@@ -720,7 +720,7 @@
 
     async function loadRoster() {
         // Populate the sede select for invitations.
-        const { data: locs } = await supabase
+        const { data: locs } = await WeotziData
             .from('studio_locations')
             .select('id, label, is_primary')
             .eq('studio_id', studio.id)
@@ -759,7 +759,7 @@
             if (q.length < 2) { suggEl.style.display = 'none'; suggEl.innerHTML = ''; return; }
             debounceTimer = setTimeout(async () => {
                 const term = q.replace(/^@/, '');
-                const { data, error } = await supabase
+                const { data, error } = await WeotziData
                     .from('artists_db')
                     .select('user_id, username, name, profile_picture, city, country')
                     .or(`username.ilike.%${term}%,name.ilike.%${term}%`)
@@ -793,7 +793,7 @@
             sendBtn.disabled = true;
             sendBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
 
-            const { data: insertedRows, error } = await supabase
+            const { data: insertedRows, error } = await WeotziData
                 .from('studio_artist_memberships')
                 .insert({
                     studio_id:       studio.id,
@@ -838,7 +838,7 @@
 
     async function renderRosterTable() {
         const container = document.getElementById('roster-content');
-        const { data: members, error } = await supabase
+        const { data: members, error } = await WeotziData
             .from('studio_artist_memberships')
             .select(`
                 id, role, status, started_at, ended_at, location_id, revenue_split_pct,
@@ -925,7 +925,7 @@
             const location_id  = tr.querySelector('select[data-field="location_id"]').value || null;
             const splitInput   = tr.querySelector('input[data-field="revenue_split_pct"]').value;
             const split        = splitInput === '' ? null : Number(splitInput);
-            const { error } = await supabase
+            const { error } = await WeotziData
                 .from('studio_artist_memberships')
                 .update({ role, location_id, revenue_split_pct: split })
                 .eq('id', id);
@@ -933,7 +933,7 @@
             else { showStatus('roster-status', 'success', 'Cambios guardados.'); await renderRosterTable(); }
         } else if (action === 'end') {
             if (!confirm('¿Desvincular a este artista? Su perfil queda intacto.')) return;
-            const { error } = await supabase
+            const { error } = await WeotziData
                 .from('studio_artist_memberships')
                 .update({ status: 'ended', ended_at: new Date().toISOString() })
                 .eq('id', id);
@@ -954,11 +954,11 @@
                 await renderRosterTable();
             }
         } else if (action === 'cancel') {
-            const { error } = await supabase.from('studio_artist_memberships').delete().eq('id', id);
+            const { error } = await WeotziData.from('studio_artist_memberships').delete().eq('id', id);
             if (error) showStatus('roster-status', 'error', error.message);
             else { showStatus('roster-status', 'success', 'Invitación cancelada.'); await renderRosterTable(); }
         } else if (action === 'resume') {
-            const { error } = await supabase
+            const { error } = await WeotziData
                 .from('studio_artist_memberships')
                 .update({ status: 'active', ended_at: null })
                 .eq('id', id);

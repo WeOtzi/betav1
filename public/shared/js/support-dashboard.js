@@ -159,7 +159,7 @@ async function initializeSupportDashboard() {
 
 async function verifySupportAccess(userId) {
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('support_users_db')
             .select('*')
             .eq('user_id', userId)
@@ -194,11 +194,11 @@ async function loadAllData() {
         statusEl.textContent = 'STATUS: LOADING DATA...';
         
         const [artistsResult, quotesResult, sessionsResult, chatsResult, reviewsResult] = await Promise.all([
-            _supabase.from('artists_db').select('*'),
+            WeotziData.from('artists_db').select('*'),
             WeotziData.Quotations.listAll().then(data => ({ data, error: null }), error => ({ data: null, error })),
-            _supabase.from('session_logs').select('*').order('created_at', { ascending: false }).limit(500),
-            _supabase.from('support_conversations').select('*').order('last_message_at', { ascending: false }).limit(500),
-            _supabase.from('verified_reviews').select('*').order('created_at', { ascending: false }).limit(500)
+            WeotziData.from('session_logs').select('*').order('created_at', { ascending: false }).limit(500),
+            WeotziData.from('support_conversations').select('*').order('last_message_at', { ascending: false }).limit(500),
+            WeotziData.from('verified_reviews').select('*').order('created_at', { ascending: false }).limit(500)
         ]);
 
         let errors = [];
@@ -1576,7 +1576,7 @@ window.updateArtistField = async function(userId, field, value) {
             updateData[field] = value || null;
         }
 
-        const { error } = await _supabase.from('artists_db').update(updateData).eq('user_id', userId);
+        const { error } = await WeotziData.from('artists_db').update(updateData).eq('user_id', userId);
         if (error) throw error;
 
         const artist = artists.find(a => a.user_id === userId);
@@ -1658,7 +1658,7 @@ window.updateReviewModeration = async function(id, status) {
             updateData.approved_by_user_id = currentUser?.id || null;
         }
 
-        const { error } = await _supabase.from('verified_reviews').update(updateData).eq('id', id);
+        const { error } = await WeotziData.from('verified_reviews').update(updateData).eq('id', id);
         if (error) throw error;
 
         const review = reviews.find(r => r.id === id);
@@ -1679,7 +1679,7 @@ window.approveReviewResponse = async function(id) {
             response_status: 'approved',
             response_updated_at: new Date().toISOString()
         };
-        const { error } = await _supabase.from('verified_reviews').update(updateData).eq('id', id);
+        const { error } = await WeotziData.from('verified_reviews').update(updateData).eq('id', id);
         if (error) throw error;
 
         const review = reviews.find(r => r.id === id);
@@ -1722,7 +1722,7 @@ window.confirmAction = async function() {
         if (type === 'quotes') {
             await WeotziData.Quotations.hardDeleteById(id);
         } else {
-            const { error } = await _supabase.from(tableName).delete().eq(idField, id);
+            const { error } = await WeotziData.from(tableName).delete().eq(idField, id);
             if (error) throw error;
         }
 
@@ -1891,7 +1891,7 @@ async function openChatDrawer(chat) {
     `;
 
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('support_messages')
             .select('*')
             .eq('conversation_id', chat.id)
@@ -2052,7 +2052,7 @@ window.assignChat = async function(conversationId) {
     try {
         await _postSupportChatAPI('/api/support-chat/assign', { conversation_id: conversationId });
         // refresh local record
-        const updated = await _supabase.from('support_conversations').select('*').eq('id', conversationId).single();
+        const updated = await WeotziData.from('support_conversations').select('*').eq('id', conversationId).single();
         if (updated.data) {
             const idx = chats.findIndex(c => c.id === conversationId);
             if (idx >= 0) chats[idx] = updated.data;
@@ -2067,7 +2067,7 @@ window.assignChat = async function(conversationId) {
 window.releaseChat = async function(conversationId) {
     try {
         await _postSupportChatAPI('/api/support-chat/release', { conversation_id: conversationId });
-        const updated = await _supabase.from('support_conversations').select('*').eq('id', conversationId).single();
+        const updated = await WeotziData.from('support_conversations').select('*').eq('id', conversationId).single();
         if (updated.data) {
             const idx = chats.findIndex(c => c.id === conversationId);
             if (idx >= 0) chats[idx] = updated.data;
@@ -2083,7 +2083,7 @@ window.closeChat = async function(conversationId) {
     if (!confirm('¿Cerrar esta conversación?')) return;
     try {
         await _postSupportChatAPI('/api/support-chat/close', { conversation_id: conversationId });
-        const updated = await _supabase.from('support_conversations').select('*').eq('id', conversationId).single();
+        const updated = await WeotziData.from('support_conversations').select('*').eq('id', conversationId).single();
         if (updated.data) {
             const idx = chats.findIndex(c => c.id === conversationId);
             if (idx >= 0) chats[idx] = updated.data;
@@ -2108,7 +2108,7 @@ window.sendAgentMessage = async function(conversationId) {
         });
         input.value = '';
         // el mensaje entrará via realtime; pero forzamos refresh por si acaso
-        const msgsRes = await _supabase
+        const msgsRes = await WeotziData
             .from('support_messages')
             .select('*')
             .eq('conversation_id', conversationId)
@@ -2131,7 +2131,7 @@ window.sendAgentMessage = async function(conversationId) {
 function subscribeChatsInbox() {
     if (chatRealtimeChannel) return;
     try {
-        chatRealtimeChannel = _supabase
+        chatRealtimeChannel = WeotziData
             .channel('support-inbox')
             .on('postgres_changes', {
                 event: '*',
@@ -2163,7 +2163,7 @@ function subscribeChatsInbox() {
 function subscribeChatMessages(conversationId) {
     unsubscribeChatMessages();
     try {
-        chatMessagesChannel = _supabase
+        chatMessagesChannel = WeotziData
             .channel('support-msgs-' + conversationId)
             .on('postgres_changes', {
                 event: 'INSERT',
@@ -2185,7 +2185,7 @@ function subscribeChatMessages(conversationId) {
 
 function unsubscribeChatMessages() {
     if (chatMessagesChannel) {
-        try { _supabase.removeChannel(chatMessagesChannel); } catch {}
+        try { WeotziData.removeChannel(chatMessagesChannel); } catch {}
         chatMessagesChannel = null;
     }
 }

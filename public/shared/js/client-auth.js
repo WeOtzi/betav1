@@ -41,7 +41,7 @@ async function checkClientAuthState() {
         
         if (session) {
             // User is logged in - check if they are a client
-            const { data: client, error } = await _supabase
+            const { data: client, error } = await WeotziData
                 .from('clients_db')
                 .select('*')
                 .eq('user_id', session.user.id)
@@ -57,7 +57,7 @@ async function checkClientAuthState() {
                 currentClientData = client;
             } else {
                 // Check if they are an artist instead
-                const { data: artist } = await _supabase
+                const { data: artist } = await WeotziData
                     .from('artists_db')
                     .select('user_id')
                     .eq('user_id', session.user.id)
@@ -229,7 +229,7 @@ async function handleClientRegistration(e) {
             }
             
             // Insert client profile
-            const { error: insertError } = await _supabase
+            const { error: insertError } = await WeotziData
                 .from('clients_db')
                 .insert({
                     user_id: authData.user.id,
@@ -412,7 +412,7 @@ async function handleClientLogin(e) {
         if (error) throw error;
         
         // Check if user has a client profile
-        const { data: client, error: clientError } = await _supabase
+        const { data: client, error: clientError } = await WeotziData
             .from('clients_db')
             .select('*')
             .eq('user_id', data.user.id)
@@ -437,7 +437,7 @@ async function handleClientLogin(e) {
             }, 1500);
         } else {
             // Check if they are an artist
-            const { data: artist } = await _supabase
+            const { data: artist } = await WeotziData
                 .from('artists_db')
                 .select('user_id, name')
                 .eq('user_id', data.user.id)
@@ -450,7 +450,7 @@ async function handleClientLogin(e) {
                 }, 1500);
             } else {
                 // No profile exists - create one
-                const { error: createError } = await _supabase
+                const { error: createError } = await WeotziData
                     .from('clients_db')
                     .insert({
                         user_id: data.user.id,
@@ -673,7 +673,7 @@ async function handleOAuthCallback() {
     
     if (session) {
         // Check if client profile exists
-        const { data: client } = await _supabase
+        const { data: client } = await WeotziData
             .from('clients_db')
             .select('*')
             .eq('user_id', session.user.id)
@@ -681,7 +681,7 @@ async function handleOAuthCallback() {
         
         if (!client) {
             // Check if user is an artist first - artists should not get client profiles
-            const { data: artist } = await _supabase
+            const { data: artist } = await WeotziData
                 .from('artists_db')
                 .select('user_id')
                 .eq('user_id', session.user.id)
@@ -694,7 +694,7 @@ async function handleOAuthCallback() {
             }
             
             // Not an artist - create client profile from OAuth data
-            const { error: createError } = await _supabase
+            const { error: createError } = await WeotziData
                 .from('clients_db')
                 .insert({
                     user_id: session.user.id,
@@ -741,7 +741,7 @@ window.ClientAuth = {
             const { data: { session } } = await _supabase.auth.getSession();
             if (!session) return { session: null, client: null };
 
-            const { data: client } = await _supabase
+            const { data: client } = await WeotziData
                 .from('clients_db')
                 .select('*')
                 .eq('user_id', session.user.id)
@@ -760,14 +760,14 @@ window.ClientAuth = {
         });
         if (error) throw error;
 
-        const { data: client } = await _supabase
+        const { data: client } = await WeotziData
             .from('clients_db')
             .select('*')
             .eq('user_id', data.user.id)
             .maybeSingle();
 
         if (!client) {
-            const { data: artist } = await _supabase
+            const { data: artist } = await WeotziData
                 .from('artists_db')
                 .select('user_id, name')
                 .eq('user_id', data.user.id)
@@ -777,14 +777,14 @@ window.ClientAuth = {
                 return { user: data.user, client: null, isArtist: true, artistName: artist.name };
             }
 
-            await _supabase.from('clients_db').insert({
+            await WeotziData.from('clients_db').insert({
                 user_id: data.user.id,
                 email: email,
                 full_name: data.user.user_metadata?.full_name || email.split('@')[0],
                 email_verified: data.user.email_confirmed_at ? true : false
             });
 
-            const { data: newClient } = await _supabase
+            const { data: newClient } = await WeotziData
                 .from('clients_db')
                 .select('*')
                 .eq('user_id', data.user.id)

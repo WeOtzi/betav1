@@ -104,7 +104,7 @@ function withArtistLoginTimeout(promise, timeoutMs, label) {
 }
 
 async function lookupArtistProfile(userId) {
-    const { data, error, timedOut } = await withArtistLoginTimeout(_supabase
+    const { data, error, timedOut } = await withArtistLoginTimeout(WeotziData
         .from('artists_db')
         .select(ARTIST_PROFILE_SELECT)
         .eq('user_id', userId)
@@ -120,7 +120,7 @@ async function lookupArtistProfile(userId) {
 }
 
 async function lookupClientProfile(userId) {
-    const { data, error, timedOut } = await withArtistLoginTimeout(_supabase
+    const { data, error, timedOut } = await withArtistLoginTimeout(WeotziData
         .from('clients_db')
         .select('user_id')
         .eq('user_id', userId)

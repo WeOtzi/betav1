@@ -39,7 +39,7 @@
             }
 
             // Look for the studio row owned by this user.
-            const { data: studio } = await _supabase
+            const { data: studio } = await WeotziData
                 .from('studios')
                 .select('*')
                 .eq('user_id', session.user.id)
@@ -80,7 +80,7 @@
 
         // Ensure they have a studio row; otherwise this session belongs to a
         // different role and we shouldn't pretend it's a studio login.
-        const { data: studio, error: studioErr } = await _supabase
+        const { data: studio, error: studioErr } = await WeotziData
             .from('studios')
             .select('id, user_id, name, slug, profile_complete')
             .eq('user_id', data.session.user.id)
@@ -127,7 +127,7 @@
         const normalized = String(name).trim().toUpperCase();
 
         // 3) Insert the studios row. RLS allows it because user_id == auth.uid().
-        const { data: studio, error: insertErr } = await _supabase
+        const { data: studio, error: insertErr } = await WeotziData
             .from('studios')
             .insert({
                 user_id:        userId,

@@ -543,7 +543,7 @@ async function handleUrlArtist(username) {
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
             // Case-insensitive lookup using ilike. Public path — exclude
             // password via the shared column list (config-manager.js).
-            const { data, error } = await supabaseClient
+            const { data, error } = await WeotziData
                 .from('artists_db')
                 .select(window.ARTIST_PUBLIC_COLUMNS || '*')
                 .ilike('username', usernameLower)
@@ -1853,7 +1853,7 @@ async function searchArtist() {
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
             // Case-insensitive lookup using ilike. Public path — exclude
             // password via the shared column list (config-manager.js).
-            const { data, error } = await supabaseClient
+            const { data, error } = await WeotziData
                 .from('artists_db')
                 .select(window.ARTIST_PUBLIC_COLUMNS || '*')
                 .ilike('username', usernameLower)
@@ -2151,7 +2151,7 @@ async function fetchAllArtists() {
     if (supabaseClient && !window.ConfigManager.isDemoMode()) {
         // Public path — exclude password via the shared column list
         // (config-manager.js ARTIST_PUBLIC_COLUMNS).
-        const { data, error } = await supabaseClient
+        const { data, error } = await WeotziData
             .from('artists_db')
             .select(window.ARTIST_PUBLIC_COLUMNS || '*');
         if (error) throw error;

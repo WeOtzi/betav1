@@ -284,7 +284,7 @@ async function checkAuthState() {
         if (authState.status === 'artist_lookup_failed' && _supabase && currentUser) {
             console.warn('Job Board: artist lookup failed, retrying directly...');
             try {
-                const { data: retryArtist } = await _supabase
+                const { data: retryArtist } = await WeotziData
                     .from('artists_db')
                     .select('user_id, username, name')
                     .eq('user_id', currentUser.id)

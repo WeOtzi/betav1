@@ -690,7 +690,7 @@ async function loadArtistData(initialArtist = null) {
 
     try {
         const renderedInitialArtist = applyDashboardArtistData(initialArtist);
-        const { data: artist, error, dashboardTimedOut } = await withDashboardTimeout(_supabase
+        const { data: artist, error, dashboardTimedOut } = await withDashboardTimeout(WeotziData
             .from('artists_db')
             .select(DASHBOARD_ARTIST_SELECT)
             .eq('user_id', currentUser.id)
@@ -721,7 +721,7 @@ async function loadArtistData(initialArtist = null) {
         // have their address fields on artist row (no separate fetch needed).
         if (artist.studio_id && (artist.work_type === 'studio' || artist.work_type === 'both')) {
             try {
-                const { data: studio } = await _supabase
+                const { data: studio } = await WeotziData
                     .from('studios')
                     .select('country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
                     .eq('id', artist.studio_id)
@@ -776,7 +776,7 @@ async function loadArtistTattooLocations() {
     if (!currentUser || !_supabase) return;
 
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('artist_tattoo_locations')
             .select('*')
             .eq('artist_user_id', currentUser.id)
@@ -1068,7 +1068,7 @@ async function searchUpcomingTravelStudios(query) {
 
     try {
         const normalized = query.toUpperCase();
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studios')
             .select('name, normalized_name')
             .ilike('normalized_name', `%${normalized}%`)
@@ -1098,12 +1098,12 @@ async function searchUpcomingTravelCities(query) {
 
     try {
         const [artistsRes, locationsRes] = await Promise.all([
-            _supabase
+            WeotziData
                 .from('artists_db')
                 .select('city')
                 .ilike('city', `%${query}%`)
                 .limit(10),
-            _supabase
+            WeotziData
                 .from('artist_tattoo_locations')
                 .select('city')
                 .ilike('city', `%${query}%`)
@@ -1335,7 +1335,7 @@ async function searchCurrentLocationStudios({ itemEl, index, query, suggestionsE
     if (!_supabase || !itemEl || !suggestionsEl) return;
     try {
         const normalized = query.toUpperCase();
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studios')
             .select('name, normalized_name')
             .ilike('normalized_name', `%${normalized}%`)
@@ -1365,12 +1365,12 @@ async function searchCurrentLocationCities({ itemEl, index, query, suggestionsEl
     if (!_supabase || !itemEl || !suggestionsEl) return;
     try {
         const [artistsRes, locationsRes] = await Promise.all([
-            _supabase
+            WeotziData
                 .from('artists_db')
                 .select('city')
                 .ilike('city', `%${query}%`)
                 .limit(10),
-            _supabase
+            WeotziData
                 .from('artist_tattoo_locations')
                 .select('city')
                 .ilike('city', `%${query}%`)
@@ -1513,7 +1513,7 @@ async function saveArtistTattooLocations(locationsPayload) {
         });
     }
 
-    const { error: deleteError } = await _supabase
+    const { error: deleteError } = await WeotziData
         .from('artist_tattoo_locations')
         .delete()
         .eq('artist_user_id', currentUser.id);
@@ -1521,7 +1521,7 @@ async function saveArtistTattooLocations(locationsPayload) {
     if (deleteError) throw deleteError;
 
     if (rows.length > 0) {
-        const { error: insertError } = await _supabase
+        const { error: insertError } = await WeotziData
             .from('artist_tattoo_locations')
             .insert(rows);
         if (insertError) throw insertError;
@@ -2403,7 +2403,7 @@ async function searchDashboardStudios(query) {
     const suggestionsEl = document.getElementById('dashboard-studio-suggestions');
     if (!suggestionsEl) return;
     try {
-        const { data, error } = await _supabase
+        const { data, error } = await WeotziData
             .from('studios')
             .select('id, name, normalized_name')
             .ilike('normalized_name', `%${query.toUpperCase()}%`)
@@ -2466,20 +2466,20 @@ async function dashboardFindOrCreateStudio(name) {
     const normalized = name.toUpperCase().trim();
     if (dashboardStudioId) return dashboardStudioId;
 
-    const { data: existing } = await _supabase
+    const { data: existing } = await WeotziData
         .from('studios')
         .select('id')
         .eq('normalized_name', normalized)
         .maybeSingle();
     if (existing) return existing.id;
 
-    const { data: created, error } = await _supabase
+    const { data: created, error } = await WeotziData
         .from('studios')
         .insert({ name: name.trim(), normalized_name: normalized })
         .select('id')
         .single();
     if (error && error.code === '23505') {
-        const { data: retry } = await _supabase.from('studios').select('id').eq('normalized_name', normalized).single();
+        const { data: retry } = await WeotziData.from('studios').select('id').eq('normalized_name', normalized).single();
         return retry?.id || null;
     }
     return created?.id || null;
@@ -2634,7 +2634,7 @@ async function saveBio() {
         : rawHtml;
 
     try {
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('artists_db')
             .update({ bio_description: newBio || null })
             .eq('user_id', currentUser.id);
@@ -2795,7 +2795,7 @@ async function handleProfileSave(e) {
             && pickedAddress
             && pickedAddress.formatted_address) {
             try {
-                await _supabase.from('studios').update({
+                await WeotziData.from('studios').update({
                     country:           pickedAddress.country || null,
                     country_code:      pickedAddress.country_code || null,
                     state_province:    pickedAddress.state_province || null,
@@ -2850,7 +2850,7 @@ async function handleProfileSave(e) {
             geocoded_at:       isIndependent && indepAddress.formatted_address ? new Date().toISOString() : null
         };
 
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('artists_db')
             .update(updateData)
             .eq('user_id', currentUser.id);
@@ -3021,7 +3021,7 @@ async function useAIAvatar() {
         const publicUrl = urlData.publicUrl;
 
         // Update artist record
-        const { error: updateError } = await _supabase
+        const { error: updateError } = await WeotziData
             .from('artists_db')
             .update({ profile_picture: publicUrl })
             .eq('user_id', currentUser.id);
@@ -3092,7 +3092,7 @@ async function handleAvatarUpload(e) {
             const { data: urlData } = _supabase.storage.from('profile-pictures').getPublicUrl(filePath);
             const publicUrl = urlData.publicUrl;
 
-            const { error: updateError } = await _supabase
+            const { error: updateError } = await WeotziData
                 .from('artists_db')
                 .update({ profile_picture: publicUrl })
                 .eq('user_id', currentUser.id);
@@ -3244,13 +3244,13 @@ async function persistDashboardGalleryFeed(feedItems) {
         gallery_feed_items: safeFeed
     };
 
-    let { error } = await _supabase
+    let { error } = await WeotziData
         .from('artists_db')
         .update(payload)
         .eq('user_id', currentUser.id);
 
     if (error && isMissingGalleryFeedColumnError(error)) {
-        const retry = await _supabase
+        const retry = await WeotziData
             .from('artists_db')
             .update({ gallery_images: legacyImages })
             .eq('user_id', currentUser.id);
@@ -3832,7 +3832,7 @@ async function submitVerificationRequest() {
     
     try {
         // Update verification_state to "Requested"
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('artists_db')
             .update({ verification_state: 'Requested' })
             .eq('user_id', currentUser.id);
@@ -4015,7 +4015,7 @@ async function trackMilestone(milestoneField) {
     try {
         const updateData = { [milestoneField]: true };
         
-        const { error } = await _supabase
+        const { error } = await WeotziData
             .from('artists_db')
             .update(updateData)
             .eq('user_id', currentUser.id);

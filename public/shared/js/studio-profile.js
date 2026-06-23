@@ -37,7 +37,7 @@
     async function renderStudioProfile(ref) {
         // Resolve studio by slug OR id.
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
-        const lookup = _supabase.from('studios').select('*');
+        const lookup = WeotziData.from('studios').select('*');
         const { data: studio, error } = await (
             isUuid ? lookup.eq('id', ref).maybeSingle()
                    : lookup.eq('slug', ref).maybeSingle()
@@ -81,7 +81,7 @@
         }
 
         // Locations + map
-        const { data: locations } = await _supabase
+        const { data: locations } = await WeotziData
             .from('studio_locations')
             .select('*')
             .eq('studio_id', studio.id)
@@ -92,7 +92,7 @@
         await renderMap(locations || []);
 
         // Roster + aggregated styles via memberships → artists.
-        const { data: memberships } = await _supabase
+        const { data: memberships } = await WeotziData
             .from('studio_artist_memberships')
             .select(`
                 role, status,
@@ -180,7 +180,7 @@
         const el = document.getElementById('profile-sponsors');
         if (!section || !el) return;
 
-        const { data: sponsors, error } = await _supabase
+        const { data: sponsors, error } = await WeotziData
             .from('studio_public_sponsors_view')
             .select('id, studio_id, name, tier, logo_url, website, ends_on')
             .eq('studio_id', studioId)
@@ -192,7 +192,7 @@
             return;
         }
 
-        const { data: links } = await _supabase
+        const { data: links } = await WeotziData
             .from('studio_sponsor_artists')
             .select('sponsor_id, artist_user_id, artists_db ( user_id, username, name )')
             .in('sponsor_id', sponsors.map(s => s.id));
