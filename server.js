@@ -25,6 +25,8 @@ const { pgrest } = require('./lib/postgrest');
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
+const { CurrenciesRepo } = require('./lib/repos/currencies');
+const { InstagramRepo } = require('./lib/repos/instagram');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -1484,16 +1486,9 @@ app.post('/api/session-log', async (req, res) => {
                 const geo = await geoRes.json();
 
                 if (geo.status === 'success' && (geo.country || geo.city)) {
-                    await fetch(`${cfg.supabaseUrl}/rest/v1/session_logs?id=eq.${session_log_id}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'apikey': cfg.supabaseServiceKey,
-                            'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
-                            'Prefer': 'return=minimal'
-                        },
-                        body: JSON.stringify({ country: geo.country, city: geo.city })
-                    });
+                    await pgrest('session_logs')
+                        .eq('id', session_log_id)
+                        .patch({ country: geo.country, city: geo.city }, { returning: false });
                     console.log(`[Session Log] Geo resolved for ${session_log_id}: ${geo.city}, ${geo.country}`);
                 }
             }
@@ -1640,27 +1635,19 @@ app.post('/api/admin/delete-artist', async (req, res) => {
         });
     }
 
-    const filter = `${column}=eq.${encodeURIComponent(value)}`;
-
-    const svcHeaders = {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`
-    };
-
     try {
         // Step 1: look up the target so we can (a) confirm it exists and
         // (b) refuse to delete the superadmin account.
-        const lookupRes = await fetch(
-            `${supabaseUrl}/rest/v1/artists_db?${filter}&select=id,user_id,email`,
-            { method: 'GET', headers: svcHeaders }
-        );
-        if (!lookupRes.ok) {
-            const errBody = await lookupRes.text();
-            console.error('[Admin API] delete-artist lookup failed:', lookupRes.status, errBody);
-            return res.status(502).json({ success: false, error: `Supabase lookup failed: HTTP ${lookupRes.status}` });
+        let rows;
+        try {
+            rows = await pgrest('artists_db')
+                .select('id,user_id,email')
+                .eq(column, value)
+                .execute();
+        } catch (lookupErr) {
+            console.error('[Admin API] delete-artist lookup failed:', lookupErr.status, lookupErr.message);
+            return res.status(502).json({ success: false, error: `Supabase lookup failed: HTTP ${lookupErr.status || ''}`.trim() });
         }
-        const rows = await lookupRes.json();
         if (!Array.isArray(rows) || rows.length === 0) {
             return res.status(404).json({ success: false, error: 'No se encontró ningún artista con ese identificador.' });
         }
@@ -1671,22 +1658,20 @@ app.post('/api/admin/delete-artist', async (req, res) => {
 
         // Step 2: delete. return=representation makes PostgREST echo the deleted
         // row so we can distinguish a real delete from a 0-row no-op.
-        const delRes = await fetch(
-            `${supabaseUrl}/rest/v1/artists_db?${filter}`,
-            { method: 'DELETE', headers: { ...svcHeaders, 'Prefer': 'return=representation' } }
-        );
-
-        if (!delRes.ok) {
-            const errBody = await delRes.text();
-            console.error('[Admin API] delete-artist DELETE failed:', delRes.status, errBody);
+        let deleted;
+        try {
+            deleted = await pgrest('artists_db')
+                .eq(column, value)
+                .delete({ returning: true });
+        } catch (delErr) {
+            console.error('[Admin API] delete-artist DELETE failed:', delErr.status, delErr.message);
             // 23503 = FK violation: related rows block the delete. Surface it.
             return res.status(409).json({
                 success: false,
-                error: `No se pudo eliminar (puede haber registros relacionados). HTTP ${delRes.status}: ${errBody.slice(0, 300)}`
+                error: `No se pudo eliminar (puede haber registros relacionados). HTTP ${delErr.status || ''}: ${String(delErr.message || '').slice(0, 300)}`
             });
         }
 
-        const deleted = await delRes.json();
         if (!Array.isArray(deleted) || deleted.length === 0) {
             return res.status(404).json({ success: false, error: 'No se eliminó ninguna fila.' });
         }
@@ -1793,23 +1778,17 @@ app.post('/api/auth/reset-temp-password', async (req, res) => {
         );
         
         // Step 1: Lookup user by email
-        const lookupResponse = await fetch(`${supabaseUrl}/rest/v1/${tableName}?email=eq.${encodeURIComponent(email)}&select=user_id,email`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': serviceRoleKey,
-                'Authorization': `Bearer ${serviceRoleKey}`
-            }
-        });
-        
-        if (!lookupResponse.ok) {
-            const errorData = await lookupResponse.json();
-            console.error('[Auth] Error looking up user:', errorData);
+        let users;
+        try {
+            users = await pgrest(tableName)
+                .select('user_id,email')
+                .eq('email', email)
+                .execute();
+        } catch (lookupErr) {
+            console.error('[Auth] Error looking up user:', lookupErr.message);
             throw new Error('Error al buscar usuario');
         }
-        
-        const users = await lookupResponse.json();
-        
+
         if (!users || users.length === 0) {
             console.log(`[Auth] User not found: ${email} (type: ${userType})`);
             return res.status(404).json({ 
@@ -1906,20 +1885,16 @@ app.post('/api/tattoo-styles/ensure', async (req, res) => {
         return res.status(500).json({ success: false, error: 'Server configuration incomplete' });
     }
 
-    const headers = {
-        'Content-Type': 'application/json',
-        'apikey': apiKey,
-        'Authorization': `Bearer ${apiKey}`,
-        'Prefer': 'return=representation'
-    };
-
     try {
-        const allRes = await fetch(
-            `${supabaseUrl}/rest/v1/tattoo_styles?parent_id=is.null&select=id,name,slug,sort_order`,
-            { method: 'GET', headers }
-        );
-        if (!allRes.ok) throw new Error('Failed to fetch existing styles');
-        const existing = await allRes.json();
+        let existing;
+        try {
+            existing = await pgrest('tattoo_styles')
+                .select('id,name,slug,sort_order')
+                .is('parent_id', null)
+                .execute();
+        } catch (_) {
+            throw new Error('Failed to fetch existing styles');
+        }
 
         const normalize = (s) => s.trim().toLowerCase()
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -1937,24 +1912,20 @@ app.post('/api/tattoo-styles/ensure', async (req, res) => {
 
         const maxSort = existing.reduce((max, s) => Math.max(max, s.sort_order || 0), 0);
 
-        const insertRes = await fetch(`${supabaseUrl}/rest/v1/tattoo_styles`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
+        let inserted;
+        try {
+            inserted = await pgrest('tattoo_styles').insert({
                 name: trimmed,
                 slug: slug,
                 parent_id: null,
                 sort_order: maxSort + 1,
                 substyles_display_mode: 'grouped'
-            })
-        });
-
-        if (!insertRes.ok) {
-            const err = await insertRes.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to insert style');
+            });
+        } catch (insertErr) {
+            throw new Error(insertErr.message || 'Failed to insert style');
         }
 
-        const [created] = await insertRes.json();
+        const [created] = inserted;
         console.log(`[Styles] Created new style: ${created.name} (${created.id})`);
         return res.json({ success: true, style: created, created: true });
 
@@ -2554,19 +2525,18 @@ app.post('/api/admin/delete-studio', async (req, res) => {
         return res.status(500).json({ success: false, error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' });
     }
     const svcHeaders = getAdminHeaders(serviceRoleKey);
-    const filter = `id=eq.${encodeURIComponent(id)}`;
 
     try {
         // Step 1: look up the studio.
-        const lookupRes = await fetch(
-            `${supabaseUrl}/rest/v1/studios?${filter}&select=id,user_id,email,name`,
-            { method: 'GET', headers: svcHeaders }
-        );
-        if (!lookupRes.ok) {
-            const body = await lookupRes.text();
-            return res.status(502).json({ success: false, error: `Supabase lookup failed: HTTP ${lookupRes.status} ${body.slice(0, 200)}` });
+        let rows;
+        try {
+            rows = await pgrest('studios')
+                .select('id,user_id,email,name')
+                .eq('id', id)
+                .execute();
+        } catch (lookupErr) {
+            return res.status(502).json({ success: false, error: `Supabase lookup failed: HTTP ${lookupErr.status || ''} ${String(lookupErr.message || '').slice(0, 200)}`.trim() });
         }
-        const rows = await lookupRes.json();
         if (!Array.isArray(rows) || rows.length === 0) {
             return res.status(404).json({ success: false, error: 'No se encontró ningún estudio con ese ID.' });
         }
@@ -2578,18 +2548,17 @@ app.post('/api/admin/delete-studio', async (req, res) => {
         }
 
         // Step 2: delete the studio row (children cascade).
-        const delRes = await fetch(
-            `${supabaseUrl}/rest/v1/studios?${filter}`,
-            { method: 'DELETE', headers: { ...svcHeaders, 'Prefer': 'return=representation' } }
-        );
-        if (!delRes.ok) {
-            const body = await delRes.text();
+        let deleted;
+        try {
+            deleted = await pgrest('studios')
+                .eq('id', id)
+                .delete({ returning: true });
+        } catch (delErr) {
             return res.status(409).json({
                 success: false,
-                error: `No se pudo eliminar (puede haber registros relacionados con ON DELETE RESTRICT). HTTP ${delRes.status}: ${body.slice(0, 300)}`
+                error: `No se pudo eliminar (puede haber registros relacionados con ON DELETE RESTRICT). HTTP ${delErr.status || ''}: ${String(delErr.message || '').slice(0, 300)}`
             });
         }
-        const deleted = await delRes.json();
         if (!Array.isArray(deleted) || deleted.length === 0) {
             return res.status(404).json({ success: false, error: 'No se eliminó ninguna fila.' });
         }
@@ -2874,13 +2843,6 @@ app.post('/api/job-board/accept-application', async (req, res) => {
         });
     }
 
-    const headers = {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Prefer': 'return=representation'
-    };
-
     try {
         console.log(`[Job Board] Accepting application ${applicationId} for request ${requestId}`);
 
@@ -2949,19 +2911,17 @@ app.post('/api/job-board/accept-application', async (req, res) => {
         }
 
         // 3. Fetch artist details
-        const artistResponse = await fetch(
-            `${supabaseUrl}/rest/v1/artists_db?user_id=eq.${application.artist_id}&select=*`,
-            { headers }
-        );
-        const artistData = await artistResponse.json();
+        const artistData = await pgrest('artists_db')
+            .select('*')
+            .eq('user_id', application.artist_id)
+            .execute();
         const artist = artistData?.[0] || {};
 
         // 4. Fetch client details
-        const clientResponse = await fetch(
-            `${supabaseUrl}/rest/v1/clients_db?user_id=eq.${request.client_user_id}&select=*`,
-            { headers }
-        );
-        const clientData = await clientResponse.json();
+        const clientData = await pgrest('clients_db')
+            .select('*')
+            .eq('user_id', request.client_user_id)
+            .execute();
         const client = clientData?.[0] || {};
 
         // 5. Generate quote ID
@@ -3241,22 +3201,14 @@ function getHealthConfig() {
 async function logHealthCheck(cfg, serviceName, status, latencyMs, errorMessage, metadata) {
     if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
     try {
-        await fetch(`${cfg.supabaseUrl}/rest/v1/service_health_logs`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': cfg.supabaseAnonKey,
-                'Authorization': `Bearer ${cfg.supabaseAnonKey}`
-            },
-            body: JSON.stringify({
-                service_name: serviceName,
-                status,
-                latency_ms: latencyMs,
-                error_message: errorMessage || null,
-                metadata: metadata || {},
-                checked_by: 'server'
-            })
-        });
+        await pgrest('service_health_logs', { key: 'anon' }).insert({
+            service_name: serviceName,
+            status,
+            latency_ms: latencyMs,
+            error_message: errorMessage || null,
+            metadata: metadata || {},
+            checked_by: 'server'
+        }, { returning: false });
     } catch (e) {
         console.error(`[HealthLog] Failed to log ${serviceName}:`, e.message);
     }
@@ -3275,17 +3227,12 @@ async function checkServiceHealth(serviceName, cfg) {
         switch (serviceName) {
             case 'supabase': {
                 if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) break;
-                // Test 1: REST API query
-                const dbRes = await fetch(
-                    `${cfg.supabaseUrl}/rest/v1/artists_db?select=id&limit=1`,
-                    {
-                        headers: {
-                            'apikey': cfg.supabaseAnonKey,
-                            'Authorization': `Bearer ${cfg.supabaseAnonKey}`
-                        }
-                    }
-                );
-                if (!dbRes.ok) throw new Error(`DB query failed: HTTP ${dbRes.status}`);
+                // Test 1: REST API query (anon key, respeta RLS — sondeo).
+                try {
+                    await pgrest('artists_db', { key: 'anon' }).select('id').limit(1).execute();
+                } catch (dbErr) {
+                    throw new Error(`DB query failed: HTTP ${dbErr.status || ''}`.trim());
+                }
                 metadata.dbQuery = 'ok';
 
                 // Test 2: Storage bucket accessible
@@ -3300,7 +3247,7 @@ async function checkServiceHealth(serviceName, cfg) {
                 );
                 metadata.storageBucket = storageRes.ok ? 'ok' : `HTTP ${storageRes.status}`;
 
-                status = dbRes.ok && storageRes.ok ? 'healthy' : 'degraded';
+                status = storageRes.ok ? 'healthy' : 'degraded';
                 break;
             }
 
@@ -3469,16 +3416,12 @@ app.get('/api/health/history/:service', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
 
     try {
-        const historyRes = await fetch(
-            `${cfg.supabaseUrl}/rest/v1/service_health_logs?service_name=eq.${encodeURIComponent(serviceName)}&order=checked_at.desc&limit=${limit}`,
-            {
-                headers: {
-                    'apikey': cfg.supabaseAnonKey,
-                    'Authorization': `Bearer ${cfg.supabaseAnonKey}`
-                }
-            }
-        );
-        const data = await historyRes.json();
+        const data = await pgrest('service_health_logs', { key: 'anon' })
+            .select('*')
+            .eq('service_name', serviceName)
+            .order('checked_at', { ascending: false })
+            .limit(limit)
+            .execute();
         res.json({ success: true, service: serviceName, history: data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -3988,35 +3931,24 @@ app.post('/api/artists/geocode', async (req, res) => {
     }
 
     try {
-        const updateRes = await fetch(
-            `${supabaseUrl}/rest/v1/artists_db?user_id=eq.${encodeURIComponent(user_id)}`,
-            {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': serviceRoleKey,
-                    'Authorization': `Bearer ${serviceRoleKey}`,
-                    'Prefer': 'return=representation'
-                },
-                body: JSON.stringify({
+        let rows;
+        try {
+            rows = await pgrest('artists_db')
+                .eq('user_id', user_id)
+                .patch({
                     latitude: lat,
                     longitude: lng,
                     geocoded_address: geocoded_address ? String(geocoded_address).slice(0, 500) : null,
                     geocoded_at: new Date().toISOString()
-                })
-            }
-        );
-
-        if (!updateRes.ok) {
-            const errBody = await updateRes.text();
-            console.error('[Geocode] Supabase PATCH failed:', updateRes.status, errBody);
+                });
+        } catch (updateErr) {
+            console.error('[Geocode] Supabase PATCH failed:', updateErr.status, updateErr.message);
             return res.status(502).json({
                 success: false,
-                error: `Supabase update failed: HTTP ${updateRes.status}`
+                error: `Supabase update failed: HTTP ${updateErr.status || ''}`.trim()
             });
         }
 
-        const rows = await updateRes.json();
         if (!Array.isArray(rows) || rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Artist not found for given user_id' });
         }
@@ -4255,12 +4187,6 @@ app.post('/api/studio/notify', async (req, res) => {
         return res.status(400).json({ success: false, error: 'decision invalida (esperado: accepted | rejected)' });
     }
 
-    const restHeaders = {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`
-    };
-
     try {
         const authUser = await _getAuthUserFromBearer(req);
         if (!authUser?.id) {
@@ -4274,16 +4200,19 @@ app.post('/api/studio/notify', async (req, res) => {
                 return res.status(400).json({ success: false, error: 'application_id y decision son requeridos.' });
             }
             // Pull the application + spot + studio + artist in one go.
-            const r = await fetch(
-                `${supabaseUrl}/rest/v1/studio_spot_applications`
-                + `?id=eq.${encodeURIComponent(application_id)}`
-                + `&select=id,status,artist_user_id,artists_db(user_id,email,name,username),`
-                + `studio_spots(id,title,kind,studios(id,name,slug,user_id,email))`,
-                { headers: restHeaders }
-            );
-            if (!r.ok) throw new Error(`Could not load application: ${r.status}`);
-            const rows = await r.json();
-            const app = Array.isArray(rows) ? rows[0] : null;
+            let app;
+            try {
+                app = await pgrest('studio_spot_applications')
+                    .select(
+                        'id,status,artist_user_id,artists_db(user_id,email,name,username),'
+                        + 'studio_spots(id,title,kind,studios(id,name,slug,user_id,email))'
+                    )
+                    .eq('id', application_id)
+                    .single()
+                    .execute();
+            } catch (loadErr) {
+                throw new Error(`Could not load application: ${loadErr.status || loadErr.message}`);
+            }
             if (!app) return res.status(404).json({ success: false, error: 'Application not found.' });
 
             const studio = app.studio_spots?.studios || {};
@@ -4325,16 +4254,19 @@ app.post('/api/studio/notify', async (req, res) => {
             if (!membership_id) {
                 return res.status(400).json({ success: false, error: 'membership_id requerido.' });
             }
-            const r = await fetch(
-                `${supabaseUrl}/rest/v1/studio_artist_memberships`
-                + `?id=eq.${encodeURIComponent(membership_id)}`
-                + `&select=id,role,status,artist_user_id,artists_db(user_id,email,name,username),`
-                + `studios(id,name,slug,user_id,email)`,
-                { headers: restHeaders }
-            );
-            if (!r.ok) throw new Error(`Could not load membership: ${r.status}`);
-            const rows = await r.json();
-            const m = Array.isArray(rows) ? rows[0] : null;
+            let m;
+            try {
+                m = await pgrest('studio_artist_memberships')
+                    .select(
+                        'id,role,status,artist_user_id,artists_db(user_id,email,name,username),'
+                        + 'studios(id,name,slug,user_id,email)'
+                    )
+                    .eq('id', membership_id)
+                    .single()
+                    .execute();
+            } catch (loadErr) {
+                throw new Error(`Could not load membership: ${loadErr.status || loadErr.message}`);
+            }
             if (!m) return res.status(404).json({ success: false, error: 'Membership not found.' });
 
             const studio = m.studios || {};
@@ -4494,20 +4426,7 @@ app.get('/api/currencies', async (req, res) => {
     }
 
     try {
-        const url = `${cfg.supabaseUrl}/rest/v1/currencies`
-            + `?select=code,name,symbol,decimals,units_per_usd,units_per_eur,is_active,last_updated_at,source`
-            + `&is_active=eq.true&order=code.asc`;
-        const response = await fetch(url, {
-            headers: {
-                'apikey': cfg.supabaseAnonKey,
-                'Authorization': `Bearer ${cfg.supabaseAnonKey}`
-            }
-        });
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Supabase responded ${response.status}: ${errText}`);
-        }
-        const list = await response.json();
+        const list = await CurrenciesRepo.listActive();
         _currencyCache.data = list;
         _currencyCache.fetchedAt = now;
         return res.json({ success: true, currencies: list, cached: false });
@@ -4582,46 +4501,22 @@ app.post('/api/admin/currencies/bulk-update', async (req, res) => {
     let status = 'success';
 
     try {
-        const upsertUrl = `${cfg.supabaseUrl}/rest/v1/currencies?on_conflict=code`;
-        const response = await fetch(upsertUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': cfg.supabaseServiceKey,
-                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
-                'Prefer': 'resolution=merge-duplicates,return=representation'
-            },
-            body: JSON.stringify(rows)
-        });
-        if (!response.ok) {
-            errorMessage = `Supabase upsert failed: ${response.status} ${await response.text()}`;
-            status = 'error';
-        } else {
-            const data = await response.json();
-            upserted = Array.isArray(data) ? data.length : rows.length;
-            if (skipped.length) status = 'partial';
-        }
+        const data = await CurrenciesRepo.upsertRates(rows, { returning: true });
+        upserted = Array.isArray(data) ? data.length : rows.length;
+        if (skipped.length) status = 'partial';
     } catch (err) {
-        errorMessage = err.message;
+        errorMessage = `Supabase upsert failed: ${err.message}`;
         status = 'error';
     }
 
     // Audit log (best-effort)
     try {
-        await fetch(`${cfg.supabaseUrl}/rest/v1/currency_refresh_logs`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': cfg.supabaseServiceKey,
-                'Authorization': `Bearer ${cfg.supabaseServiceKey}`
-            },
-            body: JSON.stringify({
-                source,
-                currencies_updated: upserted,
-                status,
-                error_message: errorMessage,
-                raw_payload: { count_in: rates.length, count_skipped: skipped.length }
-            })
+        await CurrenciesRepo.logRefresh({
+            source,
+            currencies_updated: upserted,
+            status,
+            error_message: errorMessage,
+            raw_payload: { count_in: rates.length, count_skipped: skipped.length }
         });
     } catch (logErr) {
         console.warn('[Currencies] Audit log failed:', logErr.message);
@@ -4697,35 +4592,17 @@ app.post('/api/admin/currencies/refresh-now', async (req, res) => {
             last_updated_at: now
         }));
 
-        const upsertUrl = `${cfg.supabaseUrl}/rest/v1/currencies?on_conflict=code`;
-        const upsertRes = await fetch(upsertUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': cfg.supabaseServiceKey,
-                'Authorization': `Bearer ${cfg.supabaseServiceKey}`,
-                'Prefer': 'resolution=merge-duplicates,return=minimal'
-            },
-            body: JSON.stringify(rows)
-        });
-        if (!upsertRes.ok) {
-            const errText = await upsertRes.text();
-            throw new Error(`Supabase upsert failed: ${upsertRes.status} ${errText}`);
+        try {
+            await CurrenciesRepo.upsertRates(rows, { returning: false });
+        } catch (upsertErr) {
+            throw new Error(`Supabase upsert failed: ${upsertErr.message}`);
         }
 
-        await fetch(`${cfg.supabaseUrl}/rest/v1/currency_refresh_logs`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': cfg.supabaseServiceKey,
-                'Authorization': `Bearer ${cfg.supabaseServiceKey}`
-            },
-            body: JSON.stringify({
-                source: 'open.er-api.com',
-                currencies_updated: rows.length,
-                status: 'success',
-                raw_payload: { trigger: 'manual', count: rows.length }
-            })
+        await CurrenciesRepo.logRefresh({
+            source: 'open.er-api.com',
+            currencies_updated: rows.length,
+            status: 'success',
+            raw_payload: { trigger: 'manual', count: rows.length }
         }).catch(() => {});
 
         _resetCurrencyCache();
@@ -4736,20 +4613,12 @@ app.post('/api/admin/currencies/refresh-now', async (req, res) => {
         try {
             const cfg = getHealthConfig();
             if (cfg.supabaseUrl && cfg.supabaseServiceKey) {
-                await fetch(`${cfg.supabaseUrl}/rest/v1/currency_refresh_logs`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': cfg.supabaseServiceKey,
-                        'Authorization': `Bearer ${cfg.supabaseServiceKey}`
-                    },
-                    body: JSON.stringify({
-                        source: 'open.er-api.com',
-                        currencies_updated: 0,
-                        status: 'error',
-                        error_message: err.message,
-                        raw_payload: { trigger: 'manual' }
-                    })
+                await CurrenciesRepo.logRefresh({
+                    source: 'open.er-api.com',
+                    currencies_updated: 0,
+                    status: 'error',
+                    error_message: err.message,
+                    raw_payload: { trigger: 'manual' }
                 });
             }
         } catch { /* ignore */ }
@@ -4919,65 +4788,22 @@ app.get('/api/admin/integrations/apify/stats', async (req, res) => {
     if (!supabaseUrl || !serviceRoleKey) {
         return res.status(500).json({ success: false, error: 'Server configuration incomplete' });
     }
-    const headers = {
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json'
-    };
 
-    // RPC-equivalent via PostgREST aggregate selectors. PostgREST doesn't
-    // support FILTER WHERE inline, so we issue 4 lightweight calls instead
-    // of one stored procedure. All cheap because the table has an index on
-    // (user_id, created_at DESC) and counts use HEAD method.
+    // RPC-equivalent via la capa PostgREST unificada (service-role, vista
+    // global). PostgREST no soporta FILTER WHERE inline, asi que emitimos
+    // consultas livianas separadas. Los conteos van con count('exact').
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86400 * 1000).toISOString();
 
-    function countQuery(filter) {
-        return fetch(`${supabaseUrl}/rest/v1/instagram_imports?${filter}&select=id`, {
-            method: 'HEAD',
-            headers: { ...headers, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }
-        }).then(r => {
-            const range = r.headers.get('content-range') || '*/0';
-            const total = parseInt(range.split('/')[1], 10);
-            return Number.isFinite(total) ? total : 0;
-        }).catch(() => 0);
-    }
-
-    function sumCost() {
-        // PostgREST aggregate selectors are quirky across versions; sum
-        // client-side instead — table is small (one row per import) so this
-        // is fine.
-        return fetch(`${supabaseUrl}/rest/v1/instagram_imports?select=cost_estimate_usd`, {
-            headers
-        }).then(r => r.json()).then(rows => {
-            if (!Array.isArray(rows)) return 0;
-            return rows.reduce((s, r) => s + (Number(r.cost_estimate_usd) || 0), 0);
-        }).catch(() => 0);
-    }
-
-    function recentRows() {
-        return fetch(
-            `${supabaseUrl}/rest/v1/instagram_imports?select=id,ig_handle,target,imported_fields,cost_estimate_usd,created_at&order=created_at.desc&limit=10`,
-            { headers }
-        ).then(r => r.json()).catch(() => []);
-    }
-
-    function recentForDailyBreakdown() {
-        return fetch(
-            `${supabaseUrl}/rest/v1/instagram_imports?select=created_at,cost_estimate_usd&created_at=gte.${fourteenDaysAgo}&order=created_at.asc`,
-            { headers }
-        ).then(r => r.json()).catch(() => []);
-    }
-
     try {
         const [imports7d, imports30d, importsTotal, costTotal, recent, dailyRaw] = await Promise.all([
-            countQuery(`created_at=gte.${sevenDaysAgo}`),
-            countQuery(`created_at=gte.${thirtyDaysAgo}`),
-            countQuery('id=not.is.null'),
-            sumCost(),
-            recentRows(),
-            recentForDailyBreakdown()
+            InstagramRepo.countSince(sevenDaysAgo),
+            InstagramRepo.countSince(thirtyDaysAgo),
+            InstagramRepo.countTotal(),
+            InstagramRepo.sumCost(),
+            InstagramRepo.recent(),
+            InstagramRepo.sinceForDailyBreakdown(fourteenDaysAgo)
         ]);
 
         // Build a 14-day strip — fill empty days with zeros so the chart is
@@ -5657,15 +5483,14 @@ app.post('/api/register/check-uniqueness-legacy', async (req, res) => {
 
     const conflicts = [];
 
-    async function checkExistsHead(path) {
+    // ¿Existe al menos una fila en artists_db que cumpla `column op value`?
+    // (antes: HEAD + Prefer:count=exact). count('exact') + range(0,0) da el
+    // mismo total via content-range trayendo a lo sumo 1 fila. Fallback a false.
+    async function artistExists(column, op, value) {
         try {
-            const r = await fetch(`${supabaseUrl}${path}`, {
-                method: 'HEAD',
-                headers: { ...headers, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }
-            });
-            const range = r.headers.get('content-range') || '*/0';
-            const total = parseInt(range.split('/')[1], 10);
-            return Number.isFinite(total) && total > 0;
+            const q = pgrest('artists_db').select('user_id').count('exact').range(0, 0);
+            const { count } = await q[op](column, value).execute();
+            return Number.isFinite(count) && count > 0;
         } catch (_) {
             return false;
         }
@@ -5684,29 +5509,21 @@ app.post('/api/register/check-uniqueness-legacy', async (req, res) => {
                 const j = await authCheckRes.json().catch(() => ({}));
                 if (Array.isArray(j.users) && j.users.length > 0) emailInAuth = true;
             }
-            const emailInArtists = await checkExistsHead(
-                `/rest/v1/artists_db?email=eq.${encodeURIComponent(email)}&select=user_id`
-            );
+            const emailInArtists = await artistExists('email', 'eq', email);
             if (emailInAuth || emailInArtists) conflicts.push('email');
         }
 
         // 2. Username (the .wo handle) — case-insensitive match in artists_db.
         if (username) {
-            const taken = await checkExistsHead(
-                `/rest/v1/artists_db?username=ilike.${encodeURIComponent(username)}&select=user_id`
-            );
+            const taken = await artistExists('username', 'ilike', username);
             if (taken) conflicts.push('username');
         }
 
         // 3. Instagram handle — match against artists_db.instagram (with or
         //    without @ prefix in stored data).
         if (instagram) {
-            const takenA = await checkExistsHead(
-                `/rest/v1/artists_db?instagram=ilike.${encodeURIComponent(instagram)}&select=user_id`
-            );
-            const takenB = takenA ? false : await checkExistsHead(
-                `/rest/v1/artists_db?instagram=ilike.${encodeURIComponent('@' + instagram)}&select=user_id`
-            );
+            const takenA = await artistExists('instagram', 'ilike', instagram);
+            const takenB = takenA ? false : await artistExists('instagram', 'ilike', '@' + instagram);
             if (takenA || takenB) conflicts.push('instagram');
         }
 
