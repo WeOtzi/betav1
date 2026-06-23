@@ -123,6 +123,15 @@ test('key:anon usa la anon key', async () => {
     assert.strictEqual(calls[0].opts.headers.apikey, 'anon-key');
 });
 
+test('pgrest.raw acepta apiKey explicita (delegacion de supabaseQuery)', async () => {
+    const calls = mockFetch({ body: '[{"x":1}]' });
+    const out = await pgrest.raw('analytics_user_sessions?select=user_type', { apiKey: 'explicit-anon' });
+    assert.strictEqual(calls[0].opts.headers.apikey, 'explicit-anon');
+    assert.strictEqual(calls[0].opts.headers.Authorization, 'Bearer explicit-anon');
+    assert.match(calls[0].url, /\/rest\/v1\/analytics_user_sessions\?select=user_type$/);
+    assert.deepStrictEqual(out, [{ x: 1 }]);
+});
+
 test('encodeFilterValue: is no se encodea (null/true/false)', () => {
     assert.strictEqual(encodeFilterValue('is', null), 'null');
     assert.strictEqual(encodeFilterValue('eq', 'a b'), 'a%20b');

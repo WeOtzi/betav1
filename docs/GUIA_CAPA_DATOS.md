@@ -120,5 +120,7 @@ cliente por **inyección de dependencia** para tests (p.ej. `resolveArtistAuthSt
 | Artistas, Estudios, Soporte, Clientes, Reviews, Config/catálogos | ✅ Migrado (choke-point `WeotziData.from`) |
 | Currencies, Instagram (servidor) | ✅ Migrado (CurrenciesRepo, InstagramRepo) |
 | Frontend completo | ✅ Cero `<cliente>.from(...)` directo (salvo las excepciones legítimas de arriba) |
-| Servidor | ✅ Cero `fetch('/rest/v1/...')` inline; helpers (`_supabaseFetch`/`fetchAdminTableRows`) delegan en `pgrest` |
-| Analytics NO-cotización (`/api/analytics/{users,devices,pages,errors,locations,summary}`) | ⏳ Único pendiente: usan el helper `supabaseQuery` (anon). Migrar al unificar el dominio analytics. |
+| Servidor | ✅ **Cero** `fetch('/rest/v1/...')` inline; TODOS los helpers (`_supabaseFetch`, `fetchAdminTableRows`, `supabaseQuery`) delegan en `pgrest` |
+| Analytics NO-cotización (`/api/analytics/{users,devices,pages,errors,locations,summary}`) | ✅ Migrado: `supabaseQuery` delega en `pgrest.raw(path, { apiKey })` conservando la anon key |
+
+**Migración PostgREST: 100% completa.** Todo el acceso a datos (frontend + servidor) pasa por la capa unificada.

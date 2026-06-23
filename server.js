@@ -3435,15 +3435,12 @@ app.get('/api/health/history/:service', async (req, res) => {
 /**
  * Helper: make authenticated request to Supabase REST API
  */
+// Helper de lectura para los analytics no-cotizacion (users/devices/pages/
+// errors/locations/summary). Delega en la capa PostgREST unificada usando la
+// anon key explicita de getHealthConfig (mismo contexto de auth que antes).
 async function supabaseQuery(cfg, path) {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-        headers: {
-            'apikey': cfg.supabaseAnonKey,
-            'Authorization': `Bearer ${cfg.supabaseAnonKey}`
-        }
-    });
-    if (!res.ok) throw new Error(`Supabase query failed: HTTP ${res.status}`);
-    return res.json();
+    const rows = await pgrest.raw(path, { apiKey: cfg.supabaseAnonKey });
+    return rows || [];
 }
 
 /**
