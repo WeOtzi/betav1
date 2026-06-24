@@ -351,11 +351,7 @@
             };
         }
 
-        const { data: profile, error } = await WeotziData
-            .from('clients_db')
-            .select('user_id,email,full_name,public_username,country,city_residence,profile_picture,profile_completed_at')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
+        const { data: profile, error } = await WeotziData.Clients.getReviewerByUserId(session.user.id);
 
         return {
             session,

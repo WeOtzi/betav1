@@ -116,11 +116,9 @@ async function lookupArtistProfile(userId) {
 }
 
 async function lookupClientProfile(userId) {
-    const { data, error, timedOut } = await withArtistLoginTimeout(WeotziData
-        .from('clients_db')
-        .select('user_id')
-        .eq('user_id', userId)
-        .maybeSingle(), PROFILE_LOOKUP_TIMEOUT_MS, 'Client profile lookup');
+    const { data, error, timedOut } = await withArtistLoginTimeout(
+        WeotziData.Clients.getByUserId(userId, 'user_id'),
+        PROFILE_LOOKUP_TIMEOUT_MS, 'Client profile lookup');
     if (timedOut) {
         console.warn('Client lookup timed out.');
         return null;

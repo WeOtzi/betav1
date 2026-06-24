@@ -190,11 +190,7 @@ const LoggingService = (function() {
                 return;
             }
 
-            const { data: client } = await WeotziData
-                .from('clients_db')
-                .select('email, whatsapp')
-                .eq('user_id', userId)
-                .maybeSingle();
+            const { data: client } = await WeotziData.Clients.getContactByUserId(userId);
 
             if (client) {
                 userIdentifiers.email = userIdentifiers.email || client.email;
