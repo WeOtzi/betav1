@@ -296,4 +296,30 @@ se abrevian a su constante; los **filtros y el terminal** (`.eq/.in/.or/.order/.
 
 ---
 
-> **Excepciones legítimas** (no pasan por repos/choke-point, documentado): `.storage.from(...)` (buckets), `.auth.*`, `resolveArtistAuthState` (cliente inyectado para tests), el `testClient` ad-hoc del backoffice, los bucles de backup genéricos de `admin.js` (acceso por nombre de tabla dinámico), y dos **fallbacks raw-REST intencionales** a `artists_db` (`dashboard.js fetchDashboardArtistViaRest`, `artist-auth.js fetchArtistViaRest`) que existen justamente para evitar el cliente supabase-js cuando éste agota su timeout.
+# 3. Deuda conocida / follow-ups
+
+Pendientes anotados (no urgentes; la capa está al 100% en lo migrado). Tomar
+cuando se toque cada área:
+
+1. **Fallbacks raw-REST a la capa + des-duplicar el select del dashboard.**
+   `dashboard.js fetchDashboardArtistViaRest` y `artist-auth.js fetchArtistViaRest`
+   son `fetch('${url}/rest/v1/artists_db?...')` crudos (existen para evitar
+   supabase-js cuando agota su timeout). Por eso la constante de ~50 columnas
+   `DASHBOARD_ARTIST_SELECT` (en `dashboard.js`) sigue **duplicada** del
+   `DASHBOARD_SELECT` que vive en `artists-repo.js` → riesgo de desincronización.
+   Follow-up: exponer en la capa una variante raw/anon (p.ej. `WeotziData.Artists.getDashboardViaRest(...)`)
+   y mover ambos fallbacks ahí; eliminar la constante duplicada.
+2. **Repo de Clientes.** `clients_db` / `client_public_profiles` siguen accediéndose
+   por el choke-point `WeotziData.from(...)` (client-auth.js, client-dashboard.js,
+   artist-login.js, reviews.js, etc.). Falta un `WeotziData.Clients` con métodos con nombre.
+3. **Constantes muertas tras migrar.** `ARTIST_PROFILE_SELECT` en `main.js` quedó sin
+   uso (su query se encapsuló en `Artists.getProfileByUserId`); ídem `DASHBOARD_ARTIST_SELECT`
+   cuando se cierre el punto 1. Limpieza menor.
+4. **Analytics no-cotización** ya migrado, pero sigue usando el helper `supabaseQuery`
+   (anon) en `server.js`; al unificar el dominio analytics conviene darle su repo.
+5. **`session_number` calculado en cliente** (`shared-drawer.js`) — mover a una
+   secuencia/columna server-side (riesgo de colisión concurrente).
+
+---
+
+> **Excepciones legítimas** (no pasan por repos/choke-point, documentado): `.storage.from(...)` (buckets), `.auth.*`, `resolveArtistAuthState` (cliente inyectado para tests), el `testClient` ad-hoc del backoffice, los bucles de backup genéricos de `admin.js` (acceso por nombre de tabla dinámico), y dos **fallbacks raw-REST intencionales** a `artists_db` (`dashboard.js fetchDashboardArtistViaRest`, `artist-auth.js fetchArtistViaRest`) — ver follow-up #1.
