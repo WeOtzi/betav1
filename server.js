@@ -27,6 +27,7 @@ const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
 const { CurrenciesRepo } = require('./lib/repos/currencies');
 const { InstagramRepo } = require('./lib/repos/instagram');
+const { AnalyticsRepo } = require('./lib/repos/analytics');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -3459,9 +3460,7 @@ app.get('/api/analytics/users', async (req, res) => {
 
     try {
         // Users by type
-        const userTypes = await supabaseQuery(cfg,
-            `analytics_user_sessions?select=user_type,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}`
-        );
+        const userTypes = await AnalyticsRepo.userSessionsByType(cfg, { days, env });
 
         // Aggregate by type
         const typeCounts = {};
@@ -3485,9 +3484,7 @@ app.get('/api/analytics/users', async (req, res) => {
         }
 
         // New vs returning
-        const fingerprints = await supabaseQuery(cfg,
-            `analytics_user_sessions?select=device_fingerprint,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}`
-        );
+        const fingerprints = await AnalyticsRepo.userFingerprints(cfg, { days, env });
         const fpFirst = {};
         for (const row of fingerprints) {
             if (!fpFirst[row.device_fingerprint] || row.created_at < fpFirst[row.device_fingerprint]) {
@@ -3527,9 +3524,7 @@ app.get('/api/analytics/devices', async (req, res) => {
     const env = req.query.env || 'all';
 
     try {
-        const devices = await supabaseQuery(cfg,
-            `analytics_devices?select=os,device_type,browser,created_at${env !== 'all' ? `&environment=eq.${env}` : ''}&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
-        );
+        const devices = await AnalyticsRepo.devices(cfg, { days, env });
 
         const byOS = {};
         const byDeviceType = {};
@@ -3567,9 +3562,7 @@ app.get('/api/analytics/pages', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
     try {
-        const sessions = await supabaseQuery(cfg,
-            `analytics_user_sessions?select=page_path,created_at${env !== 'all' ? `&environment=eq.${env}` : ''}&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
-        );
+        const sessions = await AnalyticsRepo.pageViews(cfg, { days, env });
 
         const pageCounts = {};
         for (const row of sessions) {
@@ -3601,9 +3594,7 @@ app.get('/api/analytics/errors', async (req, res) => {
     const env = req.query.env || 'all';
 
     try {
-        const errorSessions = await supabaseQuery(cfg,
-            `analytics_user_sessions?select=page_path,error_count,user_type,environment,created_at&has_errors=eq.true&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}&order=created_at.desc`
-        );
+        const errorSessions = await AnalyticsRepo.errorSessions(cfg, { days, env });
 
         // Aggregate by page
         const byPage = {};
@@ -3649,9 +3640,7 @@ app.get('/api/analytics/locations', async (req, res) => {
     const env = req.query.env || 'all';
 
     try {
-        const sessions = await supabaseQuery(cfg,
-            `analytics_user_sessions?select=user_ip,country,city,created_at&user_ip=not.is.null${env !== 'all' ? `&environment=eq.${env}` : ''}&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
-        );
+        const sessions = await AnalyticsRepo.locations(cfg, { days, env });
 
         const countryCounts = {};
         const cityCounts = {};
@@ -3840,13 +3829,9 @@ app.get('/api/analytics/summary', async (req, res) => {
     const env = req.query.env || 'all';
 
     try {
-        const sessions = await supabaseQuery(cfg,
-            `analytics_user_sessions?select=user_type,page_path,has_errors,error_count,device_fingerprint,environment,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}${env !== 'all' ? `&environment=eq.${env}` : ''}`
-        );
+        const sessions = await AnalyticsRepo.summarySessions(cfg, { days, env });
 
-        const devices = await supabaseQuery(cfg,
-            `analytics_devices?select=device_type,created_at&created_at=gte.${new Date(Date.now() - days * 86400000).toISOString()}`
-        );
+        const devices = await AnalyticsRepo.summaryDevices(cfg, { days });
 
         // Compute summary
         const totalSessions = sessions.length;
