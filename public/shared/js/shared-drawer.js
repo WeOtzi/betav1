@@ -1154,18 +1154,20 @@ window.saveSession = async function(quoteId) {
             
             await WeotziData.Sessions.update(editingSessionId, updateData);
         } else {
-            // Create new session
-            const nextNumber = currentQuoteSessions.length + 1;
+            // Create new session — el session_number lo asigna el trigger
+            // server-side (BEFORE INSERT en quotation_sessions). Enviamos null
+            // para delegar la numeracion y evitar colisiones por estado stale o
+            // inserts concurrentes.
             const sessionData = {
                 quotation_id: parseInt(quoteId),
-                session_number: nextNumber,
+                session_number: null,
                 session_date: new Date(sessionDate).toISOString(),
                 duration_hours: duration ? parseFloat(duration) : null,
                 status: 'scheduled',
                 notes: notes || null
             };
-            
-            await WeotziData.Sessions.create(sessionData);
+
+            const createdSession = await WeotziData.Sessions.create(sessionData);
 
             try {
                 const currentQuote = typeof quotations !== 'undefined' ? quotations.find(q => q.id.toString() === quoteId.toString()) : null;
@@ -1176,7 +1178,7 @@ window.saveSession = async function(quoteId) {
                         client_email: currentQuote.client_email || '',
                         artist_name: currentQuote.artist_name || '',
                         session_date: sessionData.session_date,
-                        session_number: String(sessionData.session_number || '1'),
+                        session_number: String(createdSession?.session_number || '1'),
                         duration_hours: sessionData.duration_hours || ''
                     });
                 }
@@ -1827,10 +1829,11 @@ window.submitConfirmation = async function(quoteId) {
 
         await WeotziData.Quotations.updateById(quoteId, updateData);
 
-        // Create first session record
+        // Create first session record — el numero lo asigna el trigger
+        // server-side (sera 1 para la primera sesion); enviamos null para delegar.
         const sessionData = {
             quotation_id: parseInt(quoteId),
-            session_number: 1,
+            session_number: null,
             session_date: new Date(firstSessionDate).toISOString(),
             status: 'scheduled',
             notes: comment ? `Nota inicial: ${comment}` : null
