@@ -171,7 +171,7 @@
                 photo_feed_items: photoFeedItems
             };
 
-            const { error } = await WeotziData.from('studios').update(update).eq('id', studio.id);
+            const { error } = await WeotziData.Studios.updateProfile(studio.id, update);
             if (error) {
                 showStatus('profile-status', 'error', error.message || 'No se pudo guardar.');
                 return;
@@ -188,11 +188,7 @@
         const list = document.getElementById('sedes-list');
         list.innerHTML = '<em>Cargando sedes…</em>';
 
-        const { data: locations, error } = await WeotziData
-            .from('studio_locations')
-            .select('*')
-            .eq('studio_id', studio.id)
-            .order('sort_order', { ascending: true });
+        const { data: locations, error } = await WeotziData.StudioLocations.listByStudio(studio.id);
 
         if (error) {
             list.innerHTML = '<em>Error: ' + escapeHtml(error.message) + '</em>';
@@ -309,28 +305,21 @@
         try {
             // If marking primary, demote any other primary first.
             if (isPrimary) {
-                await WeotziData.from('studio_locations')
-                    .update({ is_primary: false })
-                    .eq('studio_id', studio.id)
-                    .eq('is_primary', true);
+                await WeotziData.StudioLocations.demotePrimary(studio.id);
             }
 
             let result;
             if (entry.locationId) {
-                result = await WeotziData.from('studio_locations')
-                    .update(payload).eq('id', entry.locationId).select().single();
+                result = await WeotziData.StudioLocations.updateLocation(entry.locationId, payload);
             } else {
-                result = await WeotziData.from('studio_locations')
-                    .insert(payload).select().single();
+                result = await WeotziData.StudioLocations.createLocation(payload);
                 entry.locationId = result.data && result.data.id;
             }
             if (result.error) throw result.error;
 
             // If primary, also patch studios.primary_location_id.
             if (isPrimary && entry.locationId) {
-                await WeotziData.from('studios')
-                    .update({ primary_location_id: entry.locationId })
-                    .eq('id', studio.id);
+                await WeotziData.Studios.setPrimaryLocation(studio.id, entry.locationId);
             }
 
             showStatus('sedes-status', 'success', 'Sede guardada.');
@@ -347,7 +336,7 @@
             return;
         }
         if (!confirm('¿Quitar esta sede? Los artistas asignados solo a esta sede pierden la referencia.')) return;
-        const { error } = await WeotziData.from('studio_locations').delete().eq('id', entry.locationId);
+        const { error } = await WeotziData.StudioLocations.deleteLocation(entry.locationId);
         if (error) { showStatus('sedes-status', 'error', error.message); return; }
         entry.row.remove();
         const i = sedePickers.indexOf(entry);
@@ -367,15 +356,7 @@
 
     async function renderMySpots() {
         const container = document.getElementById('my-spots-list');
-        const { data: list, error } = await WeotziData
-            .from('studio_spots')
-            .select(`
-                id, title, kind, status, application_count, max_applications,
-                start_date, end_date, revenue_split_pct, stipend_amount, stipend_currency,
-                created_at
-            `)
-            .eq('studio_id', studio.id)
-            .order('created_at', { ascending: false });
+        const { data: list, error } = await WeotziData.StudioSpots.listByStudio(studio.id);
         if (error) { container.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!list || list.length === 0) {
             container.innerHTML = '<p class="studio-help">Aún no publicaste spots. Tocá "Nuevo spot" para empezar.</p>';
@@ -414,18 +395,18 @@
 
     async function onSpotAction(action, id, status) {
         if (action === 'edit') {
-            const { data: spot } = await WeotziData.from('studio_spots').select('*').eq('id', id).maybeSingle();
+            const { data: spot } = await WeotziData.StudioSpots.getById(id);
             if (spot) openSpotEditor(spot);
         } else if (action === 'apps') {
             openSpotApplications(id);
         } else if (action === 'toggle') {
             const next = status === 'open' ? 'closed' : 'open';
-            const { error } = await WeotziData.from('studio_spots').update({ status: next }).eq('id', id);
+            const { error } = await WeotziData.StudioSpots.updateStatus(id, next);
             if (error) showStatus('spots-status', 'error', error.message);
             else { showStatus('spots-status', 'success', 'Estado actualizado a ' + next + '.'); await renderMySpots(); }
         } else if (action === 'delete') {
             if (!confirm('¿Eliminar este spot? Las postulaciones asociadas también se eliminarán.')) return;
-            const { error } = await WeotziData.from('studio_spots').delete().eq('id', id);
+            const { error } = await WeotziData.StudioSpots.deleteSpot(id);
             if (error) showStatus('spots-status', 'error', error.message);
             else { showStatus('spots-status', 'success', 'Spot eliminado.'); await renderMySpots(); }
         }
@@ -529,8 +510,8 @@
         if (!payload.title) { showStatus('spots-status', 'error', 'El título es obligatorio.'); return; }
 
         const result = existing
-            ? await WeotziData.from('studio_spots').update(payload).eq('id', existing.id).select().single()
-            : await WeotziData.from('studio_spots').insert(payload).select().single();
+            ? await WeotziData.StudioSpots.updateSpot(existing.id, payload)
+            : await WeotziData.StudioSpots.createSpot(payload);
 
         if (result.error) {
             showStatus('spots-status', 'error', result.error.message);
@@ -545,10 +526,7 @@
     async function syncSpotCoverAttachment(savedSpot, coverImage) {
         if (!savedSpot?.id) return;
 
-        const del = await WeotziData
-            .from('studio_spot_attachments')
-            .delete()
-            .eq('spot_id', savedSpot.id);
+        const del = await WeotziData.StudioSpots.deleteAttachmentsBySpot(savedSpot.id);
         if (del.error) {
             console.warn('[studio-dashboard] spot attachment cleanup failed:', del.error);
             showStatus('spots-status', 'error', 'Spot guardado, pero no pudimos actualizar sus adjuntos.');
@@ -565,7 +543,7 @@
             mime_type: guessMimeFromUrl(coverImage),
             sort_order: 0
         };
-        const ins = await WeotziData.from('studio_spot_attachments').insert(attachment);
+        const ins = await WeotziData.StudioSpots.insertAttachment(attachment);
         if (ins.error) {
             console.warn('[studio-dashboard] spot attachment insert failed:', ins.error);
             showStatus('spots-status', 'error', 'Spot guardado, pero no pudimos registrar la imagen como adjunto.');
@@ -577,11 +555,8 @@
         c.innerHTML = '<em class="studio-help">Cargando postulaciones…</em>';
 
         const [spotRes, appsRes] = await Promise.all([
-            WeotziData.from('studio_spots').select('id, title, kind').eq('id', spotId).single(),
-            WeotziData.from('studio_spot_applications')
-                .select('id, status, message, portfolio_url, created_at, decided_at, artists_db ( user_id, username, name, profile_picture, styles_array, city, country, session_price )')
-                .eq('spot_id', spotId)
-                .order('created_at', { ascending: false })
+            WeotziData.StudioSpots.getSummaryById(spotId),
+            WeotziData.StudioSpots.listApplications(spotId)
         ]);
 
         if (spotRes.error) { c.innerHTML = '<em>' + escapeHtml(spotRes.error.message) + '</em>'; return; }
@@ -631,25 +606,20 @@
 
     async function onAppDecision(action, applicationId, artistUserId, spot) {
         const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-        const { error: updErr } = await WeotziData
-            .from('studio_spot_applications')
-            .update({ status: newStatus, decided_at: new Date().toISOString() })
-            .eq('id', applicationId);
+        const { error: updErr } = await WeotziData.StudioSpots.decideApplication(applicationId, newStatus);
         if (updErr) { showStatus('spots-status', 'error', updErr.message); return; }
 
         if (action === 'accept' && artistUserId) {
             // Create the membership.
             const role = spot.kind === 'resident' ? 'resident'
                        : spot.kind === 'itinerant' ? 'itinerant' : 'guest';
-            const { error: memErr } = await WeotziData
-                .from('studio_artist_memberships')
-                .insert({
-                    studio_id: studio.id,
-                    artist_user_id: artistUserId,
-                    role,
-                    status: 'active',
-                    started_at: new Date().toISOString()
-                });
+            const { error: memErr } = await WeotziData.StudioMemberships.createMembership({
+                studio_id: studio.id,
+                artist_user_id: artistUserId,
+                role,
+                status: 'active',
+                started_at: new Date().toISOString()
+            });
             if (memErr && memErr.code !== '23505' /* unique violation = already exists */) {
                 showStatus('spots-status', 'error', 'Aceptado, pero no pudimos crear la membership: ' + memErr.message);
                 return;
@@ -720,12 +690,7 @@
 
     async function loadRoster() {
         // Populate the sede select for invitations.
-        const { data: locs } = await WeotziData
-            .from('studio_locations')
-            .select('id, label, is_primary')
-            .eq('studio_id', studio.id)
-            .eq('is_active', true)
-            .order('sort_order', { ascending: true });
+        const { data: locs } = await WeotziData.StudioLocations.listActiveByStudio(studio.id, 'id, label, is_primary');
         _rosterLocations = locs || [];
 
         const sel = document.getElementById('invite-location');
@@ -759,11 +724,7 @@
             if (q.length < 2) { suggEl.style.display = 'none'; suggEl.innerHTML = ''; return; }
             debounceTimer = setTimeout(async () => {
                 const term = q.replace(/^@/, '');
-                const { data, error } = await WeotziData
-                    .from('artists_db')
-                    .select('user_id, username, name, profile_picture, city, country')
-                    .or(`username.ilike.%${term}%,name.ilike.%${term}%`)
-                    .limit(8);
+                const { data, error } = await WeotziData.Artists.searchByUsernameOrName(term);
                 if (error) return;
                 _inviteHits = data || [];
                 suggEl.innerHTML = _inviteHits.map(a => `
@@ -793,19 +754,15 @@
             sendBtn.disabled = true;
             sendBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
 
-            const { data: insertedRows, error } = await WeotziData
-                .from('studio_artist_memberships')
-                .insert({
-                    studio_id:       studio.id,
-                    artist_user_id:  chosen,
-                    location_id:     location,
-                    role,
-                    status:          'pending_acceptance',
-                    invited_at:      new Date().toISOString(),
-                    invited_by_user_id: studio.user_id || null
-                })
-                .select('id')
-                .single();
+            const { data: insertedRows, error } = await WeotziData.StudioMemberships.inviteArtist({
+                studio_id:       studio.id,
+                artist_user_id:  chosen,
+                location_id:     location,
+                role,
+                status:          'pending_acceptance',
+                invited_at:      new Date().toISOString(),
+                invited_by_user_id: studio.user_id || null
+            });
 
             sendBtn.disabled = false;
             sendBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Invitar';
@@ -838,16 +795,7 @@
 
     async function renderRosterTable() {
         const container = document.getElementById('roster-content');
-        const { data: members, error } = await WeotziData
-            .from('studio_artist_memberships')
-            .select(`
-                id, role, status, started_at, ended_at, location_id, revenue_split_pct,
-                artists_db ( user_id, username, name, profile_picture, styles_array, city, country, session_price )
-            `)
-            .eq('studio_id', studio.id)
-            .in('status', ['active', 'pending_acceptance', 'paused'])
-            .order('status', { ascending: true })
-            .order('role', { ascending: true });
+        const { data: members, error } = await WeotziData.StudioMemberships.listRoster(studio.id);
 
         if (error) { container.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!members || members.length === 0) {
@@ -925,18 +873,12 @@
             const location_id  = tr.querySelector('select[data-field="location_id"]').value || null;
             const splitInput   = tr.querySelector('input[data-field="revenue_split_pct"]').value;
             const split        = splitInput === '' ? null : Number(splitInput);
-            const { error } = await WeotziData
-                .from('studio_artist_memberships')
-                .update({ role, location_id, revenue_split_pct: split })
-                .eq('id', id);
+            const { error } = await WeotziData.StudioMemberships.updateMembership(id, { role, location_id, revenue_split_pct: split });
             if (error) showStatus('roster-status', 'error', error.message);
             else { showStatus('roster-status', 'success', 'Cambios guardados.'); await renderRosterTable(); }
         } else if (action === 'end') {
             if (!confirm('¿Desvincular a este artista? Su perfil queda intacto.')) return;
-            const { error } = await WeotziData
-                .from('studio_artist_memberships')
-                .update({ status: 'ended', ended_at: new Date().toISOString() })
-                .eq('id', id);
+            const { error } = await WeotziData.StudioMemberships.endMembership(id);
             if (error) showStatus('roster-status', 'error', error.message);
             else {
                 showStatus('roster-status', 'success', 'Membership finalizada.');
@@ -954,14 +896,11 @@
                 await renderRosterTable();
             }
         } else if (action === 'cancel') {
-            const { error } = await WeotziData.from('studio_artist_memberships').delete().eq('id', id);
+            const { error } = await WeotziData.StudioMemberships.deleteMembership(id);
             if (error) showStatus('roster-status', 'error', error.message);
             else { showStatus('roster-status', 'success', 'Invitación cancelada.'); await renderRosterTable(); }
         } else if (action === 'resume') {
-            const { error } = await WeotziData
-                .from('studio_artist_memberships')
-                .update({ status: 'active', ended_at: null })
-                .eq('id', id);
+            const { error } = await WeotziData.StudioMemberships.resumeMembership(id);
             if (error) showStatus('roster-status', 'error', error.message);
             else { showStatus('roster-status', 'success', 'Membership reactivada.'); await renderRosterTable(); }
         }

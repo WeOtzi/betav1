@@ -194,7 +194,7 @@ async function loadAllData() {
         statusEl.textContent = 'STATUS: LOADING DATA...';
         
         const [artistsResult, quotesResult, sessionsResult, chatsResult, reviewsResult] = await Promise.all([
-            WeotziData.from('artists_db').select('*'),
+            WeotziData.Artists.listAll('*'),
             WeotziData.Quotations.listAll().then(data => ({ data, error: null }), error => ({ data: null, error })),
             WeotziData.from('session_logs').select('*').order('created_at', { ascending: false }).limit(500),
             WeotziData.from('support_conversations').select('*').order('last_message_at', { ascending: false }).limit(500),
@@ -1576,7 +1576,7 @@ window.updateArtistField = async function(userId, field, value) {
             updateData[field] = value || null;
         }
 
-        const { error } = await WeotziData.from('artists_db').update(updateData).eq('user_id', userId);
+        const { error } = await WeotziData.Artists.updateByUserId(userId, updateData);
         if (error) throw error;
 
         const artist = artists.find(a => a.user_id === userId);

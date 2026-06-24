@@ -154,13 +154,7 @@
 
         try {
             if (since) {
-                const { data, error } = await WeotziData
-                    .from('artist_profile_visits')
-                    .select('id, country, city, latitude, longitude, device_type, os, browser, created_at, ip_hash, device_fingerprint')
-                    .eq('artist_id', artistId)
-                    .gte('created_at', since.toISOString())
-                    .order('created_at', { ascending: false })
-                    .limit(MAX_MARKERS);
+                const { data, error } = await WeotziData.ArtistVisits.listVisitsByArtistSince(artistId, since.toISOString(), MAX_MARKERS);
                 if (error) throw error;
                 visits = data || [];
             } else {
@@ -180,12 +174,7 @@
 
     async function loadHistoricalFromDaily() {
         try {
-            const { data, error } = await WeotziData
-                .from('artist_profile_visits_daily')
-                .select('*')
-                .eq('artist_id', artistId)
-                .order('day', { ascending: false })
-                .limit(1000);
+            const { data, error } = await WeotziData.ArtistVisits.listDailyVisitsByArtist(artistId, 1000);
             if (error) throw error;
             // Expand each aggregated row into a synthetic "visit" for consistent rendering.
             return (data || []).map(row => ({

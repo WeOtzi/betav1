@@ -690,11 +690,8 @@ async function loadArtistData(initialArtist = null) {
 
     try {
         const renderedInitialArtist = applyDashboardArtistData(initialArtist);
-        const { data: artist, error, dashboardTimedOut } = await withDashboardTimeout(WeotziData
-            .from('artists_db')
-            .select(DASHBOARD_ARTIST_SELECT)
-            .eq('user_id', currentUser.id)
-            .maybeSingle(), DASHBOARD_ARTIST_QUERY_TIMEOUT_MS, 'Full artist dashboard query');
+        const { data: artist, error, dashboardTimedOut } = await withDashboardTimeout(
+            WeotziData.Artists.getDashboardByUserId(currentUser.id), DASHBOARD_ARTIST_QUERY_TIMEOUT_MS, 'Full artist dashboard query');
 
         if (dashboardTimedOut) {
             console.warn('[dashboard] Full artist row query timed out; keeping initial artist payload.');
@@ -721,11 +718,7 @@ async function loadArtistData(initialArtist = null) {
         // have their address fields on artist row (no separate fetch needed).
         if (artist.studio_id && (artist.work_type === 'studio' || artist.work_type === 'both')) {
             try {
-                const { data: studio } = await WeotziData
-                    .from('studios')
-                    .select('country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
-                    .eq('id', artist.studio_id)
-                    .maybeSingle();
+                const { data: studio } = await WeotziData.Studios.getAddressById(artist.studio_id);
                 if (studio) dashboardAddressDraft = studio;
             } catch (studioErr) {
                 console.warn('[dashboard] Could not load studio address:', studioErr);
@@ -776,12 +769,7 @@ async function loadArtistTattooLocations() {
     if (!currentUser || !_supabase) return;
 
     try {
-        const { data, error } = await WeotziData
-            .from('artist_tattoo_locations')
-            .select('*')
-            .eq('artist_user_id', currentUser.id)
-            .order('sort_order', { ascending: true })
-            .order('start_date', { ascending: true, nullsFirst: true });
+        const { data, error } = await WeotziData.ArtistLocations.listByArtistUserId(currentUser.id);
 
         if (error) {
             console.error('Error loading artist tattoo locations:', error);
@@ -1068,12 +1056,7 @@ async function searchUpcomingTravelStudios(query) {
 
     try {
         const normalized = query.toUpperCase();
-        const { data, error } = await WeotziData
-            .from('studios')
-            .select('name, normalized_name')
-            .ilike('normalized_name', `%${normalized}%`)
-            .order('name')
-            .limit(8);
+        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalized, { columns: 'name, normalized_name' });
 
         if (error) {
             hideUpcomingTravelSuggestions(suggestionsEl);
@@ -1098,16 +1081,8 @@ async function searchUpcomingTravelCities(query) {
 
     try {
         const [artistsRes, locationsRes] = await Promise.all([
-            WeotziData
-                .from('artists_db')
-                .select('city')
-                .ilike('city', `%${query}%`)
-                .limit(10),
-            WeotziData
-                .from('artist_tattoo_locations')
-                .select('city')
-                .ilike('city', `%${query}%`)
-                .limit(10)
+            WeotziData.Artists.searchCities(query),
+            WeotziData.ArtistLocations.searchCities(query)
         ]);
 
         const merged = [];
@@ -1335,12 +1310,7 @@ async function searchCurrentLocationStudios({ itemEl, index, query, suggestionsE
     if (!_supabase || !itemEl || !suggestionsEl) return;
     try {
         const normalized = query.toUpperCase();
-        const { data, error } = await WeotziData
-            .from('studios')
-            .select('name, normalized_name')
-            .ilike('normalized_name', `%${normalized}%`)
-            .order('name')
-            .limit(8);
+        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalized, { columns: 'name, normalized_name' });
 
         if (error) {
             hideCurrentLocationSuggestions(suggestionsEl);
@@ -1365,16 +1335,8 @@ async function searchCurrentLocationCities({ itemEl, index, query, suggestionsEl
     if (!_supabase || !itemEl || !suggestionsEl) return;
     try {
         const [artistsRes, locationsRes] = await Promise.all([
-            WeotziData
-                .from('artists_db')
-                .select('city')
-                .ilike('city', `%${query}%`)
-                .limit(10),
-            WeotziData
-                .from('artist_tattoo_locations')
-                .select('city')
-                .ilike('city', `%${query}%`)
-                .limit(10)
+            WeotziData.Artists.searchCities(query),
+            WeotziData.ArtistLocations.searchCities(query)
         ]);
 
         const merged = [];
@@ -1513,17 +1475,12 @@ async function saveArtistTattooLocations(locationsPayload) {
         });
     }
 
-    const { error: deleteError } = await WeotziData
-        .from('artist_tattoo_locations')
-        .delete()
-        .eq('artist_user_id', currentUser.id);
+    const { error: deleteError } = await WeotziData.ArtistLocations.deleteByArtistUserId(currentUser.id);
 
     if (deleteError) throw deleteError;
 
     if (rows.length > 0) {
-        const { error: insertError } = await WeotziData
-            .from('artist_tattoo_locations')
-            .insert(rows);
+        const { error: insertError } = await WeotziData.ArtistLocations.insertMany(rows);
         if (insertError) throw insertError;
     }
 
@@ -2403,12 +2360,7 @@ async function searchDashboardStudios(query) {
     const suggestionsEl = document.getElementById('dashboard-studio-suggestions');
     if (!suggestionsEl) return;
     try {
-        const { data, error } = await WeotziData
-            .from('studios')
-            .select('id, name, normalized_name')
-            .ilike('normalized_name', `%${query.toUpperCase()}%`)
-            .order('name')
-            .limit(8);
+        const { data, error } = await WeotziData.Studios.searchByNormalizedName(query.toUpperCase(), { columns: 'id, name, normalized_name' });
         if (error) { hideDashboardSuggestions(); return; }
         renderDashboardSuggestions(data || [], query);
     } catch { hideDashboardSuggestions(); }
@@ -2466,20 +2418,12 @@ async function dashboardFindOrCreateStudio(name) {
     const normalized = name.toUpperCase().trim();
     if (dashboardStudioId) return dashboardStudioId;
 
-    const { data: existing } = await WeotziData
-        .from('studios')
-        .select('id')
-        .eq('normalized_name', normalized)
-        .maybeSingle();
+    const { data: existing } = await WeotziData.Studios.findIdByNormalizedName(normalized);
     if (existing) return existing.id;
 
-    const { data: created, error } = await WeotziData
-        .from('studios')
-        .insert({ name: name.trim(), normalized_name: normalized })
-        .select('id')
-        .single();
+    const { data: created, error } = await WeotziData.Studios.createMinimal({ name: name.trim(), normalizedName: normalized });
     if (error && error.code === '23505') {
-        const { data: retry } = await WeotziData.from('studios').select('id').eq('normalized_name', normalized).single();
+        const { data: retry } = await WeotziData.Studios.findIdByNormalizedName(normalized, { single: true });
         return retry?.id || null;
     }
     return created?.id || null;
@@ -2634,10 +2578,7 @@ async function saveBio() {
         : rawHtml;
 
     try {
-        const { error } = await WeotziData
-            .from('artists_db')
-            .update({ bio_description: newBio || null })
-            .eq('user_id', currentUser.id);
+        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { bio_description: newBio || null });
 
         if (error) throw error;
 
@@ -2795,7 +2736,7 @@ async function handleProfileSave(e) {
             && pickedAddress
             && pickedAddress.formatted_address) {
             try {
-                await WeotziData.from('studios').update({
+                await WeotziData.Studios.updateAddress(resolvedStudioId, {
                     country:           pickedAddress.country || null,
                     country_code:      pickedAddress.country_code || null,
                     state_province:    pickedAddress.state_province || null,
@@ -2810,7 +2751,7 @@ async function handleProfileSave(e) {
                     longitude:         Number.isFinite(pickedAddress.longitude) ? pickedAddress.longitude : null,
                     google_place_id:   pickedAddress.google_place_id || null,
                     geocoded_at:       new Date().toISOString()
-                }).eq('id', resolvedStudioId);
+                });
             } catch (addrErr) {
                 console.warn('[dashboard] Could not persist studio address:', addrErr);
             }
@@ -2850,10 +2791,7 @@ async function handleProfileSave(e) {
             geocoded_at:       isIndependent && indepAddress.formatted_address ? new Date().toISOString() : null
         };
 
-        const { error } = await WeotziData
-            .from('artists_db')
-            .update(updateData)
-            .eq('user_id', currentUser.id);
+        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, updateData);
 
         if (error) throw error;
 
@@ -3021,10 +2959,7 @@ async function useAIAvatar() {
         const publicUrl = urlData.publicUrl;
 
         // Update artist record
-        const { error: updateError } = await WeotziData
-            .from('artists_db')
-            .update({ profile_picture: publicUrl })
-            .eq('user_id', currentUser.id);
+        const { error: updateError } = await WeotziData.Artists.updateByUserId(currentUser.id, { profile_picture: publicUrl });
 
         if (updateError) throw updateError;
 
@@ -3092,10 +3027,7 @@ async function handleAvatarUpload(e) {
             const { data: urlData } = _supabase.storage.from('profile-pictures').getPublicUrl(filePath);
             const publicUrl = urlData.publicUrl;
 
-            const { error: updateError } = await WeotziData
-                .from('artists_db')
-                .update({ profile_picture: publicUrl })
-                .eq('user_id', currentUser.id);
+            const { error: updateError } = await WeotziData.Artists.updateByUserId(currentUser.id, { profile_picture: publicUrl });
 
             if (updateError) throw updateError;
 
@@ -3244,16 +3176,10 @@ async function persistDashboardGalleryFeed(feedItems) {
         gallery_feed_items: safeFeed
     };
 
-    let { error } = await WeotziData
-        .from('artists_db')
-        .update(payload)
-        .eq('user_id', currentUser.id);
+    let { error } = await WeotziData.Artists.updateByUserId(currentUser.id, payload);
 
     if (error && isMissingGalleryFeedColumnError(error)) {
-        const retry = await WeotziData
-            .from('artists_db')
-            .update({ gallery_images: legacyImages })
-            .eq('user_id', currentUser.id);
+        const retry = await WeotziData.Artists.updateByUserId(currentUser.id, { gallery_images: legacyImages });
         error = retry.error;
     }
 
@@ -3832,13 +3758,10 @@ async function submitVerificationRequest() {
     
     try {
         // Update verification_state to "Requested"
-        const { error } = await WeotziData
-            .from('artists_db')
-            .update({ verification_state: 'Requested' })
-            .eq('user_id', currentUser.id);
-        
+        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { verification_state: 'Requested' });
+
         if (error) throw error;
-        
+
         // Update local data
         artistData.verification_state = 'Requested';
         
@@ -4015,13 +3938,10 @@ async function trackMilestone(milestoneField) {
     try {
         const updateData = { [milestoneField]: true };
         
-        const { error } = await WeotziData
-            .from('artists_db')
-            .update(updateData)
-            .eq('user_id', currentUser.id);
-        
+        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, updateData);
+
         if (error) throw error;
-        
+
         // Update local data
         artistData[milestoneField] = true;
         

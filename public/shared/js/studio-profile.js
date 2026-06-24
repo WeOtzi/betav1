@@ -37,10 +37,9 @@
     async function renderStudioProfile(ref) {
         // Resolve studio by slug OR id.
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
-        const lookup = WeotziData.from('studios').select('*');
         const { data: studio, error } = await (
-            isUuid ? lookup.eq('id', ref).maybeSingle()
-                   : lookup.eq('slug', ref).maybeSingle()
+            isUuid ? WeotziData.Studios.getById(ref)
+                   : WeotziData.Studios.getBySlug(ref)
         );
         if (error) throw error;
         if (!studio) {
@@ -81,25 +80,13 @@
         }
 
         // Locations + map
-        const { data: locations } = await WeotziData
-            .from('studio_locations')
-            .select('*')
-            .eq('studio_id', studio.id)
-            .eq('is_active', true)
-            .order('sort_order', { ascending: true });
+        const { data: locations } = await WeotziData.StudioLocations.listActiveByStudio(studio.id);
 
         renderMeta(studio, locations || []);
         await renderMap(locations || []);
 
         // Roster + aggregated styles via memberships → artists.
-        const { data: memberships } = await WeotziData
-            .from('studio_artist_memberships')
-            .select(`
-                role, status,
-                artists_db ( user_id, username, name, profile_picture, styles_array, session_price )
-            `)
-            .eq('studio_id', studio.id)
-            .eq('status', 'active');
+        const { data: memberships } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
 
         renderRoster(memberships || []);
         renderAggregatedStyles(memberships || []);
@@ -180,11 +167,7 @@
         const el = document.getElementById('profile-sponsors');
         if (!section || !el) return;
 
-        const { data: sponsors, error } = await WeotziData
-            .from('studio_public_sponsors_view')
-            .select('id, studio_id, name, tier, logo_url, website, ends_on')
-            .eq('studio_id', studioId)
-            .order('tier', { ascending: false });
+        const { data: sponsors, error } = await WeotziData.StudioOps.listPublicSponsors(studioId);
 
         if (error || !sponsors || sponsors.length === 0) {
             section.hidden = true;
@@ -192,10 +175,7 @@
             return;
         }
 
-        const { data: links } = await WeotziData
-            .from('studio_sponsor_artists')
-            .select('sponsor_id, artist_user_id, artists_db ( user_id, username, name )')
-            .in('sponsor_id', sponsors.map(s => s.id));
+        const { data: links } = await WeotziData.StudioOps.listSponsorArtistsBySponsorIds(sponsors.map(s => s.id));
         const artistsBySponsor = new Map();
         (links || []).forEach(link => {
             const a = link.artists_db || {};

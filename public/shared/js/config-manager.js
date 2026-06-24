@@ -1183,9 +1183,7 @@ const ConfigManager = (function () {
         }
 
         try {
-            const { count, error } = await WeotziData
-                .from('artists_db')
-                .select('*', { count: 'exact', head: true });
+            const { count, error } = await WeotziData.Artists.count();
 
             if (error) throw error;
 

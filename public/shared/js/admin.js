@@ -467,9 +467,7 @@ async function loadDashboardStats() {
         document.getElementById('stat-in-progress').textContent = inProgressCount || 0;
 
         // Artists
-        const { count: artists } = await WeotziData
-            .from('artists_db')
-            .select('*', { count: 'exact', head: true });
+        const { count: artists } = await WeotziData.Artists.count();
 
         document.getElementById('stat-artists').textContent = artists || 0;
 
@@ -2210,11 +2208,7 @@ async function saveArtist(event) {
             // .select() forces PostgREST to return affected rows so we can
             // detect silent RLS failures (data:[], error:null) that previously
             // surfaced as a fake "Artista actualizado" toast.
-            const { data, error } = await WeotziData
-                .from('artists_db')
-                .update(updates)
-                .eq('user_id', userId)
-                .select('user_id');
+            const { data, error } = await WeotziData.Artists.updateByUserIdReturning(userId, updates);
 
             if (error) throw error;
             if (!Array.isArray(data) || data.length === 0) {

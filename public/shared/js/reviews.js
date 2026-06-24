@@ -305,12 +305,7 @@
             if (!session) return null;
 
             if (revieweeType === 'studio') {
-                const { data: studio } = await WeotziData
-                    .from('studios')
-                    .select('id,user_id')
-                    .eq('id', revieweeId)
-                    .eq('user_id', session.user.id)
-                    .maybeSingle();
+                const { data: studio } = await WeotziData.Studios.getOwnedByUser(revieweeId, session.user.id, 'id,user_id');
                 return studio ? { userId: session.user.id, revieweeType } : null;
             }
 
@@ -329,11 +324,7 @@
         if (authError || !session) return { session: null, profile: null, error: authError || new Error('Sesion requerida') };
 
         if (reviewerType === 'artist') {
-            const { data: profile, error } = await WeotziData
-                .from('artists_db')
-                .select('user_id,email,username,name,country,city,profile_picture')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
+            const { data: profile, error } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id,email,username,name,country,city,profile_picture');
             return {
                 session,
                 profile,
@@ -347,11 +338,7 @@
         }
 
         if (reviewerType === 'studio') {
-            const { data: profile, error } = await WeotziData
-                .from('studios')
-                .select('id,user_id,slug,name,logo_image,country')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
+            const { data: profile, error } = await WeotziData.Studios.getByOwnerUserId(session.user.id, 'id,user_id,slug,name,logo_image,country');
             return {
                 session,
                 profile,

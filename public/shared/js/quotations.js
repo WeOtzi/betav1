@@ -101,11 +101,7 @@ async function initializeAdmin() {
         currentUser = session.user;
         
         // 2. Load Artist Profile
-        const { data: artist, error: artistError } = await WeotziData
-            .from('artists_db')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .single();
+        const { data: artist, error: artistError } = await WeotziData.Artists.getByUserIdSingle(currentUser.id);
 
         if (artistError || !artist) {
             console.error('Artist profile not found');

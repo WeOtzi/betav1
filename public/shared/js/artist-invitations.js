@@ -26,16 +26,7 @@
 
     async function renderPending(userId) {
         const list = document.getElementById('invitations-list');
-        const { data, error } = await WeotziData
-            .from('studio_artist_memberships')
-            .select(`
-                id, role, status, location_id, invited_at,
-                studios:studio_id ( id, slug, name, tagline, cover_image, logo_image, instagram, primary_location_id ),
-                location:location_id ( id, label, city, country, formatted_address )
-            `)
-            .eq('artist_user_id', userId)
-            .eq('status', 'pending_acceptance')
-            .order('invited_at', { ascending: false });
+        const { data, error } = await WeotziData.StudioMemberships.listPendingForArtist(userId);
 
         if (error) { list.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) {
@@ -72,14 +63,7 @@
 
     async function renderActive(userId) {
         const list = document.getElementById('active-list');
-        const { data, error } = await WeotziData
-            .from('studio_artist_memberships')
-            .select(`
-                id, role, status, location_id, started_at,
-                studios:studio_id ( id, slug, name, logo_image )
-            `)
-            .eq('artist_user_id', userId)
-            .eq('status', 'active');
+        const { data, error } = await WeotziData.StudioMemberships.listActiveForArtist(userId);
 
         if (error) { list.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) {
@@ -108,23 +92,14 @@
         list.querySelectorAll('button[data-action="leave"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (!confirm('¿Salir del roster de este estudio? Tu perfil personal queda intacto.')) return;
-                await WeotziData.from('studio_artist_memberships').update({
-                    status: 'ended', ended_at: new Date().toISOString()
-                }).eq('id', btn.dataset.id);
+                await WeotziData.StudioMemberships.endMembership(btn.dataset.id);
                 location.reload();
             });
         });
     }
 
     async function decide(action, membershipId, userId) {
-        const updates = action === 'accept'
-            ? { status: 'active',   started_at: new Date().toISOString() }
-            : { status: 'rejected', ended_at:   new Date().toISOString() };
-        const { error } = await WeotziData
-            .from('studio_artist_memberships')
-            .update(updates)
-            .eq('id', membershipId)
-            .eq('artist_user_id', userId);
+        const { error } = await WeotziData.StudioMemberships.respondToInvitation(membershipId, userId, action);
         if (error) {
             alert('Error: ' + error.message);
             return;

@@ -57,12 +57,8 @@ async function checkClientAuthState() {
                 currentClientData = client;
             } else {
                 // Check if they are an artist instead
-                const { data: artist } = await WeotziData
-                    .from('artists_db')
-                    .select('user_id')
-                    .eq('user_id', session.user.id)
-                    .maybeSingle();
-                
+                const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
+
                 if (artist) {
                     // They are an artist, redirect to artist dashboard
                     if (currentPath.includes('/client/')) {
@@ -437,12 +433,8 @@ async function handleClientLogin(e) {
             }, 1500);
         } else {
             // Check if they are an artist
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('user_id, name')
-                .eq('user_id', data.user.id)
-                .maybeSingle();
-            
+            const { data: artist } = await WeotziData.Artists.getByUserId(data.user.id, 'user_id, name');
+
             if (artist) {
                 showFormMessage('Esta cuenta es de artista. Redirigiendo...', 'info');
                 setTimeout(() => {
@@ -681,12 +673,8 @@ async function handleOAuthCallback() {
         
         if (!client) {
             // Check if user is an artist first - artists should not get client profiles
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('user_id')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-            
+            const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
+
             if (artist) {
                 // User is an artist, redirect to artist dashboard
                 window.location.href = '/artist/dashboard';
@@ -767,11 +755,7 @@ window.ClientAuth = {
             .maybeSingle();
 
         if (!client) {
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('user_id, name')
-                .eq('user_id', data.user.id)
-                .maybeSingle();
+            const { data: artist } = await WeotziData.Artists.getByUserId(data.user.id, 'user_id, name');
 
             if (artist) {
                 return { user: data.user, client: null, isArtist: true, artistName: artist.name };

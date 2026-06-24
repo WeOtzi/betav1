@@ -91,11 +91,7 @@ function maybeMissingAnyColumnError(error, columnNames) {
 }
 
 async function queryArtistByUsername(username, fields) {
-    const exactResponse = await WeotziData
-        .from('artists_db')
-        .select(fields)
-        .eq('username', username)
-        .limit(1);
+    const exactResponse = await WeotziData.Artists.findByUsername(username, fields, { exact: true });
 
     if (!exactResponse.error) {
         return {
@@ -104,11 +100,7 @@ async function queryArtistByUsername(username, fields) {
         };
     }
 
-    const fallbackResponse = await WeotziData
-        .from('artists_db')
-        .select(fields)
-        .ilike('username', username)
-        .limit(1);
+    const fallbackResponse = await WeotziData.Artists.findByUsername(username, fields, { exact: false });
 
     return {
         data: Array.isArray(fallbackResponse.data) ? fallbackResponse.data[0] || null : null,

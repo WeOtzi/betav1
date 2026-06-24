@@ -116,12 +116,8 @@ async function checkDashboardAuth() {
         
         if (!client) {
             // Check if user is an artist first - artists should not access client dashboard
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('user_id')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-            
+            const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
+
             if (artist) {
                 // User is an artist, redirect to artist dashboard
                 window.location.href = '/artist/dashboard';
@@ -1566,10 +1562,7 @@ async function viewJBRequestDetail(requestId) {
     const artistIds = applications.map(a => a.artist_id);
     let artistsMap = {};
     try {
-        const { data: artists } = await WeotziData
-            .from('artists_db')
-            .select('user_id, username, name, profile_picture, styles_array, ubicacion, session_price, years_experience')
-            .in('user_id', artistIds);
+        const { data: artists } = await WeotziData.Artists.listByUserIds(artistIds, 'user_id, username, name, profile_picture, styles_array, ubicacion, session_price, years_experience');
         if (artists) {
             artists.forEach(a => { artistsMap[a.user_id] = a; });
         }

@@ -182,11 +182,7 @@ const LoggingService = (function() {
 
     async function fetchProfileData(supabase, userId) {
         try {
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('email, whatsapp_number')
-                .eq('user_id', userId)
-                .maybeSingle();
+            const { data: artist } = await WeotziData.Artists.getContactByUserId(userId);
 
             if (artist) {
                 userIdentifiers.email = userIdentifiers.email || artist.email;

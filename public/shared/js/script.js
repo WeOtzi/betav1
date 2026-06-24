@@ -543,11 +543,7 @@ async function handleUrlArtist(username) {
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
             // Case-insensitive lookup using ilike. Public path — exclude
             // password via the shared column list (config-manager.js).
-            const { data, error } = await WeotziData
-                .from('artists_db')
-                .select(window.ARTIST_PUBLIC_COLUMNS || '*')
-                .ilike('username', usernameLower)
-                .single();
+            const { data, error } = await WeotziData.Artists.getPublicByUsername(usernameLower, window.ARTIST_PUBLIC_COLUMNS || '*');
             if (!error) artist = data;
         }
 
@@ -1853,11 +1849,7 @@ async function searchArtist() {
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
             // Case-insensitive lookup using ilike. Public path — exclude
             // password via the shared column list (config-manager.js).
-            const { data, error } = await WeotziData
-                .from('artists_db')
-                .select(window.ARTIST_PUBLIC_COLUMNS || '*')
-                .ilike('username', usernameLower)
-                .single();
+            const { data, error } = await WeotziData.Artists.getPublicByUsername(usernameLower, window.ARTIST_PUBLIC_COLUMNS || '*');
 
             if (error) throw error;
             artist = data;
@@ -2151,9 +2143,7 @@ async function fetchAllArtists() {
     if (supabaseClient && !window.ConfigManager.isDemoMode()) {
         // Public path — exclude password via the shared column list
         // (config-manager.js ARTIST_PUBLIC_COLUMNS).
-        const { data, error } = await WeotziData
-            .from('artists_db')
-            .select(window.ARTIST_PUBLIC_COLUMNS || '*');
+        const { data, error } = await WeotziData.Artists.listPublic(window.ARTIST_PUBLIC_COLUMNS || '*');
         if (error) throw error;
         return data;
     } else {
