@@ -70,6 +70,21 @@
         if (client && ch) client.removeChannel(ch);
     }
 
+    // GET crudo a /rest/v1/ con config explicita. Centraliza los fallbacks
+    // raw-REST (dashboard / artist-auth) que existen para esquivar el cliente
+    // supabase-js cuando agota su timeout. Devuelve la promesa de `fetch` (el
+    // llamador la envuelve en su propio timeout y parsea la respuesta).
+    // Config explicita (url/anonKey/accessToken) para soportar callers con
+    // inyeccion de dependencias (p.ej. artist-auth con su configManager).
+    function restGet({ url, anonKey, accessToken, path }) {
+        return fetch(`${url}/rest/v1/${path}`, {
+            headers: {
+                apikey: anonKey,
+                Authorization: `Bearer ${accessToken || anonKey}`,
+            },
+        });
+    }
+
     window.WeotziData = window.WeotziData || {};
     window.WeotziData.getClient = getClient;
     window.WeotziData.run = run;
@@ -77,4 +92,5 @@
     window.WeotziData.from = from;
     window.WeotziData.channel = channel;
     window.WeotziData.removeChannel = removeChannel;
+    window.WeotziData.restGet = restGet;
 })();

@@ -225,13 +225,20 @@
             const searchParams = new URLSearchParams();
             searchParams.set('select', artistSelect);
             searchParams.set('user_id', `eq.${session.user.id}`);
+            const path = `artists_db?${searchParams.toString()}`;
+            const accessToken = session.access_token || anonKey;
+            // Centraliza el GET crudo en la capa (WeotziData.restGet) cuando esta
+            // disponible; en el entorno de tests (sin window.WeotziData) degrada
+            // al fetch inline. Config explicita -> respeta la inyeccion de
+            // dependencias (url/anonKey vienen del configManager inyectado).
+            const restGet = (typeof window !== 'undefined' && window.WeotziData && window.WeotziData.restGet) || null;
+            const request = restGet
+                ? restGet({ url, anonKey, accessToken, path })
+                : fetch(`${url}/rest/v1/${path}`, {
+                    headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` }
+                });
             const response = await withTimeout(
-                fetch(`${url}/rest/v1/artists_db?${searchParams.toString()}`, {
-                    headers: {
-                        apikey: anonKey,
-                        Authorization: `Bearer ${session.access_token || anonKey}`
-                    }
-                }),
+                request,
                 ARTIST_LOOKUP_TIMEOUT_MS,
                 'ARTIST_REST_TIMEOUT',
                 `Artist REST lookup timed out after ${ARTIST_LOOKUP_TIMEOUT_MS}ms`

@@ -60,56 +60,8 @@ const DASHBOARD_SUPABASE_FALLBACK = {
         'bWx2ZmllamZ0dGxhd25mdSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ1OTEyNTg5LCJleHAiOjIwNjE0ODg1ODl9.' +
         'AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888'
 };
-const DASHBOARD_ARTIST_SELECT = [
-    'id',
-    'user_id',
-    'username',
-    'name',
-    'email',
-    'ubicacion',
-    'city',
-    'country',
-    'country_code',
-    'state_province',
-    'locality',
-    'street',
-    'street_number',
-    'unit',
-    'postal_code',
-    'formatted_address',
-    'latitude',
-    'longitude',
-    'google_place_id',
-    'styles_array',
-    'estilo',
-    'years_experience',
-    'session_price',
-    'session_price_amount',
-    'session_price_currency',
-    'preferred_display_currency',
-    'portafolio',
-    'instagram',
-    'whatsapp_number',
-    'whatsapp_url',
-    'work_type',
-    'estudios',
-    'studio_id',
-    'birth_date',
-    'subscribed_newsletter',
-    'bio_description',
-    'profile_picture',
-    'gallery_images',
-    'gallery_feed_items',
-    'embajador',
-    'nivel',
-    'verification_state',
-    'ms_profile_complete',
-    'ms_first_quote_received',
-    'ms_first_quote_completed',
-    'ms_whatsapp_shared',
-    'ms_profile_shared',
-    'profile_completeness'
-].join(', ');
+// (Las ~50 columnas del dashboard viven en WeotziData.Artists.DASHBOARD_SELECT;
+// el fallback raw-REST de abajo las reusa de ahi para no duplicar la constante.)
 
 let bannerRotationIntervalId = null;
 let bannerStateInitialized = false;
@@ -492,17 +444,22 @@ async function fetchDashboardArtistViaRest(session) {
     if (!session?.user?.id || typeof fetch !== 'function') return null;
     const { url, anonKey } = getDashboardSupabaseConfig();
     if (!url || !anonKey) return null;
+    // Reusa la proyeccion del repo (fuente unica de las ~50 columnas) y el
+    // helper raw-REST de la capa. Si la capa no esta cargada, degrada a null.
+    const dashboardSelect = window.WeotziData?.Artists?.DASHBOARD_SELECT;
+    const restGet = window.WeotziData?.restGet;
+    if (!dashboardSelect || !restGet) return null;
 
     const params = new URLSearchParams({
-        select: DASHBOARD_ARTIST_SELECT,
+        select: dashboardSelect,
         user_id: `eq.${session.user.id}`
     });
 
-    const response = await withDashboardTimeout(fetch(`${url}/rest/v1/artists_db?${params.toString()}`, {
-        headers: {
-            apikey: anonKey,
-            Authorization: `Bearer ${session.access_token}`
-        }
+    const response = await withDashboardTimeout(restGet({
+        url,
+        anonKey,
+        accessToken: session.access_token,
+        path: `artists_db?${params.toString()}`
     }), DASHBOARD_ARTIST_QUERY_TIMEOUT_MS, 'Stored session artist REST query');
 
     if (response?.dashboardTimedOut || !response?.ok) return null;

@@ -319,6 +319,9 @@
         },
     };
 
+    // Expone la proyeccion del dashboard para el fallback raw-REST de dashboard.js
+    // (unica fuente de verdad de estas columnas; evita duplicar la constante).
+    Artists.DASHBOARD_SELECT = DASHBOARD_SELECT;
     D.Artists = Artists;
     D.ArtistLocations = ArtistLocations;
     D.ArtistVisits = ArtistVisits;
