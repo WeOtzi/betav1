@@ -35,6 +35,7 @@ se abrevian a su constante; los **filtros y el terminal** (`.eq/.in/.or/.order/.
 | `from(table)` | `_supabase.from(table)` disperso por módulo | **Choke-point**: builder sobre el cliente único, contrato `{ data, error }`. |
 | `channel(name)` / `removeChannel(ch)` | `_supabase.channel(...)` / `_supabase.removeChannel(...)` | Realtime sobre el cliente único. |
 | `orValue(v)` | interpolación cruda en `.or(...)` | Escapa un valor para `.or(...)` (anti-inyección). |
+| `restGet({url,anonKey,accessToken,path})` | `fetch('${url}/rest/v1/...',{headers:{apikey,Authorization}})` inline en dashboard/artist-auth | GET crudo a `/rest/v1` con config explícita; centraliza los fallbacks raw-REST (esquivan supabase-js si agota timeout). |
 
 ## 1.2 `WeotziData.Quotations` (quotations_db) — estilo rico
 
@@ -249,6 +250,20 @@ se abrevian a su constante; los **filtros y el terminal** (`.eq/.in/.or/.order/.
 | `getDashboardMetrics(studioId,{months})` | `.from('studio_dashboard_metrics_view').select('*').eq('studio_id',s).order('month',desc).limit(12)` | Métricas mensuales. |
 | `getArtistPerformance(studioId,{limit})` | `.from('studio_artist_performance_view').select('*').eq('studio_id',s).order('gross_billed',desc).limit(20)` | Performance por artista. |
 
+## 1.17 `WeotziData.Clients` (clients_db) — estilo fino `{ data, error }`
+| Método nuevo | Antes (query inline) | Qué hace |
+|---|---|---|
+| `getByUserId(userId, columns='*')` | `.from('clients_db').select(cols).eq('user_id',userId).maybeSingle()` | Registro del cliente por user_id (auth, dashboard, job board). Consolida 10 sitios. |
+| `getContactByUserId(userId)` | `.select('email, whatsapp').eq('user_id',userId).maybeSingle()` | Contacto del cliente (enriquecimiento de logging). |
+| `getReviewerByUserId(userId)` | `.select('user_id,email,full_name,public_username,country,city_residence,profile_picture,profile_completed_at').eq('user_id',userId).maybeSingle()` | Perfil del reviewer para la tarjeta de reseña. |
+| `insert(row)` | `.from('clients_db').insert(row)` | Alta de cliente (email/OAuth/job board). Consolida 7 sitios. |
+| `updateByUserId(userId, patch)` | `.update(patch).eq('user_id',userId)` | Patch del cliente (guardado de perfil). |
+
+## 1.18 `WeotziData.ClientProfiles` (client_public_profiles)
+| Método nuevo | Antes (query inline) | Qué hace |
+|---|---|---|
+| `select(columns='*')` | `.from('client_public_profiles').select('*')` | Devuelve el builder de la vista pública; el caller encadena `.eq(user_id\|public_username).maybeSingle()`. |
+
 ---
 
 # 2. Servidor — `lib/`
@@ -291,35 +306,48 @@ se abrevian a su constante; los **filtros y el terminal** (`.eq/.in/.or/.order/.
 | `sumCost()` | `fetch('…/instagram_imports?select=cost_estimate_usd')` | Suma de costo. |
 | `recent()` / `sinceForDailyBreakdown(sinceIso)` | `fetch('…/instagram_imports?select=…&order=…')` | Listados para stats. |
 
-## 2.6 `lib/auth/supabase-auth.js`
+## 2.6 `lib/repos/analytics.js` — `AnalyticsRepo` (anon)
+Endpoints `/api/analytics/{users,devices,pages,errors,locations,summary}`. Cada método toma `(cfg, {days, env})` y delega en `pgrest.raw(path, {apiKey: cfg.supabaseAnonKey})` preservando el path exacto. **Antes:** `supabaseQuery(cfg, 'analytics_user_sessions?select=...')` inline en cada endpoint.
+| Método nuevo | Antes (inline) | Qué hace |
+|---|---|---|
+| `userSessionsByType` / `userFingerprints` | `supabaseQuery(cfg,'analytics_user_sessions?select=user_type…' / '…device_fingerprint…')` | /users: sesiones por tipo y usuarios únicos. |
+| `devices` | `supabaseQuery(cfg,'analytics_devices?select=os,device_type,browser…')` | /devices. |
+| `pageViews` | `supabaseQuery(cfg,'analytics_user_sessions?select=page_path…')` | /pages. |
+| `errorSessions` | `supabaseQuery(cfg,'…has_errors=eq.true…order=created_at.desc')` | /errors. |
+| `locations` | `supabaseQuery(cfg,'…user_ip=not.is.null…')` | /locations. |
+| `summarySessions` / `summaryDevices` | `supabaseQuery(cfg,'analytics_user_sessions?…' / 'analytics_devices?…')` | /summary. |
+
+## 2.7 `supabase/migrations` — trigger de numeración de sesiones
+`set_quotation_session_number()` + trigger `trg_set_quotation_session_number` (BEFORE INSERT en `quotation_sessions`): asigna `MAX(session_number)+1` por cotización (con lock de la fila padre) cuando llega `null`/`<=0`. **Antes:** el cliente calculaba `currentQuoteSessions.length + 1` en `shared-drawer.js` (riesgo de colisión). Backward-compatible (respeta un número explícito >0).
+
+## 2.8 `lib/auth/supabase-auth.js`
 `resolveBearerUser(req)`, `verifyAdminCaller(req)`, `isSuperadminEmail(email)`, `bearerToken(req)`. **Antes:** `_getAuthUserFromBearer` + bloques `fetch('${url}/auth/v1/user')` duplicados en `/hide`, `/complete` y `verifyAdminCaller`.
 
 ---
 
 # 3. Deuda conocida / follow-ups
 
-Pendientes anotados (no urgentes; la capa está al 100% en lo migrado). Tomar
-cuando se toque cada área:
+**Resueltos** (cerrados en esta tanda de refinamiento):
 
-1. **Fallbacks raw-REST a la capa + des-duplicar el select del dashboard.**
-   `dashboard.js fetchDashboardArtistViaRest` y `artist-auth.js fetchArtistViaRest`
-   son `fetch('${url}/rest/v1/artists_db?...')` crudos (existen para evitar
-   supabase-js cuando agota su timeout). Por eso la constante de ~50 columnas
-   `DASHBOARD_ARTIST_SELECT` (en `dashboard.js`) sigue **duplicada** del
-   `DASHBOARD_SELECT` que vive en `artists-repo.js` → riesgo de desincronización.
-   Follow-up: exponer en la capa una variante raw/anon (p.ej. `WeotziData.Artists.getDashboardViaRest(...)`)
-   y mover ambos fallbacks ahí; eliminar la constante duplicada.
-2. **Repo de Clientes.** `clients_db` / `client_public_profiles` siguen accediéndose
-   por el choke-point `WeotziData.from(...)` (client-auth.js, client-dashboard.js,
-   artist-login.js, reviews.js, etc.). Falta un `WeotziData.Clients` con métodos con nombre.
-3. **Constantes muertas tras migrar.** `ARTIST_PROFILE_SELECT` en `main.js` quedó sin
-   uso (su query se encapsuló en `Artists.getProfileByUserId`); ídem `DASHBOARD_ARTIST_SELECT`
-   cuando se cierre el punto 1. Limpieza menor.
-4. **Analytics no-cotización** ya migrado, pero sigue usando el helper `supabaseQuery`
-   (anon) en `server.js`; al unificar el dominio analytics conviene darle su repo.
-5. **`session_number` calculado en cliente** (`shared-drawer.js`) — mover a una
-   secuencia/columna server-side (riesgo de colisión concurrente).
+1. ✅ **Fallbacks raw-REST a la capa + des-duplicar el select del dashboard.** Se
+   agregó `WeotziData.restGet(...)`; `dashboard.js` y `artist-auth.js` enrutan su
+   fallback por la capa. La constante `DASHBOARD_ARTIST_SELECT` duplicada se
+   eliminó: ahora se reusa `WeotziData.Artists.DASHBOARD_SELECT` (fuente única).
+2. ✅ **Repo de Clientes.** `WeotziData.Clients` / `WeotziData.ClientProfiles`
+   (§1.17–1.18); 0 accesos residuales por choke-point a `clients_db`.
+3. ✅ **Constantes muertas.** `ARTIST_PROFILE_SELECT` (main.js) y
+   `DASHBOARD_ARTIST_SELECT` (dashboard.js) eliminadas.
+4. ✅ **Analytics no-cotización.** `lib/repos/analytics.js` (§2.6).
+5. ✅ **`session_number` server-side.** Trigger en `quotation_sessions` (§2.7); el
+   cliente envía `null` y delega la numeración.
+
+Pendientes menores:
+
+- El estimador de **pre-cotización** (`server.js`) aún lee `artists_db` con el
+  helper `supabaseQuery` (anon); candidato a un repo si se unifica ese dominio.
+- El **título del modal** de nueva sesión muestra un hint `length + 1` (cosmético,
+  no es el valor persistido — ese lo asigna el trigger).
 
 ---
 
-> **Excepciones legítimas** (no pasan por repos/choke-point, documentado): `.storage.from(...)` (buckets), `.auth.*`, `resolveArtistAuthState` (cliente inyectado para tests), el `testClient` ad-hoc del backoffice, los bucles de backup genéricos de `admin.js` (acceso por nombre de tabla dinámico), y dos **fallbacks raw-REST intencionales** a `artists_db` (`dashboard.js fetchDashboardArtistViaRest`, `artist-auth.js fetchArtistViaRest`) — ver follow-up #1.
+> **Excepciones legítimas** (no pasan por repos/choke-point, documentado): `.storage.from(...)` (buckets), `.auth.*`, `resolveArtistAuthState` (cliente inyectado para tests), el `testClient` ad-hoc del backoffice, los bucles de backup genéricos de `admin.js` (acceso por nombre de tabla dinámico). Los **fallbacks raw-REST** de `dashboard.js`/`artist-auth.js` ahora pasan por `WeotziData.restGet` (config explícita) — siguen usando `fetch` crudo a propósito (esquivan supabase-js si agota su timeout), pero ya no duplican lógica ni la constante de columnas.
