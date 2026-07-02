@@ -20,6 +20,7 @@ __pycache__/
 # el resto de .claude/ (settings.local.json, etc.) permanece local.
 .claude/*
 !.claude/skills/
+landing/.claude/
 .agents/
 .codex/
 .kiro/
