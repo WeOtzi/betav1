@@ -1,10 +1,520 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="no-js">
 <head>
 <meta charset="UTF-8" />
-<meta http-equiv="refresh" content="0; url=./tatuadores/" />
-<title>We Ötzi · Beta</title>
-<script>location.replace("./tatuadores/");</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>We Ötzi — La plataforma global del tatuaje</title>
+<meta name="description" content="La plataforma donde el mundo descubre a los artistas del tatuaje. Beta privada 2026: 500 cupos de Artista Fundador con 0% comisión durante la beta. Reserva el tuyo." />
+<meta name="theme-color" content="#07080b" />
+<link rel="canonical" href="https://weotzi.com/" />
+<link rel="icon" type="image/svg+xml" href="/assets/site/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/site/favicon-32.png" />
+<link rel="apple-touch-icon" href="/assets/site/apple-touch-icon.png" />
+
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://weotzi.com/" />
+<meta property="og:title" content="We Ötzi — El epicentro global del tatuaje" />
+<meta property="og:description" content="Descubre artistas, pide cotizaciones y vive de tu arte. Beta privada 2026: 500 cupos de Artista Fundador y 0% comisión durante la beta." />
+<meta property="og:image" content="https://weotzi.com/assets/site/og-home.webp" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- El hero es background CSS: lo precargamos para el LCP -->
+<link rel="preload" as="image" href="/assets/tatuadores/hero.webp" media="(min-width: 601px)" />
+<link rel="preload" as="image" href="/assets/tatuadores/hero-mobile.webp" media="(max-width: 600px)" />
+
+<link rel="stylesheet" href="/shared/fonts/fonts.css" />
+<link rel="stylesheet" href="/shared/css/landing.css" />
+<link rel="stylesheet" href="/shared/css/site.css" />
+
+<style>
+/* ---- Ajustes exclusivos de la home (namespaced, no tocan el sistema) ---- */
+.hero__cta { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem; }
+
+.somos__grid {
+  display: grid; grid-template-columns: 1.05fr .95fr;
+  gap: clamp(1.8rem, 4.5vw, 4.5rem); align-items: center;
+  margin-top: clamp(2rem, 5vw, 4rem);
+}
+@media (max-width: 900px) { .somos__grid { grid-template-columns: 1fr; } }
+.somos__mvp { margin-top: clamp(2rem, 5vw, 3.5rem); }
+.mvp__ic { display: block; color: var(--accent); margin-bottom: 1rem; }
+
+.card__list { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .65rem; }
+.card__list li { position: relative; padding-left: 1.5rem; color: var(--text-dim); font-size: var(--step-0); }
+.card__list li::before {
+  content: ""; position: absolute; left: 0; top: .74em;
+  width: .85rem; height: 1.5px; background: var(--accent);
+}
+.card__go {
+  display: inline-flex; align-items: center; gap: .55em;
+  min-height: 44px; margin-top: 1.3rem; align-self: start;
+  font-family: var(--font-mono); font-size: var(--step--1);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--accent-soft);
+  transition: color .2s ease-out;
+}
+.card__go:hover { color: var(--accent); }
+.card__go .btn__arrow { transition: transform .2s var(--ease); }
+.card__go:hover .btn__arrow { transform: translateX(4px); }
+
+.beta__box { margin-top: clamp(2rem, 5vw, 3.5rem); max-width: 660px; }
+.beta__privacy {
+  margin-top: 1.5rem; max-width: 52ch;
+  font-family: var(--font-mono); font-size: var(--step--1);
+  color: var(--text-dim); letter-spacing: .03em; line-height: 1.6; /* microcopy esencial: contraste AA */
+}
+
+.faqteaser__cta { margin-top: clamp(2rem, 4vw, 3rem); text-align: center; }
+</style>
+
+<!-- JSON-LD: Organization + WebSite -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://weotzi.com/#organization",
+      "name": "We Ötzi",
+      "url": "https://weotzi.com/",
+      "logo": "https://weotzi.com/assets/site/apple-touch-icon.png",
+      "sameAs": ["https://www.instagram.com/weotzi/"]
+    },
+    {
+      "@type": "WebSite",
+      "name": "We Ötzi",
+      "url": "https://weotzi.com/",
+      "inLanguage": "es"
+    }
+  ]
+}
+</script>
 </head>
-<body style="background:#07080b"></body>
+<body data-user-type="artist" data-source="site-home">
+
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- Preloader -->
+  <div class="preloader">
+    <div class="preloader__inner">
+      <div class="preloader__mark">We&nbsp;Ötzi<span class="dots">.</span></div>
+      <div class="preloader__bar"><i></i></div>
+      <div class="preloader__pct">000</div>
+    </div>
+  </div>
+
+  <!-- ================= CHROME We Ötzi ================= -->
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+  <header class="snav">
+    <div class="wrap snav__row">
+      <a class="brand snav__brand" href="/" aria-label="We Ötzi — Inicio">We&nbsp;Ötzi<span class="dots">.</span></a>
+      <nav class="snav__links" aria-label="Navegación principal">
+        <a href="/" aria-current="page">Inicio</a>
+        <a href="/about-us/">Nosotros</a>
+        <a href="/faqs/">FAQs</a>
+      </nav>
+      <div class="snav__actions">
+        <a class="btn btn--primary snav__cta" href="#beta" aria-label="Únete a la beta privada">Únete a la beta</a>
+        <button class="snav__dots" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="drawer" data-drawer-open>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="5" r="1.7"/><circle cx="12" cy="5" r="1.7"/><circle cx="19" cy="5" r="1.7"/>
+            <circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>
+            <circle cx="5" cy="19" r="1.7"/><circle cx="12" cy="19" r="1.7"/><circle cx="19" cy="19" r="1.7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Menú del sitio" aria-hidden="true">
+    <div class="drawer__scrim" data-drawer-close></div>
+    <div class="drawer__panel">
+      <div class="drawer__head">
+        <span class="drawer__title eyebrow">Menú</span>
+        <button class="drawer__close" type="button" aria-label="Cerrar menú" data-drawer-close>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+        </button>
+      </div>
+      <p class="drawer__intro">La nueva era del tatuaje empieza aquí.</p>
+      <nav class="drawer__nav" aria-label="Menú">
+        <div class="drawer__group">
+          <span class="drawer__label">Públicos</span>
+          <a class="drawer__link" href="/tatuadores/">Tatuadores</a>
+          <a class="drawer__link" href="/?p=client#beta">Clientes <span class="drawer__note">beta</span></a>
+          <a class="drawer__link" href="/?p=studio#beta">Estudios <span class="drawer__note">beta</span></a>
+        </div>
+        <div class="drawer__group">
+          <span class="drawer__label">Compañía</span>
+          <a class="drawer__link" href="/about-us/">Nosotros</a>
+          <a class="drawer__link" href="/faqs/">FAQs</a>
+        </div>
+        <div class="drawer__group">
+          <span class="drawer__label">Síguenos</span>
+          <a class="drawer__social" href="https://www.instagram.com/weotzi/" target="_blank" rel="noopener" aria-label="We Ötzi en Instagram (se abre en pestaña nueva)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="0.7" fill="currentColor" stroke="none"/></svg>
+            Instagram — @weotzi
+          </a>
+        </div>
+      </nav>
+      <div class="drawer__cta">
+        <a class="btn btn--primary" href="#beta">Únete a la beta <span class="btn__arrow">→</span></a>
+      </div>
+    </div>
+  </aside>
+  <!-- ================= /CHROME ================= -->
+
+  <main id="contenido">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero__layers">
+        <div class="hero__layer hero__layer--bg" style="--bg:url('/assets/tatuadores/hero.webp');--bg-m:url('/assets/tatuadores/hero-mobile.webp')"></div>
+        <div class="hero__layer hero__layer--mid" style="background-image:url('/assets/tatuadores/ember.webp')"></div>
+      </div>
+      <div class="hero__scrim"></div>
+      <div class="hero__frost"></div>
+
+      <div class="wrap hero__content">
+        <span class="eyebrow">We Ötzi · Beta privada 2026</span>
+        <h1 class="hero__title metal-text">
+          <span class="line"><span>El epicentro</span></span>
+          <span class="line"><span>global</span></span>
+          <span class="line"><span>del tatuaje.</span></span>
+        </h1>
+        <p class="hero__sub">
+          La plataforma donde los clientes descubren artistas, los tatuadores viven de su arte
+          y los estudios lo operan todo desde un solo lugar. Tecnología al servicio de la
+          creatividad — nunca al revés. <strong>Y estás a tiempo de entrar primero.</strong>
+        </p>
+
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="#beta" data-magnetic="0.3">Únete a la beta <span class="btn__arrow">→</span></a>
+          <a class="btn btn--ghost" href="/about-us/">Conocer la historia</a>
+        </div>
+
+        <div class="hero__meta">
+          <span>● Beta privada 2026</span>
+          <span><b>0%</b> comisión durante la beta</span>
+          <span><b>500</b> cupos de Artista Fundador</span>
+        </div>
+      </div>
+
+      <div class="scrollcue">desliza <i></i></div>
+    </section>
+
+    <!-- MARQUEE -->
+    <section class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Hecho por artistas</span><span class="dot">✦</span>
+        <span>Alcance global</span><span class="dot">✦</span>
+        <span>0% comisión en la beta</span><span class="dot">✦</span>
+        <span>Tu portafolio es tuyo</span><span class="dot">✦</span>
+        <span>Multi-país · multi-moneda</span><span class="dot">✦</span>
+        <span>Descubrimiento sin algoritmo</span><span class="dot">✦</span>
+        <span>Hecho por artistas</span><span class="dot">✦</span>
+        <span>Alcance global</span><span class="dot">✦</span>
+        <span>0% comisión en la beta</span><span class="dot">✦</span>
+        <span>Tu portafolio es tuyo</span><span class="dot">✦</span>
+        <span>Multi-país · multi-moneda</span><span class="dot">✦</span>
+        <span>Descubrimiento sin algoritmo</span><span class="dot">✦</span>
+      </div>
+    </section>
+
+    <!-- PROMO -->
+    <section class="section promo" data-video-src="/assets/site/promo.mp4">
+      <div class="wrap">
+        <div class="section-head r-up">
+          <span class="eyebrow">El promo</span>
+          <h2>Mira lo que se viene.</h2>
+          <p>Un vistazo a la era que estamos construyendo para el arte del tatuaje.</p>
+        </div>
+        <div class="promo__media r-up" style="margin-top:clamp(2rem,5vw,3.5rem)">
+          <img class="promo__poster" src="/assets/site/promo-poster.webp" width="1600" height="900" loading="lazy" decoding="async" alt="" />
+          <div class="promo__veil"></div>
+          <button class="promo__play" type="button" aria-label="Reproducir el video promocional de We Ötzi">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8.5 5.2v13.6a.6.6 0 0 0 .9.5l10.6-6.8a.6.6 0 0 0 0-1L9.4 4.7a.6.6 0 0 0-.9.5z"/></svg>
+          </button>
+          <div class="promo__soon">
+            <span class="soon-badge">Muy pronto</span>
+            <p>Estamos terminando este video. Aquí lo verás primero — reserva tu cupo y te avisamos.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOMOS -->
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head r-up">
+          <span class="eyebrow">Somos We Ötzi</span>
+          <h2>Tecnología que desaparece. Arte que permanece.</h2>
+        </div>
+
+        <div class="somos__grid">
+          <div class="prose r-up">
+            <p>We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje: que los
+            artistas vivan de su arte, sean descubiertos en cualquier rincón del mundo y no
+            dependan de la suerte de un feed. No es tecnología por el bien de la tecnología —
+            es innovación con propósito.</p>
+            <p>Estamos construyendo el epicentro donde se descubren, colaboran y se contratan
+            los artistas: los clientes encuentran a quién confiarle su piel, los tatuadores
+            gestionan su carrera sin caos y los estudios operan sus sedes desde un solo panel.
+            Todo diseñado para que el protagonista sea el arte, no las barreras.</p>
+          </div>
+
+          <div class="yt r-up" data-yt-id="" data-yt-title="La historia de We Ötzi">
+            <img class="yt__poster" src="/assets/tatuadores/art-beneath.webp" width="1792" height="2304" loading="lazy" decoding="async" alt="" />
+            <button class="yt__play" type="button" aria-label="Reproducir el video de la historia de We Ötzi">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M8.5 5.2v13.6a.6.6 0 0 0 .9.5l10.6-6.8a.6.6 0 0 0 0-1L9.4 4.7a.6.6 0 0 0-.9.5z"/></svg>
+            </button>
+            <div class="yt__soon">
+              <div>
+                <span class="soon-badge">Muy pronto</span>
+                <p>Nuestra historia, en video. Mientras tanto, encuéntranos en Instagram: @weotzi.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mvp somos__mvp r-up">
+          <div class="mvp__item">
+            <span class="mvp__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 9-7 9-7-9z"/><path d="M5 12h14"/></svg>
+            </span>
+            <div class="mvp__k">Qué somos</div>
+            <p>La plataforma global del tatuaje y el arte visual.</p>
+          </div>
+          <div class="mvp__item">
+            <span class="mvp__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg>
+            </span>
+            <div class="mvp__k">Qué construimos</div>
+            <p>Descubrimiento, cotizaciones, galería y agenda en un solo flujo.</p>
+          </div>
+          <div class="mvp__item">
+            <span class="mvp__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <div class="mvp__k">Para quiénes</div>
+            <p>Tatuadores, clientes y estudios.</p>
+          </div>
+          <div class="mvp__item">
+            <span class="mvp__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 4 9 15 15 0 0 1-4 9 15 15 0 0 1-4-9 15 15 0 0 1 4-9z"/></svg>
+            </span>
+            <div class="mvp__k">Dónde</div>
+            <p>Global desde el diseño: multi-país, multi-moneda, multi-idioma.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PILARES -->
+    <section class="section trust">
+      <div class="wrap">
+        <div class="section-head r-up">
+          <span class="eyebrow">Nuestros pilares</span>
+          <h2>Tres pilares. Una era.</h2>
+        </div>
+        <div class="pillars">
+          <div class="pillar r-up">
+            <div class="ic">PILAR 01</div>
+            <h3>Innovación en contenido</h3>
+            <p>Cada pieza que publicamos debe educar, entretener e inspirar. La excelencia no es un extra: es el estándar de todo lo que lleva nuestro nombre.</p>
+          </div>
+          <div class="pillar r-up">
+            <div class="ic">PILAR 02</div>
+            <h3>Comunidad global</h3>
+            <p>Un punto de encuentro auténtico entre artistas y clientes. La tecnología elimina la fricción para que el protagonista sea el arte, no las barreras.</p>
+          </div>
+          <div class="pillar r-up">
+            <div class="ic">PILAR 03</div>
+            <h3>Liderazgo indiscutible</h3>
+            <p>No vinimos a competir. Vinimos a redefinir cómo se descubren, colaboran y se contratan los artistas en todo el mundo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUDIENCIAS -->
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head r-up">
+          <span class="eyebrow">Para quién</span>
+          <h2>Una plataforma. Tres protagonistas.</h2>
+        </div>
+
+        <div class="bento" style="margin-top:clamp(2rem,5vw,4rem)">
+          <article class="card card--sm r-up">
+            <div>
+              <div class="card__n">01 · TATUADORES</div>
+              <h3 class="card__t">Tu arte, descubierto por el mundo.</h3>
+              <ul class="card__list">
+                <li>Tu portafolio listo en minutos: importamos tu Instagram — bio, fotos y reels.</li>
+                <li>Cotizaciones claras y agenda en un solo flujo. Se acabaron los DMs perdidos.</li>
+                <li>Apareces en el mapa y el globo global: te encuentran por estilo y ciudad, no por suerte.</li>
+              </ul>
+            </div>
+            <a class="card__go" href="/tatuadores/">Reservar mi cupo <span class="btn__arrow">→</span></a>
+          </article>
+
+          <article class="card card--sm r-up">
+            <div>
+              <div class="card__n">02 · CLIENTES</div>
+              <h3 class="card__t">Tu próximo tatuaje empieza aquí.</h3>
+              <ul class="card__list">
+                <li>Descubre artistas por estilo y ciudad en un mapa — y en un globo 3D.</li>
+                <li>Pide tu cotización con tu idea y tus referencias, directo al artista.</li>
+                <li>Sigue todo en un solo lugar: estados, chat y tu historial.</li>
+              </ul>
+            </div>
+            <a class="card__go" href="/?p=client#beta">Unirme a la lista <span class="btn__arrow">→</span></a>
+          </article>
+
+          <article class="card card--sm r-up">
+            <div>
+              <div class="card__n">03 · ESTUDIOS</div>
+              <h3 class="card__t">Tu estudio, bajo control.</h3>
+              <ul class="card__list">
+                <li>Todas tus sedes administradas desde un solo panel.</li>
+                <li>Tu roster de artistas: invitaciones, roles y membresías.</li>
+                <li>Publica spots y residencias, y gestiona las postulaciones.</li>
+              </ul>
+            </div>
+            <a class="card__go" href="/?p=studio#beta">Anotar mi estudio <span class="btn__arrow">→</span></a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALIADOS -->
+    <section class="section allies">
+      <div class="wrap">
+        <div class="section-head r-up">
+          <span class="eyebrow">Aliados</span>
+          <h2>Las marcas que acompañan esta era.</h2>
+          <p>Nombres que cualquier tatuador reconoce, caminando con nosotros desde la beta.</p>
+        </div>
+        <div class="allies__grid r-up" style="margin-top:clamp(2rem,5vw,3.5rem)">
+          <div class="allies__cell"><img src="/assets/aliados/eternal-ink.png" alt="Eternal Ink" width="200" height="55" loading="lazy" decoding="async" /></div>
+          <div class="allies__cell"><img src="/assets/aliados/ava.png" alt="AVA" width="404" height="99" loading="lazy" decoding="async" /></div>
+          <div class="allies__cell"><img src="/assets/aliados/dynamic.png" alt="Dynamic" width="500" height="230" loading="lazy" decoding="async" /></div>
+          <div class="allies__cell"><img src="/assets/aliados/bishop.png" alt="Bishop" width="1080" height="915" loading="lazy" decoding="async" /></div>
+          <div class="allies__cell"><img src="/assets/aliados/halcon.png" alt="Halcón" width="1543" height="967" loading="lazy" decoding="async" /></div>
+          <div class="allies__cell"><img src="/assets/aliados/octopus.png" alt="Octopus" width="400" height="145" loading="lazy" decoding="async" /></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BETA -->
+    <section class="section" id="beta">
+      <div class="wrap">
+        <div class="section-head r-up">
+          <span class="eyebrow">Únete a la beta</span>
+          <h2>Reserva tu lugar en la primera oleada.</h2>
+          <p>Entrar es gratis. Los accesos se abren por oleadas durante 2026 — y los 500 cupos de Artista Fundador no se repiten.</p>
+        </div>
+
+        <div class="beta__box r-up">
+          <div class="beta-picker" role="radiogroup" aria-label="Elige tu perfil">
+            <button type="button" class="beta-picker__chip" role="radio" aria-checked="true" data-user-type="artist" data-hint="Cupos de Artista Fundador limitados · Sin spam, solo tu acceso anticipado.">Soy tatuador</button>
+            <button type="button" class="beta-picker__chip" role="radio" aria-checked="false" tabindex="-1" data-user-type="client" data-hint="Te avisaremos cuando puedas pedir tu primera cotización.">Busco un tatuaje</button>
+            <button type="button" class="beta-picker__chip" role="radio" aria-checked="false" tabindex="-1" data-user-type="studio" data-hint="Te avisaremos cuando tu estudio pueda registrarse.">Tengo un estudio</button>
+          </div>
+
+          <div class="waitlist">
+            <form class="waitlist__form" novalidate>
+              <div class="waitlist__field">
+                <input type="text" inputmode="email" autocomplete="email"
+                       placeholder="tu@correo.com  o  @tuinstagram" aria-label="Correo o Instagram" />
+                <button type="submit" class="btn btn--primary" data-magnetic="0.3">
+                  Reservar mi cupo <span class="btn__arrow">→</span>
+                </button>
+              </div>
+              <p class="waitlist__hint" role="status">Cupos de Artista Fundador limitados · Sin spam, solo tu acceso anticipado.</p>
+            </form>
+            <div class="waitlist__success">
+              <div class="fid">Estás dentro<span class="accent-text">.</span></div>
+              <p style="margin-top:.6rem;color:var(--text-dim)">
+                <span data-echo></span> — <span data-note>Te avisaremos en cuanto abramos tu acceso.</span>
+              </p>
+            </div>
+          </div>
+
+          <p class="beta__privacy">Solo usamos tu contacto para avisarte de tu acceso a la beta. Sin spam, sin listas de terceros.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQTEASER -->
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head r-up" style="margin-inline:auto;text-align:center">
+          <span class="eyebrow">FAQs</span>
+          <h2>Lo esencial, en corto.</h2>
+        </div>
+        <div class="faq" style="margin-top:clamp(2rem,4vw,3rem)">
+          <div class="faq__item r-fade">
+            <button class="faq__q">¿Qué es We Ötzi? <span class="pm"></span></button>
+            <div class="faq__a"><p>La plataforma global del tatuaje: los clientes descubren artistas y piden cotizaciones; los artistas gestionan perfil, galería y agenda. Estamos en beta privada.</p></div>
+          </div>
+          <div class="faq__item r-fade">
+            <button class="faq__q">¿Cuánto cuesta entrar? <span class="pm"></span></button>
+            <div class="faq__a"><p>Nada. Entrar a la beta es gratis, y los Artistas Fundadores tienen 0% de comisión durante toda la beta.</p></div>
+          </div>
+          <div class="faq__item r-fade">
+            <button class="faq__q">¿Cuándo tendré acceso? <span class="pm"></span></button>
+            <div class="faq__a"><p>Abrimos accesos por oleadas durante 2026. Reservar tu cupo hoy te pone al frente de la fila.</p></div>
+          </div>
+        </div>
+        <div class="faqteaser__cta r-up">
+          <a class="btn btn--ghost" href="/faqs/">Ver todas las preguntas <span class="btn__arrow">→</span></a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="sfooter">
+    <div class="wrap">
+      <div class="sfooter__grid">
+        <div class="sfooter__big metal-text r-up">Rediseñemos el futuro del arte.</div>
+        <nav class="sfooter__col" aria-label="Plataforma">
+          <span class="sfooter__label">Plataforma</span>
+          <a href="/tatuadores/">Tatuadores</a>
+          <a href="/?p=client#beta">Clientes <span class="sfooter__note">beta</span></a>
+          <a href="/?p=studio#beta">Estudios <span class="sfooter__note">beta</span></a>
+        </nav>
+        <nav class="sfooter__col" aria-label="Compañía">
+          <span class="sfooter__label">Compañía</span>
+          <a href="/about-us/">Nosotros</a>
+          <a href="/faqs/">FAQs</a>
+        </nav>
+        <nav class="sfooter__col" aria-label="Comunidad">
+          <span class="sfooter__label">Comunidad</span>
+          <a href="https://www.instagram.com/weotzi/" target="_blank" rel="noopener" aria-label="We Ötzi en Instagram (se abre en pestaña nueva)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="0.7" fill="currentColor" stroke="none"/></svg>
+            Instagram — @weotzi
+          </a>
+        </nav>
+      </div>
+      <div class="sfooter__legal">
+        <span>© 2026 We Ötzi · Beta privada</span>
+        <span>Hecho para artistas que merecen el mundo.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Libs (vendorizadas, sin CDN en runtime; defer conserva el orden del documento) -->
+  <script src="/shared/vendor/gsap.min.js" defer></script>
+  <script src="/shared/vendor/ScrollTrigger.min.js" defer></script>
+  <script src="/shared/vendor/supabase.min.js" defer></script>
+  <!-- App -->
+  <script src="/shared/js/frost.js" defer></script>
+  <script src="/shared/js/waitlist.js" defer></script>
+  <script src="/shared/js/motion.js" defer></script>
+  <script src="/shared/js/site.js" defer></script>
+</body>
 </html>
