@@ -34,8 +34,6 @@
     var input = form.querySelector("input");
     var hint = root.querySelector(".waitlist__hint");
     var btn = form.querySelector("button[type=submit], .btn");
-    var userType = document.body.getAttribute("data-user-type") || "artist";
-    var source = document.body.getAttribute("data-source") || "landing";
 
     var field = form.querySelector(".waitlist__field");
     if (field) {
@@ -45,9 +43,13 @@
 
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
+      // Se leen al momento del submit (no al cargar) para que un selector de
+      // público pueda cambiar body[data-user-type] antes de enviar.
+      var userType = document.body.getAttribute("data-user-type") || "artist";
+      var source = document.body.getAttribute("data-source") || "landing";
       var parsed = parseContact(input.value);
       if (!parsed.ok) {
-        setHint(hint, "Escribe un correo valido o tu @usuario de Instagram.", "is-error");
+        setHint(hint, "Escribe un correo válido o tu @usuario de Instagram.", "is-error");
         input.focus(); return;
       }
       var c = client();
@@ -71,7 +73,7 @@
         var err = res && res.error;
         if (err && err.code !== "23505") {
           if (btn) { btn.disabled = false; btn.innerHTML = origLabel; }
-          setHint(hint, "Algo fallo al guardar. Intenta de nuevo.", "is-error");
+          setHint(hint, "Algo falló al guardar. Intenta de nuevo.", "is-error");
           return;
         }
         // exito (o ya estaba en la lista)
@@ -79,7 +81,7 @@
         document.dispatchEvent(new CustomEvent("waitlist:joined", { detail: { userType: userType } }));
       }).catch(function () {
         if (btn) { btn.disabled = false; btn.innerHTML = origLabel; }
-        setHint(hint, "Sin conexion. Intenta de nuevo.", "is-error");
+        setHint(hint, "Sin conexión. Intenta de nuevo.", "is-error");
       });
     });
   }
@@ -102,6 +104,13 @@
         : "Te avisaremos en cuanto abramos tu acceso.";
     }
     root.classList.add("is-done");
+    // El botón enfocado desaparece (display:none): movemos el foco al bloque de
+    // éxito para que el lector de pantalla anuncie el resultado (WCAG 4.1.3).
+    if (s) {
+      s.setAttribute("tabindex", "-1");
+      s.setAttribute("role", "status");
+      s.focus();
+    }
   }
 
   function init() {

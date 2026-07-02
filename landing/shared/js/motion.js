@@ -9,17 +9,26 @@
   if (hasGSAP && window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
 
   /* ---------- Preloader ---------- */
+  // La intro completa solo se paga una vez por sesión: en navegaciones internas
+  // (home ↔ about ↔ faqs) el preloader se salta — las páginas cargan al instante.
+  function seenIntro() {
+    try { return !!sessionStorage.getItem("wo-seen"); } catch (e) { return false; }
+  }
+  function markIntroSeen() {
+    try { sessionStorage.setItem("wo-seen", "1"); } catch (e) {}
+  }
   function runPreloader(done) {
     var pre = document.querySelector(".preloader");
     if (!pre) { done(); return; }
+    if (seenIntro()) { pre.style.display = "none"; done(); return; }
     var bar = pre.querySelector(".preloader__bar i");
     var pct = pre.querySelector(".preloader__pct");
     document.body.classList.add("is-locked");
 
     if (!hasGSAP || reduce) {
-      pre.style.display = "none"; document.body.classList.remove("is-locked"); done(); return;
+      pre.style.display = "none"; document.body.classList.remove("is-locked"); markIntroSeen(); done(); return;
     }
-    var tl = gsap.timeline({ onComplete: function () { document.body.classList.remove("is-locked"); done(); } });
+    var tl = gsap.timeline({ onComplete: function () { document.body.classList.remove("is-locked"); markIntroSeen(); done(); } });
     var prog = { v: 0 };
     tl.to(prog, { v: 100, duration: 1.1, ease: "power2.inOut", onUpdate: function () {
       var n = Math.round(prog.v);
@@ -34,6 +43,7 @@
   /* ---------- Intro del hero ---------- */
   function heroIntro() {
     if (!hasGSAP || reduce) return;
+    if (!document.querySelector(".hero")) return; // páginas sin hero (about/faqs): nada que animar
     var lines = document.querySelectorAll(".hero__title .line > span");
     var tl = gsap.timeline({ defaults: { ease: "expo.out" } });
     if (lines.length) tl.from(lines, { yPercent: 115, duration: 1.1, stagger: 0.08 });
