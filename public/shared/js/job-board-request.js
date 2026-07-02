@@ -806,11 +806,7 @@ async function renderAccountGate(el) {
 
         if (session) {
             // Check if client profile exists
-            const { data: client } = await WeotziData
-                .from('clients_db')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
+            const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
 
             if (client) {
                 formData._user_id = session.user.id;
@@ -942,9 +938,7 @@ window.handleJBRegister = async function() {
 
         if (authData.user) {
             // Insert client profile
-            const { error: insertError } = await WeotziData
-                .from('clients_db')
-                .insert({
+            const { error: insertError } = await WeotziData.Clients.insert({
                     user_id: authData.user.id,
                     email: email,
                     full_name: name,
@@ -1032,17 +1026,11 @@ window.handleJBLogin = async function() {
         if (error) throw error;
 
         // Check or create client profile
-        const { data: client } = await WeotziData
-            .from('clients_db')
-            .select('*')
-            .eq('user_id', data.user.id)
-            .maybeSingle();
+        const { data: client } = await WeotziData.Clients.getByUserId(data.user.id);
 
         if (!client) {
             // Create client profile
-            await WeotziData
-                .from('clients_db')
-                .insert({
+            await WeotziData.Clients.insert({
                     user_id: data.user.id,
                     email: email,
                     full_name: data.user.user_metadata?.full_name || email.split('@')[0],

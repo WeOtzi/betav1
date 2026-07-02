@@ -39,11 +39,7 @@
             }
 
             // Look for the studio row owned by this user.
-            const { data: studio } = await WeotziData
-                .from('studios')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
+            const { data: studio } = await WeotziData.Studios.getByUserId(session.user.id);
 
             if (studio) {
                 currentStudioData = studio;
@@ -80,11 +76,7 @@
 
         // Ensure they have a studio row; otherwise this session belongs to a
         // different role and we shouldn't pretend it's a studio login.
-        const { data: studio, error: studioErr } = await WeotziData
-            .from('studios')
-            .select('id, user_id, name, slug, profile_complete')
-            .eq('user_id', data.session.user.id)
-            .maybeSingle();
+        const { data: studio, error: studioErr } = await WeotziData.Studios.getByUserId(data.session.user.id, 'id, user_id, name, slug, profile_complete');
         if (studioErr) throw studioErr;
         if (!studio) {
             await _supabase.auth.signOut();
@@ -127,9 +119,7 @@
         const normalized = String(name).trim().toUpperCase();
 
         // 3) Insert the studios row. RLS allows it because user_id == auth.uid().
-        const { data: studio, error: insertErr } = await WeotziData
-            .from('studios')
-            .insert({
+        const { data: studio, error: insertErr } = await WeotziData.Studios.create({
                 user_id:        userId,
                 email:          email,
                 name:           name.trim(),
@@ -148,9 +138,7 @@
                 photo_feed_items: studioFields.photo_feed_items || [],
                 is_active:      true,
                 profile_complete: false
-            })
-            .select('id, slug, name, user_id')
-            .single();
+            });
 
         if (insertErr) {
             // If the studios insert fails the auth user is now orphaned.

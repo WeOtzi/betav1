@@ -37,7 +37,7 @@
         }
 
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
-        let query = WeotziData.from('client_public_profiles').select('*');
+        let query = WeotziData.ClientProfiles.select('*');
         query = isUuid ? query.eq('user_id', ref) : query.eq('public_username', ref.replace(/^@+/, ''));
 
         const { data: profile, error } = await query.maybeSingle();

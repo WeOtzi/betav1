@@ -28,25 +28,8 @@ function appUrl(path) {
 // [CH-07 / CH-08] END
 
 const DASHBOARD_MOBILE_MENU_BREAKPOINT = 768;
-const ARTIST_PROFILE_SELECT = [
-    'user_id',
-    'username',
-    'name',
-    'email',
-    'ubicacion',
-    'styles_array',
-    'estilo',
-    'years_experience',
-    'session_price',
-    'portafolio',
-    'instagram',
-    'work_type',
-    'estudios',
-    'birth_date',
-    'subscribed_newsletter',
-    'ms_profile_complete',
-    'profile_completeness'
-].join(', ');
+// (La proyeccion de perfil de artista vive ahora en WeotziData.Artists, encapsulada
+// en getProfileByUserId/getProfileByEmail; la constante local quedo sin uso.)
 let pendingLoginEmail = '';
 
 // [CH-04 / CH-05 / CH-06] START: Logo interaction logic
@@ -178,11 +161,7 @@ async function checkAuthState() {
     let artistLookupFailed = false;
 
     if (session) {
-        const { data: artistData, error: artistError } = await WeotziData
-            .from('artists_db')
-            .select(ARTIST_PROFILE_SELECT)
-            .eq('user_id', session.user.id)
-            .maybeSingle();
+        const { data: artistData, error: artistError } = await WeotziData.Artists.getProfileByUserId(session.user.id);
 
         if (artistError) {
             console.warn('checkAuthState artist lookup error:', artistError);
@@ -496,11 +475,7 @@ async function checkEmailExists(email) {
 
 async function getIncompleteArtistByEmail(email) {
     try {
-        const { data: artist, error: artistError } = await WeotziData
-            .from('artists_db')
-            .select(ARTIST_PROFILE_SELECT)
-            .eq('email', email)
-            .maybeSingle();
+        const { data: artist, error: artistError } = await WeotziData.Artists.getProfileByEmail(email);
 
         if (artistError || !artist) {
             return null;
@@ -684,11 +659,7 @@ async function handleLogin(e) {
 
         // Check if artist profile needs completion
         // Use maybeSingle() instead of single() to handle 0 rows gracefully (prevents 406 error)
-        const { data: artist, error: artistError } = await WeotziData
-            .from('artists_db')
-            .select(ARTIST_PROFILE_SELECT)
-            .eq('user_id', data.user.id)
-            .maybeSingle();
+        const { data: artist, error: artistError } = await WeotziData.Artists.getProfileByUserId(data.user.id);
 
         if (artistError) {
             console.warn('Artist lookup error:', artistError);

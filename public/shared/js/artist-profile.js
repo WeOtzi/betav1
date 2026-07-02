@@ -943,11 +943,7 @@ async function loadArtistData(username) {
     }
 
     try {
-        const { data: artist, error } = await WeotziData
-            .from('artists_db')
-            .select(ARTIST_PUBLIC_FIELDS)
-            .eq('username', searchUsername)
-            .maybeSingle();
+        const { data: artist, error } = await WeotziData.Artists.getPublicByExactUsername(searchUsername, ARTIST_PUBLIC_FIELDS);
 
         if (error) {
             console.error('Error loading artist data:', error);
@@ -1020,12 +1016,7 @@ async function loadArtistTattooLocations(artistUserId) {
     if (!artistUserId) return getLegacyTattooLocations();
 
     try {
-        const { data, error } = await WeotziData
-            .from('artist_tattoo_locations')
-            .select('id, period_type, studio_name, city, agenda_status, start_date, end_date, sort_order')
-            .eq('artist_user_id', artistUserId)
-            .order('sort_order', { ascending: true })
-            .order('start_date', { ascending: true, nullsFirst: true });
+        const { data, error } = await WeotziData.ArtistLocations.listByArtistUserId(artistUserId, 'id, period_type, studio_name, city, agenda_status, start_date, end_date, sort_order');
 
         if (error) {
             console.error('Error loading tattoo locations:', error);

@@ -809,12 +809,7 @@ async function checkUsernameAvailability(username, currentUserId) {
     if (!username) return { available: true };
     
     try {
-        const { data, error } = await WeotziData
-            .from('artists_db')
-            .select('user_id')
-            .eq('username', username)
-            .neq('user_id', currentUserId)
-            .limit(1);
+        const { data, error } = await WeotziData.Artists.isUsernameAvailable(username, currentUserId);
         
         if (error) {
             console.error('Error checking username:', error);
@@ -1048,11 +1043,7 @@ async function loadExistingArtistData() {
 
     try {
         // Use maybeSingle() instead of single() to prevent 406 error when no rows exist
-        const { data: artist, error } = await WeotziData
-            .from('artists_db')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .maybeSingle();
+        const { data: artist, error } = await WeotziData.Artists.getByUserId(currentUser.id, '*');
 
         if (error) {
             console.error('Error loading artist data:', error);
@@ -1670,12 +1661,7 @@ async function searchStudios(query) {
 
     try {
         const normalizedQuery = query.toUpperCase();
-        const { data, error } = await WeotziData
-            .from('studios')
-            .select('id, name, normalized_name, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
-            .ilike('normalized_name', `%${normalizedQuery}%`)
-            .order('name')
-            .limit(8);
+        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalizedQuery, { columns: 'id, name, normalized_name, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id' });
 
         if (error) {
             console.error('Studio search error:', error);
@@ -1761,13 +1747,7 @@ function fallbackLocationFromStudio(studio) {
 async function loadStudioLocations(studioId, fallbackStudio) {
     if (!studioId) return [];
     try {
-        const { data, error } = await WeotziData
-            .from('studio_locations')
-            .select('id, label, is_primary, is_active, sort_order, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id')
-            .eq('studio_id', studioId)
-            .eq('is_active', true)
-            .order('is_primary', { ascending: false })
-            .order('sort_order', { ascending: true });
+        const { data, error } = await WeotziData.StudioLocations.listActiveByStudio(studioId, 'id, label, is_primary, is_active, sort_order, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id');
         if (error) throw error;
         const locations = Array.isArray(data) ? data.filter(loc => getDisplayAddress(loc)) : [];
         if (locations.length > 0) return locations;
@@ -1889,11 +1869,7 @@ async function findOrCreateStudio(studioName) {
         return formState.data.studio_id;
     }
 
-    const { data: existing, error: findErr } = await WeotziData
-        .from('studios')
-        .select('id')
-        .eq('normalized_name', normalized)
-        .maybeSingle();
+    const { data: existing, error: findErr } = await WeotziData.Studios.findIdByNormalizedName(normalized);
 
     if (findErr) {
         console.error('Error finding studio:', findErr);
@@ -1901,19 +1877,11 @@ async function findOrCreateStudio(studioName) {
     }
     if (existing) return existing.id;
 
-    const { data: created, error: createErr } = await WeotziData
-        .from('studios')
-        .insert({ name: studioName.trim(), normalized_name: normalized })
-        .select('id')
-        .single();
+    const { data: created, error: createErr } = await WeotziData.Studios.createMinimal({ name: studioName.trim(), normalizedName: normalized });
 
     if (createErr) {
         if (createErr.code === '23505') {
-            const { data: retry } = await WeotziData
-                .from('studios')
-                .select('id')
-                .eq('normalized_name', normalized)
-                .single();
+            const { data: retry } = await WeotziData.Studios.findIdByNormalizedName(normalized, { single: true });
             return retry?.id || null;
         }
         console.error('Error creating studio:', createErr);
@@ -1939,9 +1907,7 @@ async function persistSelectedStudioLocation(studioIdOverride) {
             city: getRegistrationCity() || null,
             agenda_status: 'open'
         };
-        const { error } = await WeotziData
-            .from('artist_tattoo_locations')
-            .upsert(row, { onConflict: 'artist_user_id,period_type,sort_order' });
+        const { error } = await WeotziData.ArtistLocations.upsertCurrentLocation(row);
         if (error) throw error;
     } catch (error) {
         console.warn('[register] Could not persist artist tattoo location:', error);
@@ -2652,20 +2618,13 @@ async function persistPortfolioMedia() {
     //    wrote IG items, so we read+update to avoid clobbering).
     if (localItemsForFeed.length > 0) {
         try {
-            const { data: existing, error: readErr } = await WeotziData
-                .from('artists_db')
-                .select('gallery_feed_items')
-                .eq('user_id', currentUser.id)
-                .single();
+            const { data: existing, error: readErr } = await WeotziData.Artists.getGalleryFeedItems(currentUser.id);
             if (readErr) throw readErr;
             const existingItems = Array.isArray(existing && existing.gallery_feed_items)
                 ? existing.gallery_feed_items
                 : [];
             const merged = existingItems.concat(localItemsForFeed);
-            const { error: updErr } = await WeotziData
-                .from('artists_db')
-                .update({ gallery_feed_items: merged })
-                .eq('user_id', currentUser.id);
+            const { error: updErr } = await WeotziData.Artists.updateByUserId(currentUser.id, { gallery_feed_items: merged });
             if (updErr) throw updErr;
         } catch (e) {
             console.warn('[portfolio] local merge exception', e);
@@ -4077,7 +4036,7 @@ async function submitForm() {
         const pickedAddress = formState.data.address || null;
         if (resolvedStudioId && pickedAddress && pickedAddress.formatted_address && !formState.data.studio_location_id) {
             try {
-                await WeotziData.from('studios').update({
+                await WeotziData.Studios.updateAddress(resolvedStudioId, {
                     country:           pickedAddress.country || null,
                     country_code:      pickedAddress.country_code || null,
                     state_province:    pickedAddress.state_province || null,
@@ -4092,7 +4051,7 @@ async function submitForm() {
                     longitude:         Number.isFinite(pickedAddress.longitude) ? pickedAddress.longitude : null,
                     google_place_id:   pickedAddress.google_place_id || null,
                     geocoded_at:       new Date().toISOString()
-                }).eq('id', resolvedStudioId);
+                });
             } catch (addrErr) {
                 console.warn('[register] Could not persist studio address:', addrErr);
             }
@@ -4163,12 +4122,7 @@ async function submitForm() {
 
         console.log('Saving artist data:', artistData);
 
-        const { data, error } = await WeotziData
-            .from('artists_db')
-            .upsert(artistData, {
-                onConflict: 'user_id'
-            })
-            .select();
+        const { data, error } = await WeotziData.Artists.upsertProfile(artistData);
 
         if (error) {
             console.error('Supabase error details:', {

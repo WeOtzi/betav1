@@ -279,7 +279,7 @@
 
             // 2.5) website lives on studios.website (legacy column from prior migrations).
             if (websiteValue) {
-                await WeotziData.from('studios').update({ website: websiteValue }).eq('id', studio.id);
+                await WeotziData.Studios.update(studio.id, { website: websiteValue });
             }
 
             // 3) Insert each location.
@@ -310,18 +310,15 @@
             }));
 
             if (locationRows.length) {
-                const { data: insertedLocs, error: locErr } = await WeotziData
-                    .from('studio_locations')
-                    .insert(locationRows)
-                    .select('id, is_primary');
+                const { data: insertedLocs, error: locErr } = await WeotziData.StudioLocations.createMany(locationRows);
                 if (locErr) throw locErr;
 
                 const primary = (insertedLocs || []).find(l => l.is_primary);
                 if (primary) {
-                    await WeotziData.from('studios').update({
+                    await WeotziData.Studios.update(studio.id, {
                         primary_location_id: primary.id,
                         profile_complete: true
-                    }).eq('id', studio.id);
+                    });
                 }
             }
 

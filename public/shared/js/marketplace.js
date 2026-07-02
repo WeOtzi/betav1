@@ -139,9 +139,7 @@ async function fetchArtists() {
             // Public path — anon can read finalized rows via the marketplace
             // RLS policy. Use the shared public column list so we don't leak
             // password (see config-manager.js ARTIST_PUBLIC_COLUMNS).
-            const { data, error } = await WeotziData
-                .from('artists_db')
-                .select(window.ARTIST_PUBLIC_COLUMNS || '*');
+            const { data, error } = await WeotziData.Artists.listPublic(window.ARTIST_PUBLIC_COLUMNS || '*');
             if (error) throw error;
             
             return (data || []).map(a => ({

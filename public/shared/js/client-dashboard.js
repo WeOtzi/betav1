@@ -108,20 +108,12 @@ async function checkDashboardAuth() {
         }
         
         // Check if user is a client
-        const { data: client, error } = await WeotziData
-            .from('clients_db')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-        
+        const { data: client, error } = await WeotziData.Clients.getByUserId(session.user.id);
+
         if (!client) {
             // Check if user is an artist first - artists should not access client dashboard
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('user_id')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-            
+            const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
+
             if (artist) {
                 // User is an artist, redirect to artist dashboard
                 window.location.href = '/artist/dashboard';
@@ -129,9 +121,7 @@ async function checkDashboardAuth() {
             }
             
             // Not an artist - maybe they logged in via OAuth and need a profile
-            const { error: createError } = await WeotziData
-                .from('clients_db')
-                .insert({
+            const { error: createError } = await WeotziData.Clients.insert({
                     user_id: session.user.id,
                     email: session.user.email,
                     full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email.split('@')[0],
@@ -1341,10 +1331,7 @@ async function handleProfileUpdate(event) {
             updateData.profile_picture = profilePictureUrl;
         }
         
-        const { error: updateError } = await WeotziData
-            .from('clients_db')
-            .update(updateData)
-            .eq('user_id', session.user.id);
+        const { error: updateError } = await WeotziData.Clients.updateByUserId(session.user.id, updateData);
         
         if (updateError) {
             console.error('Update error:', updateError);
@@ -1566,10 +1553,7 @@ async function viewJBRequestDetail(requestId) {
     const artistIds = applications.map(a => a.artist_id);
     let artistsMap = {};
     try {
-        const { data: artists } = await WeotziData
-            .from('artists_db')
-            .select('user_id, username, name, profile_picture, styles_array, ubicacion, session_price, years_experience')
-            .in('user_id', artistIds);
+        const { data: artists } = await WeotziData.Artists.listByUserIds(artistIds, 'user_id, username, name, profile_picture, styles_array, ubicacion, session_price, years_experience');
         if (artists) {
             artists.forEach(a => { artistsMap[a.user_id] = a; });
         }

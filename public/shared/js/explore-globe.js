@@ -401,11 +401,11 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             'latitude', 'longitude', 'google_place_id', 'geocoded_at'
         ].join(',');
 
-        let resp = await WeotziData.from('artists_with_location').select(cols);
+        let resp = await WeotziData.Artists.listWithLocation(cols);
         if (resp.error) {
             console.warn('[explore-globe] artists_with_location unavailable, falling back:', resp.error.message);
             const fallbackCols = 'user_id,username,name,profile_picture,styles_array,city,country,session_price,years_experience,languages,bio_description,is_recommended,latitude,longitude,formatted_address,locality,street,street_number,postal_code,work_type,studio_id,location_source,studio_name';
-            resp = await WeotziData.from('artists_db').select(fallbackCols);
+            resp = await WeotziData.Artists.listForMap(fallbackCols);
         }
         if (resp.error) {
             console.error('[explore-globe] Supabase error:', resp.error);
@@ -437,10 +437,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         const supabase = window.ConfigManager && window.ConfigManager.getSupabaseClient();
         if (!supabase || !userId) return [];
 
-        let resp = await WeotziData
-            .from('artist_tattoo_locations')
-            .select('id, period_type, studio_name, city, start_date, end_date, agenda_status, sort_order, studio_id')
-            .eq('artist_user_id', userId);
+        let resp = await WeotziData.ArtistLocations.listSimpleByArtistUserId(userId, 'id, period_type, studio_name, city, start_date, end_date, agenda_status, sort_order, studio_id');
         if (resp.error || !Array.isArray(resp.data) || !resp.data.length) {
             if (resp.error) console.warn('[explore-globe] itinerary fetch failed:', resp.error.message);
             // Cache the empty result so we don't re-hit the DB every time
@@ -466,11 +463,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         const studioIds = [...new Set(rows.map(r => r.studio_id).filter(Boolean))];
         const studioCoords = new Map();
         if (studioIds.length) {
-            const slResp = await WeotziData
-                .from('studio_locations')
-                .select('studio_id, latitude, longitude, formatted_address, city, country')
-                .in('studio_id', studioIds)
-                .eq('is_primary', true);
+            const slResp = await WeotziData.StudioLocations.listPrimaryByStudioIds(studioIds, 'studio_id, latitude, longitude, formatted_address, city, country');
             if (!slResp.error && Array.isArray(slResp.data)) {
                 slResp.data.forEach(sl => studioCoords.set(sl.studio_id, sl));
             }

@@ -256,8 +256,12 @@
             return data || [];
         },
         async create(session) {
-            const { data } = await run('sessions.create', (c) => c.from('quotation_sessions').insert([session]));
-            return data || [];
+            // .select().maybeSingle() devuelve la fila insertada CON el
+            // session_number que asigna el trigger server-side (al enviar null).
+            // maybeSingle (no single) para que el create NUNCA lance si la policy
+            // de SELECT post-insert no devolviera la fila: el insert ya ocurrio.
+            const { data } = await run('sessions.create', (c) => c.from('quotation_sessions').insert([session]).select().maybeSingle());
+            return data || null;
         },
         async update(sessionId, patch) {
             await run('sessions.update', (c) => c.from('quotation_sessions').update(patch).eq('id', sessionId));

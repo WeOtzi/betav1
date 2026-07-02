@@ -182,11 +182,7 @@ const LoggingService = (function() {
 
     async function fetchProfileData(supabase, userId) {
         try {
-            const { data: artist } = await WeotziData
-                .from('artists_db')
-                .select('email, whatsapp_number')
-                .eq('user_id', userId)
-                .maybeSingle();
+            const { data: artist } = await WeotziData.Artists.getContactByUserId(userId);
 
             if (artist) {
                 userIdentifiers.email = userIdentifiers.email || artist.email;
@@ -194,11 +190,7 @@ const LoggingService = (function() {
                 return;
             }
 
-            const { data: client } = await WeotziData
-                .from('clients_db')
-                .select('email, whatsapp')
-                .eq('user_id', userId)
-                .maybeSingle();
+            const { data: client } = await WeotziData.Clients.getContactByUserId(userId);
 
             if (client) {
                 userIdentifiers.email = userIdentifiers.email || client.email;

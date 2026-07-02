@@ -26,19 +26,7 @@
     });
 
     async function loadSpots() {
-        const { data, error } = await WeotziData
-            .from('studio_spots')
-            .select(`
-                id, title, kind, description, styles_wanted, language_requirements,
-                experience_min_years, includes_housing,
-                revenue_split_pct, stipend_amount, stipend_currency,
-                start_date, end_date, weeks_minimum, weeks_maximum,
-                application_count, max_applications, expires_at, cover_image,
-                studios:studio_id ( id, slug, name, tagline, cover_image, instagram, primary_location_id ),
-                location:location_id ( id, label, city, country, formatted_address, latitude, longitude )
-            `)
-            .eq('status', 'open')
-            .order('created_at', { ascending: false });
+        const { data, error } = await WeotziData.StudioSpots.listOpenWithStudioAndLocation();
 
         if (error) {
             document.getElementById('spots-grid').innerHTML =
@@ -209,12 +197,7 @@
         }
 
         // Already applied?
-        const { data: existing } = await WeotziData
-            .from('studio_spot_applications')
-            .select('id, status')
-            .eq('spot_id', s.id)
-            .eq('artist_user_id', session.user.id)
-            .maybeSingle();
+        const { data: existing } = await WeotziData.StudioSpots.getApplication(s.id, session.user.id);
 
         if (existing) {
             el.innerHTML = `
@@ -226,11 +209,7 @@
         }
 
         // Verify the user is an artist (has artists_db row).
-        const { data: artist } = await WeotziData
-            .from('artists_db')
-            .select('user_id, portafolio')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
+        const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id, portafolio');
 
         if (!artist) {
             el.innerHTML = `
@@ -262,11 +241,11 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando…';
 
-            const { error } = await WeotziData.from('studio_spot_applications').insert({
-                spot_id: s.id,
-                artist_user_id: session.user.id,
+            const { error } = await WeotziData.StudioSpots.createApplication({
+                spotId: s.id,
+                artistUserId: session.user.id,
                 message: (document.getElementById('apply-message').value || '').trim() || null,
-                portfolio_url: (document.getElementById('apply-portfolio').value || '').trim() || null
+                portfolioUrl: (document.getElementById('apply-portfolio').value || '').trim() || null
             });
 
             if (error) {

@@ -87,12 +87,7 @@
     }
     async function renderJobsList(supabase, studio) {
         const el = document.getElementById('jobs-list');
-        const { data, error } = await WeotziData
-            .from('studio_jobs_log')
-            .select('id, performed_at, duration_hours, gross_amount, gross_currency, artist_split_amount, studio_split_amount, status, notes, artists_db ( username, name )')
-            .eq('studio_id', studio.id)
-            .order('performed_at', { ascending: false })
-            .limit(100);
+        const { data, error } = await WeotziData.StudioOps.listJobs(studio.id);
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin trabajos registrados todavía.</p>'; return; }
         el.innerHTML = `
@@ -118,11 +113,11 @@
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (btn.dataset.action === 'edit') {
-                    const { data: row } = await WeotziData.from('studio_jobs_log').select('*').eq('id', btn.dataset.id).single();
+                    const { data: row } = await WeotziData.StudioOps.getJobById(btn.dataset.id);
                     openJobEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Eliminar este trabajo?')) return;
-                    const { error } = await WeotziData.from('studio_jobs_log').delete().eq('id', btn.dataset.id);
+                    const { error } = await WeotziData.StudioOps.deleteJob(btn.dataset.id);
                     if (error) status('ops-status', 'error', error.message);
                     else { status('ops-status', 'success', 'Eliminado.'); renderJobsList(supabase, studio); }
                 }
@@ -131,11 +126,7 @@
     }
     async function openJobEditor(supabase, studio, existing) {
         const c = document.getElementById('job-editor');
-        const { data: members } = await WeotziData
-            .from('studio_artist_memberships')
-            .select('artist_user_id, artists_db(user_id, username, name)')
-            .eq('studio_id', studio.id)
-            .eq('status', 'active');
+        const { data: members } = await WeotziData.StudioMemberships.listActiveArtists(studio.id);
         const artistOptions = (members || []).map(m => {
             const a = m.artists_db || {};
             return `<option value="${escapeAttr(a.user_id || m.artist_user_id)}" ${existing && existing.artist_user_id === a.user_id ? 'selected' : ''}>${escapeHtml(a.name || a.username || a.user_id)}</option>`;
@@ -188,8 +179,8 @@
             };
             if (!payload.artist_user_id) { status('ops-status', 'error', 'Elegí un artista.'); return; }
             const result = existing
-                ? await WeotziData.from('studio_jobs_log').update(payload).eq('id', existing.id).select().single()
-                : await WeotziData.from('studio_jobs_log').insert(payload).select().single();
+                ? await WeotziData.StudioOps.updateJob(existing.id, payload)
+                : await WeotziData.StudioOps.createJob(payload);
             if (result.error) { status('ops-status', 'error', result.error.message); return; }
             status('ops-status', 'success', existing ? 'Actualizado.' : 'Trabajo registrado.');
             c.innerHTML = '';
@@ -207,10 +198,7 @@
     async function renderClientsList(supabase, studio) {
         const el = document.getElementById('clients-list');
         // We aggregate from jobs (we already have them filtered to this studio).
-        const { data: jobs } = await WeotziData
-            .from('studio_jobs_log')
-            .select('client_user_id, client_display_name, client_email, gross_amount, gross_currency, performed_at')
-            .eq('studio_id', studio.id);
+        const { data: jobs } = await WeotziData.StudioOps.listJobsForClientAggregation(studio.id);
         if (!jobs || jobs.length === 0) {
             el.innerHTML = '<p class="studio-help">Aún no hay clientes asociados a tus trabajos.</p>';
             return;
@@ -249,11 +237,7 @@
     }
     async function renderInvoicesList(supabase, studio) {
         const el = document.getElementById('invoices-list');
-        const { data, error } = await WeotziData
-            .from('studio_invoices')
-            .select('*')
-            .eq('studio_id', studio.id)
-            .order('issue_date', { ascending: false });
+        const { data, error } = await WeotziData.StudioOps.listInvoices(studio.id);
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin facturas todavía.</p>'; return; }
         el.innerHTML = `
@@ -278,14 +262,14 @@
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (btn.dataset.action === 'edit') {
-                    const { data: row } = await WeotziData.from('studio_invoices').select('*').eq('id', btn.dataset.id).single();
+                    const { data: row } = await WeotziData.StudioOps.getInvoiceById(btn.dataset.id);
                     openInvoiceEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'paid') {
-                    await WeotziData.from('studio_invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', btn.dataset.id);
+                    await WeotziData.StudioOps.markInvoicePaid(btn.dataset.id);
                     renderInvoicesList(supabase, studio);
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Borrar factura?')) return;
-                    await WeotziData.from('studio_invoices').delete().eq('id', btn.dataset.id);
+                    await WeotziData.StudioOps.deleteInvoice(btn.dataset.id);
                     renderInvoicesList(supabase, studio);
                 }
             });
@@ -294,7 +278,7 @@
     async function openInvoiceEditor(supabase, studio, existing) {
         const c = document.getElementById('invoice-editor');
         const items = existing
-            ? (await WeotziData.from('studio_invoice_items').select('*').eq('invoice_id', existing.id).order('sort_order')).data || []
+            ? (await WeotziData.StudioOps.listInvoiceItems(existing.id)).data || []
             : [];
         c.innerHTML = `
             <div class="studio-location-row" style="margin-bottom:18px;">
@@ -360,13 +344,13 @@
                 status:     existing?.status || 'draft'
             };
             const result = existing
-                ? await WeotziData.from('studio_invoices').update(headerPayload).eq('id', existing.id).select().single()
-                : await WeotziData.from('studio_invoices').insert(headerPayload).select().single();
+                ? await WeotziData.StudioOps.updateInvoice(existing.id, headerPayload)
+                : await WeotziData.StudioOps.createInvoice(headerPayload);
             if (result.error) { status('ops-status', 'error', result.error.message); return; }
             const invoiceId = result.data.id;
 
             // Wipe + re-insert items (simpler than diffing).
-            await WeotziData.from('studio_invoice_items').delete().eq('invoice_id', invoiceId);
+            await WeotziData.StudioOps.deleteInvoiceItems(invoiceId);
             const itemRows = Array.from(document.querySelectorAll('#inv-items .studio-location-row')).map((row, idx) => ({
                 invoice_id: invoiceId,
                 kind: 'custom',
@@ -376,7 +360,7 @@
                 sort_order:  idx
             }));
             if (itemRows.length) {
-                const insertRes = await WeotziData.from('studio_invoice_items').insert(itemRows);
+                const insertRes = await WeotziData.StudioOps.insertInvoiceItems(itemRows);
                 if (insertRes.error) { status('ops-status', 'error', insertRes.error.message); return; }
             }
             status('ops-status', 'success', 'Factura guardada.');
@@ -394,11 +378,7 @@
     }
     async function renderDocsList(supabase, studio) {
         const el = document.getElementById('docs-list');
-        const { data, error } = await WeotziData
-            .from('studio_documents')
-            .select('*')
-            .eq('studio_id', studio.id)
-            .order('created_at', { ascending: false });
+        const { data, error } = await WeotziData.StudioOps.listDocuments(studio.id);
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin documentos cargados.</p>'; return; }
         el.innerHTML = `
@@ -422,11 +402,11 @@
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (btn.dataset.action === 'edit') {
-                    const { data: row } = await WeotziData.from('studio_documents').select('*').eq('id', btn.dataset.id).single();
+                    const { data: row } = await WeotziData.StudioOps.getDocumentById(btn.dataset.id);
                     openDocEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Borrar documento?')) return;
-                    await WeotziData.from('studio_documents').delete().eq('id', btn.dataset.id);
+                    await WeotziData.StudioOps.deleteDocument(btn.dataset.id);
                     renderDocsList(supabase, studio);
                 }
             });
@@ -487,8 +467,8 @@
             };
             if (!payload.title) { status('ops-status', 'error', 'Título obligatorio.'); return; }
             const result = existing
-                ? await WeotziData.from('studio_documents').update(payload).eq('id', existing.id).select().single()
-                : await WeotziData.from('studio_documents').insert(payload).select().single();
+                ? await WeotziData.StudioOps.updateDocument(existing.id, payload)
+                : await WeotziData.StudioOps.createDocument(payload);
             if (result.error) { status('ops-status', 'error', result.error.message); return; }
             status('ops-status', 'success', 'Documento guardado.');
             c.innerHTML = '';
@@ -505,12 +485,7 @@
     }
     async function renderInventoryList(supabase, studio) {
         const el = document.getElementById('inventory-list');
-        const { data, error } = await WeotziData
-            .from('studio_inventory_items')
-            .select('id, name, sku, category, unit, quantity_on_hand, reorder_level, cost_per_unit, currency, supplier_id, studio_suppliers ( name )')
-            .eq('studio_id', studio.id)
-            .eq('is_active', true)
-            .order('name', { ascending: true });
+        const { data, error } = await WeotziData.StudioOps.listInventoryItems(studio.id);
         if (error) {
             await renderInventoryHealth(null, null, []);
             el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>';
@@ -543,13 +518,13 @@
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (btn.dataset.action === 'edit') {
-                    const { data: row } = await WeotziData.from('studio_inventory_items').select('*').eq('id', btn.dataset.id).single();
+                    const { data: row } = await WeotziData.StudioOps.getInventoryItemById(btn.dataset.id);
                     openItemEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'move') {
                     openMovementDialog(supabase, studio, btn.dataset.id);
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Borrar item? Sus movimientos también se borran.')) return;
-                    await WeotziData.from('studio_inventory_items').delete().eq('id', btn.dataset.id);
+                    await WeotziData.StudioOps.deleteInventoryItem(btn.dataset.id);
                     renderInventoryList(supabase, studio);
                 }
             });
@@ -563,11 +538,7 @@
         let items = fallbackItems || [];
         try {
             if (!supabase || !studio) throw new Error('missing inventory context');
-            const { data, error } = await WeotziData
-                .from('studio_inventory_health_view')
-                .select('id, name, quantity_on_hand, reorder_level, needs_reorder, stock_value, currency')
-                .eq('studio_id', studio.id)
-                .order('needs_reorder', { ascending: false });
+            const { data, error } = await WeotziData.StudioOps.listInventoryHealth(studio.id);
             if (!error && Array.isArray(data)) items = data;
         } catch (_) {
             items = fallbackItems || [];
@@ -601,7 +572,7 @@
     }
     async function openItemEditor(supabase, studio, existing) {
         const c = document.getElementById('item-editor');
-        const { data: suppliers } = await WeotziData.from('studio_suppliers').select('id,name').eq('studio_id', studio.id).order('name');
+        const { data: suppliers } = await WeotziData.StudioOps.listSupplierOptions(studio.id);
         const supplierOpts = '<option value="">— Sin proveedor —</option>'
             + (suppliers || []).map(s => `<option value="${escapeAttr(s.id)}" ${existing?.supplier_id === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
         c.innerHTML = `
@@ -647,8 +618,8 @@
             };
             if (!payload.name) { status('inventory-status', 'error', 'Nombre obligatorio.'); return; }
             const result = existing
-                ? await WeotziData.from('studio_inventory_items').update(payload).eq('id', existing.id).select().single()
-                : await WeotziData.from('studio_inventory_items').insert(payload).select().single();
+                ? await WeotziData.StudioOps.updateInventoryItem(existing.id, payload)
+                : await WeotziData.StudioOps.createInventoryItem(payload);
             if (result.error) { status('inventory-status', 'error', result.error.message); return; }
             status('inventory-status', 'success', 'Item guardado.');
             c.innerHTML = '';
@@ -657,11 +628,7 @@
     }
     async function openMovementDialog(supabase, studio, itemId) {
         const c = document.getElementById('item-editor');
-        const { data: members } = await WeotziData
-            .from('studio_artist_memberships')
-            .select('artist_user_id, artists_db(user_id, username, name)')
-            .eq('studio_id', studio.id)
-            .eq('status', 'active');
+        const { data: members } = await WeotziData.StudioMemberships.listActiveArtists(studio.id);
         const opts = '<option value="">— Sin asignar —</option>' + (members || []).map(m => {
             const a = m.artists_db || {};
             return `<option value="${escapeAttr(a.user_id || m.artist_user_id)}">${escapeHtml(a.name || a.username || a.user_id)}</option>`;
@@ -699,7 +666,7 @@
                 notes: document.getElementById('mv-notes').value.trim() || null
             };
             if (!payload.quantity || payload.quantity <= 0) { status('inventory-status', 'error', 'Cantidad obligatoria > 0.'); return; }
-            const { error } = await WeotziData.from('studio_inventory_movements').insert(payload);
+            const { error } = await WeotziData.StudioOps.createInventoryMovement(payload);
             if (error) { status('inventory-status', 'error', error.message); return; }
             status('inventory-status', 'success', 'Movimiento registrado.');
             c.innerHTML = '';
@@ -716,9 +683,7 @@
     }
     async function renderSuppliersList(supabase, studio) {
         const el = document.getElementById('suppliers-list');
-        const { data, error } = await WeotziData
-            .from('studio_suppliers').select('*')
-            .eq('studio_id', studio.id).order('name');
+        const { data, error } = await WeotziData.StudioOps.listSuppliers(studio.id);
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin proveedores cargados.</p>'; return; }
         el.innerHTML = `
@@ -742,11 +707,11 @@
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (btn.dataset.action === 'edit') {
-                    const { data: row } = await WeotziData.from('studio_suppliers').select('*').eq('id', btn.dataset.id).single();
+                    const { data: row } = await WeotziData.StudioOps.getSupplierById(btn.dataset.id);
                     openSupplierEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Borrar proveedor?')) return;
-                    await WeotziData.from('studio_suppliers').delete().eq('id', btn.dataset.id);
+                    await WeotziData.StudioOps.deleteSupplier(btn.dataset.id);
                     renderSuppliersList(supabase, studio);
                 }
             });
@@ -785,8 +750,8 @@
             };
             if (!payload.name) { status('suppliers-status', 'error', 'Nombre obligatorio.'); return; }
             const result = existing
-                ? await WeotziData.from('studio_suppliers').update(payload).eq('id', existing.id).select().single()
-                : await WeotziData.from('studio_suppliers').insert(payload).select().single();
+                ? await WeotziData.StudioOps.updateSupplier(existing.id, payload)
+                : await WeotziData.StudioOps.createSupplier(payload);
             if (result.error) { status('suppliers-status', 'error', result.error.message); return; }
             status('suppliers-status', 'success', 'Proveedor guardado.');
             c.innerHTML = '';
@@ -803,15 +768,10 @@
     }
     async function renderSponsorsList(supabase, studio) {
         const el = document.getElementById('sponsors-list');
-        const { data, error } = await WeotziData
-            .from('studio_sponsors').select('*')
-            .eq('studio_id', studio.id).order('tier', { ascending: false });
+        const { data, error } = await WeotziData.StudioOps.listSponsors(studio.id);
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin sponsors cargados.</p>'; return; }
-        const { data: links } = await WeotziData
-            .from('studio_sponsor_artists')
-            .select('sponsor_id, artist_user_id, artists_db ( user_id, username, name )')
-            .in('sponsor_id', data.map(sp => sp.id));
+        const { data: links } = await WeotziData.StudioOps.listSponsorArtistsBySponsorIds(data.map(sp => sp.id));
         const artistsBySponsor = new Map();
         (links || []).forEach(link => {
             const a = link.artists_db || {};
@@ -844,11 +804,11 @@
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (btn.dataset.action === 'edit') {
-                    const { data: row } = await WeotziData.from('studio_sponsors').select('*').eq('id', btn.dataset.id).single();
+                    const { data: row } = await WeotziData.StudioOps.getSponsorById(btn.dataset.id);
                     openSponsorEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Borrar sponsor?')) return;
-                    await WeotziData.from('studio_sponsors').delete().eq('id', btn.dataset.id);
+                    await WeotziData.StudioOps.deleteSponsor(btn.dataset.id);
                     renderSponsorsList(supabase, studio);
                 }
             });
@@ -857,13 +817,9 @@
     async function openSponsorEditor(supabase, studio, existing) {
         const c = document.getElementById('sponsor-editor');
         const [{ data: members }, { data: existingLinks }] = await Promise.all([
-            WeotziData
-                .from('studio_artist_memberships')
-                .select('artist_user_id, role, artists_db ( user_id, username, name )')
-                .eq('studio_id', studio.id)
-                .eq('status', 'active'),
+            WeotziData.StudioMemberships.listActiveArtists(studio.id, { withRole: true }),
             existing?.id
-                ? WeotziData.from('studio_sponsor_artists').select('artist_user_id').eq('sponsor_id', existing.id)
+                ? WeotziData.StudioOps.listSponsorArtistIds(existing.id)
                 : Promise.resolve({ data: [] })
         ]);
         const selectedArtists = new Set((existingLinks || []).map(row => row.artist_user_id));
@@ -943,8 +899,8 @@
             };
             if (!payload.name) { status('sponsors-status', 'error', 'Nombre obligatorio.'); return; }
             const result = existing
-                ? await WeotziData.from('studio_sponsors').update(payload).eq('id', existing.id).select().single()
-                : await WeotziData.from('studio_sponsors').insert(payload).select().single();
+                ? await WeotziData.StudioOps.updateSponsor(existing.id, payload)
+                : await WeotziData.StudioOps.createSponsor(payload);
             if (result.error) { status('sponsors-status', 'error', result.error.message); return; }
             try {
                 await saveSponsorArtists(supabase, result.data.id);
@@ -962,11 +918,11 @@
         const selected = Array.from(document.querySelectorAll('input[name="sp-artist"]:checked'))
             .map(input => input.value)
             .filter(Boolean);
-        const del = await WeotziData.from('studio_sponsor_artists').delete().eq('sponsor_id', sponsorId);
+        const del = await WeotziData.StudioOps.deleteSponsorArtists(sponsorId);
         if (del.error) throw del.error;
         if (selected.length === 0) return;
         const rows = selected.map(artist_user_id => ({ sponsor_id: sponsorId, artist_user_id }));
-        const ins = await WeotziData.from('studio_sponsor_artists').insert(rows);
+        const ins = await WeotziData.StudioOps.insertSponsorArtists(rows);
         if (ins.error) throw ins.error;
     }
 
@@ -979,8 +935,8 @@
         const artEl = document.getElementById('analytics-artist');
 
         const [monthsRes, artistsRes] = await Promise.all([
-            WeotziData.from('studio_dashboard_metrics_view').select('*').eq('studio_id', studio.id).order('month', { ascending: false }).limit(12),
-            WeotziData.from('studio_artist_performance_view').select('*').eq('studio_id', studio.id).order('gross_billed', { ascending: false }).limit(20)
+            WeotziData.StudioOps.getDashboardMetrics(studio.id),
+            WeotziData.StudioOps.getArtistPerformance(studio.id)
         ]);
 
         // Summary card
