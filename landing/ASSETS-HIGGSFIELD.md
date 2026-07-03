@@ -1,10 +1,13 @@
-# Assets pendientes — pipeline Higgsfield listo para ejecutar
+# Assets Higgsfield — pipeline EJECUTADO 2026-07-02
 
-> Estado 2026-07-02: el conector MCP de Higgsfield conectado a Claude Code expone solo
-> voz / website-builder / Shorts Studio / ensamblado. Para ejecutar este pipeline hacen
-> falta las herramientas de generación (`generate_image`, `generate_video`, `generate_3d`,
-> `media_upload`, `job_status`) — revisar la configuración del conector en claude.ai
-> (o generar desde la app de Higgsfield y colocar los archivos en las rutas indicadas).
+> ✅ Pipeline ejecutado (~110 créditos, modelos: cinematic_studio_2_5 imagen 2k a 2cr,
+> kling3_0 pro 5s image-to-video a 8.75cr, seed_audio TTS voz "Elena" a 0.7cr,
+> image_to_3d Meshy con PBR a 30cr). Generados e integrados: hero.webp + hero-mobile.webp,
+> promo-poster.webp (16:9 real), promo.mp4 (18s, 4 clips con crossfade — la sección PROMO
+> se activó sola), og-home desde el hero nuevo, otzi-artifact.glb (14MB, + poster
+> otzi-artifact.webp), y media/somos-weotzi-youtube.mp4 (27.8s narrado es-LA, fuera del
+> repo — subirlo a YouTube y setear data-yt-id en landing/index.html).
+> Los prompts de abajo quedan como referencia para regenerar o ampliar.
 
 ## Dirección visual (obligatoria en todos los assets)
 

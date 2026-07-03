@@ -28,6 +28,8 @@ landing/.claude/
 # Artefactos temporales y de pruebas
 tmp/
 tmp_*
+.tmp-gen/
+media/
 test-results/
 .playwright-cli/
 .playwright-mcp/

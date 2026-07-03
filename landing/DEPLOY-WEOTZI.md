@@ -296,11 +296,11 @@ Apache sirve `index.html` en directorios por defecto (`DirectoryIndex`), así qu
 
 ## 5. Pendientes del usuario (post-lanzamiento)
 
-1. **Video promocional**: subir el archivo final a `/assets/site/promo.mp4`. El componente de la home ya está cableado y se activa solo cuando el archivo exista (mientras tanto muestra el estado "Muy pronto" con el póster `/assets/site/promo-poster.webp`).
-2. **Video de YouTube**: cuando exista, setear `data-yt-id` en el componente correspondiente de la home. El embed usa `youtube-nocookie.com` (ya permitido en la CSP).
+1. ~~Video promocional~~ ✅ Generado e integrado en `/assets/site/promo.mp4` (18s, Higgsfield/Kling 2026-07-02); la sección PROMO de la home se activa sola.
+2. **Video de YouTube**: subir `media/somos-weotzi-youtube.mp4` (27.8s, narrado, fuera del repo) al canal de la marca y setear `data-yt-id` en el bloque `.yt` de `landing/index.html`. El embed usa `youtube-nocookie.com` (ya permitido en la CSP).
 3. **Email público de contacto**: hoy el único contacto es Instagram (@weotzi) + el formulario de beta. Cuando haya un email público, añadirlo al footer y a los datos estructurados.
-4. **og:image dedicadas**: hoy la home usa la provisional `/assets/site/og-home.webp` y tatuadores `/assets/tatuadores/og.webp`. Generar imágenes OG específicas por página (1200×630).
-5. **Regenerar imágenes con Higgsfield** cuando el conector esté disponible (hero, texturas y og definitivas).
+4. ~~og:image dedicadas~~ ✅ Generadas 1200×630 por página (og-home desde el hero nuevo, og-about, og-faqs). Tatuadores conserva su `/assets/tatuadores/og.webp`.
+5. ~~Imágenes Higgsfield~~ ✅ Hero corporativo propio (desktop+mobile), póster del promo y artefacto 3D (`otzi-artifact.glb` + poster) generados; prompts de referencia en `ASSETS-HIGGSFIELD.md`.
 
 ---
 
