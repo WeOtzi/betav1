@@ -253,8 +253,8 @@ function renderActiveSessionBanner({ email, dashboardUrl, artistComplete }) {
     banner.setAttribute('role', 'status');
     banner.style.cssText = [
         'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
-        'padding:12px 16px', 'background:#15110D', 'color:#F2EFE6',
-        'border-bottom:2px solid #F2B519', 'font:600 14px/1.35 system-ui,sans-serif',
+        'padding:12px 16px', 'background:var(--neutral-500)', 'color:var(--neutral-100)',
+        'border-bottom:2px solid var(--yellow-300)', 'font:600 14px/1.35 Inter,system-ui,sans-serif',
         'display:flex', 'gap:12px', 'align-items:center', 'justify-content:center',
         'flex-wrap:wrap', 'text-align:center'
     ].join(';');
@@ -271,14 +271,14 @@ function renderActiveSessionBanner({ email, dashboardUrl, artistComplete }) {
         const dashLink = document.createElement('a');
         dashLink.href = dashboardUrl;
         dashLink.textContent = 'Ir al dashboard';
-        dashLink.style.cssText = 'background:#F2B519;color:#15110D;padding:6px 12px;text-decoration:none;border-radius:2px;';
+        dashLink.style.cssText = 'background:var(--yellow-300);color:var(--neutral-500);padding:6px 12px;text-decoration:none;';
         banner.appendChild(dashLink);
     }
 
     const logoutBtn = document.createElement('button');
     logoutBtn.type = 'button';
     logoutBtn.textContent = 'Cerrar sesion';
-    logoutBtn.style.cssText = 'background:transparent;color:#F2EFE6;border:1px solid #F2EFE6;padding:6px 12px;cursor:pointer;border-radius:2px;font:inherit;';
+    logoutBtn.style.cssText = 'background:transparent;color:var(--neutral-100);border:1px solid var(--neutral-100);padding:6px 12px;cursor:pointer;font:inherit;';
     logoutBtn.addEventListener('click', () => { handleLogout().catch(() => {}); });
     banner.appendChild(logoutBtn);
 
@@ -513,8 +513,8 @@ async function handleRegistration(e) {
 
     // Switch to validation state
     btn.innerHTML = 'VALIDANDO...';
-    btn.style.background = 'var(--primary-yellow)';
-    btn.style.color = 'var(--fg)';
+    btn.style.background = 'var(--yellow-300)';
+    btn.style.color = 'var(--neutral-500)';
     btn.disabled = true;
 
     try {
@@ -534,8 +534,8 @@ async function handleRegistration(e) {
         );
 
         btn.innerHTML = 'REDIRIGIENDO...';
-        btn.style.background = '#4CAF50';
-        btn.style.color = 'white';
+        btn.style.background = 'var(--system-success)';
+        btn.style.color = 'var(--white)';
         showFormMessage('Registro iniciado. Continuaremos sin iniciar sesion automaticamente.', 'success');
 
         setTimeout(() => {
@@ -549,8 +549,8 @@ async function handleRegistration(e) {
     } catch (error) {
         console.error('Error in registration:', error.message);
         btn.innerHTML = 'ERROR';
-        btn.style.background = 'var(--primary-red)';
-        btn.style.color = 'white';
+        btn.style.background = 'var(--system-error)';
+        btn.style.color = 'var(--white)';
         
         let errorMessage = 'Error al registrar. Por favor, intenta de nuevo.';
         if (error.code === 'ALREADY_REGISTERED') {
@@ -654,8 +654,8 @@ async function handleLogin(e) {
         pendingLoginEmail = '';
 
         // Success - check if profile is complete
-        btn.innerHTML = 'BIENVENIDO!';
-        btn.style.background = '#4CAF50';
+        btn.innerHTML = 'BIENVENIDO';
+        btn.style.background = 'var(--system-success)';
 
         // Check if artist profile needs completion
         // Use maybeSingle() instead of single() to handle 0 rows gracefully (prevents 406 error)

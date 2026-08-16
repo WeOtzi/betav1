@@ -26,7 +26,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
-    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-1">
+    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-2">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
 
@@ -83,7 +83,56 @@
             <button class="wo-dash-burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú">
                 <i data-wo-icon="menu"></i>
             </button>
-            <a class="wo-o-tile" href="/artist/profile/details" aria-label="Mi perfil">Ö</a>
+            <div class="wo-dash-notif" id="wod-notif">
+                <button class="wo-o-tile wo-dash-notif-tile" id="wod-notif-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="wod-notif-panel" aria-label="Notificaciones y cuenta">Ö<span class="wo-dash-notif-count" id="wod-notif-count" hidden>0</span></button>
+                <div class="wo-dash-notif-panel" id="wod-notif-panel" hidden>
+                    <div class="wo-dash-notif-head">
+                        <span class="wo-dash-notif-avatar" id="wod-notif-avatar" aria-hidden="true">Ö</span>
+                        <div class="wo-dash-notif-who">
+                            <span class="wo-dash-notif-user" id="wod-notif-user">Tu cuenta</span>
+                            <span class="wo-dash-notif-mail" id="wod-notif-mail"></span>
+                        </div>
+                    </div>
+                    <div class="wo-dash-notif-menu" role="menu" aria-label="Actividad reciente y accesos">
+                        <p class="wo-dash-notif-cap" role="presentation">Actividad reciente</p>
+                        <div class="wo-dash-notif-row wo-dash-notif-row--unread is-summary" id="wod-notif-row-total" role="none">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="bell"></i><span class="wo-dash-notif-dot"></span></span>
+                            <span class="wo-dash-notif-label">Notificaciones</span>
+                            <span class="wo-dash-notif-n" id="wod-notif-n-total">0</span>
+                            <span class="wo-dash-notif-unread">Sin leer</span>
+                        </div>
+                        <a class="wo-dash-notif-row wo-dash-notif-row--unread" id="wod-notif-row-msgs" role="menuitem" href="/my-quotations">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="message-circle"></i><span class="wo-dash-notif-dot"></span></span>
+                            <span class="wo-dash-notif-label">Mensajes sin leer</span>
+                            <span class="wo-dash-notif-n" id="wod-notif-n-msgs">0</span>
+                            <span class="wo-dash-notif-unread">Sin leer</span>
+                        </a>
+                        <a class="wo-dash-notif-row" id="wod-notif-row-inv" role="menuitem" href="/artist/invitations">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="star"></i></span>
+                            <span class="wo-dash-notif-label">Invitaciones pendientes</span>
+                            <span class="wo-dash-notif-n" id="wod-notif-n-inv">0</span>
+                        </a>
+                        <a class="wo-dash-notif-row" id="wod-notif-row-solic" role="menuitem" href="/my-quotations">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="inbox"></i></span>
+                            <span class="wo-dash-notif-label">Solicitudes pendientes</span>
+                            <span class="wo-dash-notif-n" id="wod-notif-n-solic">0</span>
+                        </a>
+                        <hr class="wo-dash-notif-sep" role="separator">
+                        <a class="wo-dash-notif-link" role="menuitem" href="/artist/profile/details">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="user"></i></span>
+                            <span class="wo-dash-notif-label">Ir al Centro de Cuenta</span>
+                        </a>
+                        <a class="wo-dash-notif-link" role="menuitem" id="wod-notif-public" href="/artist/profile">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="external-link"></i></span>
+                            <span class="wo-dash-notif-label">Ver perfil público</span>
+                        </a>
+                        <a class="wo-dash-notif-link" role="menuitem" href="mailto:artistas@weotzi.com">
+                            <span class="wo-dash-notif-ic"><i data-wo-icon="help-circle"></i></span>
+                            <span class="wo-dash-notif-label">Ayuda</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
             <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono wo-dash-logout" type="button" onclick="handleLogout()" aria-label="Cerrar sesión">LOG OUT</button>
         </div>
         <nav class="wo-dash-mobilemenu" id="dashboard-mobile-menu" hidden aria-label="Navegación móvil">
@@ -655,7 +704,7 @@
     <script src="/shared/js/address-picker.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/dashboard.js?v=20260816-ds-dashboard-1"></script>
-    <script src="/shared/js/dashboard-redesign.js?v=20260816-ds-dashboard-1"></script>
+    <script src="/shared/js/dashboard-redesign.js?v=20260816-ds-dashboard-2"></script>
 </body>
 
 </html>

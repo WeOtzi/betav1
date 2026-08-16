@@ -1,0 +1,122 @@
+/* ============================================================================
+   We Ötzi · Registro beta cerrada — /registerclosedbeta
+   Rediseño Bauhaus según Figma "Crear cuenta" (n22-1106), sobre el DS
+   (tokens.css + components.css). Regla: cero hex — todo color via var(--token).
+   Layout: split 50/50 — póster ink (izquierda) + panel de registro en crema.
+   El póster se oculta <1024px.
+   ========================================================================== */
+
+/* ---------- Base ---------- */
+body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-direction:column}
+.registerclosedbeta-page [hidden]{display:none !important}
+
+.wo-skip-link{position:absolute;left:-9999px;top:0;z-index:100;background:var(--neutral-500);color:var(--white);padding:var(--space-3) var(--space-4);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;text-decoration:none}
+.wo-skip-link:focus{left:0}
+
+/* ---------- Topbar (solo sesión activa) ---------- */
+.wo-beta-topbar{display:none}
+.registerclosedbeta-page.menu-authenticated .wo-beta-topbar{display:flex}
+.wo-beta-topbar .wo-topbar-left{display:flex;align-items:stretch}
+.wo-beta-brand-name{text-transform:uppercase}
+/* .wo-app a (azul) le gana por especificidad al color del topbar-item del DS */
+.wo-beta-topbar a.wo-topbar-item{color:var(--neutral-400)}
+.wo-beta-topbar a.wo-topbar-item:hover{color:var(--neutral-500)}
+.wo-beta-burger{display:none}
+
+.wo-beta-mobile-menu{display:flex;flex-direction:column;background:var(--surface-page);border-bottom:var(--border-strong-width) solid var(--border-strong)}
+.wo-beta-mobile-menu a{display:block;padding:var(--space-4) var(--space-6);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-500);text-decoration:none;border-top:var(--border-hairline) solid var(--border-subtle)}
+.wo-beta-mobile-menu a:hover{background:var(--neutral-200);color:var(--neutral-500);text-decoration:none}
+
+/* ---------- Split ---------- */
+.wo-auth-split{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+
+/* ---------- Póster (panel ink) ---------- */
+.wo-auth-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-12);background:var(--surface-inverse)}
+/* Triángulo rojo decorativo (Figma: abajo a la derecha) */
+.wo-auth-poster::after{content:"";position:absolute;right:var(--space-16);bottom:var(--space-12);width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:76px solid var(--bauhaus-square)}
+.wo-auth-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
+.wo-auth-poster .wo-marks{gap:var(--space-2)}
+.wo-auth-poster .wo-mark-square,
+.wo-auth-poster .wo-mark-circle{width:20px;height:20px}
+.wo-auth-poster .wo-mark-triangle{border-left-width:11px;border-right-width:11px;border-bottom-width:20px}
+.wo-auth-poster-title{margin:0;font-family:var(--font-display);font-size:var(--display-size);line-height:0.96;letter-spacing:var(--display-track);text-transform:uppercase;color:var(--neutral-100)}
+.wo-auth-poster-title .line{display:block}
+.wo-auth-poster-title .hl-blue{color:var(--blue-400)}
+.wo-auth-poster-title .hl-yellow{color:var(--yellow-300)}
+
+/* ---------- Panel (registro) ---------- */
+.wo-auth-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-8);background:var(--surface-page)}
+.wo-auth-panel-inner{width:100%;max-width:424px;display:flex;flex-direction:column;gap:var(--space-8)}
+
+.wo-auth-brand{display:inline-flex;align-items:center;gap:var(--space-3);align-self:flex-start;text-decoration:none;color:var(--text-heading)}
+.wo-auth-brand:hover{text-decoration:none;color:var(--text-heading)}
+.wo-auth-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+
+.wo-auth-view{display:flex;flex-direction:column;gap:var(--space-5)}
+.wo-auth-title{margin:0;font-family:var(--font-display);font-size:var(--h2-size);line-height:1.08;letter-spacing:var(--h2-track);color:var(--text-heading)}
+.wo-auth-copy{margin:0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted)}
+.wo-auth-view .wo-eyebrow{margin:0}
+
+/* ---------- Formulario ---------- */
+.wo-auth-form{display:flex;flex-direction:column;gap:var(--space-5)}
+.wo-auth-form .wo-input{border-color:var(--border-strong)}
+
+/* Banda arena de términos (Figma: checkbox sobre fondo arena) */
+.wo-beta-terms{background:var(--neutral-200);padding:var(--space-3) var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--neutral-500)}
+.wo-beta-terms a{color:var(--neutral-500);text-decoration:underline}
+.wo-beta-terms a:hover{color:var(--black)}
+
+/* Spinner dentro de botones (estado cargando) */
+.wo-btn .wo-spinner{width:18px;height:18px;border-width:2px}
+
+/* ---------- Mensajes de estado (main.js: .form-message + error/success/info) ---------- */
+.form-message{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+.form-message:empty{display:none}
+.form-message:not(:empty){padding:var(--space-3) var(--space-4);border:var(--border-hairline) solid;border-left-width:var(--border-rule-width);border-color:var(--border-muted);background:var(--surface-card)}
+.form-message.error{background:var(--status-error-bg);border-color:var(--system-error);color:var(--status-error-fg)}
+.form-message.success{background:var(--status-success-bg);border-color:var(--system-success);color:var(--status-success-fg)}
+.form-message.info{background:var(--status-info-bg);border-color:var(--blue-400);color:var(--status-info-fg)}
+.form-message a{color:inherit;text-decoration:underline}
+
+/* ---------- Divisor "O continuá con" ---------- */
+.wo-auth-or{display:flex;align-items:center;gap:var(--space-4);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-faint)}
+.wo-auth-or::before,
+.wo-auth-or::after{content:"";flex:1;border-top:var(--border-hairline) solid var(--border-subtle)}
+
+/* ---------- Social (solo Google) ---------- */
+.wo-auth-social{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2)}
+.wo-auth-social .wo-btn{width:100%}
+.wo-auth-reco{gap:var(--space-1)}
+.wo-auth-reco [data-wo-icon]{width:12px;height:12px}
+.wo-auth-google-g{width:18px;height:18px;flex:none}
+
+/* ---------- "¿Ya tenés cuenta? Ingresá" (link rojo mono) ---------- */
+.wo-beta-haveaccount{margin:0;text-align:center;color:var(--text-faint)}
+.wo-beta-haveaccount a{color:var(--text-danger)}
+.wo-beta-haveaccount a:hover{color:var(--red-500)}
+
+/* ---------- Login modal (markup legado, restilizado con el DS) ---------- */
+#login-modal{display:none}
+#login-modal.active{display:flex}
+.wo-beta-modal{position:relative;display:flex;flex-direction:column;gap:var(--space-5)}
+.wo-beta-modal-close{position:absolute;top:var(--space-4);right:var(--space-4)}
+.wo-beta-modal-link{margin:0;text-align:center;color:var(--text-faint)}
+.wo-beta-modal-link a{color:var(--neutral-500)}
+.wo-beta-modal-link a:hover{color:var(--black)}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1180px){
+  .wo-auth-poster-title{font-size:var(--h1-size)}
+}
+@media (max-width:1023px){
+  .wo-auth-split{grid-template-columns:1fr}
+  .wo-auth-poster{display:none}
+  .wo-auth-panel{padding:var(--space-10) var(--space-6)}
+}
+@media (max-width:768px){
+  .wo-beta-burger{display:inline-flex}
+  .wo-auth-panel{padding:var(--space-8) var(--space-5)}
+}
+@media (max-width:480px){
+  .wo-auth-panel{padding:var(--space-8) var(--space-4)}
+}

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WE ÖTZI | BETA</title>
+    <title>We Ötzi · Creá tu cuenta</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
     <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
@@ -23,862 +23,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/shared/css/landing-style.css">
+
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/registerclosedbeta-ds.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
-    <style>
-        /* ============================================
-           Bauhaus Redesign tokens · Variant C
-           ============================================ */
-        .registerclosedbeta-page {
-            --cream: #F2EFE6;
-            --cream-2: #E8E4D6;
-            --ink: #15110D;
-            --ink-2: #2A2520;
-            --red: #E63A1F;
-            --red-deep: #C42E15;
-            --yellow: #F2B519;
-            --yellow-deep: #E0A30C;
-            --blue: #1E3FA6;
-            --blue-deep: #163080;
+    <script src="/shared/js/wo-icons.js" defer></script>
 
-            --display: "Archivo Black", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-
-            --header-h: 64px;
-        }
-
-        /* Dark-mode aware: re-map the legacy bg/fg vars to the new tokens so
-           the page reads as cream/ink while keeping the modal styles working. */
-        .registerclosedbeta-page {
-            --bg: var(--cream);
-            --fg: var(--ink);
-            --primary-red: var(--red);
-            --primary-yellow: var(--yellow);
-        }
-        body.dark-mode.registerclosedbeta-page {
-            --cream: #15110D;
-            --cream-2: #1F1B16;
-            --ink: #F2EFE6;
-            --ink-2: #C9C3B3;
-            --bg: var(--cream);
-            --fg: var(--ink);
-        }
-
-        /* Reset the legacy monolith padding from base styles */
-        body.registerclosedbeta-page {
-            padding: 0 !important;
-            margin: 0;
-            min-height: 100vh;
-            min-height: 100dvh;
-            background: var(--cream);
-            color: var(--ink);
-            font-family: var(--sans);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .registerclosedbeta-page * { box-sizing: border-box; }
-
-        /* ============================================
-           Top nav · "wo-nav"
-           ============================================ */
-        .wo-nav {
-            height: var(--header-h);
-            min-height: var(--header-h);
-            border-bottom: 1.5px solid var(--ink);
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            padding: 0 24px;
-            gap: 32px;
-            background: var(--cream);
-            position: sticky;
-            top: 0;
-            z-index: 90;
-            width: 100%;
-            max-width: none;
-            margin: 0;
-            align-self: stretch;
-        }
-        .wo-nav-left {
-            display: flex;
-            align-items: center;
-            height: 100%;
-        }
-        .wo-nav-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: var(--display);
-            font-size: 18px;
-            letter-spacing: 0.02em;
-            margin-right: 28px;
-            color: var(--ink);
-            text-decoration: none;
-        }
-        .wo-nav-logo-marks { display: flex; align-items: center; gap: 4px; }
-        .wo-nav-logo-marks .sq { width: 14px; height: 14px; background: var(--red); }
-        .wo-nav-logo-marks .ci { width: 14px; height: 14px; background: var(--yellow); border-radius: 50%; }
-        .wo-nav-logo-marks .tr {
-            width: 0; height: 0;
-            border-left: 7px solid transparent;
-            border-right: 7px solid transparent;
-            border-bottom: 14px solid var(--blue);
-        }
-        .wo-nav-logo-text .umlaut { display: inline-block; transform: translateY(-1px); }
-
-        .wo-nav-tag {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            color: var(--ink);
-            padding-left: 24px;
-            border-left: 1.5px solid var(--ink);
-            height: var(--header-h);
-            text-transform: uppercase;
-        }
-        .wo-nav-tag .dot {
-            width: 8px; height: 8px; background: var(--red); border-radius: 50%;
-            flex-shrink: 0;
-        }
-        .wo-nav-tag-full { display: inline; }
-        .wo-nav-tag-short { display: none; }
-
-        .wo-nav-right { display: flex; align-items: center; gap: 24px; }
-        .wo-nav-links {
-            display: flex;
-            align-items: center;
-            gap: 28px;
-            font-family: var(--sans);
-            font-weight: 700;
-            font-size: 12px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-        .wo-nav-links a { color: var(--ink); text-decoration: none; }
-        .wo-nav-links a:hover { color: var(--red); }
-
-        .wo-login-btn {
-            background: var(--red);
-            color: var(--cream);
-            font-family: var(--sans);
-            font-weight: 800;
-            font-size: 12px;
-            letter-spacing: 0.16em;
-            padding: 10px 18px;
-            border: none;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: background 0.15s ease, transform 0.12s ease;
-        }
-        .wo-login-btn:hover { background: var(--red-deep); transform: translateY(-1px); }
-
-        .wo-theme-mark {
-            width: 36px; height: 36px;
-            border-radius: 50%;
-            border: 1.5px solid var(--ink) !important;
-            background: var(--cream) !important;
-            color: var(--ink);
-            display: grid; place-items: center;
-            font-family: var(--display);
-            font-size: 14px;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: background 0.15s ease, color 0.15s ease;
-        }
-        .wo-theme-mark:hover { background: var(--yellow); }
-
-        .wo-burger {
-            display: none;
-            width: 36px; height: 36px;
-            border: 1.5px solid var(--ink);
-            background: var(--cream);
-            cursor: pointer;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 4px;
-            padding: 0;
-        }
-        .wo-burger i {
-            width: 18px; height: 2px; background: var(--ink); display: block;
-            transition: transform 0.18s ease, opacity 0.18s ease;
-        }
-        .wo-burger[aria-expanded="true"] i:nth-child(1) {
-            transform: translateY(6px) rotate(45deg);
-        }
-        .wo-burger[aria-expanded="true"] i:nth-child(2) { opacity: 0; }
-        .wo-burger[aria-expanded="true"] i:nth-child(3) {
-            transform: translateY(-6px) rotate(-45deg);
-        }
-
-        /* Auth (logged-in) links — hidden by default, shown by main.js */
-        .wo-nav-links-auth { display: none; gap: 20px; }
-        .registerclosedbeta-page.menu-authenticated .wo-nav-links-auth { display: flex; }
-        .registerclosedbeta-page.menu-authenticated .wo-nav-links-public { display: none; }
-
-        /* ============================================
-           Main layout (Variant C)
-           ============================================ */
-        .wo-shell {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 460px;
-            min-height: calc(100vh - var(--header-h));
-            min-height: calc(100dvh - var(--header-h));
-            width: 100%;
-            max-width: none;
-            margin: 0;
-            align-self: stretch;
-        }
-
-        /* LEFT poster */
-        .wo-poster {
-            position: relative;
-            padding: 56px 64px 36px;
-            overflow: hidden;
-            border-right: 1.5px solid var(--ink);
-            background: var(--cream);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .wo-mono {
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .wo-mono .accent-red { color: var(--red); }
-
-        .wo-poster-step {
-            position: absolute;
-            top: 28px;
-            left: 64px;
-        }
-        .wo-poster-step-row { display: none; }
-
-        .wo-display {
-            font-family: var(--display);
-            font-size: clamp(72px, 16vw, 220px);
-            line-height: 0.82;
-            letter-spacing: -0.03em;
-            color: var(--ink);
-            margin-top: 56px;
-        }
-        .wo-display-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 28px;
-        }
-        .wo-display-row + .wo-display-row { margin-top: 12px; }
-        .wo-display-row .blue { color: var(--blue); }
-
-        /* Shapes scale with the type using container size */
-        .wo-shape {
-            flex-shrink: 0;
-            margin-bottom: clamp(6px, 1.5vw, 18px);
-        }
-        .wo-shape.square {
-            width: clamp(40px, 8.6vw, 124px);
-            height: clamp(40px, 8.6vw, 124px);
-            background: var(--red);
-        }
-        .wo-shape.triangle {
-            width: 0; height: 0;
-            border-left: clamp(20px, 4.3vw, 62px) solid transparent;
-            border-right: clamp(20px, 4.3vw, 62px) solid transparent;
-            border-bottom: clamp(40px, 8.6vw, 124px) solid var(--yellow);
-        }
-        .wo-shape.circle {
-            width: clamp(40px, 8.6vw, 124px);
-            height: clamp(40px, 8.6vw, 124px);
-            border-radius: 50%;
-            background: var(--ink);
-            position: relative;
-        }
-        .wo-shape.circle::after {
-            content: "";
-            position: absolute;
-            right: 22px;
-            bottom: 22px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: var(--red);
-        }
-
-        .wo-poster-footer {
-            margin-top: auto;
-            padding-top: 36px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 40px;
-        }
-        .wo-poster-manifesto {
-            font-size: 15px;
-            line-height: 1.5;
-            max-width: 360px;
-            color: var(--ink-2);
-        }
-        .wo-poster-manifesto strong { color: var(--ink); }
-        .wo-manifesto-mobile { display: none; }
-        .wo-poster-build { color: var(--ink-2); white-space: nowrap; }
-
-        /* RIGHT auth column */
-        .wo-auth {
-            padding: 44px 40px;
-            display: flex;
-            flex-direction: column;
-            gap: 22px;
-            background: var(--cream);
-        }
-        .wo-auth-eyebrow {
-            color: var(--ink-2);
-            margin-bottom: 14px;
-        }
-        .wo-auth-title {
-            font-family: var(--display);
-            font-size: 42px;
-            line-height: 0.92;
-            letter-spacing: -0.01em;
-            color: var(--ink);
-            margin: 0;
-        }
-        .wo-auth-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 4px;
-        }
-        .wo-auth-row-wrap { position: relative; }
-        .wo-auth-row {
-            display: grid;
-            grid-template-columns: 56px 1fr 28px;
-            align-items: center;
-            background: var(--cream);
-            border: 1.5px solid var(--ink);
-            padding: 0;
-            cursor: pointer;
-            height: 56px;
-            width: 100%;
-            font-family: var(--sans);
-            text-align: left;
-            overflow: hidden;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-            color: var(--ink);
-        }
-        .wo-auth-row:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--ink);
-        }
-        .wo-auth-row.recommended { border-width: 1.5px; }
-        .wo-auth-icon-cell {
-            height: 100%;
-            display: grid;
-            place-items: center;
-            border-right: 1.5px solid var(--ink);
-        }
-        .wo-auth-icon-cell.google { background: var(--yellow); color: var(--ink); }
-        .wo-auth-icon-cell.instagram { background: var(--blue); color: var(--cream); }
-        .wo-auth-icon-cell.apple { background: var(--ink); color: var(--cream); }
-        .wo-auth-label {
-            padding: 0 18px;
-            font-weight: 700;
-            font-size: 13px;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-        .wo-label-short { display: none; }
-        .wo-auth-label .wo-auth-arrow { display: none; }
-        .wo-auth-arrow {
-            font-size: 18px;
-            padding-right: 16px;
-            transition: transform 0.15s ease;
-        }
-        .wo-auth-row:hover .wo-auth-arrow { transform: translateX(4px); }
-        .wo-auth-badge {
-            position: absolute;
-            top: -9px;
-            right: 14px;
-            background: var(--red);
-            color: var(--cream);
-            font-family: var(--mono);
-            font-size: 9px;
-            letter-spacing: 0.14em;
-            font-weight: 700;
-            padding: 3px 8px;
-            border: 1.5px solid var(--ink);
-            z-index: 2;
-            pointer-events: none;
-            white-space: nowrap;
-            text-transform: uppercase;
-        }
-
-        .wo-divider {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-top: 6px;
-        }
-        .wo-divider .line { flex: 1; height: 1.5px; background: var(--ink); }
-        .wo-divider .label { color: var(--ink-2); }
-
-        .wo-form { display: contents; }
-        .wo-input {
-            width: 100%;
-            background: transparent;
-            border: none;
-            border-bottom: 1.5px solid var(--ink);
-            font-family: var(--display);
-            font-size: 22px;
-            padding: 8px 0 12px;
-            color: var(--ink);
-            outline: none;
-            letter-spacing: 0.02em;
-            text-transform: none !important;
-        }
-        .wo-input::placeholder {
-            color: var(--ink);
-            opacity: 0.2;
-            text-transform: none !important;
-        }
-        body.dark-mode.registerclosedbeta-page .wo-input::placeholder { color: rgba(242,239,230,0.22); }
-        .wo-input:focus { border-bottom-color: var(--red); }
-        .registerclosedbeta-page #beta-form { display: contents; }
-        .registerclosedbeta-page #beta-form .form-group { margin: 0; }
-
-        .wo-btn-primary {
-            font-family: var(--sans);
-            font-weight: 800;
-            font-size: 13px;
-            letter-spacing: 0.14em;
-            border: 1.5px solid var(--ink);
-            padding: 16px 18px;
-            background: var(--ink);
-            color: var(--cream);
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            text-transform: uppercase;
-            width: 100%;
-            transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
-        }
-        .wo-btn-primary:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--ink);
-            background: var(--ink-2);
-        }
-        .wo-btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .wo-already {
-            color: var(--ink-2);
-            text-align: center;
-            margin-top: -6px;
-        }
-        .wo-already a {
-            color: var(--ink);
-            border-bottom: 1.5px solid var(--ink);
-            padding-bottom: 1px;
-            margin-left: 4px;
-            text-decoration: none;
-        }
-
-        .wo-terms {
-            color: var(--ink-2);
-            font-size: 10px;
-            line-height: 1.6;
-            margin-top: auto;
-            font-family: var(--mono);
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-        .wo-terms a {
-            color: inherit;
-            border-bottom: 1px solid var(--ink-2);
-            text-decoration: none;
-        }
-        .wo-terms .terms-full,
-        .wo-terms .terms-mobile { display: none; }
-        .wo-terms .terms-desktop { display: inline; }
-
-        /* Form message override (uses landing-style.css base, retint to design) */
-        .registerclosedbeta-page #form-message.form-message {
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.05em;
-            line-height: 1.5;
-            margin: 0;
-            padding: 0;
-            background: transparent;
-            color: var(--ink-2);
-            text-transform: none;
-        }
-        .registerclosedbeta-page #form-message.form-message:not(:empty) {
-            padding: 10px 12px;
-            border: 1.5px solid var(--ink);
-            background: var(--cream-2);
-        }
-        .registerclosedbeta-page #form-message.form-message:empty {
-            display: none;
-        }
-        .registerclosedbeta-page #form-message.error { color: var(--red); border-color: var(--red); }
-        .registerclosedbeta-page #form-message.success { color: var(--ink); border-color: var(--ink); }
-        .registerclosedbeta-page #form-message a { color: var(--red); text-decoration: underline; }
-
-        /* ============================================
-           Tablet (≤1024px) · iPad Pro 11" portrait
-           ============================================ */
-        @media (max-width: 1024px) {
-            .wo-nav {
-                padding: 0 20px;
-                gap: 20px;
-            }
-            .wo-nav-logo { margin-right: 20px; }
-            .wo-nav-tag { padding-left: 18px; }
-            .wo-nav-tag-full { display: none; }
-            .wo-nav-tag-short { display: inline; }
-            .wo-nav-links { gap: 18px; }
-            .wo-nav-logo,
-            .wo-nav-logo-text,
-            .wo-nav-tag,
-            .wo-nav-links {
-                white-space: nowrap;
-            }
-
-            .wo-shell {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto minmax(0, 1fr);
-            }
-
-            .wo-poster {
-                padding: 36px 44px 32px;
-                border-right: none;
-                border-bottom: 1.5px solid var(--ink);
-            }
-            .wo-poster-step {
-                position: static;
-                margin-bottom: 24px;
-            }
-            .wo-display {
-                font-size: 132px;
-                margin-top: 0;
-            }
-            .wo-display-row { gap: 20px; }
-            .wo-display-row + .wo-display-row { margin-top: 8px; }
-            .wo-shape.square { width: 78px; height: 78px; margin-bottom: 14px; }
-            .wo-shape.triangle {
-                border-left-width: 39px;
-                border-right-width: 39px;
-                border-bottom-width: 78px;
-                margin-bottom: 14px;
-            }
-            .wo-shape.circle { width: 78px; height: 78px; margin-bottom: 14px; }
-            .wo-shape.circle::after { display: none; }
-            .wo-poster-footer { padding-top: 32px; gap: 32px; }
-            .wo-poster-manifesto { font-size: 14px; max-width: 380px; }
-            .wo-poster-build { text-align: right; line-height: 1.6; }
-
-            .wo-auth {
-                padding: 32px 44px 36px;
-                gap: 18px;
-                min-height: 0;
-            }
-            .wo-auth-eyebrow { margin-bottom: 8px; }
-            .wo-auth-title { font-size: 48px; line-height: 0.95; }
-            .wo-auth-title br { display: none; }
-            .wo-terms .terms-desktop { display: none; }
-            .wo-terms .terms-full { display: inline; }
-
-            /* Tablet: horizontal trio of tile-style auth buttons */
-            .wo-auth-list {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                gap: 12px;
-                margin-top: 6px;
-            }
-            .wo-auth-row {
-                display: flex;
-                flex-direction: column;
-                align-items: stretch;
-                height: auto;
-                grid-template-columns: none;
-            }
-            .wo-auth-row:hover {
-                transform: translate(-3px, -3px);
-                box-shadow: 5px 5px 0 var(--ink);
-            }
-            .wo-auth-icon-cell {
-                padding: 20px 18px;
-                border-right: none;
-                border-bottom: 1.5px solid var(--ink);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .wo-auth-icon-cell::after {
-                content: "OAUTH";
-                font-family: var(--mono);
-                font-size: 11px;
-                letter-spacing: 0.12em;
-                opacity: 0.7;
-            }
-            .wo-auth-label {
-                padding: 14px 18px;
-                font-size: 14px;
-                font-weight: 800;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .wo-label-full { display: none; }
-            .wo-label-short { display: inline; }
-            .wo-auth-arrow {
-                font-size: 16px;
-                padding-right: 0;
-            }
-            /* Move the arrow into the label cell on tablet (after the label text) */
-            .wo-auth-row .wo-auth-label .wo-auth-arrow {
-                margin-left: auto;
-            }
-            /* Hide the standalone arrow grid cell since arrow is now inside label */
-            .wo-auth-row > .wo-auth-arrow { display: none; }
-
-            .wo-auth-badge {
-                top: -10px;
-                right: auto;
-                left: 50%;
-                transform: translateX(-50%);
-                font-size: 10px;
-                letter-spacing: 0.16em;
-                padding: 4px 10px;
-            }
-
-            .wo-input { font-size: 26px; }
-            .wo-btn-primary { padding: 18px; font-size: 14px; }
-            .wo-already { margin-top: -4px; }
-        }
-
-        /* ============================================
-           Mobile (≤600px) · iPhone 14
-           ============================================ */
-        @media (max-width: 600px) {
-            .registerclosedbeta-page { --header-h: 54px; }
-            .wo-nav {
-                padding: 0 18px;
-                gap: 12px;
-                grid-template-columns: auto 1fr auto;
-            }
-            .wo-nav-logo {
-                font-size: 15px;
-                margin-right: 0;
-                gap: 7px;
-            }
-            .wo-nav-logo-marks { gap: 3px; }
-            .wo-nav-logo-marks .sq,
-            .wo-nav-logo-marks .ci { width: 11px; height: 11px; }
-            .wo-nav-logo-marks .tr {
-                border-left-width: 5.5px;
-                border-right-width: 5.5px;
-                border-bottom-width: 11px;
-            }
-            .wo-nav-tag { display: none; }
-            .wo-nav-links { display: none; }
-            .wo-nav-right { gap: 10px; }
-            .wo-login-btn {
-                font-size: 10px;
-                padding: 7px 12px;
-                letter-spacing: 0.16em;
-            }
-            .wo-theme-mark {
-                width: 28px !important;
-                height: 28px !important;
-                border: 1.5px solid var(--ink) !important;
-                background: var(--cream) !important;
-                color: var(--ink) !important;
-                font-size: 11px;
-            }
-            .wo-burger { display: none; width: 30px; height: 30px; }
-
-            .wo-poster {
-                margin-top: 10px;
-                padding: 14px 18px 18px;
-                scroll-margin-top: calc(var(--header-h) + 10px);
-            }
-            .wo-poster-step {
-                display: none;
-            }
-            .wo-poster-step-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 14px;
-            }
-            .wo-poster-build-mini { font-family: var(--mono); font-size: 10px; color: var(--ink-2); letter-spacing: 0.12em; }
-
-            .wo-display { font-size: 64px; line-height: 0.85; margin-top: 0; }
-            .wo-display-row { gap: 10px; }
-            .wo-display-row + .wo-display-row { margin-top: 4px; }
-            .wo-shape.square { width: 36px; height: 36px; margin-bottom: 6px; }
-            .wo-shape.triangle {
-                border-left-width: 18px;
-                border-right-width: 18px;
-                border-bottom-width: 36px;
-                margin-bottom: 6px;
-            }
-            .wo-shape.circle { width: 36px; height: 36px; margin-bottom: 6px; }
-
-            .wo-poster-footer {
-                margin-top: 14px;
-                padding-top: 0;
-                display: block;
-            }
-            .wo-poster-manifesto {
-                font-size: 13px;
-                line-height: 1.35;
-                max-width: none;
-                white-space: normal;
-                overflow-wrap: anywhere;
-            }
-            .wo-manifesto-full { display: none; }
-            .wo-manifesto-mobile { display: inline; }
-            .wo-poster-build { display: none; }
-
-            .wo-auth {
-                padding: 18px 18px;
-                gap: 10px;
-            }
-            .wo-auth > header { display: none; }
-            .wo-auth-title { font-size: 26px; }
-            .wo-auth-eyebrow { font-size: 10px; }
-            .wo-terms .terms-full { display: none; }
-            .wo-terms .terms-mobile { display: inline; }
-
-            /* Back to stacked rows on mobile */
-            .wo-auth-list {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                margin-top: 0;
-            }
-            .wo-auth-row {
-                display: grid;
-                grid-template-columns: 48px 1fr 28px;
-                height: 50px;
-                flex-direction: row;
-                align-items: center;
-                line-height: 1;
-            }
-            .registerclosedbeta-page .wo-auth-row.social-btn:hover,
-            .registerclosedbeta-page .wo-auth-row.social-btn:focus,
-            .registerclosedbeta-page .wo-auth-row.social-btn:focus-visible {
-                background: var(--cream);
-                color: var(--ink);
-            }
-            .wo-auth-row:hover {
-                transform: translate(-2px, -2px);
-                box-shadow: 3px 3px 0 var(--ink);
-            }
-            .wo-auth-icon-cell {
-                padding: 0;
-                border-right: 1.5px solid var(--ink);
-                border-bottom: none;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
-            }
-            .wo-auth-icon-cell::after { display: none; }
-            .wo-auth-label {
-                padding: 1px 14px 0;
-                font-size: 11.5px;
-                font-weight: 700;
-                display: flex;
-                align-items: center;
-                height: 100%;
-                line-height: 1;
-            }
-            .wo-label-full { display: inline; }
-            .wo-label-short { display: none; }
-            .wo-auth-row .wo-auth-label .wo-auth-arrow { display: none; }
-            .wo-auth-row > .wo-auth-arrow {
-                display: flex;
-                align-items: center;
-                justify-content: flex-end;
-                height: 100%;
-                font-size: 16px;
-                padding-right: 12px;
-                line-height: 1;
-            }
-            .wo-auth-badge {
-                top: -8px;
-                right: 12px;
-                left: auto;
-                transform: none;
-                font-size: 8px;
-                padding: 3px 7px;
-                letter-spacing: 0.14em;
-            }
-
-            .wo-input { font-size: 20px; padding-bottom: 8px; }
-            .wo-btn-primary { padding: 16px 14px; font-size: 12px; }
-            .wo-divider .label { font-size: 10px; }
-            .wo-already { font-size: 10px; margin-top: -2px; }
-            .wo-terms { font-size: 9px; text-align: center; padding-top: 10px; }
-        }
-
-        /* Hide mobile drawer when JS hasn't initialised */
-        #wo-drawer { display: none; }
-        #wo-drawer.open { display: flex; }
-        #wo-drawer {
-            position: fixed;
-            left: 0; right: 0;
-            top: var(--header-h);
-            background: var(--ink);
-            color: var(--cream);
-            flex-direction: column;
-            z-index: 80;
-            border-bottom: 1.5px solid var(--ink);
-            padding: 18px 18px 22px;
-            gap: 14px;
-        }
-        #wo-drawer a {
-            color: var(--cream);
-            text-decoration: none;
-            font-family: var(--sans);
-            font-weight: 700;
-            font-size: 14px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(242,239,230,0.18);
-        }
-        #wo-drawer a:last-child { border-bottom: none; }
-        #wo-drawer .drawer-label {
-            font-family: var(--mono);
-            font-size: 10px;
-            letter-spacing: 0.18em;
-            color: var(--cream-2);
-            opacity: 0.7;
-            margin: 0;
-        }
-
-    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
@@ -892,299 +45,168 @@
     <script src="/shared/js/logging-loader.js"></script>
 </head>
 
-<body class="registerclosedbeta-page">
+<body class="wo-app registerclosedbeta-page">
+<a class="wo-skip-link" href="#register-content">Saltar al contenido</a>
 
-    <!-- =====================================================
-         TOP NAV · Bauhaus
-         ===================================================== -->
-    <header class="wo-nav" role="banner">
-        <div class="wo-nav-left">
-            <a href="/" class="wo-nav-logo" aria-label="We Ötzi inicio">
-                <span class="wo-nav-logo-marks" aria-hidden="true">
-                    <span class="sq"></span>
-                    <span class="ci"></span>
-                    <span class="tr"></span>
-                </span>
-                <span class="wo-nav-logo-text">WE<span class="umlaut">Ö</span>TZI</span>
-            </a>
-            <p class="wo-nav-tag" aria-label="Edición Bauhaus, Beta Cerrada">
-                <span class="dot" aria-hidden="true"></span>
-                <span class="wo-nav-tag-full">EDICI&Oacute;N BAUHAUS &middot; BETA CERRADA</span>
-                <span class="wo-nav-tag-short">BAUHAUS &middot; BETA</span>
-            </p>
-        </div>
-
-        <div></div>
-
-        <div class="wo-nav-right">
-            <nav class="wo-nav-links wo-nav-links-public" aria-label="Navegación pública">
-                <a href="/tutorial/">Cómo funciona</a>
-                <a href="/marketplace/">Explorar</a>
-            </nav>
-            <nav class="wo-nav-links wo-nav-links-auth" id="dashboard-nav-links-col" aria-label="Navegación de artista" hidden>
-                <a href="/artist/dashboard">Dashboard</a>
-                <a href="/my-quotations">Cotizaciones</a>
-                <a href="/job-board">Job Board</a>
-                <a href="/calendar">Calendario</a>
-                <a href="/my-quotations/statistics">Estadísticas</a>
-            </nav>
-            <button id="login-btn" class="wo-login-btn" type="button" onclick="openLoginModal()">LOG IN</button>
-            <button class="wo-theme-mark theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
-            <button class="wo-burger" id="dashboard-mobile-menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="wo-drawer" onclick="toggleWoDrawer()">
-                <i></i><i></i><i></i>
-            </button>
-        </div>
-    </header>
-
-    <!-- Mobile drawer (used on small screens) -->
-    <aside id="wo-drawer" aria-hidden="true" aria-label="Menú móvil">
-        <p class="drawer-label">Navegación</p>
-        <a href="/tutorial/">Cómo funciona</a>
-        <a href="/marketplace/">Explorar</a>
-        <a href="/artist/dashboard" class="drawer-auth">Dashboard</a>
-        <a href="/my-quotations" class="drawer-auth">Cotizaciones</a>
-        <a href="/job-board" class="drawer-auth">Job Board</a>
-        <a href="/calendar" class="drawer-auth">Calendario</a>
-        <a href="/my-quotations/statistics" class="drawer-auth">Estadísticas</a>
-        <a href="#" onclick="event.preventDefault(); toggleWoDrawer(false); openLoginModal();">Log in</a>
-    </aside>
-    <!-- Compatibility shim: main.js looks for #dashboard-mobile-menu; keep it
-         present (and empty) so its show/hide logic doesn't error out. -->
-    <div id="dashboard-mobile-menu" hidden></div>
-
-    <!-- =====================================================
-         LOGIN MODAL (legacy markup, kept verbatim for main.js)
-         ===================================================== -->
-    <div id="login-modal" class="modal-overlay" onclick="closeLoginModalOnOverlay(event)">
-        <div class="modal-container">
-            <button class="modal-close" onclick="closeLoginModal()" aria-label="Cerrar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                    stroke-linecap="square">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-            <div class="modal-header">
-                <h2 class="modal-title">Iniciar Sesion</h2>
-                <p class="modal-subtitle">Accede a tu cuenta de artista</p>
-            </div>
-            <form id="login-form" onsubmit="handleLogin(event)">
-                <div class="modal-form-group">
-                    <label for="login-email">EMAIL</label>
-                    <input type="email" id="login-email" class="modal-input" placeholder="tu@email.com" required data-clarity-mask="true">
-                </div>
-                <div class="modal-form-group">
-                    <label for="login-password">CONTRASENA</label>
-                    <input type="password" id="login-password" class="modal-input" placeholder="Tu contrasena" required data-clarity-mask="true">
-                </div>
-                <div id="login-message" class="form-message"></div>
-                <button type="submit" class="btn-modal-submit">
-                    Entrar
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                        stroke-linecap="square">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </form>
-            <p class="modal-footer-text">
-                <a href="#" onclick="handlePasswordRecovery(event); return false;">Olvide mi contrasena</a>
-            </p>
-            <p class="modal-footer-text">
-                No tienes cuenta? <a href="#" onclick="closeLoginModal()">Registrate arriba</a>
-            </p>
-        </div>
+<!-- =====================================================
+     TOPBAR · solo visible con sesión activa
+     (main.js togglea body.menu-authenticated + [hidden])
+     ===================================================== -->
+<header class="wo-topbar wo-beta-topbar">
+    <div class="wo-topbar-left">
+        <a class="wo-topbar-brand" href="/" aria-label="We Ötzi — inicio">
+            <span class="wo-marks" aria-hidden="true">
+                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+            </span>
+            <span class="wo-beta-brand-name">We Ötzi</span>
+        </a>
+        <nav class="wo-topbar-nav" id="dashboard-nav-links-col" aria-label="Navegación de artista" hidden>
+            <a class="wo-topbar-item" href="/artist/dashboard">Dashboard</a>
+            <a class="wo-topbar-item" href="/my-quotations">Cotizaciones</a>
+            <a class="wo-topbar-item" href="/job-board">Job board</a>
+            <a class="wo-topbar-item" href="/calendar">Calendario</a>
+            <a class="wo-topbar-item" href="/my-quotations/statistics">Estadísticas</a>
+        </nav>
     </div>
+    <div class="wo-topbar-right">
+        <button id="login-btn" class="wo-btn wo-btn--s" type="button" onclick="openLoginModal()">Log in</button>
+        <button id="dashboard-mobile-menu-toggle" class="wo-iconbtn wo-iconbtn--s wo-beta-burger" type="button"
+            aria-label="Abrir menú" aria-expanded="false" aria-controls="dashboard-mobile-menu">
+            <i data-wo-icon="menu" aria-hidden="true"></i>
+        </button>
+    </div>
+</header>
 
-    <!-- =====================================================
-         MAIN — Variant C poster + auth panel
-         ===================================================== -->
-    <main class="wo-shell">
+<!-- Menú móvil de sesión activa: main.js lo abre/cierra vía [hidden] -->
+<nav id="dashboard-mobile-menu" class="wo-beta-mobile-menu" aria-label="Navegación de artista (móvil)" hidden>
+    <a href="/artist/dashboard">Dashboard</a>
+    <a href="/my-quotations">Cotizaciones</a>
+    <a href="/job-board">Job board</a>
+    <a href="/calendar">Calendario</a>
+    <a href="/my-quotations/statistics">Estadísticas</a>
+</nav>
 
-        <!-- LEFT: poster -->
-        <section class="wo-poster" aria-labelledby="wo-poster-headline">
-            <!-- Desktop step indicator (absolute top-left) -->
-            <p class="wo-poster-step wo-mono">◍ PASO 0 — CREAR CUENTA</p>
+<!-- =====================================================
+     SPLIT 50/50 · póster ink + panel crema (Figma n22-1106)
+     ===================================================== -->
+<div class="wo-auth-split">
 
-            <!-- Mobile-only step row (top-right shows build) -->
-            <div class="wo-poster-step-row" aria-hidden="true">
-                <span class="wo-mono">◍ PASO 0 — CREAR CUENTA</span>
-                <span class="wo-poster-build-mini">0.9.4</span>
-            </div>
-
-            <div class="wo-display" id="wo-poster-headline" aria-label="Un solo paso para crear tu cuenta">
-                <div class="wo-display-row">
-                    <span>UN</span>
-                    <span class="wo-shape square" aria-hidden="true"></span>
-                </div>
-                <div class="wo-display-row">
-                    <span class="blue">SOLO</span>
-                    <span class="wo-shape triangle" aria-hidden="true"></span>
-                </div>
-                <div class="wo-display-row">
-                    <span>PASO.</span>
-                    <span class="wo-shape circle" aria-hidden="true"></span>
-                </div>
-            </div>
-
-            <div class="wo-poster-footer">
-                <p class="wo-poster-manifesto">
-                    <span class="wo-manifesto-full">
-                        <strong>El artista merece m&aacute;s apoyo y menos complicaciones.</strong>
-                        Crecer y conectar &mdash; gratis para siempre.
-                    </span>
-                    <span class="wo-manifesto-mobile">
-                        <strong>M&aacute;s apoyo, menos complicaciones.</strong>
-                        Gratis para siempre.
-                    </span>
-                </p>
-                <p class="wo-poster-build wo-mono">
-                    BUILD 0.9.4 · STATUS <span class="accent-red">REC_READY</span>
-                </p>
-            </div>
-        </section>
-
-        <!-- RIGHT: unified auth column -->
-        <section class="wo-auth" aria-labelledby="wo-auth-title">
-            <header>
-                <p class="wo-auth-eyebrow wo-mono">[ ACCESO ANTICIPADO · BETA CERRADA ]</p>
-                <h1 class="wo-auth-title" id="wo-auth-title">Crea tu <br>cuenta de <br>artista.</h1>
-            </header>
-
-            <!-- OAuth list -->
-            <div class="wo-auth-list" role="group" aria-label="Métodos de registro social">
-                <div class="wo-auth-row-wrap">
-                    <button type="button" class="wo-auth-row social-btn" onclick="handleSocialLogin('google')" aria-label="Continuar con Google">
-                        <span class="wo-auth-icon-cell google" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
-                                <path d="M10 6v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
-                            </svg>
-                        </span>
-                        <span class="wo-auth-label">
-                            <span class="wo-label-full">Continuar con Google</span>
-                            <span class="wo-label-short">Google</span>
-                            <span class="wo-auth-arrow" aria-hidden="true">→</span>
-                        </span>
-                        <span class="wo-auth-arrow" aria-hidden="true">→</span>
-                    </button>
-                </div>
-
-                <div class="wo-auth-row-wrap">
-                    <span class="wo-auth-badge">★ RECOMENDADO</span>
-                    <button type="button" class="wo-auth-row recommended social-btn" onclick="handleSocialLogin('instagram')" aria-label="Continuar con Instagram (recomendado)">
-                        <span class="wo-auth-icon-cell instagram" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                                <rect x="2.75" y="2.75" width="14.5" height="14.5" rx="3.5" stroke="currentColor" stroke-width="1.5"/>
-                                <circle cx="10" cy="10" r="3.25" stroke="currentColor" stroke-width="1.5"/>
-                                <circle cx="14.25" cy="5.75" r="0.9" fill="currentColor"/>
-                            </svg>
-                        </span>
-                        <span class="wo-auth-label">
-                            <span class="wo-label-full">Continuar con Instagram</span>
-                            <span class="wo-label-short">Instagram</span>
-                            <span class="wo-auth-arrow" aria-hidden="true">→</span>
-                        </span>
-                        <span class="wo-auth-arrow" aria-hidden="true">→</span>
-                    </button>
-                </div>
-
-                <div class="wo-auth-row-wrap">
-                    <button type="button" class="wo-auth-row social-btn" onclick="handleSocialLogin('apple')" aria-label="Continuar con Apple ID">
-                        <span class="wo-auth-icon-cell apple" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                                <path d="M13.5 10.4c0-2 1.6-2.95 1.7-3-0.9-1.35-2.4-1.55-2.9-1.55-1.25-0.13-2.4 0.73-3.05 0.73-0.65 0-1.6-0.7-2.65-0.7-1.35 0.02-2.6 0.8-3.3 2-1.4 2.45-0.36 6.05 1 8 0.65 0.97 1.45 2.05 2.5 2.02 1-0.04 1.4-0.65 2.6-0.65 1.2 0 1.55 0.65 2.65 0.62 1.1-0.02 1.78-0.99 2.45-1.96 0.5-0.74 0.95-1.55 1.25-2.43-1.45-0.55-2.25-1.94-2.25-3.08z" fill="currentColor"/>
-                                <path d="M11.7 4.7c0.55-0.67 0.92-1.6 0.82-2.52-0.78 0.04-1.74 0.53-2.32 1.2-0.52 0.6-0.97 1.54-0.85 2.45 0.88 0.07 1.78-0.45 2.35-1.13z" fill="currentColor"/>
-                            </svg>
-                        </span>
-                        <span class="wo-auth-label">
-                            <span class="wo-label-full">Continuar con Apple ID</span>
-                            <span class="wo-label-short">Apple ID</span>
-                            <span class="wo-auth-arrow" aria-hidden="true">→</span>
-                        </span>
-                        <span class="wo-auth-arrow" aria-hidden="true">→</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="wo-divider" role="separator" aria-label="O regístrate con email">
-                <span class="line" aria-hidden="true"></span>
-                <span class="label wo-mono">O CON EMAIL</span>
-                <span class="line" aria-hidden="true"></span>
-            </div>
-
-            <!-- Email registration form (keeps main.js selectors intact) -->
-            <form id="beta-form" onsubmit="handleRegistration(event)" novalidate>
-                <div class="form-group">
-                    <label for="beta-email" class="visually-hidden" style="position:absolute;left:-9999px;">Email</label>
-                    <input id="beta-email" type="email" class="wo-input input-email" placeholder="tu@email.com" required data-clarity-mask="true" autocomplete="email">
-                </div>
-                <button type="submit" class="wo-btn-primary btn-register btn-register-primary">
-                    REGISTRARSE
-                    <span aria-hidden="true">→</span>
-                </button>
-                <div id="form-message" class="form-message"></div>
-            </form>
-
-            <p class="wo-already wo-mono">
-                ¿YA TIENES CUENTA?
-                <a href="#" onclick="event.preventDefault(); openLoginModal();">INICIA SESIÓN →</a>
+    <aside class="wo-auth-poster" aria-hidden="true">
+        <div class="wo-auth-poster-frame">
+            <span class="wo-marks">
+                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+            </span>
+            <p class="wo-auth-poster-title">
+                <span class="line">Tu próximo</span>
+                <span class="line hl-blue">Proyecto</span>
+                <span class="line hl-yellow">Está acá</span>
             </p>
+        </div>
+    </aside>
 
-            <p class="wo-terms">
-                <span class="terms-desktop">
-                    AL CONTINUAR ACEPTAS LOS <a href="/legal/terms" target="_blank" rel="noopener">T&Eacute;RMINOS</a>
-                    Y LA <a href="/legal/privacy" target="_blank" rel="noopener">POL&Iacute;TICA</a>.
+    <main class="wo-auth-panel" id="register-content" tabindex="-1">
+        <div class="wo-auth-panel-inner">
+
+            <a class="wo-auth-brand" href="/" aria-label="We Ötzi — inicio">
+                <span class="wo-marks" aria-hidden="true">
+                    <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
                 </span>
-                <span class="terms-full">
-                    AL CONTINUAR ACEPTAS LOS <a href="/legal/terms" target="_blank" rel="noopener">T&Eacute;RMINOS</a>
-                    Y LA <a href="/legal/privacy" target="_blank" rel="noopener">POL&Iacute;TICA DE PRIVACIDAD</a>.
-                </span>
-                <span class="terms-mobile">
-                    <a href="/legal/terms" target="_blank" rel="noopener">T&Eacute;RMINOS</a>
-                    &middot;
-                    <a href="/legal/privacy" target="_blank" rel="noopener">PRIVACIDAD</a>
-                </span>
-            </p>
-        </section>
+                <span class="wo-auth-brand-name">We Ötzi</span>
+            </a>
+
+            <div class="wo-auth-view">
+                <p class="wo-eyebrow">Acceso anticipado · beta cerrada</p>
+                <h1 class="wo-auth-title">Creá tu cuenta</h1>
+                <p class="wo-auth-copy">Empezá hoy como artista.</p>
+
+                <!-- El flujo de beta captura solo el email: crea/reanuda el borrador
+                     y deriva al wizard /register-artist, donde se completan nombre,
+                     ciudad, estilo y contraseña. -->
+                <form id="beta-form" class="wo-auth-form" onsubmit="handleRegistration(event)">
+                    <div class="wo-field">
+                        <label class="wo-label" for="beta-email">Email <span class="req">*</span></label>
+                        <input id="beta-email" type="email" class="wo-input input-email" placeholder="vos@email.com"
+                            required autocomplete="email" data-clarity-mask="true">
+                    </div>
+
+                    <label class="wo-check wo-beta-terms" for="beta-terms">
+                        <input type="checkbox" id="beta-terms" required>
+                        <span>Acepto los <a href="/legal/terms" target="_blank" rel="noopener">términos y condiciones</a>
+                            y la <a href="/legal/privacy" target="_blank" rel="noopener">política de privacidad</a></span>
+                    </label>
+
+                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard btn-register btn-register-primary">
+                        <span class="btn-text">Registrarme</span>
+                        <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                    </button>
+
+                    <div id="form-message" class="form-message" role="status"></div>
+                </form>
+
+                <div class="wo-auth-or" role="separator">O continuá con</div>
+
+                <div class="wo-auth-social">
+                    <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><i data-wo-icon="star" aria-hidden="true"></i>Recomendado</span>
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard social-btn"
+                        onclick="handleSocialLogin('google')" aria-label="Continuar con Google">
+                        <svg class="wo-auth-google-g" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path>
+                        </svg>
+                        <span class="btn-text">Google</span>
+                    </button>
+                </div>
+
+                <p class="wo-meta wo-beta-haveaccount">¿Ya tenés cuenta?
+                    <a href="#" onclick="event.preventDefault(); openLoginModal();">Ingresá</a>
+                </p>
+            </div>
+
+        </div>
     </main>
 
-    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
+</div>
 
-    <script src="/shared/js/artist-auth.js"></script>
-    <script src="/shared/js/bauhaus-footer.js"></script>
-    <script src="/shared/js/artist-registration-progress.js"></script>
-    <script src="/shared/js/instagram-import.js"></script>
-    <script src="/shared/js/main.js"></script>
-    <script src="/shared/js/header-effects.js"></script>
+<!-- =====================================================
+     LOGIN · vista existente (main.js: openLoginModal deriva
+     a /artist/login; el markup queda para handleLogin y
+     closeLoginModal, que lo referencian sin guardas)
+     ===================================================== -->
+<div id="login-modal" class="wo-overlay modal-overlay" onclick="closeLoginModalOnOverlay(event)">
+    <div class="wo-modal wo-beta-modal">
+        <button class="wo-iconbtn wo-iconbtn--s wo-beta-modal-close" type="button" onclick="closeLoginModal()" aria-label="Cerrar">
+            <i data-wo-icon="x" aria-hidden="true"></i>
+        </button>
+        <h2 class="wo-modal-title">Iniciá sesión</h2>
+        <p class="wo-auth-copy">Accedé a tu cuenta de artista.</p>
+        <form id="login-form" class="wo-auth-form" onsubmit="handleLogin(event)">
+            <div class="wo-field">
+                <label class="wo-label" for="login-email">Email</label>
+                <input type="email" id="login-email" class="wo-input" placeholder="vos@email.com" required
+                    autocomplete="email" data-clarity-mask="true">
+            </div>
+            <div class="wo-field">
+                <label class="wo-label" for="login-password">Contraseña</label>
+                <input type="password" id="login-password" class="wo-input" placeholder="••••••••" required
+                    autocomplete="current-password" data-clarity-mask="true">
+            </div>
+            <div id="login-message" class="form-message" role="status"></div>
+            <button type="submit" class="wo-btn wo-btn--block wo-btn--hard btn-modal-submit">
+                <span class="btn-text">Entrar</span>
+                <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+            </button>
+        </form>
+        <p class="wo-meta wo-beta-modal-link"><a href="#" onclick="handlePasswordRecovery(event); return false;">Olvidé mi contraseña</a></p>
+        <p class="wo-meta wo-beta-modal-link">¿Sin cuenta? <a href="#" onclick="closeLoginModal(); return false;">Registrate arriba</a></p>
+    </div>
+</div>
 
-    <script>
-        // --- Mobile drawer toggle (local, no shared dependency) ---
-        function toggleWoDrawer(forceState) {
-            const drawer = document.getElementById('wo-drawer');
-            const burger = document.getElementById('dashboard-mobile-menu-toggle');
-            if (!drawer || !burger) return;
-            const isOpen = drawer.classList.contains('open');
-            const shouldOpen = typeof forceState === 'boolean' ? forceState : !isOpen;
-            drawer.classList.toggle('open', shouldOpen);
-            drawer.setAttribute('aria-hidden', String(!shouldOpen));
-            burger.setAttribute('aria-expanded', String(shouldOpen));
-        }
-        window.toggleWoDrawer = toggleWoDrawer;
-        document.addEventListener('click', (e) => {
-            const drawer = document.getElementById('wo-drawer');
-            const burger = document.getElementById('dashboard-mobile-menu-toggle');
-            if (!drawer || !burger) return;
-            if (!drawer.classList.contains('open')) return;
-            if (drawer.contains(e.target) || burger.contains(e.target)) return;
-            toggleWoDrawer(false);
-        });
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 600) toggleWoDrawer(false);
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') toggleWoDrawer(false);
-        });
-    </script>
+<script src="/shared/js/artist-auth.js"></script>
+<script src="/shared/js/artist-registration-progress.js"></script>
+<script src="/shared/js/instagram-import.js"></script>
+<script src="/shared/js/main.js"></script>
 
 </body>
 
