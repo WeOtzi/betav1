@@ -13,7 +13,10 @@ function read(relativePath) {
 }
 
 function missingLabels(source) {
-    return expandedStyleLabels.filter((label) => !source.includes(`label: '${label}'`));
+    // El catálogo puede vivir como objetos ({ label: 'X' }) o como array plano de strings ('X').
+    return expandedStyleLabels.filter(
+        (label) => !source.includes(`label: '${label}'`) && !source.includes(`'${label}'`)
+    );
 }
 
 [
