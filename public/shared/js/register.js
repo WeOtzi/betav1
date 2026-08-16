@@ -1012,13 +1012,16 @@ async function initializeAuth() {
         updatePreAuthFieldsVisibility();
         updateUI();
 
-        // IG-signup users: jump to the dedicated Step 0 (which is hidden by
-        // default for everyone else). Others follow the normal resume logic.
+        // IG-signup users: jump to the dedicated IG screen (oculta para el
+        // resto). Others follow the normal resume logic. El render inicial
+        // del acordeón siempre pasa por goToStep().
         const targetStep = igSignup && !startOverRequested ? 0 : resumeStep;
         if (targetStep === 0) {
             goToStep(0);
-        } else if (targetStep > 1 && targetStep <= formState.totalSteps) {
+        } else if (Number.isInteger(targetStep) && targetStep > 1 && targetStep <= formState.totalSteps) {
             goToStep(targetStep);
+        } else {
+            goToStep(1);
         }
 
         persistRegistrationDraft();
@@ -1187,10 +1190,11 @@ async function loadAndRenderStylesFromDB() {
 
     grid.innerHTML = '';
 
-    parentStyles.forEach(style => {
+    // El Figma muestra 5 chips y un "VER MÁS ESTILOS" que despliega el resto.
+    parentStyles.forEach((style, idx) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'style-option';
+        btn.className = idx < STYLES_VISIBLE_COUNT ? 'style-option' : 'style-option is-extra';
         btn.dataset.style = style.name;
         btn.textContent = style.name;
         grid.appendChild(btn);
@@ -1198,11 +1202,23 @@ async function loadAndRenderStylesFromDB() {
 
     const otherBtn = document.createElement('button');
     otherBtn.type = 'button';
-    otherBtn.className = 'style-option style-option-other';
+    otherBtn.className = 'style-option style-option-other is-extra';
     otherBtn.dataset.style = 'Otro';
     otherBtn.id = 'style-other-btn';
     otherBtn.textContent = '+ Otro';
     grid.appendChild(otherBtn);
+
+    syncStylesMoreButton();
+}
+
+const STYLES_VISIBLE_COUNT = 5;
+
+function syncStylesMoreButton() {
+    const grid = document.getElementById('styles-grid');
+    const moreBtn = document.getElementById('styles-more-btn');
+    if (!grid || !moreBtn) return;
+    const hasExtras = grid.querySelectorAll('.style-option.is-extra').length > 0;
+    moreBtn.hidden = !hasExtras || grid.classList.contains('is-expanded');
 }
 
 function prefillFormInputs() {
@@ -1212,13 +1228,8 @@ function prefillFormInputs() {
     document.querySelectorAll('.experience-option').forEach(btn => btn.classList.remove('selected'));
     document.querySelectorAll('.work-type-option').forEach(btn => btn.classList.remove('selected'));
     document.querySelectorAll('.newsletter-option').forEach(btn => btn.classList.remove('selected'));
-    document.querySelectorAll('.portfolio-source-option').forEach(btn => btn.classList.remove('selected'));
     const studioNameWrapperReset = document.getElementById('studio-name-wrapper');
     if (studioNameWrapperReset) studioNameWrapperReset.style.display = 'none';
-    const portfolioUrlWrapper = document.getElementById('portfolio-url-wrapper');
-    const portfolioIgWrapper = document.getElementById('portfolio-ig-wrapper');
-    if (portfolioUrlWrapper) portfolioUrlWrapper.style.display = 'none';
-    if (portfolioIgWrapper) portfolioIgWrapper.style.display = 'none';
 
     const fieldMappings = {
         'artistic_name': data.artistic_name,
@@ -1314,23 +1325,28 @@ function prefillFormInputs() {
         if (newsletterBtn) {
             newsletterBtn.classList.add('selected');
         }
+        // El boolean del esquema no distingue temas: al reanudar un borrador
+        // suscripto se marcan los cuatro; si no, quedan todos sin tildar.
+        document.querySelectorAll('.newsletter-topic-input').forEach((box) => {
+            box.checked = data.subscribed_newsletter === true;
+        });
     }
 
-    if (data.portfolio_source) {
-        const sourceBtn = document.querySelector(`.portfolio-source-option[data-source="${data.portfolio_source}"]`);
-        if (sourceBtn) {
-            sourceBtn.classList.add('selected');
-            selectPortfolioSource(sourceBtn);
-        }
-        if ((data.portfolio_source === 'website' || data.portfolio_source === 'other') && data.portfolio_url) {
-            const urlInput = document.getElementById('portfolio_url');
-            if (urlInput) urlInput.value = data.portfolio_url;
-        }
-        if (data.portfolio_source === 'instagram' && data.instagram_handle) {
-            const igInput = document.getElementById('instagram_handle');
-            if (igInput) igInput.value = data.instagram_handle;
-        }
+    // Enlaces del grupo "Tu presencia"
+    const igInput = document.getElementById('instagram_handle');
+    if (igInput && data.instagram_handle) igInput.value = data.instagram_handle;
+    const linkUrl = data.portfolio_url || '';
+    const otherInput = document.getElementById('other_url');
+    const siteInput = document.getElementById('portfolio_url');
+    if (linkUrl && data.portfolio_source === 'other') {
+        if (otherInput) otherInput.value = linkUrl;
+    } else if (linkUrl && data.portfolio_source !== 'none') {
+        if (siteInput) siteInput.value = linkUrl;
     }
+
+    prefillBirthDateInput();
+    prefillBioTextarea();
+    syncAddressHardState();
 
     const termsCheckbox = document.getElementById('terms-checkbox');
     if (termsCheckbox) {
@@ -1394,12 +1410,6 @@ function initializeForm() {
         btn.addEventListener('click', () => selectWorkTypeOption(btn));
     });
 
-    // Portfolio source options (single-select)
-    const portfolioSourceButtons = document.querySelectorAll('.portfolio-source-option');
-    portfolioSourceButtons.forEach(btn => {
-        btn.addEventListener('click', () => selectPortfolioSource(btn));
-    });
-
     // Newsletter options (single-select)
     const newsletterButtons = document.querySelectorAll('.newsletter-option');
     newsletterButtons.forEach(btn => {
@@ -1434,9 +1444,10 @@ function initializeForm() {
         termsCheckbox.addEventListener('change', (e) => {
             formState.data.terms_accepted = e.target.checked;
             persistRegistrationDraft();
+            refreshGroupGate();
         });
     }
-    setupSummaryReviewModal();
+    setupGroupUI();
 
     document.querySelectorAll('[data-password-toggle]').forEach(btn => {
         if (btn.dataset.bound === 'true') return;
@@ -1472,11 +1483,14 @@ function setupEventListeners() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             const activeElement = document.activeElement;
-            // Exclude textarea AND contenteditable elements (e.g. bio editor)
-            if (activeElement.tagName !== 'TEXTAREA' && !activeElement.isContentEditable) {
-                e.preventDefault();
-                handleNext();
-            }
+            if (!activeElement) return;
+            // Excluye textarea, contenteditable y controles que ya manejan
+            // Enter por su cuenta (chips, toggles, selects, links).
+            const tag = activeElement.tagName;
+            if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'A') return;
+            if (activeElement.isContentEditable) return;
+            e.preventDefault();
+            handleNext();
         }
     });
 
@@ -1940,6 +1954,8 @@ function ensureAddressPicker() {
                 updateStudioAddressPreview(getDisplayAddress(address));
             }
             persistRegistrationDraft();
+            syncAddressHardState();
+            refreshGroupGate();
         }
     });
     return addressPickerInstance;
@@ -1953,14 +1969,14 @@ function applyAddressPickerVisibility(workType) {
 
     if (workType === 'studio' || workType === 'both') {
         wrapper.style.display = 'block';
-        if (label) label.textContent = 'Dirección del estudio';
-        if (help)  help.textContent = 'Buscá la dirección y elegila de las sugerencias para que el mapa la ubique con precisión.';
+        if (label) label.textContent = 'Tu dirección';
+        if (help)  help.textContent = 'Buscá la dirección del estudio y elegí una sugerencia para ubicarla con precisión.';
         ensureAddressPicker();
         syncAddressDetailsVisibility();
     } else if (workType === 'independent') {
         wrapper.style.display = 'block';
-        if (label) label.textContent = 'Dirección donde recibís clientes';
-        if (help)  help.textContent = 'Como artista independiente, indicá la dirección de tu espacio de trabajo (estudio propio, casa, etc.).';
+        if (label) label.textContent = 'Tu dirección';
+        if (help)  help.textContent = 'Indicá la dirección de tu espacio de trabajo: estudio propio, casa o donde recibís clientes.';
         ensureAddressPicker();
         syncAddressDetailsVisibility();
     } else {
@@ -1987,8 +2003,8 @@ function scrollWorkTypeFollowupIntoView(workType) {
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         if (isMobile) {
-            const step = target.closest('.form-step');
-            const scroller = step?.querySelector('.wo-form-col') || step;
+            const step = target.closest('.ra-panel');
+            const scroller = step || null;
             if (scroller && typeof scroller.scrollTo === 'function') {
                 const scrollerRect = scroller.getBoundingClientRect();
                 const targetRect = target.getBoundingClientRect();
@@ -2065,6 +2081,9 @@ function selectNewsletterOption(btn) {
 function setNewsletterSelectionError(show) {
     const options = document.getElementById('newsletter-options');
     const error = document.getElementById('newsletter-error');
+    const topics = document.getElementById('newsletter-topics');
+
+    if (topics) topics.classList.toggle('has-error', show);
 
     if (options) {
         options.classList.toggle('has-error', show);
@@ -2890,114 +2909,573 @@ function mountIGImportInRegister() {
     _igImportMounted = true;
 }
 
-function selectPortfolioSource(btn) {
-    document.querySelectorAll('.portfolio-source-option').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    const source = btn.dataset.source;
-    formState.data.portfolio_source = source;
+// ============================================
+// Grupos del registro (acordeón de una sola página)
+// ============================================
+// El diseño es un acordeón de 7 grupos en una única página: los completados
+// colapsan a una fila resumen y el activo muestra sus campos. Internamente
+// se conserva la numeración de pasos histórica (formState.currentStep) —
+// el borrador local/remoto, el resume y los endpoints la consumen— y cada
+// grupo agrupa uno o más de esos pasos.
+const REGISTRATION_GROUPS = [
+    { id: 'quien',     num: '01', nav: 'Quién sos',     steps: [1, 2, 10] },
+    { id: 'acceso',    num: '02', nav: 'Tu acceso',     steps: [3] },
+    { id: 'oficio',    num: '03', nav: 'Tu oficio',     steps: [4, 5, 6] },
+    { id: 'presencia', num: '04', nav: 'Tu presencia',  steps: [8, 7] },
+    { id: 'trabajo',   num: '05', nav: 'Cómo trabajás', steps: [9] },
+    { id: 'novedades', num: '06', nav: 'Novedades',     steps: [11] },
+    { id: 'revision',  num: '07', nav: 'Revisión',      steps: ['summary'] }
+];
+const GROUP_IDS = REGISTRATION_GROUPS.map(group => group.id);
+const groupDoneState = new Set();
+let activeGroupId = 'quien';
+let groupsFirstRender = true;
 
-    const urlWrapper = document.getElementById('portfolio-url-wrapper');
-    const igWrapper = document.getElementById('portfolio-ig-wrapper');
-    const urlLabel = document.getElementById('portfolio-url-label');
-    const urlInput = document.getElementById('portfolio_url');
+const EXPERIENCE_LABELS = {
+    '0-1': 'Menos de 1 año',
+    '1-3': '1-3 años',
+    '3-5': '3-5 años',
+    '5-10': '5-10 años',
+    '10+': '10+ años'
+};
+
+function experienceLabel(value) {
+    if (!value) return '';
+    return EXPERIENCE_LABELS[value] || value;
+}
+
+function groupIndex(groupId) {
+    return GROUP_IDS.indexOf(groupId);
+}
+
+function groupForStep(step) {
+    const found = REGISTRATION_GROUPS.find(group => group.steps.includes(step));
+    return found ? found.id : null;
+}
+
+function groupEntryStep(groupId) {
+    const group = REGISTRATION_GROUPS[groupIndex(groupId)];
+    return group ? group.steps[0] : 1;
+}
+
+function isScreenStep(step) {
+    return step === 'saving' || step === 'success';
+}
+
+function setGroupError(groupId, message) {
+    const section = document.querySelector(`.ra-group[data-group="${groupId}"]`);
+    const box = section ? section.querySelector('[data-group-error]') : null;
+    if (!box) return;
+    box.textContent = message || '';
+    box.hidden = !message;
+}
+
+// ---------- Fecha de nacimiento (campo único dd/mm/aaaa) ----------
+// El Figma muestra un único campo; los 3 selects legacy se conservan
+// ocultos y sincronizados porque register.js los sigue leyendo.
+function readBirthDateInput() {
+    const input = document.getElementById('birth_date');
+    const raw = String((input ? input.value : '') || formState.data.birth_date || '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function isAdultBirthDate(iso) {
+    if (!iso) return false;
+    const [y, m, d] = iso.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getDate() !== d || date.getMonth() !== m - 1 || date.getFullYear() !== y) return false;
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    const monthDiff = today.getMonth() - (m - 1);
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) age--;
+    return age >= 18;
+}
+
+function syncBirthDateFromInput() {
+    const iso = readBirthDateInput();
+    formState.data.birth_date = iso;
+
+    const daySel = document.getElementById('birth_day');
+    const monthSel = document.getElementById('birth_month');
+    const yearSel = document.getElementById('birth_year');
+    if (!daySel || !monthSel || !yearSel) return;
+    if (!iso) {
+        daySel.value = '';
+        monthSel.value = '';
+        yearSel.value = '';
+        return;
+    }
+    const [y, m, d] = iso.split('-');
+    daySel.value = String(parseInt(d, 10));
+    monthSel.value = String(parseInt(m, 10));
+    yearSel.value = String(parseInt(y, 10));
+}
+
+function prefillBirthDateInput() {
+    const input = document.getElementById('birth_date');
+    if (input && /^\d{4}-\d{2}-\d{2}$/.test(String(formState.data.birth_date || ''))) {
+        input.value = formState.data.birth_date;
+    }
+}
+
+// ---------- Enlaces del artista (grupo 04) ----------
+// artists_db guarda un único enlace (`portafolio`) más `instagram`: el sitio
+// web tiene prioridad sobre "otro" cuando ambos vienen cargados.
+function saveLinkFields() {
     const igInput = document.getElementById('instagram_handle');
+    const siteInput = document.getElementById('portfolio_url');
+    const otherInput = document.getElementById('other_url');
+    const handle = igInput ? igInput.value.trim().replace(/^@/, '') : String(formState.data.instagram_handle || '');
+    const site = siteInput ? siteInput.value.trim() : '';
+    const other = otherInput ? otherInput.value.trim() : '';
 
-    urlWrapper.style.display = 'none';
-    igWrapper.style.display = 'none';
+    formState.data.instagram_handle = handle;
+    formState.data.portfolio_url = site || other;
+    if (handle) formState.data.portfolio_source = 'instagram';
+    else if (site) formState.data.portfolio_source = 'website';
+    else if (other) formState.data.portfolio_source = 'other';
+    else formState.data.portfolio_source = 'none';
+}
 
-    if (source === 'website') {
-        urlWrapper.style.display = 'block';
-        urlLabel.textContent = 'URL de tu sitio web';
-        urlInput.placeholder = 'https://tusitio.com';
-        setTimeout(() => urlInput.focus(), 100);
-    } else if (source === 'instagram') {
-        igWrapper.style.display = 'block';
-        setTimeout(() => igInput.focus(), 100);
-        mountIGImportInRegister();
-        // Show portfolio media section so the user can preview imports
-        // and / or add photos from their device.
-        renderPortfolioMediaGrid();
-        renderPortfolioMediaModalGrid();
-    } else if (source === 'other') {
-        urlWrapper.style.display = 'block';
-        urlLabel.textContent = 'URL de tu portfolio o trabajo';
-        urlInput.placeholder = 'https://...';
-        setTimeout(() => urlInput.focus(), 100);
+// ---------- Presentación (textarea del grupo 04) ----------
+function syncBioFromTextarea() {
+    const textarea = document.getElementById('bio_text');
+    if (!textarea) {
+        syncBioContent({ normalizeEditor: true });
+        return;
+    }
+    const html = String(textarea.value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    const safe = window.BioFormatting ? window.BioFormatting.sanitizeBioHtml(html) : html;
+    formState.data.bio = textarea.value.trim() ? safe : '';
+    const legacyEditor = document.getElementById('bio');
+    if (legacyEditor) legacyEditor.innerHTML = formState.data.bio;
+    persistRegistrationDraft();
+}
+
+function bioPlainText(bioHtml, limit) {
+    const raw = String(bioHtml || '');
+    if (!raw.trim()) return '';
+    const plain = window.BioFormatting
+        ? window.BioFormatting.bioHtmlToPlainText(raw)
+        : raw.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '');
+    const text = String(plain || '').replace(/\s+/g, ' ').trim();
+    if (!limit || text.length <= limit) return text;
+    return text.slice(0, limit).trimEnd() + '…';
+}
+
+function prefillBioTextarea() {
+    const textarea = document.getElementById('bio_text');
+    if (!textarea || textarea.value.trim()) return;
+    const plain = bioPlainText(formState.data.bio);
+    if (plain) textarea.value = plain;
+}
+
+// ---------- Gate de cada grupo ----------
+// CONTINUAR queda deshabilitado hasta que los requeridos del grupo estén
+// completos. Es una lectura pura: no escribe estado ni feedback.
+function isGroupReady(groupId) {
+    const data = formState.data;
+    switch (groupId) {
+        case 'quien': {
+            const artisticInput = document.getElementById('artistic_name');
+            const artistic = artisticInput ? artisticInput.value : data.artistic_name;
+            if (normalizeArtistHandle(artistic).length < 3) return false;
+            const availability = window.__weotziUsernameAvailability;
+            if (availability && availability.state === 'taken') return false;
+            if (availability && availability.state === 'invalid') return false;
+            const fullNameInput = document.getElementById('full_name');
+            const fullName = fullNameInput ? fullNameInput.value : data.full_name;
+            if (!String(fullName || '').trim()) return false;
+            return isAdultBirthDate(readBirthDateInput());
+        }
+        case 'acceso': {
+            const emailInput = document.getElementById('email');
+            const email = String((emailInput ? emailInput.value : data.email) || '').trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+            if (!formState.preAuthMode) return true;
+            const pw = String(document.getElementById('signup_password')?.value || '');
+            const pw2 = String(document.getElementById('signup_password_confirm')?.value || '');
+            if (!evaluatePasswordStrength(pw).valid) return false;
+            return pw === pw2;
+        }
+        case 'oficio':
+            return Array.isArray(data.styles) && data.styles.length > 0 && Boolean(data.experience_years);
+        case 'presencia':
+            return true;
+        case 'trabajo': {
+            if (!data.work_type) return false;
+            if (data.work_type !== 'independent') {
+                const studioInput = document.getElementById('studio_name');
+                const studio = studioInput ? studioInput.value : data.studio_name;
+                if (!String(studio || '').trim()) return false;
+            }
+            return Boolean(getRegistrationCity());
+        }
+        case 'novedades':
+            return true;
+        case 'revision':
+            return Boolean(document.getElementById('terms-checkbox')?.checked);
+        default:
+            return true;
+    }
+}
+
+function refreshGroupGate() {
+    document.querySelectorAll('.ra-continue[data-continue]').forEach((btn) => {
+        btn.disabled = !isGroupReady(btn.dataset.continue);
+    });
+}
+window.raRefreshGroupGate = refreshGroupGate;
+
+// ---------- Novedades ----------
+// El esquema guarda un único boolean (`subscribed_newsletter`): los 4 temas
+// del Figma se agregan en esa preferencia. Arranca en null (sin default) y
+// sólo se resuelve cuando el artista confirma el grupo.
+function commitNewsletterSelection() {
+    const boxes = Array.from(document.querySelectorAll('.newsletter-topic-input'));
+    if (!boxes.length) return;
+    const anyChecked = boxes.some(box => box.checked);
+    formState.data.subscribed_newsletter = anyChecked;
+    document.querySelectorAll('.newsletter-option').forEach((btn) => {
+        btn.classList.toggle('selected', (btn.dataset.subscribe === 'true') === anyChecked);
+    });
+    setNewsletterSelectionError(false);
+}
+
+// ---------- Cableado del acordeón ----------
+let _groupUIWired = false;
+function setupGroupUI() {
+    if (_groupUIWired) return;
+    _groupUIWired = true;
+
+    document.addEventListener('click', (event) => {
+        const continueBtn = event.target.closest('.ra-continue[data-continue]');
+        if (continueBtn) {
+            event.preventDefault();
+            if (!continueBtn.disabled) {
+                activeGroupId = continueBtn.dataset.continue;
+                completeActiveGroup();
+            }
+            return;
+        }
+        const editBtn = event.target.closest('[data-edit-group]');
+        if (editBtn) {
+            event.preventDefault();
+            editGroup(editBtn.dataset.editGroup);
+            return;
+        }
+        const navBtn = event.target.closest('.ra-nav-item[data-nav-group]');
+        if (navBtn && !navBtn.disabled) {
+            event.preventDefault();
+            editGroup(navBtn.dataset.navGroup);
+        }
+    });
+
+    // Refresco del gate ante cualquier interacción del formulario.
+    document.addEventListener('input', refreshGroupGate);
+    document.addEventListener('change', refreshGroupGate);
+    document.addEventListener('click', () => { refreshGroupGate(); });
+
+    // "Ver más estilos" — el resto de los chips del grupo 03.
+    const moreStylesBtn = document.getElementById('styles-more-btn');
+    const stylesGrid = document.getElementById('styles-grid');
+    if (moreStylesBtn && stylesGrid) {
+        moreStylesBtn.addEventListener('click', () => {
+            stylesGrid.classList.add('is-expanded');
+            moreStylesBtn.setAttribute('aria-expanded', 'true');
+            moreStylesBtn.hidden = true;
+        });
     }
 
-    persistRegistrationDraft();
+    // Toggles de "¿Dónde mostrás tu trabajo?"
+    document.querySelectorAll('.link-toggle').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const active = !chip.classList.contains('is-active');
+            chip.classList.toggle('is-active', active);
+            chip.setAttribute('aria-pressed', String(active));
+            const field = document.querySelector(`[data-link-field="${chip.dataset.link}"]`);
+            if (!field) return;
+            field.hidden = !active;
+            if (!active) {
+                const input = field.querySelector('input');
+                if (input) input.value = '';
+                saveLinkFields();
+                persistRegistrationDraft();
+            }
+        });
+    });
+
+    // Novedades (4 temas → boolean del esquema)
+    document.querySelectorAll('.newsletter-topic-input').forEach((box) => {
+        box.addEventListener('change', () => {
+            commitNewsletterSelection();
+            persistRegistrationDraft();
+        });
+    });
+
+    // Fecha de nacimiento: campo único espejado a los selects legacy.
+    const birthInput = document.getElementById('birth_date');
+    if (birthInput) {
+        birthInput.addEventListener('change', () => {
+            syncBirthDateFromInput();
+            persistRegistrationDraft();
+        });
+    }
+
+    // Presentación (textarea del grupo 04)
+    const bioTextarea = document.getElementById('bio_text');
+    if (bioTextarea) {
+        bioTextarea.addEventListener('input', () => syncBioFromTextarea());
+    }
+
+    // Dirección: sombra dura cuando el campo tiene valor.
+    syncAddressHardState();
+    const addressInput = document.getElementById('address_search');
+    if (addressInput) {
+        addressInput.addEventListener('input', syncAddressHardState);
+        addressInput.addEventListener('change', syncAddressHardState);
+    }
+}
+
+function syncAddressHardState() {
+    const addressInput = document.getElementById('address_search');
+    if (!addressInput) return;
+    addressInput.classList.toggle('has-value', Boolean(String(addressInput.value || '').trim()));
+}
+
+// ---------- Valor de la fila resumen de cada grupo ----------
+function workSummaryValue() {
+    const data = formState.data;
+    let modality = '';
+    if (data.work_type === 'independent') modality = 'Independiente';
+    else if (data.work_type === 'studio') modality = data.studio_name ? `Estudio ${data.studio_name}` : 'Un estudio';
+    else if (data.work_type === 'both') modality = data.studio_name ? `Ambos · ${data.studio_name}` : 'Ambos';
+    const address = getDisplayAddress(data.address) || getRegistrationCity();
+    return [modality, address].filter(Boolean).join(' · ');
+}
+
+function newsletterSummaryValue() {
+    const total = document.querySelectorAll('.newsletter-topic-input').length || 4;
+    const active = document.querySelectorAll('.newsletter-topic-input:checked').length;
+    return `${active} de ${total} activadas`;
+}
+
+function groupSummaryValue(groupId) {
+    const data = formState.data;
+    switch (groupId) {
+        case 'quien':
+            return data.artistic_name || '—';
+        case 'acceso':
+            return data.email || '—';
+        case 'oficio': {
+            const parts = [...(data.styles || [])];
+            const experience = experienceLabel(data.experience_years);
+            if (experience) parts.push(experience);
+            return parts.length ? parts.join(' · ') : '—';
+        }
+        case 'presencia':
+            return bioPlainText(data.bio, 60) || 'Sin presentación';
+        case 'trabajo':
+            return workSummaryValue() || '—';
+        case 'novedades':
+            return newsletterSummaryValue();
+        default:
+            return '—';
+    }
+}
+
+// ---------- Render del acordeón ----------
+function renderShell() {
+    const step = formState.currentStep;
+    const isSaving = step === 'saving';
+    const isSuccess = step === 'success';
+    const isIgScreen = step === 0;
+
+    const groupsEl = document.getElementById('ra-groups');
+    const introEl = document.getElementById('ra-intro');
+    const savingEl = document.getElementById('ra-saving');
+    const successEl = document.getElementById('ra-success');
+    const navEl = document.getElementById('ra-nav');
+
+    if (savingEl) savingEl.hidden = !isSaving;
+    if (successEl) successEl.hidden = !isSuccess;
+    if (groupsEl) groupsEl.hidden = isSaving || isSuccess;
+    if (introEl) introEl.hidden = isSaving || isSuccess || isIgScreen;
+    if (navEl) navEl.hidden = isSaving;
+}
+
+function updateGroupNav() {
+    const step = formState.currentStep;
+    const locked = isScreenStep(step);
+    document.querySelectorAll('.ra-nav-item').forEach((item) => {
+        const id = item.dataset.navGroup;
+        const isActive = !locked && id === activeGroupId;
+        const isDone = groupDoneState.has(id) && !isActive;
+        item.classList.toggle('is-done', isDone);
+        item.classList.toggle('is-active', isActive || (step === 'success' && id === 'revision'));
+        item.disabled = locked || !isDone;
+    });
+}
+
+function renderGroups() {
+    const step = formState.currentStep;
+    const igSection = document.querySelector('.ra-group[data-group="ig"]');
+    if (igSection) igSection.hidden = step !== 0;
+
+    REGISTRATION_GROUPS.forEach((group) => {
+        const section = document.querySelector(`.ra-group[data-group="${group.id}"]`);
+        if (!section) return;
+        const isActive = !isScreenStep(step) && step !== 0 && group.id === activeGroupId;
+        const isDone = groupDoneState.has(group.id) && !isActive;
+        const row = section.querySelector('.ra-row');
+        const panel = section.querySelector('.ra-panel');
+
+        section.hidden = !isActive && !isDone;
+        if (row) {
+            row.hidden = !isDone;
+            const valueEl = row.querySelector('[data-row-value]');
+            if (valueEl && isDone) valueEl.textContent = groupSummaryValue(group.id);
+        }
+        if (panel) panel.hidden = !isActive;
+    });
+
+    updateGroupNav();
+    refreshGroupGate();
+}
+
+function focusActiveGroup() {
+    if (groupsFirstRender) return;
+    const panel = document.querySelector(`.ra-group[data-group="${activeGroupId}"] .ra-panel`);
+    if (!panel || panel.hidden) return;
+    const target = panel.querySelector('input:not([type="hidden"]):not([disabled]), textarea, select, button');
+    if (target) setTimeout(() => { try { target.focus({ preventScroll: true }); } catch (_) { target.focus(); } }, 80);
+}
+
+function scrollActiveGroupIntoView() {
+    if (groupsFirstRender) return;
+    const panel = document.querySelector(`.ra-group[data-group="${activeGroupId}"] .ra-panel`);
+    if (!panel || panel.hidden) return;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panel.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
 }
 
 // ============================================
 // Navigation
 // ============================================
 
-function handleNext() {
-    if (formState.currentStep === 'summary') {
+// goToStep se conserva como API interna (submitForm, resume del borrador,
+// import de Instagram y saltos desde la revisión la usan); ahora resuelve el
+// grupo dueño del paso y re-renderiza el acordeón.
+function goToStep(step) {
+    formState.currentStep = step;
+
+    if (!isScreenStep(step) && step !== 0) {
+        const groupId = groupForStep(step);
+        if (groupId) activeGroupId = groupId;
+        const activeIdx = groupIndex(activeGroupId);
+        REGISTRATION_GROUPS.forEach((group, idx) => {
+            if (idx < activeIdx) groupDoneState.add(group.id);
+        });
+    }
+
+    persistRegistrationDraft();
+
+    if (step === 'summary') populateSummary();
+
+    renderShell();
+    renderGroups();
+    updateUI();
+    focusActiveGroup();
+    scrollActiveGroupIntoView();
+    groupsFirstRender = false;
+}
+
+function editGroup(groupId) {
+    if (!GROUP_IDS.includes(groupId)) return;
+    groupDoneState.delete(groupId);
+    goToStep(groupEntryStep(groupId));
+}
+
+function completeActiveGroup() {
+    const group = REGISTRATION_GROUPS[groupIndex(activeGroupId)];
+    if (!group) return;
+
+    if (group.id === 'revision') {
         submitForm();
         return;
     }
 
-    if (formState.currentStep === 'success' || formState.currentStep === 'saving') {
-        return;
+    const entryStep = group.steps[0];
+    for (const step of group.steps) {
+        formState.currentStep = step;
+        if (!validateStep(step)) {
+            formState.currentStep = entryStep;
+            renderGroups();
+            return;
+        }
+        saveStepData(step);
     }
 
-    if (!validateCurrentStep()) {
-        return;
-    }
+    setGroupError(group.id, '');
+    groupDoneState.add(group.id);
+    const next = REGISTRATION_GROUPS.find(candidate => !groupDoneState.has(candidate.id));
+    goToStep(next ? groupEntryStep(next.id) : 'summary');
+}
 
-    saveCurrentStepData();
-
-    if (formState.currentStep < formState.totalSteps) {
-        goToStep(formState.currentStep + 1);
-    } else {
-        goToStep('summary');
-    }
+function handleNext() {
+    const step = formState.currentStep;
+    if (isScreenStep(step)) return;
+    if (step === 0) return; // la pantalla de import IG tiene sus propios botones
+    completeActiveGroup();
 }
 
 function handleBack() {
-    if (formState.currentStep === 'summary') {
-        goToStep(formState.totalSteps);
-        return;
-    }
-    if (formState.currentStep === 'saving' || formState.currentStep === 'success') return;
-
-    if (formState.currentStep > 1) {
-        goToStep(formState.currentStep - 1);
-    }
+    const idx = groupIndex(activeGroupId);
+    if (idx > 0) editGroup(REGISTRATION_GROUPS[idx - 1].id);
 }
 
-function saveCurrentStepData() {
-    const currentStepEl = document.querySelector(`.form-step[data-step="${formState.currentStep}"]`);
-    if (!currentStepEl) return;
-
-    if (formState.currentStep === 7) {
-        const urlInput = document.getElementById('portfolio_url');
-        const igInput = document.getElementById('instagram_handle');
-        const source = formState.data.portfolio_source;
-        if (source === 'website' || source === 'other') {
-            formState.data.portfolio_url = urlInput ? urlInput.value : '';
-        } else if (source === 'instagram') {
-            formState.data.instagram_handle = igInput ? igInput.value.replace(/^@/, '') : '';
-        }
+function saveStepData(step) {
+    if (step === 7) {
+        saveLinkFields();
         persistRegistrationDraft();
         return;
     }
 
-    if (formState.currentStep === 8) {
-        syncBioContent({ normalizeEditor: true });
+    if (step === 8) {
+        syncBioFromTextarea();
         return;
     }
 
-    const input = currentStepEl.querySelector('.form-input');
-    if (input) {
-        if (input.id === 'full_name') {
-            input.value = capitalizeWords(input.value);
+    if (step === 10) {
+        syncBirthDateFromInput();
+        persistRegistrationDraft();
+        return;
+    }
+
+    const FIELD_BY_STEP = { 1: 'artistic_name', 2: 'full_name', 3: 'email', 6: 'session_price' };
+    const fieldId = FIELD_BY_STEP[step];
+    if (fieldId) {
+        const input = document.getElementById(fieldId);
+        if (input) {
+            if (fieldId === 'full_name') input.value = capitalizeWords(input.value);
+            formState.data[fieldId] = input.value;
         }
-        formState.data[input.id] = input.value;
+    }
+    if (step === 6) {
+        formState.data.session_currency = document.getElementById('session_currency')?.value
+            || formState.data.session_currency
+            || 'USD';
     }
 
     persistRegistrationDraft();
+}
+
+function saveCurrentStepData() {
+    saveStepData(formState.currentStep);
 }
 
 // ============================================
@@ -3005,9 +3483,14 @@ function saveCurrentStepData() {
 // ============================================
 
 function validateCurrentStep() {
-    const step = formState.currentStep;
+    return validateStep(formState.currentStep);
+}
+
+function validateStep(step) {
+    const groupId = groupForStep(step) || activeGroupId;
     let isValid = true;
     let errorElement = null;
+    let errorMessage = '';
 
     switch (step) {
         case 1:
@@ -3056,82 +3539,73 @@ function validateCurrentStep() {
         case 4:
             if (formState.data.styles.length === 0) {
                 isValid = false;
-                const grid = document.getElementById('styles-grid');
-                grid.style.animation = 'shake 0.5s ease';
-                setTimeout(() => grid.style.animation = '', 500);
+                errorMessage = 'Elegí al menos un estilo.';
+                shakeElement(document.getElementById('styles-grid'));
             }
             break;
 
         case 5:
             if (!formState.data.experience_years) {
                 isValid = false;
-                const experienceOptions = document.getElementById('experience-options');
-                experienceOptions.style.animation = 'shake 0.5s ease';
-                setTimeout(() => experienceOptions.style.animation = '', 500);
+                errorMessage = 'Elegí hace cuánto tatuás.';
+                shakeElement(document.getElementById('experience-options'));
             }
             break;
 
-        case 6:
+        case 6: {
+            // La tarifa es opcional en el diseño nuevo: sólo se valida el
+            // formato cuando el artista carga un monto.
             const sessionPrice = document.getElementById('session_price');
-            const sessionPriceValue = String(sessionPrice.value || '').trim();
-            if (!sessionPriceValue || parseFloat(sessionPriceValue) <= 0) {
+            const sessionPriceValue = String(sessionPrice?.value || '').trim();
+            if (sessionPriceValue && !(parseFloat(sessionPriceValue) > 0)) {
                 isValid = false;
                 errorElement = sessionPrice;
-            } else {
-                formState.data.session_price = sessionPriceValue;
-                formState.data.session_currency = document.getElementById('session_currency')?.value || formState.data.session_currency || 'USD';
-            }
-            break;
-
-        case 7: {
-            const source = formState.data.portfolio_source;
-            if (!source) {
-                isValid = false;
-                const options = document.getElementById('portfolio-source-options');
-                options.style.animation = 'shake 0.5s ease';
-                setTimeout(() => options.style.animation = '', 500);
+                errorMessage = 'Ingresá un monto mayor a cero o dejá la tarifa vacía.';
                 break;
             }
-            if (source === 'website' || source === 'other') {
-                const portfolioUrl = document.getElementById('portfolio_url');
-                if (!portfolioUrl.value.trim()) {
+            formState.data.session_price = sessionPriceValue;
+            formState.data.session_currency = document.getElementById('session_currency')?.value || formState.data.session_currency || 'USD';
+            break;
+        }
+
+        case 7: {
+            // Los enlaces son opcionales; sólo se controla que las URL
+            // cargadas sean válidas.
+            const urlFields = [
+                document.getElementById('portfolio_url'),
+                document.getElementById('other_url')
+            ];
+            for (const field of urlFields) {
+                const value = String(field?.value || '').trim();
+                if (!value) continue;
+                try {
+                    new URL(value);
+                } catch {
                     isValid = false;
-                    errorElement = portfolioUrl;
-                } else {
-                    try {
-                        new URL(portfolioUrl.value);
-                    } catch {
-                        isValid = false;
-                        errorElement = portfolioUrl;
-                    }
-                }
-            } else if (source === 'instagram') {
-                const igInput = document.getElementById('instagram_handle');
-                if (!igInput.value.trim()) {
-                    isValid = false;
-                    errorElement = igInput;
+                    errorElement = field;
+                    errorMessage = 'Revisá el enlace: tiene que empezar con https://';
+                    break;
                 }
             }
             break;
         }
 
         case 8:
-            // Bio is optional
+            // La presentación es opcional
             break;
 
         case 9:
             if (!formState.data.work_type) {
                 isValid = false;
-                const workTypeOptions = document.getElementById('work-type-options');
-                workTypeOptions.style.animation = 'shake 0.5s ease';
-                setTimeout(() => workTypeOptions.style.animation = '', 500);
+                errorMessage = 'Elegí si trabajás en un estudio o de forma independiente.';
+                shakeElement(document.getElementById('work-type-options'));
             } else if ((formState.data.work_type === 'studio' || formState.data.work_type === 'both')) {
                 // Require studio name for studio or both options
                 const studioNameInput = document.getElementById('studio_name');
                 if (!studioNameInput.value.trim()) {
                     isValid = false;
-                    studioNameInput.classList.add('error');
-                    studioNameInput.focus();
+                    errorElement = studioNameInput;
+                    errorMessage = 'Contanos en qué estudio trabajás.';
                 } else {
                     formState.data.studio_name = studioNameInput.value.trim();
                 }
@@ -3141,29 +3615,33 @@ function validateCurrentStep() {
                 if (!getRegistrationCity()) {
                     isValid = false;
                     errorElement = document.getElementById('address_search');
-                    if (errorElement) errorElement.classList.add('error');
+                    errorMessage = 'Elegí tu dirección de la lista de sugerencias.';
                 }
             }
             break;
 
-        case 10:
-            const birthResult = validateBirthDateSelects();
-            if (!birthResult.valid) {
+        case 10: {
+            const iso = readBirthDateInput();
+            if (!iso) {
                 isValid = false;
-                errorElement = birthResult.errorElement;
-                alert(birthResult.message);
+                errorElement = document.getElementById('birth_date');
+                errorMessage = 'Cargá tu fecha de nacimiento.';
+                break;
             }
+            if (!isAdultBirthDate(iso)) {
+                isValid = false;
+                errorElement = document.getElementById('birth_date');
+                errorMessage = 'Tenés que ser mayor de 18 años para registrarte.';
+                break;
+            }
+            syncBirthDateFromInput();
             break;
+        }
 
         case 11:
-            // Newsletter selection - at least one option must be selected
-            const selectedNewsletter = document.querySelector('.newsletter-option.selected');
-            if (!selectedNewsletter || typeof formState.data.subscribed_newsletter !== 'boolean') {
-                isValid = false;
-                setNewsletterSelectionError(true);
-            } else {
-                setNewsletterSelectionError(false);
-            }
+            // Novedades: los 4 temas son opcionales. Al continuar se
+            // confirma explícitamente la preferencia (nunca hay default).
+            commitNewsletterSelection();
             break;
     }
 
@@ -3171,106 +3649,25 @@ function validateCurrentStep() {
         errorElement.classList.add('error');
         errorElement.focus();
     }
+    setGroupError(groupId, isValid ? '' : errorMessage);
 
     return isValid;
 }
 
-// ============================================
-// Step Navigation & UI
-// ============================================
-
-let stepTransitionToken = 0;
-
-function goToStep(step) {
-    const transitionToken = ++stepTransitionToken;
-    const activeSteps = Array.from(document.querySelectorAll('.form-step.active'));
-    const direction = typeof step === 'number' && step > formState.currentStep ? 'forward' : 'backward';
-
-    activeSteps.forEach((currentStepEl) => {
-        currentStepEl.classList.remove('active');
-        if (direction === 'forward') {
-            currentStepEl.classList.add('exit-left');
-        }
-        setTimeout(() => {
-            currentStepEl.classList.remove('exit-left');
-        }, 500);
-    });
-
-    formState.currentStep = step;
-    persistRegistrationDraft();
-
-    setTimeout(() => {
-        if (transitionToken !== stepTransitionToken) return;
-
-        const newStepEl = document.querySelector(`.form-step[data-step="${step}"]`);
-        if (newStepEl) {
-            newStepEl.classList.add('active');
-
-            const focusTarget = newStepEl.querySelector('.form-input') || newStepEl.querySelector('.birth-select');
-            if (focusTarget) {
-                setTimeout(() => focusTarget.focus(), 100);
-            }
-        }
-
-        updateUI();
-
-        if (step === 'summary') {
-            populateSummary();
-        }
-    }, 100);
+function shakeElement(el) {
+    if (!el) return;
+    el.style.animation = 'shake 0.5s ease';
+    setTimeout(() => { el.style.animation = ''; }, 500);
 }
 
-function injectMobileContinueBtn(stepEl) {
-    document.querySelectorAll('.mobile-continue-btn').forEach(b => b.remove());
-    if (!stepEl) return;
-
-    const stepValue = stepEl.dataset.step;
-    if (stepValue === '0') return;
-    if (stepValue === 'saving') return;
-    if (stepValue === 'success') return;
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'mobile-continue-btn';
-
-    if (stepValue === 'summary') {
-        btn.classList.add('submit-btn');
-        btn.innerHTML = `
-            Confirmar
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                <path d="M20 6L9 17l-5-5"/>
-            </svg>`;
-    } else {
-        btn.innerHTML = `
-            Continuar
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>`;
-    }
-
-    btn.addEventListener('click', handleNext);
-    stepEl.appendChild(btn);
-}
-
+// Mantiene vivos los hooks de progreso que consume el autosave del borrador
+// (#progress-fill / #progress-label). El acordeón no los muestra.
 function updateUI() {
     const step = formState.currentStep;
-    const registerFooter = document.querySelector('.register-footer');
-    const scrollIndicator = document.getElementById('scroll-indicator');
-
-    if (registerFooter) {
-        registerFooter.classList.toggle('step-hidden', step === 0);
-        if (step !== 'success') {
-            registerFooter.classList.remove('hidden');
-        }
-    }
-
-    if (scrollIndicator) {
-        scrollIndicator.classList.toggle('step-hidden', step === 0);
-    }
+    if (!progressFill || !progressLabel) return;
 
     if (step === 0) {
         progressFill.style.width = '4%';
-        progressFill.style.background = 'var(--primary-red)';
         progressLabel.textContent = `IG / ${String(formState.totalSteps).padStart(2, '0')}`;
     } else if (typeof step === 'number') {
         const progress = (step / formState.totalSteps) * 100;
@@ -3286,49 +3683,6 @@ function updateUI() {
         progressFill.style.width = '100%';
         progressLabel.textContent = 'LISTO';
     }
-
-    if (typeof step === 'number' && step > 0) {
-        if (step <= 4) {
-            progressFill.style.background = 'var(--primary-red)';
-        } else if (step <= 8) {
-            progressFill.style.background = 'var(--primary-yellow)';
-        } else {
-            progressFill.style.background = 'var(--primary-blue)';
-        }
-    }
-
-    if (step === 0 || step === 1 || step === 'success' || step === 'saving') {
-        btnBack.style.visibility = 'hidden';
-    } else {
-        btnBack.style.visibility = 'visible';
-    }
-
-    if (step === 'summary') {
-        btnNext.innerHTML = `
-            Confirmar
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                <path d="M20 6L9 17l-5-5"/>
-            </svg>
-        `;
-        btnNext.classList.add('submit-btn');
-    } else if (step === 'saving') {
-        document.querySelector('.register-footer').classList.add('hidden');
-    } else if (step === 'success') {
-        document.querySelector('.register-footer').classList.add('hidden');
-    } else {
-        btnNext.innerHTML = `
-            Siguiente
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-        `;
-        btnNext.classList.remove('submit-btn');
-    }
-
-    const activeStep = document.querySelector('.form-step.active');
-    if (activeStep) {
-        injectMobileContinueBtn(activeStep);
-    }
 }
 
 // ============================================
@@ -3338,17 +3692,19 @@ function updateUI() {
 function resolvePortfolioLinks(username) {
     const source = formState.data.portfolio_source;
     const profileUrl = window.location.origin + appUrl('/artist/profile?artist=' + encodeURIComponent(username));
+    const handle = (formState.data.instagram_handle || '').replace(/^@/, '');
     let portafolio = null;
-    let instagram = null;
+    // El grupo "Tu presencia" acepta Instagram y enlace a la vez: el handle
+    // siempre viaja en `instagram`, aunque `portafolio` guarde el sitio web.
+    let instagram = handle ? '@' + handle : null;
     let displayLabel = '';
 
     if (source === 'website' || source === 'other') {
         portafolio = formState.data.portfolio_url || null;
         displayLabel = portafolio || 'No especificado';
     } else if (source === 'instagram') {
-        const handle = (formState.data.instagram_handle || '').replace(/^@/, '');
-        instagram = '@' + handle;
-        portafolio = 'https://www.instagram.com/' + handle + '/';
+        portafolio = formState.data.portfolio_url
+            || (handle ? 'https://www.instagram.com/' + handle + '/' : null);
         displayLabel = '@' + handle + ' (Instagram)';
     } else if (source === 'none') {
         portafolio = profileUrl;
@@ -3368,386 +3724,49 @@ function escapeHtmlSummary(s) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function isSummaryMobileViewport() {
-    return window.matchMedia
-        ? window.matchMedia('(max-width: 600px)').matches
-        : window.innerWidth <= 600;
-}
+// La revisión del Figma es una tabla plana: [label · valor · EDITAR]. El
+// botón EDITAR salta al grupo dueño del dato en vez de editar en línea.
+const SUMMARY_ROWS = [
+    { label: 'Nombre artístico', group: 'quien',     value: (d) => d.artistic_name },
+    { label: 'Nombre real',      group: 'quien',     value: (d) => capitalizeWords(d.full_name) },
+    { label: 'Email',            group: 'acceso',    value: (d) => d.email },
+    { label: 'Estilos',          group: 'oficio',    value: (d) => (d.styles || []).join(' · ') },
+    { label: 'Experiencia',      group: 'oficio',    value: (d) => experienceLabel(d.experience_years) },
+    { label: 'Tarifa por sesión',group: 'oficio',    value: (d) => summaryPriceValue(d) },
+    { label: 'Presentación',     group: 'presencia', value: (d) => bioPlainText(d.bio, 120) },
+    { label: 'Cómo trabajás',    group: 'trabajo',   value: () => workSummaryValue() },
+    { label: 'Novedades',        group: 'novedades', value: () => newsletterSummaryValue() }
+];
 
-function getSummaryReviewElements() {
-    return {
-        summaryOpen: document.getElementById('summary-mobile-open'),
-        modal: document.getElementById('summary-review-modal'),
-        close: document.getElementById('summary-review-close')
-    };
-}
-
-const summaryReviewModalHome = {
-    parent: null,
-    nextSibling: null
-};
-
-function openSummaryReviewModal() {
-    const { summaryOpen, modal, close } = getSummaryReviewElements();
-    if (!modal || !isSummaryMobileViewport()) return;
-
-    if (modal.parentNode !== document.body) {
-        summaryReviewModalHome.parent = modal.parentNode;
-        summaryReviewModalHome.nextSibling = modal.nextSibling;
-        document.body.appendChild(modal);
-    }
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden', 'false');
-    if (summaryOpen) summaryOpen.setAttribute('aria-expanded', 'true');
-    document.body.classList.add('summary-review-lock');
-    requestAnimationFrame(() => {
-        if (close) close.focus({ preventScroll: true });
-    });
-}
-
-function closeSummaryReviewModal(options = {}) {
-    const { summaryOpen, modal } = getSummaryReviewElements();
-    if (!modal) return;
-
-    modal.classList.remove('is-open');
-    if (summaryReviewModalHome.parent && modal.parentNode === document.body) {
-        summaryReviewModalHome.parent.insertBefore(modal, summaryReviewModalHome.nextSibling);
-    }
-    modal.setAttribute('aria-hidden', isSummaryMobileViewport() ? 'true' : 'false');
-    if (summaryOpen) summaryOpen.setAttribute('aria-expanded', 'false');
-    document.body.classList.remove('summary-review-lock');
-
-    if (options.restoreFocus !== false && summaryOpen && isSummaryMobileViewport()) {
-        summaryOpen.focus({ preventScroll: true });
-    }
-}
-
-let _summaryReviewModalWired = false;
-function setupSummaryReviewModal() {
-    if (_summaryReviewModalWired) return;
-    const { summaryOpen, modal, close } = getSummaryReviewElements();
-    if (!summaryOpen || !modal) return;
-
-    function syncViewportState() {
-        if (!isSummaryMobileViewport()) {
-            closeSummaryReviewModal({ restoreFocus: false });
-            modal.setAttribute('aria-hidden', 'false');
-        } else if (!modal.classList.contains('is-open')) {
-            modal.setAttribute('aria-hidden', 'true');
-        }
-    }
-
-    summaryOpen.addEventListener('click', openSummaryReviewModal);
-    if (close) close.addEventListener('click', closeSummaryReviewModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeSummaryReviewModal();
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.classList.contains('is-open')) {
-            closeSummaryReviewModal();
-        }
-    });
-
-    if (window.matchMedia) {
-        const query = window.matchMedia('(max-width: 600px)');
-        if (query.addEventListener) query.addEventListener('change', syncViewportState);
-        else if (query.addListener) query.addListener(syncViewportState);
-    } else {
-        window.addEventListener('resize', syncViewportState);
-    }
-
-    syncViewportState();
-    _summaryReviewModalWired = true;
+function summaryPriceValue(data) {
+    const amount = normalizeSessionPriceAmount(data.session_price);
+    if (!amount) return '';
+    const currency = data.session_currency || extractSessionPriceCurrency(data.session_price) || 'USD';
+    return `${amount} ${currency}`;
 }
 
 function populateSummary() {
     const summaryCard = document.getElementById('summary-card');
+    if (!summaryCard) return;
     const data = formState.data;
 
-    // Determine work type display value
-    let workTypeDisplay;
-    if (data.work_type === 'independent') {
-        workTypeDisplay = 'Sin estudio/Independiente';
-    } else if (data.work_type === 'studio') {
-        workTypeDisplay = `Estudio: ${data.studio_name || '-'}`;
-    } else if (data.work_type === 'both') {
-        workTypeDisplay = `Ambos (Estudio: ${data.studio_name || '-'})`;
-    } else {
-        workTypeDisplay = '-';
-    }
-
-    const stylesHtml = data.styles.length > 0
-        ? data.styles.map(s => `<span class="style-tag">${escapeHtmlSummary(s)}</span>`).join('')
-        : '<span style="opacity: 0.5;">No especificado</span>';
-
-    const usernamePreview = formatUsername(data.artistic_name);
     const fullNameCapitalized = capitalizeWords(data.full_name);
     if (fullNameCapitalized && fullNameCapitalized !== data.full_name) {
         data.full_name = fullNameCapitalized;
     }
 
-    const summarySessionPrice = normalizeSessionPriceAmount(data.session_price);
-    const summarySessionCurrency = data.session_currency
-        || extractSessionPriceCurrency(data.session_price)
-        || 'USD';
-    const priceDisplay = summarySessionPrice
-        ? `${escapeHtmlSummary(summarySessionPrice)} ${escapeHtmlSummary(summarySessionCurrency)}`
-        : '<span style="opacity: 0.5;">No especificado</span>';
-    const registrationCity = getRegistrationCity();
-    const registrationCityDisplay = registrationCity
-        ? escapeHtmlSummary(registrationCity)
-        : '<span style="opacity: 0.5;">No especificado</span>';
-
-    // Format birth date as DD/MM/YYYY
-    let birthDateDisplay = '<span style="opacity: 0.5;">No especificado</span>';
-    if (data.birth_date) {
-        if (data.birth_date.includes('-')) {
-            const [year, month, day] = data.birth_date.split('-');
-            birthDateDisplay = `${day}/${month}/${year}`;
-        } else if (data.birth_date.includes('/') && data.birth_date.length === 10) {
-            birthDateDisplay = data.birth_date;
-        }
-    }
-
-    const newsletterDisplay = data.subscribed_newsletter
-        ? '<span style="color: #4CAF50;">Suscrito</span>'
-        : '<span style="opacity: 0.5;">No suscrito</span>';
-    const mediaCounts = getPortfolioMediaCounts();
-    const mediaDisplay = (mediaCounts.photos || mediaCounts.videos)
-        ? `${mediaCounts.photos} foto(s) · ${mediaCounts.videos} video(s)`
-        : '<span style="opacity: 0.5;">Sin medios cargados</span>';
-
-    // Helper: render an editable cell. Shows a persistent "Editar" chip so
-    // the affordance is obvious without hover. The click handler in
-    // setupSummaryEditing() swaps the cell to an input/textarea on demand.
-    // SVG used inline because Font Awesome is not loaded in this page.
-    const pencilSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
-    const editChip = `<span class="summary-edit-action" aria-hidden="true">${pencilSvg}<span>Editar</span></span>`;
-
-    function editable(value, attrs) {
-        const display = value == null || value === '' ? '<span style="opacity: 0.5;">No especificado</span>' : escapeHtmlSummary(value);
-        const dataAttrs = Object.entries(attrs)
-            .map(([k, v]) => `data-${k}="${escapeHtmlSummary(v)}"`)
-            .join(' ');
-        return `<div class="summary-value summary-editable" ${dataAttrs} title="Click para editar"><span class="summary-value-text">${display}</span>${editChip}</div>`;
-    }
-
-    const portfolioSummary = resolvePortfolioLinks(usernamePreview);
-    let portfolioLabel = 'Portfolio';
-    let portfolioEditableHtml = `<div class="summary-value summary-readonly">${portfolioSummary.displayLabel || '<span style="opacity: 0.5;">No especificado</span>'}</div>`;
-    if (data.portfolio_source === 'instagram') {
-        portfolioLabel = 'Instagram';
-        portfolioEditableHtml = editable(portfolioSummary.displayLabel || '', { 'edit-field': 'instagram_handle', 'edit-type': 'instagram' });
-    }
-
-    // Non-editable: complex multi-field cells link back to the relevant step.
-    function jumpToStep(label, step) {
-        return `<div class="summary-value summary-jump" data-jump-step="${step}" title="Editar este campo"><span class="summary-value-text">${label}</span>${editChip}</div>`;
-    }
-
-    summaryCard.innerHTML = `
+    summaryCard.innerHTML = SUMMARY_ROWS.map((row) => {
+        const raw = String(row.value(data) || '').trim();
+        const value = raw
+            ? escapeHtmlSummary(raw)
+            : '<span class="summary-empty">—</span>';
+        return `
         <div class="summary-row">
-            <div class="summary-label">Nombre artistico</div>
-            ${editable(data.artistic_name || '', { 'edit-field': 'artistic_name', 'edit-type': 'text' })}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Username</div>
-            <div class="summary-value summary-readonly" style="color: var(--primary-blue);" title="Se genera del nombre artístico">${escapeHtmlSummary(usernamePreview || '-')}</div>
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Nombre completo</div>
-            ${editable(fullNameCapitalized || '', { 'edit-field': 'full_name', 'edit-type': 'text' })}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Email</div>
-            ${editable(data.email || '', { 'edit-field': 'email', 'edit-type': 'email' })}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Ciudad</div>
-            ${jumpToStep(registrationCityDisplay, 9)}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Estilos</div>
-            ${jumpToStep(stylesHtml, 4)}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Experiencia</div>
-            ${editable((data.experience_years || '') + (data.experience_years ? ' anos' : ''), { 'edit-field': 'experience_years', 'edit-type': 'number' })}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Tarifa por sesion</div>
-            <div class="summary-value summary-editable" data-edit-field="session_price" data-edit-type="number" title="Click para editar el monto"><span class="summary-value-text">${priceDisplay}</span>${editChip}</div>
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">${portfolioLabel}</div>
-            ${portfolioEditableHtml}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Fotos / videos</div>
-            <div class="summary-value summary-readonly summary-media-value"><span class="summary-value-text">${mediaDisplay}</span><button type="button" class="summary-media-edit" data-summary-media-edit aria-label="Editar fotos y videos">${pencilSvg}<span>Editar</span></button></div>
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Bio</div>
-            <div class="summary-value summary-editable bio-value" data-edit-field="bio" data-edit-type="textarea" title="Click para editar tu biografía"><span class="summary-value-text">${window.BioFormatting ? window.BioFormatting.sanitizeBioHtml(data.bio) || '<span style="opacity: 0.5;">No especificado</span>' : escapeHtmlSummary(data.bio || '') || '<span style="opacity: 0.5;">No especificado</span>'}</span>${editChip}</div>
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Modalidad</div>
-            ${jumpToStep(escapeHtmlSummary(workTypeDisplay), 9)}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Fecha de nacimiento</div>
-            ${jumpToStep(birthDateDisplay, 10)}
-        </div>
-        <div class="summary-row">
-            <div class="summary-label">Newsletter</div>
-            ${jumpToStep(newsletterDisplay, 11)}
-        </div>
-    `;
-
-    setupSummaryEditing();
-}
-
-// Wire click handlers on the summary card. We use event delegation so
-// re-renders don't require re-binding. The card calls populateSummary()
-// after each save which preserves attributes/handlers via this single
-// listener.
-let _summaryEditingWired = false;
-function setupSummaryEditing() {
-    if (_summaryEditingWired) return;
-    const card = document.getElementById('summary-card');
-    if (!card) return;
-    card.addEventListener('click', (e) => {
-        const mediaEdit = e.target.closest('[data-summary-media-edit]');
-        if (mediaEdit) {
-            e.preventDefault();
-            openPortfolioMediaModal();
-            return;
-        }
-        const cell = e.target.closest('.summary-editable');
-        if (cell) return startEditCell(cell);
-        const jump = e.target.closest('.summary-jump');
-        if (jump) {
-            const step = parseInt(jump.dataset.jumpStep, 10);
-            if (Number.isFinite(step)) {
-                closeSummaryReviewModal({ restoreFocus: false });
-                goToStep(step);
-            }
-        }
-    });
-    _summaryEditingWired = true;
-}
-
-function startEditCell(cell) {
-    if (cell.dataset.editing === 'true') return;
-    const field = cell.dataset.editField;
-    const type = cell.dataset.editType || 'text';
-    if (!field) return;
-
-    const currentValue = formState.data[field] != null ? String(formState.data[field]) : '';
-
-    cell.dataset.editing = 'true';
-    cell.classList.add('summary-editing');
-    cell.innerHTML = '';
-
-    let input;
-    if (type === 'textarea') {
-        input = document.createElement('textarea');
-        input.rows = 4;
-    } else {
-        input = document.createElement('input');
-        input.type = type === 'number' ? 'number' : type === 'email' ? 'email' : 'text';
-    }
-    input.value = currentValue;
-    input.className = 'summary-edit-input';
-    cell.appendChild(input);
-
-    const controls = document.createElement('div');
-    controls.className = 'summary-edit-controls';
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'summary-edit-save';
-    saveBtn.textContent = 'Guardar';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'summary-edit-cancel';
-    cancelBtn.textContent = 'Cancelar';
-    controls.append(saveBtn, cancelBtn);
-    cell.appendChild(controls);
-
-    function commit() {
-        if (cell.dataset.editing !== 'true') return;
-        const newValue = type === 'number' ? input.value.replace(/[^\d.]/g, '') : input.value.trim();
-        let valueToStore = newValue;
-        if (field === 'instagram_handle') {
-            valueToStore = newValue.replace(/^@+/, '').replace(/\s+/g, '');
-            formState.data.portfolio_source = 'instagram';
-            document.querySelectorAll('.portfolio-source-option').forEach(b => b.classList.remove('selected'));
-            const instagramSource = document.querySelector('.portfolio-source-option[data-source="instagram"]');
-            if (instagramSource) instagramSource.classList.add('selected');
-            const urlWrapper = document.getElementById('portfolio-url-wrapper');
-            const igWrapper = document.getElementById('portfolio-ig-wrapper');
-            if (urlWrapper) urlWrapper.style.display = 'none';
-            if (igWrapper) igWrapper.style.display = 'block';
-        }
-
-        // Validation per type — keep loose, the wizard's own per-step
-        // validation is the source of truth. Here we just block obvious
-        // garbage from getting saved on summary.
-        if (type === 'email' && valueToStore && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valueToStore)) {
-            input.style.borderColor = '#d33';
-            input.focus();
-            return;
-        }
-
-        formState.data[field] = valueToStore;
-
-        // Side effects: mirror to the wizard input for this field if it
-        // exists, so the user sees consistent state if they navigate back.
-        const wizardInput = document.getElementById(field);
-        if (wizardInput) {
-            if (wizardInput.tagName === 'DIV' && wizardInput.contentEditable === 'true') {
-                // Bio editor (contenteditable)
-                const bioHtml = valueToStore
-                    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-                wizardInput.innerHTML = bioHtml;
-            } else {
-                wizardInput.value = valueToStore;
-            }
-            wizardInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        persistRegistrationDraft();
-        delete cell.dataset.editing;
-        populateSummary(); // re-render the whole card
-    }
-
-    function cancel() {
-        delete cell.dataset.editing;
-        populateSummary();
-    }
-
-    saveBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
-    saveBtn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        commit();
-    });
-    cancelBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
-    cancelBtn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        cancel();
-    });
-    input.addEventListener('blur', commit);
-    input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter' && type !== 'textarea') {
-            ev.preventDefault();
-            input.blur();
-        } else if (ev.key === 'Escape') {
-            ev.preventDefault();
-            cancel();
-        }
-    });
-    setTimeout(() => { input.focus(); input.select && input.select(); }, 50);
+            <div class="summary-label">${escapeHtmlSummary(row.label)}</div>
+            <div class="summary-value">${value}</div>
+            <button type="button" class="ra-edit" data-edit-group="${row.group}">Editar</button>
+        </div>`;
+    }).join('');
 }
 
 // ============================================
@@ -3815,6 +3834,14 @@ const MIN_REGISTRATION_WAIT_MS = 10000;
 const REGISTRATION_EMAIL_TIMEOUT_MS = 8000;
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// La pantalla de éxito saluda con el nombre artístico y lleva al panel.
+function renderSuccessScreen(destinationUrl) {
+    const nameEl = document.getElementById('ra-success-name');
+    if (nameEl) nameEl.textContent = formState.data.artistic_name || 'artista';
+    const cta = document.getElementById('ra-success-cta');
+    if (cta && destinationUrl) cta.setAttribute('href', appUrl(destinationUrl));
 }
 
 function startRegistrationWaitScreen() {
@@ -3966,6 +3993,7 @@ async function submitForm() {
 
             await finishRegistrationWaitScreen(waitStartedAt);
             btnNext.disabled = false;
+            renderSuccessScreen(postRegistrationUrl);
             goToStep('success');
             setTimeout(() => {
                 window.location.href = appUrl(postRegistrationUrl);
@@ -4212,6 +4240,7 @@ async function submitForm() {
 
         await finishRegistrationWaitScreen(waitStartedAt);
         btnNext.disabled = false;
+        renderSuccessScreen(requestedReturnTo || authUrls.dashboard);
         goToStep('success');
 
         // Auto-redirect to dashboard after 3 seconds

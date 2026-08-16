@@ -53,7 +53,7 @@
 </head>
 
 <body class="wo-app register-page">
-    <!-- ===== Topbar DS (Bauhaus) con nav de grupos del wizard ===== -->
+    <!-- ===== Topbar: marca + nav de los 7 grupos del registro ===== -->
     <header class="wo-topbar ra-topbar" role="banner">
         <div class="wo-topbar-left">
             <a href="/" class="wo-topbar-brand" aria-label="We Ötzi inicio">
@@ -65,1002 +65,538 @@
                 WE ÖTZI
             </a>
         </div>
-        <nav class="ra-topbar-groups" id="ra-topbar-groups" aria-label="Progreso del registro">
-            <span class="ra-group is-active" data-group="quien"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Quién sos</span>
-            <span class="ra-group" data-group="acceso"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Tu acceso</span>
-            <span class="ra-group" data-group="oficio"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Tu oficio</span>
-            <span class="ra-group" data-group="presencia"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Tu presencia</span>
-            <span class="ra-group" data-group="trabajo"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Cómo trabajás</span>
-            <span class="ra-group" data-group="novedades"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Novedades</span>
-            <span class="ra-group" data-group="revision"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Revisión</span>
+        <nav class="ra-nav" id="ra-nav" aria-label="Progreso del registro">
+            <button type="button" class="ra-nav-item is-active" data-nav-group="quien"><span class="ra-check" aria-hidden="true"></span>Quién sos</button>
+            <button type="button" class="ra-nav-item" data-nav-group="acceso"><span class="ra-check" aria-hidden="true"></span>Tu acceso</button>
+            <button type="button" class="ra-nav-item" data-nav-group="oficio"><span class="ra-check" aria-hidden="true"></span>Tu oficio</button>
+            <button type="button" class="ra-nav-item" data-nav-group="presencia"><span class="ra-check" aria-hidden="true"></span>Tu presencia</button>
+            <button type="button" class="ra-nav-item" data-nav-group="trabajo"><span class="ra-check" aria-hidden="true"></span>Cómo trabajás</button>
+            <button type="button" class="ra-nav-item" data-nav-group="novedades"><span class="ra-check" aria-hidden="true"></span>Novedades</button>
+            <button type="button" class="ra-nav-item" data-nav-group="revision"><span class="ra-check" aria-hidden="true"></span>Revisión</button>
         </nav>
-        <div class="wo-topbar-right">
-            <span class="ra-progress-copy wo-meta-s" id="ra-progress-copy" aria-live="polite">Paso 01 · 11</span>
-            <button id="login-btn-wo" class="wo-btn wo-btn--ghost wo-btn--s" type="button" onclick="openLoginModal && openLoginModal()">Ingresá <span aria-hidden="true">→</span></button>
-            <button class="ra-burger" id="wo-burger" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="wo-drawer" onclick="toggleWoDrawer()">
-                <i data-wo-icon="menu"></i>
-            </button>
-        </div>
     </header>
 
-    <aside id="wo-drawer" aria-hidden="true" aria-label="Menú móvil">
-        <p class="drawer-label">Navegación</p>
-        <a href="/tutorial/">Cómo funciona</a>
-        <a href="/marketplace/">Explorar</a>
-        <a href="#" onclick="event.preventDefault(); toggleWoDrawer(false); openLoginModal && openLoginModal();">Ingresá →</a>
-    </aside>
-
-    <!-- Hooks legacy de progreso: register.js escribe acá (ancho + etiqueta).
-         El nav de grupos del topbar se sincroniza observando #progress-label. -->
+    <!-- Hooks legacy de progreso: register.js sigue escribiendo acá (ancho + etiqueta)
+         para el autosave del borrador; no se muestran en el diseño nuevo. -->
     <div class="ra-legacy-progress" hidden aria-hidden="true">
         <div class="progress-fill" id="progress-fill"></div>
         <span id="progress-label">01 / 11</span>
     </div>
 
-    <main class="register-container">
+    <main class="register-container" id="ra-main">
 
-        <!-- Encabezado constante del wizard (Figma: eyebrow + H1 + intro) -->
-        <div class="ra-intro">
-            <p class="wo-eyebrow">Registro de artistas</p>
+        <!-- Cabecera constante del registro -->
+        <div class="ra-intro" id="ra-intro">
+            <p class="ra-intro-eyebrow">Registro de artistas</p>
             <h1 class="ra-intro-title">Armemos tu perfil.</h1>
-            <p class="ra-intro-lead">Un paso por vez — completá cada grupo y avanzá. Podés volver a editar cualquiera antes de confirmar.</p>
+            <p class="ra-intro-lead">Todo en una sola página — completá cada grupo y avanzá. Podés volver a editar cualquiera antes de confirmar.</p>
+            <hr class="ra-intro-rule">
         </div>
 
-        <!-- Form Container -->
-        <div class="form-wrapper">
-            <!-- Scroll Indicator - Bauhaus Style -->
-            <div class="scroll-indicator" id="scroll-indicator">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                    stroke-linecap="square">
-                    <path d="M12 5v14M5 12l7 7 7-7" />
-                </svg>
-            </div>
-            <!-- Step 1: Artistic Name -->
-            <!-- Step 0: Instagram Quick Import (only reached when ?source=instagram or weotzi_signup_via_instagram flag set; otherwise the wizard skips straight to Step 1 active) -->
-            <section class="form-step ig-step wo-bauhaus-step wo-step00" data-step="0">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — IG IMPORT</p>
-                    <div class="wo-poster-body">
-                        <div class="wo-manifesto">
-                            <div class="wo-manifesto-type">
-                                <div class="wo-manifesto-row"><span>CONECTA</span><span class="wo-manifesto-shape square"></span></div>
-                                <div class="wo-manifesto-row"><span class="blue">TU</span></div>
-                                <div class="wo-manifesto-row"><span>INSTAGRAM.</span><span class="wo-manifesto-shape triangle"></span></div>
+        <div class="form-wrapper" id="ra-groups">
+
+            <!-- ===== Entrada alterna ?source=instagram (fuera del Figma) ===== -->
+            <section class="ra-group ra-group--ig" data-group="ig" data-index="0" hidden>
+                <div class="ra-panel">
+                    <p class="ra-eyebrow">IG · Importación</p>
+                    <h2 class="ra-title">Conectá tu Instagram.</h2>
+                    <p class="ra-hint">Pegá tu @usuario y elegí qué traer. Después confirmás cada campo.</p>
+                    <div class="ra-fields">
+                        <div class="ra-field ra-field--half">
+                            <label class="ra-label" for="ig-step-handle">Usuario de Instagram</label>
+                            <div class="instagram-input-row">
+                                <span class="instagram-prefix">@</span>
+                                <input type="text" id="ig-step-handle" class="form-input" placeholder="tu_usuario_instagram" autocomplete="off" maxlength="30">
                             </div>
+                            <p class="ra-hint">Solo usamos contenido público.</p>
                         </div>
-                    </div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Importa lo público, revisa lo importante.</strong> Puedes traer bio, enlace, ubicación y contenido antes de completar el perfil.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">IG_STEP</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>IG</div>
-                    <div class="wo-form-header-row">
-                        <p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">IG · Importación</span></p>
-                    </div>
-                    <div>
-                        <h2 class="question-title">Conectá tu<br>Instagram.</h2>
-                        <p class="question-subtitle">Pegá tu @usuario y elegí qué traer. Después confirmás cada campo.</p>
-                    </div>
-                    <div class="input-wrapper" style="margin: 0;">
-                        <div class="instagram-input-row">
-                            <span class="instagram-prefix">@</span>
-                            <input type="text" id="ig-step-handle" class="form-input" placeholder="tu_usuario_instagram" autocomplete="off" maxlength="30">
-                        </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Solo usamos contenido público.</span><span class="wo-counter">IG / 11</span></div>
                     </div>
                     <div id="ig-step-status" class="ig-step-status" aria-live="polite"></div>
                     <div id="ig-step-summary" class="ig-step-summary"></div>
-                    <div class="ig-step-actions">
-                        <button type="button" id="ig-step-import-btn" class="register-action register-action-primary">Buscar perfil</button>
-                        <button type="button" id="ig-step-skip-btn" class="register-action register-action-secondary">Saltar este paso</button>
+                    <div class="ra-actions ra-actions--split">
+                        <button type="button" id="ig-step-skip-btn" class="ra-ghost">Saltar este paso</button>
+                        <button type="button" id="ig-step-import-btn" class="ra-continue">Buscar perfil <span aria-hidden="true">→</span></button>
                     </div>
-                    <p class="ig-step-note">Las fotos y reels también podés importarlos después desde tu panel.</p>
                 </div>
             </section>
 
-            <section class="form-step active wo-step01" data-step="1">
-                <!-- LEFT · poster column · "DI [□] QUIÉN [△] ERES." -->
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow">
-                        <span class="accent-red">◍</span>
-                        REGISTRO ARTISTA — CAP 01
-                    </p>
-                    <div class="wo-poster-body">
-                        <div class="wo-manifesto">
-                            <div class="wo-manifesto-type">
-                                <div class="wo-manifesto-row">
-                                    <span class="wo-word-di">DI</span>
-                                    <span class="wo-manifesto-shape square"></span>
-                                </div>
-                                <div class="wo-manifesto-row">
-                                    <span class="blue wo-word-quien">QUIÉN</span>
-                                </div>
-                                <div class="wo-manifesto-row">
-                                    <span class="wo-word-eres">ERES.</span>
-                                    <span class="wo-manifesto-shape triangle"></span>
-                                </div>
-                            </div>
-                        </div>
+            <!-- ===== 01 · QUIÉN SOS ===== -->
+            <section class="ra-group" data-group="quien" data-index="1">
+                <div class="ra-row" hidden>
+                    <div class="ra-row-main">
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Quién sos</p>
+                        <p class="ra-row-value" data-row-value>—</p>
                     </div>
-                    <div class="wo-poster-footer">
-                        <p>
-                            <strong>Tu identidad, tu espacio.</strong>
-                            <span class="poster-copy-desktop">Esto es lo que verán tus clientes — siempre puedes cambiarlo después.</span>
-                            <span class="poster-copy-tablet">Siempre puedes cambiarlo después.</span>
-                        </p>
-                        <p class="wo-poster-build">
-                            BUILD 0.9.4 · <span class="accent-red">STEP_01</span>
-                        </p>
-                    </div>
+                    <button type="button" class="ra-edit" data-edit-group="quien">Editar</button>
                 </div>
-
-                <!-- RIGHT · form column -->
-                <div class="wo-form-col">
-                    <!-- Hidden legacy step indicator (register.js may inspect it) -->
-                    <div class="step-indicator" hidden>01</div>
-
-                    <div class="wo-form-header-row">
-                        <p class="wo-step-indicator">
-                            <span class="marker">◍</span>
-                            <span class="wo-step-copy">01 · Quién sos</span>
-                        </p>
-                    </div>
-
-                    <div>
-                        <h2 class="question-title">¿Cómo te llamás<br>artísticamente?</h2>
-                        <p class="question-subtitle"><span class="desktop-copy">Como te conocen tus clientes y seguidores. Va a ser tu identidad en We Ötzi y la URL de tu perfil.</span><span class="mobile-copy">Tu identidad en We Ötzi y la URL de tu perfil.</span></p>
-                    </div>
-
-                    <div class="input-wrapper" style="margin: 0;">
-                        <div class="wo-input-row">
-                            <input type="text" id="artistic_name" class="form-input" placeholder="tu nombre"
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">01 · Quién sos</p>
+                    <h2 class="ra-title">Tu nombre, real y artístico.</h2>
+                    <div class="ra-fields ra-fields--2col">
+                        <div class="ra-field">
+                            <label class="ra-label" for="artistic_name">Nombre artístico</label>
+                            <input type="text" id="artistic_name" class="form-input" placeholder="Como te conocen tus clientes"
                                 autocomplete="off" maxlength="30" data-wo-name>
-                            <div class="wo-availability-chip" id="wo-availability-chip" data-state="empty" aria-live="polite">—</div>
                         </div>
-                        <div class="wo-hint-row">
-                            <span class="wo-hint" id="wo-name-hint" data-state="empty">Escribí tu nombre artístico.</span>
-                            <span class="wo-counter" id="wo-name-counter">00 / 30</span>
-                        </div>
-                        <div class="wo-username-preview" id="wo-username-preview" aria-live="polite">
-                            <span>Usuario We Ötzi:</span> <strong id="wo-username-preview-value">nombre.wo</strong>
-                        </div>
-                        <div class="wo-username-suggestions" id="wo-username-suggestions" hidden aria-live="polite"></div>
-                    </div>
-
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" id="wo-step01-back" onclick="document.getElementById('btn-back')?.click()">
-                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver
-                        </button>
-                        <div class="keyhint">
-                            <span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span>
-                            <span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span>
-                        </div>
-                        <button type="button" class="wo-next-btn" id="wo-step01-next" onclick="document.getElementById('btn-next')?.click()">
-                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <script>
-                (function activateInstagramStepEarly() {
-                    var isInstagramSource = new URLSearchParams(window.location.search).get('source') === 'instagram';
-                    try {
-                        isInstagramSource = isInstagramSource || localStorage.getItem('weotzi_signup_via_instagram') === '1';
-                    } catch (_) {}
-                    if (!isInstagramSource) return;
-                    document.querySelectorAll('.form-step.active').forEach(function (step) {
-                        step.classList.remove('active');
-                    });
-                    document.querySelector('.form-step[data-step="0"]')?.classList.add('active');
-                    var label = document.getElementById('progress-label');
-                    if (label) label.textContent = 'IG / 11';
-                })();
-            </script>
-
-            <!-- Step 2: Full Name -->
-            <section class="form-step wo-bauhaus-step wo-step02" data-step="2">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow">
-                        <span class="accent-red">◍</span>
-                        REGISTRO ARTISTA — CAP 02
-                    </p>
-                    <div class="wo-poster-body">
-                        <div class="wo-manifesto">
-                            <div class="wo-manifesto-type">
-                                <div class="wo-manifesto-row">
-                                    <span class="wo-word-di">TU</span>
-                                    <span class="wo-manifesto-shape square"></span>
-                                </div>
-                                <div class="wo-manifesto-row">
-                                    <span class="blue wo-word-quien">NOMBRE</span>
-                                </div>
-                                <div class="wo-manifesto-row">
-                                    <span class="wo-word-eres">REAL.</span>
-                                    <span class="wo-manifesto-shape triangle"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="wo-poster-footer">
-                        <p>
-                            <strong>Datos claros, cuenta lista.</strong>
-                            <span class="poster-copy-desktop">Usamos tu nombre para documentos internos y verificación.</span>
-                            <span class="poster-copy-tablet">Puedes revisarlo antes de enviar.</span>
-                        </p>
-                        <p class="wo-poster-build">
-                            BUILD 0.9.4 · <span class="accent-red">STEP_02</span>
-                        </p>
-                    </div>
-                </div>
-
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>02</div>
-
-                    <div class="wo-form-header-row">
-                        <p class="wo-step-indicator">
-                            <span class="marker">◍</span>
-                            <span class="wo-step-copy">02 · Quién sos</span>
-                        </p>
-                    </div>
-
-                    <div>
-                        <h2 class="question-title">¿Cuál es tu<br>nombre completo?</h2>
-                        <p class="question-subtitle">Tu nombre legal queda asociado a la cuenta y a la documentación de artista.</p>
-                    </div>
-
-                    <div class="input-wrapper" style="margin: 0;">
-                        <div class="wo-input-row">
+                        <div class="ra-field">
+                            <label class="ra-label" for="full_name">Nombre real</label>
                             <input type="text" id="full_name" class="form-input" placeholder="Tu nombre completo"
                                 autocomplete="new-password" data-lpignore="true" data-form-type="other">
                         </div>
-                        <div class="wo-hint-row">
-                            <span class="wo-hint" aria-hidden="true"></span>
-                            <span class="wo-counter">02 / 11</span>
+                        <div class="ra-field">
+                            <label class="ra-label" for="birth_date">Fecha de nacimiento</label>
+                            <input type="date" id="birth_date" class="form-input" placeholder="dd/mm/aaaa" autocomplete="off">
                         </div>
                     </div>
-
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()">
-                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver
-                        </button>
-                        <div class="keyhint">
-                            <span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span>
-                            <span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span>
-                        </div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">
-                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
-                        </button>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue" data-continue="quien" disabled>Continuar <span aria-hidden="true">→</span></button>
                     </div>
                 </div>
             </section>
 
-            <!-- Step 3: Email (and password if pre-auth Instagram signup) -->
-            <section class="form-step wo-bauhaus-step wo-step03" data-step="3">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow">
-                        <span class="accent-red">◍</span>
-                        REGISTRO ARTISTA — CAP 03
-                    </p>
-                    <div class="wo-poster-body">
-                        <div class="wo-manifesto">
-                            <div class="wo-manifesto-type">
-                                <div class="wo-manifesto-row">
-                                    <span class="wo-word-di">TU</span>
-                                    <span class="wo-manifesto-shape square"></span>
-                                </div>
-                                <div class="wo-manifesto-row">
-                                    <span class="blue wo-word-quien">EMAIL</span>
-                                </div>
-                                <div class="wo-manifesto-row">
-                                    <span class="wo-word-eres">CONTRASEÑA</span>
-                                    <span class="wo-manifesto-shape triangle"></span>
-                                </div>
-                            </div>
-                        </div>
+            <!-- ===== 02 · TU ACCESO ===== -->
+            <section class="ra-group" data-group="acceso" data-index="2">
+                <div class="ra-row" hidden>
+                    <div class="ra-row-main">
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Tu acceso</p>
+                        <p class="ra-row-value" data-row-value>—</p>
                     </div>
-                    <div class="wo-poster-footer">
-                        <p>
-                            <strong>Tu acceso, tus avisos.</strong>
-                            <span class="poster-copy-desktop">Aquí recibirás confirmaciones y actualizaciones importantes.</span>
-                            <span class="poster-copy-tablet">Aquí llegan tus confirmaciones.</span>
-                        </p>
-                        <p class="wo-poster-build">
-                            BUILD 0.9.4 · <span class="accent-red">STEP_03</span>
-                        </p>
-                    </div>
+                    <button type="button" class="ra-edit" data-edit-group="acceso">Editar</button>
                 </div>
-
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>03</div>
-
-                    <div class="wo-form-header-row">
-                        <p class="wo-step-indicator">
-                            <span class="marker">◍</span>
-                            <span class="wo-step-copy">03 · Tu acceso</span>
-                        </p>
-                    </div>
-
-                    <div>
-                        <h2 class="question-title">¿Cuál es tu<br>email principal?</h2>
-                        <p class="question-subtitle">Lo usamos para confirmar tu cuenta, recuperar el acceso y enviarte avisos del registro.</p>
-                    </div>
-
-                    <div class="input-wrapper" style="margin: 0;">
-                        <div class="wo-input-row">
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">02 · Tu acceso</p>
+                    <h2 class="ra-title">Email y contraseña.</h2>
+                    <div class="ra-fields ra-fields--narrow">
+                        <div class="ra-field">
+                            <label class="ra-label" for="email">Email</label>
                             <input type="email" id="email" class="form-input" placeholder="tu@email.com" autocomplete="off">
                         </div>
-                        <div class="wo-hint-row">
-                            <span class="wo-hint">Debe ser un email al que tengas acceso.</span>
-                            <span class="wo-counter">03 / 11</span>
-                        </div>
-                    </div>
-
-                    <div class="ig-preauth-only" style="display: none; margin-top: 0;">
-                        <p class="question-subtitle password-create-copy" style="margin-top: 0;">Creá una contraseña segura para tu cuenta.</p>
-                        <div class="input-wrapper">
-                            <div class="wo-input-row password-input-row">
-                                <input type="password" id="signup_password" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6">
-                                <button type="button" class="password-toggle" data-password-toggle="signup_password" aria-label="Mostrar contraseña" aria-pressed="false">
-                                    <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
-                                </button>
-                            </div>
-                            <div class="password-strength" id="password-strength" aria-live="polite">
-                                <div class="password-strength-track"><div class="password-strength-fill" id="password-strength-fill"></div></div>
-                                <div class="password-feedback" id="password-strength-text">Usá una mezcla difícil de adivinar.</div>
-                                <ul class="password-rules" id="password-rules">
-                                    <li data-rule="length">6+ caracteres</li>
-                                    <li data-rule="case">Mayusculas y minusculas</li>
-                                    <li data-rule="number">Al menos un numero</li>
-                                    <li data-rule="symbol">Un simbolo</li>
-                                    <li data-rule="common">No comun ni predecible</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="input-wrapper" style="margin-top: 10px;">
-                            <div class="wo-input-row password-input-row">
-                                <input type="password" id="signup_password_confirm" class="form-input" placeholder="Repetí la contraseña" autocomplete="new-password" minlength="6">
-                                <button type="button" class="password-toggle" data-password-toggle="signup_password_confirm" aria-label="Mostrar confirmacion" aria-pressed="false">
-                                    <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
-                                </button>
-                            </div>
-                            <div class="password-match-hint" id="password-match-hint" aria-live="polite">Repetí la contraseña para confirmar.</div>
-                        </div>
-                    </div>
-
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()">
-                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver
-                        </button>
-                        <div class="keyhint">
-                            <span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span>
-                            <span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span>
-                        </div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">
-                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 4: Tattoo Styles -->
-            <section class="form-step wo-bauhaus-step wo-step05" data-step="4">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 04</p>
-                    <div class="wo-poster-body">
-                        <div class="wo-manifesto">
-                            <div class="wo-manifesto-type">
-                                <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                                <div class="wo-manifesto-row"><span class="blue">SELLO</span></div>
-                                <div class="wo-manifesto-row"><span>VISUAL.</span><span class="wo-manifesto-shape triangle"></span></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Define tu territorio visual.</strong> Marca los estilos que quieres recibir en oportunidades y búsquedas.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_04</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>04</div>
-                    <div class="wo-form-header-row">
-                        <p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">04 · Tu oficio</span></p>
-                    </div>
-                    <div>
-                        <h2 class="question-title">¿Qué estilos<br>trabajás?</h2>
-                        <p class="question-subtitle">Elegí todos los que representen tu trabajo.</p>
-                    </div>
-                    <div>
-                        <div class="styles-grid" id="styles-grid">
-                            <!-- Populated dynamically from tattoo_styles DB by register.js -->
-                        </div>
-                        <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
-                            <div class="wo-input-row">
-                                <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribí tu estilo" autocomplete="off">
-                                <button type="button" class="geolocation-btn" id="add-custom-style-btn" aria-label="Agregar estilo">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="wo-hint-row">
-                            <span class="wo-hint">Podés elegir varios o agregar uno propio.</span>
-                            <span class="wo-counter">04 / 11</span>
-                        </div>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 5: Experience -->
-            <section class="form-step wo-bauhaus-step wo-step06" data-step="5">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 05</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">TRAYECTO</span></div>
-                        <div class="wo-manifesto-row"><span>CUENTA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Contexto para mejores matches.</strong> La experiencia ayuda a ordenar solicitudes y expectativas.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_05</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>05</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">05 · Tu oficio</span></p></div>
-                    <div>
-                        <h2 class="question-title">¿Hace cuánto<br>tatuás?</h2>
-                        <p class="question-subtitle">Elegí el rango que mejor describa tu recorrido profesional.</p>
-                    </div>
-                    <div>
-                        <div class="experience-options" id="experience-options">
-                            <button type="button" class="experience-option" data-years="0-1">Menos de 1 año</button>
-                            <button type="button" class="experience-option" data-years="1-3">1 - 3 años</button>
-                            <button type="button" class="experience-option" data-years="3-5">3 - 5 años</button>
-                            <button type="button" class="experience-option" data-years="5-10">5 - 10 años</button>
-                            <button type="button" class="experience-option" data-years="10+">Más de 10 años</button>
-                        </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Podés actualizarlo después.</span><span class="wo-counter">05 / 11</span></div>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 6: Session Price -->
-            <section class="form-step wo-bauhaus-step wo-step07" data-step="6">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 06</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">TARIFA</span></div>
-                        <div class="wo-manifesto-row"><span>CLARA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Menos fricción al cotizar.</strong> Un rango inicial ayuda a filtrar clientes con intención real.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_06</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>06</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">06 · Tu oficio</span></p></div>
-                    <div>
-                        <h2 class="question-title">¿Cuál es tu tarifa<br>por sesión?</h2>
-                        <p class="question-subtitle">Ingresá un valor aproximado. Sirve como referencia, no como precio fijo.</p>
-                    </div>
-                    <div class="input-wrapper price-wrapper" style="margin: 0;">
-                        <div style="flex:1; min-width:0;">
-                            <div class="wo-input-row">
-                                <input type="number" id="session_price" class="form-input price-input" placeholder="150" autocomplete="off" min="0">
-                            </div>
-                            <div class="wo-hint-row"><span class="wo-hint">Monto por sesión completa.</span><span class="wo-counter">06 / 11</span></div>
-                        </div>
-                        <select id="session_currency" class="currency-select">
-                            <optgroup label="Americas">
-                                <option value="USD">USD - Dólar USA</option>
-                                <option value="MXN">MXN - Peso Mexicano</option>
-                                <option value="COP">COP - Peso Colombiano</option>
-                                <option value="ARS">ARS - Peso Argentino</option>
-                                <option value="CLP">CLP - Peso Chileno</option>
-                                <option value="PEN">PEN - Sol Peruano</option>
-                                <option value="BRL">BRL - Real Brasileño</option>
-                                <option value="CAD">CAD - Dólar Canadiense</option>
-                                <option value="UYU">UYU - Peso Uruguayo</option>
-                                <option value="PYG">PYG - Guaraní Paraguayo</option>
-                                <option value="BOB">BOB - Boliviano</option>
-                                <option value="VES">VES - Bolívar Venezolano</option>
-                                <option value="CRC">CRC - Colón Costarricense</option>
-                                <option value="PAB">PAB - Balboa Panameño</option>
-                                <option value="DOP">DOP - Peso Dominicano</option>
-                                <option value="GTQ">GTQ - Quetzal Guatemalteco</option>
-                                <option value="HNL">HNL - Lempira Hondureño</option>
-                                <option value="NIO">NIO - Córdoba Nicaragüense</option>
-                                <option value="CUP">CUP - Peso Cubano</option>
-                                <option value="JMD">JMD - Dólar Jamaiquino</option>
-                                <option value="TTD">TTD - Dólar Trinidad</option>
-                            </optgroup>
-                            <optgroup label="Europa">
-                                <option value="EUR">EUR - Euro</option>
-                                <option value="GBP">GBP - Libra Esterlina</option>
-                                <option value="CHF">CHF - Franco Suizo</option>
-                                <option value="SEK">SEK - Corona Sueca</option>
-                                <option value="NOK">NOK - Corona Noruega</option>
-                                <option value="DKK">DKK - Corona Danesa</option>
-                                <option value="PLN">PLN - Zloty Polaco</option>
-                                <option value="CZK">CZK - Corona Checa</option>
-                                <option value="HUF">HUF - Forinto Húngaro</option>
-                                <option value="RON">RON - Leu Rumano</option>
-                                <option value="BGN">BGN - Lev Búlgaro</option>
-                                <option value="HRK">HRK - Kuna Croata</option>
-                                <option value="RSD">RSD - Dinar Serbio</option>
-                                <option value="UAH">UAH - Grivna Ucraniana</option>
-                                <option value="RUB">RUB - Rublo Ruso</option>
-                                <option value="ISK">ISK - Corona Islandesa</option>
-                                <option value="TRY">TRY - Lira Turca</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 7: Portfolio Source Selector -->
-            <section class="form-step wo-bauhaus-step wo-step08" data-step="7">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 07</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">PORTFOLIO</span></div>
-                        <div class="wo-manifesto-row"><span>ABRE.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Muéstrales el trabajo real.</strong> Conecta una fuente para construir tu perfil con menos pasos.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_07</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>07</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">07 · Tu presencia</span></p></div>
-                    <div>
-                        <h2 class="question-title">¿Dónde mostrás<br>tu trabajo?</h2>
-                        <p class="question-subtitle">Elegí la fuente principal donde ya compartís tu portfolio.</p>
-                    </div>
-                    <div>
-                        <div class="portfolio-source-options" id="portfolio-source-options">
-                            <button type="button" class="portfolio-source-option" data-source="website">Sitio web</button>
-                            <button type="button" class="portfolio-source-option" data-source="instagram">Instagram</button>
-                            <button type="button" class="portfolio-source-option" data-source="other">Otro</button>
-                            <button type="button" class="portfolio-source-option" data-source="none">Usaré We Ötzi</button>
-                        </div>
-                        <div class="portfolio-conditional-input" id="portfolio-url-wrapper" style="display: none;">
-                            <label class="conditional-input-label" id="portfolio-url-label">URL de tu sitio web</label>
-                            <div class="wo-input-row"><input type="url" id="portfolio_url" class="form-input" placeholder="https://tusitio.com" autocomplete="off"></div>
-                        </div>
-                        <div class="portfolio-conditional-input" id="portfolio-ig-wrapper" style="display: none;">
-                            <label class="conditional-input-label">Tu nombre de usuario en Instagram</label>
-                            <div class="instagram-input-row">
-                                <span class="instagram-prefix">@</span>
-                                <input type="text" id="instagram_handle" class="form-input" placeholder="tu_usuario" autocomplete="off">
-                            </div>
-                            <div id="ig-import-mount" style="margin-top: 14px;"></div>
-                            <small class="portfolio-hint-note">Opcional: importá bio, enlace de bio, fotos y reels desde Instagram para acelerar el registro.</small>
-                        </div>
-                        <div id="portfolio-media-section" class="portfolio-media-section" style="display: none; margin-top: 16px;">
-                            <label class="conditional-input-label" style="margin-bottom: 8px;">Fotos del portfolio</label>
-                            <p class="portfolio-media-note">Estas son las fotos que van a aparecer en tu perfil. Borrá las que no quieras y agregá más desde tu dispositivo.</p>
-                            <div id="portfolio-media-grid" class="portfolio-media-grid"></div>
-                            <button type="button" id="portfolio-media-add-btn" class="portfolio-media-add-btn"><i data-wo-icon="plus" aria-hidden="true"></i> Agregar fotos o videos</button>
-                            <input type="file" id="portfolio-media-file-input" accept="image/*,video/*" multiple hidden>
-                        </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Podés empezar con We Ötzi aunque todavía no tengas portfolio.</span><span class="wo-counter">07 / 11</span></div>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 8: Bio -->
-            <section class="form-step wo-bauhaus-step wo-step09" data-step="8">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 08</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">BIO</span></div>
-                        <div class="wo-manifesto-row"><span>CONECTA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Tu voz antes del primer mensaje.</strong> Cuenta qué haces, cómo trabajas y qué tipo de proyectos buscas.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_08</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>08</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">08 · Tu presencia</span></p></div>
-                    <div>
-                        <h2 class="question-title">Contanos<br>quién sos.</h2>
-                        <p class="question-subtitle">Un par de líneas sobre vos y tu trabajo, para clientes y colaboradores.</p>
-                    </div>
-                    <div class="bio-step-body">
-                        <button type="button" id="bio-mobile-open" class="bio-mobile-open" aria-haspopup="dialog" aria-controls="bio-editor-modal">
-                            <span class="bio-mobile-open-kicker">Editor WYSIWYG</span>
-                            <span id="bio-mobile-preview" class="bio-mobile-preview">Tocá para escribir tu bio.</span>
-                            <span class="bio-mobile-open-action">Abrir editor →</span>
-                        </button>
-                        <div id="bio-editor-modal" class="bio-editor-wrapper">
-                            <div class="bio-modal-head">
-                                <p id="bio-modal-title" class="bio-modal-title">Editar bio</p>
-                                <button type="button" id="bio-modal-close" class="bio-modal-close">Listo</button>
-                            </div>
-                            <div class="bio-toolbar">
-                                <button type="button" class="toolbar-btn" data-command="bold" title="Negrita"><strong>B</strong></button>
-                                <button type="button" class="toolbar-btn" data-command="italic" title="Cursiva"><em>I</em></button>
-                                <button type="button" class="toolbar-btn" data-command="underline" title="Subrayado"><u>U</u></button>
-                                <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Tachado"><s>S</s></button>
-                                <div class="toolbar-separator"></div>
-                                <button type="button" class="toolbar-btn" data-command="undo" title="Deshacer" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
-                                <button type="button" class="toolbar-btn" data-command="redo" title="Rehacer" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
-                                <div class="toolbar-separator"></div>
-                                <button type="button" class="toolbar-btn color-btn" data-command="foreColor" title="Color de texto"><span class="color-icon text-color"></span><input id="text-color-picker" type="color" class="color-picker" value="#E53935"></button>
-                                <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo"><span class="color-icon bg-color"></span><input id="bg-color-picker" type="color" class="color-picker" value="#FFEB3B"></button>
-                                <div class="toolbar-separator"></div>
-                                <button type="button" class="toolbar-btn" data-command="createLink" title="Insertar enlace"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
-                                <button type="button" id="emoji-trigger" class="toolbar-btn emoji-btn" title="Emojis"><i data-wo-icon="smile" class="wo-icon-18" aria-hidden="true"></i></button>
-                            </div>
-                            <div id="emoji-picker" class="emoji-picker">
-                                <div class="emoji-grid">
-                                    <button type="button" class="emoji-item">😀</button><button type="button" class="emoji-item">😎</button><button type="button" class="emoji-item">🎨</button><button type="button" class="emoji-item">✨</button><button type="button" class="emoji-item">🔥</button><button type="button" class="emoji-item">💪</button><button type="button" class="emoji-item">🖤</button><button type="button" class="emoji-item">❤️</button><button type="button" class="emoji-item">💫</button><button type="button" class="emoji-item">⚡</button><button type="button" class="emoji-item">🌟</button><button type="button" class="emoji-item">💀</button><button type="button" class="emoji-item">🦋</button><button type="button" class="emoji-item">🌹</button><button type="button" class="emoji-item">🐉</button><button type="button" class="emoji-item">🎭</button><button type="button" class="emoji-item">💉</button><button type="button" class="emoji-item">🎯</button><button type="button" class="emoji-item">🏆</button><button type="button" class="emoji-item">📍</button>
+                        <div class="ig-preauth-only">
+                            <div class="ra-field">
+                                <label class="ra-label" for="signup_password">Contraseña</label>
+                                <div class="password-input-row">
+                                    <input type="password" id="signup_password" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6">
+                                    <button type="button" class="password-toggle" data-password-toggle="signup_password" aria-label="Mostrar contraseña" aria-pressed="false">
+                                        <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
+                                    </button>
+                                </div>
+                                <div class="password-strength" id="password-strength" aria-live="polite">
+                                    <div class="password-strength-track"><div class="password-strength-fill" id="password-strength-fill"></div></div>
+                                    <div class="password-feedback" id="password-strength-text">Usá una mezcla difícil de adivinar.</div>
+                                    <ul class="password-rules" id="password-rules">
+                                        <li data-rule="length">6+ caracteres</li>
+                                        <li data-rule="case">Mayusculas y minusculas</li>
+                                        <li data-rule="number">Al menos un numero</li>
+                                        <li data-rule="symbol">Un simbolo</li>
+                                        <li data-rule="common">No comun ni predecible</li>
+                                    </ul>
                                 </div>
                             </div>
-                            <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribí tu bio acá…"></div>
-                        </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Este paso es opcional, pero mejora tu perfil.</span><span class="wo-counter">08 / 11</span></div>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 9: Work Type -->
-            <section class="form-step wo-bauhaus-step wo-step10" data-step="9">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 09</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">FORMA</span></div>
-                        <div class="wo-manifesto-row"><span>DE TRABAJO.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Independiente, estudio o ambos.</strong> Esta información conecta tu perfil con reservas y búsquedas.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_09</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>09</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">09 · Cómo trabajás</span></p></div>
-                    <div>
-                        <h2 class="question-title">¿Estudio o<br>independiente?</h2>
-                        <p class="question-subtitle">Elegí tu modalidad principal y agregá dirección si aplica.</p>
-                    </div>
-                    <div>
-                        <div class="work-type-options" id="work-type-options">
-                            <button type="button" class="work-type-option" data-type="studio"><span class="work-type-label">Estudio</span><span class="work-type-desc">Trabajo en un estudio establecido</span></button>
-                            <button type="button" class="work-type-option" data-type="independent"><span class="work-type-label">Independiente</span><span class="work-type-desc">Trabajo por mi cuenta</span></button>
-                            <button type="button" class="work-type-option" data-type="both"><span class="work-type-label">Ambos</span><span class="work-type-desc">Combino ambas modalidades</span></button>
-                        </div>
-                        <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
-                            <label class="studio-name-label">Nombre del estudio donde trabajás</label>
-                            <div class="wo-input-row studio-autocomplete-wrapper">
-                                <input type="text" id="studio_name" class="form-input" placeholder="Nombre del estudio" autocomplete="off">
-                                <div class="studio-suggestions" id="studio-suggestions"></div>
-                            </div>
-                            <p class="wo-plain-preview studio-address-preview" id="studio-address-preview" hidden>
-                                <span>Dirección del estudio:</span> <strong></strong>
-                            </p>
-                        </div>
-                        <div class="studio-location-select-wrapper" id="studio-location-select-wrapper" hidden>
-                            <label class="studio-name-label" for="studio_location_select">Elegir sede</label>
-                            <select id="studio_location_select" class="studio-location-select"></select>
-                        </div>
-                        <div class="address-picker-wrapper" id="address-picker-wrapper" style="display: none;">
-                            <label class="studio-name-label" id="address-picker-label">Dirección del estudio</label>
-                            <p class="address-picker-help" id="address-picker-help">Buscá la dirección y elegí una sugerencia para ubicarla con precisión.</p>
-                            <div class="wo-input-row"><input type="text" id="address_search" class="form-input" placeholder="Calle 123, Ciudad, País" autocomplete="off"></div>
-                            <details class="address-details" id="address-details" hidden>
-                                <summary>Ver datos completos de la dirección</summary>
-                                <div class="weotzi-address-fields" id="address-preview" hidden></div>
-                            </details>
-                        </div>
-                        <div class="wo-hint-row"><span class="wo-hint" aria-hidden="true"></span><span class="wo-counter">09 / 11</span></div>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 10: Birth Date -->
-            <section class="form-step wo-bauhaus-step wo-step11" data-step="10">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 10</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">FECHA</span></div>
-                        <div class="wo-manifesto-row"><span>VERIFICA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Solo para validar edad.</strong> Este dato no se mostrará públicamente en tu perfil.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_10</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>10</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">10 · Verificación</span></p></div>
-                    <div>
-                        <h2 class="question-title">¿Cuál es tu fecha<br>de nacimiento?</h2>
-                        <p class="question-subtitle">Necesitamos confirmar que seas mayor de edad.</p>
-                    </div>
-                    <div>
-                        <div class="birth-date-selects">
-                            <div class="birth-select-group"><label class="birth-select-label" for="birth_day">Día</label><select id="birth_day" class="birth-select"><option value="" disabled selected>--</option></select></div>
-                            <div class="birth-select-group"><label class="birth-select-label" for="birth_month">Mes</label><select id="birth_month" class="birth-select"><option value="" disabled selected>--</option></select></div>
-                            <div class="birth-select-group"><label class="birth-select-label" for="birth_year">Año</label><select id="birth_year" class="birth-select"><option value="" disabled selected>--</option></select></div>
-                        </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Dato privado y requerido para verificación.</span><span class="wo-counter">10 / 11</span></div>
-                    </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 11: Newsletter -->
-            <section class="form-step wo-bauhaus-step wo-step12" data-step="11">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — CAP 11</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TU</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">COMUNIDAD</span></div>
-                        <div class="wo-manifesto-row"><span>SUMA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Noticias útiles, sin ruido.</strong> Te avisamos de funciones, oportunidades y mejoras relevantes.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">STEP_11</span></p>
-                    </div>
-                </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>11</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">11 · Novedades</span></p></div>
-                    <div>
-                        <h2 class="question-title">¿Qué querés<br>recibir?</h2>
-                        <p class="question-subtitle">Oportunidades, herramientas, avisos tempranos y recursos pensados para que tu perfil trabaje mejor por vos.</p>
-                    </div>
-                    <div>
-                        <div class="newsletter-invite-block">
-                            <div class="newsletter-invite">
-                                <h3>Radar de artistas We Ötzi</h3>
-                                <p>Recibí lanzamientos, mejoras del perfil, oportunidades y avisos importantes para crecer con menos ruido.</p>
+                            <div class="ra-field">
+                                <label class="ra-label" for="signup_password_confirm">Repetir contraseña</label>
+                                <div class="password-input-row">
+                                    <input type="password" id="signup_password_confirm" class="form-input" placeholder="Confirmá tu contraseña" autocomplete="new-password" minlength="6">
+                                    <button type="button" class="password-toggle" data-password-toggle="signup_password_confirm" aria-label="Mostrar confirmacion" aria-pressed="false">
+                                        <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
+                                    </button>
+                                </div>
+                                <div class="password-match-hint" id="password-match-hint" aria-live="polite">Repetí la contraseña para confirmar.</div>
                             </div>
                         </div>
-                        <div class="newsletter-options" id="newsletter-options" aria-describedby="newsletter-error">
-                            <button type="button" class="newsletter-option" data-subscribe="true"><span class="newsletter-option-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5" /></svg></span><span class="newsletter-option-text">Sí, quiero unirme</span></button>
-                            <button type="button" class="newsletter-option newsletter-option-decline" data-subscribe="false"><span class="newsletter-option-text">Ahora no</span></button>
-                        </div>
-                        <p class="newsletter-error" id="newsletter-error" role="alert" hidden>Elegí una opción para continuar.</p>
-                        <div class="wo-hint-row"><span class="wo-hint">Podés cambiar esta preferencia después.</span><span class="wo-counter">11 / 11</span></div>
                     </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para revisar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Revisar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue" data-continue="acceso" disabled>Continuar <span aria-hidden="true">→</span></button>
                     </div>
                 </div>
             </section>
 
-            <!-- Summary Step -->
-            <section class="form-step wo-bauhaus-step wo-step-summary summary-step" data-step="summary">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — REVIEW</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>REVISA</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">TODO</span></div>
-                        <div class="wo-manifesto-row"><span>ENVIA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Último control antes de crear el perfil.</strong> Puedes editar campos desde la tabla de revisión.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">REVIEW</span></p>
+            <!-- ===== 03 · TU OFICIO ===== -->
+            <section class="ra-group" data-group="oficio" data-index="3">
+                <div class="ra-row" hidden>
+                    <div class="ra-row-main">
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Tu oficio</p>
+                        <p class="ra-row-value" data-row-value>—</p>
                     </div>
+                    <button type="button" class="ra-edit" data-edit-group="oficio">Editar</button>
                 </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator summary-indicator" hidden>OK</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">Revisá y confirmá</span></p></div>
-                    <div>
-                        <h2 class="question-title">Revisá tus<br>datos.</h2>
-                        <p class="question-subtitle">Confirmá que todo esté correcto antes de crear tu perfil.</p>
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">03 · Tu oficio</p>
+                    <h2 class="ra-title">¿Qué estilos trabajás?</h2>
+                    <p class="ra-hint">Elegí todos los que representen tu trabajo.</p>
+                    <div class="styles-grid" id="styles-grid">
+                        <!-- Chips generados desde tattoo_styles por register.js -->
                     </div>
-                    <div>
-                        <div class="summary-review">
-                            <button type="button" id="summary-mobile-open" class="summary-mobile-open" aria-controls="summary-review-modal" aria-expanded="false">
-                                <span>Formulario completo</span>
-                                <strong>Revisar / editar</strong>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true">
-                                    <path d="M4 12h16"/>
-                                    <path d="M13 5l7 7-7 7"/>
-                                </svg>
+                    <button type="button" class="ra-more-styles" id="styles-more-btn" aria-expanded="false" aria-controls="styles-grid">Ver más estilos</button>
+                    <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
+                        <label class="ra-label" for="custom_style">Tu estilo</label>
+                        <div class="ra-inline-add">
+                            <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribí tu estilo" autocomplete="off">
+                            <button type="button" class="ra-add-btn" id="add-custom-style-btn" aria-label="Agregar estilo">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                             </button>
-                            <div id="summary-review-modal" class="summary-review-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="summary-review-title">
-                                <div class="summary-review-panel">
-                                    <div class="summary-review-head">
-                                        <div>
-                                            <p class="wo-step-indicator"><span>Revisión</span></p>
-                                            <h3 id="summary-review-title">Formulario completo.</h3>
-                                        </div>
-                                        <button type="button" id="summary-review-close" class="summary-review-close" aria-label="Cerrar revision">×</button>
-                                    </div>
-                                    <div class="summary-review-scroll">
-                                        <div class="summary-card" id="summary-card">
-                                            <!-- Summary content will be populated by JS -->
-                                        </div>
-                                    </div>
-                                </div>
+                        </div>
+                    </div>
+
+                    <p class="ra-sublabel">¿Hace cuánto tatuás?</p>
+                    <div class="experience-options" id="experience-options">
+                        <button type="button" class="experience-option" data-years="0-1">Menos de 1 año</button>
+                        <button type="button" class="experience-option" data-years="1-3">1-3 años</button>
+                        <button type="button" class="experience-option" data-years="3-5">3-5 años</button>
+                        <button type="button" class="experience-option" data-years="5-10">5-10 años</button>
+                        <button type="button" class="experience-option" data-years="10+">10+ años</button>
+                    </div>
+
+                    <div class="ra-fields ra-fields--price">
+                        <div class="ra-field">
+                            <label class="ra-label" for="session_price">Tarifa por sesión</label>
+                            <div class="price-input-row">
+                                <span class="price-prefix" aria-hidden="true">$</span>
+                                <input type="number" id="session_price" class="form-input price-input" placeholder="0" autocomplete="off" min="0">
                             </div>
                         </div>
-                        <div class="terms-container">
-                            <label class="terms-checkbox-wrapper">
-                                <input type="checkbox" id="terms-checkbox" class="terms-checkbox">
-                                <span class="terms-checkmark"></span>
-                                <span class="terms-text">Acepto los <a href="https://weotzi.com/terms" target="_blank" class="terms-link">Términos y Condiciones</a> y la <a href="https://weotzi.com/privacy" target="_blank" class="terms-link">Política de Privacidad</a></span>
-                            </label>
-                            <p class="terms-info">También aceptás recibir correos del sistema e información del programa de beta cerrada.</p>
+                        <div class="ra-field">
+                            <label class="ra-label" for="session_currency">Mostrar en</label>
+                            <select id="session_currency" class="currency-select">
+                                <optgroup label="Americas">
+                                    <option value="USD">Dólar (USD)</option>
+                                    <option value="MXN">Pesos (MXN)</option>
+                                    <option value="COP">Pesos (COP)</option>
+                                    <option value="ARS">Pesos (ARS)</option>
+                                    <option value="CLP">Pesos (CLP)</option>
+                                    <option value="PEN">Soles (PEN)</option>
+                                    <option value="BRL">Reales (BRL)</option>
+                                    <option value="CAD">Dólar canadiense (CAD)</option>
+                                    <option value="UYU">Pesos (UYU)</option>
+                                    <option value="PYG">Guaraníes (PYG)</option>
+                                    <option value="BOB">Bolivianos (BOB)</option>
+                                    <option value="VES">Bolívares (VES)</option>
+                                    <option value="CRC">Colones (CRC)</option>
+                                    <option value="PAB">Balboas (PAB)</option>
+                                    <option value="DOP">Pesos (DOP)</option>
+                                    <option value="GTQ">Quetzales (GTQ)</option>
+                                    <option value="HNL">Lempiras (HNL)</option>
+                                    <option value="NIO">Córdobas (NIO)</option>
+                                    <option value="CUP">Pesos (CUP)</option>
+                                    <option value="JMD">Dólar jamaiquino (JMD)</option>
+                                    <option value="TTD">Dólar Trinidad (TTD)</option>
+                                </optgroup>
+                                <optgroup label="Europa">
+                                    <option value="EUR">Euros (EUR)</option>
+                                    <option value="GBP">Libras (GBP)</option>
+                                    <option value="CHF">Francos (CHF)</option>
+                                    <option value="SEK">Coronas (SEK)</option>
+                                    <option value="NOK">Coronas (NOK)</option>
+                                    <option value="DKK">Coronas (DKK)</option>
+                                    <option value="PLN">Zlotys (PLN)</option>
+                                    <option value="CZK">Coronas (CZK)</option>
+                                    <option value="HUF">Forintos (HUF)</option>
+                                    <option value="RON">Leus (RON)</option>
+                                    <option value="BGN">Levas (BGN)</option>
+                                    <option value="HRK">Kunas (HRK)</option>
+                                    <option value="RSD">Dinares (RSD)</option>
+                                    <option value="UAH">Grivnas (UAH)</option>
+                                    <option value="RUB">Rublos (RUB)</option>
+                                    <option value="ISK">Coronas (ISK)</option>
+                                    <option value="TRY">Liras (TRY)</option>
+                                </optgroup>
+                            </select>
                         </div>
                     </div>
-                    <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para confirmar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Confirmar y crear perfil <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></button>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue" data-continue="oficio" disabled>Continuar <span aria-hidden="true">→</span></button>
                     </div>
                 </div>
             </section>
 
-            <!-- Saving Step -->
-            <section class="form-step wo-bauhaus-step wo-step-saving saving-step" data-step="saving">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">●</span> REGISTRO ARTISTA — SYNC</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>CREANDO</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">TU</span></div>
-                        <div class="wo-manifesto-row"><span>CUENTA.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Estamos guardando tu registro.</strong> No cierres esta ventana mientras terminamos la creacion de la cuenta.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">SYNCING</span></p>
+            <!-- ===== 04 · TU PRESENCIA ===== -->
+            <section class="ra-group" data-group="presencia" data-index="4">
+                <div class="ra-row" hidden>
+                    <div class="ra-row-main">
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Tu presencia</p>
+                        <p class="ra-row-value" data-row-value>—</p>
                     </div>
+                    <button type="button" class="ra-edit" data-edit-group="presencia">Editar</button>
                 </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>...</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">●</span><span class="wo-step-copy">Creando tu cuenta</span></p></div>
-                    <div>
-                        <h2 class="question-title">Un momento.</h2>
-                        <p class="question-subtitle">Estamos creando tu usuario, guardando el perfil y preparando la confirmación.</p>
-                    </div>
-                    <div class="saving-grid" aria-live="polite">
-                        <div class="saving-loader" aria-hidden="true"></div>
-                        <div class="saving-copy-carousel" aria-hidden="true">
-                            <span class="saving-copy-item">Estás a un paso de llevar tu arte al mundo</span>
-                            <span class="saving-copy-item">Ajustando stencil</span>
-                            <span class="saving-copy-item">Organizando tu agenda</span>
-                            <span class="saving-copy-item">Des-influenciando el arte</span>
-                            <span class="saving-copy-item">Puliendo tu manifiesto visual</span>
-                            <span class="saving-copy-item">Sacando el algoritmo del atelier</span>
-                            <span class="saving-copy-item">Preparando tinta para perfiles serios</span>
-                            <span class="saving-copy-item">Menos ruido, más obra</span>
-                            <span class="saving-copy-item">Curando tu vitrina sin humo</span>
-                            <span class="saving-copy-item">Haciendo espacio para artistas reales</span>
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">04 · Tu presencia</p>
+                    <h2 class="ra-title">Contanos quién sos.</h2>
+                    <div class="ra-fields">
+                        <div class="ra-field">
+                            <label class="ra-label" for="bio_text">Breve presentación</label>
+                            <textarea id="bio_text" class="ra-textarea" rows="4" placeholder="Un par de líneas sobre vos y tu trabajo"></textarea>
                         </div>
-                        <span class="saving-copy-sr">Estamos creando tu cuenta de artista en We Ötzi.</span>
+                    </div>
+
+                    <p class="ra-sublabel">¿Dónde mostrás tu trabajo?</p>
+                    <div class="link-toggles" id="link-toggles">
+                        <button type="button" class="link-toggle is-active" data-link="instagram" aria-pressed="true">Instagram</button>
+                        <button type="button" class="link-toggle is-active" data-link="website" aria-pressed="true">Sitio web</button>
+                        <button type="button" class="link-toggle is-active" data-link="other" aria-pressed="true">Otro</button>
+                    </div>
+                    <div class="ra-fields ra-fields--narrow">
+                        <div class="ra-field" data-link-field="instagram">
+                            <label class="ra-label" for="instagram_handle">Instagram</label>
+                            <input type="text" id="instagram_handle" class="form-input" placeholder="@usuario" autocomplete="off">
+                        </div>
+                        <div class="ra-field" data-link-field="website">
+                            <label class="ra-label" for="portfolio_url">Sitio web</label>
+                            <input type="url" id="portfolio_url" class="form-input" placeholder="https://tusitio.com" autocomplete="off">
+                        </div>
+                        <div class="ra-field" data-link-field="other">
+                            <label class="ra-label" for="other_url">Otro</label>
+                            <input type="url" id="other_url" class="ra-input" placeholder="Link" autocomplete="off">
+                        </div>
+                    </div>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue" data-continue="presencia">Continuar <span aria-hidden="true">→</span></button>
                     </div>
                 </div>
             </section>
 
-            <!-- Success Step -->
-            <section class="form-step wo-bauhaus-step wo-step-success success-step" data-step="success">
-                <div class="wo-poster-col" aria-hidden="true">
-                    <p class="wo-poster-eyebrow"><span class="accent-red">◍</span> REGISTRO ARTISTA — READY</p>
-                    <div class="wo-poster-body"><div class="wo-manifesto"><div class="wo-manifesto-type">
-                        <div class="wo-manifesto-row"><span>TODO</span><span class="wo-manifesto-shape square"></span></div>
-                        <div class="wo-manifesto-row"><span class="blue">LISTO</span></div>
-                        <div class="wo-manifesto-row"><span>ENVIADO.</span><span class="wo-manifesto-shape triangle"></span></div>
-                    </div></div></div>
-                    <div class="wo-poster-footer">
-                        <p><strong>Tu perfil esta en marcha.</strong> Queda pendiente de validacion antes de activarse.</p>
-                        <p class="wo-poster-build">BUILD 0.9.4 · <span class="accent-red">DONE</span></p>
+            <!-- ===== 05 · CÓMO TRABAJÁS ===== -->
+            <section class="ra-group" data-group="trabajo" data-index="5">
+                <div class="ra-row" hidden>
+                    <div class="ra-row-main">
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Cómo trabajás</p>
+                        <p class="ra-row-value" data-row-value>—</p>
+                    </div>
+                    <button type="button" class="ra-edit" data-edit-group="trabajo">Editar</button>
+                </div>
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">05 · Cómo trabajás</p>
+                    <h2 class="ra-title">¿Estudio o independiente?</h2>
+                    <div class="work-type-options" id="work-type-options">
+                        <button type="button" class="work-type-option" data-type="studio">
+                            <span class="work-type-kicker">Trabajo en</span>
+                            <span class="work-type-label">Un estudio</span>
+                        </button>
+                        <button type="button" class="work-type-option" data-type="independent">
+                            <span class="work-type-kicker">Trabajo</span>
+                            <span class="work-type-label">Independiente</span>
+                        </button>
+                    </div>
+
+                    <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
+                        <label class="ra-label" for="studio_name">Nombre del estudio</label>
+                        <div class="studio-autocomplete-wrapper">
+                            <input type="text" id="studio_name" class="form-input" placeholder="Nombre del estudio" autocomplete="off">
+                            <div class="studio-suggestions" id="studio-suggestions"></div>
+                        </div>
+                        <p class="ra-hint studio-address-preview" id="studio-address-preview" hidden>
+                            <span>Dirección del estudio:</span> <strong></strong>
+                        </p>
+                    </div>
+                    <div class="studio-location-select-wrapper" id="studio-location-select-wrapper" hidden>
+                        <label class="ra-label" for="studio_location_select">Elegir sede</label>
+                        <select id="studio_location_select" class="studio-location-select"></select>
+                    </div>
+                    <div class="address-picker-wrapper" id="address-picker-wrapper" style="display: none;">
+                        <label class="ra-label" id="address-picker-label" for="address_search">Tu dirección</label>
+                        <input type="text" id="address_search" class="form-input ra-input--hard" placeholder="Calle 123, Ciudad, País" autocomplete="off">
+                        <p class="ra-hint" id="address-picker-help">Buscá la dirección y elegí una sugerencia para ubicarla con precisión.</p>
+                        <details class="address-details" id="address-details" hidden>
+                            <summary>Ver datos completos de la dirección</summary>
+                            <div class="weotzi-address-fields" id="address-preview" hidden></div>
+                        </details>
+                    </div>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue" data-continue="trabajo" disabled>Continuar <span aria-hidden="true">→</span></button>
                     </div>
                 </div>
-                <div class="wo-form-col">
-                    <div class="step-indicator" hidden>OK</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">Perfil enviado</span></p></div>
-                    <div>
-                        <h2 class="question-title success-title">Registro<br>enviado.</h2>
-                        <p class="question-subtitle">Tu perfil quedó pendiente de validación. Iniciá sesión cuando quieras revisar el estado.</p>
+            </section>
+
+            <!-- ===== 06 · NOVEDADES ===== -->
+            <section class="ra-group" data-group="novedades" data-index="6">
+                <div class="ra-row" hidden>
+                    <div class="ra-row-main">
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Novedades</p>
+                        <p class="ra-row-value" data-row-value>—</p>
                     </div>
-                    <div class="success-animation">
-                        <div class="success-circle"></div>
-                        <svg class="success-check" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M20 6L9 17l-5-5" /></svg>
+                    <button type="button" class="ra-edit" data-edit-group="novedades">Editar</button>
+                </div>
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">06 · Mantenete al tanto</p>
+                    <h2 class="ra-title">¿Qué querés recibir?</h2>
+                    <div class="newsletter-topics" id="newsletter-topics">
+                        <label class="newsletter-topic">
+                            <input type="checkbox" class="newsletter-topic-input" data-topic="oportunidades">
+                            <span class="newsletter-topic-body">
+                                <span class="newsletter-topic-title">Oportunidades</span>
+                                <span class="newsletter-topic-sub">Spots, guest spots y convenciones nuevas.</span>
+                            </span>
+                        </label>
+                        <label class="newsletter-topic">
+                            <input type="checkbox" class="newsletter-topic-input" data-topic="herramientas">
+                            <span class="newsletter-topic-body">
+                                <span class="newsletter-topic-title">Herramientas</span>
+                                <span class="newsletter-topic-sub">Funciones nuevas del panel de artista.</span>
+                            </span>
+                        </label>
+                        <label class="newsletter-topic">
+                            <input type="checkbox" class="newsletter-topic-input" data-topic="avisos">
+                            <span class="newsletter-topic-body">
+                                <span class="newsletter-topic-title">Avisos tempranos</span>
+                                <span class="newsletter-topic-sub">Beta y features antes que nadie.</span>
+                            </span>
+                        </label>
+                        <label class="newsletter-topic">
+                            <input type="checkbox" class="newsletter-topic-input" data-topic="recursos">
+                            <span class="newsletter-topic-body">
+                                <span class="newsletter-topic-title">Recursos para artistas</span>
+                                <span class="newsletter-topic-sub">Guías de negocio y oficio.</span>
+                            </span>
+                        </label>
                     </div>
-                    <div class="wo-step01-actions">
-                        <span></span>
-                        <div class="keyhint"><span class="desktop-keyhint">Status <span class="wo-kbd">OK</span> · Pendiente de validación</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">Términos</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">Privacidad</a></span></div>
-                        <a href="/registerclosedbeta" class="wo-next-btn" style="text-decoration:none;">Ir al login <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue" data-continue="novedades">Continuar <span aria-hidden="true">→</span></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 07 · REVISIÓN ===== -->
+            <section class="ra-group" data-group="revision" data-index="7">
+                <div class="ra-panel" hidden>
+                    <p class="ra-eyebrow">07 · Revisá y confirmá</p>
+                    <h2 class="ra-title">Revisá tus datos.</h2>
+                    <div class="summary-card" id="summary-card">
+                        <!-- Filas de revisión generadas por register.js -->
+                    </div>
+                    <div class="terms-container">
+                        <label class="terms-checkbox-wrapper">
+                            <input type="checkbox" id="terms-checkbox" class="terms-checkbox">
+                            <span class="terms-text">Acepto los <a href="https://weotzi.com/terms" target="_blank" rel="noopener" class="terms-link">Términos y Condiciones</a> y la <a href="https://weotzi.com/privacy" target="_blank" rel="noopener" class="terms-link">Política de Privacidad</a>.</span>
+                        </label>
+                    </div>
+                    <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <div class="ra-actions">
+                        <button type="button" class="ra-continue ra-continue--confirm" data-continue="revision" disabled>Confirmar y crear perfil <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
         </div>
 
-        <!-- Navigation Footer -->
-        <footer class="register-footer">
-            <button type="button" class="nav-btn nav-btn-back" id="btn-back" style="visibility: hidden;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                    stroke-linecap="square">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-                Atras
-            </button>
-
-            <div class="keyboard-hint">
-                <span>Presiona</span>
-                <kbd>Enter</kbd>
-                <span>para continuar</span>
+        <!-- ===== Pantalla de guardado ===== -->
+        <section class="ra-screen saving-step" id="ra-saving" hidden aria-live="polite">
+            <div class="saving-loader" aria-hidden="true"></div>
+            <p class="ra-screen-brand">
+                <span class="wo-marks" aria-hidden="true">
+                    <span class="wo-mark-square"></span>
+                    <span class="wo-mark-circle"></span>
+                    <span class="wo-mark-triangle"></span>
+                </span>
+                WE ÖTZI
+            </p>
+            <div class="saving-copy-carousel" aria-hidden="true">
+                <span class="saving-copy-item">Organizando tu agenda…</span>
+                <span class="saving-copy-item">Ajustando stencil…</span>
+                <span class="saving-copy-item">Puliendo tu manifiesto visual…</span>
+                <span class="saving-copy-item">Curando tu vitrina sin humo…</span>
+                <span class="saving-copy-item">Menos ruido, más obra…</span>
             </div>
+            <span class="wo-sr-only">Estamos creando tu cuenta de artista en We Ötzi.</span>
+        </section>
 
-            <button type="button" class="nav-btn nav-btn-next" id="btn-next">
-                Siguiente
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                    stroke-linecap="square">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-            </button>
+        <!-- ===== Pantalla de éxito ===== -->
+        <section class="ra-screen success-step" id="ra-success" hidden>
+            <span class="wo-marks ra-success-marks" aria-hidden="true">
+                <span class="wo-mark-square"></span>
+                <span class="wo-mark-circle"></span>
+                <span class="wo-mark-triangle"></span>
+            </span>
+            <h2 class="ra-success-title">Tu perfil está listo, <span id="ra-success-name">artista</span>.</h2>
+            <p class="ra-success-sub">Ya podés recibir cotizaciones e invitaciones de estudios. Te llevamos a tu panel.</p>
+            <a href="/artist/dashboard" class="ra-continue" id="ra-success-cta">Ir a tu panel <span aria-hidden="true">→</span></a>
+        </section>
+
+        <!-- Navegación legacy: register.js escribe sobre estos botones (submitForm,
+             handleNext/handleBack). No se muestran; los CONTINUAR de cada grupo
+             son los controles reales. -->
+        <footer class="register-footer" hidden aria-hidden="true">
+            <button type="button" class="nav-btn nav-btn-back" id="btn-back" tabindex="-1">Atras</button>
+            <button type="button" class="nav-btn nav-btn-next" id="btn-next" tabindex="-1">Siguiente</button>
         </footer>
     </main>
 
     <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
 
-    <div id="portfolio-media-modal" class="portfolio-media-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="portfolio-media-modal-title">
-        <div class="portfolio-media-modal-panel">
-            <div class="portfolio-media-modal-head">
-                <div>
-                    <p class="wo-step-indicator"><span>Portfolio</span></p>
-                    <h2 id="portfolio-media-modal-title">Editá tus fotos y videos.</h2>
-                </div>
-                <button type="button" class="portfolio-media-modal-close" id="portfolio-media-modal-close" aria-label="Cerrar">×</button>
+    <!-- ============================================================
+         Bloque legacy oculto.
+         Galería de trabajos e importación de Instagram salieron del
+         registro (el artista los carga desde el panel), pero register.js
+         sigue referenciando estos nodos: se conservan ocultos para no
+         romper sus hooks ni el flujo alterno ?source=instagram.
+         ============================================================ -->
+    <div class="ra-legacy" id="ra-legacy" hidden aria-hidden="true">
+        <!-- Espejo de fecha de nacimiento: register.js lee estos selects -->
+        <div class="birth-date-selects">
+            <select id="birth_day"><option value="" disabled selected>--</option></select>
+            <select id="birth_month"><option value="" disabled selected>--</option></select>
+            <select id="birth_year"><option value="" disabled selected>--</option></select>
+        </div>
+
+        <!-- Espejo de la preferencia de newsletter (boolean único del esquema) -->
+        <div class="newsletter-options" id="newsletter-options" aria-describedby="newsletter-error">
+            <button type="button" class="newsletter-option" data-subscribe="true" tabindex="-1">Sí, quiero unirme</button>
+            <button type="button" class="newsletter-option newsletter-option-decline" data-subscribe="false" tabindex="-1">Ahora no</button>
+        </div>
+        <p class="newsletter-error" id="newsletter-error" role="alert" hidden>Elegí una opción para continuar.</p>
+
+        <!-- Editor rich-text de bio: reemplazado por el textarea del grupo 04 -->
+        <div id="bio-editor-modal" class="bio-editor-wrapper">
+            <div class="bio-modal-head">
+                <p id="bio-modal-title" class="bio-modal-title">Editar bio</p>
+                <button type="button" id="bio-modal-close" class="bio-modal-close" tabindex="-1">Listo</button>
             </div>
-            <div id="portfolio-media-modal-grid" class="portfolio-media-grid portfolio-media-modal-grid"></div>
-            <div class="portfolio-media-modal-actions">
-                <button type="button" id="portfolio-media-modal-add" class="portfolio-media-add-btn">Agregar medios</button>
-                <button type="button" id="portfolio-media-modal-import" class="portfolio-media-add-btn">Importar de Instagram</button>
+            <div class="bio-toolbar">
+                <button type="button" class="toolbar-btn" data-command="bold" title="Negrita" tabindex="-1"><strong>B</strong></button>
+                <button type="button" class="toolbar-btn" data-command="italic" title="Cursiva" tabindex="-1"><em>I</em></button>
+                <button type="button" class="toolbar-btn" data-command="underline" title="Subrayado" tabindex="-1"><u>U</u></button>
+                <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Tachado" tabindex="-1"><s>S</s></button>
+                <button type="button" class="toolbar-btn" data-command="undo" title="Deshacer" disabled tabindex="-1">undo</button>
+                <button type="button" class="toolbar-btn" data-command="redo" title="Rehacer" disabled tabindex="-1">redo</button>
+                <button type="button" class="toolbar-btn color-btn" data-command="foreColor" title="Color de texto" tabindex="-1"><span class="color-icon text-color"></span><input id="text-color-picker" type="color" class="color-picker" value="#E53935"></button>
+                <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo" tabindex="-1"><span class="color-icon bg-color"></span><input id="bg-color-picker" type="color" class="color-picker" value="#FFEB3B"></button>
+                <button type="button" class="toolbar-btn" data-command="createLink" title="Insertar enlace" tabindex="-1">link</button>
+                <button type="button" id="emoji-trigger" class="toolbar-btn emoji-btn" title="Emojis" tabindex="-1">emoji</button>
+            </div>
+            <div id="emoji-picker" class="emoji-picker">
+                <div class="emoji-grid">
+                    <button type="button" class="emoji-item" tabindex="-1">😀</button><button type="button" class="emoji-item" tabindex="-1">😎</button><button type="button" class="emoji-item" tabindex="-1">🎨</button><button type="button" class="emoji-item" tabindex="-1">✨</button><button type="button" class="emoji-item" tabindex="-1">🔥</button><button type="button" class="emoji-item" tabindex="-1">💪</button><button type="button" class="emoji-item" tabindex="-1">🖤</button><button type="button" class="emoji-item" tabindex="-1">❤️</button><button type="button" class="emoji-item" tabindex="-1">💫</button><button type="button" class="emoji-item" tabindex="-1">⚡</button>
+                </div>
+            </div>
+            <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribí tu bio acá…"></div>
+        </div>
+        <button type="button" id="bio-mobile-open" class="bio-mobile-open" tabindex="-1">
+            <span class="bio-mobile-open-kicker">Editor WYSIWYG</span>
+            <span id="bio-mobile-preview" class="bio-mobile-preview">Tocá para escribir tu bio.</span>
+        </button>
+
+        <!-- Galería de trabajos e importación IG: ahora viven en el panel del artista -->
+        <div id="ig-import-mount"></div>
+        <div id="portfolio-media-section" class="portfolio-media-section">
+            <div id="portfolio-media-grid" class="portfolio-media-grid"></div>
+            <button type="button" id="portfolio-media-add-btn" class="portfolio-media-add-btn" tabindex="-1">Agregar fotos o videos</button>
+            <input type="file" id="portfolio-media-file-input" accept="image/*,video/*" multiple hidden>
+        </div>
+        <div id="portfolio-media-modal" class="portfolio-media-modal" hidden aria-hidden="true">
+            <div class="portfolio-media-modal-panel">
+                <div class="portfolio-media-modal-head">
+                    <h2 id="portfolio-media-modal-title">Editá tus fotos y videos.</h2>
+                    <button type="button" class="portfolio-media-modal-close" id="portfolio-media-modal-close" aria-label="Cerrar" tabindex="-1">×</button>
+                </div>
+                <div id="portfolio-media-modal-grid" class="portfolio-media-grid portfolio-media-modal-grid"></div>
+                <div class="portfolio-media-modal-actions">
+                    <button type="button" id="portfolio-media-modal-add" class="portfolio-media-add-btn" tabindex="-1">Agregar medios</button>
+                    <button type="button" id="portfolio-media-modal-import" class="portfolio-media-add-btn" tabindex="-1">Importar de Instagram</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1071,190 +607,19 @@
     <script src="/shared/js/artist-registration-progress.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/register.js"></script>
-    <script src="/shared/js/header-effects.js"></script>
-    <script src="/shared/js/register-nav-header.js"></script>
 
     <script>
         // ============================================================
-        // Registro DS Bauhaus — interacciones de soporte
-        // ------------------------------------------------------------
-        // 1) Drawer móvil del topbar
-        // 2) Sync del nav de grupos del topbar + copy de progreso,
-        //    observando el #progress-label oculto que escribe register.js
-        // 3) Hint de disponibilidad para #artistic_name (solo visual;
-        //    la validación server-side sigue en register.js al avanzar)
+        // Registro · disponibilidad del nombre artístico
+        // Chequeo en vivo contra /api/register/check-uniqueness. El estado
+        // se expone en window.__weotziUsernameAvailability, que register.js
+        // consulta al validar el grupo 01. El username se genera igual que
+        // siempre (nombre.wo) pero no se muestra en pantalla.
         // ============================================================
         (function () {
             'use strict';
-
-            // -------- Drawer --------
-            function toggleWoDrawer(forceState) {
-                const drawer = document.getElementById('wo-drawer');
-                const burger = document.getElementById('wo-burger');
-                if (!drawer || !burger) return;
-                const isOpen = drawer.classList.contains('open');
-                const shouldOpen = typeof forceState === 'boolean' ? forceState : !isOpen;
-                drawer.classList.toggle('open', shouldOpen);
-                drawer.setAttribute('aria-hidden', String(!shouldOpen));
-                burger.setAttribute('aria-expanded', String(shouldOpen));
-            }
-            window.toggleWoDrawer = toggleWoDrawer;
-            document.addEventListener('click', (e) => {
-                const drawer = document.getElementById('wo-drawer');
-                const burger = document.getElementById('wo-burger');
-                if (!drawer || !burger) return;
-                if (!drawer.classList.contains('open')) return;
-                if (drawer.contains(e.target) || burger.contains(e.target)) return;
-                toggleWoDrawer(false);
-            });
-            window.addEventListener('resize', () => {
-                if (window.innerWidth > 768) toggleWoDrawer(false);
-            });
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') toggleWoDrawer(false);
-            });
-
-            // -------- Nav de grupos del topbar --------
-            // Mapa paso numérico → grupo del Figma (frames 59-66).
-            const GROUP_ORDER = ['quien', 'acceso', 'oficio', 'presencia', 'trabajo', 'novedades', 'revision'];
-            const STEP_GROUP = {
-                1: 'quien', 2: 'quien',
-                3: 'acceso',
-                4: 'oficio', 5: 'oficio', 6: 'oficio',
-                7: 'presencia', 8: 'presencia',
-                9: 'trabajo', 10: 'trabajo',
-                11: 'novedades'
-            };
-
-            function syncTopbarFromLabel() {
-                const label = document.getElementById('progress-label');
-                const copyEl = document.getElementById('ra-progress-copy');
-                const groups = Array.from(document.querySelectorAll('#ra-topbar-groups .ra-group'));
-                if (!groups.length) return;
-
-                const raw = String(label ? label.textContent : '01').trim();
-                const lower = raw.toLowerCase();
-                let activeGroup = 'quien';
-                let copy = '';
-
-                if (lower.startsWith('ig')) {
-                    activeGroup = 'quien';
-                    copy = 'Importación IG';
-                } else if (lower.includes('resumen')) {
-                    activeGroup = 'revision';
-                    copy = 'Revisión';
-                } else if (lower.includes('creando')) {
-                    activeGroup = 'revision';
-                    copy = 'Creando cuenta…';
-                } else if (lower.includes('listo')) {
-                    activeGroup = 'revision';
-                    copy = 'Listo';
-                } else {
-                    const num = Number.parseInt(lower.match(/\d+/)?.[0] || '1', 10);
-                    const step = Number.isFinite(num) ? Math.max(1, Math.min(11, num)) : 1;
-                    activeGroup = STEP_GROUP[step] || 'quien';
-                    copy = 'Paso ' + String(step).padStart(2, '0') + ' · 11';
-                }
-
-                const activeIdx = GROUP_ORDER.indexOf(activeGroup);
-                groups.forEach((el) => {
-                    const idx = GROUP_ORDER.indexOf(el.dataset.group);
-                    el.classList.toggle('is-active', idx === activeIdx);
-                    el.classList.toggle('is-done', idx > -1 && idx < activeIdx);
-                });
-                if (lower.includes('listo')) {
-                    groups.forEach((el) => el.classList.add('is-done'));
-                }
-                if (copyEl) copyEl.textContent = copy;
-            }
-
-            const progressLabelNode = document.getElementById('progress-label');
-            if (progressLabelNode) {
-                const progressMo = new MutationObserver(syncTopbarFromLabel);
-                progressMo.observe(progressLabelNode, { childList: true, characterData: true, subtree: true });
-            }
-            // Sync inicial después de que corra register.js
-            window.addEventListener('load', syncTopbarFromLabel);
-            document.addEventListener('DOMContentLoaded', syncTopbarFromLabel);
-
-            // -------- Availability hint for artistic_name --------
             const input = document.getElementById('artistic_name');
-            const chip = document.getElementById('wo-availability-chip');
-            const hint = document.getElementById('wo-name-hint');
-            const counter = document.getElementById('wo-name-counter');
-            const previewValue = document.getElementById('wo-username-preview-value');
-
-            // Lightweight client-side stoplist for the hint UX. Server-side
-            // uniqueness check is performed by register.js at submit time.
-            const RESERVED = new Set([
-                'admin','weotzi','weotzi_official','root','test','support',
-                'help','contact','about','login','register','signup','user'
-            ]);
-
-            function normalizeHandle(value) {
-                return String(value || '')
-                    .trim()
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                    .toLowerCase()
-                    .replace(/\.wo$/i, '')
-                    .replace(/[^a-z0-9]+/g, '')
-                    .slice(0, 30);
-            }
-
-            function setState(state, hintText) {
-                if (!chip || !hint) return;
-                chip.dataset.state = state;
-                hint.dataset.state = state;
-                let symbol = '—';
-                if (state === 'available') symbol = '✓';
-                else if (state === 'taken' || state === 'invalid') symbol = '✗';
-                else if (state === 'checking') symbol = '…';
-                chip.textContent = symbol;
-                if (typeof hintText === 'string') hint.textContent = hintText;
-            }
-
-            function evaluate() {
-                if (!input) return;
-                const raw = input.value;
-                const len = raw.length;
-                if (counter) counter.textContent = String(len).padStart(2, '0') + ' / 30';
-
-                const cleaned = raw.trim();
-                const normalized = normalizeHandle(cleaned);
-                if (previewValue) previewValue.textContent = (normalized || 'nombre') + '.wo';
-                if (!cleaned) {
-                    setState('empty', 'Escribí tu nombre artístico.');
-                    return;
-                }
-                if (normalized.length < 3 || normalized.length > 30) {
-                    setState('invalid', 'El usuario resultante debe tener 3-30 caracteres.');
-                    return;
-                }
-                if (RESERVED.has(normalized)) {
-                    setState('taken', '✗ NOMBRE RESERVADO — PROBÁ OTRO');
-                    return;
-                }
-                setState('available', '✓ DISPONIBLE COMO ' + normalized + '.wo');
-            }
-
-            if (input) {
-                input.addEventListener('input', evaluate);
-                // Run once on load (in case IG import pre-fills the field)
-                document.addEventListener('DOMContentLoaded', evaluate);
-                window.addEventListener('load', evaluate);
-            }
-        })();
-    </script>
-    <script>
-        (function () {
-            'use strict';
-            const input = document.getElementById('artistic_name');
-            const chip = document.getElementById('wo-availability-chip');
-            const hint = document.getElementById('wo-name-hint');
-            const counter = document.getElementById('wo-name-counter');
-            const previewValue = document.getElementById('wo-username-preview-value');
-            const suggestionsEl = document.getElementById('wo-username-suggestions');
-            if (!input || !chip || !hint) return;
+            if (!input) return;
 
             const reserved = new Set(['admin', 'weotzi', 'weotzi_official', 'root', 'test', 'support', 'help', 'contact', 'about', 'login', 'register', 'signup', 'user']);
             let timer = null;
@@ -1264,7 +629,7 @@
             function normalizeHandle(value) {
                 return String(value || '')
                     .trim()
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .normalize('NFD').replace(/[̀-ͯ]/g, '')
                     .toLowerCase()
                     .replace(/\.wo$/i, '')
                     .replace(/[^a-z0-9]+/g, '')
@@ -1283,11 +648,9 @@
             }
 
             function setState(state, text) {
-                chip.dataset.state = state;
-                hint.dataset.state = state;
-                chip.textContent = state === 'available' ? '✓' : (state === 'taken' || state === 'invalid' ? '×' : state === 'checking' ? '...' : '-');
-                hint.textContent = text;
                 window.__weotziUsernameAvailability.state = state;
+                window.__weotziUsernameAvailability.message = text || '';
+                if (typeof window.raRefreshGroupGate === 'function') window.raRefreshGroupGate();
             }
 
             function suggestionsFor(base) {
@@ -1303,18 +666,6 @@
                     .slice(0, 3);
             }
 
-            function renderSuggestions(items) {
-                window.__weotziUsernameAvailability.suggestions = items || [];
-                if (!suggestionsEl) return;
-                if (!items || !items.length) {
-                    suggestionsEl.hidden = true;
-                    suggestionsEl.innerHTML = '';
-                    return;
-                }
-                suggestionsEl.innerHTML = 'Alternativas: ' + items.map(name => '<strong>' + name + '.wo</strong>').join(' · ');
-                suggestionsEl.hidden = false;
-            }
-
             async function checkAvailability(normalized, currentSeq) {
                 const username = normalized + '.wo';
                 window.__weotziUsernameAvailability.username = username;
@@ -1328,16 +679,16 @@
                     if (currentSeq !== seq) return;
                     const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
                     if (res.ok && data.success && data.available !== false && !conflicts.includes('username')) {
-                        renderSuggestions([]);
-                        setState('available', '✓ DISPONIBLE COMO ' + username);
+                        window.__weotziUsernameAvailability.suggestions = [];
+                        setState('available', '');
                         return;
                     }
-                    renderSuggestions(suggestionsFor(normalized));
-                    setState('taken', '× YA EXISTE. PROBÁ UNA ALTERNATIVA.');
+                    window.__weotziUsernameAvailability.suggestions = suggestionsFor(normalized);
+                    setState('taken', 'Ese nombre ya existe. Probá una alternativa: ' + window.__weotziUsernameAvailability.suggestions.join(' · '));
                 } catch (_) {
                     if (currentSeq !== seq) return;
-                    renderSuggestions([]);
-                    setState('empty', 'No pudimos verificar ahora; lo validaremos al finalizar.');
+                    window.__weotziUsernameAvailability.suggestions = [];
+                    setState('empty', '');
                 }
             }
 
@@ -1345,30 +696,26 @@
                 const raw = input.value || '';
                 const normalized = normalizeHandle(raw);
                 clearTimeout(timer);
-                if (counter) counter.textContent = String(raw.length).padStart(2, '0') + ' / 30';
-                if (previewValue) previewValue.textContent = (normalized || 'nombre') + '.wo';
 
                 if (!raw.trim()) {
-                    renderSuggestions([]);
                     window.__weotziUsernameAvailability.username = '';
-                    setState('empty', 'Escribí tu nombre artístico.');
+                    setState('empty', '');
                     return;
                 }
                 if (normalized.length < 3) {
-                    renderSuggestions([]);
                     window.__weotziUsernameAvailability.username = normalized ? normalized + '.wo' : '';
-                    setState('invalid', 'El usuario resultante debe tener al menos 3 caracteres.');
+                    setState('invalid', 'Tu nombre artístico necesita al menos 3 caracteres.');
                     return;
                 }
                 if (reserved.has(normalized)) {
-                    renderSuggestions(suggestionsFor(normalized));
                     window.__weotziUsernameAvailability.username = normalized + '.wo';
-                    setState('taken', '× NOMBRE RESERVADO. PROBÁ OTRO.');
+                    window.__weotziUsernameAvailability.suggestions = suggestionsFor(normalized);
+                    setState('taken', 'Ese nombre está reservado. Probá otro.');
                     return;
                 }
 
                 const currentSeq = ++seq;
-                setState('checking', 'Verificando disponibilidad de ' + normalized + '.wo...');
+                setState('checking', '');
                 timer = setTimeout(() => checkAvailability(normalized, currentSeq), 280);
             }
 
