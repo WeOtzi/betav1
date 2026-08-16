@@ -294,7 +294,7 @@ window.exportCanvasToPDF = async function() {
     pdfContainer.style.cssText = 'padding: 20px; font-family: Arial, sans-serif; max-width: 800px;';
     pdfContainer.innerHTML = `
         <h1 style="font-size: 24px; margin-bottom: 10px; border-bottom: 2px solid #f5c518; padding-bottom: 10px;">${title}</h1>
-        <div style="font-size: 12px; color: #666; margin-bottom: 20px;">
+        <div style="font-size: 12px; color: var(--neutral-400); margin-bottom: 20px;">
             Exportado: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
         </div>
         <div style="line-height: 1.6;">${content}</div>
@@ -342,7 +342,7 @@ window.copyCanvasToClipboard = async function() {
         if (btn) {
             const originalText = btn.innerHTML;
             btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> COPIADO';
-            btn.style.background = 'var(--bauhaus-blue, #1A4B8E)';
+            btn.style.background = 'var(--blue-400)';
             btn.style.color = 'white';
             setTimeout(() => {
                 btn.innerHTML = originalText;
@@ -385,10 +385,10 @@ window.toggleAdditionalQuoteInfo = function() {
     
     if (section.style.display === 'none') {
         section.style.display = 'block';
-        btn.textContent = 'OCULTAR INFORMACION';
+        btn.textContent = 'Ocultar información';
     } else {
         section.style.display = 'none';
-        btn.textContent = 'AMPLIAR INFORMACION';
+        btn.textContent = 'Ampliar información';
     }
 };
 
@@ -495,11 +495,11 @@ document.addEventListener('keydown', function(e) {
 window.setRatingReason = function(btn, reason) {
     if (selectedReasons.has(reason)) {
         selectedReasons.delete(reason);
-        btn.style.background = 'var(--bauhaus-yellow)';
+        btn.style.background = 'var(--yellow-300)';
         btn.style.color = 'var(--ink)';
     } else {
         selectedReasons.add(reason);
-        btn.style.background = 'var(--bauhaus-red)';
+        btn.style.background = 'var(--red-300)';
         btn.style.color = 'white';
     }
 };
@@ -522,14 +522,14 @@ window.openRatingModal = function(quoteId, rating) {
 
     if (ratingArea) {
         ratingArea.innerHTML = `
-            <div class="rating-form" style="width: 100%; background: #f5f5f5; padding: 1rem; border: var(--border-main);">
-                <h3 style="font-family: 'Space Mono'; font-size: 0.8rem; margin-bottom: 0.5rem;">POR QUE ES ${rating.toUpperCase()}?</h3>
+            <div class="rating-form" style="width: 100%; background: var(--neutral-100); padding: 1rem; border: 1px solid var(--border-strong);">
+                <h3 style="font-family: var(--font-mono); font-size: 0.8rem; margin-bottom: 0.5rem;">POR QUE ES ${rating.toUpperCase()}?</h3>
                 <div class="rating-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem;">
                     ${reasons.map(r => `<button class="action-btn" style="font-size: 0.6rem; padding: 5px;" onclick="setRatingReason(this, '${r}')">${r}</button>`).join('')}
                 </div>
-                <textarea id="rating-comment" placeholder="Comentario opcional..." style="width: 100%; height: 60px; padding: 10px; border: var(--border-main); margin-bottom: 10px;"></textarea>
+                <textarea id="rating-comment" placeholder="Comentario opcional..." style="width: 100%; height: 60px; padding: 10px; border: 1px solid var(--border-strong); margin-bottom: 10px;"></textarea>
                 <div style="display: flex; gap: 10px;">
-                    <button class="action-btn" style="background: var(--ink); color: white; flex: 1;" onclick="submitRating('${quoteId}', '${rating}')">Guardar</button>
+                    <button class="action-btn" style="background: var(--neutral-500); color: white; flex: 1;" onclick="submitRating('${quoteId}', '${rating}')">Guardar</button>
                     <button class="action-btn" style="flex: 1;" onclick="inspectQuote('${quoteId}')">Cancelar</button>
                 </div>
             </div>`;
@@ -565,18 +565,19 @@ window.saveRating = async function(quoteId, rating, reason) {
 // Valid state transitions map
 // ============ TIMELINE VISUAL ============
 
+// Íconos Feather (via wo-icons.js · data-wo-icon)
 const TIMELINE_STEPS = [
-    { status: 'pending',          icon: 'fa-clock',              label: 'Pendiente' },
-    { status: 'responded',        icon: 'fa-reply',              label: 'Respondida' },
-    { status: 'client_approved',  icon: 'fa-thumbs-up',          label: 'Aprobada' },
-    { status: 'in_progress',      icon: 'fa-paint-brush',        label: 'En Progreso' },
-    { status: 'artist_completed', icon: 'fa-clipboard-check',    label: 'Lista para Cliente' },
-    { status: 'completed',        icon: 'fa-circle-check',       label: 'Completada' }
+    { status: 'pending',          icon: 'clock',        label: 'Pendiente' },
+    { status: 'responded',        icon: 'corner-up-left', label: 'Respondida' },
+    { status: 'client_approved',  icon: 'thumbs-up',    label: 'Aprobada' },
+    { status: 'in_progress',      icon: 'pen-tool',     label: 'En progreso' },
+    { status: 'artist_completed', icon: 'clipboard',    label: 'Lista para cliente' },
+    { status: 'completed',        icon: 'check-circle', label: 'Completada' }
 ];
 
 const TERMINAL_STEPS = {
-    'client_rejected': { icon: 'fa-thumbs-down', label: 'Rechazada', color: '#ef4444' },
-    'expired':         { icon: 'fa-hourglass-end', label: 'Expirada', color: '#9ca3af' }
+    'client_rejected': { icon: 'thumbs-down', label: 'Rechazada', color: 'var(--system-error)' },
+    'expired':         { icon: 'x-circle', label: 'Expirada', color: 'var(--neutral-300)' }
 };
 
 function renderQuoteTimeline(quote) {
@@ -623,7 +624,7 @@ function renderQuoteTimeline(quote) {
             <div class="timeline-step timeline-step--terminal">
                 <div class="timeline-connector timeline-connector--terminal" style="border-color: ${t.color};"></div>
                 <div class="timeline-dot timeline-dot--terminal" style="background: ${t.color};">
-                    <i class="fa-solid ${t.icon}"></i>
+                    <i data-wo-icon="${t.icon}" class="wo-icon-18"></i>
                 </div>
                 <div class="timeline-label">
                     <span class="timeline-status" style="color: ${t.color};">${t.label}</span>
@@ -640,7 +641,7 @@ function renderQuoteTimeline(quote) {
                     <div class="timeline-step timeline-step--${step.state}">
                         ${idx > 0 ? `<div class="timeline-connector timeline-connector--${step.state}"></div>` : ''}
                         <div class="timeline-dot timeline-dot--${step.state}">
-                            <i class="fa-solid ${step.icon}"></i>
+                            <i data-wo-icon="${step.icon}" class="wo-icon-18"></i>
                         </div>
                         <div class="timeline-label">
                             <span class="timeline-status">${step.label}</span>
@@ -944,13 +945,13 @@ window.confirmDeleteNote = async function() {
 
 function getLabelColor(label) {
     const colors = {
-        'interno': 'var(--bauhaus-blue)',
-        'urgente': 'var(--bauhaus-red)',
-        'seguimiento': 'var(--bauhaus-yellow)',
-        'referencia': '#9b59b6',
-        'otro': '#7f8c8d'
+        'interno': 'var(--blue-400)',
+        'urgente': 'var(--red-300)',
+        'seguimiento': 'var(--yellow-400)',
+        'referencia': 'var(--blue-300)',
+        'otro': 'var(--neutral-400)'
     };
-    return colors[label] || '#2ecc71';
+    return colors[label] || 'var(--system-success)';
 }
 
 function renderNotesSection(quoteId, notes, readOnly = false) {
@@ -962,8 +963,8 @@ function renderNotesSection(quoteId, notes, readOnly = false) {
                     <span class="notepad-count">0 Canvas</span>
                 </div>
                 <div class="notes-empty notepad-empty">
-                    <p>SIN_CANVAS_REGISTRADOS</p>
-                    ${!readOnly ? `<button class="action-btn" onclick="openNoteModal('${quoteId}')">NUEVO CANVAS</button>` : ''}
+                    <p>Sin canvas registrados</p>
+                    ${!readOnly ? `<button class="action-btn" onclick="openNoteModal('${quoteId}')">Nuevo canvas</button>` : ''}
                 </div>
             </div>
         `;
@@ -978,8 +979,8 @@ function renderNotesSection(quoteId, notes, readOnly = false) {
         
         const actionsHtml = readOnly ? '' : `
             <div class="note-actions">
-                <button class="note-action-btn" onclick="openNoteModal('${quoteId}', '${note.id}')" title="Editar">EDIT</button>
-                <button class="note-action-btn danger" onclick="openDeleteNoteConfirm('${note.id}')" title="Eliminar">DEL</button>
+                <button class="note-action-btn" onclick="openNoteModal('${quoteId}', '${note.id}')" title="Editar">Editar</button>
+                <button class="note-action-btn danger" onclick="openDeleteNoteConfirm('${note.id}')" title="Eliminar">Borrar</button>
             </div>
         `;
         
@@ -1030,7 +1031,7 @@ function getSessionStatusLabel(status) {
     const labels = {
         'scheduled': 'AGENDADA',
         'completed': 'COMPLETADA',
-        'no_show': 'NO ASISTIO',
+        'no_show': 'NO ASISTIÓ',
         'rescheduled': 'REPROGRAMADA',
         'cancelled': 'CANCELADA'
     };
@@ -1039,13 +1040,13 @@ function getSessionStatusLabel(status) {
 
 function getSessionStatusColor(status) {
     const colors = {
-        'scheduled': 'var(--bauhaus-blue, #1A4B8E)',
-        'completed': '#27ae60',
-        'no_show': 'var(--bauhaus-red, #C62828)',
-        'rescheduled': 'var(--bauhaus-yellow, #F5C518)',
-        'cancelled': '#7f8c8d'
+        'scheduled': 'var(--blue-400)',
+        'completed': 'var(--system-success)',
+        'no_show': 'var(--red-300)',
+        'rescheduled': 'var(--yellow-300)',
+        'cancelled': 'var(--neutral-400)'
     };
-    return colors[status] || '#666';
+    return colors[status] || 'var(--neutral-400)';
 }
 
 window.openSessionModal = function(quoteId, sessionId = null) {
@@ -1078,27 +1079,27 @@ window.openSessionModal = function(quoteId, sessionId = null) {
     const modalTitle = sessionId ? 'EDITAR SESION' : `NUEVA SESION (#${nextSessionNumber})`;
     
     const modalHtml = `
-        <div id="session-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
-            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <div id="session-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 17, 37, 0.55); z-index: 2000; justify-content: center; align-items: center;">
+            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 0; width: 90%; max-width: 500px; box-shadow: none;">
                 <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 style="margin: 0; font-family: 'Space Mono', monospace;">${modalTitle}</h3>
+                    <h3 style="margin: 0; font-family: var(--font-mono);">${modalTitle}</h3>
                     <button onclick="closeSessionModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">FECHA Y HORA *</label>
-                        <input type="datetime-local" id="session-date" value="${sessionData.session_date}" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;" required>
+                        <input type="datetime-local" id="session-date" value="${sessionData.session_date}" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;" required>
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">DURACION ESTIMADA (horas)</label>
-                        <input type="number" id="session-duration" value="${sessionData.duration_hours}" placeholder="Ej: 2, 3.5" step="0.5" min="0.5" max="12" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="number" id="session-duration" value="${sessionData.duration_hours}" placeholder="Ej: 2, 3.5" step="0.5" min="0.5" max="12" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                     </div>
                     
                     ${sessionId ? `
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">ESTADO</label>
-                        <select id="session-status" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <select id="session-status" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                             <option value="scheduled" ${sessionData.status === 'scheduled' ? 'selected' : ''}>Agendada</option>
                             <option value="completed" ${sessionData.status === 'completed' ? 'selected' : ''}>Completada</option>
                             <option value="no_show" ${sessionData.status === 'no_show' ? 'selected' : ''}>No Asistio</option>
@@ -1110,12 +1111,12 @@ window.openSessionModal = function(quoteId, sessionId = null) {
                     
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">NOTAS DE LA SESION</label>
-                        <textarea id="session-notes" rows="4" placeholder="Notas, observaciones, progreso del tatuaje..." style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; resize: vertical;">${sessionData.notes}</textarea>
+                        <textarea id="session-notes" rows="4" placeholder="Notas, observaciones, progreso del tatuaje..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; resize: vertical;">${sessionData.notes}</textarea>
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button class="action-btn" onclick="closeSessionModal()" style="background: #f5f5f5; color: #333;">CANCELAR</button>
-                    <button class="action-btn accept-btn" onclick="saveSession('${quoteId}')" style="background: var(--bauhaus-blue, #1A4B8E); color: white;">GUARDAR</button>
+                    <button class="action-btn" onclick="closeSessionModal()" style="background: var(--neutral-100); color: var(--neutral-500);">CANCELAR</button>
+                    <button class="action-btn accept-btn" onclick="saveSession('${quoteId}')" style="background: var(--blue-400); color: white;">GUARDAR</button>
                 </div>
             </div>
         </div>
@@ -1253,13 +1254,13 @@ window.openDeleteSessionConfirm = function(sessionId) {
     if (existingModal) existingModal.remove();
     
     const modalHtml = `
-        <div id="delete-session-confirm-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2100; justify-content: center; align-items: center;">
-            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-                <h3 style="margin: 0 0 1rem 0; font-family: 'Space Mono', monospace;">ELIMINAR SESION</h3>
-                <p style="margin-bottom: 1.5rem; color: #666;">Estas seguro de que deseas eliminar esta sesion? Esta accion no se puede deshacer.</p>
+        <div id="delete-session-confirm-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 17, 37, 0.55); z-index: 2100; justify-content: center; align-items: center;">
+            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 0; width: 90%; max-width: 400px; box-shadow: none;">
+                <h3 style="margin: 0 0 1rem 0; font-family: var(--font-mono);">ELIMINAR SESION</h3>
+                <p style="margin-bottom: 1.5rem; color: var(--neutral-400);">¿Seguro que querés eliminar esta sesión? Esta acción no se puede deshacer.</p>
                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button class="action-btn" onclick="closeDeleteSessionConfirm()" style="background: #f5f5f5; color: #333;">CANCELAR</button>
-                    <button class="action-btn" onclick="confirmDeleteSession()" style="background: var(--bauhaus-red, #C62828); color: white;">ELIMINAR</button>
+                    <button class="action-btn" onclick="closeDeleteSessionConfirm()" style="background: var(--neutral-100); color: var(--neutral-500);">CANCELAR</button>
+                    <button class="action-btn" onclick="confirmDeleteSession()" style="background: var(--red-300); color: white;">ELIMINAR</button>
                 </div>
             </div>
         </div>
@@ -1295,13 +1296,13 @@ window.confirmDeleteSession = async function() {
 function renderSessionsSection(quoteId, sessions, readOnly = false) {
     if (!sessions || sessions.length === 0) {
         return `
-            <div class="sessions-section" style="margin-top: 2rem; padding: 1.5rem; background: #fafafa; border: 2px dashed var(--ink, #1A1A1A);">
+            <div class="sessions-section" style="margin-top: 2rem; padding: 1.5rem; background: var(--neutral-100); border: 2px dashed var(--neutral-500);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4 style="margin: 0; font-family: 'Space Mono', monospace; font-size: 0.85rem;">SESIONES PROGRAMADAS</h4>
-                    <span style="font-size: 0.7rem; color: #888;">0 Sesiones</span>
+                    <h4 style="margin: 0; font-family: var(--font-mono); font-size: 0.85rem;">SESIONES PROGRAMADAS</h4>
+                    <span style="font-size: 0.7rem; color: var(--neutral-400);">0 Sesiones</span>
                 </div>
-                <div style="text-align: center; padding: 1.5rem; color: #888;">
-                    <p style="font-family: 'Space Mono', monospace; font-size: 0.75rem; margin-bottom: 1rem;">SIN_SESIONES_PROGRAMADAS</p>
+                <div style="text-align: center; padding: 1.5rem; color: var(--neutral-400);">
+                    <p style="font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.08em;">Sin sesiones programadas</p>
                     ${!readOnly ? `<button class="action-btn" onclick="openSessionModal('${quoteId}')" style="font-size: 0.75rem;">AGREGAR SESION</button>` : ''}
                 </div>
             </div>
@@ -1326,7 +1327,7 @@ function renderSessionsSection(quoteId, sessions, readOnly = false) {
         const actionsHtml = readOnly ? '' : `
             <div class="session-actions" style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
                 <select onchange="updateSessionStatus('${session.id}', this.value, '${quoteId}')" 
-                    style="flex: 1; padding: 0.4rem; font-size: 0.7rem; border: 1px solid #ddd; border-radius: 4px;">
+                    style="flex: 1; padding: 0.4rem; font-size: 0.7rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                     <option value="scheduled" ${session.status === 'scheduled' ? 'selected' : ''}>Agendada</option>
                     <option value="completed" ${session.status === 'completed' ? 'selected' : ''}>Completada</option>
                     <option value="no_show" ${session.status === 'no_show' ? 'selected' : ''}>No Asistio</option>
@@ -1334,23 +1335,23 @@ function renderSessionsSection(quoteId, sessions, readOnly = false) {
                     <option value="cancelled" ${session.status === 'cancelled' ? 'selected' : ''}>Cancelada</option>
                 </select>
                 <button class="action-btn small-btn" onclick="openSessionModal('${quoteId}', '${session.id}')" 
-                    style="padding: 0.4rem 0.6rem; font-size: 0.65rem;">EDIT</button>
+                    style="padding: 0.4rem 0.6rem; font-size: 0.65rem;">Editar</button>
                 <button class="action-btn small-btn" onclick="openDeleteSessionConfirm('${session.id}')" 
-                    style="padding: 0.4rem 0.6rem; font-size: 0.65rem; background: var(--bauhaus-red, #C62828); color: white;">DEL</button>
+                    style="padding: 0.4rem 0.6rem; font-size: 0.65rem; background: var(--red-300); border-color: var(--red-300); color: white;">Borrar</button>
             </div>
         `;
         
         return `
-            <div class="session-card" style="padding: 1rem; background: white; border: 1px solid #ddd; margin-bottom: 0.75rem; border-left: 4px solid ${statusColor};">
+            <div class="session-card" style="padding: 1rem; background: white; border: 1px solid var(--neutral-200); margin-bottom: 0.75rem; border-left: 4px solid ${statusColor};">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
                     <div>
-                        <span style="font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: bold;">SESION #${session.session_number || index + 1}</span>
-                        ${session.duration_hours ? `<span style="font-size: 0.7rem; color: #888; margin-left: 0.5rem;">(${session.duration_hours}h)</span>` : ''}
+                        <span style="font-family: var(--font-mono); font-size: 0.85rem; font-weight: bold;">SESION #${session.session_number || index + 1}</span>
+                        ${session.duration_hours ? `<span style="font-size: 0.7rem; color: var(--neutral-400); margin-left: 0.5rem;">(${session.duration_hours}h)</span>` : ''}
                     </div>
                     <span style="font-size: 0.65rem; padding: 0.25rem 0.5rem; background: ${statusColor}; color: white; border-radius: 2px;">${statusLabel}</span>
                 </div>
-                <p style="font-size: 0.8rem; color: #333; margin: 0.25rem 0;">${sessionDate}</p>
-                ${session.notes ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.5rem; font-style: italic; border-left: 2px solid #ddd; padding-left: 0.5rem;">${session.notes}</p>` : ''}
+                <p style="font-size: 0.8rem; color: var(--neutral-500); margin: 0.25rem 0;">${sessionDate}</p>
+                ${session.notes ? `<p style="font-size: 0.75rem; color: var(--neutral-400); margin-top: 0.5rem; font-style: italic; border-left: 2px solid #ddd; padding-left: 0.5rem;">${session.notes}</p>` : ''}
                 ${actionsHtml}
             </div>
         `;
@@ -1360,11 +1361,11 @@ function renderSessionsSection(quoteId, sessions, readOnly = false) {
     const totalCount = sessions.length;
     
     return `
-        <div class="sessions-section" style="margin-top: 2rem; padding: 1.5rem; background: #fafafa; border: 2px solid var(--bauhaus-yellow, #F5C518);">
+        <div class="sessions-section" style="margin-top: 2rem; padding: 1.5rem; background: var(--neutral-100); border: 2px solid var(--yellow-300);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h4 style="margin: 0; font-family: 'Space Mono', monospace; font-size: 0.85rem;">SESIONES PROGRAMADAS</h4>
+                <h4 style="margin: 0; font-family: var(--font-mono); font-size: 0.85rem;">SESIONES PROGRAMADAS</h4>
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <span style="font-size: 0.7rem; color: #888;">${completedCount}/${totalCount} completadas</span>
+                    <span style="font-size: 0.7rem; color: var(--neutral-400);">${completedCount}/${totalCount} completadas</span>
                     ${!readOnly ? `<button class="action-btn small-btn" onclick="openSessionModal('${quoteId}')" style="font-size: 0.7rem; padding: 0.4rem 0.8rem;">+ AGREGAR</button>` : ''}
                 </div>
             </div>
@@ -1404,16 +1405,14 @@ function renderChatSection(quoteId, messages, readOnly = false) {
     if (!hasClientAccount) {
         return `
             <div class="chat-section" style="margin-top: 3rem;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-family: 'Space Mono', monospace; font-size: 0.65rem; text-transform: uppercase; color: #888;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    Chat con Cliente
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--neutral-400);">
+                    <i data-wo-icon="message-square" class="wo-icon-18"></i>
+                    Chat con el cliente
                 </label>
-                <div class="chat-not-available" style="padding: 1.5rem; background: #f5f5f5; text-align: center; margin-top: 0.5rem; border: 1px solid #ddd; color: var(--text-on-light, #121212);">
-                    <p style="font-family: 'Space Mono', monospace; font-size: 0.75rem; opacity: 0.6;">
-                        El cliente aun no tiene cuenta.<br>
-                        El chat se habilitara cuando cree su cuenta.
+                <div class="chat-not-available" style="padding: 1.5rem; background: var(--neutral-100); text-align: center; margin-top: 0.5rem; border: 1px solid var(--neutral-200); color: var(--neutral-500);">
+                    <p style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.6;">
+                        El cliente todavía no tiene cuenta.<br>
+                        El chat se va a habilitar cuando la cree.
                     </p>
                 </div>
             </div>
@@ -1429,28 +1428,26 @@ function renderChatSection(quoteId, messages, readOnly = false) {
                 font-size: 0.85rem;
                 line-height: 1.4;
                 ${msg.sender_type === 'artist' 
-                    ? 'align-self: flex-end; background: var(--bauhaus-blue, #1A4B8E); color: white; margin-left: auto;' 
-                    : 'align-self: flex-start; background: #f5f5f5; border: 1px solid #ddd; color: var(--text-on-light, #121212);'}
+                    ? 'align-self: flex-end; background: var(--blue-400); color: white; margin-left: auto;' 
+                    : 'align-self: flex-start; background: var(--neutral-100); border: 1px solid var(--neutral-200); color: var(--neutral-500);'}
             ">
                 <div>${escapeHtml(msg.message)}</div>
                 <span style="font-size: 0.65rem; opacity: 0.6; display: block; margin-top: 0.25rem;">
                     ${formatChatTime(msg.created_at)}
-                    ${msg.sender_type === 'artist' && msg.is_read ? ' ✓✓' : ''}
+                    ${msg.sender_type === 'artist' && msg.is_read ? ' · visto' : ''}
                 </span>
             </div>
         `).join('')
-        : `<div style="text-align: center; padding: 2rem; opacity: 0.5; font-family: 'Space Mono', monospace; font-size: 0.75rem;">
-            Inicia la conversacion con el cliente
+        : `<div style="text-align: center; padding: 2rem; opacity: 0.5; font-family: var(--font-mono); font-size: 0.75rem;">
+            Iniciá la conversación con el cliente
         </div>`;
-    
+
     return `
         <div class="chat-section" style="margin-top: 3rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-family: 'Space Mono', monospace; font-size: 0.65rem; text-transform: uppercase; color: #888;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-                Chat con Cliente
-                ${chatUnreadCount > 0 ? `<span class="chat-unread-badge" style="background: var(--bauhaus-red); color: white; padding: 0.15rem 0.4rem; font-size: 0.65rem; border-radius: 10px;">${chatUnreadCount}</span>` : ''}
+            <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--neutral-400);">
+                <i data-wo-icon="message-square" class="wo-icon-18"></i>
+                Chat con el cliente
+                ${chatUnreadCount > 0 ? `<span class="chat-unread-badge" style="background: var(--red-300); color: white; padding: 0.15rem 0.4rem; font-size: 0.65rem; border-radius: 2px;">${chatUnreadCount}</span>` : ''}
             </label>
             <div id="drawer-chat-messages" style="
                 max-height: 250px;
@@ -1458,25 +1455,22 @@ function renderChatSection(quoteId, messages, readOnly = false) {
                 display: flex;
                 flex-direction: column;
                 padding: 0.75rem;
-                background: #fafafa;
-                border: 1px solid #ddd;
+                background: var(--neutral-100);
+                border: 1px solid var(--neutral-200);
                 margin-top: 0.5rem;
-                color: var(--text-on-light, #121212);
+                color: var(--neutral-500);
             ">
                 ${messagesHtml}
             </div>
             ${!readOnly ? `
                 <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                    <input type="text" id="drawer-chat-input" placeholder="Escribe un mensaje..." 
-                        style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; font-size: 0.85rem;"
+                    <input type="text" id="drawer-chat-input" placeholder="Escribí un mensaje..."
+                        style="flex: 1; padding: 0.75rem; border: 1px solid var(--neutral-200); font-size: 0.85rem;"
                         onkeydown="if(event.key==='Enter')sendDrawerChatMessage('${quoteId}')"
                     >
-                    <button class="action-btn" onclick="sendDrawerChatMessage('${quoteId}')" 
-                        style="padding: 0.75rem 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="22" y1="2" x2="11" y2="13"/>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                        </svg>
+                    <button class="action-btn" onclick="sendDrawerChatMessage('${quoteId}')" aria-label="Enviar mensaje"
+                        style="padding: 0.75rem 1rem; background: var(--blue-400); border-color: var(--blue-400); color: var(--white);">
+                        <i data-wo-icon="send" class="wo-icon-18"></i>
                     </button>
                 </div>
             ` : ''}
@@ -1530,8 +1524,8 @@ window.sendDrawerChatMessage = async function(quoteId) {
                     font-size: 0.85rem;
                     line-height: 1.4;
                     ${msg.sender_type === 'artist' 
-                        ? 'align-self: flex-end; background: var(--bauhaus-blue, #1A4B8E); color: white; margin-left: auto;' 
-                        : 'align-self: flex-start; background: #f5f5f5; border: 1px solid #ddd;'}
+                        ? 'align-self: flex-end; background: var(--blue-400); color: white; margin-left: auto;' 
+                        : 'align-self: flex-start; background: var(--neutral-100); border: 1px solid var(--neutral-200);'}
                 ">
                     <div>${escapeHtml(msg.message)}</div>
                     <span style="font-size: 0.65rem; opacity: 0.6; display: block; margin-top: 0.25rem;">
@@ -1614,8 +1608,8 @@ function subscribeToChatUpdates(quoteId) {
                         font-size: 0.85rem;
                         line-height: 1.4;
                         ${msg.sender_type === 'artist' 
-                            ? 'align-self: flex-end; background: var(--bauhaus-blue, #1A4B8E); color: white; margin-left: auto;' 
-                            : 'align-self: flex-start; background: #f5f5f5; border: 1px solid #ddd;'}
+                            ? 'align-self: flex-end; background: var(--blue-400); color: white; margin-left: auto;' 
+                            : 'align-self: flex-start; background: var(--neutral-100); border: 1px solid var(--neutral-200);'}
                     `;
                     messageEl.innerHTML = `
                         <div>${escapeHtml(msg.message)}</div>
@@ -1652,20 +1646,20 @@ window.openResponseModal = function(quoteId) {
     const currencies = ['USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'BRL', 'GBP'];
 
     const modalHtml = `
-        <div id="response-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
-            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <div id="response-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 17, 37, 0.55); z-index: 2000; justify-content: center; align-items: center;">
+            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 0; width: 90%; max-width: 500px; box-shadow: none;">
                 <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 style="margin: 0; font-family: 'Space Mono', monospace;">RESPONDER COTIZACION</h3>
+                    <h3 style="margin: 0; font-family: var(--font-mono);">RESPONDER COTIZACION</h3>
                     <button onclick="closeResponseModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
                 </div>
                 <div class="modal-body">
-                    <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: #666;">Confirma tu presupuesto y el numero de sesiones estimadas.</p>
+                    <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--neutral-400);">Confirma tu presupuesto y el numero de sesiones estimadas.</p>
                     
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">TU PRESUPUESTO</label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="number" id="response-price" value="${quote.artist_budget_amount || quote.client_budget_amount || ''}" style="flex: 2; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
-                            <select id="response-currency" style="flex: 1; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: 'Space Mono', monospace;">
+                            <input type="number" id="response-price" value="${quote.artist_budget_amount || quote.client_budget_amount || ''}" style="flex: 2; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
+                            <select id="response-currency" style="flex: 1; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; font-family: var(--font-mono);">
                                 ${currencies.map(c => `<option value="${c}" ${c === currentCurrency ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
@@ -1673,12 +1667,12 @@ window.openResponseModal = function(quoteId) {
                     
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">SESIONES ESTIMADAS</label>
-                        <input type="text" id="response-sessions" value="${quote.tattoo_estimated_sessions || '1'}" placeholder="Ej: 1, 2-3" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" id="response-sessions" value="${quote.tattoo_estimated_sessions || '1'}" placeholder="Ej: 1, 2-3" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button class="action-btn" onclick="closeResponseModal()" style="background: #f5f5f5; color: #333;">CANCELAR</button>
-                    <button class="action-btn accept-btn" onclick="submitResponse('${quoteId}')" style="background: var(--bauhaus-blue, #1A4B8E); color: white;">ENVIAR RESPUESTA</button>
+                    <button class="action-btn" onclick="closeResponseModal()" style="background: var(--neutral-100); color: var(--neutral-500);">CANCELAR</button>
+                    <button class="action-btn accept-btn" onclick="submitResponse('${quoteId}')" style="background: var(--blue-400); color: white;">ENVIAR RESPUESTA</button>
                 </div>
             </div>
         </div>
@@ -1710,19 +1704,19 @@ window.openConfirmModal = function(quoteId) {
     const defaultCurrency = quote.artist_budget_currency || quote.client_budget_currency || 'USD';
 
     const modalHtml = `
-        <div id="confirm-quote-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
-            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <div id="confirm-quote-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 17, 37, 0.55); z-index: 2000; justify-content: center; align-items: center;">
+            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 0; width: 90%; max-width: 500px; box-shadow: none;">
                 <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 style="margin: 0; font-family: 'Space Mono', monospace;">CONFIRMAR COTIZACION</h3>
+                    <h3 style="margin: 0; font-family: var(--font-mono);">CONFIRMAR COTIZACION</h3>
                     <button onclick="closeConfirmModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
                 </div>
                 <div class="modal-body">
-                    <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: #666;">Selecciona el presupuesto final aprobado y confirma los detalles.</p>
+                    <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--neutral-400);">Selecciona el presupuesto final aprobado y confirma los detalles.</p>
                     
                     <!-- Budget Selection -->
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">SELECCIONAR PRESUPUESTO</label>
-                        <select id="confirm-budget-source" onchange="updateConfirmBudget()" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
+                        <select id="confirm-budget-source" onchange="updateConfirmBudget()" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; margin-bottom: 0.5rem;">
                             ${clientBudget ? `<option value="client">Presupuesto Cliente: ${clientBudget}</option>` : ''}
                             ${artistBudget ? `<option value="artist">Tu Presupuesto: ${artistBudget}</option>` : ''}
                             <option value="custom">Monto personalizado</option>
@@ -1733,8 +1727,8 @@ window.openConfirmModal = function(quoteId) {
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">MONTO FINAL</label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="number" id="confirm-amount" value="${quote.artist_budget_amount || quote.client_budget_amount || ''}" style="flex: 2; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
-                            <select id="confirm-currency" style="flex: 1; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: 'Space Mono', monospace;">
+                            <input type="number" id="confirm-amount" value="${quote.artist_budget_amount || quote.client_budget_amount || ''}" style="flex: 2; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
+                            <select id="confirm-currency" style="flex: 1; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; font-family: var(--font-mono);">
                                 ${currencies.map(c => `<option value="${c}" ${c === defaultCurrency ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
@@ -1743,25 +1737,25 @@ window.openConfirmModal = function(quoteId) {
                     <!-- Sessions -->
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">SESIONES CONFIRMADAS</label>
-                        <input type="text" id="confirm-sessions" value="${quote.tattoo_estimated_sessions || '1'}" placeholder="Ej: 1, 2-3" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" id="confirm-sessions" value="${quote.tattoo_estimated_sessions || '1'}" placeholder="Ej: 1, 2-3" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                     </div>
                     
                     <!-- First Session Date -->
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">FECHA PRIMERA SESION *</label>
-                        <input type="datetime-local" id="confirm-first-session-date" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;" required>
-                        <p style="font-size: 0.7rem; color: #888; margin-top: 0.25rem;">Confirma la fecha y hora de la primera cita</p>
+                        <input type="datetime-local" id="confirm-first-session-date" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;" required>
+                        <p style="font-size: 0.7rem; color: var(--neutral-400); margin-top: 0.25rem;">Confirma la fecha y hora de la primera cita</p>
                     </div>
                     
                     <!-- Comment -->
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">COMENTARIO (opcional)</label>
-                        <textarea id="confirm-comment" rows="3" placeholder="Notas adicionales sobre el acuerdo..." style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                        <textarea id="confirm-comment" rows="3" placeholder="Notas adicionales sobre el acuerdo..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; resize: vertical;"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button class="action-btn" onclick="closeConfirmModal()" style="background: #f5f5f5; color: #333;">CANCELAR</button>
-                    <button class="action-btn accept-btn" onclick="submitConfirmation('${quoteId}')" style="background: var(--bauhaus-blue, #1A4B8E); color: white;">CONFIRMAR</button>
+                    <button class="action-btn" onclick="closeConfirmModal()" style="background: var(--neutral-100); color: var(--neutral-500);">CANCELAR</button>
+                    <button class="action-btn accept-btn" onclick="submitConfirmation('${quoteId}')" style="background: var(--blue-400); color: white;">CONFIRMAR</button>
                 </div>
             </div>
         </div>
@@ -1920,10 +1914,10 @@ window.openEditQuoteModal = function(quoteId) {
     const currentStyleName = typeof currentStyle === 'object' ? (currentStyle?.style_name || '') : (currentStyle || '');
 
     const modalHtml = `
-        <div id="edit-quote-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; overflow-y: auto; padding: 1rem;">
-            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;">
-                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; position: sticky; top: 0; background: white; padding-bottom: 0.5rem; border-bottom: 2px solid var(--bauhaus-yellow, #F5C518);">
-                    <h3 style="margin: 0; font-family: 'Space Mono', monospace;">EDITAR COTIZACION</h3>
+        <div id="edit-quote-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 17, 37, 0.55); z-index: 2000; justify-content: center; align-items: center; overflow-y: auto; padding: 1rem;">
+            <div class="modal-container" style="background: white; padding: 2rem; border-radius: 0; width: 90%; max-width: 600px; box-shadow: none; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; position: sticky; top: 0; background: white; padding-bottom: 0.5rem; border-bottom: 2px solid var(--yellow-300);">
+                    <h3 style="margin: 0; font-family: var(--font-mono);">EDITAR COTIZACION</h3>
                     <button onclick="closeEditQuoteModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
                 </div>
                 <div class="modal-body">
@@ -1931,8 +1925,8 @@ window.openEditQuoteModal = function(quoteId) {
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">TU PRESUPUESTO</label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="number" id="edit-price" value="${quote.artist_budget_amount || ''}" placeholder="Precio" style="flex: 2; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
-                            <select id="edit-currency" style="flex: 1; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: 'Space Mono', monospace;">
+                            <input type="number" id="edit-price" value="${quote.artist_budget_amount || ''}" placeholder="Precio" style="flex: 2; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
+                            <select id="edit-currency" style="flex: 1; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; font-family: var(--font-mono);">
                                 ${currencies.map(c => `<option value="${c}" ${c === currentCurrency ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
@@ -1941,27 +1935,27 @@ window.openEditQuoteModal = function(quoteId) {
                     <!-- Sessions -->
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">SESIONES ESTIMADAS</label>
-                        <input type="text" id="edit-sessions" value="${quote.tattoo_estimated_sessions || ''}" placeholder="Ej: 1, 2-3" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" id="edit-sessions" value="${quote.tattoo_estimated_sessions || ''}" placeholder="Ej: 1, 2-3" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                     </div>
                     
                     <!-- Description -->
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">DESCRIPCION DEL TATUAJE</label>
-                        <textarea id="edit-description" rows="4" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; resize: vertical;">${quote.tattoo_idea_description || ''}</textarea>
+                        <textarea id="edit-description" rows="4" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0; resize: vertical;">${quote.tattoo_idea_description || ''}</textarea>
                     </div>
                     
                     <!-- Body Part and Side -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                         <div class="form-group">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">PARTE DEL CUERPO</label>
-                            <select id="edit-body-part" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <select id="edit-body-part" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                                 <option value="">Seleccionar...</option>
                                 ${bodyParts.map(p => `<option value="${p}" ${p === quote.tattoo_body_part ? 'selected' : ''}>${p}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">LADO</label>
-                            <select id="edit-body-side" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <select id="edit-body-side" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                                 <option value="">Seleccionar...</option>
                                 ${bodySides.map(s => `<option value="${s}" ${s === quote.tattoo_body_side ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
@@ -1971,30 +1965,30 @@ window.openEditQuoteModal = function(quoteId) {
                     <!-- Style -->
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">ESTILO</label>
-                        <input type="text" id="edit-style" value="${currentStyleName}" placeholder="Ej: Realismo, Tradicional, Blackwork..." style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" id="edit-style" value="${currentStyleName}" placeholder="Ej: Realismo, Tradicional, Blackwork..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                     </div>
                     
                     <!-- Size and Color -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                         <div class="form-group">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">TAMANO</label>
-                            <select id="edit-size" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <select id="edit-size" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                                 <option value="">Seleccionar...</option>
                                 ${sizes.map(s => `<option value="${s}" ${s === quote.tattoo_size ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.8rem;">COLOR</label>
-                            <select id="edit-color" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <select id="edit-color" style="width: 100%; padding: 0.8rem; border: 1px solid var(--neutral-200); border-radius: 0;">
                                 <option value="">Seleccionar...</option>
                                 ${colorTypes.map(c => `<option value="${c}" ${c === quote.tattoo_color_type ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end; position: sticky; bottom: 0; background: white; padding-top: 1rem; border-top: 1px solid #eee;">
-                    <button class="action-btn" onclick="closeEditQuoteModal()" style="background: #f5f5f5; color: #333;">CANCELAR</button>
-                    <button class="action-btn accept-btn" onclick="saveQuoteEdits('${quoteId}')" style="background: var(--bauhaus-blue, #1A4B8E); color: white;">GUARDAR CAMBIOS</button>
+                <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end; position: sticky; bottom: 0; background: white; padding-top: 1rem; border-top: 1px solid var(--neutral-200);">
+                    <button class="action-btn" onclick="closeEditQuoteModal()" style="background: var(--neutral-100); color: var(--neutral-500);">CANCELAR</button>
+                    <button class="action-btn accept-btn" onclick="saveQuoteEdits('${quoteId}')" style="background: var(--blue-400); color: white;">GUARDAR CAMBIOS</button>
                 </div>
             </div>
         </div>
@@ -2168,7 +2162,7 @@ window.inspectQuote = async function(quoteId, options = {}) {
                 <img src="${getDriveThumbnail(a.google_drive_url)}" alt="Reference ${index + 1}">
             </div>
         `).join('')}</div>`
-        : `<div class="ref-box" style="padding: 2rem; text-align: center; background: #f5f5f5;">NO_ATTACHMENTS</div>`;
+        : `<div class="ref-box">Sin referencias adjuntas</div>`;
     
     const currentPriority = quote.priority || 'medium';
     const isArchived = quote.is_archived === true;
@@ -2178,8 +2172,8 @@ window.inspectQuote = async function(quoteId, options = {}) {
     if (isArchived) {
         actionButtonsHtml = `
             <div style="margin-top: 2rem; display: flex; gap: 1rem;">
-                <button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="unarchiveSingle('${quote.id}')">Unarchive</button>
-                <button class="action-btn archive-btn" style="flex: 1; padding: 1rem;" onclick="deleteSingle('${quote.id}')">Delete</button>
+                <button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="unarchiveSingle('${quote.id}')">Desarchivar</button>
+                <button class="action-btn danger-btn" style="flex: 1; padding: 1rem;" onclick="deleteSingle('${quote.id}')">Eliminar</button>
             </div>`;
     } else if (!readOnly) {
         let primaryAction = '';
@@ -2190,17 +2184,17 @@ window.inspectQuote = async function(quoteId, options = {}) {
         } else if (qs === 'responded') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem;" onclick="openConfirmModal('${quote.id}')">CONFIRMAR</button>`;
         } else if (qs === 'client_approved') {
-            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;" onclick="updateQuoteStatus('${quote.id}', 'in_progress')">INICIAR TRABAJO</button>`;
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--blue-400); color: white;" onclick="updateQuoteStatus('${quote.id}', 'in_progress')">INICIAR TRABAJO</button>`;
         } else if (qs === 'client_rejected') {
-            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-red, #C62828); color: white;" onclick="openResponseModal('${quote.id}')">REENVIAR</button>`;
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--red-300); color: white;" onclick="openResponseModal('${quote.id}')">REENVIAR</button>`;
         } else if (qs === 'in_progress') {
-            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-blue, #1A4B8E); color: white;" onclick="updateQuoteStatus('${quote.id}', 'artist_completed')">MARCAR LISTO PARA CLIENTE</button>`;
+            primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; background: var(--blue-400); color: white;" onclick="updateQuoteStatus('${quote.id}', 'artist_completed')">MARCAR LISTO PARA CLIENTE</button>`;
         } else if (qs === 'artist_completed') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>ESPERANDO CIERRE DEL CLIENTE</button>`;
         } else if (qs === 'completed') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>COMPLETADO</button>`;
             if (quote.client_user_id) {
-                reviewAction = `<button class="action-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-yellow, #F5C518); color: var(--text-on-light, #1A1A1A);" onclick="openArtistClientReview('${quote.id}')">RESENAR CLIENTE</button>`;
+                reviewAction = `<button class="action-btn" style="flex: 1; padding: 1rem; background: var(--yellow-300); color: var(--neutral-500);" onclick="openArtistClientReview('${quote.id}')">RESENAR CLIENTE</button>`;
             }
         } else if (qs === 'expired') {
             primaryAction = `<button class="action-btn accept-btn" style="flex: 1; padding: 1rem; opacity: 0.5;" disabled>EXPIRADA</button>`;
@@ -2212,15 +2206,15 @@ window.inspectQuote = async function(quoteId, options = {}) {
             <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                 ${primaryAction}
                 ${reviewAction}
-                <button class="action-btn" style="flex: 1; padding: 1rem; background: var(--bauhaus-yellow, #F5C518); color: var(--text-on-light, #1A1A1A);" onclick="openEditQuoteModal('${quote.id}')">EDITAR</button>
-                <button class="action-btn archive-btn" style="flex: 1; padding: 1rem;" onclick="bulkArchiveSingle('${quote.id}')">Archive</button>
+                <button class="action-btn" style="flex: 1; padding: 1rem; background: var(--yellow-300); color: var(--neutral-500);" onclick="openEditQuoteModal('${quote.id}')">EDITAR</button>
+                <button class="action-btn archive-btn" style="flex: 1; padding: 1rem;" onclick="bulkArchiveSingle('${quote.id}')">Archivar</button>
             </div>`;
     }
     
     drawerContent.innerHTML = `
         <div class="shape-decor"></div>
         <div style="margin-bottom: 2rem;">
-            <p style="font-family: 'Space Mono'; font-size: 0.8rem; color: var(--bauhaus-red);">RECORD_ID: ${quote.quote_id || quote.id}</p>
+            <p style="font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); margin: 0 0 0.5rem;">Expediente · ${quote.quote_id || quote.id}</p>
             <div class="status-priority-row">
                 <select onchange="updateQuoteStatus('${quote.id}', this.value)" class="status-dropdown" ${readOnly ? 'disabled' : ''}>
                     <option value="${quote.quote_status}" selected>${STATUS_LABELS[quote.quote_status] || quote.quote_status.toUpperCase()}</option>
@@ -2234,33 +2228,33 @@ window.inspectQuote = async function(quoteId, options = {}) {
             </div>
         </div>
         ${renderQuoteTimeline(quote)}
-        <h2 style="margin-bottom: 2rem;">Quotation<br>Details</h2>
+        <h2 style="margin-bottom: 2rem;">Expediente de cotización</h2>
         <div class="info-grid" style="gap: 2rem 1.5rem; margin-bottom: 2rem;">
-            <div class="info-block"><label>Client</label><p>${quote.client_full_name || '-'}</p></div>
-            <div class="info-block"><label>Cliente Budget</label><p>${quote.client_budget_amount ? `${quote.client_budget_amount} ${quote.client_budget_currency || ''}` : '-'}</p></div>
-            <div class="info-block"><label>Tu Presupuesto</label><p>${quote.artist_budget_amount ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.artist_budget_amount, quote.artist_budget_currency || 'USD') : `${quote.artist_budget_amount} ${quote.artist_budget_currency || ''}`) : '-'}</p></div>
-            <div class="info-block"><label>Sesiones</label><p>${quote.tattoo_estimated_sessions || '-'}</p></div>
-            <div class="info-block"><label>Placement</label><p>${quote.tattoo_body_part || '-'}</p></div>
-            <div class="info-block"><label>Style</label><p>${getStyleDisplayName(quote.tattoo_style)}</p></div>
-            <div class="info-block"><label>Location</label><p>${quote.client_city_residence || '-'}</p></div>
-            <div class="info-block"><label>Fecha Deseada</label><p>${quote.client_preferred_date || 'Flexible'}</p></div>
+            <div class="info-block"><label>Cliente</label><p>${quote.client_full_name || '—'}</p></div>
+            <div class="info-block"><label>Presupuesto del cliente</label><p>${quote.client_budget_amount ? `${quote.client_budget_amount} ${quote.client_budget_currency || ''}` : '—'}</p></div>
+            <div class="info-block"><label>Tu presupuesto</label><p>${quote.artist_budget_amount ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.artist_budget_amount, quote.artist_budget_currency || 'USD') : `${quote.artist_budget_amount} ${quote.artist_budget_currency || ''}`) : '—'}</p></div>
+            <div class="info-block"><label>Sesiones</label><p>${quote.tattoo_estimated_sessions || '—'}</p></div>
+            <div class="info-block"><label>Zona del cuerpo</label><p>${quote.tattoo_body_part || '—'}</p></div>
+            <div class="info-block"><label>Estilo</label><p>${getStyleDisplayName(quote.tattoo_style)}</p></div>
+            <div class="info-block"><label>Ubicación</label><p>${quote.client_city_residence || '—'}</p></div>
+            <div class="info-block"><label>Fecha deseada</label><p>${quote.client_preferred_date || 'Flexible'}</p></div>
         </div>
         ${quote.final_budget_amount ? `
-        <div class="info-block" style="margin-top: 2rem; padding: 1.5rem; background: var(--bauhaus-yellow, #F5C518); border-radius: 4px;">
-            <label style="color: var(--text-on-light, #1A1A1A); margin-bottom: 0.75rem;">PRESUPUESTO FINAL APROBADO</label>
-            <p style="font-size: 1.25rem; font-weight: bold; color: var(--text-on-light, #1A1A1A); margin-bottom: 0.5rem;">${window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.final_budget_amount, quote.final_budget_currency || 'USD') : `${quote.final_budget_amount} ${quote.final_budget_currency || ''}`}</p>
-            ${quote.final_sessions ? `<p style="font-size: 0.95rem; font-weight: 500; color: var(--text-on-light, #1A1A1A); margin-bottom: 0.5rem;">SESIONES: ${quote.final_sessions}</p>` : ''}
-            ${quote.final_comment ? `<p style="font-size: 0.9rem; margin-top: 0.75rem; color: var(--text-on-light, #1A1A1A); font-style: italic;">"${quote.final_comment}"</p>` : ''}
+        <div class="info-block" style="margin-top: 2rem; padding: 1.5rem; background: var(--yellow-300); border-radius: 0;">
+            <label style="color: var(--neutral-500); margin-bottom: 0.75rem;">PRESUPUESTO FINAL APROBADO</label>
+            <p style="font-size: 1.25rem; font-weight: bold; color: var(--neutral-500); margin-bottom: 0.5rem;">${window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.final_budget_amount, quote.final_budget_currency || 'USD') : `${quote.final_budget_amount} ${quote.final_budget_currency || ''}`}</p>
+            ${quote.final_sessions ? `<p style="font-size: 0.95rem; font-weight: 500; color: var(--neutral-500); margin-bottom: 0.5rem;">SESIONES: ${quote.final_sessions}</p>` : ''}
+            ${quote.final_comment ? `<p style="font-size: 0.9rem; margin-top: 0.75rem; color: var(--neutral-500); font-style: italic;">"${quote.final_comment}"</p>` : ''}
         </div>
         ` : ''}
         ${quote.quote_status === 'completed' ? renderSessionsSection(quote.id, currentQuoteSessions, readOnly) : ''}
-        <div class="info-block" style="margin-top: 2.5rem;"><label style="margin-bottom: 0.75rem;">Idea del Tatuaje</label><p style="font-weight: 400; border-left: 4px solid var(--bauhaus-yellow); padding-left: 1rem;">"${quote.tattoo_idea_description || 'No description provided.'}"</p></div>
+        <div class="info-block" style="margin-top: 2.5rem;"><label style="margin-bottom: 0.75rem;">Idea del Tatuaje</label><p style="font-weight: 400; border-left: 4px solid var(--yellow-300); padding-left: 1rem;">"${quote.tattoo_idea_description || 'No description provided.'}"</p></div>
         
-        <button class="action-btn expand-info-btn" onclick="toggleAdditionalQuoteInfo()" id="expand-quote-info-btn" style="width: 100%; margin-top: 2rem; font-family: 'Space Mono', monospace; font-size: 0.75rem;">
-            AMPLIAR INFORMACION
+        <button class="action-btn expand-info-btn" onclick="toggleAdditionalQuoteInfo()" id="expand-quote-info-btn" style="width: 100%; margin-top: 2rem; font-family: var(--font-mono); font-size: 0.75rem;">
+            Ampliar información
         </button>
         
-        <div id="additional-quote-info" class="additional-info-section" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background: rgba(0,0,0,0.02); border: 2px dashed var(--ink, #1A1A1A);">
+        <div id="additional-quote-info" class="additional-info-section" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background: rgba(0,0,0,0.02); border: 2px dashed var(--neutral-500);">
             <div class="info-grid" style="gap: 1.5rem; margin-bottom: 1.5rem;">
                 <div class="info-block"><label>Email</label><p>${quote.client_email || '-'}</p></div>
                 <div class="info-block"><label>WhatsApp</label><p>${quote.client_whatsapp || '-'}</p></div>
@@ -2279,7 +2273,7 @@ window.inspectQuote = async function(quoteId, options = {}) {
             </div>
         </div>
         <div class="info-block" style="margin-top: 3rem;">
-            <label style="margin-bottom: 1rem;">Reference Assets (${attachments.length})</label>
+            <label style="margin-bottom: 1rem;">Referencias e imágenes (${attachments.length})</label>
             ${imagesHtml}
         </div>
         ${renderNotesSection(quote.id, currentQuoteNotes, readOnly)}

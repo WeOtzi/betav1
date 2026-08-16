@@ -43,13 +43,13 @@ const GEOCODE_UNKNOWN_ERROR_RETRIES = 1;
 const PROFILE_ERROR_CONTENT = {
     not_found: {
         eyebrow: 'Perfil público · No encontrado',
-        title: 'Artista no encontrado.. pero no te preocupes, hay muchos más!',
-        message: 'Explora más perfiles dentro del marketplace.'
+        title: 'Artista no encontrado, pero hay muchos más',
+        message: 'Explorá más perfiles dentro del marketplace.'
     },
     technical: {
         eyebrow: 'Perfil público · Error de carga',
-        title: 'Artista no encontrado.. pero no te preocupes, hay muchos más!',
-        message: 'No pudimos cargar este perfil ahora mismo. Puedes intentarlo de nuevo o explorar otros artistas en el marketplace.'
+        title: 'No pudimos cargar este perfil',
+        message: 'Podés intentarlo de nuevo o explorar otros artistas en el marketplace.'
     }
 };
 const ERROR_SCENE_SHAPE_CONFIG = {
@@ -199,7 +199,7 @@ function formatExperience(value) {
     if (!value) return 'No especificada';
     const raw = String(value).trim();
     if (!raw) return 'No especificada';
-    return /^\d+$/.test(raw) ? `${raw} anos` : raw;
+    return /^\d+$/.test(raw) ? `${raw} años` : raw;
 }
 
 function getLocationParts(data) {
@@ -496,10 +496,11 @@ function typeToMapLabel(type) {
     return 'Próximamente';
 }
 
+// Colores del DS Bauhaus (tokens --red-300 / --blue-400 / --yellow-300).
 function markerColorByType(type) {
-    if (type === 'main') return '#e63a2e';
-    if (type === 'current') return '#1e4ed8';
-    return '#f2b705';
+    if (type === 'main') return '#E63A1F';
+    if (type === 'current') return '#0055FF';
+    return '#F2B519';
 }
 
 function isMobileArtistMapLayout() {
@@ -548,7 +549,7 @@ function setArtistMapInfoCard(point) {
         <h4 class="artist-map-info-title">${escapeHtml(point.label || '-')}</h4>
         <p class="artist-map-info-address">${escapeHtml(point.displayName || point.query || '-')}</p>
         <p class="artist-map-info-coords">${escapeHtml(Number(point.lat).toFixed(4))}, ${escapeHtml(Number(point.lng).toFixed(4))}</p>
-        <a class="artist-map-info-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
+        <a class="artist-map-info-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps →</a>
     `;
 }
 
@@ -560,7 +561,7 @@ function getArtistMapPointPanelHtml(point) {
         <h4 class="artist-map-point-panel-title">${escapeHtml(point.label || '-')}</h4>
         <p class="artist-map-point-panel-address">${escapeHtml(point.displayName || point.query || '-')}</p>
         <p class="artist-map-point-panel-coords">${escapeHtml(Number(point.lat).toFixed(4))}, ${escapeHtml(Number(point.lng).toFixed(4))}</p>
-        <a class="artist-map-point-panel-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
+        <a class="artist-map-point-panel-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps →</a>
     `;
 }
 
@@ -687,12 +688,12 @@ function ensureArtistMapInstance(mapElement, markers = []) {
             markers,
             regionStyle: {
                 initial: {
-                    fill: '#f4f4f2',
-                    stroke: 'rgba(18, 18, 18, 0.18)',
+                    fill: '#EDE8DC',
+                    stroke: 'rgba(0, 17, 37, 0.22)',
                     strokeWidth: 0.55
                 },
                 hover: {
-                    fill: '#efede8'
+                    fill: '#DED8C9'
                 }
             },
             onMarkerTooltipShow: (_event, tooltip, index) => {
@@ -703,7 +704,7 @@ function ensureArtistMapInstance(mapElement, markers = []) {
                 tooltip.text(`
                     <strong>${escapeHtml(label)}</strong><br>
                     ${escapeHtml(point.displayName || point.query || '')}<br>
-                    <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
+                    <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps →</a>
                 `, true);
                 setArtistMapInfoCard(point);
             },
@@ -805,13 +806,13 @@ async function renderArtistDynamicMap() {
             style: {
                 initial: {
                     fill: markerColorByType(point.type),
-                    stroke: '#111111',
+                    stroke: '#001125',
                     strokeWidth: 1.1,
                     r: 5
                 },
                 hover: {
-                    fill: '#111111',
-                    stroke: '#ffffff',
+                    fill: '#001125',
+                    stroke: '#FCFCFC',
                     strokeWidth: 1.5
                 }
             }
@@ -1101,7 +1102,7 @@ function populateProfile() {
     if (window.BioFormatting) {
         window.BioFormatting.renderBioHtml(bioTextEl, artistData.bio_description);
     } else {
-        bioTextEl.textContent = artistData.bio_description || 'Este artista todavia no agrego una descripcion.';
+        bioTextEl.textContent = artistData.bio_description || 'Este artista todavía no agregó una descripción.';
     }
 
     setText('display-artistic-name', artisticName);
@@ -1262,7 +1263,7 @@ function renderGallery() {
             html += `
                 <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="Abrir trabajo ${index + 1}">
                     ${isVideo
-                        ? `<video src="${escapeHtml(url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay">&#9654;</span>`
+                        ? `<video src="${escapeHtml(url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay"><i data-wo-icon="play" class="wo-icon-18" aria-hidden="true"></i></span>`
                         : `<img src="${escapeHtml(url)}" alt="Trabajo ${index + 1}" loading="lazy" width="1200" height="1200">`}
                     <span class="gallery-overlay"><span>Ver</span><span>${String(index + 1).padStart(2, '0')}</span></span>
                 </button>
@@ -1281,7 +1282,7 @@ function renderGallery() {
 
     if (galleryItems.length > 0) {
         viewAllBtn.style.display = 'inline-flex';
-        viewAllBtn.textContent = 'Abrir galeria completa';
+        viewAllBtn.textContent = 'Abrir galería completa →';
     } else {
         viewAllBtn.style.display = 'none';
     }
@@ -1712,6 +1713,3 @@ function showStatusMessage(message) {
     }, 4000);
 }
 
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-}

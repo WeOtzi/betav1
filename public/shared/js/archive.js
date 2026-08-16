@@ -18,20 +18,20 @@ let selectedQuotes = new Set();
 let allAttachments = [];
 let allTattooStyles = [];
 
-// Column Configuration
+// Column Configuration (V4 · DS Bauhaus)
 const defaultColumns = [
     { id: 'select', label: '', width: '40px', field: 'select' },
-    { id: 'created_at', label: 'DATE', width: '100px', field: 'created_at' },
+    { id: 'created_at', label: 'Fecha', width: '100px', field: 'created_at' },
     { id: 'id', label: 'ID', width: '80px', field: 'id' },
-    { id: 'client', label: 'Client Entity', width: '2fr', field: 'client_full_name' },
-    { id: 'location', label: 'CLIENT LOCATION', width: '1.5fr', field: 'client_city_residence' },
-    { id: 'concept', label: 'Tattoo Concept', width: '2fr', field: 'tattoo_idea_description' },
-    { id: 'timing', label: 'FECHA DESEADA', width: '1.5fr', field: 'client_preferred_date' },
-    { id: 'value', label: 'Value', width: '100px', field: 'client_budget_amount' },
-    { id: 'action', label: 'Action', width: '140px', field: 'action' }
+    { id: 'client', label: 'Cliente', width: '2fr', field: 'client_full_name' },
+    { id: 'location', label: 'Ubicación', width: '1.5fr', field: 'client_city_residence' },
+    { id: 'concept', label: 'Proyecto', width: '2fr', field: 'tattoo_idea_description' },
+    { id: 'timing', label: 'Fecha deseada', width: '1.5fr', field: 'client_preferred_date' },
+    { id: 'value', label: 'Valor', width: '110px', field: 'client_budget_amount' },
+    { id: 'action', label: 'Acción', width: '150px', field: 'action' }
 ];
 
-let tableColumns = JSON.parse(localStorage.getItem('wo_table_columns_v3')) || defaultColumns;
+let tableColumns = JSON.parse(localStorage.getItem('wo_table_columns_v4')) || defaultColumns;
 
 // Filters & Sorting State
 let sortConfig = { field: 'created_at', direction: 'desc' };
@@ -115,8 +115,7 @@ function zoomOut() {
 }
 
 function restoreThemeAndZoom() {
-    const savedTheme = localStorage.getItem('weotzi-theme');
-    if (savedTheme === 'dark') document.body.classList.add('dark-mode');
+    // Sin modo oscuro en el DS Bauhaus: solo se restaura el zoom.
     const savedZoom = localStorage.getItem('weotzi-zoom');
     if (savedZoom) setZoom(parseFloat(savedZoom));
 }
@@ -189,7 +188,7 @@ async function loadQuotations() {
 
     } catch (err) {
         console.error('Error loading quotations:', err);
-        document.getElementById('quotes-table-body').innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--bauhaus-red);">ERROR_LOADING_DATA: ${err.message}</div>`;
+        document.getElementById('quotes-table-body').innerHTML = `<div class="table-empty" style="color: var(--red-700);">Error al cargar los datos: ${err.message}</div>`;
     }
 }
 
@@ -255,7 +254,7 @@ function updateGridStyles() {
 }
 
 function saveColumnConfig() {
-    localStorage.setItem('wo_table_columns_v3', JSON.stringify(tableColumns));
+    localStorage.setItem('wo_table_columns_v4', JSON.stringify(tableColumns));
 }
 
 function getStyleDisplayName(tattooStyle) {
@@ -272,7 +271,7 @@ function renderTable() {
     const tbody = document.getElementById('quotes-table-body');
     
     if (filteredQuotations.length === 0) {
-        tbody.innerHTML = `<div style="padding: 3rem; text-align: center; font-family: 'Space Mono', monospace; opacity: 0.5;">NO_ARCHIVED_RECORDS_FOUND</div>`;
+        tbody.innerHTML = `<div class="table-empty">No hay cotizaciones archivadas que coincidan</div>`;
         return;
     }
 
@@ -290,24 +289,24 @@ function renderTable() {
             ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady()
                 ? window.WeOtziCurrency.formatInline(displayAmount, displayCurrency || 'USD')
                 : `${displayAmount} ${displayCurrency || ''}`)
-            : 'TBD';
+            : 'A definir';
         const isFinished = ['responded', 'completed', 'client_approved', 'artist_completed', 'client_rejected'].includes(quote.quote_status);
         const isSelected = selectedQuotes.has(quote.id.toString());
 
         const dataMap = {
             select: `<input type="checkbox" class="quote-checkbox" data-id="${quote.id}" ${isSelected ? 'checked' : ''} onclick="toggleSelect('${quote.id}', event)">`,
-            created_at: `<span class="quote-date" style="font-family: 'Space Mono', monospace; font-size: 0.75rem;">${date}</span>`,
+            created_at: `<span class="quote-date">${date}</span>`,
             id: `<span class="quote-id">#QN${id}</span>`,
-            client: `<div class="client-cell"><span class="client-name">${quote.client_full_name || 'Anonymous'}</span><span class="client-sub">${quote.client_age || '??'}yr • ${quote.client_instagram || '@not_provided'}</span></div>`,
-            location: `<div class="location-cell" style="font-size: 0.75rem; text-transform: uppercase;">${quote.client_city_residence || '-'}</div>`,
-            concept: `<div class="tattoo-cell"><span class="tattoo-idea">${quote.tattoo_idea_description || 'No description'}</span><span class="tattoo-specs">${quote.tattoo_body_part || 'TBD'} • ${getStyleDisplayName(quote.tattoo_style)}</span></div>`,
+            client: `<div class="client-cell"><span class="client-name">${quote.client_full_name || 'Sin nombre'}</span><span class="client-sub">${quote.client_age ? quote.client_age + ' años' : '—'} · ${quote.client_instagram || 'sin instagram'}</span></div>`,
+            location: `<div class="location-cell">${quote.client_city_residence || '—'}</div>`,
+            concept: `<div class="tattoo-cell"><span class="tattoo-idea">${quote.tattoo_idea_description || 'Sin descripción'}</span><span class="tattoo-specs">${quote.tattoo_body_part || 'A definir'} · ${getStyleDisplayName(quote.tattoo_style)}</span></div>`,
             timing: `<div class="timing-cell"><span class="status-badge ${isFinished ? 'completed' : ''}">${quote.client_preferred_date || 'Flexible'}</span></div>`,
             value: `<div class="price-cell">${value}</div>`,
-            action: `<button class="action-btn detail-btn" onclick="inspectQuote('${quote.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 5px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>DETALLES</button>`
+            action: `<button class="action-btn detail-btn" onclick="inspectQuote('${quote.id}')">Ver detalle<i data-wo-icon="arrow-up-right" class="wo-icon-18"></i></button>`
         };
 
         const rowCells = tableColumns.map(col => dataMap[col.id] || `<div>-</div>`).join('');
-        return `<div class="quote-row ${isSelected ? 'selected' : ''}" style="opacity: 0; transform: translateY(20px); transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1); transition-delay: ${index * 0.05}s">${rowCells}</div>`;
+        return `<div class="quote-row ${isSelected ? 'selected' : ''}" style="opacity: 0; transform: translateY(12px); transition: opacity var(--duration-fade) var(--ease-standard), transform var(--duration-fade) var(--ease-standard); transition-delay: ${index * 0.04}s">${rowCells}</div>`;
     }).join('');
 
     setTimeout(() => {
@@ -353,7 +352,9 @@ function updateBulkBar() {
     if (!bar) return;
     if (selectedQuotes.size > 0) {
         bar.classList.add('active');
-        document.getElementById('selection-count').textContent = `${selectedQuotes.size} selected`;
+        document.getElementById('selection-count').textContent = selectedQuotes.size === 1
+            ? '1 seleccionada'
+            : `${selectedQuotes.size} seleccionadas`;
     } else bar.classList.remove('active');
 }
 
@@ -369,7 +370,7 @@ window.bulkUnarchive = async function() {
 
 window.bulkDelete = async function() {
     if (selectedQuotes.size === 0) return;
-    if (!confirm(`Are you sure you want to permanently delete ${selectedQuotes.size} archived quote(s)?`)) return;
+    if (!confirm(`¿Seguro que querés eliminar definitivamente ${selectedQuotes.size} cotización(es) archivada(s)?`)) return;
     const ids = Array.from(selectedQuotes);
     try {
         await WeotziData.Quotations.hardDeleteByIds(ids);
@@ -388,7 +389,7 @@ window.unarchiveSingle = async function(id) {
 };
 
 window.deleteSingle = async function(id) {
-    if (!confirm('Are you sure you want to permanently delete this quote?')) return;
+    if (!confirm('¿Seguro que querés eliminar definitivamente esta cotización?')) return;
     try {
         await WeotziData.Quotations.hardDeleteById(id);
         document.getElementById('drawer-toggle').checked = false;

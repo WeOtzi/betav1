@@ -2,6 +2,7 @@
 // Artist Authentication Module
 // Handles login, Google OAuth, password recovery and session
 // management for artist users.
+// UI: design system Bauhaus (wo-*) — /shared/css/artist-auth-ds.css
 // ============================================
 
 const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
@@ -69,22 +70,28 @@ function buildRegisterArtistUrl(progress) {
     return baseUrl;
 }
 
-function showFormMessage(message, type = 'info') {
-    const messageDiv = document.getElementById('form-message');
-    if (messageDiv) {
-        messageDiv.innerHTML = message;
-        messageDiv.className = 'form-message ' + type;
-        messageDiv.style.display = 'block';
+// Mensajes de estado — usan las clases wo-alert del DS.
+function setAuthMessage(id, message, type = 'info') {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!message) {
+        el.hidden = true;
+        el.textContent = '';
+        el.className = 'wo-auth-message';
+        return;
     }
+    const tone = type === 'success' ? 'success' : (type === 'error' ? 'error' : 'info');
+    el.innerHTML = message;
+    el.className = 'wo-auth-message wo-alert wo-alert--' + tone;
+    el.hidden = false;
+}
+
+function showFormMessage(message, type = 'info') {
+    setAuthMessage('form-message', message, type);
 }
 
 function clearFormMessage() {
-    const messageDiv = document.getElementById('form-message');
-    if (messageDiv) {
-        messageDiv.innerHTML = '';
-        messageDiv.className = 'form-message';
-        messageDiv.style.display = 'none';
-    }
+    setAuthMessage('form-message', '');
 }
 
 function withArtistLoginTimeout(promise, timeoutMs, label) {
@@ -134,8 +141,6 @@ async function lookupClientProfile(userId) {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    restoreZoomPreference();
-
     if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
         handleArtistOAuthCallback();
         return;
@@ -143,6 +148,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkArtistAuthState();
 });
+
+// ============================================
+// View Switching (login <-> recuperar contraseña)
+// ============================================
+
+function togglePoster(which) {
+    const posterLogin = document.getElementById('poster-login');
+    const posterRecovery = document.getElementById('poster-recovery');
+    if (posterLogin) posterLogin.hidden = which !== 'login';
+    if (posterRecovery) posterRecovery.hidden = which !== 'recovery';
+}
+
+function setRecoveryStep(step) {
+    const emailStep = document.getElementById('recovery-step-email');
+    const sentStep = document.getElementById('recovery-step-sent');
+    if (emailStep) emailStep.hidden = step !== 'email';
+    if (sentStep) sentStep.hidden = step !== 'sent';
+}
+
+function showRecoveryView() {
+    const anonView = document.getElementById('login-anonymous-view');
+    const recoveryView = document.getElementById('recovery-view');
+    if (!recoveryView) return;
+
+    const loginEmail = document.getElementById('login-email');
+    const recoveryEmail = document.getElementById('recovery-email');
+    if (recoveryEmail && loginEmail && loginEmail.value.trim()) {
+        recoveryEmail.value = loginEmail.value.trim();
+    }
+
+    setRecoveryStep('email');
+    if (anonView) anonView.hidden = true;
+    recoveryView.hidden = false;
+    togglePoster('recovery');
+    clearFormMessage();
+    setAuthMessage('recovery-message', '');
+    recoveryEmail?.focus();
+}
+
+function showLoginView() {
+    const anonView = document.getElementById('login-anonymous-view');
+    const recoveryView = document.getElementById('recovery-view');
+    if (recoveryView) recoveryView.hidden = true;
+    if (anonView) anonView.hidden = false;
+    togglePoster('login');
+    setAuthMessage('recovery-message', '');
+    document.getElementById('login-password')?.focus();
+}
 
 // ============================================
 // Auth State Management
@@ -196,9 +249,11 @@ async function checkArtistAuthState() {
 
 function renderAuthenticatedView({ email, role, artist, progress }) {
     const anonView = document.getElementById('login-anonymous-view');
+    const recoveryView = document.getElementById('recovery-view');
     const authView = document.getElementById('login-authenticated-view');
     const emailEl = document.getElementById('auth-view-email');
     const kickerEl = document.getElementById('auth-view-kicker');
+    const kickerTextEl = document.getElementById('auth-view-kicker-text') || kickerEl;
     const titleEl = document.getElementById('auth-view-title');
     const subcopyEl = document.getElementById('auth-view-subcopy');
     const noteEl = document.getElementById('auth-view-progress-note');
@@ -207,62 +262,65 @@ function renderAuthenticatedView({ email, role, artist, progress }) {
     if (!anonView || !authView || !actionsEl) return;
 
     anonView.hidden = true;
+    if (recoveryView) recoveryView.hidden = true;
     authView.hidden = false;
+    togglePoster('login');
 
     if (emailEl) emailEl.textContent = email || '';
 
     actionsEl.innerHTML = '';
 
     if (role === 'artist') {
-        kickerEl.textContent = 'Sesion activa';
-        titleEl.textContent = 'Ya iniciaste sesion';
+        kickerTextEl.textContent = 'Sesión activa';
+        titleEl.textContent = 'Ya iniciaste sesión';
 
         if (progress && !progress.isComplete) {
             const stepLabel = progress.nextStep
                 ? `paso ${String(progress.nextStep).padStart(2, '0')}`
                 : 'siguiente paso';
-            noteEl.hidden = false;
-            noteEl.className = 'form-message info';
-            noteEl.style.display = 'block';
-            noteEl.textContent = `Tu perfil de artista esta en progreso. Continua desde el ${stepLabel}.`;
+            setAuthMessage('auth-view-progress-note',
+                `Tu perfil de artista está en progreso. Continuá desde el ${stepLabel}.`, 'info');
 
             actionsEl.appendChild(createActionButton(
                 'Continuar registro',
-                'quote-cta-btn',
+                'primary',
                 buildRegisterArtistUrl(progress)
             ));
+            actionsEl.appendChild(createActionButton('Ir al dashboard', 'ghost', '/artist/dashboard'));
         } else {
-            noteEl.hidden = true;
-            subcopyEl.textContent = 'Continua desde tu panel de artista.';
+            setAuthMessage('auth-view-progress-note', '');
+            subcopyEl.textContent = 'Continuá desde tu panel de artista.';
+            actionsEl.appendChild(createActionButton('Ir al dashboard', 'primary', '/artist/dashboard'));
         }
 
-        actionsEl.appendChild(createActionButton('Ir al dashboard', 'action-btn', '/artist/dashboard'));
-        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'action-btn', '/my-quotations'));
-        actionsEl.appendChild(createActionButton('Job Board', 'action-btn', '/job-board'));
+        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'ghost', '/my-quotations'));
+        actionsEl.appendChild(createActionButton('Job board', 'ghost', '/job-board'));
     } else if (role === 'client') {
-        kickerEl.textContent = 'Cuenta cliente';
+        kickerTextEl.textContent = 'Cuenta cliente';
         titleEl.textContent = 'Esta cuenta es de cliente';
-        subcopyEl.innerHTML = `Estas logueado como <strong id="auth-view-email">${escapeHtml(email || '')}</strong> en una cuenta de cliente.`;
-        noteEl.hidden = true;
+        subcopyEl.innerHTML = `Tenés sesión iniciada como <strong id="auth-view-email">${escapeHtml(email || '')}</strong> en una cuenta de cliente.`;
+        setAuthMessage('auth-view-progress-note', '');
 
-        actionsEl.appendChild(createActionButton('Ir a dashboard cliente', 'quote-cta-btn', '/client/dashboard'));
-        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'action-btn', '/my-quotations'));
+        actionsEl.appendChild(createActionButton('Ir al dashboard de cliente', 'primary', '/client/dashboard'));
+        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'ghost', '/my-quotations'));
     } else {
-        kickerEl.textContent = 'Sin perfil';
-        titleEl.textContent = 'Completa tu registro';
-        subcopyEl.innerHTML = `Tienes sesion como <strong id="auth-view-email">${escapeHtml(email || '')}</strong>, pero aun no has creado tu perfil de artista.`;
-        noteEl.hidden = true;
+        kickerTextEl.textContent = 'Sin perfil';
+        titleEl.textContent = 'Completá tu registro';
+        subcopyEl.innerHTML = `Tenés sesión como <strong id="auth-view-email">${escapeHtml(email || '')}</strong>, pero todavía no creaste tu perfil de artista.`;
+        setAuthMessage('auth-view-progress-note', '');
 
-        actionsEl.appendChild(createActionButton('Crear perfil de artista', 'quote-cta-btn', '/register-artist'));
-        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'action-btn', '/my-quotations'));
+        actionsEl.appendChild(createActionButton('Crear perfil de artista', 'primary', '/register-artist'));
+        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'ghost', '/my-quotations'));
     }
 }
 
-function createActionButton(label, className, href) {
+function createActionButton(label, kind, href) {
     const btn = document.createElement('a');
-    btn.className = className;
+    btn.className = kind === 'primary'
+        ? 'wo-btn wo-btn--block wo-btn--hard'
+        : 'wo-btn wo-btn--ghost wo-btn--block wo-btn--hard';
     btn.href = href;
-    btn.innerHTML = `<span class="btn-text">${escapeHtml(label)}</span>`;
+    btn.innerHTML = `<span class="btn-text">${escapeHtml(label)}</span><i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>`;
     return btn;
 }
 
@@ -287,12 +345,11 @@ async function handleArtistLogin(e) {
     clearFormMessage();
 
     if (!email || !password) {
-        showFormMessage('Por favor ingresa tu email y contrasena.', 'error');
+        showFormMessage('Ingresá tu email y tu contraseña.', 'error');
         return;
     }
 
-    btn.innerHTML = '<div class="spinner"></div><span>VALIDANDO...</span>';
-    btn.classList.add('loading');
+    btn.innerHTML = '<span class="wo-spinner" aria-hidden="true"></span><span class="btn-text">Validando…</span>';
     btn.disabled = true;
 
     try {
@@ -321,9 +378,8 @@ async function handleArtistLogin(e) {
         const artist = await lookupArtistProfile(data.user.id);
 
         if (artist) {
-            btn.innerHTML = '<span class="btn-text">BIENVENIDO</span>';
-            btn.style.background = '#4CAF50';
-            showFormMessage('Sesion iniciada correctamente.', 'success');
+            btn.innerHTML = '<span class="btn-text">Listo</span>';
+            showFormMessage('Sesión iniciada. Abriendo tu panel…', 'success');
 
             const returnTo = getReturnToParam();
             setTimeout(() => {
@@ -334,27 +390,25 @@ async function handleArtistLogin(e) {
 
         const client = await lookupClientProfile(data.user.id);
         if (client) {
-            showFormMessage('Esta cuenta es de cliente. Redirigiendo a tu dashboard...', 'info');
+            showFormMessage('Esta cuenta es de cliente. Te llevamos a tu panel…', 'info');
             setTimeout(() => { window.location.href = '/client/dashboard'; }, 1500);
             return;
         }
 
-        showFormMessage('Sesion iniciada. Abriendo dashboard...', 'success');
+        showFormMessage('Sesión iniciada. Abriendo tu panel…', 'success');
         const returnTo = getReturnToParam();
         setTimeout(() => { window.location.href = returnTo || '/artist/dashboard'; }, 1500);
 
     } catch (error) {
         console.error('Artist login error:', error);
         btn.innerHTML = originalText;
-        btn.classList.remove('loading');
         btn.disabled = false;
-        btn.style.background = '';
 
-        let errorMessage = 'Error al iniciar sesion.';
+        let errorMessage = 'No pudimos iniciar tu sesión.';
         if (error.message && error.message.includes('Invalid login credentials')) {
-            errorMessage = 'Email o contrasena incorrectos.';
+            errorMessage = 'Email o contraseña incorrectos.';
         } else if (error.message && error.message.includes('Email not confirmed')) {
-            errorMessage = 'Debes confirmar tu email antes de iniciar sesion.';
+            errorMessage = 'Confirmá tu email antes de iniciar sesión.';
         }
 
         showFormMessage(errorMessage, 'error');
@@ -385,7 +439,7 @@ async function handleArtistGoogleLogin() {
         if (error) throw error;
     } catch (error) {
         console.error('Artist Google login error:', error);
-        showFormMessage('Error al conectar con Google. Por favor, intenta de nuevo.', 'error');
+        showFormMessage('No pudimos conectar con Google. Probá de nuevo.', 'error');
     }
 }
 
@@ -394,7 +448,7 @@ async function handleArtistOAuthCallback() {
         const { data: { session }, error } = await _supabase.auth.getSession();
         if (error) {
             console.error('OAuth callback error:', error);
-            showFormMessage('Error al completar el inicio de sesion.', 'error');
+            showFormMessage('No pudimos completar el inicio de sesión.', 'error');
             return;
         }
         if (!session) return;
@@ -413,7 +467,7 @@ async function handleArtistOAuthCallback() {
 
         const client = await lookupClientProfile(session.user.id);
         if (client) {
-            showFormMessage('Esta cuenta esta registrada como cliente.', 'info');
+            showFormMessage('Esta cuenta está registrada como cliente.', 'info');
             setTimeout(() => { window.location.href = '/client/dashboard'; }, 1500);
             return;
         }
@@ -437,59 +491,46 @@ function generateTempPassword() {
     return password;
 }
 
-async function handleArtistPasswordRecovery(e) {
+// Abre la vista de recuperación (compat: mismo nombre que usaba el link viejo).
+function handleArtistPasswordRecovery(e) {
+    if (e) e.preventDefault();
+    showRecoveryView();
+}
+
+async function handleRecoverySubmit(e) {
     if (e) e.preventDefault();
 
-    const emailInput = document.getElementById('login-email');
-    const email = emailInput?.value.trim().toLowerCase();
+    const emailInput = document.getElementById('recovery-email');
+    const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
 
     if (!email) {
-        showFormMessage('Por favor ingresa tu email para recuperar tu contrasena.', 'info');
+        setAuthMessage('recovery-message', 'Ingresá tu email para recuperar tu acceso.', 'info');
         emailInput?.focus();
         return;
     }
 
-    showFormMessage('Procesando solicitud...', 'info');
+    const btn = document.getElementById('btn-recovery');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<span class="wo-spinner" aria-hidden="true"></span><span class="btn-text">Enviando…</span>';
+        btn.disabled = true;
+    }
+    setAuthMessage('recovery-message', '');
 
     try {
-        const tempPassword = generateTempPassword();
+        await window.ArtistLogin.resetPassword(email);
 
-        const response = await fetch('/api/auth/reset-temp-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: email,
-                userType: 'artist',
-                tempPassword: tempPassword
-            })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-            if (response.status === 404) {
-                throw new Error('No encontramos una cuenta de artista con ese email.');
-            }
-            throw new Error(result.error || 'Error al procesar la solicitud');
-        }
-
-        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-            try {
-                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
-                    email: email,
-                    temp_password: tempPassword,
-                    user_type: 'artist',
-                    login_url: window.location.origin + '/artist/login'
-                });
-            } catch (webhookErr) {
-                console.warn('Could not send password_reset_temp event:', webhookErr);
-            }
-        }
-
-        showFormMessage('Te hemos enviado un email con tu nueva contrasena temporal.', 'success');
+        const sentEmailEl = document.getElementById('recovery-sent-email');
+        if (sentEmailEl) sentEmailEl.textContent = email;
+        setRecoveryStep('sent');
     } catch (error) {
         console.error('Artist password recovery error:', error);
-        showFormMessage(error.message || 'Error al procesar la solicitud.', 'error');
+        setAuthMessage('recovery-message', error.message || 'No pudimos procesar la solicitud. Probá de nuevo.', 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
     }
 }
 
@@ -505,48 +546,6 @@ async function handleArtistLogout() {
     } catch (error) {
         console.error('Artist logout error:', error);
     }
-}
-
-// ============================================
-// Theme Toggle + Zoom
-// ============================================
-
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('weotzi-theme', isDark ? 'dark' : 'light');
-}
-
-function restoreThemePreference() {
-    const savedTheme = localStorage.getItem('weotzi-theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-    }
-}
-
-const ZOOM_MIN = 0.6;
-const ZOOM_MAX = 1.2;
-const ZOOM_STEP = 0.1;
-
-function getCurrentZoom() {
-    const root = document.documentElement;
-    const currentZoom = getComputedStyle(root).getPropertyValue('--zoom-factor');
-    return parseFloat(currentZoom) || 0.85;
-}
-
-function setZoom(factor) {
-    const clamped = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, factor));
-    document.documentElement.style.setProperty('--zoom-factor', clamped);
-    localStorage.setItem('weotzi-zoom', clamped);
-}
-
-function zoomIn() { setZoom(getCurrentZoom() + ZOOM_STEP); }
-function zoomOut() { setZoom(getCurrentZoom() - ZOOM_STEP); }
-
-function restoreZoomPreference() {
-    const savedZoom = localStorage.getItem('weotzi-zoom');
-    if (savedZoom) setZoom(parseFloat(savedZoom));
-    restoreThemePreference();
 }
 
 // ============================================
@@ -592,7 +591,7 @@ window.ArtistLogin = {
         const result = await response.json();
 
         if (!response.ok || !result.success) {
-            if (response.status === 404) throw new Error('No encontramos una cuenta con ese email.');
+            if (response.status === 404) throw new Error('No encontramos una cuenta de artista con ese email.');
             throw new Error(result.error || 'Error al procesar la solicitud');
         }
 

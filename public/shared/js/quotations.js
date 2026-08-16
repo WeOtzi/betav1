@@ -40,21 +40,21 @@ let selectedQuotes = new Set();
 let allAttachments = [];
 let allTattooStyles = [];
 
-// Column Configuration (Updated V3)
+// Column Configuration (Updated V4 · DS Bauhaus)
 const defaultColumns = [
     { id: 'select', label: '', width: '40px', field: 'select' },
-    { id: 'created_at', label: 'DATE', width: '100px', field: 'created_at' },
+    { id: 'created_at', label: 'Fecha', width: '100px', field: 'created_at' },
     { id: 'id', label: 'ID', width: '80px', field: 'id' },
-    { id: 'client', label: 'Client Entity', width: '2fr', field: 'client_full_name' },
-    { id: 'location', label: 'CLIENT LOCATION', width: '1.5fr', field: 'client_city_residence' },
-    { id: 'concept', label: 'Tattoo Concept', width: '2fr', field: 'tattoo_idea_description' },
-    { id: 'timing', label: 'FECHA DESEADA', width: '1.5fr', field: 'client_preferred_date' },
-    { id: 'value', label: 'Value', width: '100px', field: 'client_budget_amount' },
-    { id: 'action', label: 'Action', width: '140px', field: 'action' }
+    { id: 'client', label: 'Cliente', width: '2fr', field: 'client_full_name' },
+    { id: 'location', label: 'Ubicación', width: '1.5fr', field: 'client_city_residence' },
+    { id: 'concept', label: 'Proyecto', width: '2fr', field: 'tattoo_idea_description' },
+    { id: 'timing', label: 'Fecha deseada', width: '1.5fr', field: 'client_preferred_date' },
+    { id: 'value', label: 'Valor', width: '110px', field: 'client_budget_amount' },
+    { id: 'action', label: 'Acción', width: '150px', field: 'action' }
 ];
 
 // Force reset if using old column version
-let tableColumns = JSON.parse(localStorage.getItem('wo_table_columns_v3')) || defaultColumns;
+let tableColumns = JSON.parse(localStorage.getItem('wo_table_columns_v4')) || defaultColumns;
 
 // Filters & Sorting State
 let sortConfig = { field: 'created_at', direction: 'desc' };
@@ -169,13 +169,7 @@ function zoomOut() {
 }
 
 function restoreThemeAndZoom() {
-    // Restore Theme
-    const savedTheme = localStorage.getItem('weotzi-theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-    }
-
-    // Restore Zoom
+    // Sin modo oscuro en el DS Bauhaus: solo se restaura el zoom.
     const savedZoom = localStorage.getItem('weotzi-zoom');
     if (savedZoom) {
         setZoom(parseFloat(savedZoom));
@@ -252,7 +246,7 @@ async function loadQuotations() {
 
     } catch (err) {
         console.error('Error loading quotations:', err);
-        document.getElementById('quotes-table-body').innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--bauhaus-red);">ERROR_LOADING_DATA: ${err.message}</div>`;
+        document.getElementById('quotes-table-body').innerHTML = `<div class="table-empty" style="color: var(--red-700);">Error al cargar los datos: ${err.message}</div>`;
     }
 }
 
@@ -322,7 +316,7 @@ function updateGridStyles() {
 }
 
 function saveColumnConfig() {
-    localStorage.setItem('wo_table_columns_v3', JSON.stringify(tableColumns));
+    localStorage.setItem('wo_table_columns_v4', JSON.stringify(tableColumns));
 }
 
 // ============================================
@@ -349,7 +343,7 @@ function renderTable() {
     const tbody = document.getElementById('quotes-table-body');
     
     if (filteredQuotations.length === 0) {
-        tbody.innerHTML = `<div style="padding: 3rem; text-align: center; font-family: 'Space Mono', monospace; opacity: 0.5;">NO_RECORDS_FOUND_MATCHING_CRITERIA</div>`;
+        tbody.innerHTML = `<div class="table-empty">No hay cotizaciones que coincidan con la búsqueda</div>`;
         return;
     }
 
@@ -367,43 +361,40 @@ function renderTable() {
             ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady()
                 ? window.WeOtziCurrency.formatInline(displayAmount, displayCurrency || 'USD')
                 : `${displayAmount} ${displayCurrency || ''}`)
-            : 'TBD';
+            : 'A definir';
         const isFinished = ['responded', 'completed', 'client_approved', 'artist_completed', 'client_rejected'].includes(quote.quote_status);
         const isSelected = selectedQuotes.has(quote.id.toString());
 
         const dataMap = {
             select: `<input type="checkbox" class="quote-checkbox" data-id="${quote.id}" ${isSelected ? 'checked' : ''} onclick="toggleSelect('${quote.id}', event)">`,
-            created_at: `<span class="quote-date" style="font-family: 'Space Mono', monospace; font-size: 0.75rem;">${date}</span>`,
+            created_at: `<span class="quote-date">${date}</span>`,
             id: `<span class="quote-id">#QN${id}</span>`,
             client: `
                 <div class="client-cell">
-                    <span class="client-name">${quote.client_full_name || 'Anonymous'}</span>
-                    <span class="client-sub">${quote.client_age || '??'}yr • ${quote.client_instagram || '@not_provided'}</span>
+                    <span class="client-name">${quote.client_full_name || 'Sin nombre'}</span>
+                    <span class="client-sub">${quote.client_age ? quote.client_age + ' años' : '—'} · ${quote.client_instagram || 'sin instagram'}</span>
                 </div>
             `,
-            location: `<div class="location-cell" style="font-size: 0.75rem; text-transform: uppercase;">${quote.client_city_residence || '-'}</div>`,
+            location: `<div class="location-cell">${quote.client_city_residence || '—'}</div>`,
             concept: `
                 <div class="tattoo-cell">
-                    <span class="tattoo-idea">${quote.tattoo_idea_description || 'No description'}</span>
-                    <span class="tattoo-specs">${quote.tattoo_body_part || 'TBD'} • ${getStyleDisplayName(quote.tattoo_style)}</span>
+                    <span class="tattoo-idea">${quote.tattoo_idea_description || 'Sin descripción'}</span>
+                    <span class="tattoo-specs">${quote.tattoo_body_part || 'A definir'} · ${getStyleDisplayName(quote.tattoo_style)}</span>
                 </div>
             `,
             timing: `<div class="timing-cell"><span class="status-badge ${isFinished ? 'completed' : ''}">${quote.client_preferred_date || 'Flexible'}</span></div>`,
             value: `<div class="price-cell">${value}</div>`,
             action: `
                 <button class="action-btn detail-btn" onclick="inspectQuote('${quote.id}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 5px;">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    DETALLES
+                    Ver detalle
+                    <i data-wo-icon="arrow-up-right" class="wo-icon-18"></i>
                 </button>
             `
         };
 
         const rowCells = tableColumns.map(col => dataMap[col.id] || `<div>-</div>`).join('');
 
-        return `<div class="quote-row ${isSelected ? 'selected' : ''}" style="opacity: 0; transform: translateY(20px); transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1); transition-delay: ${index * 0.05}s">${rowCells}</div>`;
+        return `<div class="quote-row ${isSelected ? 'selected' : ''}" style="opacity: 0; transform: translateY(12px); transition: opacity var(--duration-fade) var(--ease-standard), transform var(--duration-fade) var(--ease-standard); transition-delay: ${index * 0.04}s">${rowCells}</div>`;
     }).join('');
 
     setTimeout(() => {
@@ -447,7 +438,9 @@ function updateBulkBar() {
     if (!bar) return;
     if (selectedQuotes.size > 0) {
         bar.classList.add('active');
-        document.getElementById('selection-count').textContent = `${selectedQuotes.size} selected`;
+        document.getElementById('selection-count').textContent = selectedQuotes.size === 1
+            ? '1 seleccionada'
+            : `${selectedQuotes.size} seleccionadas`;
     } else bar.classList.remove('active');
 }
 
@@ -463,7 +456,7 @@ window.bulkArchive = async function() {
 
 window.bulkDelete = async function() {
     if (selectedQuotes.size === 0) return;
-    if (!confirm(`Are you sure?`)) return;
+    if (!confirm('¿Seguro que querés eliminar las cotizaciones seleccionadas?')) return;
     const ids = Array.from(selectedQuotes);
     try {
         await WeotziData.Quotations.hardDeleteByIds(ids);
@@ -565,9 +558,9 @@ function showApplicationsView() {
     });
 
     // Update nav active states
-    document.querySelectorAll('.nav-item').forEach(n => n.style.background = '');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('is-active'));
     const navApp = document.getElementById('nav-applications');
-    if (navApp) navApp.style.background = 'var(--bauhaus-red, #E23E28)';
+    if (navApp) navApp.classList.add('is-active');
 
     loadMyApplications();
 }
@@ -583,9 +576,9 @@ function showQuotationsView() {
     });
 
     // Reset nav
-    document.querySelectorAll('.nav-item').forEach(n => n.style.background = '');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('is-active'));
     const quotesNav = document.querySelector('a.nav-item[href="/my-quotations"]');
-    if (quotesNav) quotesNav.style.background = 'var(--bauhaus-red, #E23E28)';
+    if (quotesNav) quotesNav.classList.add('is-active');
 }
 
 // Make existing nav items restore quotations view
@@ -626,16 +619,22 @@ function renderApplicationsView() {
 
     if (myApplications.length === 0) {
         container.innerHTML = `
-            <div style="text-align:center; padding:3rem; border:2px dashed rgba(0,0,0,0.2);">
-                <p style="font-weight:700; margin-bottom:0.5rem;">No tienes postulaciones aun</p>
-                <p style="font-size:0.85rem; color:var(--text-secondary, #6b6b75); margin-bottom:1rem;">Visita el Job Board para encontrar solicitudes de tatuaje</p>
-                <a href="/job-board" style="display:inline-block; padding:12px 24px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9); text-decoration:none; font-weight:900; text-transform:uppercase; font-size:0.85rem;">Explorar Job Board</a>
+            <div class="wo-empty" style="border: var(--border-strong-width) dashed var(--border-muted);">
+                <p class="wo-empty-title">Todavía no tenés postulaciones</p>
+                <p>Visitá el job board para encontrar solicitudes de tatuaje.</p>
+                <a href="/job-board" class="wo-btn wo-btn--s">Explorar job board →</a>
             </div>`;
         return;
     }
 
     const statusLabels = { pending: 'Pendiente', viewed: 'Vista', accepted: 'Aceptada', rejected: 'Rechazada', withdrawn: 'Retirada' };
-    const statusColors = { pending: '#F4B942', viewed: '#1A4B8E', accepted: '#22c55e', rejected: '#E23E28', withdrawn: '#6b6b75' };
+    const statusColors = {
+        pending: 'var(--yellow-300)',
+        viewed: 'var(--blue-400)',
+        accepted: 'var(--system-success)',
+        rejected: 'var(--red-300)',
+        withdrawn: 'var(--neutral-400)'
+    };
 
     let html = '';
 
@@ -653,26 +652,26 @@ function renderApplicationsView() {
         const msgPreview = (app.message || '').substring(0, 80) + ((app.message || '').length > 80 ? '...' : '');
 
         html += `
-        <div style="border:2px solid var(--fg,#0A0A0A); margin-bottom:1rem; overflow:hidden;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9);">
-                <span style="font-weight:900; font-size:0.85rem; font-family:'JetBrains Mono',monospace;">${req.request_code || ''}</span>
-                <span style="background:${statusColors[app.status]}; color:white; padding:2px 8px; font-size:0.7rem; font-weight:700; text-transform:uppercase;">${statusLabels[app.status]}</span>
+        <div style="border: var(--border-strong-width) solid var(--border-strong); margin-bottom: var(--space-4); overflow:hidden; background: var(--surface-card);">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: var(--space-2) var(--space-4); background: var(--surface-inverse); color: var(--text-on-dark);">
+                <span style="font-family: var(--font-mono); font-size: var(--meta-m-size); letter-spacing: var(--meta-m-track); color: var(--text-accent);">${req.request_code || ''}</span>
+                <span style="background:${statusColors[app.status]}; color: var(--white); padding: 2px 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform:uppercase;">${statusLabels[app.status]}</span>
             </div>
-            <div style="padding:1rem;">
-                <p style="font-weight:600; margin-bottom:0.5rem; font-size:0.9rem;">${idea || 'Sin descripcion'}</p>
-                <div style="display:flex; gap:1rem; flex-wrap:wrap; font-size:0.8rem; color:var(--text-secondary,#6b6b75); margin-bottom:0.8rem;">
-                    ${req.client_city ? '<span><i class="fa-solid fa-location-dot"></i> ' + req.client_city + '</span>' : ''}
-                    ${req.tattoo_body_part ? '<span><i class="fa-solid fa-hand"></i> ' + req.tattoo_body_part + '</span>' : ''}
-                    <span><i class="fa-solid fa-calendar"></i> ${date}</span>
+            <div style="padding: var(--space-4);">
+                <p style="font-weight: var(--weight-semibold); margin: 0 0 var(--space-2); font-size: var(--body-s-size); color: var(--neutral-500);">${idea || 'Sin descripción'}</p>
+                <div style="display:flex; gap: var(--space-4); flex-wrap:wrap; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-bottom: var(--space-3); align-items:center;">
+                    ${req.client_city ? '<span style="display:inline-flex;align-items:center;gap:4px;"><i data-wo-icon="map-pin" class="wo-icon-18"></i>' + req.client_city + '</span>' : ''}
+                    ${req.tattoo_body_part ? '<span style="display:inline-flex;align-items:center;gap:4px;"><i data-wo-icon="target" class="wo-icon-18"></i>' + req.tattoo_body_part + '</span>' : ''}
+                    <span style="display:inline-flex;align-items:center;gap:4px;"><i data-wo-icon="calendar" class="wo-icon-18"></i>${date}</span>
                 </div>
-                <div style="display:flex; gap:1.5rem; flex-wrap:wrap; font-size:0.85rem; padding:10px 12px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.08);">
-                    <div><strong>Presup. cliente:</strong> ${budget}</div>
-                    <div><strong>Mi precio:</strong> ${app.estimated_price ? '$' + app.estimated_price : '-'}</div>
-                    <div><strong>Sesiones:</strong> ${app.estimated_sessions || '-'}</div>
+                <div style="display:flex; gap: var(--space-5); flex-wrap:wrap; font-size: var(--body-s-size); padding: var(--space-3); background: var(--neutral-100); border: var(--border-hairline) solid var(--border-subtle); color: var(--neutral-500);">
+                    <div><strong>Presupuesto del cliente:</strong> ${budget}</div>
+                    <div><strong>Tu precio:</strong> ${app.estimated_price ? '$' + app.estimated_price : '—'}</div>
+                    <div><strong>Sesiones:</strong> ${app.estimated_sessions || '—'}</div>
                 </div>
-                ${msgPreview ? `<div style="margin-top:0.8rem; padding:10px 12px; border-left:3px solid var(--fg,#0A0A0A); font-size:0.85rem; color:var(--text-secondary,#6b6b75); line-height:1.5;"><strong>Mi mensaje:</strong> ${msgPreview}</div>` : ''}
+                ${msgPreview ? `<div style="margin-top: var(--space-3); padding: var(--space-3); border-left: var(--border-rule-width) solid var(--border-strong); font-size: var(--body-s-size); color: var(--text-muted); line-height:1.5;"><strong>Tu mensaje:</strong> ${msgPreview}</div>` : ''}
             </div>
-            ${isAccepted && req.resulting_quote_id ? '<div style="padding:0.8rem 1rem; background:var(--primary-blue,#1A4B8E); color:white; text-align:center;"><a href="/my-quotations" style="color:white; font-weight:700; text-transform:uppercase; font-size:0.85rem;">Ver Cotizacion Creada</a></div>' : ''}
+            ${isAccepted && req.resulting_quote_id ? '<div style="padding: var(--space-3) var(--space-4); background: var(--action-direct); text-align:center;"><a href="/my-quotations" style="color: var(--white); font-weight: var(--weight-bold); text-transform:uppercase; font-size: var(--body-s-size); letter-spacing: var(--button-s-track);">Ver cotización creada →</a></div>' : ''}
         </div>`;
     });
 

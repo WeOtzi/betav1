@@ -4,6 +4,12 @@ let quotations = [];
 let charts = {}; // Store chart instances
 let _supabase = null;
 
+// Lee un token del DS (Chart.js necesita valores concretos, no var()).
+function woToken(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeSupabase();
     await loadStatisticsData();
@@ -117,16 +123,16 @@ function renderRevenueChart(period) {
         data: {
             labels: months,
             datasets: [{
-                label: `Revenue ${currentYear}`,
+                label: `Ingresos ${currentYear}`,
                 data: data,
-                borderColor: '#457B9D', // Bauhaus Blue
-                backgroundColor: 'rgba(69, 123, 157, 0.1)',
+                borderColor: woToken('--blue-400', '#0055FF'),
+                backgroundColor: 'rgba(0, 85, 255, 0.08)',
                 borderWidth: 3,
-                tension: 0.4,
+                tension: 0,
                 fill: true,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#457B9D',
-                pointRadius: 5
+                pointBackgroundColor: woToken('--white', '#FCFCFC'),
+                pointBorderColor: woToken('--blue-400', '#0055FF'),
+                pointRadius: 4
             }]
         },
         options: {
@@ -198,11 +204,11 @@ function renderStylesChart() {
             datasets: [{
                 data: sortedStyles.map(s => s[1]),
                 backgroundColor: [
-                    '#E63946', // Red
-                    '#457B9D', // Blue
-                    '#F4D03F', // Yellow
-                    '#1D3557', // Dark Blue
-                    '#A8DADC'  // Light Blue
+                    woToken('--red-300', '#E63A1F'),
+                    woToken('--blue-400', '#0055FF'),
+                    woToken('--yellow-300', '#F2B519'),
+                    woToken('--blue-300', '#1E3FA6'),
+                    woToken('--neutral-300', '#B9AE98')
                 ],
                 borderWidth: 0
             }]
@@ -214,7 +220,8 @@ function renderStylesChart() {
                 legend: {
                     position: 'right',
                     labels: {
-                        font: { family: "'Space Mono', monospace" }
+                        color: woToken('--neutral-400', '#5A5449'),
+                        font: { family: "'JetBrains Mono', monospace", size: 11 }
                     }
                 }
             }
@@ -246,17 +253,17 @@ function renderStatusChart() {
     charts.status = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Pending', 'Responded', 'Completed', 'Other'],
+            labels: ['Pendientes', 'Respondidas', 'Completadas', 'Otras'],
             datasets: [{
-                label: 'Quotations',
+                label: 'Cotizaciones',
                 data: [statusCounts.pending, statusCounts.responded, statusCounts.completed, statusCounts.other],
                 backgroundColor: [
-                    '#F4D03F', // Pending (Yellow)
-                    '#457B9D', // Responded (Blue)
-                    '#27ae60', // Completed (Green)
-                    '#95a5a6'  // Other (Grey)
+                    woToken('--yellow-300', '#F2B519'),
+                    woToken('--blue-400', '#0055FF'),
+                    woToken('--system-success', '#1E9F74'),
+                    woToken('--neutral-300', '#B9AE98')
                 ],
-                borderRadius: 4
+                borderRadius: 0
             }]
         },
         options: {

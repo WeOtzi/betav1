@@ -8,2715 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/shared/css/landing-style.css">
-    <link rel="stylesheet" href="/shared/css/register.css">
-    <link rel="stylesheet" href="/shared/css/register-nav-header.css">
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/register-artist-ds.css">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700;8..60,800;8..60,900&display=swap"
-        rel="stylesheet">
-    <style>
-        /* ============================================================
-           PASO 01 · Bauhaus redesign · "DI QUIÉN ERES."
-           Scoped overrides on top of register.css. Applies new chrome
-           (nav, progress, footer nav buttons) page-wide and a 2-col
-           poster + form layout when step 1 is active.
-           ============================================================ */
-
-        body.register-page {
-            --cream: #F2EFE6;
-            --cream-2: #E8E4D6;
-            --ink: #15110D;
-            --ink-2: #2A2520;
-            --red: #E63A1F;
-            --red-deep: #C42E15;
-            --yellow: #F2B519;
-            --yellow-deep: #E0A30C;
-            --blue: #1E3FA6;
-            --blue-deep: #163080;
-            --display: "Archivo Black", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --question-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
-            --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-            --wo-header-h: 64px;
-            --wo-progress-h: 28px;
-            --register-global-footer-height: 44px;
-        }
-        body.register-page {
-            --bg: var(--cream);
-            --fg: var(--ink);
-            --primary-red: var(--red);
-            --primary-yellow: var(--yellow);
-            background: var(--cream);
-            color: var(--ink);
-            font-family: var(--sans);
-        }
-        body.dark-mode.register-page {
-            --cream: #15110D;
-            --cream-2: #1F1B16;
-            --ink: #F2EFE6;
-            --ink-2: #C9C3B3;
-        }
-
-        /* -------- Hide legacy rnh-* header so the new wo-nav owns chrome */
-        body.register-page > header.register-nav-header,
-        body.register-page > .rnh-drawer-backdrop,
-        body.register-page > #rnh-drawer { display: none !important; }
-
-        /* -------- New wo-nav header -------- */
-        .wo-nav {
-            height: var(--wo-header-h);
-            min-height: var(--wo-header-h);
-            border-bottom: 1.5px solid var(--ink);
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            padding: 0 24px;
-            gap: 32px;
-            background: var(--cream);
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 200;
-        }
-        .wo-nav-left { display: flex; align-items: center; height: 100%; }
-        .wo-nav-logo {
-            display: flex; align-items: center; gap: 10px;
-            font-family: var(--display); font-size: 18px; letter-spacing: 0.02em;
-            margin-right: 28px; color: var(--ink); text-decoration: none;
-        }
-        .wo-nav-logo-marks { display: flex; align-items: center; gap: 4px; }
-        .wo-nav-logo-marks .sq { width: 14px; height: 14px; background: var(--red); }
-        .wo-nav-logo-marks .ci { width: 14px; height: 14px; background: var(--yellow); border-radius: 50%; }
-        .wo-nav-logo-marks .tr {
-            width: 0; height: 0;
-            border-left: 7px solid transparent;
-            border-right: 7px solid transparent;
-            border-bottom: 14px solid var(--blue);
-        }
-        .wo-nav-logo-text .umlaut { display: inline-block; transform: translateY(-1px); }
-        .wo-nav-tag {
-            display: flex; align-items: center; gap: 10px;
-            font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
-            color: var(--ink); padding-left: 24px;
-            border-left: 1.5px solid var(--ink);
-            height: var(--wo-header-h); text-transform: uppercase;
-        }
-        .wo-nav-tag .dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; flex-shrink: 0; }
-        .wo-nav-right { display: flex; align-items: center; gap: 18px; }
-        .wo-nav-links {
-            display: flex;
-            align-items: center;
-            gap: 34px;
-            font-family: var(--sans);
-            font-size: 12px;
-            font-weight: 900;
-            letter-spacing: 0.13em;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-        .wo-nav-links a {
-            color: var(--ink);
-            text-decoration: none;
-        }
-        .wo-login-btn {
-            background: var(--red); color: var(--cream);
-            font-family: var(--sans); font-weight: 800;
-            font-size: 12px; letter-spacing: 0.16em;
-            padding: 10px 18px; border: none; cursor: pointer;
-            text-transform: uppercase;
-            transition: background 0.15s ease, transform 0.12s ease;
-        }
-        .wo-login-btn:hover { background: var(--red-deep); transform: translateY(-1px); }
-        .wo-theme-mark {
-            position: static !important;
-            top: auto !important;
-            right: auto !important;
-            transform: none !important;
-            width: 36px; height: 36px; border-radius: 50%;
-            border: 1.5px solid var(--ink) !important;
-            background: var(--cream) !important;
-            color: var(--ink) !important;
-            display: grid; place-items: center;
-            font-family: var(--display); font-size: 14px;
-            cursor: pointer; flex-shrink: 0;
-            transition: background 0.15s ease;
-        }
-        .wo-theme-mark:hover { background: var(--yellow); }
-        .wo-burger {
-            display: none; width: 36px; height: 36px;
-            border: 1.5px solid var(--ink); background: var(--cream);
-            cursor: pointer; flex-direction: column;
-            justify-content: center; align-items: center;
-            gap: 4px; padding: 0;
-        }
-        .wo-burger i { width: 18px; height: 2px; background: var(--ink); display: block; transition: transform 0.18s, opacity 0.18s; }
-        .wo-burger[aria-expanded="true"] i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-        .wo-burger[aria-expanded="true"] i:nth-child(2) { opacity: 0; }
-        .wo-burger[aria-expanded="true"] i:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-
-        #wo-drawer {
-            display: none; position: fixed;
-            left: 0; right: 0; top: var(--wo-header-h);
-            background: var(--ink); color: var(--cream);
-            z-index: 190; padding: 18px 18px 22px; gap: 14px;
-            border-bottom: 1.5px solid var(--ink);
-            flex-direction: column;
-        }
-        #wo-drawer.open { display: flex; }
-        #wo-drawer a {
-            color: var(--cream); text-decoration: none;
-            font-family: var(--sans); font-weight: 700;
-            font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase;
-            padding: 8px 0; border-bottom: 1px solid rgba(242,239,230,0.18);
-        }
-        #wo-drawer a:last-child { border-bottom: none; }
-        #wo-drawer .drawer-label {
-            font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em;
-            color: rgba(242,239,230,0.7); margin: 0;
-        }
-
-        /* -------- Hoist register-container below the new fixed header --------
-           Keep register.css's fixed-positioning model but move it down by
-           the header height + progress strip height. */
-        body.register-page > main.register-container {
-            top: calc(var(--wo-header-h) + var(--wo-progress-h)) !important;
-            transform: translateX(-50%) !important;
-            height: calc(100vh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height, 60px)) !important;
-            max-width: none !important;
-            padding: 0 !important;
-        }
-
-        /* -------- Replace .register-header (was top progress strip) -------- */
-        .register-header.wo-progress-header {
-            position: fixed !important;
-            top: var(--wo-header-h) !important;
-            left: 0 !important; right: 0 !important;
-            transform: none !important;
-            padding: 0 !important;
-            height: var(--wo-progress-h);
-            min-height: var(--wo-progress-h);
-            border-bottom: 1.5px solid var(--ink);
-            background: var(--cream);
-            z-index: 180;
-            display: flex;
-            align-items: stretch;
-            gap: 0;
-        }
-        .wo-progress-bar {
-            flex: 1;
-            background: var(--cream);
-            position: relative;
-            display: flex;
-            align-items: stretch;
-            overflow: hidden;
-        }
-        .wo-progress-bar::before { display: none; }
-        .wo-progress-bar .progress-fill {
-            display: none;
-        }
-        .wo-progress-cells {
-            position: relative;
-            z-index: 2;
-            flex: 1;
-            display: grid;
-            grid-template-columns: repeat(12, minmax(0, 1fr));
-            font-family: var(--mono);
-            font-size: 9px;
-            letter-spacing: 0.1em;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        .wo-progress-cells .cell {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 6px;
-            padding: 0 8px;
-            border-right: 1.5px solid var(--ink);
-            color: var(--ink-2);
-            min-width: 0;
-        }
-        .wo-progress-cells .cell.active {
-            background: var(--red);
-            color: var(--cream);
-        }
-        .wo-progress-cells .cell-label {
-            color: inherit;
-            opacity: 0.65;
-            display: none;
-            overflow: hidden;
-            text-overflow: clip;
-            white-space: nowrap;
-        }
-        @media (min-width: 1180px) {
-            .wo-progress-cells .cell.active .cell-label { display: inline; }
-        }
-        .wo-progress-cells .cell:last-child { border-right: none; }
-        .wo-progress-label-pill {
-            display: none;
-        }
-
-        /* -------- form-wrapper: keep absolute step positioning ----------
-           The wizard's CSS uses absolute-positioned .form-step. Step 1
-           needs to break out to a full-bleed 2-col layout — handled below
-           with :has() so other steps are untouched.
-           ---------------------------------------------------------- */
-        body.register-page .form-wrapper { padding: 0; }
-        body.register-page .form-wrapper:has(.form-step.active[data-step="1"]) { padding: 0; }
-        body.register-page .form-wrapper .scroll-indicator { display: none !important; }
-
-        /* For non-step-1 steps, restore the original wrapper padding so
-           those steps remain visually unchanged. */
-        body.register-page .form-wrapper:not(:has(.form-step.active[data-step="1"])) {
-            padding: 3rem 2.5rem;
-        }
-
-        /* -------- Step 1 layout — 2-col grid (poster + form) -------- */
-        .form-step[data-step="1"].wo-step01 {
-            position: absolute !important;
-            inset: 0;
-            top: 0; left: 0; right: 0; bottom: 0;
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: grid !important;
-            grid-template-columns: 46% 54%;
-            grid-template-rows: 1fr;
-            align-items: stretch !important;
-            background: var(--cream);
-            transform: none;
-        }
-        .form-step[data-step="1"].wo-step01:not(.active) { transform: translateX(100px); }
-        .form-step[data-step="1"].wo-step01.exit-left { transform: translateX(-100px); }
-
-        /* Poster column */
-        .wo-poster-col {
-            position: relative;
-            padding: 50px 56px 44px;
-            overflow: hidden;
-            border-right: 1.5px solid var(--ink);
-            background: var(--cream);
-            display: flex;
-            flex-direction: column;
-        }
-        .wo-poster-eyebrow {
-            font-family: var(--mono); font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .wo-poster-eyebrow .accent-red { color: var(--red); }
-        .wo-poster-body {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            padding-top: 20px;
-        }
-        .wo-manifesto {
-            container-type: inline-size;
-            width: 100%;
-        }
-        .wo-manifesto-type {
-            font-family: var(--display);
-            font-size: clamp(76px, 22.3cqw, 156px);
-            line-height: 0.88;
-            letter-spacing: 0;
-            color: var(--ink);
-        }
-        .wo-manifesto-row { display: flex; align-items: flex-end; gap: 0.13em; }
-        .wo-manifesto-row + .wo-manifesto-row { margin-top: 0.06em; }
-        .wo-manifesto-row .blue { color: var(--blue); }
-        .wo-manifesto-shape { flex-shrink: 0; margin-bottom: 0.08em; }
-        .wo-manifesto-shape.square {
-            width: 0.55em; height: 0.55em;
-            background: var(--red);
-            border: 1.5px solid var(--ink);
-        }
-        .wo-manifesto-shape.triangle {
-            width: 0; height: 0;
-            border-left: 0.275em solid transparent;
-            border-right: 0.275em solid transparent;
-            border-bottom: 0.55em solid var(--yellow);
-        }
-        .wo-poster-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 40px;
-            padding-top: 24px;
-        }
-        .wo-poster-footer p {
-            margin: 0;
-            font-size: 14px;
-            line-height: 1.5;
-            max-width: 360px;
-            color: var(--ink-2);
-        }
-        .wo-poster-footer p strong { color: var(--ink); }
-        .poster-copy-tablet { display: none; }
-        .wo-poster-build {
-            font-family: var(--mono); font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink-2);
-            white-space: nowrap;
-        }
-        .wo-poster-build .accent-red { color: var(--red); }
-
-        /* Form column */
-        .wo-form-col {
-            background: var(--cream);
-            padding: 50px 64px 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 28px;
-            width: 100%;
-            position: relative;
-            min-width: 0; /* allow input to shrink */
-            min-height: 0;
-            overflow-y: auto;
-            overflow-x: hidden;
-            scrollbar-gutter: stable;
-        }
-        .wo-form-header-row {
-            display: flex; justify-content: space-between;
-            align-items: flex-start; gap: 16px;
-        }
-        .wo-step-indicator {
-            font-family: var(--mono); font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink-2);
-            display: flex; align-items: center; gap: 10px;
-            margin-bottom: 0 !important;
-        }
-        body.register-page .form-step .step-indicator[hidden] {
-            display: none !important;
-        }
-        .wo-step-indicator .marker { color: var(--red); font-weight: 700; }
-
-        .form-step[data-step="1"].wo-step01 .question-title {
-            font-family: var(--question-serif) !important;
-            font-size: clamp(44px, 4.4vw, 62px) !important;
-            line-height: 0.93 !important;
-            letter-spacing: 0 !important;
-            text-transform: none !important;
-            margin: 0 !important;
-            color: var(--ink) !important;
-            font-weight: 800 !important;
-        }
-        .form-step[data-step="1"].wo-step01 .question-subtitle {
-            font-family: var(--sans) !important;
-            font-size: 16px !important;
-            line-height: 1.5 !important;
-            color: var(--ink-2) !important;
-            opacity: 1 !important;
-            max-width: 480px !important;
-            margin: 18px 0 0 0 !important;
-            text-transform: none !important;
-        }
-        .form-step[data-step="1"].wo-step01 .mobile-copy { display: none; }
-
-        .wo-input-row {
-            display: flex; align-items: flex-end; gap: 14px;
-            border-bottom: 1.5px solid var(--ink);
-            padding-bottom: 10px;
-        }
-        .form-step[data-step="1"].wo-step01 .form-input {
-            flex: 1; min-width: 0;
-            background: transparent !important;
-            border: none !important;
-            outline: none !important;
-            font-family: var(--display) !important;
-            font-size: 52px !important;
-            line-height: 1 !important;
-            letter-spacing: 0 !important;
-            color: var(--ink) !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            text-transform: lowercase;
-            box-shadow: none !important;
-        }
-        .form-step[data-step="1"].wo-step01 .form-input::placeholder {
-            color: rgba(21,17,13,0.32);
-            text-transform: none;
-        }
-        body.dark-mode.register-page .form-step[data-step="1"].wo-step01 .form-input::placeholder {
-            color: rgba(242,239,230,0.38);
-        }
-        .wo-availability-chip {
-            width: 48px; height: 48px;
-            background: var(--cream-2); color: var(--ink-2);
-            display: grid; place-items: center;
-            border: 1.5px solid var(--ink);
-            font-family: var(--display); font-size: 22px;
-            flex-shrink: 0;
-            transition: background 0.18s ease, color 0.18s ease;
-        }
-        .wo-availability-chip[data-state="available"] { background: var(--ink); color: var(--cream); }
-        .wo-availability-chip[data-state="taken"],
-        .wo-availability-chip[data-state="invalid"] { background: var(--red); color: var(--cream); }
-        .wo-availability-chip[data-state="checking"] { background: var(--yellow); color: var(--ink); }
-
-        .wo-username-suggestions {
-            margin-top: 10px;
-            font-family: var(--mono);
-            font-size: 10px;
-            line-height: 1.45;
-            letter-spacing: 0.11em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .wo-username-suggestions strong {
-            color: var(--ink);
-            font-family: var(--sans);
-            font-size: 13px;
-            letter-spacing: 0.02em;
-            text-transform: none;
-        }
-
-        .wo-hint-row {
-            display: flex; justify-content: space-between;
-            margin-top: 8px;
-            font-family: var(--mono); font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .wo-hint[data-state="invalid"],
-        .wo-hint[data-state="taken"] { color: var(--red); }
-        .wo-hint[data-state="available"] { color: var(--ink); }
-
-        /* Footer inside Step 1 (in-step nav row, sits at bottom of form col) */
-        .wo-step01-actions {
-            display: flex; justify-content: space-between; align-items: center;
-            gap: 20px;
-            margin-top: auto;
-            padding-top: 26px;
-            border-top: 1.5px solid var(--ink);
-            position: sticky;
-            bottom: 0;
-            z-index: 10;
-            background: var(--cream);
-            flex-shrink: 0;
-        }
-        .wo-step01-actions .keyhint {
-            font-family: var(--mono); font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink-2); text-align: center; flex: 1;
-        }
-        .wo-step01-actions .mobile-terms { display: none; }
-        .wo-step01-actions .mobile-terms a {
-            color: var(--ink);
-            text-decoration: underline;
-            text-underline-offset: 4px;
-        }
-        .wo-kbd {
-            display: inline-block;
-            font-family: var(--mono); font-size: 10px;
-            padding: 2px 6px;
-            background: var(--ink); color: var(--cream);
-            border: 1.5px solid var(--ink);
-            letter-spacing: 0.04em;
-            vertical-align: 1px;
-            margin: 0 4px;
-        }
-        .wo-back-btn,
-        .wo-next-btn {
-            font-family: var(--sans); font-weight: 800;
-            font-size: 13px; letter-spacing: 0.16em;
-            border: 1.5px solid var(--ink);
-            padding: 15px 24px;
-            cursor: pointer;
-            text-transform: uppercase;
-            display: inline-flex; align-items: center; gap: 10px;
-            transition: transform 0.14s, box-shadow 0.14s, background 0.14s;
-            background: var(--cream);
-            color: var(--ink);
-        }
-        .wo-back-btn:hover,
-        .wo-next-btn:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--ink);
-        }
-        .wo-next-btn { background: var(--red); color: var(--cream); }
-        .wo-next-btn:disabled {
-            background: var(--cream-2); color: var(--ink-2);
-            opacity: 0.7; cursor: not-allowed;
-            transform: none !important; box-shadow: none !important;
-        }
-
-        /* -------- Style the wizard's global register-footer too --------
-           For consistency (other steps still use it). */
-        body.register-page .register-footer {
-            background: var(--cream) !important;
-            border-top: 1.5px solid var(--ink) !important;
-        }
-        body.register-page .register-footer .nav-btn {
-            font-family: var(--sans); font-weight: 800;
-            font-size: 12px; letter-spacing: 0.16em;
-            border: 1.5px solid var(--ink);
-            padding: 12px 18px;
-            background: var(--cream); color: var(--ink);
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: transform 0.14s, box-shadow 0.14s, background 0.14s;
-        }
-        body.register-page .register-footer .nav-btn:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--ink);
-        }
-        body.register-page .register-footer .nav-btn.nav-btn-next {
-            background: var(--red); color: var(--cream);
-        }
-        body.register-page .register-footer .keyboard-hint {
-            font-family: var(--mono); font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        body.register-page .register-footer kbd {
-            font-family: var(--mono); font-size: 10px;
-            padding: 2px 6px;
-            background: var(--ink); color: var(--cream);
-            border: 1.5px solid var(--ink);
-        }
-        /* Hide the global footer when step 1 is showing — it has its own
-           inline footer to match the design. */
-        body.register-page:has(.form-step.active[data-step="1"]) .register-footer {
-            display: none !important;
-        }
-
-        /* -------- Tablet (≤1024px) -------- */
-        @media (max-width: 1024px) {
-            body.register-page { --wo-progress-h: 22px; }
-            body.register-page > main.register-container {
-                position: fixed !important;
-                top: calc(var(--wo-header-h) + var(--wo-progress-h)) !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                transform: none !important;
-                height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height, 44px)) !important;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height, 44px)) !important;
-                margin: 0 !important;
-                overflow-x: hidden !important;
-                overflow-y: auto !important;
-            }
-            .wo-nav { padding: 0 20px; gap: 20px; }
-            .wo-nav-logo { margin-right: 20px; }
-            .wo-nav-tag { padding-left: 18px; }
-            .wo-nav-links { display: none; }
-            .wo-progress-cells { font-size: 11px; }
-            .wo-progress-cells .cell {
-                justify-content: flex-start;
-                padding: 0 12px;
-            }
-            .wo-progress-cells .cell-label { display: none; }
-
-            .form-step[data-step="1"].wo-step01 {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto 1fr;
-            }
-            .wo-poster-col {
-                height: 313px;
-                min-height: 313px;
-                padding: 40px 44px 24px;
-                border-right: none;
-                border-bottom: 1.5px solid var(--ink);
-            }
-            .wo-poster-eyebrow { margin: 0 0 20px; }
-            .wo-poster-body { flex: 0 0 auto; padding-top: 0; }
-            .wo-manifesto-type {
-                font-size: clamp(74px, 12.6cqw, 105px);
-                line-height: 0.88;
-                display: flex; flex-wrap: wrap;
-                align-items: flex-end; gap: 0.16em;
-            }
-            .wo-manifesto-row { display: contents; }
-            .wo-manifesto-row + .wo-manifesto-row { margin-top: 0; }
-            .wo-manifesto-shape { display: inline-block; }
-            .wo-word-di { order: 1; }
-            .wo-manifesto-shape.square { order: 2; }
-            .wo-word-quien { order: 3; }
-            .wo-manifesto-shape.triangle { order: 4; }
-            .wo-word-eres { order: 5; flex-basis: 100%; }
-            .wo-poster-footer { padding-top: 22px; }
-            .wo-poster-footer p { font-size: 13px; max-width: 460px; }
-            .poster-copy-desktop { display: none; }
-            .poster-copy-tablet { display: inline; }
-            .wo-form-col { padding: 34px 44px 28px; gap: 26px; }
-            .form-step[data-step="1"].wo-step01 .question-title { font-size: 64px !important; }
-            .form-step[data-step="1"].wo-step01 .form-input { font-size: 56px !important; }
-            .wo-availability-chip { width: 48px; height: 48px; font-size: 22px; }
-        }
-
-        /* -------- Mobile (≤600px) -------- */
-        @media (max-width: 600px) {
-            body.register-page {
-                --wo-header-h: 46px;
-                --wo-progress-h: 18px;
-                --register-global-footer-height: calc(48px + env(safe-area-inset-bottom, 0px));
-            }
-            .wo-nav {
-                padding: 0 14px; gap: 8px;
-                grid-template-columns: auto 1fr auto;
-            }
-            .wo-nav-logo { font-size: 18px; margin-right: 0; gap: 8px; }
-            .wo-nav-logo-marks { gap: 4px; }
-            .wo-nav-logo-marks .sq,
-            .wo-nav-logo-marks .ci { width: 12px; height: 12px; }
-            .wo-nav-logo-marks .tr {
-                border-left-width: 6px;
-                border-right-width: 6px;
-                border-bottom-width: 12px;
-            }
-            .wo-nav-tag { display: none; }
-            .wo-nav-right { gap: 10px; }
-            .wo-login-btn,
-            .wo-burger { display: none !important; }
-            .wo-theme-mark {
-                width: 32px !important;
-                height: 32px !important;
-                font-size: 13px !important;
-                border: 1.5px solid var(--ink) !important;
-            }
-
-            body.register-page > main.register-container {
-                position: fixed !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                transform: none !important;
-                height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height)) !important;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height)) !important;
-                margin: 0 !important;
-                overflow-x: hidden !important;
-                overflow-y: auto !important;
-            }
-            .wo-progress-cells { font-size: 11px; }
-            .wo-progress-cells .cell {
-                padding: 0 10px;
-                align-items: center;
-                justify-content: flex-start;
-            }
-
-            .wo-poster-col {
-                height: 98px;
-                min-height: 98px;
-                padding: 16px 16px 16px;
-            }
-            .wo-poster-eyebrow { display: none; }
-            .wo-poster-body { padding-top: 0; }
-            .wo-manifesto-type {
-                font-size: clamp(34px, 10.5cqw, 38px);
-                line-height: 0.86;
-                display: flex; flex-wrap: wrap;
-                align-items: flex-end; gap: 0.1em;
-            }
-            .wo-poster-footer { display: none; }
-
-            .wo-form-col {
-                padding: 12px 16px 8px;
-                gap: 10px;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height) - 98px);
-                overflow: visible;
-            }
-            body.register-page.bio-modal-lock {
-                overflow: hidden;
-            }
-            body.register-page .form-step.wo-step09 .wo-form-col {
-                display: grid;
-                grid-template-rows: auto auto minmax(0, 1fr) auto;
-                align-content: stretch;
-                overflow: hidden;
-            }
-            body.register-page .form-step.wo-step09 .question-subtitle {
-                margin-top: 8px !important;
-            }
-            body.register-page .form-step.wo-step09 .bio-step-body {
-                min-height: 0;
-                display: grid;
-                grid-template-rows: minmax(0, 1fr) auto;
-                gap: 10px;
-                margin-top: 0 !important;
-                overflow: hidden;
-            }
-            body.register-page .form-step.wo-step09 .bio-mobile-open {
-                display: grid;
-                grid-template-rows: auto minmax(0, 1fr) auto;
-                align-content: stretch;
-                width: 100%;
-                min-height: 0;
-                height: 100%;
-                border: 1.5px solid var(--ink);
-                background: var(--cream);
-                color: var(--ink);
-                padding: 14px;
-                text-align: left;
-                cursor: pointer;
-            }
-            body.register-page .form-step.wo-step09 .bio-mobile-open-kicker,
-            body.register-page .form-step.wo-step09 .bio-mobile-open-action {
-                font-family: var(--mono);
-                font-size: 10px;
-                font-weight: 700;
-                letter-spacing: 0.14em;
-                text-transform: uppercase;
-            }
-            body.register-page .form-step.wo-step09 .bio-mobile-open-action {
-                justify-self: end;
-                align-self: end;
-                margin-top: 12px;
-            }
-            body.register-page .form-step.wo-step09 .bio-mobile-preview {
-                display: block;
-                min-height: 0;
-                margin-top: 18px;
-                overflow: hidden;
-                overflow-wrap: anywhere;
-                white-space: pre-wrap;
-                color: rgba(21, 17, 13, 0.62);
-                font-family: var(--sans);
-                font-size: 18px;
-                line-height: 1.35;
-            }
-            body.register-page .form-step.wo-step09 .bio-mobile-open.has-bio .bio-mobile-preview {
-                color: var(--ink);
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper {
-                display: none;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open,
-            body.register-page > .bio-editor-wrapper.bio-modal-open {
-                position: fixed;
-                inset: 0;
-                z-index: 420;
-                width: 100vw;
-                height: 100dvh;
-                border: none;
-                background: var(--cream);
-                display: grid;
-                grid-template-rows: auto auto minmax(0, 1fr);
-                overflow: hidden;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .bio-modal-head,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .bio-modal-head {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
-                align-items: center;
-                gap: 12px;
-                min-height: 54px;
-                padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
-                border-bottom: 1.5px solid var(--ink);
-                background: var(--cream);
-            }
-            body.register-page .form-step.wo-step09 .bio-modal-title,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .bio-modal-title {
-                margin: 0;
-                font-family: var(--mono);
-                font-size: 12px;
-                font-weight: 700;
-                letter-spacing: 0.16em;
-                text-transform: uppercase;
-            }
-            body.register-page .form-step.wo-step09 .bio-modal-close,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .bio-modal-close {
-                min-width: 74px;
-                height: 36px;
-                border: 1.5px solid var(--ink);
-                background: var(--red);
-                color: var(--cream);
-                font-family: var(--mono);
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.13em;
-                text-transform: uppercase;
-                cursor: pointer;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .bio-toolbar,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .bio-toolbar {
-                display: flex;
-                flex-wrap: nowrap;
-                gap: 3px;
-                padding: 8px;
-                overflow-x: auto;
-                overflow-y: hidden;
-                border-bottom: 1.5px solid var(--ink);
-                scrollbar-width: thin;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .toolbar-btn,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .toolbar-btn {
-                flex: 0 0 32px;
-                width: 32px;
-                height: 38px;
-                border-width: 1.5px;
-                font-size: 14px;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .toolbar-btn svg,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .toolbar-btn svg {
-                width: 14px;
-                height: 14px;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .toolbar-separator,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .toolbar-separator {
-                flex: 0 0 1.5px;
-                height: 28px;
-                margin: 5px 1px;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .emoji-picker,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .emoji-picker {
-                position: fixed;
-                left: 12px;
-                right: 12px;
-                top: calc(112px + env(safe-area-inset-top, 0px));
-                max-width: none;
-                z-index: 430;
-            }
-            body.register-page .form-step.wo-step09 .bio-editor-wrapper.bio-modal-open .bio-editor,
-            body.register-page > .bio-editor-wrapper.bio-modal-open .bio-editor {
-                min-height: 0;
-                max-height: none;
-                height: 100%;
-                overflow-y: auto;
-                overflow-x: hidden;
-                padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
-                font-size: 18px;
-                line-height: 1.5;
-                -webkit-overflow-scrolling: touch;
-            }
-            .wo-step-indicator {
-                font-size: 12px;
-                letter-spacing: 0.16em;
-                gap: 8px;
-            }
-            .wo-step-copy { font-size: 0; }
-            .wo-step-copy::after {
-                content: "NOMBRE ARTÍSTICO";
-                font-size: 12px;
-            }
-            .form-step[data-step="2"] .wo-step-copy::after { content: "DATOS PERSONALES"; }
-            .form-step[data-step="3"] .wo-step-copy::after { content: "CONTACTO"; }
-            .form-step[data-step="4"] .wo-step-copy::after { content: "ESTILOS"; }
-            .form-step[data-step="5"] .wo-step-copy::after { content: "EXPERIENCIA"; }
-            .form-step[data-step="6"] .wo-step-copy::after { content: "TARIFA"; }
-            .form-step[data-step="7"] .wo-step-copy::after { content: "PORTFOLIO"; }
-            .form-step[data-step="8"] .wo-step-copy::after { content: "BIO"; }
-            .form-step[data-step="9"] .wo-step-copy::after { content: "TRABAJO"; }
-            .form-step[data-step="10"] .wo-step-copy::after { content: "VERIFICACION"; }
-            .form-step[data-step="11"] .wo-step-copy::after { content: "COMUNIDAD"; }
-            .form-step[data-step="summary"] .wo-step-copy::after { content: "REVISION"; }
-            .form-step[data-step="1"].wo-step01 .question-title {
-                font-size: clamp(32px, 9.8vw, 37px) !important;
-                line-height: 0.9 !important;
-                max-width: 100% !important;
-                width: 100%;
-                transform: none;
-                transform-origin: left top;
-            }
-            .form-step[data-step="1"].wo-step01 .question-subtitle {
-                font-size: 15px !important;
-                line-height: 1.28 !important;
-                margin-top: 10px !important;
-                white-space: normal;
-            }
-            .form-step[data-step="1"].wo-step01 .desktop-copy { display: none; }
-            .form-step[data-step="1"].wo-step01 .mobile-copy { display: inline; }
-            .form-step[data-step="1"].wo-step01 .input-wrapper { margin-top: 30px !important; }
-            .form-step[data-step="1"].wo-step01 .form-input { font-size: 20px !important; }
-            .wo-input-row { padding-bottom: 6px; gap: 10px; }
-            .wo-availability-chip { width: 40px; height: 40px; font-size: 18px; }
-            .wo-hint-row {
-                margin-top: 8px;
-                font-size: 11px;
-                letter-spacing: 0.14em;
-                align-items: flex-start;
-            }
-            .form-step[data-step="1"].wo-step01 .wo-hint-row {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 6px 12px;
-            }
-            .form-step[data-step="1"].wo-step01 .wo-hint {
-                grid-column: 1;
-                font-family: var(--mono);
-            }
-            .form-step[data-step="1"].wo-step01 .wo-counter {
-                grid-column: 2;
-                grid-row: 1;
-                font-family: var(--mono);
-                justify-self: end;
-            }
-            .form-step[data-step="1"].wo-step01 .wo-username-preview {
-                font-family: var(--mono) !important;
-                margin-top: 12px;
-                letter-spacing: 0;
-                text-transform: none;
-            }
-            .form-step[data-step="1"].wo-step01 .wo-username-preview span,
-            .form-step[data-step="1"].wo-step01 .wo-username-preview strong {
-                font-family: var(--mono) !important;
-            }
-
-            .wo-step01-actions {
-                display: grid;
-                grid-template-columns: minmax(92px, 0.32fr) minmax(0, 1fr);
-                grid-template-areas:
-                    "back next"
-                    "terms terms";
-                align-items: stretch;
-                gap: 8px;
-                padding-top: 20px;
-                border-top: none;
-                bottom: 8px;
-            }
-            .wo-step01-actions .wo-next-btn {
-                order: 2;
-                grid-area: next;
-                width: 100%;
-                min-height: 48px;
-                justify-content: center;
-                font-size: 14px;
-                padding: 12px;
-            }
-            .wo-step01-actions .wo-back-btn {
-                order: 1;
-                grid-area: back;
-                background: var(--cream);
-                border-width: 1.5px;
-                font-size: 12px;
-                letter-spacing: 0.12em;
-                padding: 0 8px;
-                justify-content: center;
-                width: 100%;
-                min-height: 48px;
-                min-width: 0;
-            }
-            .wo-step01-actions .keyhint {
-                order: 3;
-                grid-area: terms;
-                font-size: 10px;
-                text-align: center;
-                justify-self: center;
-                flex: 0;
-                padding: 10px 0;
-                white-space: nowrap;
-                width: 100%;
-            }
-            .wo-step01-actions .desktop-keyhint { display: none; }
-            .wo-step01-actions .mobile-terms { display: inline; }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component {
-                display: block !important;
-                height: var(--register-global-footer-height) !important;
-                min-height: var(--register-global-footer-height) !important;
-                padding: 0 10px !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .footer-content {
-                min-height: 100% !important;
-                width: auto !important;
-                max-width: max-content !important;
-                margin: 0 auto !important;
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                justify-content: center !important;
-                align-items: center !important;
-                gap: 10px !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .footer-text {
-                display: none !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .footer-social {
-                order: 0 !important;
-                gap: 7px !important;
-                margin: 0 !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .social-icon {
-                width: 22px !important;
-                height: 22px !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .social-icon svg {
-                width: 14px !important;
-                height: 14px !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .footer-copyright {
-                font-size: 0 !important;
-                line-height: 1 !important;
-                letter-spacing: 0 !important;
-                flex: 0 0 auto !important;
-                width: auto !important;
-                min-width: 0 !important;
-                white-space: nowrap !important;
-            }
-            html body.register-page > footer.bauhaus-footer.bauhaus-footer-component .footer-copyright::after {
-                content: "© 2025 WE ÖTZI";
-                display: inline-block;
-                font-family: var(--mono);
-                font-size: 8px;
-                font-weight: 700;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-            }
-        }
-
-        /* -------- Shared Bauhaus treatment for steps 02-12, review and success -------- */
-        body.register-page .form-wrapper:has(.form-step.active.wo-bauhaus-step) {
-            padding: 0;
-        }
-        body.register-page:has(.form-step.active.wo-bauhaus-step) .register-footer {
-            display: none !important;
-        }
-        .form-step.wo-bauhaus-step {
-            position: absolute !important;
-            inset: 0;
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: grid !important;
-            grid-template-columns: 46% 54%;
-            grid-template-rows: 1fr;
-            align-items: stretch !important;
-            background: var(--cream);
-            transform: none;
-            overflow: hidden;
-            transition: opacity 0.18s ease !important;
-        }
-        .form-step.wo-bauhaus-step:not(.active) {
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none;
-            transform: none !important;
-        }
-        .form-step.wo-bauhaus-step.exit-left { transform: none !important; }
-        .form-step.wo-bauhaus-step.active {
-            opacity: 1 !important;
-            visibility: visible !important;
-            transform: none !important;
-            pointer-events: auto;
-        }
-        .form-step.wo-bauhaus-step .wo-form-col {
-            min-height: 0;
-            max-width: 100%;
-            overflow-x: hidden;
-            overscroll-behavior: contain;
-        }
-        .form-step.wo-bauhaus-step .question-title {
-            font-family: var(--question-serif) !important;
-            font-size: clamp(44px, 4.4vw, 62px) !important;
-            line-height: 0.93 !important;
-            letter-spacing: 0 !important;
-            text-transform: none !important;
-            margin: 0 !important;
-            color: var(--ink) !important;
-            font-weight: 800 !important;
-        }
-        .form-step.wo-bauhaus-step .question-subtitle {
-            font-family: var(--sans) !important;
-            font-size: 16px !important;
-            line-height: 1.5 !important;
-            color: var(--ink-2) !important;
-            opacity: 1 !important;
-            max-width: 520px !important;
-            margin: 18px 0 0 0 !important;
-            text-transform: none !important;
-        }
-        .form-step.wo-bauhaus-step .form-input {
-            flex: 1;
-            min-width: 0;
-            background: transparent !important;
-            border: none !important;
-            outline: none !important;
-            font-family: var(--display) !important;
-            font-size: 52px !important;
-            line-height: 1 !important;
-            letter-spacing: 0 !important;
-            color: var(--ink) !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-        }
-        .form-step.wo-step03 #signup_password,
-        .form-step.wo-step03 #signup_password_confirm {
-            text-transform: none !important;
-        }
-        .form-step.wo-bauhaus-step .form-input::placeholder {
-            color: rgba(21,17,13,0.28);
-            text-transform: none;
-        }
-        .form-step.wo-bauhaus-step .wo-username-preview,
-        .form-step.wo-bauhaus-step .wo-plain-preview,
-        .form-step.wo-bauhaus-step .password-feedback,
-        .form-step.wo-bauhaus-step .password-match-hint {
-            font-family: var(--mono);
-            font-size: 11px;
-            line-height: 1.35;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-            margin-top: 10px;
-        }
-        .form-step.wo-bauhaus-step .wo-username-preview strong,
-        .form-step.wo-bauhaus-step .wo-plain-preview strong {
-            color: var(--ink);
-            font-family: var(--sans);
-            font-size: 14px;
-            letter-spacing: 0.02em;
-            text-transform: none;
-            word-break: break-word;
-        }
-        .form-step.wo-bauhaus-step .password-create-copy {
-            font-size: 18px !important;
-            line-height: 1.25 !important;
-            font-weight: 700 !important;
-            max-width: 560px !important;
-        }
-        .form-step.wo-bauhaus-step .password-input-row {
-            align-items: center;
-        }
-        .form-step.wo-bauhaus-step .password-toggle {
-            flex: 0 0 44px;
-            width: 44px;
-            height: 44px;
-            border: 1.5px solid var(--ink);
-            background: transparent;
-            color: var(--ink);
-            display: grid;
-            place-items: center;
-            cursor: pointer;
-        }
-        .form-step.wo-bauhaus-step .password-toggle:hover,
-        .form-step.wo-bauhaus-step .password-toggle[aria-pressed="true"] {
-            background: var(--ink);
-            color: var(--cream);
-        }
-        .form-step.wo-bauhaus-step .password-toggle svg[hidden] {
-            display: none !important;
-        }
-        .form-step.wo-bauhaus-step .password-strength {
-            display: grid;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .form-step.wo-bauhaus-step .password-strength-track {
-            height: 6px;
-            border: 1.5px solid var(--ink);
-            background: transparent;
-        }
-        .form-step.wo-bauhaus-step .password-strength-fill {
-            height: 100%;
-            width: 0;
-            background: var(--red);
-            transition: width 0.18s ease, background 0.18s ease;
-        }
-        .form-step.wo-bauhaus-step .password-rules {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 6px 14px;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-        .form-step.wo-bauhaus-step .password-rules li {
-            font-family: var(--mono);
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .form-step.wo-bauhaus-step .password-rules li.is-ok {
-            color: var(--ink);
-            font-weight: 700;
-        }
-        .form-step.wo-step10 #studio_name,
-        .form-step.wo-step10 #address_search {
-            font-size: 28px !important;
-            line-height: 1.1 !important;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-        .form-step.wo-step10 .studio-location-select-wrapper {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1.5px solid var(--ink);
-        }
-        .form-step.wo-step10 .studio-location-select {
-            width: min(520px, 100%);
-            height: 48px;
-            border: 1.5px solid var(--ink);
-            background: var(--cream);
-            color: var(--ink);
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            padding: 0 12px;
-            border-radius: 0;
-        }
-        .form-step.wo-step10 .address-details {
-            margin-top: 12px;
-            border: 1.5px solid var(--ink);
-            background: transparent;
-        }
-        .form-step.wo-step10 .address-details summary {
-            min-height: 42px;
-            display: flex;
-            align-items: center;
-            padding: 0 12px;
-            cursor: pointer;
-            font-family: var(--mono);
-            font-size: 10px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--ink);
-        }
-        .form-step.wo-step10 .address-details .weotzi-address-fields {
-            border: 0;
-            border-top: 1.5px solid var(--ink);
-            box-shadow: none;
-            margin-top: 0;
-            max-height: 180px;
-            overflow: auto;
-        }
-        .form-step.wo-bauhaus-step .wo-hint-row {
-            align-items: flex-start;
-        }
-        .form-step.wo-bauhaus-step .wo-counter {
-            white-space: nowrap;
-        }
-        .form-step.wo-bauhaus-step .ig-preauth-only .form-input {
-            font-size: 32px !important;
-        }
-        .form-step.wo-bauhaus-step .ig-preauth-only .question-subtitle {
-            font-size: 13px !important;
-            margin-bottom: 8px !important;
-        }
-        .form-step.wo-bauhaus-step .geolocation-btn {
-            position: static !important;
-            width: 48px;
-            height: 48px;
-            flex: 0 0 48px;
-            display: grid;
-            place-items: center;
-            border: 1.5px solid var(--ink);
-            background: var(--ink);
-            color: var(--cream);
-            transform: none !important;
-            padding: 0;
-            margin: 0 0 4px 10px;
-        }
-        .form-step.wo-bauhaus-step .geolocation-btn svg {
-            width: 22px;
-            height: 22px;
-            stroke: currentColor;
-        }
-        .form-step.wo-bauhaus-step .styles-grid,
-        .form-step.wo-bauhaus-step .experience-options,
-        .form-step.wo-bauhaus-step .portfolio-source-options,
-        .form-step.wo-bauhaus-step .work-type-options,
-        .form-step.wo-bauhaus-step .newsletter-options {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            width: 100%;
-        }
-        .form-step.wo-bauhaus-step .styles-grid {
-            max-height: 300px;
-            overflow: auto;
-            padding-right: 6px;
-        }
-        .form-step.wo-step05 .styles-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            max-height: none;
-            overflow: visible;
-            padding-right: 0;
-            align-content: start;
-        }
-        .form-step.wo-bauhaus-step .style-option,
-        .form-step.wo-bauhaus-step .experience-option,
-        .form-step.wo-bauhaus-step .portfolio-source-option,
-        .form-step.wo-bauhaus-step .work-type-option,
-        .form-step.wo-bauhaus-step .newsletter-option {
-            min-height: 58px;
-            border: 1.5px solid var(--ink);
-            background: transparent;
-            color: var(--ink);
-            font-family: var(--sans);
-            font-weight: 900;
-            font-size: 12px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            padding: 14px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 12px;
-            text-align: left;
-            transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-        }
-        .form-step.wo-bauhaus-step .style-option::before,
-        .form-step.wo-bauhaus-step .experience-option::before,
-        .form-step.wo-bauhaus-step .portfolio-source-option::before {
-            width: 14px;
-            height: 14px;
-            border: 1.5px solid currentColor;
-            border-radius: 0;
-            flex: 0 0 14px;
-            content: '';
-        }
-        .form-step.wo-bauhaus-step .style-option:hover,
-        .form-step.wo-bauhaus-step .experience-option:hover,
-        .form-step.wo-bauhaus-step .portfolio-source-option:hover,
-        .form-step.wo-bauhaus-step .work-type-option:hover,
-        .form-step.wo-bauhaus-step .newsletter-option:hover {
-            background: var(--ink);
-            color: var(--cream);
-            transform: translateY(-2px);
-            box-shadow: none;
-        }
-        .form-step.wo-bauhaus-step .style-option.selected,
-        .form-step.wo-bauhaus-step .experience-option.selected,
-        .form-step.wo-bauhaus-step .portfolio-source-option.selected,
-        .form-step.wo-bauhaus-step .work-type-option.selected,
-        .form-step.wo-bauhaus-step .newsletter-option.selected {
-            background: var(--red);
-            border-color: var(--ink);
-            color: var(--cream);
-        }
-        .form-step.wo-bauhaus-step .experience-option.selected,
-        .form-step.wo-bauhaus-step .portfolio-source-option.selected,
-        .form-step.wo-bauhaus-step .newsletter-option.selected {
-            background: var(--yellow);
-            color: var(--ink);
-        }
-        .form-step.wo-bauhaus-step .newsletter-option-decline.selected {
-            background: var(--ink);
-            color: var(--cream);
-        }
-        .form-step.wo-bauhaus-step .style-option.selected::before {
-            background: var(--ink);
-            border-color: var(--ink);
-            box-shadow: inset 0 0 0 3px var(--red);
-        }
-        .form-step.wo-bauhaus-step .ig-step-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 12px;
-        }
-        .form-step.wo-bauhaus-step .register-action {
-            border: 1.5px solid var(--ink);
-            border-radius: 0;
-            min-height: 56px;
-            font-family: var(--sans);
-            font-weight: 900;
-            font-size: 12px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-        }
-        .form-step.wo-bauhaus-step .register-action-primary {
-            background: var(--red);
-            color: var(--cream);
-        }
-        .form-step.wo-bauhaus-step .register-action-secondary {
-            background: transparent;
-            color: var(--ink);
-        }
-        .form-step.wo-bauhaus-step .register-action:hover {
-            transform: translateY(-2px);
-            background: var(--ink);
-            color: var(--cream);
-        }
-        .form-step.wo-bauhaus-step .ig-step-status,
-        .form-step.wo-bauhaus-step .ig-step-summary,
-        .form-step.wo-bauhaus-step .ig-step-note {
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .form-step.wo-bauhaus-step .custom-style-wrapper,
-        .form-step.wo-bauhaus-step .portfolio-conditional-input,
-        .form-step.wo-bauhaus-step .studio-name-wrapper,
-        .form-step.wo-bauhaus-step .address-picker-wrapper {
-            margin-top: 16px !important;
-            padding-top: 14px !important;
-            border-top: 1.5px solid var(--ink) !important;
-        }
-        .form-step.wo-bauhaus-step .studio-suggestion-item small {
-            display: block;
-            margin-top: 4px;
-            font-family: var(--mono);
-            font-size: 9px;
-            letter-spacing: 0.08em;
-            color: var(--ink-2);
-            text-transform: uppercase;
-        }
-        .form-step.wo-bauhaus-step .conditional-input-label,
-        .form-step.wo-bauhaus-step .studio-name-label,
-        .form-step.wo-bauhaus-step .birth-select-label {
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-            opacity: 1;
-        }
-        .form-step.wo-bauhaus-step .price-wrapper {
-            align-items: flex-end;
-            gap: 12px;
-        }
-        .form-step.wo-step07 .price-wrapper > div:first-child {
-            max-width: 360px;
-        }
-        .form-step.wo-step07 #session_price {
-            max-width: 300px;
-        }
-        .form-step.wo-bauhaus-step .currency-select,
-        .form-step.wo-bauhaus-step .birth-select {
-            height: 52px;
-            border: 1.5px solid var(--ink);
-            background-color: var(--ink);
-            color: var(--cream);
-            font-family: var(--mono);
-            font-size: 12px;
-            letter-spacing: 0.06em;
-            border-radius: 0;
-        }
-        .form-step.wo-bauhaus-step .birth-date-selects {
-            display: grid;
-            grid-template-columns: 1fr 1.4fr 1fr;
-            gap: 12px;
-        }
-        .form-step.wo-step11 .birth-date-selects {
-            grid-template-columns: 86px 154px 108px;
-            max-width: 390px;
-        }
-        .form-step.wo-bauhaus-step .bio-editor-wrapper,
-        .form-step.wo-bauhaus-step .summary-card,
-        .form-step.wo-bauhaus-step .terms-container,
-        .form-step.wo-bauhaus-step .newsletter-invite {
-            width: 100%;
-            border: 1.5px solid var(--ink);
-            background: transparent;
-            margin: 0;
-        }
-        .form-step.wo-bauhaus-step .bio-toolbar {
-            border-bottom: 1.5px solid var(--ink);
-            background: var(--cream);
-        }
-        .form-step.wo-step09 .bio-modal-head,
-        .form-step.wo-step09 .bio-mobile-open {
-            display: none;
-        }
-        .form-step.wo-bauhaus-step .bio-editor {
-            min-height: 160px;
-            border: none;
-            font-family: var(--sans);
-            font-size: 16px;
-            line-height: 1.5;
-            background: transparent;
-        }
-        .form-step.wo-bauhaus-step .summary-card {
-            max-height: none;
-            overflow: visible;
-        }
-        .form-step.wo-bauhaus-step .summary-row {
-            border-bottom: 1.5px solid var(--ink);
-        }
-        .form-step.wo-bauhaus-step .summary-label {
-            border-right: 1.5px solid var(--ink);
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.1em;
-        }
-        .form-step.wo-bauhaus-step .summary-value {
-            font-family: var(--sans);
-            font-size: 13px;
-        }
-        .form-step.wo-step-summary .wo-form-col {
-            gap: 18px;
-        }
-        .form-step.wo-step-summary .summary-row {
-            min-height: 42px;
-        }
-        .form-step.wo-step-summary .summary-label,
-        .form-step.wo-step-summary .summary-value {
-            padding-top: 9px;
-            padding-bottom: 9px;
-        }
-        .form-step.wo-step-summary .summary-media-edit {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
-            border: 0;
-            border-radius: 3px;
-            background: rgba(40, 98, 245, 0.08);
-            color: var(--primary-blue, #2862F5);
-            font-family: var(--mono);
-            font-size: 9px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            padding: 4px 10px;
-            margin-left: 0;
-            margin-top: 2px;
-            cursor: pointer;
-        }
-        .form-step.wo-step-summary .summary-media-edit svg {
-            width: 12px;
-            height: 12px;
-            flex-shrink: 0;
-        }
-        .form-step.wo-step-summary .summary-media-edit:hover {
-            background: var(--primary-blue, #2862F5);
-            color: #fff;
-        }
-        .form-step.wo-step-summary .summary-review {
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-        .form-step.wo-step-summary .summary-mobile-open,
-        .form-step.wo-step-summary .summary-review-head,
-        .form-step.wo-step-summary .summary-review-close {
-            display: none;
-        }
-        .form-step.wo-step-summary .summary-review-modal,
-        .form-step.wo-step-summary .summary-review-panel,
-        .form-step.wo-step-summary .summary-review-scroll {
-            display: contents;
-        }
-        @media (min-width: 1025px) {
-            .form-step.wo-step05 .wo-form-col,
-            .form-step.wo-step-summary .wo-form-col {
-                display: grid;
-                grid-template-rows: auto auto minmax(0, 1fr) auto;
-                align-content: stretch;
-                gap: 20px;
-                padding: 36px 56px 24px;
-                overflow: hidden;
-            }
-            .form-step.wo-step05 .question-title,
-            .form-step.wo-step-summary .question-title {
-                font-size: clamp(42px, 4vw, 56px) !important;
-            }
-            .form-step.wo-step05 .question-subtitle,
-            .form-step.wo-step-summary .question-subtitle {
-                margin-top: 12px !important;
-            }
-            .form-step.wo-step05 .wo-form-col > div:has(.styles-grid),
-            .form-step.wo-step-summary .wo-form-col > div:has(.summary-card) {
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-                overflow: hidden;
-            }
-            .form-step.wo-step05 .styles-grid,
-            .form-step.wo-step-summary .summary-card {
-                flex: 1 1 auto;
-                min-height: 0;
-                max-height: none;
-                overflow-y: auto;
-                overflow-x: hidden;
-            }
-        }
-        .form-step.wo-step08 .portfolio-media-section {
-            max-height: clamp(220px, 28vh, 340px);
-            overflow-y: auto;
-            padding-right: 6px;
-        }
-        .form-step.wo-step08 .portfolio-media-grid {
-            grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-        }
-        .form-step.wo-step12 .newsletter-invite-block {
-            display: grid;
-            justify-items: start;
-            gap: 0;
-            width: 100%;
-            margin-bottom: 14px;
-        }
-        .form-step.wo-step12 .newsletter-invite {
-            display: block;
-            padding: 18px;
-            text-align: left;
-            box-sizing: border-box;
-        }
-        .form-step.wo-step12 .newsletter-icon {
-            width: 54px;
-            height: 54px;
-            border: 1.5px solid var(--ink);
-            background: var(--yellow);
-            display: grid;
-            place-items: center;
-            color: var(--ink);
-        }
-        .form-step.wo-step12 .newsletter-invite h3 {
-            margin: 0 0 8px;
-            font-family: var(--sans);
-            font-size: 20px;
-            line-height: 1.05;
-            color: var(--ink);
-        }
-        .form-step.wo-step12 .newsletter-invite p {
-            margin: 0;
-            font-family: var(--sans);
-            font-size: 15px;
-            line-height: 1.42;
-            color: var(--ink-2);
-        }
-        .form-step.wo-step12 .newsletter-options {
-            display: flex !important;
-            flex-direction: row;
-            justify-content: flex-start !important;
-            justify-items: start;
-            align-items: stretch;
-            gap: 8px;
-            width: 100%;
-            max-width: none;
-            margin-left: 0;
-            margin-right: auto;
-            box-sizing: border-box;
-        }
-        .form-step.wo-step12 .newsletter-option {
-            width: auto;
-            flex: 1 1 0;
-            max-width: calc(50% - 4px);
-            min-width: 0;
-            box-sizing: border-box;
-        }
-        .form-step.wo-step12 .newsletter-option[data-subscribe="true"] {
-            background: var(--yellow);
-            color: var(--ink);
-        }
-        .form-step.wo-step12 .newsletter-option[data-subscribe="false"] {
-            background: var(--ink);
-            color: var(--cream);
-        }
-        .form-step.wo-step12 .newsletter-options.has-error .newsletter-option {
-            border-color: var(--red);
-        }
-        .form-step.wo-step12 .newsletter-error {
-            display: none;
-            margin: 8px 0 0;
-            font-family: var(--mono);
-            font-size: 10px;
-            line-height: 1.2;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--red);
-        }
-        .form-step.wo-step12 .newsletter-error.is-visible {
-            display: block;
-        }
-        .portfolio-media-modal[hidden] { display: none !important; }
-        .portfolio-media-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 10000;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            background: rgba(12, 10, 8, 0.62);
-        }
-        .portfolio-media-modal-panel {
-            width: min(920px, 94vw);
-            max-height: min(760px, 88vh);
-            overflow: hidden;
-            border: 1.5px solid var(--ink);
-            background: var(--cream);
-            color: var(--ink);
-            display: grid;
-            grid-template-rows: auto minmax(160px, 1fr) auto;
-        }
-        .portfolio-media-modal-head {
-            border-bottom: 1.5px solid var(--ink);
-            padding: 18px 20px;
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
-            align-items: flex-start;
-        }
-        .portfolio-media-modal-head h2 {
-            margin: 8px 0 0;
-            font-family: var(--display);
-            font-size: clamp(34px, 4vw, 52px);
-            line-height: 0.92;
-            letter-spacing: 0;
-        }
-        .portfolio-media-modal-close {
-            width: 44px;
-            height: 44px;
-            border: 1.5px solid var(--ink);
-            background: var(--ink);
-            color: var(--cream);
-            font-size: 30px;
-            line-height: 1;
-            cursor: pointer;
-        }
-        .portfolio-media-modal-grid {
-            overflow: auto;
-            padding: 16px 20px;
-            margin: 0 !important;
-            align-content: start;
-        }
-        .portfolio-media-modal-actions {
-            border-top: 1.5px solid var(--ink);
-            padding: 14px 20px;
-            display: flex;
-            justify-content: flex-start;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .portfolio-media-empty {
-            grid-column: 1 / -1;
-            margin: 0;
-            font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--ink-2);
-        }
-        .form-step.wo-step-saving .saving-grid {
-            width: 100%;
-            display: grid;
-            gap: 20px;
-        }
-        .form-step.wo-step-saving .saving-loader {
-            height: 70px;
-            border: 1.5px solid var(--ink);
-            position: relative;
-            overflow: hidden;
-            background:
-                linear-gradient(90deg, var(--red) 0 24%, transparent 24% 30%, var(--blue) 30% 62%, transparent 62% 70%, var(--yellow) 70% 100%);
-            background-size: 220% 100%;
-            animation: woSavingStripe 1.05s steps(4) infinite;
-        }
-        .form-step.wo-step-saving .saving-copy-carousel {
-            min-height: 46px;
-            position: relative;
-            overflow: hidden;
-            display: grid;
-            align-items: center;
-            text-align: center;
-        }
-        .form-step.wo-step-saving .saving-copy-item {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 8px;
-            font-family: var(--mono);
-            font-size: 12px;
-            line-height: 1.28;
-            letter-spacing: 0.04em;
-            color: var(--ink);
-            opacity: 0;
-            transform: translateY(10px);
-            animation: woSavingCopyCycle 30s ease infinite;
-        }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(1) { animation-delay: 0s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(2) { animation-delay: 3s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(3) { animation-delay: 6s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(4) { animation-delay: 9s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(5) { animation-delay: 12s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(6) { animation-delay: 15s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(7) { animation-delay: 18s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(8) { animation-delay: 21s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(9) { animation-delay: 24s; }
-        .form-step.wo-step-saving .saving-copy-item:nth-child(10) { animation-delay: 27s; }
-        .form-step.wo-step-saving .saving-copy-sr {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
-        body.register-page:has(.form-step.wo-step-saving.active) .register-footer,
-        body.register-page:has(.form-step.wo-step-saving.active) .mobile-continue-btn,
-        body.register-page:has(.form-step.wo-step-saving.active) .form-step:not(.wo-step-saving) .wo-step01-actions {
-            display: none !important;
-        }
-        .form-step.wo-bauhaus-step .terms-container {
-            padding: 14px;
-            margin-top: 14px;
-        }
-        .form-step.wo-bauhaus-step .success-animation {
-            width: 104px;
-            height: 104px;
-            margin: 20px 0 8px;
-        }
-        .form-step.wo-bauhaus-step .success-circle {
-            border: 1.5px solid var(--ink);
-            border-radius: 0;
-            background: var(--red);
-            animation: woPopIn 0.45s cubic-bezier(.2,.9,.2,1.2) forwards;
-        }
-        .form-step.wo-bauhaus-step .success-check {
-            color: var(--cream);
-            animation: woFadeRise 0.45s ease 0.2s forwards;
-        }
-        .form-step.wo-bauhaus-step .wo-manifesto-type {
-            font-size: clamp(70px, 18cqw, 124px);
-        }
-        .form-step.wo-step00 .wo-manifesto-type {
-            font-size: clamp(64px, 15cqw, 112px);
-        }
-        .wo-bauhaus-step.active .wo-poster-col {
-            animation: woPanelIn 0.55s ease both;
-        }
-        .wo-bauhaus-step.active .wo-form-col > * {
-            animation: woFadeRise 0.42s ease both;
-        }
-        .wo-bauhaus-step.active .wo-form-col > *:nth-child(2) { animation-delay: 0.04s; }
-        .wo-bauhaus-step.active .wo-form-col > *:nth-child(3) { animation-delay: 0.08s; }
-        .wo-bauhaus-step.active .wo-form-col > *:nth-child(4) { animation-delay: 0.12s; }
-        .wo-bauhaus-step.active .wo-form-col > *:nth-child(5) { animation-delay: 0.16s; }
-        @keyframes woFadeRise {
-            from { opacity: 0; transform: translateY(16px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes woPanelIn {
-            from { opacity: 0; transform: translateX(-18px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes woPopIn {
-            from { opacity: 0; transform: scale(0.7) rotate(-4deg); }
-            to { opacity: 1; transform: scale(1) rotate(0); }
-        }
-        @keyframes woSavingStripe {
-            from { background-position: 0 0; }
-            to { background-position: -220% 0; }
-        }
-        @keyframes woSavingCopyCycle {
-            0%, 9.5% { opacity: 1; transform: translateY(0); }
-            11%, 100% { opacity: 0; transform: translateY(-10px); }
-        }
-
-        @media (max-width: 1024px) {
-            .form-step.wo-bauhaus-step {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto 1fr;
-            }
-            .form-step.wo-bauhaus-step .question-title {
-                font-size: 64px !important;
-            }
-            .form-step.wo-bauhaus-step .form-input {
-                font-size: 56px !important;
-            }
-            .form-step.wo-bauhaus-step .styles-grid,
-            .form-step.wo-bauhaus-step .experience-options,
-            .form-step.wo-bauhaus-step .portfolio-source-options,
-            .form-step.wo-bauhaus-step .work-type-options,
-            .form-step.wo-bauhaus-step .newsletter-options {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-            .form-step.wo-step05 .wo-poster-col,
-            .form-step.wo-step-summary .wo-poster-col {
-                height: 280px;
-                min-height: 280px;
-            }
-            .form-step.wo-step05 .wo-manifesto-type,
-            .form-step.wo-step-summary .wo-manifesto-type {
-                font-size: clamp(64px, 11.5cqw, 96px);
-            }
-            .form-step.wo-step05 .wo-form-col {
-                display: grid;
-                grid-template-rows: auto auto minmax(0, 1fr) auto;
-                align-content: stretch;
-                overflow: hidden;
-            }
-            .form-step.wo-step05 .wo-form-col > div:has(.styles-grid) {
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
-            }
-            .form-step.wo-step05 .styles-grid {
-                max-height: min(34vh, 360px);
-                overflow-y: auto;
-                overflow-x: hidden;
-                padding-right: 6px;
-                align-content: start;
-            }
-            .form-step.wo-step-summary .wo-form-col {
-                display: grid;
-                grid-template-rows: auto auto minmax(0, 1fr) auto;
-                align-content: stretch;
-                overflow: hidden;
-            }
-            .form-step.wo-step-summary .wo-form-col > div:has(.summary-card) {
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
-            }
-            .form-step.wo-step-summary .summary-card {
-                max-height: min(42vh, 420px);
-                overflow-y: auto;
-                overflow-x: hidden;
-            }
-            .form-step.wo-step05 .styles-grid {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-            }
-            .form-step.wo-step11 .birth-date-selects {
-                grid-template-columns: 86px 154px 108px;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .form-step.wo-bauhaus-step {
-                width: 100vw !important;
-                overflow-x: hidden;
-            }
-            .form-step.wo-bauhaus-step .wo-poster-col {
-                height: 98px;
-                min-height: 98px;
-                padding: 16px 16px 16px;
-            }
-            .form-step.wo-bauhaus-step .wo-manifesto-type {
-                font-size: clamp(34px, 10.5cqw, 38px);
-                line-height: 0.86;
-            }
-            .form-step.wo-bauhaus-step .wo-form-col {
-                padding: 12px 16px 8px;
-                gap: 10px;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height) - 98px);
-                overflow-y: auto;
-                overflow-x: hidden;
-                scrollbar-gutter: stable;
-            }
-            .form-step.wo-bauhaus-step .question-title {
-                font-size: clamp(32px, 9.8vw, 37px) !important;
-                line-height: 0.9 !important;
-                max-width: 100% !important;
-                width: 100%;
-                transform: none;
-                overflow-wrap: anywhere;
-            }
-            .form-step.wo-bauhaus-step .question-subtitle {
-                font-size: 15px !important;
-                line-height: 1.28 !important;
-                margin-top: 10px !important;
-            }
-            .form-step.wo-bauhaus-step .ig-preauth-only .password-create-copy {
-                font-size: 22px !important;
-                line-height: 1.12 !important;
-                font-weight: 900 !important;
-                color: var(--ink) !important;
-                letter-spacing: 0 !important;
-                max-width: 100% !important;
-                margin-bottom: 14px !important;
-            }
-            .form-step.wo-bauhaus-step .form-input {
-                font-size: 20px !important;
-                max-width: 100%;
-                overflow: hidden;
-                text-overflow: clip;
-            }
-            .form-step.wo-bauhaus-step .wo-hint-row {
-                align-items: flex-start;
-                gap: 10px;
-            }
-            .form-step.wo-bauhaus-step .wo-hint {
-                max-width: 220px;
-            }
-            .form-step.wo-bauhaus-step .ig-preauth-only .form-input {
-                font-size: 20px !important;
-            }
-            .form-step.wo-bauhaus-step .geolocation-btn {
-                width: 40px;
-                height: 40px;
-                flex-basis: 40px;
-                margin-bottom: 0;
-            }
-            .form-step.wo-bauhaus-step .wo-form-col > .input-wrapper,
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .styles-grid),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .experience-options),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .portfolio-source-options),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .work-type-options),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .birth-date-selects),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .bio-editor-wrapper),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .newsletter-invite),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .newsletter-invite-block),
-            .form-step.wo-bauhaus-step .wo-form-col > div:has(> .summary-card) {
-                margin-top: 30px !important;
-            }
-            .form-step.wo-bauhaus-step .wo-username-preview,
-            .form-step.wo-bauhaus-step .wo-plain-preview {
-                margin-top: 12px;
-            }
-            .form-step.wo-bauhaus-step .wo-username-preview strong,
-            .form-step.wo-bauhaus-step .wo-plain-preview strong {
-                font-family: var(--mono) !important;
-                font-size: inherit;
-                letter-spacing: inherit;
-                text-transform: inherit;
-            }
-            .form-step.wo-bauhaus-step .styles-grid,
-            .form-step.wo-bauhaus-step .experience-options,
-            .form-step.wo-bauhaus-step .portfolio-source-options,
-            .form-step.wo-bauhaus-step .work-type-options,
-            .form-step.wo-bauhaus-step .newsletter-options {
-                grid-template-columns: 1fr;
-                max-height: 188px;
-                gap: 7px;
-            }
-            .form-step.wo-step05 .styles-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                max-height: none;
-                overflow: visible;
-                padding-right: 0;
-            }
-            .form-step.wo-step05.active {
-                grid-template-rows: auto auto;
-                align-content: start;
-                overflow-y: auto;
-                overflow-x: hidden;
-                -webkit-overflow-scrolling: touch;
-            }
-            .form-step.wo-step05 .wo-form-col {
-                display: flex;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height) - 98px);
-                overflow: visible;
-                scrollbar-gutter: auto;
-            }
-            .form-step.wo-step05 .wo-form-col > div:has(> .styles-grid) {
-                min-height: auto;
-                overflow: visible;
-                gap: 8px;
-                margin-top: 10px !important;
-            }
-            .form-step.wo-step05 .wo-step01-actions {
-                position: static;
-                bottom: auto;
-                margin-top: 14px;
-                padding-bottom: 8px;
-            }
-            .form-step.wo-step-summary .wo-form-col {
-                display: flex;
-                gap: 5px;
-                padding: 7px 14px 5px;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height) - 70px);
-                overflow-y: auto;
-                scrollbar-gutter: auto;
-            }
-            .form-step.wo-step-summary .wo-poster-col {
-                height: 70px;
-                min-height: 70px;
-                padding: 8px 14px 7px;
-            }
-            .form-step.wo-step-summary .wo-manifesto-type {
-                font-size: clamp(25px, 7.7cqw, 29px);
-                line-height: 0.83;
-            }
-            .form-step.wo-step-summary .wo-form-header-row {
-                margin-bottom: 0;
-            }
-            .form-step.wo-step-summary .wo-step-indicator {
-                font-size: 10px;
-                letter-spacing: 0.14em;
-                gap: 6px;
-            }
-            .form-step.wo-step-summary .question-title {
-                font-size: clamp(26px, 7.7vw, 29px) !important;
-                line-height: 0.86 !important;
-            }
-            .form-step.wo-step-summary .question-subtitle {
-                font-size: 12px !important;
-                line-height: 1.14 !important;
-                margin-top: 5px !important;
-            }
-            .form-step.wo-step-summary .wo-form-col > div:has(> .summary-review) {
-                min-height: 0;
-                overflow: visible;
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                margin-top: 5px !important;
-            }
-            .form-step.wo-step-summary .summary-review {
-                gap: 6px;
-            }
-            .form-step.wo-step-summary .summary-mobile-open {
-                display: flex;
-                width: 100%;
-                min-height: 50px;
-                align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-                border: 1.5px solid var(--ink);
-                background: var(--cream);
-                color: var(--ink);
-                padding: 7px 9px;
-                cursor: pointer;
-                text-align: left;
-            }
-            .form-step.wo-step-summary .summary-mobile-open span {
-                display: block;
-                font-family: var(--mono);
-                font-size: 7.2px;
-                line-height: 1.15;
-                letter-spacing: 0.11em;
-                text-transform: uppercase;
-                color: var(--ink-2);
-            }
-            .form-step.wo-step-summary .summary-mobile-open strong {
-                display: block;
-                margin-top: 2px;
-                font-family: var(--display);
-                font-size: 15px;
-                line-height: 0.9;
-                letter-spacing: 0;
-                text-transform: uppercase;
-            }
-            .form-step.wo-step-summary .summary-mobile-open svg {
-                width: 17px;
-                height: 17px;
-                flex-shrink: 0;
-            }
-            .form-step.wo-step-summary .summary-review-modal,
-            body.register-page > .summary-review-modal {
-                display: none;
-            }
-            .form-step.wo-step-summary .summary-review-modal.is-open,
-            body.register-page > .summary-review-modal.is-open {
-                position: fixed;
-                inset: 0;
-                z-index: 9500;
-                display: grid;
-                align-items: stretch;
-                padding: 8px;
-                background: rgba(12, 10, 8, 0.62);
-            }
-            .form-step.wo-step-summary .summary-review-panel,
-            body.register-page > .summary-review-modal.is-open .summary-review-panel {
-                width: 100%;
-                max-height: calc(100dvh - 16px);
-                min-height: 0;
-                align-self: center;
-                border: 1.5px solid var(--ink);
-                background: var(--cream);
-                color: var(--ink);
-                display: grid;
-                grid-template-rows: auto minmax(0, 1fr);
-                overflow: hidden;
-            }
-            .form-step.wo-step-summary .summary-review-head,
-            body.register-page > .summary-review-modal.is-open .summary-review-head {
-                display: flex;
-                align-items: flex-start;
-                justify-content: space-between;
-                gap: 10px;
-                padding: 10px 12px;
-                border-bottom: 1.5px solid var(--ink);
-            }
-            .form-step.wo-step-summary .summary-review-head h3,
-            body.register-page > .summary-review-modal.is-open .summary-review-head h3 {
-                margin: 4px 0 0;
-                font-family: var(--display);
-                font-size: 21px;
-                line-height: 0.9;
-                letter-spacing: 0;
-                text-transform: uppercase;
-            }
-            .form-step.wo-step-summary .summary-review-close,
-            body.register-page > .summary-review-modal.is-open .summary-review-close {
-                display: grid;
-                place-items: center;
-                width: 36px;
-                height: 36px;
-                border: 1.5px solid var(--ink);
-                background: var(--ink);
-                color: var(--cream);
-                font-size: 26px;
-                line-height: 1;
-                cursor: pointer;
-                flex-shrink: 0;
-            }
-            .form-step.wo-step-summary .summary-review-scroll,
-            body.register-page > .summary-review-modal.is-open .summary-review-scroll {
-                min-height: 0;
-                display: block;
-                overflow-y: auto;
-                overflow-x: hidden;
-                -webkit-overflow-scrolling: touch;
-            }
-            .form-step.wo-step-summary .summary-review-modal.is-open .summary-card,
-            body.register-page > .summary-review-modal.is-open .summary-card {
-                max-height: none;
-                overflow: visible;
-                border: 0;
-            }
-            .form-step.wo-step-summary .terms-container {
-                padding: 6px 8px;
-                margin-top: 0;
-                border: 0;
-                background: transparent;
-            }
-            .form-step.wo-step-summary .terms-checkbox-wrapper {
-                display: grid;
-                grid-template-columns: 22px minmax(0, 1fr);
-                gap: 8px;
-                align-items: flex-start;
-                margin-bottom: 0;
-            }
-            .form-step.wo-step-summary .terms-checkmark {
-                width: 22px;
-                height: 22px;
-                flex: 0 0 22px;
-                border-width: 1.5px;
-                margin-top: 1px;
-            }
-            .form-step.wo-step-summary .terms-text {
-                display: block;
-                min-width: 0;
-                text-align: left;
-                font-size: 9.8px;
-                line-height: 1.2;
-                overflow-wrap: anywhere;
-            }
-            .form-step.wo-step-summary .terms-info {
-                margin: 6px 0 0 30px;
-                padding-left: 0;
-                margin-bottom: 0;
-                max-width: calc(100% - 30px);
-                font-size: 8.5px;
-                line-height: 1.18;
-            }
-            .form-step.wo-step-summary .terms-checkbox:checked + .terms-checkmark::after {
-                width: 6px;
-                height: 10px;
-                border-width: 0 2px 2px 0;
-            }
-            .form-step.wo-step-summary .wo-step01-actions {
-                gap: 5px;
-                bottom: 0;
-            }
-            .form-step.wo-step-summary .wo-step01-actions .wo-back-btn,
-            .form-step.wo-step-summary .wo-step01-actions .wo-next-btn {
-                min-height: 40px;
-                padding: 7px 8px;
-                font-size: 10.5px;
-                letter-spacing: 0.1em;
-            }
-            .form-step.wo-step-summary .wo-step01-actions .wo-next-btn {
-                font-size: 12px;
-            }
-            .form-step.wo-step-summary .wo-step01-actions .keyhint {
-                font-size: 8.5px;
-                line-height: 1.15;
-            }
-            body.summary-review-lock {
-                overflow: hidden;
-            }
-            .form-step.wo-step12 .newsletter-options {
-                flex-direction: row;
-                align-items: stretch;
-                max-height: none;
-                gap: 7px;
-            }
-            .form-step.wo-step12 .newsletter-option {
-                width: auto;
-                max-width: 100%;
-                flex: 1 1 0;
-                min-width: 0;
-            }
-            .form-step.wo-step12 .wo-form-col {
-                gap: 8px;
-            }
-            .form-step.wo-step12 .question-subtitle {
-                font-size: 13px !important;
-                line-height: 1.18 !important;
-                margin-top: 6px !important;
-            }
-            .form-step.wo-step12 .wo-form-col > div:has(> .newsletter-invite-block) {
-                margin-top: 12px !important;
-            }
-            .form-step.wo-step12 .newsletter-invite-block {
-                gap: 0;
-                margin-bottom: 8px;
-            }
-            .form-step.wo-step12 .newsletter-invite {
-                padding: 10px 12px;
-            }
-            .form-step.wo-step12 .newsletter-icon {
-                width: 36px;
-                height: 36px;
-            }
-            .form-step.wo-step12 .newsletter-icon svg {
-                width: 22px;
-                height: 22px;
-            }
-            .form-step.wo-step12 .newsletter-invite h3 {
-                font-size: 14px;
-                margin-bottom: 5px;
-            }
-            .form-step.wo-step12 .newsletter-invite p {
-                font-size: 12px;
-                line-height: 1.25;
-            }
-            .form-step.wo-step12 .wo-hint-row {
-                margin-top: 6px;
-                font-size: 9px;
-            }
-            .form-step.wo-step05 .wo-poster-col {
-                height: 98px;
-                min-height: 98px;
-            }
-            .form-step.wo-step05 .wo-manifesto-type {
-                font-size: clamp(34px, 10.5cqw, 38px);
-            }
-            .form-step.wo-bauhaus-step .style-option,
-            .form-step.wo-bauhaus-step .experience-option,
-            .form-step.wo-bauhaus-step .portfolio-source-option,
-            .form-step.wo-bauhaus-step .work-type-option,
-            .form-step.wo-bauhaus-step .newsletter-option {
-                min-height: 48px;
-                padding: 11px 12px;
-                font-size: 11px;
-            }
-            .form-step.wo-step06 {
-                grid-template-rows: auto minmax(0, 1fr);
-            }
-            .form-step.wo-step06 .wo-poster-col {
-                height: clamp(72px, 16dvh, 90px);
-                min-height: clamp(72px, 16dvh, 90px);
-                padding: 10px 14px 8px;
-            }
-            .form-step.wo-step06 .wo-manifesto-type {
-                font-size: clamp(28px, 8.5cqw, 33px);
-                line-height: 0.82;
-            }
-            .form-step.wo-step06 .wo-form-col {
-                display: grid;
-                grid-template-rows: auto auto minmax(0, 1fr) auto;
-                align-content: start;
-                gap: 8px;
-                padding: 8px 14px 6px;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height) - clamp(72px, 16dvh, 90px));
-                overflow: hidden;
-                scrollbar-gutter: auto;
-            }
-            .form-step.wo-step06 .wo-form-header-row {
-                display: none;
-            }
-            .form-step.wo-step06 .question-title {
-                font-size: clamp(28px, 8.4vw, 32px) !important;
-                line-height: 0.88 !important;
-            }
-            .form-step.wo-step06 .question-subtitle {
-                font-size: 13px !important;
-                line-height: 1.18 !important;
-                margin-top: 6px !important;
-                max-width: 100% !important;
-            }
-            .form-step.wo-step06 .wo-form-col > div:has(> .experience-options) {
-                margin-top: 4px !important;
-                min-height: 0;
-            }
-            .form-step.wo-step06 .experience-options {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 6px;
-                max-height: none;
-            }
-            .form-step.wo-step06 .experience-option {
-                min-height: 40px;
-                padding: 8px 7px;
-                gap: 7px;
-                font-size: 9.5px;
-                line-height: 1.12;
-                letter-spacing: 0.05em;
-            }
-            .form-step.wo-step06 .experience-option::before {
-                width: 11px;
-                height: 11px;
-                flex-basis: 11px;
-                border-width: 1.25px;
-            }
-            .form-step.wo-step06 .wo-hint-row {
-                margin-top: 6px;
-                gap: 6px;
-                font-size: 9px;
-                line-height: 1.2;
-                letter-spacing: 0.1em;
-            }
-            .form-step.wo-step06 .wo-hint {
-                max-width: none;
-            }
-            .form-step.wo-step06 .wo-step01-actions {
-                grid-row: 4;
-                align-self: end;
-                gap: 6px;
-                bottom: 0;
-                padding-top: 0;
-            }
-            .form-step.wo-step06 .wo-step01-actions .wo-back-btn,
-            .form-step.wo-step06 .wo-step01-actions .wo-next-btn {
-                min-height: 42px;
-                padding: 9px 8px;
-                font-size: 11px;
-                letter-spacing: 0.12em;
-            }
-            .form-step.wo-step06 .wo-step01-actions .keyhint {
-                font-size: 9px;
-                line-height: 1.2;
-            }
-            .form-step.wo-bauhaus-step .birth-date-selects {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 7px;
-                max-width: 100%;
-            }
-            .form-step.wo-bauhaus-step .birth-select-group,
-            .form-step.wo-bauhaus-step .birth-select {
-                min-width: 0;
-            }
-            .form-step.wo-bauhaus-step .password-rules {
-                grid-template-columns: 1fr;
-            }
-            .form-step.wo-step10 #studio_name,
-            .form-step.wo-step10 #address_search {
-                font-size: 20px !important;
-            }
-            .form-step.wo-step10 .wo-poster-col {
-                height: 86px;
-                min-height: 86px;
-                padding: 12px 16px 10px;
-            }
-            .form-step.wo-step10 .wo-manifesto-type {
-                font-size: clamp(29px, 8.6cqw, 33px);
-                line-height: 0.84;
-            }
-            .form-step.wo-step10 .wo-form-col {
-                gap: 7px;
-                padding: 9px 16px 6px;
-                min-height: calc(100dvh - var(--wo-header-h) - var(--wo-progress-h) - var(--register-global-footer-height) - 86px);
-                scrollbar-gutter: auto;
-            }
-            .form-step.wo-step10 .wo-form-header-row {
-                margin-bottom: 0;
-            }
-            .form-step.wo-step10 .wo-step-indicator {
-                font-size: 9.5px;
-                line-height: 1.1;
-                letter-spacing: 0.13em;
-                gap: 6px;
-            }
-            .form-step.wo-step10 .question-title {
-                font-size: clamp(29px, 8.8vw, 33px) !important;
-                line-height: 0.88 !important;
-            }
-            .form-step.wo-step10 .question-subtitle {
-                font-size: 13px !important;
-                line-height: 1.2 !important;
-                margin-top: 6px !important;
-            }
-            .form-step.wo-step10 .wo-form-col > div:has(> .work-type-options) {
-                margin-top: 10px !important;
-            }
-            .form-step.wo-step10 .work-type-options {
-                max-height: none;
-                gap: 6px;
-            }
-            .form-step.wo-step10 .work-type-option {
-                min-height: 42px;
-                padding: 8px 9px;
-                gap: 8px;
-                line-height: 1;
-                overflow: hidden;
-            }
-            .form-step.wo-step10 .work-type-label {
-                flex: 0 0 auto;
-                font-size: 14px;
-                line-height: 1;
-            }
-            .form-step.wo-step10 .work-type-desc {
-                flex: 1 1 auto;
-                min-width: 0;
-                font-size: 9px;
-                line-height: 1.15;
-                letter-spacing: 0.08em;
-                overflow-wrap: anywhere;
-            }
-            .form-step.wo-step10 .studio-name-wrapper,
-            .form-step.wo-step10 .address-picker-wrapper {
-                margin-top: 8px !important;
-                padding-top: 8px !important;
-                scroll-margin-top: 10px;
-            }
-            .form-step.wo-step10 .studio-location-select-wrapper {
-                margin-top: 8px;
-                padding-top: 8px;
-            }
-            .form-step.wo-step10 .studio-name-label {
-                font-size: 9.5px;
-                line-height: 1.2;
-                margin-bottom: 6px;
-            }
-            .form-step.wo-step10 .address-picker-help {
-                margin: 4px 0 8px;
-                font-size: 11px;
-                line-height: 1.25;
-            }
-            .form-step.wo-step10 #studio_name,
-            .form-step.wo-step10 #address_search {
-                font-size: 18px !important;
-                line-height: 1.05 !important;
-            }
-            .form-step.wo-step10 .wo-input-row {
-                padding-bottom: 6px;
-                gap: 8px;
-            }
-            .form-step.wo-step10 .studio-location-select {
-                height: 40px;
-                font-size: 10px;
-                padding: 0 10px;
-            }
-            .form-step.wo-step10 .wo-hint-row {
-                margin-top: 5px;
-                font-size: 9px;
-                line-height: 1.15;
-            }
-            .form-step.wo-step10 .wo-step01-actions {
-                gap: 6px;
-                bottom: 0;
-            }
-            .form-step.wo-step10 .wo-step01-actions .wo-back-btn,
-            .form-step.wo-step10 .wo-step01-actions .wo-next-btn {
-                min-height: 44px;
-                padding: 9px 8px;
-            }
-            .form-step.wo-bauhaus-step .currency-select {
-                width: 104px;
-            }
-            .form-step.wo-bauhaus-step .bio-editor {
-                min-height: 118px;
-            }
-            .form-step.wo-bauhaus-step .summary-card {
-                max-height: none;
-            }
-            .form-step.wo-step-saving .saving-grid {
-                margin-top: 50px;
-                gap: 14px;
-            }
-            .form-step.wo-step-saving .saving-copy-carousel {
-                min-height: 58px;
-            }
-            .form-step.wo-step-saving .saving-copy-item {
-                max-width: 330px;
-                margin: 0 auto;
-                font-size: clamp(11px, 3.2vw, 13px);
-            }
-            .form-step.wo-bauhaus-step .ig-step-actions {
-                grid-template-columns: 1fr;
-            }
-            .form-step.wo-bauhaus-step .summary-label {
-                width: 118px;
-                padding: 10px;
-                font-size: 9px;
-            }
-            .form-step.wo-bauhaus-step .summary-value {
-                padding: 10px;
-                font-size: 11px;
-            }
-            .form-step.wo-step08 .wo-manifesto-type,
-            .form-step.wo-step12 .wo-manifesto-type,
-            .form-step.wo-step-success .wo-manifesto-type {
-                font-size: clamp(34px, 10.5cqw, 38px);
-            }
-            .form-step.wo-step-success .wo-form-col {
-                align-items: flex-start;
-            }
-            .form-step.wo-step-success .wo-form-header-row,
-            .form-step.wo-step-success .wo-form-col > div:has(> .success-title) {
-                width: 100%;
-                justify-content: flex-start;
-                text-align: left;
-            }
-            .form-step.wo-step-success .question-title,
-            .form-step.wo-step-success .question-subtitle,
-            .form-step.wo-step-success .wo-step-indicator {
-                text-align: left !important;
-                align-self: flex-start;
-            }
-            .form-step.wo-step-success .question-subtitle {
-                max-width: 100% !important;
-            }
-            .form-step.wo-step-success .success-animation {
-                display: none !important;
-            }
-            .form-step.wo-step-success .wo-step01-actions {
-                grid-template-columns: minmax(0, 1fr);
-                grid-template-areas:
-                    "next"
-                    "terms";
-                justify-items: start;
-                width: 100%;
-            }
-            .form-step.wo-step-success .wo-step01-actions > span {
-                display: none;
-            }
-            .form-step.wo-step-success .wo-step01-actions .wo-next-btn {
-                grid-area: next;
-                width: min(100%, 330px);
-                justify-self: start;
-            }
-            .form-step.wo-step-success .wo-step01-actions .keyhint {
-                grid-area: terms;
-                justify-self: center;
-                text-align: center;
-                width: 100%;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .form-step.wo-step07 .price-wrapper {
-                flex-direction: row;
-                align-items: flex-end;
-                justify-content: flex-start;
-                gap: 10px;
-                width: 100%;
-            }
-            .form-step.wo-step07 .price-wrapper > div:first-child {
-                flex: 1 1 auto !important;
-                max-width: 210px;
-                min-width: 0;
-            }
-            .form-step.wo-step07 .wo-input-row {
-                width: 100%;
-            }
-            .form-step.wo-step07 #session_price {
-                width: 100%;
-                max-width: 100%;
-                text-align: left;
-                font-size: clamp(24px, 6vw, 32px) !important;
-            }
-            .form-step.wo-step07 .currency-select {
-                flex: 0 0 clamp(132px, 36vw, 142px);
-                width: clamp(132px, 36vw, 142px);
-                min-width: 132px;
-                height: 52px;
-                font-size: 11px;
-                padding-left: 14px;
-                padding-right: 30px;
-            }
-            .form-step.wo-step07 .wo-hint-row {
-                gap: 8px;
-                font-size: 9px;
-                letter-spacing: 0.08em;
-                line-height: 1.2;
-            }
-            .form-step.wo-step07 .wo-hint {
-                max-width: none;
-            }
-        }
-    </style>
+    <script src="/shared/js/wo-icons.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
@@ -2753,33 +52,33 @@
     </script>
 </head>
 
-<body class="register-page">
-    <!-- ===== NEW Bauhaus top nav (replaces .register-nav-header visually) ===== -->
-    <header class="wo-nav" role="banner">
-        <div class="wo-nav-left">
-            <a href="/" class="wo-nav-logo" aria-label="We Ötzi inicio">
-                <span class="wo-nav-logo-marks" aria-hidden="true">
-                    <span class="sq"></span>
-                    <span class="ci"></span>
-                    <span class="tr"></span>
+<body class="wo-app register-page">
+    <!-- ===== Topbar DS (Bauhaus) con nav de grupos del wizard ===== -->
+    <header class="wo-topbar ra-topbar" role="banner">
+        <div class="wo-topbar-left">
+            <a href="/" class="wo-topbar-brand" aria-label="We Ötzi inicio">
+                <span class="wo-marks" aria-hidden="true">
+                    <span class="wo-mark-square"></span>
+                    <span class="wo-mark-circle"></span>
+                    <span class="wo-mark-triangle"></span>
                 </span>
-                <span class="wo-nav-logo-text">WE<span class="umlaut">Ö</span>TZI</span>
+                WE ÖTZI
             </a>
-            <p class="wo-nav-tag" aria-label="Registro de artista, paso 01">
-                <span class="dot" aria-hidden="true"></span>
-                <span>REGISTRO · PASO 01</span>
-            </p>
         </div>
-        <div></div>
-        <div class="wo-nav-right">
-            <nav class="wo-nav-links" aria-label="Navegación principal">
-                <a href="/tutorial/">Cómo funciona</a>
-                <a href="/marketplace/">Explorar</a>
-            </nav>
-            <button id="login-btn-wo" class="wo-login-btn" type="button" onclick="openLoginModal && openLoginModal()">LOG IN</button>
-            <button class="wo-theme-mark theme-toggle" type="button" onclick="toggleTheme && toggleTheme()" aria-label="Cambiar modo">Ö</button>
-            <button class="wo-burger" id="wo-burger" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="wo-drawer" onclick="toggleWoDrawer()">
-                <i></i><i></i><i></i>
+        <nav class="ra-topbar-groups" id="ra-topbar-groups" aria-label="Progreso del registro">
+            <span class="ra-group is-active" data-group="quien"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Quién sos</span>
+            <span class="ra-group" data-group="acceso"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Tu acceso</span>
+            <span class="ra-group" data-group="oficio"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Tu oficio</span>
+            <span class="ra-group" data-group="presencia"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Tu presencia</span>
+            <span class="ra-group" data-group="trabajo"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Cómo trabajás</span>
+            <span class="ra-group" data-group="novedades"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Novedades</span>
+            <span class="ra-group" data-group="revision"><span class="ra-group-check" aria-hidden="true"><i data-wo-icon="check"></i></span>Revisión</span>
+        </nav>
+        <div class="wo-topbar-right">
+            <span class="ra-progress-copy wo-meta-s" id="ra-progress-copy" aria-live="polite">Paso 01 · 11</span>
+            <button id="login-btn-wo" class="wo-btn wo-btn--ghost wo-btn--s" type="button" onclick="openLoginModal && openLoginModal()">Ingresá <span aria-hidden="true">→</span></button>
+            <button class="ra-burger" id="wo-burger" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="wo-drawer" onclick="toggleWoDrawer()">
+                <i data-wo-icon="menu"></i>
             </button>
         </div>
     </header>
@@ -2788,77 +87,24 @@
         <p class="drawer-label">Navegación</p>
         <a href="/tutorial/">Cómo funciona</a>
         <a href="/marketplace/">Explorar</a>
-        <a href="#" onclick="event.preventDefault(); toggleWoDrawer(false); openLoginModal && openLoginModal();">Log in</a>
+        <a href="#" onclick="event.preventDefault(); toggleWoDrawer(false); openLoginModal && openLoginModal();">Ingresá →</a>
     </aside>
 
-    <!-- ===== Legacy rnh-* header (hidden via CSS, kept so legacy JS that
-              references its elements doesn't error) ===== -->
-    <header class="register-nav-header">
-        <a href="/" class="rnh-brand" aria-label="We Ötzi inicio">
-            <span class="rnh-emblem" aria-hidden="true">
-                <i class="rnh-emblem-square"></i>
-                <i class="rnh-emblem-circle"></i>
-                <i class="rnh-emblem-triangle"></i>
-            </span>
-            <span class="rnh-wordmark">We<span class="rnh-wordmark-umlaut">Ö</span>tzi</span>
-        </a>
-
-        <p class="rnh-edition">Edición Bauhaus · Beta Cerrada</p>
-
-        <nav class="rnh-nav rnh-nav-public" aria-label="Navegación principal">
-            <a href="/tutorial/" class="rnh-link">Cómo funciona</a>
-            <a href="/marketplace/" class="rnh-link">Explorar</a>
-        </nav>
-
-        <div class="rnh-actions">
-            <button id="login-btn" class="rnh-login" type="button" onclick="openLoginModal()">
-                Log in
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-            </button>
-            <button class="rnh-theme theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
-            <button class="rnh-burger" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="rnh-drawer">
-                <i></i><i></i><i></i>
-            </button>
-        </div>
-    </header>
-
-    <div class="rnh-drawer-backdrop" aria-hidden="true"></div>
-    <aside id="rnh-drawer" class="rnh-drawer" aria-hidden="true" aria-label="Menú móvil">
-        <p class="rnh-drawer-label">Navegación</p>
-        <a href="/tutorial/" class="rnh-drawer-link">Cómo funciona</a>
-        <a href="/marketplace/" class="rnh-drawer-link">Explorar</a>
-        <a href="#" class="rnh-drawer-link" onclick="event.preventDefault(); openLoginModal();">Log in</a>
-        <p class="rnh-drawer-footer">Edición Bauhaus · Beta Cerrada</p>
-    </aside>
-
-    <!-- ===== Progress strip (Bauhaus segmented bar) — fixed below the wo-nav ===== -->
-    <header class="register-header wo-progress-header" aria-hidden="false">
-        <a href="/registerclosedbeta" class="back-to-home" aria-label="Volver al inicio" style="display:none;">
-            <span>We Ötzi</span>
-        </a>
-        <div class="wo-progress-bar" role="progressbar" aria-valuemin="1" aria-valuemax="12" aria-valuenow="1">
-            <div class="progress-fill" id="progress-fill"></div>
-            <div class="wo-progress-cells" aria-hidden="true">
-                <span class="cell active"><span>01</span><span class="cell-label">NOMBRE</span></span>
-                <span class="cell"><span>02</span><span class="cell-label">DATOS</span></span>
-                <span class="cell"><span>03</span><span class="cell-label">EMAIL</span></span>
-                <span class="cell"><span>04</span><span class="cell-label">CIUDAD</span></span>
-                <span class="cell"><span>05</span><span class="cell-label">ESTILOS</span></span>
-                <span class="cell"><span>06</span><span class="cell-label">EXPERIENCIA</span></span>
-                <span class="cell"><span>07</span><span class="cell-label">TARIFA</span></span>
-                <span class="cell"><span>08</span><span class="cell-label">PORTFOLIO</span></span>
-                <span class="cell"><span>09</span><span class="cell-label">BIO</span></span>
-                <span class="cell"><span>10</span><span class="cell-label">TRABAJO</span></span>
-                <span class="cell"><span>11</span><span class="cell-label">EDAD</span></span>
-                <span class="cell"><span>12</span><span class="cell-label">COMUNIDAD</span></span>
-            </div>
-        </div>
-        <span class="wo-progress-label-pill"><span id="progress-label">01 / 11</span></span>
-    </header>
+    <!-- Hooks legacy de progreso: register.js escribe acá (ancho + etiqueta).
+         El nav de grupos del topbar se sincroniza observando #progress-label. -->
+    <div class="ra-legacy-progress" hidden aria-hidden="true">
+        <div class="progress-fill" id="progress-fill"></div>
+        <span id="progress-label">01 / 11</span>
+    </div>
 
     <main class="register-container">
+
+        <!-- Encabezado constante del wizard (Figma: eyebrow + H1 + intro) -->
+        <div class="ra-intro">
+            <p class="wo-eyebrow">Registro de artistas</p>
+            <h1 class="ra-intro-title">Armemos tu perfil.</h1>
+            <p class="ra-intro-lead">Un paso por vez — completá cada grupo y avanzá. Podés volver a editar cualquiera antes de confirmar.</p>
+        </div>
 
         <!-- Form Container -->
         <div class="form-wrapper">
@@ -2891,11 +137,11 @@
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>IG</div>
                     <div class="wo-form-header-row">
-                        <p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">IMPORTACIÓN — INSTAGRAM</span></p>
+                        <p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">IG · Importación</span></p>
                     </div>
                     <div>
-                        <h2 class="question-title">Conecta tu<br>Instagram.</h2>
-                        <p class="question-subtitle">Pega tu @usuario y selecciona qué traer. Después confirmarás cada campo.</p>
+                        <h2 class="question-title">Conectá tu<br>Instagram.</h2>
+                        <p class="question-subtitle">Pegá tu @usuario y elegí qué traer. Después confirmás cada campo.</p>
                     </div>
                     <div class="input-wrapper" style="margin: 0;">
                         <div class="instagram-input-row">
@@ -2910,7 +156,7 @@
                         <button type="button" id="ig-step-import-btn" class="register-action register-action-primary">Buscar perfil</button>
                         <button type="button" id="ig-step-skip-btn" class="register-action register-action-secondary">Saltar este paso</button>
                     </div>
-                    <p class="ig-step-note">Las fotos y reels también podrás importarlos después desde tu dashboard.</p>
+                    <p class="ig-step-note">Las fotos y reels también podés importarlos después desde tu panel.</p>
                 </div>
             </section>
 
@@ -2958,13 +204,13 @@
                     <div class="wo-form-header-row">
                         <p class="wo-step-indicator">
                             <span class="marker">◍</span>
-                            <span class="wo-step-copy">PASO 01 DE 11 — NOMBRE ARTÍSTICO</span>
+                            <span class="wo-step-copy">01 · Quién sos</span>
                         </p>
                     </div>
 
                     <div>
-                        <h2 class="question-title">¿Cómo te llamas<br>artísticamente?</h2>
-                        <p class="question-subtitle"><span class="desktop-copy">El nombre con el que te conocen tus clientes y seguidores. Será tu identidad en We Ötzi y la URL de tu perfil.</span><span class="mobile-copy">Tu identidad en We Ötzi y la URL de tu perfil.</span></p>
+                        <h2 class="question-title">¿Cómo te llamás<br>artísticamente?</h2>
+                        <p class="question-subtitle"><span class="desktop-copy">Como te conocen tus clientes y seguidores. Va a ser tu identidad en We Ötzi y la URL de tu perfil.</span><span class="mobile-copy">Tu identidad en We Ötzi y la URL de tu perfil.</span></p>
                     </div>
 
                     <div class="input-wrapper" style="margin: 0;">
@@ -2974,25 +220,25 @@
                             <div class="wo-availability-chip" id="wo-availability-chip" data-state="empty" aria-live="polite">—</div>
                         </div>
                         <div class="wo-hint-row">
-                            <span class="wo-hint" id="wo-name-hint" data-state="empty">Escribe tu nombre artistico.</span>
+                            <span class="wo-hint" id="wo-name-hint" data-state="empty">Escribí tu nombre artístico.</span>
                             <span class="wo-counter" id="wo-name-counter">00 / 30</span>
                         </div>
                         <div class="wo-username-preview" id="wo-username-preview" aria-live="polite">
-                            <span>Usuario We Otzi:</span> <strong id="wo-username-preview-value">nombre.wo</strong>
+                            <span>Usuario We Ötzi:</span> <strong id="wo-username-preview-value">nombre.wo</strong>
                         </div>
                         <div class="wo-username-suggestions" id="wo-username-suggestions" hidden aria-live="polite"></div>
                     </div>
 
                     <div class="wo-step01-actions">
                         <button type="button" class="wo-back-btn" id="wo-step01-back" onclick="document.getElementById('btn-back')?.click()">
-                            <span>←</span> VOLVER
+                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver
                         </button>
                         <div class="keyhint">
-                            <span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span>
+                            <span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span>
                             <span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span>
                         </div>
                         <button type="button" class="wo-next-btn" id="wo-step01-next" onclick="document.getElementById('btn-next')?.click()">
-                            SIGUIENTE <span>→</span>
+                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -3056,7 +302,7 @@
                     <div class="wo-form-header-row">
                         <p class="wo-step-indicator">
                             <span class="marker">◍</span>
-                            <span class="wo-step-copy">PASO 02 DE 11 — DATOS PERSONALES</span>
+                            <span class="wo-step-copy">02 · Quién sos</span>
                         </p>
                     </div>
 
@@ -3067,7 +313,7 @@
 
                     <div class="input-wrapper" style="margin: 0;">
                         <div class="wo-input-row">
-                            <input type="text" id="full_name" class="form-input" placeholder="Nombre y apellidos"
+                            <input type="text" id="full_name" class="form-input" placeholder="Tu nombre completo"
                                 autocomplete="new-password" data-lpignore="true" data-form-type="other">
                         </div>
                         <div class="wo-hint-row">
@@ -3078,14 +324,14 @@
 
                     <div class="wo-step01-actions">
                         <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()">
-                            <span>←</span> VOLVER
+                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver
                         </button>
                         <div class="keyhint">
-                            <span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span>
+                            <span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span>
                             <span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span>
                         </div>
                         <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">
-                            SIGUIENTE <span>→</span>
+                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -3133,13 +379,13 @@
                     <div class="wo-form-header-row">
                         <p class="wo-step-indicator">
                             <span class="marker">◍</span>
-                            <span class="wo-step-copy">PASO 03 DE 11 — CONTACTO</span>
+                            <span class="wo-step-copy">03 · Tu acceso</span>
                         </p>
                     </div>
 
                     <div>
                         <h2 class="question-title">¿Cuál es tu<br>email principal?</h2>
-                        <p class="question-subtitle">Lo usaremos para confirmar tu cuenta, recuperar el acceso y enviarte avisos del registro.</p>
+                        <p class="question-subtitle">Lo usamos para confirmar tu cuenta, recuperar el acceso y enviarte avisos del registro.</p>
                     </div>
 
                     <div class="input-wrapper" style="margin: 0;">
@@ -3153,10 +399,10 @@
                     </div>
 
                     <div class="ig-preauth-only" style="display: none; margin-top: 0;">
-                        <p class="question-subtitle password-create-copy" style="margin-top: 0;">Crea una contraseña segura para tu cuenta.</p>
+                        <p class="question-subtitle password-create-copy" style="margin-top: 0;">Creá una contraseña segura para tu cuenta.</p>
                         <div class="input-wrapper">
                             <div class="wo-input-row password-input-row">
-                                <input type="password" id="signup_password" class="form-input" placeholder="Minimo 6 caracteres" autocomplete="new-password" minlength="6">
+                                <input type="password" id="signup_password" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6">
                                 <button type="button" class="password-toggle" data-password-toggle="signup_password" aria-label="Mostrar contraseña" aria-pressed="false">
                                     <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
@@ -3164,7 +410,7 @@
                             </div>
                             <div class="password-strength" id="password-strength" aria-live="polite">
                                 <div class="password-strength-track"><div class="password-strength-fill" id="password-strength-fill"></div></div>
-                                <div class="password-feedback" id="password-strength-text">Usa una mezcla dificil de adivinar.</div>
+                                <div class="password-feedback" id="password-strength-text">Usá una mezcla difícil de adivinar.</div>
                                 <ul class="password-rules" id="password-rules">
                                     <li data-rule="length">6+ caracteres</li>
                                     <li data-rule="case">Mayusculas y minusculas</li>
@@ -3176,26 +422,26 @@
                         </div>
                         <div class="input-wrapper" style="margin-top: 10px;">
                             <div class="wo-input-row password-input-row">
-                                <input type="password" id="signup_password_confirm" class="form-input" placeholder="Repite la contraseña" autocomplete="new-password" minlength="6">
+                                <input type="password" id="signup_password_confirm" class="form-input" placeholder="Repetí la contraseña" autocomplete="new-password" minlength="6">
                                 <button type="button" class="password-toggle" data-password-toggle="signup_password_confirm" aria-label="Mostrar confirmacion" aria-pressed="false">
                                     <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
                                 </button>
                             </div>
-                            <div class="password-match-hint" id="password-match-hint" aria-live="polite">Repite la contraseña para confirmar.</div>
+                            <div class="password-match-hint" id="password-match-hint" aria-live="polite">Repetí la contraseña para confirmar.</div>
                         </div>
                     </div>
 
                     <div class="wo-step01-actions">
                         <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()">
-                            <span>←</span> VOLVER
+                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver
                         </button>
                         <div class="keyhint">
-                            <span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span>
+                            <span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span>
                             <span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span>
                         </div>
                         <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">
-                            SIGUIENTE <span>→</span>
+                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -3222,11 +468,11 @@
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>04</div>
                     <div class="wo-form-header-row">
-                        <p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 04 DE 11 — ESTILOS</span></p>
+                        <p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">04 · Tu oficio</span></p>
                     </div>
                     <div>
-                        <h2 class="question-title">¿Qué estilos<br>trabajas?</h2>
-                        <p class="question-subtitle">Selecciona todos los estilos que representen tu trabajo actual.</p>
+                        <h2 class="question-title">¿Qué estilos<br>trabajás?</h2>
+                        <p class="question-subtitle">Elegí todos los que representen tu trabajo.</p>
                     </div>
                     <div>
                         <div class="styles-grid" id="styles-grid">
@@ -3234,21 +480,21 @@
                         </div>
                         <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
                             <div class="wo-input-row">
-                                <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribe tu estilo" autocomplete="off">
+                                <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribí tu estilo" autocomplete="off">
                                 <button type="button" class="geolocation-btn" id="add-custom-style-btn" aria-label="Agregar estilo">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
                                 </button>
                             </div>
                         </div>
                         <div class="wo-hint-row">
-                            <span class="wo-hint">Puedes elegir varios o agregar uno propio.</span>
+                            <span class="wo-hint">Podés elegir varios o agregar uno propio.</span>
                             <span class="wo-counter">04 / 11</span>
                         </div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3269,10 +515,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>05</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 05 DE 11 — EXPERIENCIA</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">05 · Tu oficio</span></p></div>
                     <div>
-                        <h2 class="question-title">¿Cuánta experiencia<br>tienes?</h2>
-                        <p class="question-subtitle">Elige el rango que mejor describe tu recorrido profesional.</p>
+                        <h2 class="question-title">¿Hace cuánto<br>tatuás?</h2>
+                        <p class="question-subtitle">Elegí el rango que mejor describa tu recorrido profesional.</p>
                     </div>
                     <div>
                         <div class="experience-options" id="experience-options">
@@ -3282,12 +528,12 @@
                             <button type="button" class="experience-option" data-years="5-10">5 - 10 años</button>
                             <button type="button" class="experience-option" data-years="10+">Más de 10 años</button>
                         </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Puedes actualizarlo después.</span><span class="wo-counter">05 / 11</span></div>
+                        <div class="wo-hint-row"><span class="wo-hint">Podés actualizarlo después.</span><span class="wo-counter">05 / 11</span></div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3308,10 +554,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>06</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 06 DE 11 — TARIFA</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">06 · Tu oficio</span></p></div>
                     <div>
                         <h2 class="question-title">¿Cuál es tu tarifa<br>por sesión?</h2>
-                        <p class="question-subtitle">Ingresa un valor aproximado. Sirve como referencia, no como precio fijo.</p>
+                        <p class="question-subtitle">Ingresá un valor aproximado. Sirve como referencia, no como precio fijo.</p>
                     </div>
                     <div class="input-wrapper price-wrapper" style="margin: 0;">
                         <div style="flex:1; min-width:0;">
@@ -3366,9 +612,9 @@
                         </select>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3389,10 +635,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>07</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 07 DE 11 — PORTFOLIO</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">07 · Tu presencia</span></p></div>
                     <div>
-                        <h2 class="question-title">¿Dónde muestras<br>tu trabajo?</h2>
-                        <p class="question-subtitle">Elige la fuente principal donde ya compartes tu portfolio.</p>
+                        <h2 class="question-title">¿Dónde mostrás<br>tu trabajo?</h2>
+                        <p class="question-subtitle">Elegí la fuente principal donde ya compartís tu portfolio.</p>
                     </div>
                     <div>
                         <div class="portfolio-source-options" id="portfolio-source-options">
@@ -3412,21 +658,21 @@
                                 <input type="text" id="instagram_handle" class="form-input" placeholder="tu_usuario" autocomplete="off">
                             </div>
                             <div id="ig-import-mount" style="margin-top: 14px;"></div>
-                            <small style="display:block; color:rgba(21,17,13,0.6); font-size:11px; margin-top:6px;">Opcional: importa bio, enlace de bio, fotos y reels desde Instagram para acelerar el registro.</small>
+                            <small class="portfolio-hint-note">Opcional: importá bio, enlace de bio, fotos y reels desde Instagram para acelerar el registro.</small>
                         </div>
                         <div id="portfolio-media-section" class="portfolio-media-section" style="display: none; margin-top: 16px;">
                             <label class="conditional-input-label" style="margin-bottom: 8px;">Fotos del portfolio</label>
-                            <p style="color:rgba(21,17,13,0.66); font-size:12px; margin: 0 0 10px;">Estas son las fotos que aparecerán en tu perfil. Puedes borrar las que no quieres y agregar más desde tu dispositivo.</p>
+                            <p class="portfolio-media-note">Estas son las fotos que van a aparecer en tu perfil. Borrá las que no quieras y agregá más desde tu dispositivo.</p>
                             <div id="portfolio-media-grid" class="portfolio-media-grid"></div>
-                            <button type="button" id="portfolio-media-add-btn" class="portfolio-media-add-btn"><i class="fa-solid fa-plus"></i> Agregar fotos o videos</button>
+                            <button type="button" id="portfolio-media-add-btn" class="portfolio-media-add-btn"><i data-wo-icon="plus" aria-hidden="true"></i> Agregar fotos o videos</button>
                             <input type="file" id="portfolio-media-file-input" accept="image/*,video/*" multiple hidden>
                         </div>
-                        <div class="wo-hint-row"><span class="wo-hint">Puedes empezar con We Ötzi aunque aún no tengas portfolio.</span><span class="wo-counter">07 / 11</span></div>
+                        <div class="wo-hint-row"><span class="wo-hint">Podés empezar con We Ötzi aunque todavía no tengas portfolio.</span><span class="wo-counter">07 / 11</span></div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3447,15 +693,15 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>08</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 08 DE 11 — BIO</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">08 · Tu presencia</span></p></div>
                     <div>
-                        <h2 class="question-title">Cuéntanos<br>sobre ti.</h2>
-                        <p class="question-subtitle">Escribe una presentación breve para clientes y colaboradores.</p>
+                        <h2 class="question-title">Contanos<br>quién sos.</h2>
+                        <p class="question-subtitle">Un par de líneas sobre vos y tu trabajo, para clientes y colaboradores.</p>
                     </div>
                     <div class="bio-step-body">
                         <button type="button" id="bio-mobile-open" class="bio-mobile-open" aria-haspopup="dialog" aria-controls="bio-editor-modal">
                             <span class="bio-mobile-open-kicker">Editor WYSIWYG</span>
-                            <span id="bio-mobile-preview" class="bio-mobile-preview">Toca para escribir tu bio.</span>
+                            <span id="bio-mobile-preview" class="bio-mobile-preview">Tocá para escribir tu bio.</span>
                             <span class="bio-mobile-open-action">Abrir editor →</span>
                         </button>
                         <div id="bio-editor-modal" class="bio-editor-wrapper">
@@ -3476,21 +722,21 @@
                                 <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo"><span class="color-icon bg-color"></span><input id="bg-color-picker" type="color" class="color-picker" value="#FFEB3B"></button>
                                 <div class="toolbar-separator"></div>
                                 <button type="button" class="toolbar-btn" data-command="createLink" title="Insertar enlace"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
-                                <button type="button" id="emoji-trigger" class="toolbar-btn emoji-btn" title="Emojis"><span>☺</span></button>
+                                <button type="button" id="emoji-trigger" class="toolbar-btn emoji-btn" title="Emojis"><i data-wo-icon="smile" class="wo-icon-18" aria-hidden="true"></i></button>
                             </div>
                             <div id="emoji-picker" class="emoji-picker">
                                 <div class="emoji-grid">
                                     <button type="button" class="emoji-item">😀</button><button type="button" class="emoji-item">😎</button><button type="button" class="emoji-item">🎨</button><button type="button" class="emoji-item">✨</button><button type="button" class="emoji-item">🔥</button><button type="button" class="emoji-item">💪</button><button type="button" class="emoji-item">🖤</button><button type="button" class="emoji-item">❤️</button><button type="button" class="emoji-item">💫</button><button type="button" class="emoji-item">⚡</button><button type="button" class="emoji-item">🌟</button><button type="button" class="emoji-item">💀</button><button type="button" class="emoji-item">🦋</button><button type="button" class="emoji-item">🌹</button><button type="button" class="emoji-item">🐉</button><button type="button" class="emoji-item">🎭</button><button type="button" class="emoji-item">💉</button><button type="button" class="emoji-item">🎯</button><button type="button" class="emoji-item">🏆</button><button type="button" class="emoji-item">📍</button>
                                 </div>
                             </div>
-                            <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribe tu bio aquí..."></div>
+                            <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribí tu bio acá…"></div>
                         </div>
                         <div class="wo-hint-row"><span class="wo-hint">Este paso es opcional, pero mejora tu perfil.</span><span class="wo-counter">08 / 11</span></div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3511,10 +757,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>09</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 09 DE 11 — TRABAJO</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">09 · Cómo trabajás</span></p></div>
                     <div>
-                        <h2 class="question-title">¿Cómo trabajas<br>actualmente?</h2>
-                        <p class="question-subtitle">Elige tu modalidad principal y añade dirección si aplica.</p>
+                        <h2 class="question-title">¿Estudio o<br>independiente?</h2>
+                        <p class="question-subtitle">Elegí tu modalidad principal y agregá dirección si aplica.</p>
                     </div>
                     <div>
                         <div class="work-type-options" id="work-type-options">
@@ -3523,13 +769,13 @@
                             <button type="button" class="work-type-option" data-type="both"><span class="work-type-label">Ambos</span><span class="work-type-desc">Combino ambas modalidades</span></button>
                         </div>
                         <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
-                            <label class="studio-name-label">Nombre del estudio donde trabajas:</label>
+                            <label class="studio-name-label">Nombre del estudio donde trabajás</label>
                             <div class="wo-input-row studio-autocomplete-wrapper">
                                 <input type="text" id="studio_name" class="form-input" placeholder="Nombre del estudio" autocomplete="off">
                                 <div class="studio-suggestions" id="studio-suggestions"></div>
                             </div>
                             <p class="wo-plain-preview studio-address-preview" id="studio-address-preview" hidden>
-                                <span>Direccion del estudio:</span> <strong></strong>
+                                <span>Dirección del estudio:</span> <strong></strong>
                             </p>
                         </div>
                         <div class="studio-location-select-wrapper" id="studio-location-select-wrapper" hidden>
@@ -3538,19 +784,19 @@
                         </div>
                         <div class="address-picker-wrapper" id="address-picker-wrapper" style="display: none;">
                             <label class="studio-name-label" id="address-picker-label">Dirección del estudio</label>
-                            <p class="address-picker-help" id="address-picker-help">Busca la dirección y elige una sugerencia para ubicarla con precisión.</p>
+                            <p class="address-picker-help" id="address-picker-help">Buscá la dirección y elegí una sugerencia para ubicarla con precisión.</p>
                             <div class="wo-input-row"><input type="text" id="address_search" class="form-input" placeholder="Calle 123, Ciudad, País" autocomplete="off"></div>
                             <details class="address-details" id="address-details" hidden>
-                                <summary>Ver datos completos de la direccion</summary>
+                                <summary>Ver datos completos de la dirección</summary>
                                 <div class="weotzi-address-fields" id="address-preview" hidden></div>
                             </details>
                         </div>
                         <div class="wo-hint-row"><span class="wo-hint" aria-hidden="true"></span><span class="wo-counter">09 / 11</span></div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3571,10 +817,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>10</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 10 DE 11 — VERIFICACIÓN</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">10 · Verificación</span></p></div>
                     <div>
                         <h2 class="question-title">¿Cuál es tu fecha<br>de nacimiento?</h2>
-                        <p class="question-subtitle">Necesitamos confirmar que eres mayor de edad.</p>
+                        <p class="question-subtitle">Necesitamos confirmar que seas mayor de edad.</p>
                     </div>
                     <div>
                         <div class="birth-date-selects">
@@ -3585,9 +831,9 @@
                         <div class="wo-hint-row"><span class="wo-hint">Dato privado y requerido para verificación.</span><span class="wo-counter">10 / 11</span></div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">SIGUIENTE <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para continuar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3608,29 +854,29 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>11</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">PASO 11 DE 11 — COMUNIDAD</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">11 · Novedades</span></p></div>
                     <div>
-                        <h2 class="question-title">¿Quieres recibir<br>novedades?</h2>
-                        <p class="question-subtitle">Recibe oportunidades, herramientas, avisos tempranos y recursos pensados para que tu perfil trabaje mejor por ti.</p>
+                        <h2 class="question-title">¿Qué querés<br>recibir?</h2>
+                        <p class="question-subtitle">Oportunidades, herramientas, avisos tempranos y recursos pensados para que tu perfil trabaje mejor por vos.</p>
                     </div>
                     <div>
                         <div class="newsletter-invite-block">
                             <div class="newsletter-invite">
-                                <h3>Radar de artistas We Otzi</h3>
-                                <p>Recibe lanzamientos, mejoras del perfil, oportunidades y avisos importantes para crecer con menos ruido.</p>
+                                <h3>Radar de artistas We Ötzi</h3>
+                                <p>Recibí lanzamientos, mejoras del perfil, oportunidades y avisos importantes para crecer con menos ruido.</p>
                             </div>
                         </div>
                         <div class="newsletter-options" id="newsletter-options" aria-describedby="newsletter-error">
                             <button type="button" class="newsletter-option" data-subscribe="true"><span class="newsletter-option-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5" /></svg></span><span class="newsletter-option-text">Sí, quiero unirme</span></button>
                             <button type="button" class="newsletter-option newsletter-option-decline" data-subscribe="false"><span class="newsletter-option-text">Ahora no</span></button>
                         </div>
-                        <p class="newsletter-error" id="newsletter-error" role="alert" hidden>Elige una opcion para continuar.</p>
-                        <div class="wo-hint-row"><span class="wo-hint">Puedes cambiar esta preferencia después.</span><span class="wo-counter">11 / 11</span></div>
+                        <p class="newsletter-error" id="newsletter-error" role="alert" hidden>Elegí una opción para continuar.</p>
+                        <div class="wo-hint-row"><span class="wo-hint">Podés cambiar esta preferencia después.</span><span class="wo-counter">11 / 11</span></div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para revisar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">REVISAR <span>→</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para revisar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Revisar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3651,10 +897,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator summary-indicator" hidden>OK</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">REVISIÓN — DATOS DEL PERFIL</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">Revisá y confirmá</span></p></div>
                     <div>
-                        <h2 class="question-title">Revisa tus<br>datos.</h2>
-                        <p class="question-subtitle">Confirma que todo esté correcto antes de enviar tu registro.</p>
+                        <h2 class="question-title">Revisá tus<br>datos.</h2>
+                        <p class="question-subtitle">Confirmá que todo esté correcto antes de crear tu perfil.</p>
                     </div>
                     <div>
                         <div class="summary-review">
@@ -3670,7 +916,7 @@
                                 <div class="summary-review-panel">
                                     <div class="summary-review-head">
                                         <div>
-                                            <p class="wo-step-indicator"><span class="marker">●</span><span>REVISION</span></p>
+                                            <p class="wo-step-indicator"><span>Revisión</span></p>
                                             <h3 id="summary-review-title">Formulario completo.</h3>
                                         </div>
                                         <button type="button" id="summary-review-close" class="summary-review-close" aria-label="Cerrar revision">×</button>
@@ -3689,13 +935,13 @@
                                 <span class="terms-checkmark"></span>
                                 <span class="terms-text">Acepto los <a href="https://weotzi.com/terms" target="_blank" class="terms-link">Términos y Condiciones</a> y la <a href="https://weotzi.com/privacy" target="_blank" class="terms-link">Política de Privacidad</a></span>
                             </label>
-                            <p class="terms-info">También aceptas recibir correos del sistema e información acerca del programa de beta cerrada.</p>
+                            <p class="terms-info">También aceptás recibir correos del sistema e información del programa de beta cerrada.</p>
                         </div>
                     </div>
                     <div class="wo-step01-actions">
-                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><span>←</span> VOLVER</button>
-                        <div class="keyhint"><span class="desktop-keyhint">Presiona <span class="wo-kbd">↵</span> para confirmar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">CONFIRMAR <span>✓</span></button>
+                        <button type="button" class="wo-back-btn" onclick="document.getElementById('btn-back')?.click()"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver</button>
+                        <div class="keyhint"><span class="desktop-keyhint">Presioná <span class="wo-kbd">↵</span> para confirmar</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TÉRMINOS</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
+                        <button type="button" class="wo-next-btn" onclick="document.getElementById('btn-next')?.click()">Confirmar y crear perfil <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -3716,26 +962,26 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>...</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">●</span><span class="wo-step-copy">CONFIRMACION — CREANDO CUENTA</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">●</span><span class="wo-step-copy">Creando tu cuenta</span></p></div>
                     <div>
                         <h2 class="question-title">Un momento.</h2>
-                        <p class="question-subtitle">Estamos creando tu usuario, guardando el perfil y preparando la confirmacion.</p>
+                        <p class="question-subtitle">Estamos creando tu usuario, guardando el perfil y preparando la confirmación.</p>
                     </div>
                     <div class="saving-grid" aria-live="polite">
                         <div class="saving-loader" aria-hidden="true"></div>
                         <div class="saving-copy-carousel" aria-hidden="true">
-                            <span class="saving-copy-item">Estas a un paso de llevar tu arte al mundo</span>
+                            <span class="saving-copy-item">Estás a un paso de llevar tu arte al mundo</span>
                             <span class="saving-copy-item">Ajustando stencil</span>
-                            <span class="saving-copy-item">No mas bailecitos de TikTok con We Otzi</span>
+                            <span class="saving-copy-item">Organizando tu agenda</span>
                             <span class="saving-copy-item">Des-influenciando el arte</span>
                             <span class="saving-copy-item">Puliendo tu manifiesto visual</span>
                             <span class="saving-copy-item">Sacando el algoritmo del atelier</span>
                             <span class="saving-copy-item">Preparando tinta para perfiles serios</span>
-                            <span class="saving-copy-item">Menos ruido, mas obra</span>
+                            <span class="saving-copy-item">Menos ruido, más obra</span>
                             <span class="saving-copy-item">Curando tu vitrina sin humo</span>
                             <span class="saving-copy-item">Haciendo espacio para artistas reales</span>
                         </div>
-                        <span class="saving-copy-sr">Estamos creando tu cuenta de artista en We Otzi.</span>
+                        <span class="saving-copy-sr">Estamos creando tu cuenta de artista en We Ötzi.</span>
                     </div>
                 </div>
             </section>
@@ -3756,10 +1002,10 @@
                 </div>
                 <div class="wo-form-col">
                     <div class="step-indicator" hidden>OK</div>
-                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">CONFIRMACION - PERFIL ENVIADO</span></p></div>
+                    <div class="wo-form-header-row"><p class="wo-step-indicator"><span class="marker">◍</span><span class="wo-step-copy">Perfil enviado</span></p></div>
                     <div>
                         <h2 class="question-title success-title">Registro<br>enviado.</h2>
-                        <p class="question-subtitle">Tu perfil quedo pendiente de validacion. Inicia sesion cuando quieras revisar el estado.</p>
+                        <p class="question-subtitle">Tu perfil quedó pendiente de validación. Iniciá sesión cuando quieras revisar el estado.</p>
                     </div>
                     <div class="success-animation">
                         <div class="success-circle"></div>
@@ -3767,8 +1013,8 @@
                     </div>
                     <div class="wo-step01-actions">
                         <span></span>
-                        <div class="keyhint"><span class="desktop-keyhint">STATUS <span class="wo-kbd">OK</span> PENDIENTE DE VALIDACION</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">TERMINOS</a> - <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">PRIVACIDAD</a></span></div>
-                        <a href="/registerclosedbeta" class="wo-next-btn" style="text-decoration:none;">IR AL LOGIN <span>→</span></a>
+                        <div class="keyhint"><span class="desktop-keyhint">Status <span class="wo-kbd">OK</span> · Pendiente de validación</span><span class="mobile-terms"><a href="https://weotzi.com/terms" target="_blank" rel="noopener">Términos</a> · <a href="https://weotzi.com/privacy" target="_blank" rel="noopener">Privacidad</a></span></div>
+                        <a href="/registerclosedbeta" class="wo-next-btn" style="text-decoration:none;">Ir al login <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
                     </div>
                 </div>
             </section>
@@ -3806,8 +1052,8 @@
         <div class="portfolio-media-modal-panel">
             <div class="portfolio-media-modal-head">
                 <div>
-                    <p class="wo-step-indicator"><span class="marker">●</span><span>PORTFOLIO</span></p>
-                    <h2 id="portfolio-media-modal-title">Edita tus fotos y videos.</h2>
+                    <p class="wo-step-indicator"><span>Portfolio</span></p>
+                    <h2 id="portfolio-media-modal-title">Editá tus fotos y videos.</h2>
                 </div>
                 <button type="button" class="portfolio-media-modal-close" id="portfolio-media-modal-close" aria-label="Cerrar">×</button>
             </div>
@@ -3830,14 +1076,13 @@
 
     <script>
         // ============================================================
-        // PASO 01 · Bauhaus redesign — supporting interactions
+        // Registro DS Bauhaus — interacciones de soporte
         // ------------------------------------------------------------
-        // 1) Mobile drawer toggle (own implementation; rnh drawer hidden)
-        // 2) Mirror register.js's #progress-fill width onto the new
-        //    segmented progress bar (--wo-progress scale-x)
-        // 3) Real-time availability hint for #artistic_name (visual only;
-        //    server-side validation is still handled by register.js when
-        //    the user advances)
+        // 1) Drawer móvil del topbar
+        // 2) Sync del nav de grupos del topbar + copy de progreso,
+        //    observando el #progress-label oculto que escribe register.js
+        // 3) Hint de disponibilidad para #artistic_name (solo visual;
+        //    la validación server-side sigue en register.js al avanzar)
         // ============================================================
         (function () {
             'use strict';
@@ -3863,63 +1108,74 @@
                 toggleWoDrawer(false);
             });
             window.addEventListener('resize', () => {
-                if (window.innerWidth > 600) toggleWoDrawer(false);
+                if (window.innerWidth > 768) toggleWoDrawer(false);
             });
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') toggleWoDrawer(false);
             });
 
-            // -------- Progress bar fill mirror --------
-            // register.js updates #progress-fill's style.width as percentage
-            // (e.g. "8.33%"). We mirror that as a scaleX fraction on
-            // .wo-progress-bar (via CSS custom property --wo-progress).
-            function syncProgressFill() {
-                const fill = document.getElementById('progress-fill');
-                const bar = document.querySelector('.wo-progress-bar');
-                if (!fill || !bar) return;
-                const w = fill.style.width || '';
-                let frac = 1 / 11; // default
-                if (w.endsWith('%')) {
-                    const num = parseFloat(w);
-                    if (!isNaN(num)) frac = Math.max(0, Math.min(1, num / 100));
-                }
-                bar.style.setProperty('--wo-progress', String(frac));
-            }
-            function syncProgressCells(stepValue) {
-                const cells = Array.from(document.querySelectorAll('.wo-progress-cells .cell'));
-                const bar = document.querySelector('.wo-progress-bar');
-                if (!cells.length) return;
-                const normalized = String(stepValue || '').trim().toLowerCase();
-                const rawStep = normalized.startsWith('ig')
-                    ? 1
-                    : normalized.includes('resumen') || normalized.includes('listo') || normalized.includes('creando')
-                    ? cells.length
-                    : Number.parseInt(normalized.match(/\d+/)?.[0] || '1', 10);
-                const visualStep = Number.isFinite(rawStep) ? Math.max(1, Math.min(cells.length, rawStep)) : 1;
-                cells.forEach((cell, index) => {
-                    cell.classList.toggle('active', index === visualStep - 1);
-                });
-                if (bar) bar.setAttribute('aria-valuenow', String(visualStep));
-            }
-            function syncProgressCellsFromLabel() {
+            // -------- Nav de grupos del topbar --------
+            // Mapa paso numérico → grupo del Figma (frames 59-66).
+            const GROUP_ORDER = ['quien', 'acceso', 'oficio', 'presencia', 'trabajo', 'novedades', 'revision'];
+            const STEP_GROUP = {
+                1: 'quien', 2: 'quien',
+                3: 'acceso',
+                4: 'oficio', 5: 'oficio', 6: 'oficio',
+                7: 'presencia', 8: 'presencia',
+                9: 'trabajo', 10: 'trabajo',
+                11: 'novedades'
+            };
+
+            function syncTopbarFromLabel() {
                 const label = document.getElementById('progress-label');
-                syncProgressCells(label ? label.textContent : '01');
+                const copyEl = document.getElementById('ra-progress-copy');
+                const groups = Array.from(document.querySelectorAll('#ra-topbar-groups .ra-group'));
+                if (!groups.length) return;
+
+                const raw = String(label ? label.textContent : '01').trim();
+                const lower = raw.toLowerCase();
+                let activeGroup = 'quien';
+                let copy = '';
+
+                if (lower.startsWith('ig')) {
+                    activeGroup = 'quien';
+                    copy = 'Importación IG';
+                } else if (lower.includes('resumen')) {
+                    activeGroup = 'revision';
+                    copy = 'Revisión';
+                } else if (lower.includes('creando')) {
+                    activeGroup = 'revision';
+                    copy = 'Creando cuenta…';
+                } else if (lower.includes('listo')) {
+                    activeGroup = 'revision';
+                    copy = 'Listo';
+                } else {
+                    const num = Number.parseInt(lower.match(/\d+/)?.[0] || '1', 10);
+                    const step = Number.isFinite(num) ? Math.max(1, Math.min(11, num)) : 1;
+                    activeGroup = STEP_GROUP[step] || 'quien';
+                    copy = 'Paso ' + String(step).padStart(2, '0') + ' · 11';
+                }
+
+                const activeIdx = GROUP_ORDER.indexOf(activeGroup);
+                groups.forEach((el) => {
+                    const idx = GROUP_ORDER.indexOf(el.dataset.group);
+                    el.classList.toggle('is-active', idx === activeIdx);
+                    el.classList.toggle('is-done', idx > -1 && idx < activeIdx);
+                });
+                if (lower.includes('listo')) {
+                    groups.forEach((el) => el.classList.add('is-done'));
+                }
+                if (copyEl) copyEl.textContent = copy;
             }
-            const fill = document.getElementById('progress-fill');
-            if (fill) {
-                const mo = new MutationObserver(syncProgressFill);
-                mo.observe(fill, { attributes: true, attributeFilter: ['style'] });
-            }
+
             const progressLabelNode = document.getElementById('progress-label');
             if (progressLabelNode) {
-                const progressMo = new MutationObserver(syncProgressCellsFromLabel);
+                const progressMo = new MutationObserver(syncTopbarFromLabel);
                 progressMo.observe(progressLabelNode, { childList: true, characterData: true, subtree: true });
             }
-            // Initial sync after register.js runs
-            window.addEventListener('load', syncProgressFill);
-            window.addEventListener('load', syncProgressCellsFromLabel);
-            document.addEventListener('DOMContentLoaded', syncProgressFill);
-            document.addEventListener('DOMContentLoaded', syncProgressCellsFromLabel);
+            // Sync inicial después de que corra register.js
+            window.addEventListener('load', syncTopbarFromLabel);
+            document.addEventListener('DOMContentLoaded', syncTopbarFromLabel);
 
             // -------- Availability hint for artistic_name --------
             const input = document.getElementById('artistic_name');
@@ -3967,7 +1223,7 @@
                 const normalized = normalizeHandle(cleaned);
                 if (previewValue) previewValue.textContent = (normalized || 'nombre') + '.wo';
                 if (!cleaned) {
-                    setState('empty', 'Escribe tu nombre artistico.');
+                    setState('empty', 'Escribí tu nombre artístico.');
                     return;
                 }
                 if (normalized.length < 3 || normalized.length > 30) {
@@ -3975,7 +1231,7 @@
                     return;
                 }
                 if (RESERVED.has(normalized)) {
-                    setState('taken', '✗ NOMBRE RESERVADO — PROBA OTRO');
+                    setState('taken', '✗ NOMBRE RESERVADO — PROBÁ OTRO');
                     return;
                 }
                 setState('available', '✓ DISPONIBLE COMO ' + normalized + '.wo');
@@ -4077,7 +1333,7 @@
                         return;
                     }
                     renderSuggestions(suggestionsFor(normalized));
-                    setState('taken', '× YA EXISTE. PRUEBA UNA ALTERNATIVA.');
+                    setState('taken', '× YA EXISTE. PROBÁ UNA ALTERNATIVA.');
                 } catch (_) {
                     if (currentSeq !== seq) return;
                     renderSuggestions([]);
@@ -4095,7 +1351,7 @@
                 if (!raw.trim()) {
                     renderSuggestions([]);
                     window.__weotziUsernameAvailability.username = '';
-                    setState('empty', 'Escribe tu nombre artistico.');
+                    setState('empty', 'Escribí tu nombre artístico.');
                     return;
                 }
                 if (normalized.length < 3) {
@@ -4107,7 +1363,7 @@
                 if (reserved.has(normalized)) {
                     renderSuggestions(suggestionsFor(normalized));
                     window.__weotziUsernameAvailability.username = normalized + '.wo';
-                    setState('taken', '× NOMBRE RESERVADO. PRUEBA OTRO.');
+                    setState('taken', '× NOMBRE RESERVADO. PROBÁ OTRO.');
                     return;
                 }
 

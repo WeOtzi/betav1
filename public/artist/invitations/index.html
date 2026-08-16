@@ -3,45 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Invitaciones a estudios</title>
+    <title>We Ötzi · Invitaciones</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/studio-spots-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/studio.css">
 </head>
-<body data-theme="light">
-    <div class="studio-page">
-        <header class="studio-masthead">
-            <a href="/artist/dashboard" class="nav-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <div class="studio-masthead-title">
-                <span class="studio-masthead-eyebrow">Artista · Invitaciones</span>
-                <span class="studio-masthead-wordmark">Tus <span class="accent">invitaciones</span></span>
-            </div>
-            <nav class="studio-masthead-actions">
-                <a href="/artist/dashboard">Mi panel</a>
-                <a href="/studio-spots">Spots</a>
-                <a href="/explore">Mapa</a>
+<body class="wo-app">
+
+    <!-- TopBar -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación de artista">
+                <a href="/artist/dashboard" class="wo-topbar-item">Mi panel</a>
+                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
+                <a href="/artist/invitations" class="wo-topbar-item is-active" aria-current="page">Invitaciones</a>
+                <a href="/explore" class="wo-topbar-item">Mapa</a>
             </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <span class="wo-marks" aria-hidden="true">
+                <i class="wo-mark-square"></i><i class="wo-mark-circle"></i><i class="wo-mark-triangle"></i>
+            </span>
+        </div>
+    </header>
+
+    <main class="wo-container inv-shell">
+        <header class="inv-head">
+            <div>
+                <span class="wo-eyebrow" id="inv-eyebrow">Invitaciones</span>
+                <h1 class="inv-title">Los <span class="wo-highlight">estudios</span> que te quieren en su equipo.</h1>
+                <p class="inv-sub">
+                    Aceptá para sumarte al roster del estudio: vas a aparecer en su perfil público y en el mapa.
+                    Tu perfil personal sigue siendo tuyo — el estudio no puede editarlo.
+                </p>
+            </div>
+            <div class="inv-count">
+                <span class="inv-count-num" id="inv-count">0</span>
+                <span class="wo-meta-s wo-faint">Invitaciones abiertas</span>
+            </div>
         </header>
 
-        <main class="studio-shell">
-            <p class="studio-section-kicker">Membresías</p>
-            <h1 class="studio-h1">Estudios que te <span class="accent">invitaron</span></h1>
-            <p class="studio-help" style="margin-bottom:18px;max-width:60ch;">
-                Aceptá para sumarte al roster del estudio (vas a aparecer en su perfil público y en el mapa).
-                Tu perfil personal sigue siendo tuyo — el estudio NO puede editarlo.
-            </p>
+        <section aria-label="Invitaciones pendientes">
+            <div id="invitations-list" class="inv-list"><em class="wo-muted">Cargando…</em></div>
+        </section>
 
-            <div id="invitations-list"><em class="studio-help">Cargando…</em></div>
-
-            <h2 class="studio-h2" style="margin-top:32px;">Memberships activas</h2>
-            <div id="active-list"><em class="studio-help">Cargando…</em></div>
-        </main>
-    </div>
+        <section class="inv-section" aria-label="Membresías activas">
+            <hr class="wo-divider wo-divider--strong">
+            <h2 class="wo-h2 inv-h2">Membresías activas</h2>
+            <div id="active-list"><em class="wo-muted">Cargando…</em></div>
+        </section>
+    </main>
 
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>

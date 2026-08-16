@@ -1,194 +1,158 @@
-/* Statistics Page Styles */
-:root {
-    --stat-card-bg: #ffffff;
-    --stat-card-border: 2px solid var(--ink);
-    --stat-card-shadow: 4px 4px 0 var(--ink);
-    --chart-height: 300px;
-}
+/* ============================================================================
+   We Ötzi · Estadísticas del artista — Design System Bauhaus
+   Requiere ds/tokens.css + ds/components.css + quotations.css (layout común).
+   Cero hex sueltos: todo color sale de var(--token).
+   ========================================================================== */
 
 .stats-container {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 20px;
-    padding: 20px 40px;
-    max-width: 1600px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
 }
 
-/* KPI Cards Row */
+/* ---------- KPIs (Figma: número Archivo 40 de color + delta mono) ---------- */
 .kpi-row {
-    grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: var(--border-hairline) solid var(--border-strong);
+    padding-top: var(--space-6);
 }
 
 .kpi-card {
-    background: var(--stat-card-bg);
-    border: var(--stat-card-border);
-    box-shadow: var(--stat-card-shadow);
-    padding: 20px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    transition: transform 0.2s ease;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-6);
+    border-left: var(--border-hairline) solid var(--sand-350);
 }
 
-.kpi-card:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0 var(--ink);
-}
+.kpi-card:first-child { padding-left: 0; border-left: 0; }
 
 .kpi-title {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.9rem;
-    color: var(--ink);
-    opacity: 0.7;
-    margin-bottom: 10px;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
     text-transform: uppercase;
+    color: var(--text-faint);
+    order: 1;
 }
 
 .kpi-value {
-    font-family: 'Inter', sans-serif;
-    font-size: 2.5rem;
-    font-weight: 900;
-    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 40px;
+    line-height: 1;
+    color: var(--surface-ink);
 }
+
+.kpi-card--money .kpi-value { color: var(--system-success); }
+.kpi-card--accent .kpi-value { color: var(--yellow-400); }
+.kpi-card--direct .kpi-value { color: var(--blue-300); }
 
 .kpi-trend {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.8rem;
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: 0.04em;
+    order: 2;
 }
 
-.trend-up { color: #27ae60; }
-.trend-down { color: #e74c3c; }
-.trend-neutral { color: #7f8c8d; }
+.kpi-trend.trend-up { color: var(--system-success); }
+.kpi-trend.trend-down { color: var(--system-error); }
+.kpi-trend.trend-neutral { color: var(--text-faint); }
 
-/* Charts Layout */
+/* ---------- Tarjetas de gráficos ---------- */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-5);
+}
+
 .chart-container {
-    background: var(--stat-card-bg);
-    border: var(--stat-card-border);
-    box-shadow: var(--stat-card-shadow);
-    padding: 20px;
-    position: relative;
     display: flex;
     flex-direction: column;
+    gap: var(--space-4);
+    background: var(--surface-card);
+    border: var(--border-hairline) solid var(--border-strong);
+    padding: var(--space-6);
+    min-height: 360px;
+    box-sizing: border-box;
 }
 
 .chart-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
 }
 
 .chart-title {
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    font-size: 1.2rem;
-    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-lead-track);
+    text-transform: uppercase;
+    color: var(--surface-ink);
 }
 
 .chart-actions select {
-    padding: 5px 10px;
-    border: 1px solid var(--ink);
-    font-family: 'Space Mono', monospace;
-    font-size: 0.8rem;
+    appearance: none;
+    min-height: var(--control-h-sm);
+    padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3);
+    background-color: var(--surface-input);
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A5449' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-2) center;
+    border: var(--border-hairline) solid var(--border-strong);
+    border-radius: var(--radius-none);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--neutral-500);
     cursor: pointer;
 }
 
-/* Specific Chart Areas */
-.revenue-chart-box {
-    grid-column: span 8;
-    height: 400px;
-}
+.chart-body { flex: 1; position: relative; min-height: 220px; }
 
-.style-chart-box {
-    grid-column: span 4;
-    height: 400px;
-}
-
-.conversion-chart-box {
-    grid-column: span 6;
-    height: 350px;
-}
-
-.demographics-box {
-    grid-column: span 6;
-    height: 350px;
-}
-
-/* Table Section */
-.stats-table-section {
-    grid-column: 1 / -1;
-    background: var(--stat-card-bg);
-    border: var(--stat-card-border);
-    box-shadow: var(--stat-card-shadow);
-    padding: 20px;
-    margin-top: 20px;
-}
-
+/* ---------- Tabla de mejores clientes ---------- */
 .stats-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.9rem;
 }
 
 .stats-table th {
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
     text-align: left;
-    padding: 12px;
-    border-bottom: 2px solid var(--ink);
-    background: #f8f9fa;
+    padding: var(--space-3) var(--space-3);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
+    background: var(--neutral-100);
 }
 
 .stats-table td {
-    padding: 12px;
-    border-bottom: 1px solid #eee;
+    padding: var(--space-3);
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+    font-size: var(--body-s-size);
+    color: var(--neutral-500);
 }
 
-.stats-table tr:hover {
-    background-color: #f8f9fa;
+.stats-table td:first-child { font-weight: var(--weight-bold); color: var(--surface-ink); }
+.stats-table tr:last-child td { border-bottom: 0; }
+.stats-table tbody tr:hover { background: var(--neutral-100); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); row-gap: var(--space-6); }
+    .kpi-card:nth-child(odd) { padding-left: 0; border-left: 0; }
 }
 
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-    .revenue-chart-box, .style-chart-box {
-        grid-column: span 12;
-    }
-    
-    .conversion-chart-box, .demographics-box {
-        grid-column: span 12;
-    }
-}
-
-/* Loading State */
-.chart-loading {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255,255,255,0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-family: 'Space Mono', monospace;
-    z-index: 10;
-}
-
-/* Bauhaus Colors for Charts */
-:root {
-    --chart-red: #E63946;
-    --chart-blue: #457B9D;
-    --chart-yellow: #F4D03F;
-    --chart-dark: #1D3557;
-    --chart-light: #A8DADC;
+@media (max-width: 480px) {
+    .kpi-row { grid-template-columns: 1fr; }
+    .kpi-card { padding-left: 0; border-left: 0; }
+    .kpi-value { font-size: var(--title-sm-size); }
+    .chart-container { min-height: 300px; padding: var(--space-4); }
 }

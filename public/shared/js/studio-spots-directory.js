@@ -1,7 +1,8 @@
 // ============================================
-// Public Spots Directory
+// Public Spots Directory (DS Bauhaus)
 // Lists all `studio_spots` with status='open', filterable by kind.
-// Click a card → modal with full details + Apply CTA.
+// Primer spot → tarjeta destacada; el resto → mosaico editorial.
+// Click en cualquier tarjeta → modal con detalle + CTA de postulación.
 // Apply requires the visitor to be authenticated as an artist; otherwise we
 // route them to /artist/login with a returnTo.
 // ============================================
@@ -16,6 +17,7 @@
     const _supabase = window._supabase;
 
     const KIND_LABELS = { resident: 'Residencia', itinerant: 'Itinerante', guest_spot: 'Guest spot' };
+    const URGENT_DAYS = 7;
     let spots = [];
     let activeKind = '';
 
@@ -30,7 +32,7 @@
 
         if (error) {
             document.getElementById('spots-grid').innerHTML =
-                '<em class="studio-help">No pudimos cargar los spots: ' + escapeHtml(error.message) + '</em>';
+                '<div class="wo-alert wo-alert--error">No pudimos cargar los spots: ' + escapeHtml(error.message) + '</div>';
             return;
         }
         spots = data || [];
@@ -42,11 +44,18 @@
         const grid = document.getElementById('spots-grid');
         const filtered = activeKind ? spots.filter(s => s.kind === activeKind) : spots;
         if (filtered.length === 0) {
-            grid.innerHTML = '<em class="studio-help">No hay spots abiertos en esta categoría por ahora.</em>';
+            grid.innerHTML = `
+                <div class="wo-empty" style="grid-column:1/-1;">
+                    <i data-wo-icon="inbox" aria-hidden="true"></i>
+                    <span class="wo-empty-title">No hay spots abiertos en esta categoría</span>
+                    <p>Volvé más tarde o probá con otro tipo de spot.</p>
+                </div>
+            `;
             return;
         }
-        grid.innerHTML = filtered.map(s => renderCard(s)).join('');
-        grid.querySelectorAll('.spot-card').forEach(card => {
+        const [first, ...rest] = filtered;
+        grid.innerHTML = renderHero(first) + rest.map((s, i) => renderTile(s, i)).join('');
+        grid.querySelectorAll('[data-id]').forEach(card => {
             card.addEventListener('click', () => {
                 const id = card.dataset.id;
                 const spot = spots.find(x => x.id === id);
@@ -55,44 +64,100 @@
         });
     }
 
-    function renderCard(s) {
-        const cover = s.cover_image || (s.studios && s.studios.cover_image) || '';
+    // ---- helpers de contenido ----
+
+    function spotName(s) {
+        const studio = s.studios || {};
+        return studio.name || s.title || 'Estudio';
+    }
+
+    function durationText(s) {
+        if (s.weeks_minimum) {
+            const w = s.weeks_maximum && s.weeks_maximum !== s.weeks_minimum
+                ? `${s.weeks_minimum}–${s.weeks_maximum} semanas`
+                : `${s.weeks_minimum} semana${s.weeks_minimum === 1 ? '' : 's'}`;
+            return w;
+        }
+        if (s.start_date) return formatDateRange(s.start_date, s.end_date);
+        return '';
+    }
+
+    function metaLine(s) {
+        const parts = [];
+        const dur = durationText(s);
+        if (dur) parts.push(dur);
+        if (s.revenue_split_pct != null) parts.push(`Split ${Number(s.revenue_split_pct).toFixed(0)}%`);
+        if (s.stipend_amount) parts.push(`Stipend ${s.stipend_amount} ${s.stipend_currency || ''}`.trim());
+        return parts.join(' · ');
+    }
+
+    function daysToClose(s) {
+        if (!s.expires_at) return null;
+        const diff = new Date(s.expires_at) - Date.now();
+        if (diff <= 0) return 0;
+        return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    }
+
+    function markHtml(kind) {
+        return `<span class="sps-mark sps-mark--${escapeAttr(kind)}" aria-hidden="true"></span>`;
+    }
+
+    // ---- tarjeta destacada ----
+
+    function renderHero(s) {
         const studio = s.studios || {};
         const loc = s.location || {};
-        const cityCountry = [loc.city, loc.country].filter(Boolean).join(', ');
-        const stylesPills = (s.styles_wanted || []).slice(0, 4).map(st =>
-            `<span class="studio-style-pill">${escapeHtml(st)}</span>`
+        const cover = s.cover_image || studio.cover_image || '';
+        const city = loc.city || 'Ubicación a confirmar';
+        const stylesTags = (s.styles_wanted || []).slice(0, 4).map(st =>
+            `<span class="sps-tag">${escapeHtml(st)}</span>`
         ).join('');
-        const splitText = s.revenue_split_pct != null ? `${Number(s.revenue_split_pct).toFixed(0)}%` : '—';
+        const desc = [s.title, s.description].filter(Boolean).join(' — ');
 
         return `
-            <article class="spot-card" data-id="${escapeAttr(s.id)}">
-                <div class="spot-card-cover" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
-                    <span class="spot-card-kind kind-${escapeAttr(s.kind)}">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>
-                </div>
-                <div class="spot-card-body">
-                    <strong class="spot-card-title">${escapeHtml(s.title)}</strong>
-                    <span class="spot-card-meta">
-                        <i class="fa-solid fa-building"></i> ${escapeHtml(studio.name || 'Estudio')}<br>
-                        <i class="fa-solid fa-location-dot"></i> ${escapeHtml(cityCountry || '—')}<br>
-                        <i class="fa-solid fa-percent"></i> Split ${splitText}
-                        ${s.stipend_amount ? ` · Stipend ${escapeHtml(String(s.stipend_amount))} ${escapeHtml(s.stipend_currency || '')}` : ''}
-                    </span>
-                    ${stylesPills ? `<div class="spot-card-styles">${stylesPills}</div>` : ''}
-                    <div class="spot-card-foot">
-                        <span>${s.application_count || 0} postul${s.application_count === 1 ? 'ación' : 'aciones'}</span>
-                        <span>${s.start_date ? formatDateRange(s.start_date, s.end_date) : 'Fechas a definir'}</span>
+            <article class="sps-hero" data-id="${escapeAttr(s.id)}">
+                <div class="sps-hero-media" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}></div>
+                <div class="sps-hero-body">
+                    <span class="sps-hero-eyebrow">${markHtml(s.kind)} ${escapeHtml(KIND_LABELS[s.kind] || s.kind)} · ${escapeHtml(city)}</span>
+                    <h2 class="sps-hero-title">${escapeHtml(spotName(s))}</h2>
+                    ${metaLine(s) ? `<span class="sps-hero-meta wo-mono-num">${escapeHtml(metaLine(s))}</span>` : ''}
+                    ${stylesTags ? `<div class="sps-styles">${stylesTags}</div>` : ''}
+                    ${desc ? `<p class="sps-hero-desc">${escapeHtml(truncate(desc, 180))}</p>` : ''}
+                    <div class="sps-hero-actions">
+                        <button type="button" class="wo-btn wo-btn--direct wo-btn--hard">
+                            Postularme <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="wo-btn wo-btn--ghost">Ver detalles</button>
                     </div>
                 </div>
             </article>
         `;
     }
 
+    // ---- tiles del mosaico ----
+
+    function renderTile(s, index) {
+        const loc = s.location || {};
+        const city = loc.city || 'Ubicación a confirmar';
+        const close = daysToClose(s);
+        const urgent = close !== null && close <= URGENT_DAYS;
+        const variant = urgent ? 'sps-tile--urgent' : (index % 2 === 1 ? 'sps-tile--cream' : '');
+
+        return `
+            <article class="sps-tile ${variant}" data-id="${escapeAttr(s.id)}">
+                ${urgent ? `<span class="sps-tile-urgency">Última oportunidad · cierra en ${close === 0 ? 'horas' : close + ' día' + (close === 1 ? '' : 's')}</span>` : ''}
+                <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(city)}</span></span>
+                <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
+                ${metaLine(s) ? `<span class="sps-tile-meta wo-mono-num">${escapeHtml(metaLine(s))}</span>` : ''}
+            </article>
+        `;
+    }
+
     function wireFilters() {
-        document.querySelectorAll('#spots-filter .studio-pill').forEach(p => {
+        document.querySelectorAll('#spots-filter [data-kind]').forEach(p => {
             p.addEventListener('click', () => {
                 activeKind = p.dataset.kind || '';
-                document.querySelectorAll('#spots-filter .studio-pill').forEach(b =>
+                document.querySelectorAll('#spots-filter [data-kind]').forEach(b =>
                     b.classList.toggle('is-active', b === p));
                 render();
             });
@@ -127,7 +192,7 @@
 
         document.getElementById('spot-modal-title').textContent = s.title;
         const studioLink = studio.slug
-            ? `<a href="/studio/profile/?studio=${encodeURIComponent(studio.slug)}" target="_blank" style="color:var(--primary-red);font-weight:700;">${escapeHtml(studio.name || 'Estudio')}</a>`
+            ? `<a href="/studio/profile/?studio=${encodeURIComponent(studio.slug)}" target="_blank">${escapeHtml(studio.name || 'Estudio')}</a>`
             : escapeHtml(studio.name || 'Estudio');
         document.getElementById('spot-modal-studio').innerHTML =
             `Publicado por ${studioLink} · ${escapeHtml([loc.city, loc.country].filter(Boolean).join(', ') || 'Ubicación a confirmar')}`;
@@ -135,7 +200,7 @@
 
         const kindEl = document.getElementById('spot-modal-kind');
         kindEl.textContent = kindLabel;
-        kindEl.className = 'spot-card-kind kind-' + s.kind;
+        kindEl.className = 'wo-badge wo-badge--s sps-kind sps-kind--' + s.kind;
 
         const cover = s.cover_image || studio.cover_image || '';
         document.getElementById('spot-modal-cover').style.backgroundImage =
@@ -143,14 +208,14 @@
 
         // Meta
         const meta = [];
-        if (s.start_date) meta.push(['Fechas', formatDateRange(s.start_date, s.end_date)]);
+        if (s.start_date) meta.push(['Fechas disponibles', formatDateRange(s.start_date, s.end_date)]);
         if (s.weeks_minimum) {
             meta.push(['Duración',
                 s.weeks_maximum && s.weeks_maximum !== s.weeks_minimum
                     ? `${s.weeks_minimum}–${s.weeks_maximum} semanas`
                     : `${s.weeks_minimum} semanas`]);
         }
-        if (s.revenue_split_pct != null) meta.push(['Split', Number(s.revenue_split_pct).toFixed(0) + '%']);
+        if (s.revenue_split_pct != null) meta.push(['Split / comisión', Number(s.revenue_split_pct).toFixed(0) + '% para el artista']);
         if (s.stipend_amount) meta.push(['Stipend', `${s.stipend_amount} ${s.stipend_currency || ''}`]);
         if (s.experience_min_years) meta.push(['Experiencia mínima', `${s.experience_min_years}+ años`]);
         meta.push(['Vivienda', s.includes_housing ? 'Incluida' : 'No incluida']);
@@ -159,14 +224,14 @@
         meta.push(['Postulaciones', `${s.application_count || 0}${s.max_applications ? ' / ' + s.max_applications : ''}`]);
 
         document.getElementById('spot-modal-meta').innerHTML = meta.map(([k, v]) => `
-            <div class="studio-meta-row">
-                <span class="key">${escapeHtml(k)}</span>
-                <span class="val">${escapeHtml(v)}</span>
+            <div class="sps-meta-row">
+                <span class="sps-meta-key">${escapeHtml(k)}</span>
+                <span class="sps-meta-val">${escapeHtml(v)}</span>
             </div>
         `).join('');
 
         document.getElementById('spot-modal-styles').innerHTML =
-            (s.styles_wanted || []).map(st => `<span class="studio-style-pill">${escapeHtml(st)}</span>`).join('');
+            (s.styles_wanted || []).map(st => `<span class="sps-tag">${escapeHtml(st)}</span>`).join('');
 
         renderApplyArea(s);
 
@@ -188,10 +253,10 @@
 
         if (!session) {
             el.innerHTML = `
-                <a class="studio-btn studio-btn-primary" href="/artist/login?returnTo=${encodeURIComponent('/studio-spots/?spot=' + s.id)}">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresá para postular
+                <a class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" href="/artist/login?returnTo=${encodeURIComponent('/studio-spots/?spot=' + s.id)}">
+                    Ingresá para postular <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                 </a>
-                <p class="studio-help" style="margin-top:8px;">¿No sos artista en We Ötzi todavía? <a href="/register-artist" style="color:var(--primary-red);font-weight:700;">Registrate gratis</a>.</p>
+                <p class="sps-apply-help">¿Todavía no sos artista en We Ötzi? <a href="/register-artist">Registrate gratis</a>.</p>
             `;
             return;
         }
@@ -201,8 +266,8 @@
 
         if (existing) {
             el.innerHTML = `
-                <div class="studio-status studio-status-info">
-                    Ya aplicaste a este spot. Estado: <strong>${escapeHtml(existing.status)}</strong>.
+                <div class="wo-alert wo-alert--info">
+                    Ya te postulaste a este spot. Estado: <strong>${escapeHtml(existing.status)}</strong>.
                 </div>
             `;
             return;
@@ -213,7 +278,7 @@
 
         if (!artist) {
             el.innerHTML = `
-                <div class="studio-status studio-status-info">
+                <div class="wo-alert wo-alert--info">
                     Solo cuentas de artista pueden postular. Si querés aplicar, registrá tu perfil de artista primero.
                 </div>
             `;
@@ -221,25 +286,25 @@
         }
 
         el.innerHTML = `
-            <div class="studio-field">
-                <label class="studio-label" for="apply-message">Mensaje para el estudio</label>
-                <textarea id="apply-message" class="studio-textarea" rows="4" placeholder="Contales por qué encajás en este spot…"></textarea>
+            <div class="wo-field">
+                <label class="wo-label" for="apply-message">Mensaje de presentación</label>
+                <textarea id="apply-message" class="wo-textarea" rows="4" placeholder="Contale al estudio por qué te gustaría hacer este spot…"></textarea>
             </div>
-            <div class="studio-field">
-                <label class="studio-label" for="apply-portfolio">URL de portfolio (opcional)</label>
-                <input id="apply-portfolio" class="studio-input" type="url" placeholder="https://…" value="${escapeAttr(artist.portafolio || '')}">
+            <div class="wo-field">
+                <label class="wo-label" for="apply-portfolio">Portfolio (opcional)</label>
+                <input id="apply-portfolio" class="wo-input" type="url" placeholder="https://…" value="${escapeAttr(artist.portafolio || '')}">
             </div>
-            <button id="apply-submit" class="studio-btn studio-btn-primary">
-                <i class="fa-solid fa-paper-plane"></i> Postularme
+            <button id="apply-submit" class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard">
+                Enviar solicitud <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
             </button>
-            <span id="apply-status" class="studio-status studio-status-info" hidden></span>
+            <div id="apply-status" class="wo-alert wo-alert--info" hidden></div>
         `;
 
         document.getElementById('apply-submit').addEventListener('click', async () => {
             const btn = document.getElementById('apply-submit');
             const statusEl = document.getElementById('apply-status');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando…';
+            btn.textContent = 'Enviando…';
 
             const { error } = await WeotziData.StudioSpots.createApplication({
                 spotId: s.id,
@@ -250,14 +315,14 @@
 
             if (error) {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Postularme';
-                statusEl.className = 'studio-status studio-status-error';
+                btn.innerHTML = 'Enviar solicitud <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>';
+                statusEl.className = 'wo-alert wo-alert--error';
                 statusEl.textContent = error.message;
                 statusEl.hidden = false;
                 return;
             }
-            statusEl.className = 'studio-status studio-status-success';
-            statusEl.textContent = '¡Postulación enviada! El estudio la verá en su panel.';
+            statusEl.className = 'wo-alert wo-alert--success';
+            statusEl.textContent = 'Solicitud enviada. El estudio la va a ver en su panel y te contesta por acá.';
             statusEl.hidden = false;
             btn.style.display = 'none';
         });
@@ -271,6 +336,11 @@
     }
     function escapeAttr(v) { return escapeHtml(v); }
     function cssEscape(v) { return String(v).replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+    function truncate(text, maxLen) {
+        const t = String(text || '');
+        if (t.length <= maxLen) return t;
+        return t.substring(0, maxLen).trimEnd() + '…';
+    }
     function formatDateRange(start, end) {
         if (!start) return '';
         const s = new Date(start);

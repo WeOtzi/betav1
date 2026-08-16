@@ -1,0 +1,127 @@
+/* ============================================================================
+   We Ötzi · Autenticación de artistas — /artist/login
+   Login + flujo de recuperar contraseña, sobre el DS Bauhaus (tokens.css +
+   components.css). Regla: cero hex sueltos — todo color sale de var(--token).
+   Layout: split 50/50 — póster oscuro (izquierda) + panel de formulario.
+   ========================================================================== */
+
+/* ---------- Base ---------- */
+.wo-auth-body{margin:0;min-height:100vh}
+.wo-auth-split [hidden]{display:none !important}
+
+.wo-skip-link{position:absolute;left:-9999px;top:0;z-index:100;background:var(--neutral-500);color:var(--white);padding:var(--space-3) var(--space-4);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;text-decoration:none}
+.wo-skip-link:focus{left:0}
+
+/* ---------- Split ---------- */
+.wo-auth-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:100vh}
+
+/* ---------- Póster (panel oscuro) ---------- */
+.wo-auth-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-12);background:var(--surface-inverse)}
+.wo-auth-poster::after{content:"";position:absolute;right:var(--space-16);bottom:var(--space-12);width:88px;height:80px;border:var(--border-rule-width) solid var(--neutral-100);opacity:var(--opacity-subtle)}
+.wo-auth-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
+.wo-auth-poster .wo-marks{gap:var(--space-2)}
+.wo-auth-poster .wo-mark-square,
+.wo-auth-poster .wo-mark-circle{width:20px;height:20px}
+.wo-auth-poster .wo-mark-triangle{border-left-width:11px;border-right-width:11px;border-bottom-width:20px}
+.wo-auth-poster-title{margin:0;font-family:var(--font-display);font-size:var(--display-size);line-height:0.96;letter-spacing:var(--display-track);text-transform:uppercase;color:var(--neutral-100)}
+.wo-auth-poster-title .line{display:block}
+.wo-auth-poster-title .hl-blue{color:var(--blue-400)}
+.wo-auth-poster-title .hl-yellow{color:var(--yellow-300)}
+
+/* ---------- Panel (formulario) ---------- */
+.wo-auth-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-8);background:var(--surface-page)}
+.wo-auth-panel-inner{width:100%;max-width:424px;display:flex;flex-direction:column;gap:var(--space-8)}
+
+.wo-auth-brand{display:inline-flex;align-items:center;gap:var(--space-3);align-self:flex-start;text-decoration:none;color:var(--text-heading)}
+.wo-auth-brand:hover{text-decoration:none;color:var(--text-heading)}
+.wo-auth-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+
+.wo-auth-view{display:flex;flex-direction:column;gap:var(--space-5)}
+.wo-auth-flow{display:flex;flex-direction:column;gap:var(--space-5)}
+.wo-auth-title{margin:0;font-family:var(--font-display);font-size:var(--h2-size);line-height:1.08;letter-spacing:var(--h2-track);color:var(--text-heading)}
+.wo-auth-copy{margin:0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted)}
+.wo-auth-copy strong{color:var(--neutral-500)}
+
+.wo-auth-kicker{display:inline-flex;align-items:center;gap:var(--space-2);margin:0}
+.wo-auth-kicker .k-mark{width:10px;height:10px;background:var(--bauhaus-square);flex:none}
+
+/* ---------- Formularios ---------- */
+.wo-auth-form{display:flex;flex-direction:column;gap:var(--space-5)}
+.wo-auth-inputwrap{position:relative}
+.wo-auth-inputwrap [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);color:var(--neutral-300);pointer-events:none}
+.wo-auth-inputwrap .wo-input{padding-left:var(--space-12);border-color:var(--border-strong)}
+.wo-auth-inputwrap .wo-input:focus{padding-left:calc(var(--space-12) - 1px)}
+
+/* Spinner dentro de botones (estado cargando) */
+.wo-btn .wo-spinner{width:18px;height:18px;border-width:2px}
+
+/* ---------- Divisor "O continuá con" ---------- */
+.wo-auth-or{display:flex;align-items:center;gap:var(--space-4);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-faint)}
+.wo-auth-or::before,
+.wo-auth-or::after{content:"";flex:1;border-top:var(--border-hairline) solid var(--border-subtle)}
+
+/* ---------- Social ---------- */
+.wo-auth-social{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2)}
+.wo-auth-social .wo-btn{width:100%}
+.wo-auth-reco{gap:var(--space-1)}
+.wo-auth-reco [data-wo-icon]{width:12px;height:12px}
+.wo-auth-google-g{width:18px;height:18px;flex:none}
+
+/* ---------- Mensajes de estado ---------- */
+.wo-auth-message{margin:0}
+
+/* ---------- Links secundarios ---------- */
+.wo-auth-links{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);text-align:center}
+.wo-auth-links p{margin:0;color:var(--text-faint)}
+.wo-auth-links a{color:var(--neutral-500)}
+.wo-auth-links a:hover{color:var(--black)}
+
+.wo-auth-forgot{display:flex;align-items:center;justify-content:center;width:100%;min-height:var(--control-h-md);padding:var(--space-3) var(--space-4);background:transparent;border:0;cursor:pointer;font-family:var(--font-body);font-size:var(--button-m-size);font-weight:var(--weight-bold);letter-spacing:var(--button-m-track);text-transform:uppercase;color:var(--neutral-500)}
+.wo-auth-forgot:hover{color:var(--black);text-decoration:underline}
+
+.wo-auth-back{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);align-self:center;background:transparent;border:0;padding:var(--space-2);cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
+.wo-auth-back:hover{color:var(--neutral-500)}
+.wo-auth-back [data-wo-icon]{width:14px;height:14px}
+
+/* ---------- Stepper de recuperación (cajas 44px, labels mono) ---------- */
+.wo-auth-steps{display:flex;align-items:flex-start;list-style:none;margin:0 0 var(--space-2);padding:0}
+.wo-auth-step{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--space-2)}
+.wo-auth-step .box{width:44px;height:44px;box-sizing:border-box;display:grid;place-content:center;background:var(--surface-card);border:var(--border-hairline) solid var(--border-muted);font-family:var(--font-mono);font-size:var(--body-m-size);font-weight:var(--weight-bold);color:var(--text-faint)}
+.wo-auth-step .lbl{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-faint)}
+.wo-auth-step + .wo-auth-step::before{content:"";position:absolute;top:22px;left:calc(-50% + 30px);width:calc(100% - 60px);border-top:var(--border-strong-width) solid var(--border-subtle)}
+.wo-auth-step.is-active .box{background:var(--yellow-300);border-color:var(--border-strong);color:var(--neutral-500)}
+.wo-auth-step.is-active .lbl{color:var(--text-heading);font-weight:var(--weight-bold)}
+.wo-auth-step.is-done .box{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--white)}
+.wo-auth-step.is-done .box [data-wo-icon]{width:18px;height:18px}
+.wo-auth-step.is-done + .wo-auth-step::before{border-top-color:var(--neutral-500)}
+
+/* ---------- Éxito (email enviado) ---------- */
+.wo-auth-success{display:flex;flex-direction:column;align-items:center;gap:var(--space-5);text-align:center}
+.wo-auth-success-icon{width:72px;height:72px;margin-top:var(--space-2);background:var(--system-success);display:grid;place-content:center;color:var(--ink)}
+.wo-auth-success-icon [data-wo-icon]{width:36px;height:36px}
+
+/* ---------- Vista sesión activa ---------- */
+.wo-auth-actions{display:flex;flex-direction:column;gap:var(--space-3)}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1180px){
+  .wo-auth-poster-title{font-size:var(--h1-size)}
+}
+@media (max-width:1024px){
+  .wo-auth-split{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
+  .wo-auth-poster{padding:var(--space-10) var(--space-8)}
+}
+@media (max-width:768px){
+  .wo-auth-split{grid-template-columns:1fr}
+  .wo-auth-poster{align-items:flex-start;justify-content:flex-start;padding:var(--space-8) var(--space-6)}
+  .wo-auth-poster::after{display:none}
+  .wo-auth-poster-frame{gap:var(--space-4)}
+  .wo-auth-poster-title{font-size:var(--title-lg-size)}
+  .wo-auth-panel{padding:var(--space-10) var(--space-5)}
+}
+@media (max-width:480px){
+  .wo-auth-poster-title{font-size:var(--h2-size)}
+  .wo-auth-panel{padding:var(--space-8) var(--space-4)}
+  .wo-auth-step .box{width:36px;height:36px}
+  .wo-auth-step + .wo-auth-step::before{top:18px;left:calc(-50% + 26px);width:calc(100% - 52px)}
+}

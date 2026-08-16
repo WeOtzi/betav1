@@ -9,7 +9,6 @@ const FEED_CATEGORY_LABELS = {
     proyectos: 'Proyecto'
 };
 
-const FEED_THEME_STORAGE_KEY = 'weotzi:artist-gallery:theme';
 const PROFILE_MOBILE_MENU_BREAKPOINT = 768;
 
 let feedArtist = null;
@@ -236,7 +235,7 @@ function updateArtistSummary() {
     if (artistBioEl) {
         if (window.BioFormatting) {
             window.BioFormatting.renderBioHtml(artistBioEl, feedArtist?.bio_description, {
-                emptyMessage: 'Este artista todavia no agrego una bio publica.'
+                emptyMessage: 'Este artista todavía no agregó una bio pública.'
             });
         } else {
             artistBioEl.textContent = normalizeBioText(feedArtist?.bio_description);
@@ -438,46 +437,6 @@ function setupProfileNavigationMenu() {
     toggleBtn.dataset.menuBound = 'true';
 }
 
-function getStoredTheme() {
-    try {
-        return localStorage.getItem(FEED_THEME_STORAGE_KEY);
-    } catch {
-        return null;
-    }
-}
-
-function persistTheme(theme) {
-    try {
-        localStorage.setItem(FEED_THEME_STORAGE_KEY, theme);
-    } catch {
-        // ignore persistence errors
-    }
-}
-
-function applyTheme(theme) {
-    const isDark = theme === 'dark';
-    document.body.classList.toggle('dark-mode', isDark);
-    persistTheme(isDark ? 'dark' : 'light');
-}
-
-function initTheme() {
-    const stored = getStoredTheme();
-    if (stored === 'dark' || stored === 'light') {
-        applyTheme(stored);
-        return;
-    }
-
-    const prefersDark = Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    applyTheme(prefersDark ? 'dark' : 'light');
-}
-
-function toggleTheme() {
-    const nextTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
-    applyTheme(nextTheme);
-}
-
-window.toggleTheme = toggleTheme;
-
 function bindEvents() {
     setupProfileNavigationMenu();
 
@@ -534,7 +493,6 @@ function showContent() {
 }
 
 async function initArtistFeedPage() {
-    initTheme();
     bindEvents();
     showLoading();
 

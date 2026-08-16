@@ -155,11 +155,7 @@ function zoomOut() {
 }
 
 function restoreThemeAndZoom() {
-    const savedTheme = localStorage.getItem('weotzi-theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-    }
-
+    // Sin modo oscuro en el DS Bauhaus: solo se restaura el zoom.
     const savedZoom = localStorage.getItem('weotzi-zoom');
     if (savedZoom) {
         setZoom(parseFloat(savedZoom));
@@ -350,13 +346,13 @@ function formatDateForCalendar(date) {
  */
 function getSessionStatusInfo(status) {
     const info = {
-        'scheduled': { label: 'Agendada', color: '#1A4B8E' },
-        'completed': { label: 'Completada', color: '#27ae60' },
-        'no_show': { label: 'No Asistio', color: '#C62828' },
-        'rescheduled': { label: 'Reprogramada', color: '#F5C518' },
-        'cancelled': { label: 'Cancelada', color: '#7f8c8d' }
+        'scheduled': { label: 'Agendada', color: 'var(--blue-400)' },
+        'completed': { label: 'Completada', color: 'var(--system-success)' },
+        'no_show': { label: 'No asistió', color: 'var(--red-300)' },
+        'rescheduled': { label: 'Reprogramada', color: 'var(--yellow-300)' },
+        'cancelled': { label: 'Cancelada', color: 'var(--neutral-400)' }
     };
-    return info[status] || { label: status, color: '#666' };
+    return info[status] || { label: status, color: 'var(--neutral-400)' };
 }
 
 /**
@@ -421,9 +417,9 @@ function getCalendarEvents() {
                         title: `(Sin sesiones) ${quote.client_full_name || 'Sin nombre'}`,
                         start: formatDateForCalendar(preferredDate),
                         allDay: true,
-                        backgroundColor: '#F5C518',
-                        borderColor: '#F5C518',
-                        textColor: '#1A1A1A',
+                        backgroundColor: 'var(--yellow-300)',
+                        borderColor: 'var(--yellow-300)',
+                        textColor: 'var(--neutral-500)',
                         extendedProps: {
                             quoteId: quote.id,
                             status: quote.quote_status,

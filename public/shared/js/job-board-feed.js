@@ -25,14 +25,25 @@ function truncate(text, maxLen) {
     return text.substring(0, maxLen).trimEnd() + '...';
 }
 
+function formatMoney(value) {
+    return Number(value).toLocaleString('es-AR');
+}
+
 function formatBudgetRange(min, max, currency) {
     const cur = currency || 'USD';
     if (min && max) {
-        return `$${Number(min).toLocaleString()} - $${Number(max).toLocaleString()} ${cur}`;
+        return `$${formatMoney(min)} – $${formatMoney(max)} ${cur}`;
     }
-    if (min) return `Desde $${Number(min).toLocaleString()} ${cur}`;
-    if (max) return `Hasta $${Number(max).toLocaleString()} ${cur}`;
+    if (min) return `Desde $${formatMoney(min)} ${cur}`;
+    if (max) return `Hasta $${formatMoney(max)} ${cur}`;
     return 'A convenir';
+}
+
+function isNewRequest(createdAt, days = 7) {
+    if (!createdAt) return false;
+    const created = new Date(createdAt);
+    if (isNaN(created)) return false;
+    return (Date.now() - created.getTime()) < days * 24 * 60 * 60 * 1000;
 }
 
 function getDaysLeft(expiresAt) {
@@ -101,55 +112,20 @@ let selectedRequest = null;
 let searchDebounceTimer = null;
 
 const TOP_STYLES = [
-    { label: 'Realismo', icon: 'fa-solid fa-eye' },
-    { label: 'Tradicional', icon: 'fa-solid fa-anchor' },
-    { label: 'Fine Line', icon: 'fa-solid fa-pen-nib' },
-    { label: 'Blackwork', icon: 'fa-solid fa-brush' },
-    { label: 'Minimalista', icon: 'fa-solid fa-minus' },
-    { label: 'Japonés', icon: 'fa-solid fa-dragon' },
-    { label: 'Geométrico', icon: 'fa-solid fa-shapes' },
-    { label: 'Acuarela', icon: 'fa-solid fa-droplet' },
-    { label: 'Black & Grey', icon: 'fa-solid fa-circle-half-stroke' },
-    { label: 'Microrealismo', icon: 'fa-solid fa-magnifying-glass' },
-    { label: 'Hiperrealismo', icon: 'fa-solid fa-eye' },
-    { label: 'Ornamental', icon: 'fa-solid fa-fan' },
-    { label: 'Mandala', icon: 'fa-solid fa-circle-dot' },
-    { label: 'Tribal', icon: 'fa-solid fa-bolt' },
-    { label: 'Polinesio', icon: 'fa-solid fa-water' },
-    { label: 'Maori', icon: 'fa-solid fa-shield-halved' },
-    { label: 'Haida', icon: 'fa-solid fa-feather' },
-    { label: 'Celta', icon: 'fa-solid fa-ring' },
-    { label: 'Nordico / Viking', icon: 'fa-solid fa-mountain' },
-    { label: 'Lettering', icon: 'fa-solid fa-font' },
-    { label: 'Blackletter / Gotico', icon: 'fa-solid fa-book' },
-    { label: 'Caligrafia', icon: 'fa-solid fa-pen-fancy' },
-    { label: 'Ignorant', icon: 'fa-solid fa-pencil' },
-    { label: 'Handpoke / Stick and Poke', icon: 'fa-solid fa-hand-point-up' },
-    { label: 'Abstracto', icon: 'fa-solid fa-shapes' },
-    { label: 'Sketch / Boceto', icon: 'fa-solid fa-pencil' },
-    { label: 'Etching / Grabado', icon: 'fa-solid fa-layer-group' },
-    { label: 'Woodcut / Xilografia', icon: 'fa-solid fa-tree' },
-    { label: 'Linework', icon: 'fa-solid fa-pen-nib' },
-    { label: 'Ilustracion botanica', icon: 'fa-solid fa-leaf' },
-    { label: 'Floral', icon: 'fa-solid fa-spa' },
-    { label: 'Fineline botanico', icon: 'fa-solid fa-seedling' },
-    { label: 'Biomecanico', icon: 'fa-solid fa-gears' },
-    { label: 'Bioorganico', icon: 'fa-solid fa-dna' },
-    { label: 'Horror', icon: 'fa-solid fa-ghost' },
-    { label: 'Dark Art', icon: 'fa-solid fa-moon' },
-    { label: 'Glitch', icon: 'fa-solid fa-wave-square' },
-    { label: 'Pixel Art', icon: 'fa-solid fa-border-all' },
-    { label: 'Graffiti', icon: 'fa-solid fa-spray-can' },
-    { label: 'Pop Art', icon: 'fa-solid fa-star' },
-    { label: 'Art Nouveau', icon: 'fa-solid fa-fan' },
-    { label: 'Art Deco', icon: 'fa-solid fa-gem' },
-    { label: 'Barroco', icon: 'fa-solid fa-landmark' },
-    { label: 'Abstract Brush', icon: 'fa-solid fa-brush' },
-    { label: 'Patchwork', icon: 'fa-solid fa-table-cells-large' },
-    { label: 'Religious / Sacro', icon: 'fa-solid fa-church' },
-    { label: 'Ornamental Blackwork', icon: 'fa-solid fa-circle' },
-    { label: 'Pointillism', icon: 'fa-solid fa-braille' }
+    'Realismo', 'Tradicional', 'Fine Line', 'Blackwork', 'Minimalista', 'Japonés',
+    'Geométrico', 'Acuarela', 'Black & Grey', 'Microrealismo', 'Hiperrealismo',
+    'Ornamental', 'Mandala', 'Tribal', 'Polinesio', 'Maori', 'Haida', 'Celta',
+    'Nordico / Viking', 'Lettering', 'Blackletter / Gotico', 'Caligrafia',
+    'Ignorant', 'Handpoke / Stick and Poke', 'Abstracto', 'Sketch / Boceto',
+    'Etching / Grabado', 'Woodcut / Xilografia', 'Linework', 'Ilustracion botanica',
+    'Floral', 'Fineline botanico', 'Biomecanico', 'Bioorganico', 'Horror',
+    'Dark Art', 'Glitch', 'Pixel Art', 'Graffiti', 'Pop Art', 'Art Nouveau',
+    'Art Deco', 'Barroco', 'Abstract Brush', 'Patchwork', 'Religious / Sacro',
+    'Ornamental Blackwork', 'Pointillism'
 ];
+
+const STYLE_LIST_COLLAPSED_COUNT = 8;
+let styleListExpanded = false;
 
 // Size mapping for filter matching
 const SIZE_MAP = {
@@ -317,17 +293,14 @@ function updateHeaderAuth() {
     if (!authBtn || !authLabel) return;
 
     if (currentUser && isArtist) {
-        authLabel.textContent = artistData?.username || 'Mi Panel';
+        authLabel.textContent = artistData?.username || 'Mi panel';
         authBtn.href = jobBoardAuthUrls.dashboard;
-        authBtn.querySelector('i')?.setAttribute('class', 'fa-solid fa-user');
     } else if (currentUser) {
-        authLabel.textContent = 'Completar Perfil';
+        authLabel.textContent = 'Completá tu perfil';
         authBtn.href = jobBoardAuthUrls.registerArtist;
-        authBtn.querySelector('i')?.setAttribute('class', 'fa-solid fa-user');
     } else {
-        authLabel.textContent = 'Iniciar Sesion';
+        authLabel.textContent = 'Ingresá';
         authBtn.href = jobBoardAuthUrls.login;
-        authBtn.querySelector('i')?.setAttribute('class', 'fa-solid fa-right-to-bracket');
     }
 }
 
@@ -373,18 +346,40 @@ function initStyleFilters() {
     const container = document.getElementById('style-filters');
     if (!container) return;
 
-    container.innerHTML = TOP_STYLES.map(style => {
-        const count = allRequests.filter(r => {
-            return r._parsedStyles.some(s => s.toLowerCase() === style.label.toLowerCase());
-        }).length;
+    // Solo estilos con solicitudes, ordenados por cantidad.
+    const withCounts = TOP_STYLES.map(label => ({
+        label,
+        count: allRequests.filter(r =>
+            r._parsedStyles.some(s => s.toLowerCase() === label.toLowerCase())
+        ).length
+    })).filter(s => s.count > 0);
 
-        return `
-            <button class="filter-btn jb-filter-btn" onclick="toggleStyleFilter('${style.label}')" data-style="${style.label}">
-                <i class="${style.icon}"></i>
-                <span>${style.label} (${count})</span>
-            </button>
-        `;
-    }).join('');
+    withCounts.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    // El estilo activo siempre visible aunque quede fuera del corte.
+    let visible = styleListExpanded ? withCounts : withCounts.slice(0, STYLE_LIST_COLLAPSED_COUNT);
+    if (currentFilters.style && !visible.some(s => s.label === currentFilters.style)) {
+        const active = withCounts.find(s => s.label === currentFilters.style);
+        if (active) visible = visible.concat(active);
+    }
+    const hiddenCount = withCounts.length - Math.min(withCounts.length, styleListExpanded ? withCounts.length : STYLE_LIST_COLLAPSED_COUNT);
+
+    container.innerHTML = visible.map(style => `
+        <button type="button" class="jbf-style-item jb-filter-btn ${currentFilters.style === style.label ? 'is-active' : ''}"
+            onclick="toggleStyleFilter('${escapeHtml(style.label)}')" data-style="${escapeHtml(style.label)}">
+            <span>${escapeHtml(style.label)}</span>
+            <span class="jbf-style-count wo-mono-num">${style.count}</span>
+        </button>
+    `).join('') + (withCounts.length > STYLE_LIST_COLLAPSED_COUNT ? `
+        <button type="button" class="jbf-style-more" onclick="toggleStyleListExpanded()">
+            ${styleListExpanded ? 'Ver menos' : `+ ${hiddenCount} más`}
+        </button>
+    ` : '');
+}
+
+function toggleStyleListExpanded() {
+    styleListExpanded = !styleListExpanded;
+    initStyleFilters();
 }
 
 function toggleStyleFilter(styleName) {
@@ -396,7 +391,7 @@ function toggleStyleFilter(styleName) {
 
     // Update button active states
     document.querySelectorAll('.jb-filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.style === currentFilters.style);
+        btn.classList.toggle('is-active', btn.dataset.style === currentFilters.style);
     });
 
     applyFilters();
@@ -586,7 +581,7 @@ function renderFeed() {
     // Update results count
     if (countEl) {
         const total = filteredRequests.length;
-        countEl.textContent = `${total} solicitud${total !== 1 ? 'es' : ''} encontrada${total !== 1 ? 's' : ''}`;
+        countEl.textContent = `${total} solicitud${total !== 1 ? 'es' : ''} abierta${total !== 1 ? 's' : ''}`;
     }
 
     // Empty state
@@ -615,16 +610,16 @@ function renderRequestCard(request) {
     // Style tags
     const styles = request._parsedStyles || [];
     const styleTag = styles.slice(0, 2).map(s =>
-        `<span class="jb-card-tag jb-card-tag--style">${escapeHtml(s)}</span>`
+        `<span class="jbf-tag">${escapeHtml(s)}</span>`
     ).join('');
 
     // Size tag
     const sizeLabel = request.tattoo_size ? toTitleCase(request.tattoo_size.replace(/_/g, ' ')) : '';
-    const sizeTag = sizeLabel ? `<span class="jb-card-tag jb-card-tag--size">${escapeHtml(sizeLabel)}</span>` : '';
+    const sizeTag = sizeLabel ? `<span class="jbf-tag">${escapeHtml(sizeLabel)}</span>` : '';
 
     // Color tag
     const colorLabel = request.tattoo_color_type || '';
-    const colorTag = colorLabel ? `<span class="jb-card-tag jb-card-tag--color">${escapeHtml(colorLabel)}</span>` : '';
+    const colorTag = colorLabel ? `<span class="jbf-tag">${escapeHtml(colorLabel)}</span>` : '';
 
     // Location & body part
     const city = request.client_city ? toTitleCase(request.client_city) : 'No especificada';
@@ -636,8 +631,8 @@ function renderRequestCard(request) {
     // Days left
     const daysLeft = getDaysLeft(request.expires_at);
     const daysLeftText = daysLeft !== null
-        ? (daysLeft === 0 ? 'Ultimo dia' : `${daysLeft} dia${daysLeft !== 1 ? 's' : ''} restante${daysLeft !== 1 ? 's' : ''}`)
-        : 'Sin fecha limite';
+        ? (daysLeft === 0 ? 'Último día' : `Cierra en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}`)
+        : 'Sin fecha límite';
 
     // Application count
     const appCount = request.application_count || 0;
@@ -650,39 +645,39 @@ function renderRequestCard(request) {
 
     // Button state
     const applyBtnText = isArtist
-        ? 'POSTULARME'
+        ? 'Postularme'
         : currentUser
-            ? 'COMPLETAR PERFIL'
-            : 'INICIA SESION';
-    const applyBtnDisabled = '';
+            ? 'Completar perfil'
+            : 'Ingresá';
 
     return `
-        <div class="jb-card" onclick="viewRequest('${request.id}')">
-            <div class="jb-card-image ${!thumbnail ? 'no-image' : ''}">
-                ${thumbnail ? `<img src="${thumbnail}" alt="Referencia" loading="lazy" onerror="this.parentElement.classList.add('no-image'); this.remove();">` : ''}
-                <span class="jb-card-code">${escapeHtml(code)}</span>
+        <article class="jbf-card" onclick="viewRequest('${request.id}')">
+            <div class="jbf-card-media ${!thumbnail ? 'no-image' : ''}">
+                ${thumbnail ? `<img src="${thumbnail}" alt="Referencia del tatuaje" loading="lazy" onerror="this.parentElement.classList.add('no-image'); this.remove();">` : ''}
+                <span class="jbf-card-code">${escapeHtml(code)}</span>
+                ${isNewRequest(request.created_at) ? '<span class="jbf-card-new">Nuevo</span>' : ''}
             </div>
-            <div class="jb-card-body">
-                <p class="jb-card-description">${escapeHtml(description)}</p>
-                <div class="jb-card-tags">
+            <div class="jbf-card-body">
+                <h3 class="jbf-card-title">${escapeHtml(description)}</h3>
+                <div class="jbf-card-tags">
                     ${styleTag}${sizeTag}${colorTag}
                 </div>
-                <div class="jb-card-meta">
-                    ${city ? `<span class="jb-card-meta-item"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(city)}</span>` : ''}
-                    ${bodyPart ? `<span class="jb-card-meta-item"><i class="fa-solid fa-hand"></i> ${escapeHtml(bodyPart)}</span>` : ''}
+                <div class="jbf-card-meta">
+                    ${city ? `<span><i data-wo-icon="map-pin" aria-hidden="true"></i> ${escapeHtml(city)}</span>` : ''}
+                    ${bodyPart ? `<span>${escapeHtml(bodyPart)}</span>` : ''}
+                    <span>${escapeHtml(daysLeftText)}</span>
+                </div>
+                <div class="jbf-card-foot">
+                    <div>
+                        <span class="jbf-card-price">${budgetRange}</span>
+                        <span class="jbf-card-apps">${appCount} postulaci${appCount !== 1 ? 'ones' : 'ón'}</span>
+                    </div>
+                    <button type="button" class="jbf-card-apply" onclick="event.stopPropagation(); handleApply('${request.id}')">
+                        ${applyBtnText} <i data-wo-icon="arrow-right" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
-            <div class="jb-card-stats">
-                <span>${appCount} postulacion${appCount !== 1 ? 'es' : ''}</span>
-                <span>${daysLeftText}</span>
-            </div>
-            <div class="jb-card-footer">
-                <div class="jb-card-budget">${budgetRange}</div>
-                <button class="jb-card-apply-btn" onclick="event.stopPropagation(); handleApply('${request.id}')" ${applyBtnDisabled}>
-                    ${applyBtnText}
-                </button>
-            </div>
-        </div>
+        </article>
     `;
 }
 
@@ -705,23 +700,23 @@ function updateActiveFiltersUI() {
     if (currentFilters.style) activeFilters.push({ type: 'style', label: `Estilo: ${currentFilters.style}` });
     if (currentFilters.city) activeFilters.push({ type: 'city', label: `Ciudad: ${toTitleCase(currentFilters.city)}` });
     if (currentFilters.size) {
-        const sizeLabels = { small: 'Pequeno', medium: 'Mediano', large: 'Grande', xlarge: 'Muy Grande' };
-        activeFilters.push({ type: 'size', label: `Tamano: ${sizeLabels[currentFilters.size] || currentFilters.size}` });
+        const sizeLabels = { small: 'Pequeño', medium: 'Mediano', large: 'Grande', xlarge: 'Muy grande' };
+        activeFilters.push({ type: 'size', label: `Tamaño: ${sizeLabels[currentFilters.size] || currentFilters.size}` });
     }
     if (currentFilters.budget) {
-        const budgetLabels = { low: 'Hasta $200', medium: '$200-$800', high: '$800+' };
+        const budgetLabels = { low: 'Hasta $200', medium: '$200 – $800', high: '$800+' };
         activeFilters.push({ type: 'budget', label: `Presupuesto: ${budgetLabels[currentFilters.budget] || currentFilters.budget}` });
     }
 
     if (activeFilters.length > 0) {
         container.innerHTML = activeFilters.map(f => `
-            <div class="filter-chip">
+            <div class="jbf-filter-chip">
                 <span>${f.label}</span>
-                <button onclick="removeFilter('${f.type}')">&times;</button>
+                <button type="button" onclick="removeFilter('${f.type}')" aria-label="Quitar filtro">&times;</button>
             </div>
         `).join('') + `
-            <button class="filter-chip filter-chip--clear" onclick="clearAllFilters()">
-                <i class="fa-solid fa-xmark"></i> Limpiar filtros
+            <button type="button" class="jbf-filter-chip jbf-filter-chip--clear" onclick="clearAllFilters()">
+                Limpiar filtros
             </button>
         `;
     } else {
@@ -741,7 +736,7 @@ function updateActiveFiltersUI() {
 
     // Sync style buttons
     document.querySelectorAll('.jb-filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.style === currentFilters.style);
+        btn.classList.toggle('is-active', btn.dataset.style === currentFilters.style);
     });
 }
 
@@ -883,7 +878,7 @@ async function handleApply(requestId) {
 
         // Check max applications
         if (request.max_applications && request.application_count >= request.max_applications) {
-            showToast('Esta solicitud ya alcanzo el maximo de postulaciones.', 'warning');
+            showToast('Esta solicitud ya alcanzó el máximo de propuestas.', 'warning');
             return;
         }
 
@@ -893,7 +888,71 @@ async function handleApply(requestId) {
 
     } catch (err) {
         console.error('Error checking application status:', err);
-        showToast('Error al verificar postulacion. Intenta nuevamente.', 'error');
+        showToast('No pudimos verificar tu propuesta. Probá de nuevo.', 'error');
+    }
+}
+
+function buildRequestSummary(request) {
+    const styles = (request._parsedStyles || []).join(' · ') || 'No especificado';
+    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
+    const bodyPart = request.tattoo_body_part ? toTitleCase(request.tattoo_body_part.replace(/_/g, ' ')) : 'No especificado';
+    const size = request.tattoo_size ? toTitleCase(request.tattoo_size.replace(/_/g, ' ')) : 'No especificado';
+    const city = request.client_city ? toTitleCase(request.client_city) : 'No especificada';
+    const description = request.tattoo_idea_description || 'Sin descripción';
+
+    // Attachments gallery
+    const attachments = request.job_board_attachments || [];
+    const sortedAttachments = [...attachments].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const galleryHtml = sortedAttachments.length > 0
+        ? `<span class="jbf-sum-label">Referencias del cliente</span>
+           <div class="jbf-gallery">
+            ${sortedAttachments.map(att =>
+                `<img src="${escapeHtml(att.file_url)}" alt="${escapeHtml(att.file_name || 'Referencia')}" loading="lazy" onclick="window.open('${escapeHtml(att.file_url)}', '_blank')">`
+            ).join('')}
+           </div>`
+        : '';
+
+    return `
+        <span class="jbf-sum-label">La idea del tatuaje</span>
+        <p class="jbf-sum-text">${escapeHtml(description)}</p>
+        ${galleryHtml}
+        <span class="jbf-sum-label">Detalles de la solicitud</span>
+        <div class="jbf-detail-grid">
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Zona del cuerpo</span>
+                <span class="jbf-detail-val">${escapeHtml(bodyPart)}</span>
+            </div>
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Estilo</span>
+                <span class="jbf-detail-val">${escapeHtml(styles)}</span>
+            </div>
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Tamaño aproximado</span>
+                <span class="jbf-detail-val">${escapeHtml(size)}</span>
+            </div>
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Color</span>
+                <span class="jbf-detail-val">${escapeHtml(request.tattoo_color_type || 'No especificado')}</span>
+            </div>
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Ciudad</span>
+                <span class="jbf-detail-val">${escapeHtml(city)}</span>
+            </div>
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Presupuesto orientativo</span>
+                <span class="jbf-detail-val wo-mono-num">${budgetRange}</span>
+            </div>
+        </div>
+    `;
+}
+
+function setApplicationModalHeading(title, sub) {
+    const titleEl = document.getElementById('application-modal-title');
+    const subEl = document.getElementById('application-modal-sub');
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) {
+        subEl.textContent = sub || '';
+        subEl.classList.toggle('hidden', !sub);
     }
 }
 
@@ -908,62 +967,8 @@ function openApplicationModal(request) {
     // Set request code
     if (codeEl) codeEl.textContent = request.request_code || '';
 
-    // Build summary HTML
-    const styles = (request._parsedStyles || []).join(', ') || 'No especificado';
-    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
-    const bodyPart = request.tattoo_body_part ? toTitleCase(request.tattoo_body_part.replace(/_/g, ' ')) : 'No especificado';
-    const size = request.tattoo_size ? toTitleCase(request.tattoo_size.replace(/_/g, ' ')) : 'No especificado';
-    const city = request.client_city ? toTitleCase(request.client_city) : 'No especificada';
-    const description = request.tattoo_idea_description || 'Sin descripcion';
-
-    // Attachments gallery
-    const attachments = request.job_board_attachments || [];
-    const sortedAttachments = [...attachments].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-    const galleryHtml = sortedAttachments.length > 0
-        ? `<div class="modal-gallery">
-            ${sortedAttachments.map(att =>
-                `<img src="${escapeHtml(att.file_url)}" alt="${escapeHtml(att.file_name || 'Referencia')}" class="modal-gallery-img" loading="lazy" onclick="window.open('${escapeHtml(att.file_url)}', '_blank')">`
-            ).join('')}
-           </div>`
-        : '';
-
-    summaryEl.innerHTML = `
-        <div class="modal-detail-grid">
-            <div class="modal-detail">
-                <span class="modal-detail-label">Descripcion</span>
-                <p class="modal-detail-value">${escapeHtml(description)}</p>
-            </div>
-            ${galleryHtml}
-            <div class="modal-detail-row">
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Estilos</span>
-                    <span class="modal-detail-value">${escapeHtml(styles)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Tamano</span>
-                    <span class="modal-detail-value">${escapeHtml(size)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Color</span>
-                    <span class="modal-detail-value">${escapeHtml(request.tattoo_color_type || 'No especificado')}</span>
-                </div>
-            </div>
-            <div class="modal-detail-row">
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Zona del cuerpo</span>
-                    <span class="modal-detail-value">${escapeHtml(bodyPart)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Ciudad</span>
-                    <span class="modal-detail-value">${escapeHtml(city)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Presupuesto</span>
-                    <span class="modal-detail-value">${budgetRange}</span>
-                </div>
-            </div>
-        </div>
-    `;
+    setApplicationModalHeading('Tu propuesta', 'Completá los datos para enviarle tu propuesta al cliente.');
+    summaryEl.innerHTML = buildRequestSummary(request);
 
     // Reset and show form
     if (form) form.reset();
@@ -977,14 +982,14 @@ async function submitApplication(e) {
     e.preventDefault();
 
     if (!selectedRequest || !artistData || !_supabase) {
-        showToast('Error: datos incompletos. Recarga la pagina.', 'error');
+        showToast('Error: datos incompletos. Recargá la página.', 'error');
         return;
     }
 
     const submitBtn = document.getElementById('btn-submit-application');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+        submitBtn.textContent = 'Enviando…';
     }
 
     try {
@@ -1001,14 +1006,14 @@ async function submitApplication(e) {
 
         const estimatedPrice = rawPrice ? parseFloat(rawPrice) : NaN;
         if (!rawPrice || isNaN(estimatedPrice) || estimatedPrice <= 0) {
-            showToast('Ingresa un precio estimado valido (mayor a 0).', 'error');
+            showToast('Ingresá un precio válido (mayor a 0).', 'error');
             resetSubmitButton();
             return;
         }
 
         const estimatedSessions = rawSessions ? parseInt(rawSessions, 10) : NaN;
         if (!rawSessions || isNaN(estimatedSessions) || estimatedSessions < 1) {
-            showToast('Ingresa al menos 1 sesion estimada.', 'error');
+            showToast('Ingresá al menos 1 sesión estimada.', 'error');
             resetSubmitButton();
             return;
         }
@@ -1058,14 +1063,14 @@ async function submitApplication(e) {
 
         // Close modal and show success
         closeApplicationModal();
-        showToast('Postulacion enviada con exito.', 'success');
+        showToast('Propuesta enviada. Te avisamos apenas el cliente responda.', 'success');
 
         // Re-render to update card
         applyFilters();
 
     } catch (err) {
         console.error('Error submitting application:', err);
-        showToast('Error al enviar postulacion. Intenta nuevamente.', 'error');
+        showToast('No pudimos enviar la propuesta. Probá de nuevo.', 'error');
     } finally {
         resetSubmitButton();
     }
@@ -1075,7 +1080,7 @@ function resetSubmitButton() {
     const submitBtn = document.getElementById('btn-submit-application');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar postulacion';
+        submitBtn.innerHTML = 'Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>';
     }
 }
 
@@ -1109,66 +1114,15 @@ function openDetailModal(request) {
     // Set request code
     if (codeEl) codeEl.textContent = request.request_code || '';
 
-    // Build summary HTML (same as openApplicationModal)
-    const styles = (request._parsedStyles || []).join(', ') || 'No especificado';
-    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
-    const bodyPart = request.tattoo_body_part ? toTitleCase(request.tattoo_body_part.replace(/_/g, ' ')) : 'No especificado';
-    const size = request.tattoo_size ? toTitleCase(request.tattoo_size.replace(/_/g, ' ')) : 'No especificado';
-    const city = request.client_city ? toTitleCase(request.client_city) : 'No especificada';
-    const description = request.tattoo_idea_description || 'Sin descripcion';
+    setApplicationModalHeading('Detalle de la solicitud', '');
 
-    const attachments = request.job_board_attachments || [];
-    const sortedAttachments = [...attachments].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-    const galleryHtml = sortedAttachments.length > 0
-        ? `<div class="modal-gallery">
-            ${sortedAttachments.map(att =>
-                `<img src="${escapeHtml(att.file_url)}" alt="${escapeHtml(att.file_name || 'Referencia')}" class="modal-gallery-img" loading="lazy" onclick="window.open('${escapeHtml(att.file_url)}', '_blank')">`
-            ).join('')}
-           </div>`
-        : '';
-
-    summaryEl.innerHTML = `
-        <div class="modal-detail-grid">
-            <div class="modal-detail">
-                <span class="modal-detail-label">Descripcion</span>
-                <p class="modal-detail-value">${escapeHtml(description)}</p>
-            </div>
-            ${galleryHtml}
-            <div class="modal-detail-row">
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Estilos</span>
-                    <span class="modal-detail-value">${escapeHtml(styles)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Tamano</span>
-                    <span class="modal-detail-value">${escapeHtml(size)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Color</span>
-                    <span class="modal-detail-value">${escapeHtml(request.tattoo_color_type || 'No especificado')}</span>
-                </div>
-            </div>
-            <div class="modal-detail-row">
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Zona del cuerpo</span>
-                    <span class="modal-detail-value">${escapeHtml(bodyPart)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Ciudad</span>
-                    <span class="modal-detail-value">${escapeHtml(city)}</span>
-                </div>
-                <div class="modal-detail">
-                    <span class="modal-detail-label">Presupuesto</span>
-                    <span class="modal-detail-value">${budgetRange}</span>
-                </div>
-            </div>
-        </div>
-        <div class="modal-login-prompt">
-            <i class="fa-solid fa-lock"></i>
-            <p>${currentUser ? 'Completa tu perfil de artista para postularte a esta solicitud.' : 'Inicia sesion como artista para postularte a esta solicitud.'}</p>
-            <div class="modal-actions">
-                <a href="${currentUser ? jobBoardAuthUrls.registerArtist : jobBoardAuthUrls.login}" class="btn btn-primary">${currentUser ? 'Completar Perfil' : 'Iniciar Sesion'}</a>
-                <a href="${currentUser ? jobBoardAuthUrls.dashboard : jobBoardAuthUrls.registerArtist}" class="btn btn-secondary">${currentUser ? 'Ir a mi Panel' : 'Registrarme'}</a>
+    summaryEl.innerHTML = buildRequestSummary(request) + `
+        <div class="jbf-login-prompt">
+            <i data-wo-icon="lock" aria-hidden="true"></i>
+            <p>${currentUser ? 'Completá tu perfil de artista para postularte a esta solicitud.' : 'Ingresá como artista para postularte a esta solicitud.'}</p>
+            <div class="wo-modal-actions" style="justify-content:center;margin-top:0;">
+                <a href="${currentUser ? jobBoardAuthUrls.registerArtist : jobBoardAuthUrls.login}" class="wo-btn wo-btn--direct wo-btn--s">${currentUser ? 'Completar perfil' : 'Ingresar'}</a>
+                <a href="${currentUser ? jobBoardAuthUrls.dashboard : jobBoardAuthUrls.registerArtist}" class="wo-btn wo-btn--ghost wo-btn--s">${currentUser ? 'Ir a mi panel' : 'Registrarme'}</a>
             </div>
         </div>
     `;
@@ -1258,19 +1212,19 @@ function showToast(message, type) {
     if (toastTimeout) clearTimeout(toastTimeout);
 
     const iconMap = {
-        success: 'fa-solid fa-check-circle',
-        error: 'fa-solid fa-exclamation-circle',
-        warning: 'fa-solid fa-exclamation-triangle',
-        info: 'fa-solid fa-info-circle'
+        success: 'check-circle',
+        error: 'alert-circle',
+        warning: 'alert-triangle',
+        info: 'info'
     };
 
     const toast = document.createElement('div');
     toast.id = 'jb-toast';
     toast.className = `jb-toast jb-toast--${type || 'info'}`;
     toast.innerHTML = `
-        <i class="${iconMap[type] || iconMap.info}"></i>
+        <i data-wo-icon="${iconMap[type] || iconMap.info}" aria-hidden="true"></i>
         <span>${escapeHtml(message)}</span>
-        <button class="jb-toast-close" onclick="this.parentElement.remove()">&times;</button>
+        <button class="jb-toast-close" onclick="this.parentElement.remove()" aria-label="Cerrar aviso">&times;</button>
     `;
 
     document.body.appendChild(toast);
@@ -1292,6 +1246,7 @@ function showToast(message, type) {
 // ============================================
 
 window.toggleStyleFilter = toggleStyleFilter;
+window.toggleStyleListExpanded = toggleStyleListExpanded;
 window.handleApply = handleApply;
 window.viewRequest = viewRequest;
 window.removeFilter = removeFilter;

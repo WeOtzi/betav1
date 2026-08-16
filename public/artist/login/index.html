@@ -4,14 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WE OTZI | Acceso artista</title>
+    <title>We Ötzi · Ingreso artista</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css">
+
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/artist-auth-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js?v=20260602-artist-dashboard-7"></script>
@@ -28,164 +32,169 @@
     <script src="/shared/js/logging-loader.js?v=20260515-dashboard"></script>
 </head>
 
-<body class="artist-login-page wod-body wod-login-page">
-<a class="wod-skip-link" href="#login-content">Saltar al contenido</a>
+<body class="wo-app wo-auth-body artist-login-page">
+<a class="wo-skip-link" href="#login-content">Saltar al contenido</a>
 
-<div class="wod-stage">
-<div class="wod-frame">
+<div class="wo-auth-split">
 
-    <header class="wod-nav">
-        <div class="wod-nav__left">
-            <a href="/marketplace" class="wod-nav__logo" aria-label="WE OTZI">
-                <span class="wod-nav__marks"><span class="sq"></span><span class="ci"></span><span class="tr"></span></span>
-                <span>WE&nbsp;OTZI</span>
+    <aside class="wo-auth-poster" aria-hidden="true">
+        <div class="wo-auth-poster-frame">
+            <span class="wo-marks">
+                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+            </span>
+            <p class="wo-auth-poster-title" id="poster-login">
+                <span class="line">Accedé</span>
+                <span class="line hl-blue">A tu</span>
+                <span class="line hl-yellow">Panel</span>
+            </p>
+            <p class="wo-auth-poster-title" id="poster-recovery" hidden>
+                <span class="line">Recuperá</span>
+                <span class="line"><span class="hl-blue">Tu</span> <span class="hl-yellow">acceso</span></span>
+            </p>
+        </div>
+    </aside>
+
+    <main class="wo-auth-panel" id="login-content" tabindex="-1">
+        <div class="wo-auth-panel-inner">
+
+            <a class="wo-auth-brand" href="/marketplace" aria-label="We Ötzi — ir a explorar">
+                <span class="wo-marks">
+                    <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+                </span>
+                <span class="wo-auth-brand-name">We Ötzi</span>
             </a>
-            <span class="wod-nav__tag"><span class="dot"></span><span>EDICION BAUHAUS · ARTISTAS</span></span>
-        </div>
 
-        <button class="wod-nav__burger" id="login-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="login-mobile-menu" aria-label="Menu">
-            <span></span><span></span><span></span>
-        </button>
+            <!-- Vista: login anónimo -->
+            <div id="login-anonymous-view" class="wo-auth-view">
+                <h1 class="wo-auth-title" id="artist-login-title">Bienvenida de nuevo</h1>
+                <p class="wo-auth-copy">Ingresá para gestionar tus spots y cotizaciones.</p>
 
-        <div class="wod-nav__right">
-            <nav class="wod-nav__links" aria-label="Navegacion principal">
-                <a href="/marketplace">EXPLORAR</a>
-                <a href="/job-board">JOB BOARD</a>
-                <a href="/registerclosedbeta">REGISTRARME</a>
-            </nav>
-            <a class="wod-login-btn" href="/artist/login" aria-current="page">LOG IN</a>
-            <button class="wod-otzi-mark" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
-        </div>
+                <form id="login-form" class="wo-auth-form" onsubmit="handleArtistLogin(event)">
+                    <div class="wo-field">
+                        <label class="wo-label" for="login-email">Email</label>
+                        <div class="wo-auth-inputwrap">
+                            <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                            <input type="email" id="login-email" class="wo-input" placeholder="vos@email.com" required autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="login-password">Contraseña</label>
+                        <div class="wo-auth-inputwrap">
+                            <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                            <input type="password" id="login-password" class="wo-input" placeholder="••••••••" required autocomplete="current-password">
+                        </div>
+                    </div>
+                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="btn-login">
+                        <span class="btn-text">Entrar</span>
+                        <i data-wo-icon="arrow-up-right" class="wo-icon-18" aria-hidden="true"></i>
+                    </button>
+                </form>
 
-        <div class="wod-nav__overflow" id="login-mobile-menu" aria-label="Navegacion movil">
-            <a href="/marketplace">EXPLORAR</a>
-            <a href="/job-board">JOB BOARD</a>
-            <a href="/registerclosedbeta">REGISTRARME</a>
-            <a href="/artist/login" aria-current="page">LOG IN</a>
-        </div>
-    </header>
+                <div id="form-message" class="wo-auth-message" role="status" hidden></div>
 
-    <main class="wod-login-main" id="login-content" tabindex="-1">
-        <section class="wod-login-poster" aria-label="Acceso al panel de artista">
-            <div class="wod-login-poster__kicker mono-sm"><span class="mark mark--red"></span> ACCESO ARTISTA · BETA</div>
-            <h1 class="wod-login-poster__title">
-                ENTRA <span class="shape shape--sq" aria-hidden="true"></span><br>
-                A TU <span class="hl-blue">PANEL</span><br>
-                OTZI<span class="shape shape--tr" aria-hidden="true"></span>
-            </h1>
-            <div class="wod-login-poster__bottom">
-                <p><strong>Todo tu trabajo en un lugar.</strong> Cotizaciones, agenda, job board y perfil publico listos para moverse contigo.</p>
-                <div class="wod-login-build mono-sm">BUILD 0.9.4 · STATUS <span>LOGIN_READY</span></div>
-            </div>
-        </section>
+                <div class="wo-auth-or" role="separator">O continuá con</div>
 
-        <section class="wod-login-panel" aria-labelledby="artist-login-title">
-            <div class="wod-login-panel__inner">
-                <div id="login-anonymous-view">
-                    <p class="wod-login-kicker mono-sm"><span class="mark mark--red"></span> PASO UNICO · ACCESO</p>
-                    <h2 class="client-login-title wod-login-title" id="artist-login-title">Inicia sesion como artista.</h2>
-                    <p class="client-login-subcopy wod-login-copy">Entra con Google o con tu email para gestionar tu dashboard, revisar cotizaciones y mantener tu perfil al dia.</p>
-
-                    <button type="button" class="wbtn wod-login-social client-login-google-btn action-btn" onclick="handleArtistGoogleLogin()">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                <div class="wo-auth-social">
+                    <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><i data-wo-icon="zap" aria-hidden="true"></i>Recomendado</span>
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard" onclick="handleArtistGoogleLogin()">
+                        <svg class="wo-auth-google-g" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path>
                             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path>
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path>
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path>
                         </svg>
-                        <span>CONTINUAR CON GOOGLE</span>
-                        <span aria-hidden="true">→</span>
+                        <span class="btn-text">Google</span>
                     </button>
+                </div>
 
-                    <div class="client-login-divider wod-login-divider">O CON EMAIL</div>
+                <div class="wo-auth-links">
+                    <p class="wo-meta">¿Sin cuenta? <a href="/registerclosedbeta">Registrate</a></p>
+                    <p class="wo-meta">¿Sos cliente? <a href="/client/login">Ingresá acá</a></p>
+                </div>
 
-                    <form id="login-form" class="wod-login-form" onsubmit="handleArtistLogin(event)">
-                        <div class="client-login-group wod-login-field">
-                            <label for="login-email">Email</label>
-                            <input type="email" id="login-email" placeholder="tu@email.com" required autocomplete="email">
+                <button type="button" class="wo-auth-forgot" onclick="handleArtistPasswordRecovery(event)">¿Olvidaste tu contraseña?</button>
+            </div>
+
+            <!-- Vista: recuperar contraseña -->
+            <div id="recovery-view" class="wo-auth-view" hidden>
+
+                <div id="recovery-step-email" class="wo-auth-flow">
+                    <ol class="wo-auth-steps" aria-label="Pasos de recuperación">
+                        <li class="wo-auth-step is-active"><span class="box">1</span><span class="lbl">Email</span></li>
+                        <li class="wo-auth-step"><span class="box">2</span><span class="lbl">Envío</span></li>
+                        <li class="wo-auth-step"><span class="box">3</span><span class="lbl">Ingreso</span></li>
+                    </ol>
+
+                    <h1 class="wo-auth-title">¿Olvidaste tu contraseña?</h1>
+                    <p class="wo-auth-copy">Ingresá tu email y te mandamos una contraseña temporal para que recuperes tu acceso.</p>
+
+                    <form id="recovery-form" class="wo-auth-form" onsubmit="handleRecoverySubmit(event)">
+                        <div class="wo-field">
+                            <label class="wo-label" for="recovery-email">Email</label>
+                            <div class="wo-auth-inputwrap">
+                                <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                                <input type="email" id="recovery-email" class="wo-input" placeholder="vos@email.com" required autocomplete="email">
+                            </div>
                         </div>
-                        <div class="client-login-group wod-login-field">
-                            <label for="login-password">Contrasena</label>
-                            <input type="password" id="login-password" placeholder="Tu contrasena" required autocomplete="current-password">
-                        </div>
-                        <button type="submit" class="wbtn wbtn--dark quote-cta-btn client-login-submit wod-login-submit" id="btn-login">
-                            <span class="btn-text">INICIAR SESION</span>
-                            <span aria-hidden="true">→</span>
+                        <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="btn-recovery">
+                            <span class="btn-text">Enviar email</span>
+                            <i data-wo-icon="arrow-up-right" class="wo-icon-18" aria-hidden="true"></i>
                         </button>
                     </form>
 
-                    <div id="form-message" class="form-message"></div>
+                    <div id="recovery-message" class="wo-auth-message" role="status" hidden></div>
 
-                    <div class="client-login-links wod-login-links">
-                        <a href="#" onclick="handleArtistPasswordRecovery(event); return false;">OLVIDE MI CONTRASENA</a>
-                        <p>NO TIENES CUENTA? <a href="/registerclosedbeta">REGISTRATE COMO ARTISTA</a></p>
-                        <p>ERES CLIENTE? <a href="/client/login">ACCEDE AQUI</a></p>
-                    </div>
+                    <button type="button" class="wo-auth-back" onclick="showLoginView()">
+                        <i data-wo-icon="arrow-left" aria-hidden="true"></i>
+                        Volver al inicio de sesión
+                    </button>
                 </div>
 
-                <div id="login-authenticated-view" class="client-login-auth-view wod-login-auth-view" hidden>
-                    <p class="wod-login-kicker mono-sm" id="auth-view-kicker"><span class="mark mark--red"></span> SESION ACTIVA</p>
-                    <h2 class="client-login-title wod-login-title" id="auth-view-title">Ya iniciaste sesion.</h2>
-                    <p class="client-login-subcopy wod-login-copy" id="auth-view-subcopy">
-                        Continua con tu cuenta <strong id="auth-view-email"></strong>.
-                    </p>
+                <div id="recovery-step-sent" class="wo-auth-flow" hidden>
+                    <ol class="wo-auth-steps" aria-label="Pasos de recuperación">
+                        <li class="wo-auth-step is-done"><span class="box"><i data-wo-icon="check" aria-hidden="true"></i></span><span class="lbl">Email</span></li>
+                        <li class="wo-auth-step is-done"><span class="box"><i data-wo-icon="check" aria-hidden="true"></i></span><span class="lbl">Envío</span></li>
+                        <li class="wo-auth-step is-active"><span class="box">3</span><span class="lbl">Ingreso</span></li>
+                    </ol>
 
-                    <div id="auth-view-progress-note" class="form-message info" hidden></div>
-
-                    <div class="client-login-auth-actions wod-login-auth-actions" id="auth-view-actions">
-                        <!-- Action buttons injected by artist-login.js -->
+                    <div class="wo-auth-success">
+                        <div class="wo-auth-success-icon"><i data-wo-icon="check" aria-hidden="true"></i></div>
+                        <h2 class="wo-auth-title">Revisá tu correo</h2>
+                        <p class="wo-auth-copy">Te enviamos una contraseña temporal a <strong id="recovery-sent-email"></strong>. Ingresá con ella y después cambiala desde tu panel.</p>
                     </div>
 
-                    <div class="client-login-links wod-login-links">
-                        <a href="#" onclick="handleArtistLogout(); return false;">CERRAR SESION</a>
-                    </div>
+                    <button type="button" class="wo-btn wo-btn--block wo-btn--hard" onclick="showLoginView()">
+                        <span class="btn-text">Iniciar sesión</span>
+                        <i data-wo-icon="arrow-up-right" class="wo-icon-18" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Vista: sesión activa -->
+            <div id="login-authenticated-view" class="wo-auth-view" hidden>
+                <p class="wo-eyebrow wo-auth-kicker" id="auth-view-kicker"><span class="k-mark" aria-hidden="true"></span><span id="auth-view-kicker-text">Sesión activa</span></p>
+                <h2 class="wo-auth-title" id="auth-view-title">Ya iniciaste sesión</h2>
+                <p class="wo-auth-copy" id="auth-view-subcopy">
+                    Continuá con tu cuenta <strong id="auth-view-email"></strong>.
+                </p>
+
+                <div id="auth-view-progress-note" class="wo-auth-message" role="status" hidden></div>
+
+                <div class="wo-auth-actions" id="auth-view-actions">
+                    <!-- Botones inyectados por artist-login.js -->
+                </div>
+
+                <div class="wo-auth-links">
+                    <p class="wo-meta"><a href="#" onclick="handleArtistLogout(); return false;">Cerrar sesión</a></p>
                 </div>
             </div>
-        </section>
+
+        </div>
     </main>
 
-    <footer class="wod-footer">
-        <div class="wod-footer__cur" data-weotzi-currency-mount></div>
-        <div class="wod-footer__mid">HECHO CON AMOR POR WE OTZI · PARA ARTISTAS · LOGIN · 2026</div>
-        <div class="wod-footer__soc"><a href="/marketplace">EXPLORAR</a><a href="/registerclosedbeta">REGISTRO</a></div>
-    </footer>
-
-</div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const toggleBtn = document.getElementById('login-mobile-menu-toggle');
-        const mobileMenu = document.getElementById('login-mobile-menu');
-        if (!toggleBtn || !mobileMenu) return;
-
-        function setOpen(open) {
-            mobileMenu.classList.toggle('is-open', open);
-            toggleBtn.classList.toggle('is-open', open);
-            toggleBtn.setAttribute('aria-expanded', String(open));
-        }
-
-        toggleBtn.addEventListener('click', function (event) {
-            event.stopPropagation();
-            setOpen(!mobileMenu.classList.contains('is-open'));
-        });
-
-        mobileMenu.querySelectorAll('a').forEach(function (link) {
-            link.addEventListener('click', function () { setOpen(false); });
-        });
-
-        document.addEventListener('click', function (event) {
-            if (!mobileMenu.classList.contains('is-open')) return;
-            if (!mobileMenu.contains(event.target) && !toggleBtn.contains(event.target)) {
-                setOpen(false);
-            }
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') setOpen(false);
-        });
-    });
-</script>
-<script src="/shared/js/artist-login.js?v=20260602-artist-dashboard-7"></script>
+<script src="/shared/js/artist-login.js?v=20260816-ds-auth"></script>
 </body>
 </html>

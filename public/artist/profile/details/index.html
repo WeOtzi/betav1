@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WE ÖTZI | Mi perfil · detalle completo</title>
+    <title>WE ÖTZI | Centro de la cuenta</title>
 
     <script type="text/javascript">
         (function(){
@@ -23,9 +23,13 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/dashboard-redesign.css">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
+    <link rel="stylesheet" href="/shared/css/account-center-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -57,235 +61,332 @@
     </script>
 </head>
 
-<body class="artist-dashboard-page wod-body wod-profile-details-page">
-<div class="wod-stage">
-<div class="wod-frame">
+<body class="wo-app artist-dashboard-page woac">
 
-    <!-- NAV (same chrome as dashboard) -->
-    <header class="wod-nav">
-        <div class="wod-nav__left">
-            <a href="/artist/dashboard" class="wod-nav__logo">
-                <span class="wod-nav__marks"><span class="sq"></span><span class="ci"></span><span class="tr"></span></span>
-                <span>WE&nbsp;ÖTZI</span>
+    <!-- TOPBAR (DS) -->
+    <header class="wo-topbar woac-topbar">
+        <div class="wo-topbar-left">
+            <a href="/artist/dashboard" class="wo-topbar-brand">
+                <span class="wo-marks"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>
+                WE&nbsp;ÖTZI
             </a>
-            <span class="wod-nav__tag"><span class="dot"></span><span>EDICIÓN BAUHAUS · BETA</span></span>
-        </div>
-        <button class="wod-nav__burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú"><span></span><span></span><span></span></button>
-        <div class="wod-nav__right">
-            <nav class="wod-nav__links" aria-label="Navegación principal de artista">
-                <a href="/my-quotations">COTIZACIONES</a>
-                <a href="/job-board">JOB BOARD</a>
-                <a href="/studio-spots" data-overflow>SPOTS</a>
-                <a href="/artist/invitations" data-overflow>INVITACIONES</a>
-                <a href="/calendar">CALENDARIO</a>
-                <a href="/my-quotations/statistics" data-overflow>ESTADÍSTICAS</a>
-                <a href="/calendar" data-overflow>TRAVEL</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a class="wo-topbar-item" href="/my-quotations">Cotizaciones</a>
+                <a class="wo-topbar-item" href="/job-board">Job board</a>
+                <a class="wo-topbar-item" href="/studio-spots">Spots</a>
+                <a class="wo-topbar-item" href="/artist/invitations">Invitaciones</a>
+                <a class="wo-topbar-item" href="/calendar">Calendario</a>
+                <a class="wo-topbar-item" href="/my-quotations/statistics">Estadísticas</a>
             </nav>
-            <button class="wod-nav__more" id="wod-nav-more" type="button" aria-expanded="false">+ MÁS</button>
-            <button class="wod-login-btn" onclick="handleLogout()" aria-label="Cerrar sesión">LOG OUT</button>
-            <button class="wod-otzi-mark" onclick="toggleTheme()" aria-label="Cambiar modo">Ö</button>
         </div>
-        <div class="wod-nav__overflow" id="dashboard-mobile-menu" aria-label="Navegación móvil">
-            <a href="/my-quotations">COTIZACIONES</a><a href="/job-board">JOB BOARD</a>
-            <a href="/studio-spots">SPOTS</a><a href="/artist/invitations">INVITACIONES</a>
-            <a href="/calendar">CALENDARIO</a><a href="/my-quotations/statistics">ESTADÍSTICAS</a>
-            <a href="/artist/dashboard">DASHBOARD</a>
+        <div class="wo-topbar-right">
+            <a class="wo-o-tile" href="/artist/dashboard" aria-label="Ir al dashboard">Ö</a>
+            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono woac-logout" type="button" onclick="handleLogout()">Log out</button>
+            <button class="wo-iconbtn wo-iconbtn--s woac-burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú"><i data-wo-icon="menu" class="wo-icon-18"></i></button>
         </div>
+        <nav class="woac-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegación móvil" hidden>
+            <a href="/my-quotations">Cotizaciones</a>
+            <a href="/job-board">Job board</a>
+            <a href="/studio-spots">Spots</a>
+            <a href="/artist/invitations">Invitaciones</a>
+            <a href="/calendar">Calendario</a>
+            <a href="/my-quotations/statistics">Estadísticas</a>
+            <a href="/artist/dashboard">Dashboard</a>
+        </nav>
     </header>
 
-    <!-- PAGE HEADER -->
-    <div class="wod-pd__head">
-        <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
-            <a href="/artist/dashboard" class="wod-pd__back">← VOLVER AL DASHBOARD</a>
-            <div class="mono-sm" style="color:var(--ink-2);">◍ MI PERFIL · DETALLE COMPLETO</div>
-            <h1 class="wod-pd__title">Información de <span class="hl-red" id="wod-pd-username">tu perfil</span></h1>
-            <p class="wod-pd__lead">Todo lo que llena tu perfil público. Los datos marcados como <strong style="color:var(--red);">FALTA</strong> aparecen en blanco para los clientes — completalos para mejorar tu tasa de cotizaciones.</p>
-        </div>
-        <div class="wod-pd__headcta">
-            <button class="wbtn wbtn--dashed" id="wod-pd-preview" type="button">VER PERFIL PÚBLICO</button>
-            <button class="wbtn wbtn--dark" id="wod-pd-editall" type="button">EDITAR TODO →</button>
-        </div>
-    </div>
+    <!-- SHELL: sidebar de secciones + panels -->
+    <div class="woac-shell">
+        <aside class="woac-aside" aria-label="Secciones de la cuenta">
+            <div class="woac-aside-title wo-meta-s">Centro de la cuenta</div>
+            <button class="woac-side-item is-active" type="button" data-woac-tab="identidad" aria-current="true"><i data-wo-icon="user" class="wo-icon-18"></i><span>Identidad</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="datos-publicos"><i data-wo-icon="globe" class="wo-icon-18"></i><span>Datos públicos</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="estilos"><i data-wo-icon="pen-tool" class="wo-icon-18"></i><span>Estilos</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="precios"><i data-wo-icon="dollar-sign" class="wo-icon-18"></i><span>Precios</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="ubicaciones"><i data-wo-icon="map-pin" class="wo-icon-18"></i><span>Ubicaciones</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="redes"><i data-wo-icon="instagram" class="wo-icon-18"></i><span>Redes</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="seguridad"><i data-wo-icon="shield" class="wo-icon-18"></i><span>Seguridad</span></button>
+            <button class="woac-side-item" type="button" data-woac-tab="verificacion"><i data-wo-icon="check-circle" class="wo-icon-18"></i><span>Verificación</span></button>
+            <button class="woac-side-item woac-side-item--danger" type="button" data-woac-tab="peligro"><i data-wo-icon="alert-triangle" class="wo-icon-18"></i><span>Zona de peligro</span></button>
+        </aside>
 
-    <!-- IDENTITY STRIP -->
-    <div class="wod-pd__idstrip">
-        <div class="wod-profile__avatar" style="width:72px;height:72px;" id="wod-pd-avatar"><span>AVATAR</span></div>
-        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
-            <div class="wod-profile__name" id="wod-pd-name" style="font-size:26px;">—</div>
-            <div class="wod-profile__handle" id="wod-pd-handle">@usuario.wo</div>
-            <div class="wod-profile__badges" style="margin-top:4px;">
-                <span class="pill pill--red" id="wod-pd-badge-verif">NO VERIFICADO</span>
-                <span class="pill pill--blue" id="wod-pd-badge-level">NUEVO</span>
-                <span class="pill pill--outline" id="wod-pd-badge-emb" style="display:none;">EMBAJADOR</span>
-            </div>
-        </div>
-        <div class="wod-pd__idstats">
-            <div class="wod-pd__idstat"><div class="mono-sm" style="color:var(--ink-2);">AÑOS</div><div class="v" id="wod-pd-s-exp">—</div></div>
-            <div class="wod-pd__idstat"><div class="mono-sm" style="color:var(--ink-2);">ESTILOS</div><div class="v" id="wod-pd-s-styles">—</div></div>
-            <div class="wod-pd__idstat"><div class="mono-sm" style="color:var(--ink-2);">TARIFA / SESIÓN</div><div class="v v--red" id="wod-pd-s-price">—</div></div>
-        </div>
-    </div>
+        <main class="woac-main" id="woac-main">
 
-    <!-- FIELD GROUPS -->
-    <div class="wod-pd__groups" id="wod-pd-groups">
-        <section class="wod-pd__group">
-            <div class="wod-pd__group-head">
-                <div><div class="mono-sm" style="color:var(--ink-2);">◍ CÓMO TE ENCUENTRAN</div><h2 class="wod-pd__group-title">Contacto</h2></div>
-                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
+            <div class="woac-pagehead">
+                <a href="/artist/dashboard" class="woac-back wo-meta-s">← Volver al dashboard</a>
+                <div class="woac-pagehead-cta">
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard" id="woac-preview" type="button">Ver perfil público →</button>
+                    <button class="wo-btn wo-btn--s wo-btn--accent wo-btn--hard" id="woac-edit-all" type="button">Editar perfil</button>
+                </div>
             </div>
-            <div class="wod-pd__fields" data-fields='[["Email","display-email"],["WhatsApp","display-whatsapp"],["Instagram","display-instagram"],["Portfolio / Web","display-portfolio"]]'></div>
-        </section>
-        <section class="wod-pd__group">
-            <div class="wod-pd__group-head">
-                <div><div class="mono-sm" style="color:var(--ink-2);">◍ TU PRÁCTICA</div><h2 class="wod-pd__group-title">Trabajo</h2></div>
-                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
-            </div>
-            <div class="wod-pd__fields" data-fields='[["Estilos","display-styles"],["Experiencia","display-experience"],["Tarifa por sesión","display-price"],["Disponibilidad","display-tattoo-schedule-summary"]]'></div>
-        </section>
-        <section class="wod-pd__group">
-            <div class="wod-pd__group-head">
-                <div><div class="mono-sm" style="color:var(--ink-2);">◍ DÓNDE TRABAJÁS</div><h2 class="wod-pd__group-title">Estudio</h2></div>
-                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
-            </div>
-            <div class="wod-pd__fields" data-fields='[["Modalidad","display-work-type"],["Estudio","display-studio"],["Dirección","display-address"],["Ubicación","display-location"]]'></div>
-        </section>
-        <section class="wod-pd__group">
-            <div class="wod-pd__group-head">
-                <div><div class="mono-sm" style="color:var(--ink-2);">◍ AJUSTES DE PERFIL</div><h2 class="wod-pd__group-title">Cuenta</h2></div>
-                <button class="wbtn wbtn--dashed wbtn--xs wod-pd-edit" type="button">EDITAR</button>
-            </div>
-            <div class="wod-pd__fields" data-fields='[["Fecha de nacimiento","display-birthdate"],["Embajador","display-embajador"],["Newsletter","display-newsletter"]]'></div>
-        </section>
-    </div>
 
-    <!-- EDIT PANEL: the legacy profile form (real editor, restyled) -->
-    <section class="card" id="wod-pd-editor" style="margin:0;border-left:none;border-right:none;display:none;">
-        <header class="card__head card__head--red">
-            <div class="card__head-l"><span class="card__head-dot"></span><span>Editar perfil</span></div>
-            <div class="card__head-actions">
-                <button class="wbtn wbtn--dashed wbtn--xs" id="profile-gallery-upload-btn" type="button" style="background:var(--cream);">SUBIR FOTOS</button>
-                <button class="wbtn wbtn--dark wbtn--xs edit-toggle-btn" id="edit-toggle-btn" type="button"><span>Editar</span></button>
-            </div>
-        </header>
-        <div class="card__body" style="padding:20px 28px;">
-            <form id="profile-form" class="profile-form">
-                <div class="form-row"><label class="form-label">Nombre artístico</label>
-                    <div class="form-value" id="display-artistic-name">-</div>
-                    <input type="text" class="form-input-dashboard modal-input" id="input-artistic-name" style="display:none;"></div>
-                <div class="form-row"><label class="form-label">Nombre completo</label>
-                    <div class="form-value" id="display-full-name">-</div>
-                    <input type="text" class="form-input-dashboard modal-input" id="input-full-name" style="display:none;"></div>
-                <div class="form-row"><label class="form-label">Email</label>
-                    <div class="form-value form-value-readonly" id="display-email">-</div></div>
-                <div class="form-row"><label class="form-label">Ubicación</label>
-                    <div class="form-value" id="display-location">-</div>
-                    <div class="dashboard-location-group" id="location-input-group" style="display:none;">
-                        <div class="dashboard-location-wrapper" style="display:flex;gap:8px;">
-                            <input type="text" class="form-input-dashboard modal-input" id="input-location" placeholder="Ciudad, País" autocomplete="off">
-                            <button type="button" class="dashboard-geolocation-btn wbtn wbtn--sm" id="dashboard-geolocation-btn" onclick="getDashboardGeolocation()" aria-label="Detectar ubicación">◎</button>
+            <!-- PANEL · Identidad -->
+            <section class="woac-panel is-active" id="woac-panel-identidad" data-woac-panel="identidad">
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Identidad</h1>
+                        <p class="woac-sub">Así te van a ver los clientes y estudios en We Ötzi.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard woac-edit" type="button">Editar sección</button>
+                </header>
+                <div class="woac-id">
+                    <div class="wo-avatar wo-avatar--l wo-avatar--bordered woac-id-avatar" id="wod-pd-avatar"><span>WÖ</span></div>
+                    <div class="woac-id-main">
+                        <div class="woac-id-name" id="wod-pd-name">—</div>
+                        <div class="woac-id-handle" id="wod-pd-handle">@usuario.wo</div>
+                        <div class="woac-id-badges">
+                            <span class="woac-pill woac-pill--warn" id="wod-pd-badge-verif">No verificado</span>
+                            <span class="woac-pill woac-pill--info" id="wod-pd-badge-level">Nuevo</span>
+                            <span class="woac-pill" id="wod-pd-badge-emb" style="display:none;">Embajador</span>
                         </div>
-                        <p class="dashboard-location-hint mono-sm" id="dashboard-location-hint" aria-live="polite" style="color:var(--ink-2);"></p>
-                    </div></div>
-                <div class="form-row"><label class="form-label">Estilos</label>
-                    <div class="form-value styles-value" id="display-styles">-</div>
-                    <button type="button" class="styles-edit-trigger wbtn wbtn--dashed wbtn--sm" id="styles-edit-trigger" style="display:none;" onclick="openStylesModal()">
-                        <span class="styles-trigger-tags" id="styles-trigger-tags"><span class="styles-trigger-placeholder">Seleccionar estilos...</span></span></button></div>
-                <div class="form-row"><label class="form-label">Experiencia</label>
-                    <div class="form-value" id="display-experience">-</div>
-                    <select class="form-select-dashboard modal-input" id="input-experience" style="display:none;">
-                        <option value="0-1">Menos de 1 año</option><option value="1-3">1 - 3 años</option>
-                        <option value="3-5">3 - 5 años</option><option value="5-10">5 - 10 años</option>
-                        <option value="10+">Más de 10 años</option></select></div>
-                <div class="form-row"><label class="form-label">Tarifa por sesión</label>
-                    <div class="form-value" id="display-price">-</div>
-                    <div class="price-input-group" id="price-input-group" style="display:none;gap:8px;">
-                        <input type="number" class="form-input-dashboard modal-input" id="input-price" placeholder="150" min="0">
-                        <select class="form-select-dashboard currency-select modal-input" id="input-currency">
-                            <option value="USD">USD</option><option value="EUR">EUR</option><option value="MXN">MXN</option>
-                            <option value="COP">COP</option><option value="ARS">ARS</option><option value="CLP">CLP</option>
-                            <option value="PEN">PEN</option><option value="BRL">BRL</option><option value="GBP">GBP</option></select></div></div>
-                <div class="form-row"><label class="form-label">Portfolio / Web</label>
-                    <div class="form-value" id="display-portfolio">-</div>
-                    <input type="url" class="form-input-dashboard modal-input" id="input-portfolio" placeholder="https://..." style="display:none;"></div>
-                <div class="form-row"><label class="form-label">Modalidad</label>
-                    <div class="form-value" id="display-work-type">-</div>
-                    <select class="form-select-dashboard modal-input" id="input-work-type" style="display:none;">
-                        <option value="independent">Independiente</option><option value="studio">Estudio</option>
-                        <option value="both">Ambos</option></select></div>
-                <div class="form-row" id="studio-row" style="display:none;"><label class="form-label">Nombre del estudio</label>
-                    <div class="form-value" id="display-studio">-</div>
-                    <div class="dashboard-studio-autocomplete" style="position:relative;">
-                        <input type="text" class="form-input-dashboard modal-input" id="input-studio" style="display:none;" autocomplete="off">
-                        <div class="studio-suggestions" id="dashboard-studio-suggestions"></div></div></div>
-                <div class="form-row" id="address-row" style="display:none;"><label class="form-label" id="address-row-label">Dirección del estudio</label>
-                    <div class="form-value" id="display-address">-</div>
-                    <div class="dashboard-address-editor" style="display:none;" id="dashboard-address-editor">
-                        <input type="text" class="form-input-dashboard modal-input weotzi-address-picker-input" id="input-address-search" placeholder="Buscar dirección…" autocomplete="off">
-                        <div class="weotzi-address-fields" id="dashboard-address-preview" hidden></div></div></div>
-                <div class="form-row"><label class="form-label">Disponibilidad por estudios</label>
-                    <div class="form-value" id="display-tattoo-schedule-summary">-</div>
-                    <div class="tattoo-locations-editor" id="tattoo-locations-editor" style="display:none;">
-                        <div class="tattoo-editor-group">
-                            <div class="tattoo-editor-group-header"><span>Tatuando en</span>
-                                <button type="button" class="tattoo-editor-add-btn wbtn wbtn--xs" id="add-current-tattoo-location-btn">+ Agregar estudio</button></div>
-                            <div class="tattoo-location-form-list" id="current-tattoo-location-editor-list"></div></div>
-                        <div class="tattoo-editor-group">
-                            <div class="tattoo-editor-group-header"><span>Próximamente tatuando en</span>
-                                <button type="button" class="tattoo-editor-add-btn wbtn wbtn--xs" id="add-upcoming-tattoo-location-btn">+ Agregar viaje</button></div>
-                            <div class="tattoo-location-form-list" id="upcoming-tattoo-location-editor-list"></div></div></div></div>
-                <div class="form-row"><label class="form-label">Instagram</label>
-                    <div class="form-value" id="display-instagram">-</div>
-                    <input type="text" class="form-input-dashboard modal-input" id="input-instagram" placeholder="@tuusuario" style="display:none;"></div>
-                <div class="form-row"><label class="form-label">WhatsApp</label>
-                    <div class="form-value" id="display-whatsapp">-</div>
-                    <input type="tel" class="form-input-dashboard modal-input" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display:none;" data-clarity-mask="true"></div>
-                <div class="form-row"><label class="form-label">Embajador <span class="form-label-note">(Manejado por Soporte)</span></label>
-                    <div class="form-value form-value-readonly" id="display-embajador">-</div></div>
-                <div class="form-row"><label class="form-label">Fecha de nacimiento</label>
-                    <div class="form-value" id="display-birthdate">-</div>
-                    <input type="date" class="form-input-dashboard modal-input" id="input-birthdate" style="display:none;"></div>
-                <div class="form-row"><label class="form-label">Newsletter</label>
-                    <div class="form-value" id="display-newsletter">-</div>
-                    <label class="toggle-switch" id="toggle-newsletter" style="display:none;">
-                        <input type="checkbox" id="input-newsletter"><span class="toggle-slider"></span></label></div>
-                <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display:none;">
-                    <label class="form-label">Galería de trabajos</label>
-                    <div class="gallery-edit-content">
-                        <div class="gallery-edit-preview" id="gallery-edit-preview"></div>
-                        <select id="gallery-edit-category-select" class="gallery-edit-category-select modal-input">
-                            <option value="realizados">Trabajos realizados</option><option value="flash">Flash disponibles</option>
-                            <option value="proyectos">Proyectos</option></select>
-                        <label class="gallery-edit-upload-btn wbtn wbtn--sm" for="gallery-edit-input"><span>Subir fotos/videos</span></label>
-                        <input type="file" id="gallery-edit-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
-                        <div class="gallery-edit-loading" id="gallery-edit-loading" style="display:none;">
-                            <span class="gallery-upload-counter" id="gallery-edit-upload-counter">0 / 0</span>
-                            <div class="gallery-progress-fill" id="gallery-edit-progress-fill"></div></div>
-                        <span class="gallery-edit-count mono-sm" id="gallery-edit-count">0/12 archivos</span></div></div>
-                <div class="form-actions" id="form-actions" style="display:none;gap:10px;margin-top:14px;">
-                    <button type="button" class="btn-cancel wbtn wbtn--dashed" id="profile-cancel">Cancelar</button>
-                    <button type="submit" class="btn-save wbtn wbtn--dark" id="profile-save">Guardar cambios</button></div>
-            </form>
-            <div class="status-message form-message" id="status-message"></div>
-        </div>
-    </section>
+                    </div>
+                    <div class="woac-idstats">
+                        <div class="woac-idstat"><span class="wo-meta-s">Años</span><span class="v" id="wod-pd-s-exp">—</span></div>
+                        <div class="woac-idstat"><span class="wo-meta-s">Estilos</span><span class="v" id="wod-pd-s-styles">—</span></div>
+                        <div class="woac-idstat"><span class="wo-meta-s">Tarifa / sesión</span><span class="v v--accent" id="wod-pd-s-price">—</span></div>
+                    </div>
+                </div>
+                <div class="woac-fields" data-fields='[["Nombre artístico","display-artistic-name"],["Nombre completo","display-full-name"],["Email","display-email"],["Fecha de nacimiento","display-birthdate"]]'></div>
+            </section>
 
-    <!-- DANGER ZONE -->
-    <section class="wod-pd__danger">
-        <div>
-            <div class="mono-sm" style="color:var(--ink-2);margin-bottom:4px;">◍ ZONA DE RIESGO</div>
-            <div style="font-family:var(--sans);font-weight:700;font-size:14px;">Cambiar contraseña o cerrar sesión.</div>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="wbtn wbtn--dashed" id="change-password-btn" type="button">CAMBIAR CONTRASEÑA</button>
-            <button class="wbtn" style="color:var(--red);border-color:var(--red);" id="logout-btn" type="button">CERRAR SESIÓN</button>
-        </div>
-    </section>
+            <!-- PANEL · Datos públicos -->
+            <section class="woac-panel" id="woac-panel-datos-publicos" data-woac-panel="datos-publicos" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Datos públicos</h1>
+                        <p class="woac-sub">La información que completa tu perfil público.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard woac-edit" type="button">Editar sección</button>
+                </header>
+                <div class="woac-fields" data-fields='[["Biografía","bio-text"],["Newsletter","display-newsletter"],["Embajador","display-embajador"]]'></div>
+                <p class="wo-help woac-note">El campo Embajador lo administra Soporte — escribinos si creés que corresponde.</p>
+            </section>
+
+            <!-- PANEL · Estilos -->
+            <section class="woac-panel" id="woac-panel-estilos" data-woac-panel="estilos" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Estilos</h1>
+                        <p class="woac-sub">Contá qué estilos manejás y cuánta experiencia tenés.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard woac-edit" type="button">Editar sección</button>
+                </header>
+                <div class="woac-fields" data-fields='[["Estilos","display-styles"],["Experiencia","display-experience"]]'></div>
+                <p class="wo-help woac-note">Los estilos alimentan el buscador de artistas — cuanto más precisos, mejores cotizaciones.</p>
+            </section>
+
+            <!-- PANEL · Precios -->
+            <section class="woac-panel" id="woac-panel-precios" data-woac-panel="precios" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Precios</h1>
+                        <p class="woac-sub">Definí tu tarifa por sesión — los clientes la ven al pedir cotización.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard woac-edit" type="button">Editar sección</button>
+                </header>
+                <div class="woac-fields" data-fields='[["Tarifa por sesión","display-price"]]'></div>
+                <p class="wo-help woac-note">La tarifa es una referencia pública — el precio final se acuerda en cada cotización.</p>
+            </section>
+
+            <!-- PANEL · Ubicaciones -->
+            <section class="woac-panel" id="woac-panel-ubicaciones" data-woac-panel="ubicaciones" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Ubicaciones</h1>
+                        <p class="woac-sub">Dónde trabajás y dónde vas a estar tatuando.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard woac-edit" type="button">Editar sección</button>
+                </header>
+                <div class="woac-fields" data-fields='[["Modalidad","display-work-type"],["Estudio","display-studio"],["Dirección","display-address"],["Ciudad · país","display-location"],["Disponibilidad por estudios","display-tattoo-schedule-summary"]]'></div>
+            </section>
+
+            <!-- PANEL · Redes -->
+            <section class="woac-panel" id="woac-panel-redes" data-woac-panel="redes" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Redes</h1>
+                        <p class="woac-sub">Instagram, WhatsApp y tu sitio — cómo te contactan.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard woac-edit" type="button">Editar sección</button>
+                </header>
+                <div class="woac-fields" data-fields='[["Instagram","display-instagram"],["WhatsApp","display-whatsapp"],["Sitio web","display-portfolio"]]'></div>
+            </section>
+
+            <!-- PANEL · Seguridad -->
+            <section class="woac-panel" id="woac-panel-seguridad" data-woac-panel="seguridad" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Seguridad</h1>
+                        <p class="woac-sub">Protegé el acceso a tu cuenta.</p>
+                    </div>
+                </header>
+                <div class="woac-action-card">
+                    <div class="woac-action-card-body">
+                        <div class="woac-action-card-title">Contraseña</div>
+                        <p class="woac-action-card-sub">Actualizá tu contraseña cada tanto. Mínimo 8 caracteres.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--ghost wo-btn--hard" id="change-password-btn" type="button">Cambiar contraseña</button>
+                </div>
+            </section>
+
+            <!-- PANEL · Verificación -->
+            <section class="woac-panel" id="woac-panel-verificacion" data-woac-panel="verificacion" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Verificación</h1>
+                        <p class="woac-sub">Un perfil verificado genera más confianza y prioridad en el Job Board.</p>
+                    </div>
+                </header>
+                <div class="woac-action-card">
+                    <div class="woac-action-card-body">
+                        <div class="woac-action-card-title">Estado de tu perfil</div>
+                        <p class="woac-action-card-sub">La verificación revisa tu identidad y tu portfolio. Te avisamos por email cuando esté lista.</p>
+                    </div>
+                    <span class="woac-pill woac-pill--warn" id="woac-verif-state">No verificado</span>
+                </div>
+                <div class="woac-panel-actions">
+                    <button class="wo-btn wo-btn--s wo-btn--direct wo-btn--hard" id="woac-verif-request" type="button">Solicitar verificación</button>
+                </div>
+            </section>
+
+            <!-- PANEL · Zona de peligro -->
+            <section class="woac-panel" id="woac-panel-peligro" data-woac-panel="peligro" hidden>
+                <header class="woac-panel-head">
+                    <div>
+                        <h1 class="woac-title">Zona de peligro</h1>
+                        <p class="woac-sub">Acciones sensibles de tu cuenta.</p>
+                    </div>
+                </header>
+                <div class="woac-danger">
+                    <div class="woac-action-card-body">
+                        <div class="woac-action-card-title">Cerrar sesión</div>
+                        <p class="woac-action-card-sub">Cerrás la sesión en este dispositivo. Tus datos quedan guardados.</p>
+                    </div>
+                    <button class="wo-btn wo-btn--s wo-btn--danger wo-btn--hard" id="logout-btn" type="button">Cerrar sesión</button>
+                </div>
+            </section>
+
+            <!-- EDIT PANEL: the legacy profile form (real editor, restyled) -->
+            <div class="woac-editor-wrap" id="woac-editor-wrap" hidden>
+            <section class="card" id="wod-pd-editor" style="margin:0;display:none;">
+                <header class="card__head card__head--red">
+                    <div class="card__head-l"><span class="card__head-dot"></span><span>Editar perfil</span></div>
+                    <div class="card__head-actions">
+                        <button class="wbtn wbtn--dashed wbtn--xs" id="profile-gallery-upload-btn" type="button">SUBIR FOTOS</button>
+                        <button class="wbtn wbtn--dark wbtn--xs edit-toggle-btn" id="edit-toggle-btn" type="button"><span>Editar</span></button>
+                    </div>
+                </header>
+                <div class="card__body">
+                    <form id="profile-form" class="profile-form">
+                        <div class="form-row"><label class="form-label">Nombre artístico</label>
+                            <div class="form-value" id="display-artistic-name">-</div>
+                            <input type="text" class="form-input-dashboard modal-input" id="input-artistic-name" style="display:none;"></div>
+                        <div class="form-row"><label class="form-label">Nombre completo</label>
+                            <div class="form-value" id="display-full-name">-</div>
+                            <input type="text" class="form-input-dashboard modal-input" id="input-full-name" style="display:none;"></div>
+                        <div class="form-row"><label class="form-label">Email</label>
+                            <div class="form-value form-value-readonly" id="display-email">-</div></div>
+                        <div class="form-row"><label class="form-label">Ubicación</label>
+                            <div class="form-value" id="display-location">-</div>
+                            <div class="dashboard-location-group" id="location-input-group" style="display:none;">
+                                <div class="dashboard-location-wrapper" style="display:flex;gap:8px;">
+                                    <input type="text" class="form-input-dashboard modal-input" id="input-location" placeholder="Ciudad, País" autocomplete="off">
+                                    <button type="button" class="dashboard-geolocation-btn wbtn wbtn--sm" id="dashboard-geolocation-btn" onclick="getDashboardGeolocation()" aria-label="Detectar ubicación">◎</button>
+                                </div>
+                                <p class="dashboard-location-hint mono-sm" id="dashboard-location-hint" aria-live="polite"></p>
+                            </div></div>
+                        <div class="form-row"><label class="form-label">Estilos</label>
+                            <div class="form-value styles-value" id="display-styles">-</div>
+                            <button type="button" class="styles-edit-trigger wbtn wbtn--dashed wbtn--sm" id="styles-edit-trigger" style="display:none;" onclick="openStylesModal()">
+                                <span class="styles-trigger-tags" id="styles-trigger-tags"><span class="styles-trigger-placeholder">Seleccionar estilos...</span></span></button></div>
+                        <div class="form-row"><label class="form-label">Experiencia</label>
+                            <div class="form-value" id="display-experience">-</div>
+                            <select class="form-select-dashboard modal-input" id="input-experience" style="display:none;">
+                                <option value="0-1">Menos de 1 año</option><option value="1-3">1 - 3 años</option>
+                                <option value="3-5">3 - 5 años</option><option value="5-10">5 - 10 años</option>
+                                <option value="10+">Más de 10 años</option></select></div>
+                        <div class="form-row"><label class="form-label">Tarifa por sesión</label>
+                            <div class="form-value" id="display-price">-</div>
+                            <div class="price-input-group" id="price-input-group" style="display:none;gap:8px;">
+                                <input type="number" class="form-input-dashboard modal-input" id="input-price" placeholder="150" min="0">
+                                <select class="form-select-dashboard currency-select modal-input" id="input-currency">
+                                    <option value="USD">USD</option><option value="EUR">EUR</option><option value="MXN">MXN</option>
+                                    <option value="COP">COP</option><option value="ARS">ARS</option><option value="CLP">CLP</option>
+                                    <option value="PEN">PEN</option><option value="BRL">BRL</option><option value="GBP">GBP</option></select></div></div>
+                        <div class="form-row"><label class="form-label">Portfolio / Web</label>
+                            <div class="form-value" id="display-portfolio">-</div>
+                            <input type="url" class="form-input-dashboard modal-input" id="input-portfolio" placeholder="https://..." style="display:none;"></div>
+                        <div class="form-row"><label class="form-label">Modalidad</label>
+                            <div class="form-value" id="display-work-type">-</div>
+                            <select class="form-select-dashboard modal-input" id="input-work-type" style="display:none;">
+                                <option value="independent">Independiente</option><option value="studio">Estudio</option>
+                                <option value="both">Ambos</option></select></div>
+                        <div class="form-row" id="studio-row" style="display:none;"><label class="form-label">Nombre del estudio</label>
+                            <div class="form-value" id="display-studio">-</div>
+                            <div class="dashboard-studio-autocomplete" style="position:relative;">
+                                <input type="text" class="form-input-dashboard modal-input" id="input-studio" style="display:none;" autocomplete="off">
+                                <div class="studio-suggestions" id="dashboard-studio-suggestions"></div></div></div>
+                        <div class="form-row" id="address-row" style="display:none;"><label class="form-label" id="address-row-label">Dirección del estudio</label>
+                            <div class="form-value" id="display-address">-</div>
+                            <div class="dashboard-address-editor" style="display:none;" id="dashboard-address-editor">
+                                <input type="text" class="form-input-dashboard modal-input weotzi-address-picker-input" id="input-address-search" placeholder="Buscar dirección…" autocomplete="off">
+                                <div class="weotzi-address-fields" id="dashboard-address-preview" hidden></div></div></div>
+                        <div class="form-row"><label class="form-label">Disponibilidad por estudios</label>
+                            <div class="form-value" id="display-tattoo-schedule-summary">-</div>
+                            <div class="tattoo-locations-editor" id="tattoo-locations-editor" style="display:none;">
+                                <div class="tattoo-editor-group">
+                                    <div class="tattoo-editor-group-header"><span>Tatuando en</span>
+                                        <button type="button" class="tattoo-editor-add-btn wbtn wbtn--xs" id="add-current-tattoo-location-btn">+ Agregar estudio</button></div>
+                                    <div class="tattoo-location-form-list" id="current-tattoo-location-editor-list"></div></div>
+                                <div class="tattoo-editor-group">
+                                    <div class="tattoo-editor-group-header"><span>Próximamente tatuando en</span>
+                                        <button type="button" class="tattoo-editor-add-btn wbtn wbtn--xs" id="add-upcoming-tattoo-location-btn">+ Agregar viaje</button></div>
+                                    <div class="tattoo-location-form-list" id="upcoming-tattoo-location-editor-list"></div></div></div></div>
+                        <div class="form-row"><label class="form-label">Instagram</label>
+                            <div class="form-value" id="display-instagram">-</div>
+                            <input type="text" class="form-input-dashboard modal-input" id="input-instagram" placeholder="@tuusuario" style="display:none;"></div>
+                        <div class="form-row"><label class="form-label">WhatsApp</label>
+                            <div class="form-value" id="display-whatsapp">-</div>
+                            <input type="tel" class="form-input-dashboard modal-input" id="input-whatsapp" placeholder="+54 11 1234 5678" style="display:none;" data-clarity-mask="true"></div>
+                        <div class="form-row"><label class="form-label">Embajador <span class="form-label-note">(Manejado por Soporte)</span></label>
+                            <div class="form-value form-value-readonly" id="display-embajador">-</div></div>
+                        <div class="form-row"><label class="form-label">Fecha de nacimiento</label>
+                            <div class="form-value" id="display-birthdate">-</div>
+                            <input type="date" class="form-input-dashboard modal-input" id="input-birthdate" style="display:none;"></div>
+                        <div class="form-row"><label class="form-label">Newsletter</label>
+                            <div class="form-value" id="display-newsletter">-</div>
+                            <label class="toggle-switch" id="toggle-newsletter" style="display:none;">
+                                <input type="checkbox" id="input-newsletter"><span class="toggle-slider"></span></label></div>
+                        <div class="form-row gallery-edit-section" id="gallery-edit-section" style="display:none;">
+                            <label class="form-label">Galería de trabajos</label>
+                            <div class="gallery-edit-content">
+                                <div class="gallery-edit-preview" id="gallery-edit-preview"></div>
+                                <select id="gallery-edit-category-select" class="gallery-edit-category-select modal-input">
+                                    <option value="realizados">Trabajos realizados</option><option value="flash">Flash disponibles</option>
+                                    <option value="proyectos">Proyectos</option></select>
+                                <label class="gallery-edit-upload-btn wbtn wbtn--sm" for="gallery-edit-input"><span>Subir fotos/videos</span></label>
+                                <input type="file" id="gallery-edit-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+                                <div class="gallery-edit-loading" id="gallery-edit-loading" style="display:none;">
+                                    <span class="gallery-upload-counter" id="gallery-edit-upload-counter">0 / 0</span>
+                                    <div class="gallery-progress-fill" id="gallery-edit-progress-fill"></div></div>
+                                <span class="gallery-edit-count mono-sm" id="gallery-edit-count">0/12 archivos</span></div></div>
+                        <div class="form-actions" id="form-actions" style="display:none;gap:10px;margin-top:14px;">
+                            <button type="button" class="btn-cancel wbtn wbtn--dashed" id="profile-cancel">Cancelar</button>
+                            <button type="submit" class="btn-save wbtn wbtn--dark" id="profile-save">Guardar cambios</button></div>
+                    </form>
+                    <div class="status-message form-message" id="status-message"></div>
+                </div>
+            </section>
+            </div><!-- /woac-editor-wrap -->
+
+        </main>
+    </div><!-- /woac-shell -->
 
     <!-- FOOTER -->
-    <footer class="wod-footer">
-        <div class="wod-footer__cur" data-weotzi-currency-mount></div>
-        <div class="wod-footer__mid">WE ÖTZI · DETALLE DE PERFIL · HECHO CON AMOR POR WE ÖTZI · PARA ARTISTAS · © 2026</div>
-        <a class="wod-pd__back" style="color:var(--cream);justify-self:end;" href="/artist/dashboard">← VOLVER AL DASHBOARD</a>
+    <footer class="woac-footer">
+        <div class="woac-footer-cur" data-weotzi-currency-mount></div>
+        <div class="wo-meta-s">WE ÖTZI · CENTRO DE LA CUENTA · © 2026</div>
+        <a class="wo-meta-s woac-footer-back" href="/artist/dashboard">← Volver al dashboard</a>
     </footer>
 
     <!-- HIDDEN HOOK CLUSTER — dashboard-only elements dashboard.js touches
@@ -348,12 +449,9 @@
             <button id="dashboard-lightbox-next"></button><span id="dashboard-lightbox-counter"></span></div>
     </div>
 
-</div><!-- /wod-frame -->
-</div><!-- /wod-stage -->
-
     <!-- Styles Selector Modal -->
-    <div id="styles-modal" class="modal-overlay" onclick="closeStylesModalOnOverlay(event)">
-        <div class="modal-container styles-modal-container">
+    <div id="styles-modal" class="modal-overlay wo-overlay" onclick="closeStylesModalOnOverlay(event)">
+        <div class="modal-container wo-modal styles-modal-container">
             <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar">✕</button>
             <h2 class="modal-title">Estilos</h2>
             <p class="modal-subtitle">Seleccioná los estilos que manejás</p>
@@ -370,8 +468,8 @@
     </div>
 
     <!-- Upcoming Travel Modal -->
-    <div id="upcoming-travel-modal" class="modal-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
-        <div class="modal-container upcoming-travel-modal-container">
+    <div id="upcoming-travel-modal" class="modal-overlay wo-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
+        <div class="modal-container wo-modal upcoming-travel-modal-container">
             <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar">✕</button>
             <h2 class="modal-title" id="upcoming-travel-modal-title">Agregar viaje</h2>
             <p class="modal-subtitle">Completá estudio, ciudad, fechas y agenda</p>
@@ -399,8 +497,8 @@
     </div>
 
     <!-- Password Modal -->
-    <div id="password-modal" class="modal-overlay" onclick="closePasswordModalOnOverlay(event)">
-        <div class="modal-container">
+    <div id="password-modal" class="modal-overlay wo-overlay" onclick="closePasswordModalOnOverlay(event)">
+        <div class="modal-container wo-modal">
             <button class="modal-close" onclick="closePasswordModal()" aria-label="Cerrar">✕</button>
             <h2 class="modal-title">Cambiar contraseña</h2>
             <p class="modal-subtitle">Ingresá tu nueva contraseña</p>
@@ -416,16 +514,16 @@
     </div>
 
     <!-- Verification + AI avatar modals (legacy hooks) -->
-    <div id="verification-modal" class="modal-overlay" onclick="closeVerificationModalOnOverlay(event)">
-        <div class="modal-container">
+    <div id="verification-modal" class="modal-overlay wo-overlay" onclick="closeVerificationModalOnOverlay(event)">
+        <div class="modal-container wo-modal">
             <button class="modal-close" onclick="closeVerificationModal()" aria-label="Cerrar">✕</button>
             <h2 class="modal-title">Verificar tu perfil</h2>
             <div id="verification-message" class="form-message"></div>
             <button type="button" class="btn-modal-submit" id="submit-verification-btn" onclick="submitVerificationRequest()">Solicitar verificación →</button>
         </div>
     </div>
-    <div id="ai-avatar-modal" class="modal-overlay" onclick="closeAIAvatarModalOnOverlay(event)">
-        <div class="modal-container">
+    <div id="ai-avatar-modal" class="modal-overlay wo-overlay" onclick="closeAIAvatarModalOnOverlay(event)">
+        <div class="modal-container wo-modal">
             <button class="modal-close" onclick="closeAIAvatarModal()" aria-label="Cerrar">✕</button>
             <textarea id="ai-avatar-prompt" class="modal-input"></textarea>
             <div id="ai-avatar-preview-container" style="display:none;"><img id="ai-avatar-preview" alt=""></div>
@@ -443,62 +541,130 @@
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/dashboard.js"></script>
 
-    <!-- Project legacy #display-* values into the Bauhaus grouped view -->
+    <!-- Proyección de los #display-* legacy hacia los panels Bauhaus + tabs -->
     <script>
     (function () {
+        'use strict';
         function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
         function isEmpty(v){ v=(v||'').trim(); return !v || v==='-' || v==='—' || /^sin\b/i.test(v); }
+        function txt(id){ var el=document.getElementById(id); return el ? (el.textContent||'').trim() : ''; }
+
+        /* ---------- Proyección de campos ---------- */
         function paint() {
-            document.querySelectorAll('.wod-pd__fields').forEach(function (box) {
+            document.querySelectorAll('.woac-fields[data-fields]').forEach(function (box) {
                 var defs; try { defs = JSON.parse(box.getAttribute('data-fields')); } catch (e) { defs = []; }
                 box.innerHTML = defs.map(function (d) {
-                    var src = document.getElementById(d[1]);
-                    var val = src ? (src.textContent || '').trim() : '';
+                    var val = txt(d[1]);
                     var miss = isEmpty(val);
-                    return '<div class="wod-field"><div class="wod-field__top">' +
-                        '<span class="wod-field__label">' + esc(d[0]) + '</span>' +
-                        (miss ? '<span class="pill pill--outline" style="color:var(--red);border-color:var(--red);">FALTA</span>' : '') +
-                        '</div><div class="wod-field__value">' + (miss ? '— · sin definir' : esc(val)) + '</div></div>';
+                    return '<div class="woac-field">' +
+                        '<span class="woac-field-label">' + esc(d[0]) + '</span>' +
+                        '<span class="woac-field-value' + (miss ? ' is-missing' : '') + '">' + (miss ? '— · sin definir' : esc(val)) + '</span>' +
+                        (miss ? '<span class="woac-miss">Falta</span>' : '') +
+                        '</div>';
                 }).join('');
             });
-            // identity strip
-            var nm = document.getElementById('artist-name');
-            var un = document.getElementById('artist-username');
-            if (nm) { var v=(nm.textContent||'').trim(); if(v){ document.getElementById('wod-pd-name').textContent=v.toUpperCase(); document.getElementById('wod-pd-username').textContent=v; } }
-            if (un) { var h=(un.textContent||'').trim(); if(h) document.getElementById('wod-pd-handle').textContent=h; }
+
+            /* identidad */
+            var nm = txt('artist-name');
+            if (nm) document.getElementById('wod-pd-name').textContent = nm;
+            var un = txt('artist-username');
+            if (un) document.getElementById('wod-pd-handle').textContent = un;
             ['exp','styles','price'].forEach(function(k){
                 var srcId = k==='exp'?'stat-experience':k==='styles'?'stat-styles':'stat-price';
-                var s=document.getElementById(srcId), t=document.getElementById('wod-pd-s-'+k);
-                if(s&&t){ var v=(s.textContent||'').trim(); if(v && v!=='-') t.textContent=v; }
+                var v = txt(srcId), t = document.getElementById('wod-pd-s-'+k);
+                if (t && v && v!=='-') t.textContent = v;
             });
-            var av=document.getElementById('avatar-image');
-            if(av&&av.src&&!/^https?:\/\/[^/]+\/?$/.test(av.src)&&av.getAttribute('src')){
-                var pd=document.getElementById('wod-pd-avatar');
-                if(pd) pd.innerHTML='<img src="'+esc(av.src)+'" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">';
+            var av = document.getElementById('avatar-image');
+            if (av && av.getAttribute('src') && !/^https?:\/\/[^/]+\/?$/.test(av.src)) {
+                var pd = document.getElementById('wod-pd-avatar');
+                if (pd) pd.innerHTML = '<img src="' + esc(av.src) + '" alt="Avatar">';
             }
-            var vb=document.getElementById('verification-text');
-            if(vb&&vb.textContent.trim()){ var pb=document.getElementById('wod-pd-badge-verif'); pb.textContent=vb.textContent.toUpperCase(); }
-            var lt=document.getElementById('level-text');
-            if(lt&&lt.textContent.trim()) document.getElementById('wod-pd-badge-level').textContent=lt.textContent.toUpperCase();
-        }
-        function openEditor(){
-            var ed=document.getElementById('wod-pd-editor');
-            if(ed){ ed.style.display='block'; ed.scrollIntoView({behavior:'smooth'}); }
-            if(typeof window.toggleEditMode==='function' && !window.isEditMode){ try{ window.toggleEditMode(); }catch(e){} }
-        }
-        document.getElementById('wod-pd-editall').addEventListener('click', openEditor);
-        document.querySelectorAll('.wod-pd-edit').forEach(function(b){ b.addEventListener('click', openEditor); });
-        var pv=document.getElementById('wod-pd-preview');
-        if(pv) pv.addEventListener('click', function(){ var b=document.getElementById('preview-profile-btn'); if(b) b.click(); });
-        // nav overflow + burger
-        var more=document.getElementById('wod-nav-more'), burger=document.getElementById('dashboard-mobile-menu-toggle'), ov=document.getElementById('dashboard-mobile-menu');
-        function tog(btn){ if(!ov)return; var o=ov.classList.toggle('is-open'); if(btn){btn.classList.toggle('is-open',o);} }
-        if(more) more.addEventListener('click',function(){tog(more);});
-        if(burger) burger.addEventListener('click',function(){tog(burger);});
 
+            /* verificación + nivel */
+            var state = (document.getElementById('verification-badge') || {getAttribute:function(){return 'No';}}).getAttribute('data-state') || 'No';
+            var vtxt = txt('verification-text');
+            var kind = state === 'Yes' ? 'ok' : (state === 'Requested' || state === 'In Progress' || state === 'In Analysis') ? 'info' : 'warn';
+            [document.getElementById('wod-pd-badge-verif'), document.getElementById('woac-verif-state')].forEach(function (el) {
+                if (!el) return;
+                if (vtxt) el.textContent = vtxt;
+                el.classList.remove('woac-pill--ok','woac-pill--info','woac-pill--warn');
+                el.classList.add('woac-pill--' + kind);
+            });
+            var lt = txt('level-text');
+            if (lt) document.getElementById('wod-pd-badge-level').textContent = lt;
+            var emb = txt('embajador-badge');
+            var embEl = document.getElementById('wod-pd-badge-emb');
+            if (embEl && emb) { embEl.textContent = emb; embEl.style.display = 'inline-flex'; }
+
+            /* botón de verificación: espeja texto/estado del hook oculto */
+            var src = document.getElementById('request-verification-btn');
+            var proxy = document.getElementById('woac-verif-request');
+            if (src && proxy) {
+                var label = (src.textContent || '').trim();
+                if (label) proxy.textContent = label;
+                proxy.disabled = !!src.disabled;
+            }
+        }
+        var paintTimer = null;
+        function schedulePaint(){ clearTimeout(paintTimer); paintTimer = setTimeout(paint, 150); }
+
+        /* ---------- Tabs / panels ---------- */
+        var items = Array.prototype.slice.call(document.querySelectorAll('.woac-side-item'));
+        var panels = Array.prototype.slice.call(document.querySelectorAll('.woac-panel'));
+        function activate(key, updateHash) {
+            var known = panels.some(function (p) { return p.getAttribute('data-woac-panel') === key; });
+            if (!known) return;
+            items.forEach(function (b) {
+                var on = b.getAttribute('data-woac-tab') === key;
+                b.classList.toggle('is-active', on);
+                if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+            });
+            panels.forEach(function (p) {
+                var on = p.getAttribute('data-woac-panel') === key;
+                p.classList.toggle('is-active', on);
+                p.hidden = !on;
+            });
+            if (updateHash) { try { history.replaceState(null, '', '#' + key); } catch (e) {} }
+        }
+        items.forEach(function (b) {
+            b.addEventListener('click', function () { activate(b.getAttribute('data-woac-tab'), true); });
+        });
+        var initial = (location.hash || '').replace('#', '');
+        if (initial) activate(initial, false);
+        window.addEventListener('hashchange', function () {
+            activate((location.hash || '').replace('#', ''), false);
+        });
+
+        /* ---------- Editor legacy ---------- */
+        function editorOpen() {
+            var wrap = document.getElementById('woac-editor-wrap');
+            var ed = document.getElementById('wod-pd-editor');
+            if (wrap) wrap.hidden = false;
+            if (ed) { ed.style.display = 'block'; ed.scrollIntoView({ behavior: 'smooth' }); }
+            var btn = document.getElementById('edit-toggle-btn');
+            var inEdit = btn && btn.classList.contains('active');
+            if (!inEdit && typeof window.toggleEditMode === 'function') { try { window.toggleEditMode(); } catch (e) {} }
+        }
+        var editAll = document.getElementById('woac-edit-all');
+        if (editAll) editAll.addEventListener('click', editorOpen);
+        document.querySelectorAll('.woac-edit').forEach(function (b) { b.addEventListener('click', editorOpen); });
+
+        /* ---------- Proxies a hooks ocultos ---------- */
+        var pv = document.getElementById('woac-preview');
+        if (pv) pv.addEventListener('click', function () { var b = document.getElementById('preview-profile-btn'); if (b) b.click(); });
+        var vr = document.getElementById('woac-verif-request');
+        if (vr) vr.addEventListener('click', function () { var b = document.getElementById('request-verification-btn'); if (b) b.click(); });
+
+        /* ---------- Repintado ---------- */
         window.addEventListener('wo:dashboard-ready', function () { setTimeout(paint, 120); });
-        // dashboard.js may finish before listener attaches; also poll a few times
-        var n=0, iv=setInterval(function(){ paint(); if(++n>20) clearInterval(iv); }, 600);
+        var n = 0, iv = setInterval(function () { paint(); if (++n > 20) clearInterval(iv); }, 600);
+        var observed = [document.getElementById('wod-pd-editor'), document.querySelector('.wod-hook-hidden')];
+        if (window.MutationObserver) {
+            var mo = new MutationObserver(schedulePaint);
+            observed.forEach(function (root) {
+                if (root) mo.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['src', 'data-state', 'disabled'] });
+            });
+        }
     })();
     </script>
 </body>

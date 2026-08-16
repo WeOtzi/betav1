@@ -4308,7 +4308,7 @@ function updateBioMobilePreview() {
     const text = getBioMobilePreviewText(formState.data.bio || bioEditor.innerHTML, bioEditor);
     const hasBio = Boolean(text);
     trigger.classList.toggle('has-bio', hasBio);
-    preview.textContent = hasBio ? text : 'Toca para escribir tu bio.';
+    preview.textContent = hasBio ? text : 'Tocá para escribir tu bio.';
 }
 
 function isBioMobileViewport() {
