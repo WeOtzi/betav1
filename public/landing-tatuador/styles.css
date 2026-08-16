@@ -1,0 +1,1313 @@
+:root {
+    --cream: #faf8f3;
+    --white: #ffffff;
+    --navy: #001125;
+    --ink: #24211d;
+    --muted: #5a5449;
+    --sand: #b9ae98;
+    --blue: #0055ff;
+    --deep-blue: #1e3fa6;
+    --red: #e63a1f;
+    --hero-red: #e42121;
+    --yellow: #f2b519;
+    --display: "Archivo Black", "Arial Black", sans-serif;
+    --sans: "Inter", Arial, sans-serif;
+    --mono: "JetBrains Mono", Consolas, monospace;
+    --content-max: 1408px;
+    --page-gutter: 64px;
+    --header-height: 90px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 24px;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    overflow-x: hidden;
+    background: var(--cream);
+    color: var(--navy);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+img {
+    display: block;
+}
+
+.skip-link {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    padding: 12px 16px;
+    transform: translateY(-150%);
+    background: var(--navy);
+    color: var(--cream);
+    font: 700 12px/1 var(--mono);
+    text-transform: uppercase;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+.content-width {
+    width: 100%;
+    max-width: var(--content-max);
+    margin-inline: auto;
+    padding-inline: var(--page-gutter);
+}
+
+.site-header {
+    position: relative;
+    z-index: 50;
+    height: var(--header-height);
+    border-bottom: 1.6px solid var(--ink);
+    background: var(--cream);
+}
+
+.header-inner {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: var(--content-max);
+    height: 100%;
+    margin-inline: auto;
+    padding-inline: var(--page-gutter);
+}
+
+.brand {
+    flex: none;
+    color: var(--navy);
+    font: 400 22px/1 var(--display);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 40px;
+}
+
+.desktop-nav a {
+    padding: 10px 14px;
+    color: var(--muted);
+    font: 400 12px/1 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 160ms ease;
+}
+
+.desktop-nav a:hover,
+.desktop-nav a:focus-visible,
+.login-link:hover,
+.login-link:focus-visible {
+    color: var(--blue);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+.login-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 22px;
+    color: var(--ink);
+    font: 700 12px/1 var(--sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 160ms ease;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 1px 30px;
+    border: 1px solid var(--ink);
+    font: 700 12px/1 var(--sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.button img {
+    width: 18px;
+    height: 18px;
+}
+
+.button:hover,
+.button:focus-visible {
+    transform: translate(-2px, -2px);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+
+.button-dark {
+    background: var(--ink);
+    color: var(--cream);
+}
+
+.button-yellow {
+    min-height: 52px;
+    background: var(--yellow);
+    color: var(--ink);
+}
+
+.button-header {
+    padding-inline: 22px;
+}
+
+.menu-toggle,
+.mobile-menu {
+    display: none;
+}
+
+.hero {
+    position: relative;
+    height: 720px;
+    overflow: hidden;
+    background: var(--cream);
+}
+
+.hero-inner {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    max-width: var(--content-max);
+    height: 100%;
+    margin-inline: auto;
+    padding-inline: var(--page-gutter);
+}
+
+.hero h1 {
+    position: absolute;
+    top: 106px;
+    left: calc(var(--page-gutter) + 13px);
+    width: 560px;
+    margin: 0;
+    color: var(--navy);
+    font: 400 72px/1.083 var(--display);
+    letter-spacing: -0.01em;
+}
+
+.hero-square {
+    position: absolute;
+    z-index: 1;
+    top: 60px;
+    left: calc(50% - 283px);
+    width: 365px;
+    height: 340px;
+    border-bottom: 4px solid var(--cream);
+    border-right: 4px solid var(--cream);
+    background: var(--yellow);
+}
+
+.hero-triangle {
+    position: absolute;
+    z-index: 2;
+    top: 60px;
+    left: calc(50% - 282px);
+    width: 1001.5px;
+    height: 590px;
+    max-width: none;
+}
+
+.hero-band {
+    position: absolute;
+    z-index: 4;
+    top: 555px;
+    left: 0;
+    width: 100%;
+    height: 98px;
+    background: var(--deep-blue);
+    color: var(--cream);
+}
+
+.hero-band-inner {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.hero-band p {
+    margin: 0;
+    font: 400 20px/1.4 var(--sans);
+}
+
+.hero-cta-wrap {
+    position: absolute;
+    z-index: 5;
+    right: 0;
+    bottom: 28px;
+    left: 0;
+}
+
+.section h2,
+.final-cta h2 {
+    margin: 0;
+    color: var(--navy);
+    font: 400 32px/1.125 var(--display);
+}
+
+.section-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.eyebrow {
+    margin: 0;
+    font: 400 12px/1.2 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.eyebrow-blue {
+    color: var(--blue);
+}
+
+.eyebrow-red {
+    color: var(--red);
+}
+
+.advantages {
+    padding-block: 112px;
+}
+
+.advantage-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin-top: 56px;
+}
+
+.advantage-card {
+    min-width: 0;
+    min-height: 174px;
+    padding: 0 24px 28px 26px;
+    border-left: 1.6px solid var(--ink);
+}
+
+.advantage-card:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+
+.advantage-card:last-child {
+    padding-right: 0;
+}
+
+.icon-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+}
+
+.tile-blue {
+    background: var(--blue);
+}
+
+.tile-red {
+    background: var(--red);
+}
+
+.tile-yellow {
+    background: var(--yellow);
+}
+
+.tile-ink {
+    background: var(--ink);
+}
+
+.figma-icon {
+    position: relative;
+    display: block;
+    width: 22px;
+    height: 22px;
+    overflow: hidden;
+}
+
+.figma-icon img,
+.benefit-icon img,
+.instagram-icon img {
+    position: absolute;
+    max-width: none;
+}
+
+.clients-1 {
+    top: 13.75px;
+    left: 0.92px;
+    width: 16.5px;
+    height: 7.33px;
+}
+
+.clients-2 {
+    top: 2.75px;
+    left: 4.58px;
+    width: 9.17px;
+    height: 9.17px;
+}
+
+.clients-3 {
+    top: 13.87px;
+    right: 0.92px;
+    width: 4.58px;
+    height: 7.21px;
+}
+
+.clients-4 {
+    top: 2.87px;
+    right: 4.57px;
+    width: 4.59px;
+    height: 8.94px;
+}
+
+.portfolio-1 {
+    top: 2.75px;
+    left: 2.75px;
+    width: 16.5px;
+    height: 16.5px;
+}
+
+.portfolio-2 {
+    top: 6.42px;
+    left: 6.42px;
+    width: 4.58px;
+    height: 4.58px;
+}
+
+.portfolio-3 {
+    top: 9.17px;
+    left: 4.58px;
+    width: 16.5px;
+    height: 11.92px;
+}
+
+.bookings-1 {
+    top: 3.67px;
+    left: 2.75px;
+    width: 16.5px;
+    height: 16.5px;
+}
+
+.bookings-2 {
+    top: 1.83px;
+    width: 1.83px;
+    height: 5.5px;
+}
+
+.bookings-2-left {
+    left: 7.33px;
+}
+
+.bookings-2-right {
+    left: 14.67px;
+}
+
+.bookings-3 {
+    top: 9.17px;
+    left: 2.75px;
+    width: 16.5px;
+    height: 1.83px;
+}
+
+.icon-reviews img {
+    top: 1.83px;
+    left: 0.92px;
+    width: 20.17px;
+    height: 19.27px;
+}
+
+.visibility-1 {
+    top: 3.67px;
+    left: 0;
+    width: 22px;
+    height: 16.5px;
+}
+
+.visibility-2 {
+    top: 7.33px;
+    left: 7.33px;
+    width: 7.33px;
+    height: 7.33px;
+}
+
+.advantage-card h3,
+.process-step h3,
+.benefit-row h3 {
+    margin: 20px 0 0;
+    color: var(--navy);
+    font: 400 18px/1.55 var(--display);
+}
+
+.advantage-card p,
+.process-step p,
+.benefit-row p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font: 400 14px/1.43 var(--sans);
+}
+
+.process {
+    padding-bottom: 112px;
+}
+
+.process-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 28px minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+    margin-top: 56px;
+}
+
+.process-step {
+    max-width: 365px;
+}
+
+.step-number {
+    color: var(--yellow);
+    font: 400 32px/1 var(--display);
+}
+
+.process-step h3 {
+    margin-top: 8px;
+    font-size: 22px;
+    line-height: 1.27;
+}
+
+.process-step p {
+    max-width: 280px;
+}
+
+.step-arrow {
+    width: 28px;
+    height: 28px;
+    margin-top: 24px;
+}
+
+.featured-benefits {
+    padding-bottom: 112px;
+}
+
+.featured-benefits h2 {
+    padding-bottom: 48px;
+}
+
+.benefit-list {
+    border-top: 1.6px solid var(--ink);
+    border-bottom: 1.6px solid var(--ink);
+}
+
+.benefit-row {
+    display: grid;
+    grid-template-columns: 24px 260px minmax(0, 1fr);
+    align-items: center;
+    gap: 28px;
+    min-height: 92px;
+    padding-inline: 4px;
+}
+
+.benefit-row h3,
+.benefit-row p {
+    margin: 0;
+}
+
+.benefit-row h3 {
+    font-size: 20px;
+    line-height: 1.4;
+}
+
+.benefit-icon {
+    position: relative;
+    display: block;
+    width: 24px;
+    height: 24px;
+    overflow: hidden;
+}
+
+.commissions-1 {
+    top: 0;
+    left: 11px;
+    width: 2px;
+    height: 24px;
+}
+
+.commissions-2 {
+    top: 4px;
+    left: 5px;
+    width: 14px;
+    height: 16px;
+}
+
+.payments-1 {
+    top: 11px;
+    left: 2px;
+    width: 20px;
+    height: 13px;
+}
+
+.payments-2 {
+    top: 2px;
+    left: 6px;
+    width: 12px;
+    height: 11px;
+}
+
+.icon-support img {
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+}
+
+.verified-1 {
+    top: 1px;
+    left: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+.verified-2 {
+    top: 13px;
+    left: 6px;
+    width: 12px;
+    height: 11.12px;
+}
+
+.testimonials {
+    padding-bottom: 112px;
+}
+
+.testimonial-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 56px;
+}
+
+.testimonial-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 214px;
+    margin: 0;
+    padding: 30px;
+    border: 1px solid var(--ink);
+    background: var(--white);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+
+.stars {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stars img {
+    width: 16px;
+    height: 16px;
+}
+
+.testimonial-card blockquote {
+    margin: 20px 0 24px;
+    color: var(--ink);
+    font: 400 14px/1.43 var(--sans);
+}
+
+.testimonial-card figcaption {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.avatar {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    color: var(--navy);
+    font: 700 12px/1 var(--sans);
+}
+
+.avatar-yellow {
+    background: var(--yellow);
+}
+
+.avatar-blue {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.avatar-red {
+    background: var(--red);
+    color: var(--white);
+}
+
+.testimonial-card figcaption > span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.testimonial-card strong {
+    color: var(--ink);
+    font: 700 12px/1.2 var(--sans);
+}
+
+.testimonial-card small {
+    color: var(--sand);
+    font: 400 10px/1.2 var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.faq {
+    padding-bottom: 112px;
+}
+
+.faq .content-width {
+    min-height: 550px;
+}
+
+.faq-list {
+    margin-top: 56px;
+}
+
+.faq-list details {
+    border-top: 1.6px solid transparent;
+}
+
+.faq-list details:first-child {
+    border-top-color: var(--ink);
+}
+
+.faq-list summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: 72px;
+    padding: 12px 4px;
+    color: var(--navy);
+    cursor: pointer;
+    font: 700 18px/1.4 var(--sans);
+    list-style: none;
+}
+
+.faq-list summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq-list summary img {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    transition: transform 160ms ease;
+}
+
+.faq-list details[open] summary img {
+    transform: rotate(180deg);
+}
+
+.faq-list details > p {
+    max-width: 760px;
+    margin: -2px 0 0;
+    padding: 0 4px 24px;
+    color: var(--muted);
+    font: 400 14px/1.43 var(--sans);
+}
+
+.final-cta {
+    min-height: 356px;
+    background: var(--ink);
+    color: var(--cream);
+}
+
+.final-cta-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    min-height: 356px;
+    padding-block: 64px;
+}
+
+.final-cta h2 {
+    max-width: 640px;
+    color: var(--cream);
+    font-size: 32px;
+    line-height: 1.125;
+}
+
+.final-cta p {
+    max-width: 640px;
+    margin: 0;
+    color: #d8d0bf;
+    font: 400 20px/1.4 var(--sans);
+}
+
+.site-footer {
+    border-top: 1.6px solid var(--ink);
+    background: var(--cream);
+}
+
+.footer-inner {
+    padding-top: 64px;
+    padding-bottom: 21px;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+    gap: 40px;
+}
+
+.footer-brand p {
+    max-width: 250px;
+    margin: 20px 0 0;
+    color: var(--muted);
+    font: 400 12px/1.5 var(--sans);
+}
+
+.footer-column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.footer-column h2 {
+    margin: 0 0 4px;
+    color: var(--muted);
+    font: 400 10px/1.4 var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.footer-column a,
+.footer-column span {
+    color: var(--ink);
+    font: 400 12px/1.4 var(--sans);
+}
+
+.footer-column a:hover,
+.footer-column a:focus-visible {
+    color: var(--blue);
+}
+
+.footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid #e5dfd2;
+}
+
+.footer-bottom p,
+.instagram-link {
+    margin: 0;
+    color: var(--sand);
+    font: 400 10px/1.4 var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.instagram-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+}
+
+.instagram-icon {
+    position: relative;
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+.instagram-1 {
+    top: 0.75px;
+    left: 0.75px;
+    width: 16.5px;
+    height: 16.5px;
+}
+
+.instagram-2 {
+    top: 5.25px;
+    left: 5.25px;
+    width: 7.5px;
+    height: 7.5px;
+}
+
+.instagram-3 {
+    top: 4.88px;
+    left: 13.12px;
+    width: 1.51px;
+    height: 1.5px;
+}
+
+/* The desktop Figma frame uses independently positioned sections whose
+   content areas overlap slightly. These offsets preserve that exact rhythm
+   while the narrower layouts below stay in normal document flow. */
+@media (min-width: 1181px) {
+    .process {
+        margin-top: -19px;
+    }
+
+    .featured-benefits {
+        margin-top: -30px;
+    }
+
+    .testimonials {
+        margin-top: -43px;
+    }
+
+    .faq {
+        margin-top: -31px;
+    }
+
+    .final-cta {
+        margin-top: -46px;
+    }
+}
+
+@media (max-width: 1180px) {
+    :root {
+        --page-gutter: 40px;
+    }
+
+    .desktop-nav {
+        margin-left: 20px;
+    }
+
+    .desktop-nav a {
+        padding-inline: 9px;
+        font-size: 11px;
+    }
+
+    .hero h1 {
+        width: 520px;
+        font-size: 66px;
+    }
+
+    .advantage-card {
+        padding-inline: 18px;
+    }
+
+    .benefit-row {
+        grid-template-columns: 24px 230px minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 960px) {
+    :root {
+        --header-height: 72px;
+    }
+
+    .desktop-nav,
+    .header-actions {
+        display: none;
+    }
+
+    .menu-toggle {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+        padding: 0;
+        border: 1.6px solid var(--ink);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+    }
+
+    .menu-toggle span {
+        width: 20px;
+        height: 1.6px;
+        background: currentColor;
+        transition: transform 160ms ease;
+    }
+
+    .menu-toggle[aria-expanded="true"] span:first-child {
+        transform: translateY(3.8px) rotate(45deg);
+    }
+
+    .menu-toggle[aria-expanded="true"] span:last-child {
+        transform: translateY(-3.8px) rotate(-45deg);
+    }
+
+    .mobile-menu {
+        position: absolute;
+        top: calc(100% + 1.6px);
+        right: 0;
+        left: 0;
+        z-index: 40;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: 1.6px solid var(--ink);
+        background: var(--cream);
+    }
+
+    .mobile-menu.is-open {
+        display: grid;
+    }
+
+    .mobile-menu a {
+        display: flex;
+        align-items: center;
+        min-height: 54px;
+        padding: 12px var(--page-gutter);
+        border-right: 1px solid #d8d0bf;
+        border-bottom: 1px solid #d8d0bf;
+        font: 700 11px/1.2 var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero {
+        height: 680px;
+    }
+
+    .hero h1 {
+        top: 98px;
+        width: 490px;
+        font-size: 58px;
+        line-height: 1.08;
+    }
+
+    .hero-square {
+        left: 43%;
+        width: 330px;
+        height: 310px;
+    }
+
+    .hero-triangle {
+        top: 60px;
+        left: 41%;
+        width: 850px;
+        height: 501px;
+    }
+
+    .hero-band {
+        top: 515px;
+    }
+
+    .advantages {
+        padding-block: 88px;
+    }
+
+    .advantage-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 48px;
+    }
+
+    .advantage-card,
+    .advantage-card:first-child {
+        padding-inline: 24px;
+        border-left: 1.6px solid var(--ink);
+    }
+
+    .advantage-card:nth-child(odd) {
+        padding-left: 0;
+        border-left: 0;
+    }
+
+    .process-grid {
+        gap: 18px;
+    }
+
+    .benefit-row {
+        grid-template-columns: 24px 220px minmax(0, 1fr);
+        gap: 22px;
+    }
+
+    .testimonial-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .testimonial-card {
+        min-height: 190px;
+    }
+
+    .faq .content-width {
+        min-height: 0;
+    }
+}
+
+@media (max-width: 700px) {
+    :root {
+        --page-gutter: 24px;
+    }
+
+    .brand {
+        font-size: 19px;
+    }
+
+    .mobile-menu {
+        grid-template-columns: 1fr;
+        max-height: calc(100vh - var(--header-height));
+        overflow-y: auto;
+    }
+
+    .mobile-menu a {
+        border-right: 0;
+    }
+
+    .hero {
+        height: 670px;
+    }
+
+    .hero h1 {
+        top: 74px;
+        left: var(--page-gutter);
+        width: calc(100% - (var(--page-gutter) * 2));
+        max-width: 440px;
+        font-size: clamp(42px, 12vw, 56px);
+        line-height: 1.05;
+    }
+
+    .hero-square {
+        top: 44px;
+        left: 46%;
+        width: 260px;
+        height: 245px;
+    }
+
+    .hero-triangle {
+        top: 170px;
+        left: 34%;
+        width: 660px;
+        height: 389px;
+    }
+
+    .hero-band {
+        top: 496px;
+        height: 104px;
+    }
+
+    .hero-band p {
+        font-size: 16px;
+        line-height: 1.45;
+    }
+
+    .desktop-only {
+        display: none;
+    }
+
+    .hero-cta-wrap {
+        bottom: 18px;
+    }
+
+    .section h2 {
+        font-size: 30px;
+    }
+
+    .advantages {
+        padding-block: 80px;
+    }
+
+    .advantage-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+        margin-top: 44px;
+    }
+
+    .advantage-card,
+    .advantage-card:first-child,
+    .advantage-card:nth-child(odd) {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        column-gap: 20px;
+        min-height: 0;
+        padding: 28px 0;
+        border-top: 1.6px solid var(--ink);
+        border-left: 0;
+    }
+
+    .advantage-card:first-child {
+        border-top: 0;
+    }
+
+    .advantage-card .icon-tile {
+        grid-row: span 2;
+    }
+
+    .advantage-card h3 {
+        margin: 0;
+    }
+
+    .advantage-card p {
+        margin-top: 6px;
+    }
+
+    .process,
+    .featured-benefits,
+    .testimonials,
+    .faq {
+        padding-bottom: 88px;
+    }
+
+    .process-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        margin-top: 44px;
+    }
+
+    .process-step {
+        max-width: none;
+        padding-left: 52px;
+        position: relative;
+    }
+
+    .step-number {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-size: 26px;
+    }
+
+    .process-step h3 {
+        margin-top: 0;
+    }
+
+    .step-arrow {
+        margin: 0 0 0 46px;
+        transform: rotate(90deg);
+    }
+
+    .featured-benefits h2 {
+        padding-bottom: 36px;
+    }
+
+    .benefit-row {
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 16px;
+        padding-block: 22px;
+    }
+
+    .benefit-row h3 {
+        font-size: 18px;
+    }
+
+    .benefit-row p {
+        grid-column: 2;
+        margin-top: -8px;
+    }
+
+    .testimonial-grid,
+    .faq-list {
+        margin-top: 44px;
+    }
+
+    .testimonial-card {
+        padding: 24px;
+    }
+
+    .faq-list summary {
+        min-height: 68px;
+        font-size: 16px;
+    }
+
+    .final-cta,
+    .final-cta-inner {
+        min-height: 360px;
+    }
+
+    .final-cta-inner {
+        padding-block: 56px;
+    }
+
+    .final-cta h2 {
+        font-size: 34px;
+    }
+
+    .final-cta p {
+        font-size: 16px;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .footer-brand {
+        grid-column: 1 / -1;
+    }
+
+    .footer-bottom {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 430px) {
+    .hero h1 {
+        font-size: 42px;
+    }
+
+    .hero-square {
+        left: 42%;
+    }
+
+    .button {
+        padding-inline: 22px;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-brand {
+        grid-column: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
