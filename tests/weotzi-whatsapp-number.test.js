@@ -15,11 +15,13 @@ test('we otzi whatsapp number is updated across config and frontend fallbacks', 
     const appConfig = JSON.parse(read(path.join('public', 'shared', 'js', 'app-config.json')));
     assert.equal(appConfig.weOtzi.whatsapp, expectedWhatsapp);
 
+    // artist-profile.js salió de esta lista: el perfil público rediseñado (Figma)
+    // no expone contacto directo por WhatsApp, así que ya no define un número de
+    // fallback. Sigue verificándose que no arrastre el número viejo (abajo).
     const filesToCheck = [
         path.join('public', 'shared', 'js', 'config-manager.js'),
         path.join('public', 'shared', 'js', 'main.js'),
-        path.join('public', 'shared', 'js', 'dashboard.js'),
-        path.join('public', 'shared', 'js', 'artist-profile.js')
+        path.join('public', 'shared', 'js', 'dashboard.js')
     ];
 
     for (const relativePath of filesToCheck) {
@@ -28,6 +30,17 @@ test('we otzi whatsapp number is updated across config and frontend fallbacks', 
             source.includes(expectedWhatsapp),
             `${relativePath} should reference the updated WhatsApp number`
         );
+        assert.equal(
+            source.includes(staleWhatsapp),
+            false,
+            `${relativePath} should not reference the stale WhatsApp number`
+        );
+    }
+
+    // Páginas sin contacto directo por WhatsApp: no deben definir número alguno.
+    const filesWithoutWhatsapp = [path.join('public', 'shared', 'js', 'artist-profile.js')];
+    for (const relativePath of filesWithoutWhatsapp) {
+        const source = read(relativePath);
         assert.equal(
             source.includes(staleWhatsapp),
             false,

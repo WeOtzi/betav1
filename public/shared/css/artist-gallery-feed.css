@@ -22,11 +22,6 @@
     padding: var(--space-12) 0;
 }
 
-.feed-band--ink {
-    background: var(--ink);
-    color: var(--neutral-100);
-}
-
 /* ---------- Estados de página ---------- */
 .feed-loading {
     display: flex;
@@ -170,76 +165,91 @@
     margin-bottom: 0;
 }
 
-/* ---------- Statstrip ---------- */
-.feed-stats-band {
-    padding: var(--space-8) 0;
-}
-
-.feed-stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-/* ---------- Panel del feed (superficie inversa ink, como marca el DS) ---------- */
+/* ---------- Panel del feed (crema, como el Portafolio del Figma) ---------- */
 .feed-panel {
     padding-top: var(--space-10);
     padding-bottom: var(--space-16);
-    border-top: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 20%, transparent);
+    border-top: var(--border-hairline) solid var(--sand-350);
     flex: 1 0 auto;
 }
 
-.feed-tabs {
+.feed-panel-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(30px, 4.4vw, var(--h1-size));
+    line-height: var(--h1-lh);
+    letter-spacing: var(--h1-track);
+    color: var(--text-heading);
+}
+
+/* Chips de filtro: activo amarillo con borde ink, inactivo blanco (Figma). */
+.feed-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 0;
-    border-bottom: var(--border-strong-width) solid color-mix(in srgb, var(--neutral-100) 35%, transparent);
-    margin-bottom: var(--space-8);
+    gap: var(--space-3);
+    margin: var(--space-6) 0 var(--space-8);
 }
 
-.feed-tab {
-    padding: var(--space-3) var(--space-5);
-    background: transparent;
-    border: 0;
-    border-bottom: var(--border-rule-width) solid transparent;
-    font-family: var(--font-display);
-    font-size: 15px;
+.feed-chips:empty {
+    display: none;
+}
+
+.feed-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-h-sm);
+    padding: var(--space-2) var(--space-4);
+    background: var(--white);
+    border: var(--border-hairline) solid var(--neutral-500);
+    border-radius: var(--radius-none);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--neutral-100) 55%, transparent);
+    color: var(--ink);
     cursor: pointer;
+    transition: transform var(--duration-press), box-shadow var(--duration-press);
 }
 
-.feed-tab:hover {
-    color: var(--neutral-100);
+.feed-chip:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
 }
 
-.feed-tab.is-active {
-    color: var(--neutral-100);
-    border-bottom-color: var(--accent);
+.feed-chip:active {
+    transform: none;
+    box-shadow: none;
+}
+
+.feed-chip.is-active {
+    background: var(--yellow-300);
+    font-weight: var(--weight-bold);
 }
 
 .feed-empty {
     margin: 0 0 var(--space-6);
     font-family: var(--font-mono);
     font-size: var(--body-s-size);
-    color: color-mix(in srgb, var(--neutral-100) 65%, transparent);
+    color: var(--text-muted);
 }
 
 .feed-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-5);
+    gap: var(--space-8);
 }
 
 .feed-item {
     position: relative;
     display: block;
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 3 / 2;
     padding: 0;
-    border: 0;
+    border: var(--border-hairline) solid var(--ink);
     border-radius: var(--radius-none);
-    background: var(--surface-stage);
+    background: var(--surface-media);
     overflow: hidden;
+    box-sizing: border-box;
     cursor: pointer;
 }
 
@@ -390,14 +400,9 @@
         gap: var(--space-5);
     }
 
-    .feed-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-6) 0;
-    }
-
     .feed-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-3);
+        gap: var(--space-5);
     }
 
     .feed-lightbox-nav {
@@ -409,15 +414,11 @@
 @media (max-width: 480px) {
     .feed-grid {
         grid-template-columns: 1fr;
+        gap: var(--space-4);
     }
 
     .feed-avatar-wrap {
         width: 88px;
         height: 88px;
-    }
-
-    .feed-tab {
-        font-size: 13px;
-        padding: var(--space-3) var(--space-4);
     }
 }

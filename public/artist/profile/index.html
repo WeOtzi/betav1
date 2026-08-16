@@ -29,10 +29,6 @@
 
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
-    <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/jsvectormap.min.css"
-    >
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,37 +43,6 @@
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
-    <script>
-        window.initArtistProfileGoogleMaps = function () {
-            // Se redefine en artist-profile.js para evitar "callback not defined".
-        };
-
-        function loadArtistProfileGoogleMapsWhenReady() {
-            if (window.google?.maps?.Geocoder) {
-                window.initArtistProfileGoogleMaps();
-                return;
-            }
-
-            if (window.CONFIG?.googleMaps?.apiKey) {
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${window.CONFIG.googleMaps.apiKey}&loading=async&callback=initArtistProfileGoogleMaps`;
-                script.async = true;
-                script.defer = true;
-                script.dataset.role = 'artist-profile-google-maps';
-                document.head.appendChild(script);
-            } else {
-                if (!window._artistProfileGMapsRetryCount) window._artistProfileGMapsRetryCount = 0;
-                window._artistProfileGMapsRetryCount += 1;
-                if (window._artistProfileGMapsRetryCount < 50) {
-                    setTimeout(loadArtistProfileGoogleMapsWhenReady, 100);
-                } else {
-                    console.warn('[Artist Profile] Google Maps API key no disponible; geocodificación desactivada.');
-                }
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', loadArtistProfileGoogleMapsWhenReady);
-    </script>
 </head>
 
 <body class="wo-app public-profile-view">
@@ -138,7 +103,7 @@
 
     <main class="artist-profile-shell" id="profile-content" style="display: none;" tabindex="-1">
 
-        <!-- Hero -->
+        <!-- 01 · Hero -->
         <section class="profile-band hero-band reveal-block">
             <div class="profile-shell hero-grid">
                 <div class="hero-copy">
@@ -155,21 +120,21 @@
                         <span class="hero-verified" id="artist-verified-icon" hidden title="Perfil verificado">
                             <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>Verificado
                         </span>
-                        <span class="hero-level" id="avatar-level-chip">Nuevo</span>
-                        <span class="hero-embajador" id="avatar-embajador-icon" hidden title="Embajador">Embajador</span>
                     </div>
 
                     <div class="hero-styles" id="display-styles">-</div>
 
                     <div class="hero-cta-row">
                         <a class="wo-btn wo-btn--hard hero-cta-primary" id="quote-cta-top-btn" href="/quotations">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
-                        <a class="wo-btn wo-btn--ghost wo-btn--hard" id="gallery-cta-btn" href="/artist/profile/gallery" aria-label="Abrir la galería completa del artista">Abrir galería <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
                     </div>
                 </div>
 
                 <div class="hero-portrait">
+                    <p class="hero-agenda" id="hero-agenda-badge" hidden>
+                        <span class="hero-agenda-dot" aria-hidden="true"></span>Agenda abierta
+                    </p>
                     <div class="hero-portrait-frame" id="avatar-wrapper">
-                        <img src="" alt="Foto de perfil del artista" class="avatar-image" id="avatar-image" width="600" height="600">
+                        <img src="" alt="Foto de perfil del artista" class="avatar-image" id="avatar-image" width="600" height="400">
                         <div class="avatar-placeholder" id="avatar-placeholder">
                             <i data-wo-icon="user" aria-hidden="true"></i>
                             <span class="wo-meta-s">Retrato del artista</span>
@@ -179,181 +144,158 @@
             </div>
         </section>
 
-        <!-- Statstrip inversa -->
-        <section class="profile-band profile-band--ink stats-band reveal-block">
-            <div class="profile-shell stats-strip">
-                <div class="statcell">
+        <!-- 02 · Statstrip inversa -->
+        <section class="profile-band profile-band--ink stats-band reveal-block" id="stats-band">
+            <div class="profile-shell stats-strip" id="stats-strip">
+                <div class="statcell" id="statcell-experience" hidden>
                     <strong id="display-experience">-</strong>
-                    <span>Experiencia</span>
+                    <span>Años tatuando</span>
                 </div>
-                <div class="statcell statcell--accent">
-                    <strong id="stat-styles">-</strong>
-                    <span>Estilos</span>
-                </div>
-                <div class="statcell">
-                    <strong id="display-price">-</strong>
-                    <span>Tarifa</span>
-                </div>
-                <div class="statcell statcell--accent">
-                    <strong id="display-level">-</strong>
-                    <span>Nivel</span>
+                <div class="statcell statcell--accent" id="statcell-rating" hidden>
+                    <strong id="display-rating">-</strong>
+                    <span>Calificación</span>
                 </div>
             </div>
         </section>
 
-        <!-- Sobre el artista -->
+        <!-- 03 · Sobre el artista -->
         <section class="profile-band profile-band--blue sobre-band reveal-block">
+            <span class="band-block band-block--sobre-yellow" aria-hidden="true"></span>
+            <span class="band-block band-block--sobre-red" aria-hidden="true"></span>
             <div class="profile-shell sobre-grid">
                 <div class="sobre-copy">
                     <p class="band-eyebrow">Sobre el artista</p>
+                    <p class="sobre-manifesto" id="bio-manifesto" hidden></p>
                     <div class="bio-text" id="bio-text" data-empty-message="Este artista todavía no agregó una descripción.">-</div>
                 </div>
                 <dl class="sobre-facts">
-                    <div class="sobre-fact">
-                        <dt>Ubicación</dt>
-                        <dd>
-                            <a id="display-location-link" class="inline-link" href="#" target="_blank" rel="noopener noreferrer">
-                                <strong id="display-location">-</strong>
-                            </a>
-                        </dd>
+                    <div class="sobre-fact" id="fact-experience" hidden>
+                        <dt>Experiencia</dt>
+                        <dd id="display-experience-fact">-</dd>
                     </div>
-                    <div class="sobre-fact">
+                    <div class="sobre-fact" id="fact-languages" hidden>
                         <dt>Idiomas</dt>
                         <dd id="display-languages">-</dd>
                     </div>
-                    <div class="sobre-fact">
-                        <dt>Modalidad</dt>
-                        <dd id="display-work-type">-</dd>
-                    </div>
-                    <div class="sobre-fact">
-                        <dt>Estudio</dt>
-                        <dd id="display-studio">-</dd>
+                    <div class="sobre-fact" id="fact-price" hidden>
+                        <dt>Sesión mínima</dt>
+                        <dd id="display-price">-</dd>
                     </div>
                 </dl>
             </div>
         </section>
 
-        <!-- Residencias -->
-        <section class="profile-band presence-band reveal-block">
+        <!-- 04 · Especialidades -->
+        <section class="profile-band specialties-band reveal-block" id="specialties-band" hidden>
             <div class="profile-shell">
-                <div class="section-head">
-                    <p class="wo-eyebrow">Disponibilidad actual</p>
-                    <h2 class="section-title">Residencias</h2>
-                </div>
-                <div class="presence-grid">
-                    <article class="presence-panel">
-                        <h3 class="presence-heading">Tatuando en</h3>
-                        <div class="presence-list" id="current-tattoo-locations"></div>
-                    </article>
-                    <article class="presence-panel">
-                        <h3 class="presence-heading">Próximamente en</h3>
-                        <div class="presence-list" id="upcoming-tattoo-locations"></div>
-                    </article>
-                </div>
+                <h2 class="section-title">Especialidades</h2>
+                <div class="specialty-table" id="specialty-table"></div>
             </div>
         </section>
 
-        <!-- Mapa -->
-        <section class="profile-band map-band reveal-block" aria-label="Mapa mundial de ubicaciones del artista">
+        <!-- 05 · Reseñas -->
+        <section class="profile-band reviews-band reveal-block" id="artist-reviews-panel" hidden>
             <div class="profile-shell">
-                <div class="section-head">
-                    <p class="wo-eyebrow">Ubicaciones</p>
-                    <h2 class="section-title">Dónde tatúa</h2>
-                </div>
-                <div id="artist-map" class="artist-map-canvas" role="img" aria-label="Mapa mundial con puntos de tatuando en y próximamente en">
-                    <div id="artist-map-empty" class="artist-map-empty">
-                        Aún no hay ubicaciones para mostrar.
+                <div class="reviews-box">
+                    <div class="reviews-panel">
+                        <span class="reviews-panel-block" aria-hidden="true"></span>
+                        <p class="reviews-eyebrow">Reseñas</p>
+                        <p class="reviews-score" id="reviews-score">-</p>
+                        <div class="reviews-stars" id="reviews-stars" aria-hidden="true"></div>
+                        <p class="reviews-count" id="reviews-count">-</p>
+                        <button class="reviews-all-link" id="reviews-all-link" type="button" aria-expanded="false" aria-controls="artist-reviews">Ver todas las reseñas →</button>
                     </div>
+                    <div class="reviews-cards" id="reviews-cards"></div>
                 </div>
-                <ul id="artist-map-points" class="artist-map-points" aria-live="polite"></ul>
+                <div id="artist-reviews" hidden></div>
             </div>
         </section>
 
-        <!-- Portafolio (galería en superficie inversa) -->
-        <section class="profile-band profile-band--ink gallery-band reveal-block" id="block-gallery">
-            <div class="profile-shell">
-                <div class="section-head section-head--inverse">
-                    <p class="wo-eyebrow">Portafolio público</p>
-                    <h2 class="section-title">Portafolio</h2>
+        <!-- 06 · Estudio -->
+        <section class="profile-band studio-band reveal-block" id="studio-band" hidden>
+            <div class="profile-shell studio-grid">
+                <div class="studio-photo" id="studio-photo">
+                    <img src="" alt="" id="studio-photo-img" width="1200" height="800">
+                    <span class="studio-photo-empty" id="studio-photo-empty">
+                        <i data-wo-icon="image" aria-hidden="true"></i>
+                        <span class="wo-meta-s">Foto del estudio</span>
+                    </span>
                 </div>
+                <div class="studio-panel">
+                    <p class="studio-eyebrow">Estudio</p>
+                    <h3 class="studio-name" id="studio-name">-</h3>
+                    <p class="studio-address" id="studio-address" hidden></p>
+                    <dl class="studio-facts" id="studio-facts"></dl>
+                    <a class="studio-link" id="studio-link" href="/studio/profile" hidden>Ver el estudio →</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 07 · CTA disponibilidad -->
+        <section class="profile-band profile-band--red cta-band reveal-block">
+            <span class="band-block band-block--cta-yellow" aria-hidden="true"></span>
+            <div class="profile-shell cta-grid">
+                <div class="cta-copy-col">
+                    <p class="band-eyebrow">Disponibilidad</p>
+                    <h2 class="cta-title">Agenda abierta para nuevos proyectos</h2>
+                    <p class="cta-copy">Estoy tomando reservas para los próximos dos meses. Contame tu idea y te paso un presupuesto en menos de 24 horas.</p>
+                </div>
+                <div class="cta-actions">
+                    <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
+                    <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="quote-cta-bottom-btn" href="/quotations">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 08 · Portafolio -->
+        <section class="profile-band gallery-band reveal-block" id="block-gallery">
+            <div class="profile-shell">
+                <h2 class="section-title">Portafolio</h2>
+                <div class="gallery-chips" id="gallery-chips" role="group" aria-label="Filtrar el portafolio" hidden></div>
                 <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
                 <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Los espacios están reservados para su próxima colección.</p>
                 <div class="gallery-footer-actions">
-                    <button class="wo-btn wo-btn--ink gallery-view-all" id="gallery-view-all-btn" style="display: none;" type="button">Ver más trabajos</button>
+                    <button class="wo-btn wo-btn--ghost wo-btn--hard gallery-view-all" id="gallery-view-all-btn" style="display: none;" type="button">Ver la galería completa →</button>
                 </div>
             </div>
         </section>
 
-        <!-- Reseñas -->
-        <section class="profile-band reviews-band reveal-block" id="artist-reviews-panel">
+        <!-- 09 · Próximas residencias -->
+        <section class="profile-band presence-band reveal-block" id="presence-band" hidden>
             <div class="profile-shell">
-                <div id="artist-reviews"></div>
+                <div class="presence-head">
+                    <h2 class="section-title">Próximas residencias</h2>
+                    <a class="presence-globe-link" id="presence-globe-link" href="/explore/globe">Ver en TattooGlobe →</a>
+                </div>
+                <div class="presence-table" id="presence-table"></div>
             </div>
         </section>
 
-        <!-- Contacto -->
-        <section class="profile-band contact-band reveal-block">
-            <div class="profile-shell contact-grid">
-                <div class="contact-info">
-                    <p class="wo-eyebrow">Contacto</p>
-                    <h2 class="section-title">Redes y portfolio</h2>
-                    <div class="link-list">
-                        <p><span>Instagram</span><a id="display-instagram-link" class="full-profile-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-instagram">-</strong></a></p>
-                        <p><span>WhatsApp</span><a id="display-whatsapp-link" class="full-profile-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-whatsapp">-</strong></a></p>
-                        <p><span>Portfolio</span><a id="display-portfolio-link" class="full-profile-link" href="#" target="_blank" rel="noopener noreferrer"><strong id="display-portfolio">-</strong></a></p>
-                    </div>
-                </div>
-                <div class="contact-actions">
-                    <button type="button" id="share-profile-btn" class="action-btn"><i data-wo-icon="share-2" class="wo-icon-18" aria-hidden="true"></i>Compartir perfil</button>
-                    <a href="#" id="whatsapp-quote-btn" class="action-btn" target="_blank" rel="noopener"><i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>WhatsApp</a>
-                    <a href="#" id="instagram-link" class="action-btn" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i>Instagram</a>
-                    <a href="/artist/profile/gallery" id="gallery-feed-action-link" class="action-btn"><i data-wo-icon="grid" class="wo-icon-18" aria-hidden="true"></i>Galería feed</a>
-                    <a href="#" id="portfolio-action-link" class="action-btn" target="_blank" rel="noopener"><i data-wo-icon="globe" class="wo-icon-18" aria-hidden="true"></i>Portfolio</a>
-                </div>
-            </div>
-        </section>
-
-        <!-- Ficha completa -->
-        <section class="profile-band ficha-band reveal-block">
+        <!-- 10 · Dónde tatué -->
+        <section class="profile-band cities-band reveal-block" id="cities-band" hidden>
             <div class="profile-shell">
-                <div class="section-head">
-                    <p class="wo-eyebrow">Ficha completa</p>
-                    <h2 class="section-title">Datos del artista</h2>
+                <div class="cities-head">
+                    <p class="cities-eyebrow">Dónde tatué</p>
+                    <span class="cities-rule" aria-hidden="true"></span>
                 </div>
-                <div class="full-profile-grid">
-                    <p><span>Nombre artístico</span><strong id="display-artistic-name">-</strong></p>
-                    <p><span>Nombre completo</span><strong id="display-full-name">-</strong></p>
-                    <p><span>Usuario</span><strong id="display-username">-</strong></p>
-                    <p><span>Verificación</span><strong id="display-verification">-</strong></p>
-                    <p><span>Embajador</span><strong id="display-embajador">-</strong></p>
-                    <p><span>País</span><strong id="display-country-detail">-</strong></p>
-                    <p><span>Ciudad</span><strong id="display-city-detail">-</strong></p>
-                    <p><span>Ubicación completa</span><strong id="display-location-detail">-</strong></p>
-                </div>
-            </div>
-        </section>
-
-        <!-- CTA final -->
-        <section class="profile-band profile-band--red cta-band reveal-block">
-            <div class="profile-shell cta-grid">
-                <div class="cta-copy-col">
-                    <p class="band-eyebrow">Siguiente paso</p>
-                    <h2 class="cta-title">Agenda abierta para nuevos proyectos</h2>
-                    <p class="cta-copy">Contale tu idea al artista con referencias y ubicación desde el flujo de cotización. Respuesta estimada en 24 a 48 horas.</p>
-                </div>
-                <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="quote-cta-bottom-btn" href="/quotations">Pedir cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                <p class="cities-list" id="cities-list"></p>
             </div>
         </section>
     </main>
 
-    <footer
-        class="profile-footer"
-        data-bauhaus-footer
-        data-footer-variant="dashboard"
-        data-footer-width="full"
-    ></footer>
-
-    <div class="status-message" id="status-message" aria-live="polite"></div>
+    <!-- 11 · Barra de acción -->
+    <div class="profile-actionbar" id="profile-actionbar" hidden>
+        <div class="profile-actionbar-inner">
+            <p class="actionbar-identity">
+                <span class="actionbar-dot" id="actionbar-dot" aria-hidden="true" hidden></span>
+                <span class="actionbar-name" id="actionbar-name">Artista</span>
+                <span class="actionbar-status" id="actionbar-status" hidden></span>
+            </p>
+            <div class="actionbar-actions">
+                <a class="wo-btn wo-btn--s actionbar-btn" id="quote-cta-bar-btn" href="/quotations">Cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+            </div>
+        </div>
+    </div>
 
     <div class="gallery-lightbox" id="gallery-lightbox" aria-hidden="true">
         <button class="lightbox-close" id="lightbox-close" aria-label="Cerrar" type="button">
@@ -373,9 +315,6 @@
     </div>
 
     <script src="/shared/js/bio-formatting.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/jsvectormap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.7.0/dist/maps/world.js"></script>
-    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
 </body>

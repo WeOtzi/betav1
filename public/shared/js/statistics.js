@@ -1,8 +1,32 @@
-// Statistics Page Logic
+// ============================================
+// WE OTZI · Estadísticas del artista (/my-quotations/statistics)
+// Fidelidad Figma: flujo-artistas--11-estadisticas
+//   KPIs · Embudo de conversión · Evolución · Rendimiento del perfil · Oportunidades
+// Fuentes reales: quotations_db (WeotziData.Quotations) + artist_profile_visits
+//   (WeotziData.ArtistVisits). Nada se maqueta con datos de ejemplo: si un bloque
+//   del Figma no tiene fuente (trabajos más vistos, visitas al portfolio,
+//   actividad reciente, identidad de los visitantes) no se renderiza.
+// ============================================
 
 let quotations = [];
-let charts = {}; // Store chart instances
+let profileVisits = [];
+let charts = {};
 let _supabase = null;
+let currentArtistId = null;
+
+let evolutionRange = 'year';
+let evolutionMetric = 'visits';
+
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const DAY_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+const CONFIRMED_STATUSES = ['client_approved', 'in_progress', 'artist_completed', 'completed'];
+const ANSWERED_STATUSES = ['responded', 'client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected'];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const VISITS_WINDOW_DAYS = 365;
+const VISITS_MAX_ROWS = 5000;
 
 // Lee un token del DS (Chart.js necesita valores concretos, no var()).
 function woToken(name, fallback) {
@@ -10,19 +34,41 @@ function woToken(name, fallback) {
     return value || fallback;
 }
 
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function formatCount(value) {
+    return Number(value || 0).toLocaleString('es-AR');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    renderEyebrow();
+    setupControls();
     await initializeSupabase();
     await loadStatisticsData();
-    setupFilters();
 });
 
+function renderEyebrow() {
+    const now = new Date();
+    setText('stats-eyebrow', `Estadísticas · ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`);
+}
+
 async function initializeSupabase() {
-    // Try to get client from ConfigManager first
     if (window.ConfigManager && window.ConfigManager.getSupabaseClient) {
         _supabase = window.ConfigManager.getSupabaseClient();
     }
-    
-    // Fallback to manual initialization if ConfigManager didn't return a client
+
     if (!_supabase && window.supabase) {
         const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
         const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
@@ -34,105 +80,384 @@ async function initializeSupabase() {
     }
 }
 
+window.handleStatsLogout = async function () {
+    try {
+        if (_supabase) await _supabase.auth.signOut();
+    } catch (err) {
+        console.error('Logout error:', err);
+    }
+    window.location.href = '/registerclosedbeta';
+};
+
 async function loadStatisticsData() {
     try {
-        if (!_supabase) {
-            console.error('Supabase not initialized');
-            return;
-        }
+        if (!_supabase) return;
 
         const { data: { session }, error: authError } = await _supabase.auth.getSession();
-        
+
         if (authError || !session) {
             console.log('No authenticated session. Redirecting...');
-            window.location.href = '/artist/dashboard'; // Redirect to dashboard or login
+            window.location.href = '/artist/dashboard';
             return;
         }
 
-        const user = session.user;
-        document.getElementById('logged-as').textContent = `LOGGED_AS: ${user.email.split('@')[0].toUpperCase()}`;
+        currentArtistId = session.user.id;
 
-        // Fetch all quotations for the artist (capa PostgREST unificada).
-        // Sin excluir archivadas ni in_progress para preservar el comportamiento original.
-        const allQuotes = await WeotziData.Quotations.listForArtist(user.id, {
-            excludeArchived: false,
-            excludeInProgress: false
-        });
+        const [allQuotes, visits] = await Promise.all([
+            WeotziData.Quotations.listForArtist(currentArtistId, {
+                excludeArchived: false,
+                excludeInProgress: false
+            }),
+            loadProfileVisits(currentArtistId)
+        ]);
 
         quotations = allQuotes || [];
-        
-        updateKPIs();
-        renderRevenueChart('year'); // Default view
-        renderStylesChart();
-        renderStatusChart();
-        renderTopClientsTable();
+        profileVisits = visits;
+
+        renderKpis();
+        renderFunnel();
+        renderEvolution();
+        renderStylesList();
+        renderCitiesList();
+        renderHoursList();
+        renderClientsSplit();
+        renderInsights();
 
     } catch (error) {
         console.error('Error loading statistics:', error);
-        // Show error UI
     }
 }
 
-function updateKPIs() {
-    // 1. Total Revenue (Completed quotes using final_budget_amount)
-    const completedQuotes = quotations.filter(q => q.quote_status === 'completed');
-    const totalRevenue = completedQuotes.reduce((sum, q) => sum + (parseFloat(q.final_budget_amount) || 0), 0);
-    
-    // 2. Total Quotes (All time)
-    const totalQuotes = quotations.length;
-
-    // 3. Conversion Rate (Completed / Total)
-    const conversionRate = totalQuotes > 0 ? ((completedQuotes.length / totalQuotes) * 100).toFixed(1) : 0;
-
-    // 4. Avg Ticket Size
-    const avgTicket = completedQuotes.length > 0 ? (totalRevenue / completedQuotes.length).toFixed(0) : 0;
-
-    // Update DOM
-    document.getElementById('kpi-revenue').textContent = formatCurrency(totalRevenue);
-    document.getElementById('kpi-quotes').textContent = totalQuotes;
-    document.getElementById('kpi-conversion').textContent = `${conversionRate}%`;
-    document.getElementById('kpi-avg-ticket').textContent = formatCurrency(avgTicket);
+// Visitas reales al perfil público (artist_profile_visits, RLS: solo las propias).
+// Si la tabla no responde, el módulo sigue con 0 visitas en lugar de romper.
+async function loadProfileVisits(artistId) {
+    try {
+        const since = new Date(Date.now() - VISITS_WINDOW_DAYS * DAY_MS).toISOString();
+        const { data, error } = await WeotziData.ArtistVisits.listVisitsByArtistSince(artistId, since, VISITS_MAX_ROWS);
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.warn('No se pudieron leer las visitas al perfil:', err);
+        return [];
+    }
 }
 
-function renderRevenueChart(period) {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    
-    // Group data by month
-    const monthlyData = {};
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    // Initialize current year months
-    const currentYear = new Date().getFullYear();
-    months.forEach((m, i) => monthlyData[i] = 0);
+// ============================================
+// HELPERS DE PERÍODO
+// ============================================
 
-    quotations.forEach(q => {
-        if (q.quote_status === 'completed') {
-            const date = new Date(q.created_at); // Or completed_at if available? using created_at for now as proxy or need to check schema
-            if (date.getFullYear() === currentYear) {
-                monthlyData[date.getMonth()] += (parseFloat(q.final_budget_amount) || 0);
-            }
-        }
+function countInWindow(items, dateField, fromDate, toDate) {
+    return items.filter((item) => {
+        const value = new Date(item[dateField]);
+        return !isNaN(value.getTime()) && value >= fromDate && value < toDate;
+    }).length;
+}
+
+function deltaPercent(current, previous) {
+    if (!previous) return current > 0 ? 100 : null;
+    return Math.round(((current - previous) / previous) * 100);
+}
+
+function renderTrend(id, current, previous) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const delta = deltaPercent(current, previous);
+    if (delta === null) {
+        el.textContent = '';
+        el.className = 'kpi-trend';
+        return;
+    }
+    const up = delta >= 0;
+    el.textContent = `${up ? '+' : ''}${delta}%`;
+    el.className = `kpi-trend ${up ? 'trend-up' : 'trend-down'}`;
+}
+
+// ============================================
+// MONEDA
+// ============================================
+
+function displayCurrencyPreference() {
+    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.getDisplayPreference === 'function') {
+        return window.WeOtziCurrency.getDisplayPreference();
+    }
+    return 'local';
+}
+
+// Convierte todos los importes a una sola moneda para poder sumarlos.
+function aggregateAmount(entries) {
+    const usable = entries.filter((e) => e && isFinite(parseFloat(e.amount)) && parseFloat(e.amount) > 0);
+    if (!usable.length) return { total: 0, currency: resolveTargetCurrency(usable) };
+
+    const target = resolveTargetCurrency(usable);
+    const canConvert = window.WeOtziCurrency && typeof window.WeOtziCurrency.convert === 'function';
+    let total = 0;
+    usable.forEach((e) => {
+        const amount = parseFloat(e.amount);
+        const code = (e.currency || 'USD').toUpperCase();
+        if (code === target) { total += amount; return; }
+        if (!canConvert) return;
+        const converted = window.WeOtziCurrency.convert(amount, code, target);
+        if (converted != null) total += converted;
+    });
+    return { total, currency: target };
+}
+
+function resolveTargetCurrency(entries) {
+    const pref = displayCurrencyPreference();
+    if (pref !== 'local') return pref;
+    const tally = {};
+    entries.forEach((e) => {
+        const code = ((e && e.currency) || 'USD').toUpperCase();
+        tally[code] = (tally[code] || 0) + 1;
+    });
+    return Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0] || 'USD';
+}
+
+function formatMoney(total, currency) {
+    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.format === 'function') {
+        return window.WeOtziCurrency.format(total, currency, { decimals: 0 });
+    }
+    return `${currency} ${Math.round(total).toLocaleString('es-AR')}`;
+}
+
+function revenueEntries(quotes) {
+    return quotes
+        .filter(q => q.quote_status === 'completed')
+        .map(q => ({ amount: q.final_budget_amount, currency: q.final_budget_currency || 'USD' }));
+}
+
+// ============================================
+// 1 · KPIs
+// ============================================
+
+function renderKpis() {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - 30 * DAY_MS);
+    const previousStart = new Date(now.getTime() - 60 * DAY_MS);
+
+    const inWindow = (items, field) => items.filter((i) => {
+        const d = new Date(i[field]);
+        return !isNaN(d.getTime()) && d >= windowStart;
+    });
+    const inPrevious = (items, field) => items.filter((i) => {
+        const d = new Date(i[field]);
+        return !isNaN(d.getTime()) && d >= previousStart && d < windowStart;
     });
 
-    const data = Object.values(monthlyData);
+    // Visitas al perfil
+    const visitsNow = inWindow(profileVisits, 'created_at').length;
+    const visitsPrev = inPrevious(profileVisits, 'created_at').length;
+    setText('kpi-visits', formatCount(visitsNow));
+    renderTrend('kpi-visits-trend', visitsNow, visitsPrev);
 
-    if (charts.revenue) charts.revenue.destroy();
+    // Solicitudes recibidas
+    const requestsNow = inWindow(quotations, 'created_at').length;
+    const requestsPrev = inPrevious(quotations, 'created_at').length;
+    setText('kpi-requests', formatCount(requestsNow));
+    renderTrend('kpi-requests-trend', requestsNow, requestsPrev);
 
-    charts.revenue = new Chart(ctx, {
+    // Cotizaciones enviadas (respondidas por vos)
+    const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status));
+    const answeredNow = inWindow(answered, 'created_at').length;
+    const answeredPrev = inPrevious(answered, 'created_at').length;
+    setText('kpi-answered', formatCount(answeredNow));
+    renderTrend('kpi-answered-trend', answeredNow, answeredPrev);
+
+    // Reservas confirmadas
+    const bookings = quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status));
+    const bookingsNow = inWindow(bookings, 'created_at').length;
+    const bookingsPrev = inPrevious(bookings, 'created_at').length;
+    setText('kpi-bookings', formatCount(bookingsNow));
+    renderTrend('kpi-bookings-trend', bookingsNow, bookingsPrev);
+
+    // Ingresos generados (histórico completo, como el resto del producto)
+    const revenue = aggregateAmount(revenueEntries(quotations));
+    const revenueNow = aggregateAmount(revenueEntries(inWindow(quotations, 'created_at')));
+    const revenuePrev = aggregateAmount(revenueEntries(inPrevious(quotations, 'created_at')));
+    setText('kpi-revenue', formatMoney(revenue.total, revenue.currency));
+    renderTrend('kpi-revenue-trend', revenueNow.total, revenuePrev.total);
+}
+
+// ============================================
+// 2 · Embudo de conversión
+// ============================================
+
+function renderFunnel() {
+    const container = document.getElementById('funnel');
+    if (!container) return;
+
+    const steps = [
+        { label: 'Visualización', value: profileVisits.length, tone: 'ink' },
+        { label: 'Solicitud', value: quotations.length, tone: 'paper' },
+        { label: 'Cotización', value: quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status)).length, tone: 'paper' },
+        { label: 'Reserva', value: quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status)).length, tone: 'paper' },
+        { label: 'Trabajo realizado', value: quotations.filter(q => q.quote_status === 'completed').length, tone: 'done' }
+    ];
+
+    container.innerHTML = steps.map((step, index) => {
+        const next = steps[index + 1];
+        const rate = next && step.value > 0 ? Math.round((next.value / step.value) * 100) : null;
+        return `
+            <div class="funnel-step">
+                <div class="funnel-tile funnel-tile--${step.tone}">
+                    <span class="funnel-label">${escapeHtml(step.label)}</span>
+                    <span class="funnel-value">${formatCount(step.value)}</span>
+                </div>
+                ${next ? `<div class="funnel-gap"><i data-wo-icon="chevron-right" aria-hidden="true"></i><span class="funnel-rate">${rate === null ? '—' : rate + '%'}</span></div>` : ''}
+            </div>`;
+    }).join('');
+}
+
+// ============================================
+// 3 · Evolución
+// ============================================
+
+function setupControls() {
+    document.querySelectorAll('#evolution-range .stats-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            evolutionRange = tab.dataset.range;
+            document.querySelectorAll('#evolution-range .stats-tab').forEach((t) => {
+                const active = t === tab;
+                t.classList.toggle('is-active', active);
+                t.setAttribute('aria-selected', String(active));
+            });
+            renderEvolution();
+        });
+    });
+
+    document.querySelectorAll('#evolution-metrics .q-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            evolutionMetric = chip.dataset.metric;
+            document.querySelectorAll('#evolution-metrics .q-chip').forEach((c) => {
+                const active = c === chip;
+                c.classList.toggle('is-active', active);
+                c.setAttribute('aria-pressed', String(active));
+            });
+            renderEvolution();
+        });
+    });
+
+    const exportBtn = document.getElementById('export-report-btn');
+    if (exportBtn) exportBtn.addEventListener('click', exportReportCsv);
+}
+
+// Devuelve [{ start, end, label }] según el rango elegido.
+function evolutionBuckets() {
+    const buckets = [];
+    const now = new Date();
+
+    if (evolutionRange === 'week') {
+        const start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() - 6);
+        for (let i = 0; i < 7; i++) {
+            const from = new Date(start.getTime() + i * DAY_MS);
+            const to = new Date(from.getTime() + DAY_MS);
+            buckets.push({ start: from, end: to, label: DAY_SHORT[(from.getDay() + 6) % 7] });
+        }
+        return buckets;
+    }
+
+    if (evolutionRange === 'month') {
+        const start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() - 27);
+        for (let i = 0; i < 4; i++) {
+            const from = new Date(start.getTime() + i * 7 * DAY_MS);
+            const to = new Date(from.getTime() + 7 * DAY_MS);
+            buckets.push({
+                start: from,
+                end: to,
+                label: `${String(from.getDate()).padStart(2, '0')} ${MONTH_SHORT[from.getMonth()]}`
+            });
+        }
+        return buckets;
+    }
+
+    // year: los últimos 6 meses (como el eje FEB…JUL del Figma)
+    for (let i = 5; i >= 0; i--) {
+        const from = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const to = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+        buckets.push({ start: from, end: to, label: MONTH_SHORT[from.getMonth()] });
+    }
+    return buckets;
+}
+
+const EVOLUTION_METRICS = {
+    visits: {
+        label: 'Visitas al perfil',
+        value: (from, to) => countInWindow(profileVisits, 'created_at', from, to),
+        format: formatCount
+    },
+    requests: {
+        label: 'Solicitudes recibidas',
+        value: (from, to) => countInWindow(quotations, 'created_at', from, to),
+        format: formatCount
+    },
+    bookings: {
+        label: 'Reservas confirmadas',
+        value: (from, to) => countInWindow(
+            quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status)), 'created_at', from, to
+        ),
+        format: formatCount
+    },
+    revenue: {
+        label: 'Ingresos',
+        value: (from, to) => {
+            const inRange = quotations.filter((q) => {
+                const d = new Date(q.created_at);
+                return !isNaN(d.getTime()) && d >= from && d < to;
+            });
+            return Math.round(aggregateAmount(revenueEntries(inRange)).total);
+        },
+        format: (value) => formatMoney(value, resolveTargetCurrency(revenueEntries(quotations)))
+    }
+};
+
+function renderEvolution() {
+    const metric = EVOLUTION_METRICS[evolutionMetric] || EVOLUTION_METRICS.visits;
+    const buckets = evolutionBuckets();
+    const series = buckets.map(b => metric.value(b.start, b.end));
+    const total = series.reduce((sum, n) => sum + n, 0);
+
+    setText('evolution-value', metric.format(total));
+    setText('evolution-label', metric.label);
+
+    const deltaEl = document.getElementById('evolution-delta');
+    if (deltaEl) {
+        const first = series[0];
+        const last = series[series.length - 1];
+        const delta = deltaPercent(last, first);
+        if (delta === null || series.length < 2) {
+            deltaEl.textContent = '';
+            deltaEl.className = 'evolution-delta';
+        } else {
+            deltaEl.textContent = `${delta >= 0 ? '▲' : '▼'} ${delta >= 0 ? '+' : ''}${delta}% vs. inicio del período`;
+            deltaEl.className = `evolution-delta ${delta >= 0 ? 'is-up' : 'is-down'}`;
+        }
+    }
+
+    const canvas = document.getElementById('evolutionChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    if (charts.evolution) charts.evolution.destroy();
+    charts.evolution = new Chart(canvas.getContext('2d'), {
         type: 'line',
         data: {
-            labels: months,
+            labels: buckets.map(b => b.label),
             datasets: [{
-                label: `Ingresos ${currentYear}`,
-                data: data,
-                borderColor: woToken('--blue-400', '#0055FF'),
-                backgroundColor: 'rgba(0, 85, 255, 0.08)',
-                borderWidth: 3,
+                label: metric.label,
+                data: series,
+                borderColor: woToken('--surface-ink', '#001125'),
+                backgroundColor: 'transparent',
+                borderWidth: 2,
                 tension: 0,
-                fill: true,
+                fill: false,
                 pointBackgroundColor: woToken('--white', '#FCFCFC'),
-                pointBorderColor: woToken('--blue-400', '#0055FF'),
-                pointRadius: 4
+                pointBorderColor: woToken('--surface-ink', '#001125'),
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointStyle: 'rect'
             }]
         },
         options: {
@@ -141,86 +466,23 @@ function renderRevenueChart(period) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return formatCurrency(context.raw);
-                        }
-                    }
+                    callbacks: { label: (ctx) => metric.format(ctx.raw) }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { borderDash: [5, 5] },
+                    border: { display: false },
+                    grid: { color: woToken('--border-subtle', '#E8E3D7') },
                     ticks: {
-                        callback: function(value) {
-                            return '$' + value;
-                        }
+                        color: woToken('--text-faint', '#B9AE98'),
+                        font: { family: "'JetBrains Mono', monospace", size: 11 }
                     }
                 },
                 x: {
-                    grid: { display: false }
-                }
-            }
-        }
-    });
-}
-
-function renderStylesChart() {
-    const ctx = document.getElementById('stylesChart').getContext('2d');
-    
-    // Count styles
-    const styleCounts = {};
-    quotations.forEach(q => {
-        // Handle tattoo_style as object or string depending on schema
-        let style = 'Unknown';
-        if (q.tattoo_style) {
-            if (typeof q.tattoo_style === 'object' && q.tattoo_style.style_name) {
-                style = q.tattoo_style.style_name;
-            } else if (typeof q.tattoo_style === 'string') {
-                // Try parsing if it's a JSON string
-                try {
-                    const parsed = JSON.parse(q.tattoo_style);
-                    style = parsed.style_name || q.tattoo_style;
-                } catch (e) {
-                    style = q.tattoo_style;
-                }
-            }
-        }
-        styleCounts[style] = (styleCounts[style] || 0) + 1;
-    });
-
-    // Sort and take top 5
-    const sortedStyles = Object.entries(styleCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-    if (charts.styles) charts.styles.destroy();
-
-    charts.styles = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: sortedStyles.map(s => s[0]),
-            datasets: [{
-                data: sortedStyles.map(s => s[1]),
-                backgroundColor: [
-                    woToken('--red-300', '#E63A1F'),
-                    woToken('--blue-400', '#0055FF'),
-                    woToken('--yellow-300', '#F2B519'),
-                    woToken('--blue-300', '#1E3FA6'),
-                    woToken('--neutral-300', '#B9AE98')
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        color: woToken('--neutral-400', '#5A5449'),
+                    grid: { display: false },
+                    ticks: {
+                        color: woToken('--text-faint', '#B9AE98'),
                         font: { family: "'JetBrains Mono', monospace", size: 11 }
                     }
                 }
@@ -229,116 +491,251 @@ function renderStylesChart() {
     });
 }
 
-function renderStatusChart() {
-    const ctx = document.getElementById('statusChart').getContext('2d');
-    
-    const statusCounts = {
-        pending: 0,
-        responded: 0,
-        completed: 0,
-        other: 0
-    };
+// ============================================
+// 4 · Rendimiento del perfil
+// ============================================
 
-    quotations.forEach(q => {
-        const status = q.quote_status || 'other';
-        if (statusCounts.hasOwnProperty(status)) {
-            statusCounts[status]++;
-        } else {
-            statusCounts.other++;
+function styleNameOf(quote) {
+    const raw = quote.tattoo_style;
+    if (!raw) return null;
+    if (typeof raw === 'object') return raw.style_name || null;
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed.style_name || raw;
+        } catch (e) {
+            return raw;
         }
-    });
-
-    if (charts.status) charts.status.destroy();
-
-    charts.status = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Pendientes', 'Respondidas', 'Completadas', 'Otras'],
-            datasets: [{
-                label: 'Cotizaciones',
-                data: [statusCounts.pending, statusCounts.responded, statusCounts.completed, statusCounts.other],
-                backgroundColor: [
-                    woToken('--yellow-300', '#F2B519'),
-                    woToken('--blue-400', '#0055FF'),
-                    woToken('--system-success', '#1E9F74'),
-                    woToken('--neutral-300', '#B9AE98')
-                ],
-                borderRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: { beginAtZero: true },
-                x: { grid: { display: false } }
-            }
-        }
-    });
+    }
+    return null;
 }
 
-function renderTopClientsTable() {
-    const tbody = document.getElementById('top-clients-body');
-    tbody.innerHTML = '';
-
-    // Group by client name (simple approach, ideally use client_id if available)
-    const clientStats = {};
-    quotations.forEach(q => {
-        const name = q.client_full_name || 'Unknown';
-        if (!clientStats[name]) {
-            clientStats[name] = { count: 0, revenue: 0, lastDate: null };
-        }
-        clientStats[name].count++;
-        if (q.quote_status === 'completed') {
-            clientStats[name].revenue += (parseFloat(q.final_budget_amount) || 0);
-        }
-        const qDate = new Date(q.created_at);
-        if (!clientStats[name].lastDate || qDate > clientStats[name].lastDate) {
-            clientStats[name].lastDate = qDate;
-        }
+function tally(items, keyFn) {
+    const counts = {};
+    items.forEach((item) => {
+        const key = keyFn(item);
+        if (!key) return;
+        counts[key] = (counts[key] || 0) + 1;
     });
-
-    // Convert to array and sort by revenue
-    const sortedClients = Object.entries(clientStats)
-        .sort((a, b) => b[1].revenue - a[1].revenue)
-        .slice(0, 10);
-
-    sortedClients.forEach(([name, stats]) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${name}</td>
-            <td>${stats.count}</td>
-            <td>${formatCurrency(stats.revenue)}</td>
-            <td>${stats.lastDate ? stats.lastDate.toLocaleDateString() : '-'}</td>
-        `;
-        tbody.appendChild(tr);
-    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
 
-function setupFilters() {
-    const rangeSelect = document.getElementById('time-range-select');
-    if (rangeSelect) {
-        rangeSelect.addEventListener('change', (e) => {
-            // Implement filtering logic here
-            // For now, just re-render charts (mock refresh)
-            console.log('Filter changed:', e.target.value);
-            // In a real implementation, we'd filter the 'quotations' array passed to render functions
+function renderBarList(containerId, rows, tone) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!rows.length) {
+        container.innerHTML = '<p class="stats-empty">Todavía no hay datos suficientes.</p>';
+        return;
+    }
+
+    const max = rows[0][1] || 1;
+    container.innerHTML = rows.map(([label, count]) => `
+        <div class="bar-row">
+            <span class="bar-label">${escapeHtml(label)}</span>
+            <span class="bar-track"><span class="bar-fill bar-fill--${tone}" style="width:${Math.max(4, Math.round((count / max) * 100))}%"></span></span>
+            <span class="bar-count">${formatCount(count)}</span>
+        </div>`).join('');
+}
+
+function renderStylesList() {
+    renderBarList('styles-list', tally(quotations, styleNameOf).slice(0, 5), 'accent');
+}
+
+function renderCitiesList() {
+    renderBarList('cities-list', tally(profileVisits, v => v.city).slice(0, 5), 'direct');
+}
+
+function renderHoursList() {
+    const container = document.getElementById('hours-list');
+    if (!container) return;
+
+    if (!profileVisits.length) {
+        container.innerHTML = '<p class="stats-empty">Todavía no hay visitas registradas.</p>';
+        return;
+    }
+
+    // Franjas de 3 h, como el Figma (18–21 h, 12–15 h, 21–24 h)
+    const bands = {};
+    profileVisits.forEach((visit) => {
+        const date = new Date(visit.created_at);
+        if (isNaN(date.getTime())) return;
+        const band = Math.floor(date.getHours() / 3) * 3;
+        bands[band] = (bands[band] || 0) + 1;
+    });
+
+    const total = Object.values(bands).reduce((sum, n) => sum + n, 0);
+    if (!total) {
+        container.innerHTML = '<p class="stats-empty">Todavía no hay visitas registradas.</p>';
+        return;
+    }
+
+    const top = Object.entries(bands)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    container.innerHTML = top.map(([band, count]) => {
+        const from = Number(band);
+        const percent = Math.round((count / total) * 100);
+        return `
+            <div class="rank-row">
+                <span class="rank-label">${String(from).padStart(2, '0')} – ${String(from + 3).padStart(2, '0')} h</span>
+                <span class="rank-value">${percent}%</span>
+            </div>`;
+    }).join('');
+}
+
+function clientKeyOf(quote) {
+    return quote.client_user_id
+        || (quote.client_email && quote.client_email.toLowerCase())
+        || (quote.client_full_name && quote.client_full_name.toLowerCase())
+        || null;
+}
+
+function renderClientsSplit() {
+    const container = document.getElementById('clients-split');
+    if (!container) return;
+
+    const counts = {};
+    quotations.forEach((quote) => {
+        const key = clientKeyOf(quote);
+        if (!key) return;
+        counts[key] = (counts[key] || 0) + 1;
+    });
+
+    const keys = Object.keys(counts);
+    if (!keys.length) {
+        container.innerHTML = '<p class="stats-empty">Todavía no hay clientes registrados.</p>';
+        return;
+    }
+
+    const recurring = keys.filter(k => counts[k] > 1).length;
+    const fresh = keys.length - recurring;
+    const pct = (n) => Math.round((n / keys.length) * 100);
+
+    container.innerHTML = `
+        <div class="split-row">
+            <span class="split-mark split-mark--direct" aria-hidden="true"></span>
+            <span class="split-label">Nuevos</span>
+            <span class="split-value">${pct(fresh)}%</span>
+        </div>
+        <div class="split-row">
+            <span class="split-mark split-mark--accent" aria-hidden="true"></span>
+            <span class="split-label">Recurrentes</span>
+            <span class="split-value">${pct(recurring)}%</span>
+        </div>`;
+}
+
+// ============================================
+// 5 · Oportunidades (solo insights calculables)
+// ============================================
+
+function renderInsights() {
+    const container = document.getElementById('insights');
+    if (!container) return;
+
+    const insights = [];
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - 30 * DAY_MS);
+    const previousStart = new Date(now.getTime() - 60 * DAY_MS);
+
+    const visitsNow = countInWindow(profileVisits, 'created_at', windowStart, now);
+    const visitsPrev = countInWindow(profileVisits, 'created_at', previousStart, windowStart);
+    const visitsDelta = deltaPercent(visitsNow, visitsPrev);
+    if (visitsDelta !== null && visitsPrev > 0) {
+        insights.push({
+            icon: visitsDelta >= 0 ? 'trending-up' : 'trending-down',
+            text: visitsDelta >= 0
+                ? `Tu perfil recibió un ${visitsDelta}% más de visitas este mes.`
+                : `Tu perfil recibió un ${Math.abs(visitsDelta)}% menos de visitas este mes.`
         });
     }
+
+    const topStyle = tally(quotations, styleNameOf)[0];
+    if (topStyle) {
+        insights.push({
+            icon: 'award',
+            text: `${topStyle[0]} es el estilo más pedido en tus solicitudes (${topStyle[1]} de ${quotations.length}).`
+        });
+    }
+
+    if (quotations.length) {
+        const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status)).length;
+        const rate = Math.round((answered / quotations.length) * 100);
+        insights.push({
+            icon: 'target',
+            text: `Tus cotizaciones tienen una tasa de respuesta del ${rate}%.`
+        });
+    }
+
+    const topCity = tally(profileVisits, v => v.city)[0];
+    if (topCity) {
+        insights.push({
+            icon: 'map-pin',
+            text: `${topCity[0]} es la ciudad desde donde más te visitan (${topCity[1]} visitas).`
+        });
+    }
+
+    const confirmed = quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status)).length;
+    if (quotations.length) {
+        const conversion = Math.round((confirmed / quotations.length) * 100);
+        insights.push({
+            icon: 'zap',
+            text: `${conversion}% de las solicitudes que recibís terminan en una reserva confirmada.`
+        });
+    }
+
+    if (!insights.length) {
+        container.innerHTML = '<p class="stats-empty">Cuando empieces a recibir visitas y solicitudes vas a ver acá tus oportunidades.</p>';
+        return;
+    }
+
+    container.innerHTML = insights.map(item => `
+        <div class="insight-row">
+            <i data-wo-icon="${escapeHtml(item.icon)}" aria-hidden="true"></i>
+            <span>${escapeHtml(item.text)}</span>
+        </div>`).join('');
 }
 
-function formatCurrency(amount, currencyCode) {
-    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.format === 'function') {
-        var pref = window.WeOtziCurrency.getDisplayPreference();
-        var displayCode = pref === 'local' ? (currencyCode || 'USD') : pref;
-        return window.WeOtziCurrency.format(amount, displayCode, { decimals: 0 });
-    }
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode || 'USD',
-        minimumFractionDigits: 0
-    }).format(amount || 0);
+// ============================================
+// EXPORTAR INFORME
+// ============================================
+
+function csvCell(value) {
+    return `"${String(value == null ? '' : value).replace(/"/g, '""')}"`;
+}
+
+function exportReportCsv() {
+    const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status)).length;
+    const bookings = quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status)).length;
+    const done = quotations.filter(q => q.quote_status === 'completed').length;
+    const revenue = aggregateAmount(revenueEntries(quotations));
+
+    const rows = [
+        ['Métrica', 'Valor'],
+        ['Visitas al perfil (último año)', profileVisits.length],
+        ['Solicitudes recibidas', quotations.length],
+        ['Cotizaciones enviadas', answered],
+        ['Reservas confirmadas', bookings],
+        ['Trabajos realizados', done],
+        ['Ingresos generados', formatMoney(revenue.total, revenue.currency)]
+    ];
+
+    tally(quotations, styleNameOf).slice(0, 5).forEach(([style, count]) => {
+        rows.push([`Estilo · ${style}`, count]);
+    });
+    tally(profileVisits, v => v.city).slice(0, 5).forEach(([city, count]) => {
+        rows.push([`Ciudad · ${city}`, count]);
+    });
+
+    const csv = '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `informe-weotzi-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

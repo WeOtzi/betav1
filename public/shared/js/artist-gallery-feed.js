@@ -8,12 +8,19 @@ const FEED_CATEGORY_LABELS = {
     flash: 'Flash',
     proyectos: 'Proyecto'
 };
+// Etiquetas de los chips de filtro (Figma: chips bordeados en mayúsculas).
+const FEED_CHIP_LABELS = {
+    realizados: 'Realizados',
+    flash: 'Flash',
+    proyectos: 'Proyectos'
+};
+const FEED_ALL_FILTER = 'todos';
 
 const PROFILE_MOBILE_MENU_BREAKPOINT = 768;
 
 let feedArtist = null;
 let allFeedItems = [];
-let activeCategory = 'realizados';
+let activeCategory = FEED_ALL_FILTER;
 let visibleCategoryItems = [];
 let lightboxIndex = 0;
 
@@ -263,11 +270,6 @@ function updateArtistSummary() {
     if (headerQuote) headerQuote.href = quoteUrl;
     if (mobileQuote) mobileQuote.href = quoteUrl;
 
-    document.getElementById('stat-total').textContent = String(allFeedItems.length);
-    document.getElementById('stat-realizados').textContent = String(allFeedItems.filter((item) => item.category === 'realizados').length);
-    document.getElementById('stat-flash').textContent = String(allFeedItems.filter((item) => item.category === 'flash').length);
-    document.getElementById('stat-proyectos').textContent = String(allFeedItems.filter((item) => item.category === 'proyectos').length);
-
     const ogTitle = document.getElementById('og-title');
     const ogDescription = document.getElementById('og-description');
     const ogImage = document.getElementById('og-image');
@@ -278,13 +280,26 @@ function updateArtistSummary() {
     if (ogImage && firstImage) ogImage.content = firstImage.url;
 }
 
-function renderTabs() {
-    document.querySelectorAll('.feed-tab').forEach((tabBtn) => {
-        const tabCategory = tabBtn.dataset.category;
-        const isActive = tabCategory === activeCategory;
-        tabBtn.classList.toggle('is-active', isActive);
-        tabBtn.setAttribute('aria-selected', String(isActive));
-    });
+// Chips de filtro: solo se pintan las categorías con publicaciones reales.
+function renderChips() {
+    const chips = document.getElementById('feed-chips');
+    if (!chips) return;
+
+    const present = FEED_CATEGORIES.filter((category) => (
+        allFeedItems.some((item) => item.category === category)
+    ));
+
+    if (present.length < 2) {
+        chips.innerHTML = '';
+        return;
+    }
+
+    const options = [{ value: FEED_ALL_FILTER, label: 'Todos' }]
+        .concat(present.map((category) => ({ value: category, label: FEED_CHIP_LABELS[category] })));
+
+    chips.innerHTML = options.map((option) => `
+        <button type="button" class="feed-chip${option.value === activeCategory ? ' is-active' : ''}" data-category="${escapeHtml(option.value)}" aria-pressed="${option.value === activeCategory}">${escapeHtml(option.label)}</button>
+    `).join('');
 }
 
 function renderFeedGrid() {
@@ -292,7 +307,9 @@ function renderFeedGrid() {
     const empty = document.getElementById('feed-empty');
     if (!grid || !empty) return;
 
-    visibleCategoryItems = allFeedItems.filter((item) => item.category === activeCategory);
+    visibleCategoryItems = activeCategory === FEED_ALL_FILTER
+        ? allFeedItems
+        : allFeedItems.filter((item) => item.category === activeCategory);
 
     if (!visibleCategoryItems.length) {
         grid.innerHTML = '';
@@ -318,8 +335,8 @@ function renderFeedGrid() {
 }
 
 function setActiveCategory(category) {
-    activeCategory = FEED_CATEGORIES.includes(category) ? category : 'realizados';
-    renderTabs();
+    activeCategory = FEED_CATEGORIES.includes(category) ? category : FEED_ALL_FILTER;
+    renderChips();
     renderFeedGrid();
 }
 
@@ -440,10 +457,10 @@ function setupProfileNavigationMenu() {
 function bindEvents() {
     setupProfileNavigationMenu();
 
-    document.querySelectorAll('.feed-tab').forEach((tabBtn) => {
-        tabBtn.addEventListener('click', () => {
-            setActiveCategory(tabBtn.dataset.category || 'realizados');
-        });
+    document.getElementById('feed-chips')?.addEventListener('click', (event) => {
+        const chip = event.target.closest('[data-category]');
+        if (!chip) return;
+        setActiveCategory(chip.dataset.category || FEED_ALL_FILTER);
     });
 
     document.getElementById('feed-grid')?.addEventListener('click', (event) => {
@@ -504,12 +521,7 @@ async function initArtistFeedPage() {
 
     allFeedItems = normalizeFeedItems(feedArtist);
     updateArtistSummary();
-
-    const firstNonEmpty = FEED_CATEGORIES.find((category) => (
-        allFeedItems.some((item) => item.category === category)
-    )) || 'realizados';
-
-    setActiveCategory(firstNonEmpty);
+    setActiveCategory(FEED_ALL_FILTER);
     showContent();
 }
 

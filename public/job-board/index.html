@@ -45,17 +45,18 @@
 </head>
 <body class="wo-app">
 
-    <!-- TopBar -->
+    <!-- TopBar de artista -->
     <header class="wo-topbar">
         <div class="wo-topbar-left">
             <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
             <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
                 <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/my-quotations?tab=applications" class="wo-topbar-item">Postulaciones</a>
                 <a href="/job-board" class="wo-topbar-item is-active" aria-current="page">Job board</a>
                 <a href="/studio-spots" class="wo-topbar-item">Spots</a>
                 <a href="/calendar" class="wo-topbar-item">Calendario</a>
                 <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
+                <span class="wo-topbar-item is-soon" aria-disabled="true">Travel</span>
+                <span class="wo-topbar-item is-soon" aria-disabled="true">Inbox</span>
             </nav>
         </div>
         <div class="wo-topbar-right">
@@ -63,14 +64,14 @@
                 Menú
             </button>
             <a href="#" id="auth-nav-btn" class="jbf-auth">
-                <span class="wo-o-tile" aria-hidden="true">Ö</span>
-                <span id="auth-nav-label" class="wo-meta">Ingresá</span>
+                <span class="wo-o-tile jbf-o-tile" aria-hidden="true">Ö</span>
+                <span id="auth-nav-label" class="wo-sr-only">Ingresá</span>
             </a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono jbf-logout hidden" id="auth-logout">Log out</button>
         </div>
     </header>
     <nav class="jbf-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegación móvil de artista" hidden>
         <a href="/my-quotations">Cotizaciones</a>
-        <a href="/my-quotations?tab=applications">Postulaciones</a>
         <a href="/job-board" class="is-active">Job board</a>
         <a href="/studio-spots">Spots</a>
         <a href="/calendar">Calendario</a>
@@ -80,148 +81,112 @@
     <!-- Main: sidebar de filtros + feed -->
     <main id="marketplace-content" class="jbf-shell">
 
-        <aside class="jbf-sidebar" aria-label="Filtros del job board">
+        <aside class="jbf-sidebar" id="jbf-sidebar" aria-label="Filtros del job board">
             <div class="jbf-sidebar-head">
                 <span class="wo-meta-s wo-faint">Filtros</span>
+                <button type="button" class="jbf-collapse" id="btn-collapse-filters" aria-expanded="true" aria-controls="jbf-sidebar-body" aria-label="Colapsar panel de filtros">
+                    <i data-wo-icon="chevron-left" class="wo-icon-18" aria-hidden="true"></i>
+                </button>
             </div>
 
-            <div class="jbf-search">
-                <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
-                <input type="text" id="smart-search" class="wo-input" placeholder="Buscá estilo, ciudad..." autocomplete="off" aria-label="Buscar solicitudes">
-            </div>
-
-            <div class="jbf-side-section">
-                <span class="jbf-side-label wo-meta-s">Estilos</span>
-                <div class="jbf-style-list" id="style-filters">
-                    <!-- Inyectado por job-board-feed.js -->
+            <div class="jbf-sidebar-body" id="jbf-sidebar-body">
+                <div class="jbf-search">
+                    <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
+                    <input type="text" id="smart-search" class="wo-input" placeholder="Buscá estilo, ciudad..." autocomplete="off" aria-label="Buscar solicitudes">
                 </div>
-            </div>
 
-            <hr class="wo-divider" style="margin:0;">
+                <div class="jbf-side-section">
+                    <span class="jbf-side-label wo-meta-s">Para vos</span>
+                    <div class="jbf-quick" id="quick-filters">
+                        <button type="button" class="jbf-quick-item is-active" data-quick="recommended">
+                            <i data-wo-icon="star" class="wo-icon-18" aria-hidden="true"></i>
+                            <span>Recomendado</span>
+                        </button>
+                        <button type="button" class="jbf-quick-item" data-quick="near">
+                            <i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i>
+                            <span>Cerca tuyo</span>
+                        </button>
+                        <button type="button" class="jbf-quick-item" data-quick="newest">
+                            <i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i>
+                            <span>Recién publicados</span>
+                        </button>
+                    </div>
+                </div>
 
-            <div class="jbf-side-section">
-                <span class="jbf-side-label wo-meta-s">Refinar</span>
-                <div class="jbf-side-fields">
-                    <div class="wo-field">
-                        <label class="wo-label" for="filter-city">Ciudad</label>
-                        <select id="filter-city" class="wo-select">
-                            <option value="">Todas las ciudades</option>
-                        </select>
+                <div class="jbf-side-section">
+                    <span class="jbf-side-label wo-meta-s">Estilos</span>
+                    <div class="jbf-style-groups" id="style-filters">
+                        <!-- Acordeón inyectado por job-board-feed.js -->
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="filter-size">Tamaño</label>
-                        <select id="filter-size" class="wo-select">
-                            <option value="">Cualquier tamaño</option>
-                            <option value="small">Pequeño (&lt; 10 cm)</option>
-                            <option value="medium">Mediano (10–20 cm)</option>
-                            <option value="large">Grande (20–40 cm)</option>
-                            <option value="xlarge">Muy grande (40+ cm)</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="filter-budget">Presupuesto</label>
-                        <select id="filter-budget" class="wo-select">
-                            <option value="">Cualquier presupuesto</option>
-                            <option value="low">Hasta $200 USD</option>
-                            <option value="medium">$200 – $800 USD</option>
-                            <option value="high">$800+ USD</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="sort-select">Ordenar</label>
-                        <select id="sort-select" class="wo-select">
-                            <option value="newest">Más recientes</option>
-                            <option value="budget-high">Presupuesto: mayor</option>
-                            <option value="budget-low">Presupuesto: menor</option>
-                            <option value="deadline">Fecha límite</option>
-                        </select>
+                </div>
+
+                <hr class="wo-divider jbf-side-rule">
+
+                <div class="jbf-side-section">
+                    <span class="jbf-side-label wo-meta-s">Refinar</span>
+                    <div class="jbf-side-fields">
+                        <div class="wo-field">
+                            <label class="wo-label" for="filter-city">Ciudad</label>
+                            <select id="filter-city" class="wo-select">
+                                <option value="">Todas las ciudades</option>
+                            </select>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="filter-size">Tamaño</label>
+                            <select id="filter-size" class="wo-select">
+                                <option value="">Cualquier tamaño</option>
+                                <option value="small">Pequeño (&lt; 10 cm)</option>
+                                <option value="medium">Mediano (10–20 cm)</option>
+                                <option value="large">Grande (20–40 cm)</option>
+                                <option value="xlarge">Muy grande (40+ cm)</option>
+                            </select>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="filter-budget">Presupuesto</label>
+                            <select id="filter-budget" class="wo-select">
+                                <option value="">Cualquier presupuesto</option>
+                                <option value="low">Hasta $200 USD</option>
+                                <option value="medium">$200 – $800 USD</option>
+                                <option value="high">$800+ USD</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
         </aside>
 
         <section class="jbf-main">
-            <header class="jbf-head">
-                <span class="wo-eyebrow">Job board</span>
-                <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
-                <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
-            </header>
 
-            <div class="jbf-results-meta">
-                <span id="results-count" class="wo-meta wo-muted">Cargando solicitudes…</span>
-                <div id="active-filters-display" class="jbf-active-filters"></div>
+            <!-- Vista 1 · Feed de solicitudes -->
+            <div id="jbf-feed-view">
+                <header class="jbf-head">
+                    <span class="wo-eyebrow">Job board</span>
+                    <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
+                    <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
+                </header>
+
+                <!-- Rieles curados inyectados por job-board-feed.js -->
+                <div id="job-board-rails" class="jbf-rails"></div>
+
+                <!-- Estado vacío -->
+                <div id="empty-state" class="wo-empty hidden">
+                    <i data-wo-icon="inbox" aria-hidden="true"></i>
+                    <span class="wo-empty-title">No hay solicitudes con esos criterios</span>
+                    <p>Probá con otros filtros o volvé más tarde para ver nuevas solicitudes.</p>
+                    <button class="wo-btn wo-btn--ghost wo-btn--s" id="btn-clear-filters">Ver todas las solicitudes</button>
+                </div>
             </div>
 
-            <!-- Grid de solicitudes -->
-            <div id="job-board-grid" class="jbf-grid">
-                <!-- Cards inyectadas por job-board-feed.js -->
-            </div>
+            <!-- Vista 2 · Detalle de la solicitud + aside de propuesta -->
+            <div id="jbf-detail-view" class="jbf-detail hidden"></div>
 
-            <!-- Paginación -->
-            <div id="pagination-controls" class="jbf-pagination hidden">
-                <button class="wo-iconbtn wo-iconbtn--s" id="prev-page" aria-label="Página anterior">
-                    <i data-wo-icon="chevron-left" class="wo-icon-18" aria-hidden="true"></i>
-                </button>
-                <span id="page-info" class="wo-meta wo-muted">Página 1 de 1</span>
-                <button class="wo-iconbtn wo-iconbtn--s" id="next-page" aria-label="Página siguiente">
-                    <i data-wo-icon="chevron-right" class="wo-icon-18" aria-hidden="true"></i>
-                </button>
-            </div>
-
-            <!-- Estado vacío -->
-            <div id="empty-state" class="wo-empty hidden">
-                <i data-wo-icon="inbox" aria-hidden="true"></i>
-                <span class="wo-empty-title">No hay solicitudes con esos criterios</span>
-                <p>Probá con otros filtros o volvé más tarde para ver nuevas solicitudes.</p>
-                <button class="wo-btn wo-btn--ghost wo-btn--s" id="btn-clear-filters">Ver todas las solicitudes</button>
-            </div>
+            <!-- Vista 3 · Propuesta enviada -->
+            <div id="jbf-sent-view" class="jbf-sent hidden"></div>
         </section>
     </main>
 
     <!-- Footer -->
     <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
-
-    <!-- Modal de propuesta -->
-    <div id="application-modal" class="wo-overlay hidden">
-        <div class="wo-modal jbf-modal" role="dialog" aria-modal="true" aria-labelledby="application-modal-title">
-            <div class="jbf-modal-head">
-                <div>
-                    <h2 class="wo-modal-title" id="application-modal-title" style="margin-bottom:4px;">Tu propuesta</h2>
-                    <span id="modal-request-code" class="wo-meta-s wo-faint"></span>
-                </div>
-                <button class="wo-iconbtn wo-iconbtn--s" id="btn-close-application" aria-label="Cerrar">
-                    <i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>
-                </button>
-            </div>
-            <p class="jbf-modal-sub" id="application-modal-sub">Completá los datos para enviarle tu propuesta al cliente.</p>
-            <div id="modal-request-summary">
-                <!-- Detalle de la solicitud inyectado por JS -->
-            </div>
-            <form id="application-form" class="jbf-modal-form">
-                <div class="wo-field">
-                    <label class="wo-label" for="app-price">Precio que proponés (USD) <span class="req">*</span></label>
-                    <input type="number" id="app-price" name="estimated_price" class="wo-input" min="1" step="any" required placeholder="Ej: 450">
-                </div>
-                <div class="wo-field">
-                    <label class="wo-label" for="app-sessions">Cantidad de sesiones <span class="req">*</span></label>
-                    <input type="number" id="app-sessions" name="estimated_sessions" class="wo-input" min="1" max="20" required placeholder="1">
-                </div>
-                <div class="wo-field">
-                    <label class="wo-label" for="app-availability">Disponibilidad</label>
-                    <input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="Ej: Disponible desde el 10/08">
-                </div>
-                <div class="wo-field">
-                    <label class="wo-label" for="app-message">Mensaje para el cliente <span class="req">*</span></label>
-                    <textarea id="app-message" name="message" class="wo-textarea" rows="4" required
-                        placeholder="Contale por qué te gustaría hacer este tatuaje…"></textarea>
-                </div>
-                <button type="submit" class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" id="btn-submit-application">
-                    Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
-                </button>
-                <p class="jbf-modal-note wo-body-s wo-faint">Vas a poder editar tu propuesta hasta que el cliente la vea.</p>
-            </form>
-        </div>
-    </div>
 
     <!-- Modal de ingreso -->
     <div id="login-modal" class="wo-overlay hidden">

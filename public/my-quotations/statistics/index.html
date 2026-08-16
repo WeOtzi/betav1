@@ -42,114 +42,128 @@
         <div class="wo-topbar-right">
             <button class="admin-mobile-menu-toggle" id="admin-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-mobile-menu">Menú</button>
             <a href="/artist/dashboard" class="wo-o-tile" aria-label="Tu perfil">Ö</a>
+            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" onclick="handleStatsLogout()" aria-label="Cerrar sesión">Log out</button>
         </div>
     </header>
     <nav class="admin-mobile-menu" id="admin-mobile-menu" aria-label="Navegación móvil del panel" hidden>
         <a href="/artist/dashboard" class="admin-mobile-menu-link">Dashboard</a>
         <a href="/my-quotations" class="admin-mobile-menu-link">Cotizaciones</a>
+        <a href="/job-board" class="admin-mobile-menu-link">Job board</a>
         <a href="/calendar" class="admin-mobile-menu-link">Calendario</a>
-        <a href="/archive" class="admin-mobile-menu-link">Archivo</a>
         <a href="/my-quotations/statistics" class="admin-mobile-menu-link is-active">Estadísticas</a>
+        <a href="/archive" class="admin-mobile-menu-link">Archivo</a>
     </nav>
 
     <main class="qadmin-main">
-        <section class="q-hero">
-            <div class="q-hero-row">
-                <div>
-                    <p class="q-hero-eyebrow">Estadísticas</p>
-                    <h1 class="q-hero-title">Tu negocio <span class="wo-highlight">en We Ötzi</span>.</h1>
-                    <p class="q-hero-sub">Un vistazo rápido a cómo está creciendo tu actividad, para después entrar en el detalle de cada métrica.</p>
+        <section class="stats-hero">
+            <div class="stats-hero-row">
+                <div class="stats-hero-main">
+                    <p class="q-hero-eyebrow" id="stats-eyebrow">Estadísticas</p>
+                    <h1 class="stats-title">Tu negocio en We Ötzi</h1>
                 </div>
-                <div class="artist-meta">
-                    <p id="logged-as" class="wo-meta-s wo-faint">LOGGED_AS: ...</p>
-                    <p id="status-indicator" class="wo-meta-s wo-faint">STATUS: ONLINE</p>
-                </div>
+                <button type="button" class="q-hero-btn" id="export-report-btn">
+                    <i data-wo-icon="share" aria-hidden="true"></i>Exportar informe
+                </button>
             </div>
+            <p class="q-hero-sub">Un vistazo rápido a cómo está creciendo tu actividad, para después entrar en el detalle de cada métrica.</p>
         </section>
 
+        <div class="stats-rule" role="presentation"></div>
+
         <div class="stats-container">
-            <!-- KPIs -->
-            <div class="kpi-row">
-                <div class="kpi-card kpi-card--money">
-                    <span class="kpi-title">Ingresos generados</span>
-                    <span class="kpi-value" id="kpi-revenue">$0</span>
-                    <span class="kpi-trend trend-neutral">Histórico</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-title">Cotizaciones totales</span>
-                    <span class="kpi-value" id="kpi-quotes">0</span>
-                    <span class="kpi-trend trend-neutral">Desde el inicio</span>
+            <!-- KPIs · últimos 30 días vs. los 30 anteriores -->
+            <section class="kpi-row" aria-label="Métricas principales">
+                <div class="kpi-card kpi-card--accent">
+                    <span class="kpi-value" id="kpi-visits">—</span>
+                    <span class="kpi-trend" id="kpi-visits-trend"></span>
+                    <span class="kpi-title">Visitas al perfil</span>
                 </div>
                 <div class="kpi-card kpi-card--direct">
-                    <span class="kpi-title">Tasa de conversión</span>
-                    <span class="kpi-value" id="kpi-conversion">0%</span>
-                    <span class="kpi-trend trend-neutral">Completadas / totales</span>
+                    <span class="kpi-value" id="kpi-requests">—</span>
+                    <span class="kpi-trend" id="kpi-requests-trend"></span>
+                    <span class="kpi-title">Solicitudes recibidas</span>
+                </div>
+                <div class="kpi-card kpi-card--alert">
+                    <span class="kpi-value" id="kpi-answered">—</span>
+                    <span class="kpi-trend" id="kpi-answered-trend"></span>
+                    <span class="kpi-title">Cotizaciones enviadas</span>
                 </div>
                 <div class="kpi-card kpi-card--accent">
-                    <span class="kpi-title">Ticket promedio</span>
-                    <span class="kpi-value" id="kpi-avg-ticket">$0</span>
-                    <span class="kpi-trend trend-neutral">Por cotización completada</span>
+                    <span class="kpi-value" id="kpi-bookings">—</span>
+                    <span class="kpi-trend" id="kpi-bookings-trend"></span>
+                    <span class="kpi-title">Reservas confirmadas</span>
                 </div>
-            </div>
+                <div class="kpi-card kpi-card--money">
+                    <span class="kpi-value" id="kpi-revenue">—</span>
+                    <span class="kpi-trend" id="kpi-revenue-trend"></span>
+                    <span class="kpi-title">Ingresos generados</span>
+                </div>
+            </section>
 
-            <!-- Evolución de ingresos -->
-            <div class="charts-grid">
-                <div class="chart-container revenue-chart-box">
-                    <div class="chart-header">
-                        <span class="chart-title">Evolución de ingresos</span>
-                        <div class="chart-actions">
-                            <select id="time-range-select">
-                                <option value="year">Este año</option>
-                                <option value="all">Histórico</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="chart-body">
-                        <canvas id="revenueChart"></canvas>
-                    </div>
-                </div>
+            <!-- Embudo de conversión -->
+            <section class="stats-section" aria-labelledby="funnel-title">
+                <header class="stats-section-head">
+                    <h2 class="stats-h2" id="funnel-title">Embudo de conversión</h2>
+                    <span class="stats-section-note">Dónde se pierden las oportunidades</span>
+                </header>
+                <p class="stats-section-sub">Recorrido completo del cliente, de la primera visita al trabajo terminado.</p>
+                <div class="funnel" id="funnel"></div>
+            </section>
 
-                <div class="chart-container style-chart-box">
-                    <div class="chart-header">
-                        <span class="chart-title">Estilos más pedidos</span>
+            <!-- Evolución -->
+            <section class="stats-section" aria-labelledby="evolution-title">
+                <header class="stats-section-head">
+                    <h2 class="stats-h2" id="evolution-title">Evolución</h2>
+                    <div class="stats-tabs" id="evolution-range" role="tablist" aria-label="Período">
+                        <button type="button" class="stats-tab" data-range="week" role="tab" aria-selected="false">Semana</button>
+                        <button type="button" class="stats-tab" data-range="month" role="tab" aria-selected="false">Mes</button>
+                        <button type="button" class="stats-tab is-active" data-range="year" role="tab" aria-selected="true">Año</button>
                     </div>
-                    <div class="chart-body">
-                        <canvas id="stylesChart"></canvas>
+                </header>
+                <div class="q-chipbar" id="evolution-metrics" role="group" aria-label="Métrica">
+                    <button type="button" class="q-chip is-active" data-metric="visits" aria-pressed="true">Visitas al perfil</button>
+                    <button type="button" class="q-chip" data-metric="requests" aria-pressed="false">Solicitudes recibidas</button>
+                    <button type="button" class="q-chip" data-metric="bookings" aria-pressed="false">Reservas confirmadas</button>
+                    <button type="button" class="q-chip" data-metric="revenue" aria-pressed="false">Ingresos</button>
+                </div>
+                <div class="evolution-card">
+                    <div class="evolution-head">
+                        <p class="evolution-headline">
+                            <span class="evolution-value" id="evolution-value">—</span>
+                            <span class="evolution-metric" id="evolution-label">Visitas al perfil</span>
+                        </p>
+                        <span class="evolution-delta" id="evolution-delta"></span>
+                    </div>
+                    <div class="evolution-body">
+                        <canvas id="evolutionChart"></canvas>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="charts-grid">
-                <div class="chart-container conversion-chart-box">
-                    <div class="chart-header">
-                        <span class="chart-title">Cotizaciones por estado</span>
+            <!-- Rendimiento del perfil -->
+            <section class="stats-section" aria-labelledby="performance-title">
+                <h2 class="stats-h2" id="performance-title">Rendimiento del perfil</h2>
+                <div class="perf-grid">
+                    <div class="perf-col">
+                        <h3 class="perf-title">Estilos más buscados</h3>
+                        <div class="bar-list" id="styles-list"></div>
+                        <h3 class="perf-title">Clientes nuevos vs. recurrentes</h3>
+                        <div class="split-list" id="clients-split"></div>
                     </div>
-                    <div class="chart-body">
-                        <canvas id="statusChart"></canvas>
+                    <div class="perf-col">
+                        <h3 class="perf-title">Ciudades con más visitas</h3>
+                        <div class="bar-list" id="cities-list"></div>
+                        <h3 class="perf-title">Horarios con más actividad</h3>
+                        <div class="rank-list" id="hours-list"></div>
                     </div>
                 </div>
+            </section>
 
-                <div class="chart-container demographics-box">
-                    <div class="chart-header">
-                        <span class="chart-title">Mejores clientes · por ingresos</span>
-                    </div>
-                    <div style="overflow-y: auto; flex-grow: 1;">
-                        <table class="stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Cotizaciones</th>
-                                    <th>Total gastado</th>
-                                    <th>Última actividad</th>
-                                </tr>
-                            </thead>
-                            <tbody id="top-clients-body">
-                                <!-- Lo completa statistics.js -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            <!-- Oportunidades -->
+            <section class="stats-section" aria-labelledby="insights-title">
+                <h2 class="stats-h2" id="insights-title">Oportunidades</h2>
+                <div class="insight-list" id="insights"></div>
+            </section>
         </div>
     </main>
 

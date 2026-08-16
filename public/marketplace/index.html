@@ -35,20 +35,20 @@
 </head>
 <body class="wo-app mk-page">
 
-    <!-- TopBar -->
+    <!-- TopBar · marketplace.js la cambia por la del cliente logueado si hay sesión -->
     <header class="wo-topbar">
         <div class="wo-topbar-left">
             <a href="/" class="wo-topbar-brand">
                 <span class="wo-o-tile">Ö</span>
                 WE ÖTZI
             </a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal">
+            <nav class="wo-topbar-nav" id="mk-nav" aria-label="Navegación principal">
                 <a href="/marketplace" class="wo-topbar-item is-active" aria-current="page">Marketplace</a>
                 <a href="/explore" class="wo-topbar-item">Mapa</a>
                 <a href="/studio/login" class="wo-topbar-item">Estudios</a>
             </nav>
         </div>
-        <div class="wo-topbar-right">
+        <div class="wo-topbar-right" id="mk-topbar-right">
             <a href="/quotation" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard mk-topbar-cta">Cotizá &rarr;</a>
         </div>
     </header>
@@ -68,45 +68,49 @@
                 <div id="search-suggestions" class="mk-suggestions hidden"></div>
             </div>
 
-            <!-- Pills de estilos -->
-            <div class="mk-styles">
-                <span class="wo-eyebrow">Estilos populares</span>
-                <div class="mk-styles-row" id="style-filters">
-                    <!-- Chips inyectados por marketplace.js -->
+            <!-- Fila de filtros (6 dropdowns del Figma) -->
+            <div class="mk-filters" id="mk-filters" role="group" aria-label="Filtros">
+                <div class="mk-filter" data-filter-key="style">
+                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('style')">
+                        <span class="mk-filter-label" id="mk-filter-label-style">Estilo</span>
+                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="mk-filter-menu" id="mk-filter-menu-style" role="listbox" hidden></div>
                 </div>
-            </div>
-
-            <!-- Filtros avanzados -->
-            <div class="mk-adv-filters">
-                <div class="wo-field">
-                    <label class="wo-label" for="filter-country">País</label>
-                    <select id="filter-country" class="wo-select" onchange="handleFilterChange('country', this.value)">
-                        <option value="">Todos los países</option>
-                    </select>
+                <div class="mk-filter" data-filter-key="location">
+                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('location')">
+                        <span class="mk-filter-label" id="mk-filter-label-location">Ubicación</span>
+                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="mk-filter-menu" id="mk-filter-menu-location" role="listbox" hidden></div>
                 </div>
-                <div class="wo-field">
-                    <label class="wo-label" for="filter-price">Precio</label>
-                    <select id="filter-price" class="wo-select" onchange="handleFilterChange('priceRange', this.value)">
-                        <option value="">Cualquier precio</option>
-                        <option value="low">Económico · &lt; 200 USD</option>
-                        <option value="medium">Medio · 200 – 800 USD</option>
-                        <option value="high">Premium · &gt; 800 USD</option>
-                    </select>
+                <div class="mk-filter" data-filter-key="priceRange">
+                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('priceRange')">
+                        <span class="mk-filter-label" id="mk-filter-label-priceRange">Precio</span>
+                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="mk-filter-menu" id="mk-filter-menu-priceRange" role="listbox" hidden></div>
                 </div>
-                <div class="wo-field">
-                    <label class="wo-label" for="filter-language">Idioma</label>
-                    <select id="filter-language" class="wo-select" onchange="handleFilterChange('language', this.value)">
-                        <option value="">Cualquier idioma</option>
-                    </select>
+                <div class="mk-filter" data-filter-key="availability">
+                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('availability')">
+                        <span class="mk-filter-label" id="mk-filter-label-availability">Disponibilidad</span>
+                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="mk-filter-menu" id="mk-filter-menu-availability" role="listbox" hidden></div>
                 </div>
-                <div class="wo-field">
-                    <label class="wo-label" for="filter-experience">Experiencia</label>
-                    <select id="filter-experience" class="wo-select" onchange="handleFilterChange('experience', this.value)">
-                        <option value="">Cualquier experiencia</option>
-                        <option value="junior">Junior · 1-3 años</option>
-                        <option value="mid">Intermedio · 4-7 años</option>
-                        <option value="senior">Senior · 8+ años</option>
-                    </select>
+                <div class="mk-filter" data-filter-key="travel">
+                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('travel')">
+                        <span class="mk-filter-label" id="mk-filter-label-travel">Viajes</span>
+                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="mk-filter-menu" id="mk-filter-menu-travel" role="listbox" hidden></div>
+                </div>
+                <div class="mk-filter" data-filter-key="studio">
+                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('studio')">
+                        <span class="mk-filter-label" id="mk-filter-label-studio">Estudio</span>
+                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="mk-filter-menu" id="mk-filter-menu-studio" role="listbox" hidden></div>
                 </div>
             </div>
         </section>
@@ -123,35 +127,19 @@
             <div class="mk-results-bar">
                 <span id="results-count" class="wo-meta mk-count">Cargando artistas…</span>
                 <div class="mk-results-tools">
-                    <div class="mk-view-toggle" role="group" aria-label="Vista de resultados">
-                        <span class="mk-view-btn is-active"><i data-wo-icon="grid" class="wo-icon-18"></i>Lista</span>
-                        <a class="mk-view-btn" href="/explore" title="Explorar en mapa"><i data-wo-icon="map" class="wo-icon-18"></i>Mapa</a>
+                    <div class="mk-seg" role="group" aria-label="Tipo de resultado">
+                        <button type="button" class="mk-seg-btn is-active" id="mode-artists" onclick="setBrowseMode('artists')">Artistas</button>
+                        <button type="button" class="mk-seg-btn" id="mode-studios" onclick="setBrowseMode('studios')">Estudios</button>
                     </div>
-                    <div class="mk-sort">
-                        <label class="wo-label" for="sort-select">Ordenar</label>
-                        <select id="sort-select" class="wo-select mk-sort-select" onchange="handleSortChange()">
-                            <option value="recommended">Recomendados</option>
-                            <option value="price-low">Precio: menor a mayor</option>
-                            <option value="price-high">Precio: mayor a menor</option>
-                            <option value="name">Nombre</option>
-                        </select>
+                    <div class="mk-seg" role="group" aria-label="Vista de resultados">
+                        <span class="mk-seg-btn is-active"><i data-wo-icon="grid" class="wo-icon-18"></i>Lista</span>
+                        <a class="mk-seg-btn" href="/explore" title="Explorar en mapa"><i data-wo-icon="map" class="wo-icon-18"></i>Mapa</a>
                     </div>
                 </div>
             </div>
 
             <div id="marketplace-grid" class="mk-grid">
-                <!-- Cards de artistas inyectadas por marketplace.js -->
-            </div>
-
-            <!-- Paginación -->
-            <div id="pagination-controls" class="mk-pagination hidden">
-                <button type="button" class="wo-iconbtn wo-iconbtn--s" id="prev-page" onclick="changePage(-1)" aria-label="Página anterior">
-                    <i data-wo-icon="chevron-left" class="wo-icon-18"></i>
-                </button>
-                <span id="page-info" class="wo-meta mk-page-info">Página 1 de 1</span>
-                <button type="button" class="wo-iconbtn wo-iconbtn--s" id="next-page" onclick="changePage(1)" aria-label="Página siguiente">
-                    <i data-wo-icon="chevron-right" class="wo-icon-18"></i>
-                </button>
+                <!-- Cards inyectadas por marketplace.js -->
             </div>
 
             <!-- Estado vacío -->
@@ -163,8 +151,6 @@
             </div>
         </section>
     </main>
-
-    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="wo-overlay mk-loading hidden">
@@ -184,7 +170,6 @@
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
-    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/marketplace.js"></script>
 </body>
 </html>

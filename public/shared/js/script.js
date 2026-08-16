@@ -78,60 +78,166 @@ const SHARED_TATTOO_STYLE_OPTIONS = QUOTATION_SHARED.TATTOO_STYLE_OPTIONS || [
 ];
 
 // ============ CONFIGURATION ============
-// DEFAULT_QUESTIONS_CONFIG - Synced with admin.js questionsConfig
-// This is the fallback if no localStorage config exists
+// DEFAULT_QUESTIONS_CONFIG - espejo de `quotation_flow_config` (Supabase).
+// Solo se usa como fallback si la tabla no está disponible. La agrupación en
+// pantallas (Figma) vive en QUOTATION_SCREENS: esta lista sigue siendo la
+// fuente de los campos, tipos, opciones y validaciones de cada pregunta.
 const DEFAULT_QUESTIONS_CONFIG = [
     { id: 1, step: 'welcome', type: 'welcome', title: 'Pantalla de Bienvenida', editable: false },
-    { id: 2, step: 'artist-search', type: 'artist-search', title: '¿Con qué artista te gustaría tatuarte?', field: 'artist_username', editable: false },
-    { id: 3, step: 'artist-confirm', type: 'artist-confirm', title: 'Confirmar Artista', editable: false },
-    { id: 4, step: 'body-part', type: 'body-selector', title: '¿Dónde te gustaría el tatuaje?', field: 'tattoo_body_part', editable: false },
-    { id: 5, step: 'description', type: 'textarea', title: 'Cuéntanos tu idea', field: 'tattoo_idea_description', placeholder: 'Describe tu idea de tatuaje con el mayor detalle posible...', minLength: 10, maxLength: 1000 },
+    { id: 2, step: 'artist-search', type: 'artist-search', title: '¿Con qué artista te querés tatuar?', field: 'artist_username', editable: false },
+    { id: 3, step: 'artist-confirm', type: 'artist-confirm', title: 'Confirmá tu artista', editable: false },
+    { id: 4, step: 'body-part', type: 'body-selector', title: '¿Dónde querés llevarlo?', field: 'tattoo_body_part', editable: false },
+    { id: 5, step: 'description', type: 'textarea', title: '¿Qué querés tatuarte?', field: 'tattoo_idea_description', placeholder: 'Contanos tu idea con el mayor detalle posible…', minLength: 10, maxLength: 1000 },
     {
-        id: 6, step: 'size', type: 'cards', title: '¿Qué tamaño aproximado?', field: 'tattoo_size',
+        id: 6, step: 'size', type: 'cards', title: '¿Qué tamaño imaginás?', field: 'tattoo_size',
         options: SHARED_TATTOO_SIZE_OPTIONS
     },
     {
-        id: 7, step: 'style', type: 'cards', title: '¿Qué estilo prefieres?', field: 'tattoo_style',
+        id: 7, step: 'style', type: 'tattoo-styles', title: '¿Qué estilo estás buscando?', field: 'tattoo_style',
         options: SHARED_TATTOO_STYLE_OPTIONS
     },
     {
-        id: 8, step: 'color', type: 'options', title: '¿Color o Blanco y Negro?', field: 'tattoo_color_type',
+        id: 8, step: 'color', type: 'options', title: 'Color', field: 'tattoo_color_type',
         options: ['Full Color', 'Blanco y Negro', 'Escala de Grises', 'Solo Líneas', 'Toques de Color']
     },
-    { id: 9, step: 'references', type: 'file-upload', title: 'Referencias visuales', field: 'tattoo_references', optional: true, editable: false },
-    {
-        id: 10, step: 'first-tattoo', type: 'boolean', title: '¿Es tu primer tatuaje?', field: 'tattoo_is_first_tattoo',
-        logic: { triggerValue: true, action: 'jump', targetStep: 'name' }
-    },
-    { id: 11, step: 'cover-up', type: 'boolean', title: '¿Es un Cover-up?', field: 'tattoo_is_cover_up' },
-    { id: 12, step: 'name', type: 'text', title: '¿Cómo te llamas?', field: 'client_full_name', placeholder: 'Tu nombre completo', minLength: 2 },
+    { id: 9, step: 'references', type: 'file-upload', title: 'Mostranos lo que te inspira', field: 'tattoo_references', optional: true, editable: false },
+    { id: 10, step: 'first-tattoo', type: 'boolean', title: '¿Es tu primer tatuaje?', field: 'tattoo_is_first_tattoo' },
+    { id: 11, step: 'cover-up', type: 'boolean', title: '¿Es un cover-up?', field: 'tattoo_is_cover_up' },
+    { id: 12, step: 'name', type: 'text', title: '¿Cómo te llamás?', field: 'client_full_name', placeholder: 'Tu nombre completo', minLength: 2 },
     { id: 13, step: 'email', type: 'email', title: 'Tu correo electrónico', field: 'client_email', placeholder: 'ejemplo@email.com' },
-    { 
-        id: 13.1, step: 'whatsapp', type: 'tel', 
-        title: 'Tu número de WhatsApp', 
-        subtitle: 'Para que el artista pueda comunicarse contigo directamente por chat.',
-        field: 'client_whatsapp', placeholder: '11 1234 5678' 
+    {
+        id: 13.1, step: 'whatsapp', type: 'tel',
+        title: 'Tu número de WhatsApp',
+        subtitle: 'Para que el artista pueda escribirte directamente.',
+        field: 'client_whatsapp', placeholder: '11 1234 5678'
     },
     { id: 13.2, step: 'birth-date', type: 'date', title: '¿Cuál es tu fecha de nacimiento?', field: 'client_birth_date' },
     { id: 14, step: 'instagram', type: 'text', title: 'Tu Instagram', field: 'client_instagram', prefix: '@', optional: true },
-    { id: 14.1, step: 'medical-boolean', type: 'boolean', title: '¿Tienes alguna condición médica?', field: 'client_medical_boolean' },
-    { id: 14.2, step: 'medical-details', type: 'textarea', title: 'Indícanos tus condiciones médicas', field: 'client_medical_details', placeholder: 'Describe aquí...', minLength: 5, hidden: true },
-    { id: 14.3, step: 'allergies', type: 'textarea', title: '¿Tienes alguna alergia que debamos saber?', field: 'client_allergies', placeholder: 'Ej: Alergia al látex, tintas rojas, etc...', optional: true },
-    { id: 15, step: 'city', type: 'text', title: '¿En qué ciudad vives?', field: 'client_city_residence', placeholder: 'Ciudad, Provincia, País' },
-    { id: 15.5, step: 'travel', type: 'boolean', title: 'Disponibilidad de Viaje', field: 'client_travel_willing', hidden: true },
-    { id: 16, step: 'date', type: 'date-range', title: '¿Para cuándo lo planeas?', field: 'client_preferred_date' },
-    { id: 17, step: 'budget', type: 'currency', title: 'Presupuesto aproximado', field: 'client_budget_amount' },
+    { id: 14.1, step: 'medical-boolean', type: 'boolean', title: '¿Tenés alguna condición médica?', field: 'client_medical_boolean' },
+    { id: 14.2, step: 'medical-details', type: 'textarea', title: 'Contanos tus condiciones médicas', field: 'client_medical_details', placeholder: 'Describí acá…', minLength: 5, hidden: true },
+    { id: 14.3, step: 'allergies', type: 'textarea', title: '¿Tenés alguna alergia que debamos saber?', field: 'client_allergies', placeholder: 'Ej: alergia al látex, tintas rojas…', optional: true },
+    { id: 15, step: 'city', type: 'text', title: '¿En qué ciudad vivís?', field: 'client_city_residence', placeholder: 'Ciudad, Provincia, País' },
+    { id: 15.5, step: 'travel', type: 'boolean', title: '¿Viajarías para la sesión?', field: 'client_travel_willing', hidden: true },
+    { id: 16, step: 'date', type: 'date-range', title: 'Fecha', field: 'client_preferred_date' },
+    { id: 17, step: 'budget', type: 'currency', title: 'Presupuesto', field: 'client_budget_amount' },
     {
-        id: 18, step: 'contact-pref', type: 'multi-select', title: '¿Cómo prefieres que te contacten?', field: 'client_contact_preference',
+        id: 18, step: 'contact-pref', type: 'multi-select', title: '¿Cómo preferís que te contacten?', field: 'client_contact_preference',
         options: ['WhatsApp', 'Instagram', 'Email', 'Cualquiera']
     },
-    { id: 18.1, step: 'rec-preference', type: 'boolean', title: '¿Te gustaría que te recomendemos otros artistas?', field: 'artist_rec_preference', hidden: true },
-    { id: 18.5, step: 'artist-recommendations', type: 'artist-recommendations', title: 'Recomendaciones para ti', editable: false },
-    { id: 19, step: 'summary', type: 'summary', title: 'Resumen de tu solicitud', editable: false }
+    { id: 18.1, step: 'rec-preference', type: 'boolean', title: '¿Querés que te recomendemos otros artistas?', field: 'artist_rec_preference', hidden: true },
+    { id: 18.5, step: 'artist-recommendations', type: 'artist-recommendations', title: 'Recomendaciones para vos', editable: false },
+    { id: 19, step: 'summary', type: 'summary', title: 'Tu tatuaje', editable: false }
 ];
+
+// ============ PANTALLAS (capa de presentación · Figma) ============
+// El Figma agrupa varias preguntas de `quotation_flow_config` por pantalla
+// (8 pantallas numeradas 01…08). Esta tabla NO reemplaza la config: solo dice
+// qué preguntas se muestran juntas, en qué orden y con qué titular.
+// Referencias: flujo-clientes--15…21.
+const QUOTATION_SCREENS = [
+    // Pantalla sin numerar: solo aparece cuando se entra con ?artist=usuario.
+    {
+        id: 'artist', title: 'Confirmá tu artista', steps: ['artist-confirm'],
+        skipIf: () => !formData.artist_data
+    },
+    { id: 'idea', num: '01', title: '¿Qué querés tatuarte?', steps: ['description'], initialReference: true },
+    { id: 'style', num: '02', title: '¿Qué estilo estás buscando?', subtitle: 'Podés elegir uno o varios estilos.', steps: ['style'] },
+    { id: 'body', num: '03', title: '¿Dónde querés llevarlo?', steps: ['body-part'] },
+    { id: 'size', num: '04', title: '¿Qué tamaño imaginás?', steps: ['size'] },
+    {
+        id: 'references', num: '05', title: 'Mostranos lo que te inspira',
+        subtitle: 'Sumá las imágenes que te inspiran · hasta 4.', steps: ['references']
+    },
+    { id: 'details', num: '06', title: 'Contanos los detalles', steps: ['color', 'date', 'budget'] },
+    {
+        id: 'client', num: '07', title: 'Contanos quién sos',
+        steps: [
+            'name', 'email', 'whatsapp', 'birth-date', 'instagram', 'city', 'travel',
+            'contact-pref', 'first-tattoo', 'cover-up', 'medical-boolean', 'medical-details', 'allergies'
+        ]
+    },
+    { id: 'summary', num: '08', title: 'Tu tatuaje', steps: ['summary'] }
+];
+
+// Pasos que nunca se renderizan como pantalla propia (no existen en el Figma
+// del flujo de cliente). `artist-confirm` sí se usa, pero solo vía deep link.
+const NON_SCREEN_STEPS = ['welcome', 'artist-search', 'artist-confirm', 'rec-preference', 'artist-recommendations'];
+
+// Etiquetas mono de cada bloque dentro de una pantalla (Figma).
+const FIELD_LABELS = {
+    'description': 'Descripción de la idea',
+    'color': 'Color',
+    'date': 'Fecha',
+    'budget': '¿Cuánto querés invertir? Es un aproximado: el valor final lo definen después.',
+    'name': 'Nombre y apellido',
+    'email': 'Email',
+    'whatsapp': 'WhatsApp',
+    'birth-date': 'Fecha de nacimiento',
+    'instagram': 'Instagram',
+    'city': 'Ciudad',
+    'travel': '¿Viajarías para la sesión?',
+    'contact-pref': '¿Cómo preferís que te contacten?',
+    'first-tattoo': '¿Es tu primer tatuaje?',
+    'cover-up': '¿Es un cover-up?',
+    'medical-boolean': '¿Tenés alguna condición médica?',
+    'medical-details': 'Contanos cuáles',
+    'allergies': 'Alergias (opcional)'
+};
+
+// Placeholders en voseo para los campos cuya copy define el Figma. La tabla
+// `quotation_flow_config` todavía guarda algunos textos en tuteo; hasta que se
+// actualicen en la DB, la pantalla usa estos.
+const FIELD_PLACEHOLDERS = {
+    'description': 'Contanos tu idea con el mayor detalle posible…',
+    'medical-details': 'Contanos qué tenemos que tener en cuenta…',
+    'allergies': 'Ej: alergia al látex, tintas rojas…',
+    'name': 'Tu nombre completo',
+    'city': 'Ciudad, provincia, país'
+};
+
+// Opciones que el Figma fija y hoy difieren de `quotation_flow_config`.
+// Se aplican como override de presentación; el valor guardado sigue siendo texto.
+const FIGMA_COLOR_OPTIONS = ['Black & Grey', 'Color', 'No estoy seguro'];
+
+const FIGMA_SIZE_OPTIONS = [
+    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm' },
+    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm' },
+    { label: 'Grande', value: 'grande', subtitle: '15–25 cm' },
+    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm' }
+];
+
+// Chips de fecha del Figma. `flexible` marca client_flexible_dates.
+const FIGMA_DATE_CHIPS = [
+    { label: 'Lo antes posible', flexible: false },
+    { label: 'Este mes', flexible: false },
+    { label: 'Próximo mes', flexible: false },
+    { label: 'Sin fecha', flexible: true }
+];
+
+// Tramos de presupuesto del Figma. `amount` es el valor numérico que se guarda
+// en client_budget_amount (punto medio del tramo) para que las vistas de
+// artista/backoffice sigan ordenando y precargando por número.
+// `{s}` se reemplaza por el símbolo de la moneda activa (WeOtziCurrency).
+const FIGMA_BUDGET_TIERS = [
+    { label: '< {s}100', amount: 50, bar: 20 },
+    { label: '{s}100–200', amount: 150, bar: 34 },
+    { label: '{s}200–400', amount: 300, bar: 48 },
+    { label: '{s}400–600', amount: 500, bar: 62 },
+    { label: '{s}600+', amount: 600, bar: 76 },
+    { label: 'No estoy seguro', amount: null, bar: 20 }
+];
+
+const MONTHS_SHORT_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const MONTHS_LONG_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// Tipos de pregunta que se renderizan con un <template> de la página.
+const TEMPLATE_TYPES = ['artist-confirm', 'body-selector', 'tattoo-styles', 'file-upload', 'summary'];
 
 // ============ STATE ============
 let questionsConfig = [];
+// Pantallas resueltas (agrupación Figma sobre questionsConfig).
+let screensConfig = [];
+// Índice de PANTALLA actual (se conserva el nombre por compatibilidad de draft).
 let currentStepIndex = 0;
 let formData = {
     reference_images_count: 0,
@@ -263,39 +369,32 @@ function isDraftStepCompleted(step, data) {
 }
 
 /**
- * Populate the steps lists in the recovery modal
+ * Populate the steps lists in the recovery modal.
+ * Se listan las PANTALLAS del flujo (agrupación Figma), no las preguntas sueltas.
  * @param {Object} draft - The saved draft data
  */
 function populateStepsLists(draft) {
     const completedList = document.getElementById('completed-steps-list');
     const pendingList = document.getElementById('pending-steps-list');
-    
+
     if (!completedList || !pendingList) return;
-    
+
     completedList.innerHTML = '';
     pendingList.innerHTML = '';
-    
-    // Filter out hidden steps and steps past the current index
-    questionsConfig.forEach((step, index) => {
-        // Skip welcome and summary for the lists
-        if (step.step === 'welcome' || step.step === 'summary') return;
-        
-        // Skip hidden steps
-        if (step.hidden) return;
-        
+
+    screensConfig.forEach((screen) => {
+        if (screen.id === 'summary' || screen.id === 'artist') return;
+
+        const done = screen.questions.every((q) => {
+            if (!q.field || q.optional || q.hidden) return true;
+            return isDraftStepCompleted(q, draft.formData || {});
+        });
+
         const li = document.createElement('li');
-        li.textContent = step.title;
-        
-        if (isDraftStepCompleted(step, draft.formData)) {
-            completedList.appendChild(li);
-        } else if (index <= draft.currentStepIndex) {
-            // Current step - show as pending
-            pendingList.appendChild(li);
-        } else {
-            pendingList.appendChild(li);
-        }
+        li.textContent = screen.title;
+        (done ? completedList : pendingList).appendChild(li);
     });
-    
+
     // Update summary info
     const artistName = draft.formData.artist_name || 'Sin artista seleccionado';
     const savedDate = draft.savedAt ? new Date(draft.savedAt).toLocaleString('es-ES', {
@@ -332,25 +431,29 @@ function showDraftRecoveryModal(draft) {
 function continueDraft() {
     const draft = loadDraftFromLocalStorage();
     if (draft) {
-        // Restore state
-        currentStepIndex = draft.currentStepIndex || 0;
         formData = draft.formData || { reference_images_count: 0, quote_status: 'in_progress', quote_id: null };
-        historyStack = draft.historyStack || [];
         selectedBodyParts = draft.selectedBodyParts || [];
         summaryReached = draft.summaryReached || false;
-        
-        _dbg('Draft restored:', formData.quote_id);
+
+        // El índice guardado puede venir del wizard anterior (una pregunta por
+        // paso): se recalcula sobre las pantallas actuales a partir de los datos.
+        buildScreensConfig();
+        currentStepIndex = findFirstIncompleteScreenIndex();
+        historyStack = [];
+        for (let i = 0; i < currentStepIndex; i++) {
+            if (!isScreenSkipped(screensConfig[i])) historyStack.push(i);
+        }
+
+        _dbg('Draft restored:', formData.quote_id, '→ pantalla', currentStepIndex);
     }
-    
+
     // Hide modal
     const modal = document.getElementById('draft-recovery-modal');
     if (modal) {
         modal.classList.add('hidden');
     }
-    
-    // Render the restored step
+
     renderCurrentStep();
-    updateProgress();
     updateBackButton();
 }
 
@@ -469,6 +572,9 @@ function initApp() {
     // Detect existing client session for header state
     _detectClientSession();
 
+    // Agrupación Figma sobre la config cargada (Supabase o fallback).
+    buildScreensConfig();
+
     // Pre-cotizador handoff: only applies when source=prequote is in URL or
     // a non-expired handoff is present. We check the URL flag first to avoid
     // affecting regular /quotation visits.
@@ -505,14 +611,15 @@ function initApp() {
     if (artistUsername) {
         handleUrlArtist(artistUsername);
     } else {
+        currentStepIndex = findNextScreenIndex(0);
+        if (currentStepIndex === -1) currentStepIndex = 0;
         renderCurrentStep();
-        updateProgress();
     }
 
     // Global Listeners
     setupKeyboardNavigation();
 
-    _dbg('Dynamic App Initialized with', questionsConfig.length, 'steps');
+    _dbg('Cotizador iniciado ·', screensConfig.length, 'pantallas /', questionsConfig.length, 'preguntas');
 }
 
 async function handleUrlArtist(username) {
@@ -551,107 +658,192 @@ async function handleUrlArtist(username) {
             formData.no_artist = false;
             formData.quote_id = generateQuoteId();
 
-            // Skip search, go to confirm
-            const confirmIdx = questionsConfig.findIndex(q => q.step === 'artist-confirm');
-            const searchIdx = questionsConfig.findIndex(q => q.step === 'artist-search');
-            if (confirmIdx !== -1) {
-                currentStepIndex = confirmIdx;
-                // History: welcome -> search -> confirm (so back goes to search)
-                historyStack = [0, searchIdx !== -1 ? searchIdx : 1];
-            }
+            // Con artista en la URL se muestra la confirmación como pantalla
+            // previa (no numerada): el Figma no tiene búsqueda de artista.
+            buildScreensConfig();
+            const artistIdx = getScreenIndexById('artist');
+            currentStepIndex = artistIdx !== -1 ? artistIdx : findNextScreenIndex(0);
+            historyStack = [];
         } else {
-            // Artist not found - go to search step instead of welcome
-            const searchIdx = questionsConfig.findIndex(q => q.step === 'artist-search');
-            if (searchIdx !== -1) {
-                currentStepIndex = searchIdx;
-                historyStack = [0]; // Back from search goes to welcome
-            }
+            // Sin artista válido el flujo arranca igual en la pantalla 01.
             console.warn('Artist not found for username:', username);
+            currentStepIndex = findNextScreenIndex(0);
+            historyStack = [];
         }
     } catch (err) {
         console.error('Error handling URL artist:', err);
-        // On error, go to search step
-        const searchIdx = questionsConfig.findIndex(q => q.step === 'artist-search');
-        if (searchIdx !== -1) {
-            currentStepIndex = searchIdx;
-            historyStack = [0];
-        }
+        currentStepIndex = findNextScreenIndex(0);
+        historyStack = [];
     } finally {
+        if (currentStepIndex === -1) currentStepIndex = 0;
         hideLoading();
         renderCurrentStep();
-        updateProgress();
         updateBackButton();
     }
 }
 
 // ============ DYNAMIC RENDERING ============
+// El Figma agrupa varias preguntas por pantalla (01…08). Acá se arma la lista
+// de pantallas sobre `questionsConfig` (Supabase → quotation_flow_config) sin
+// tocar el contrato de datos: cada pregunta conserva su campo, tipo, opciones
+// y validación; lo único que cambia es cuántas se muestran juntas.
+
+function buildScreensConfig() {
+    const byStep = {};
+    (questionsConfig || []).forEach((q) => { if (q && q.step) byStep[q.step] = q; });
+
+    const used = new Set(NON_SCREEN_STEPS);
+    const screens = [];
+
+    QUOTATION_SCREENS.forEach((blueprint) => {
+        const questions = blueprint.steps
+            .map((stepName) => { used.add(stepName); return byStep[stepName]; })
+            .filter(Boolean);
+        if (!questions.length && !blueprint.initialReference) return;
+        screens.push(Object.assign({}, blueprint, { questions }));
+    });
+
+    // Preguntas de la config que el mapa del Figma no cubre (por ejemplo, una
+    // nueva agregada desde el backoffice): se muestran antes del resumen, una
+    // por pantalla, para no perder ningún dato del flujo.
+    (questionsConfig || []).forEach((q) => {
+        if (!q || !q.step || used.has(q.step) || q.hidden) return;
+        used.add(q.step);
+        const extra = { id: 'extra-' + q.step, title: q.title || '', steps: [q.step], questions: [q] };
+        const summaryIdx = screens.findIndex((s) => s.id === 'summary');
+        if (summaryIdx === -1) screens.push(extra);
+        else screens.splice(summaryIdx, 0, extra);
+    });
+
+    screensConfig = screens;
+    _dbg('Pantallas armadas:', screens.map((s) => s.id).join(' · '));
+    return screens;
+}
+
+function getScreen(index) { return screensConfig[index] || null; }
+function getCurrentScreen() { return getScreen(currentStepIndex); }
+
+function getScreenIndexById(id) { return screensConfig.findIndex((s) => s.id === id); }
+
+function isScreenSkipped(screen) {
+    if (!screen) return true;
+    if (typeof screen.skipIf === 'function' && screen.skipIf()) return true;
+    if (screen.initialReference) return false;
+    return !screen.questions.some((q) => isQuestionVisible(q));
+}
+
+// Visibilidad condicional dentro de una pantalla. Reemplaza los saltos de paso
+// (`logic`) del wizard viejo: ahora las preguntas conviven en una pantalla y se
+// muestran u ocultan según lo ya respondido.
+function isQuestionVisible(q) {
+    if (!q) return false;
+    if (q.step === 'medical-details') return formData.client_medical_boolean === true;
+    if (q.step === 'travel') return !!formData._travel_required;
+    return !q.hidden;
+}
+
 function renderCurrentStep() {
     const container = document.getElementById('form-steps-container');
-    container.innerHTML = ''; // Clear previous
+    if (!container) return;
+    container.innerHTML = '';
 
-    const question = questionsConfig[currentStepIndex];
-    if (!question) {
-        return;
-    }
+    const screen = getCurrentScreen();
+    if (!screen) return;
 
-    // Create Step Wrapper
     const stepEl = document.createElement('section');
-    stepEl.id = `step-${question.step}`;
-    stepEl.className = 'step active';
+    stepEl.id = `screen-${screen.id}`;
+    stepEl.className = 'step active q-screen';
+    stepEl.dataset.screenId = screen.id;
     stepEl.dataset.stepIndex = currentStepIndex;
 
-    // Render Content based on Type
-    let contentHtml = '';
+    stepEl.innerHTML = [
+        '<header class="q-screen-head">',
+        screen.num ? `<span class="q-screen-num">${screen.num}</span>` : '',
+        `<h1 class="q-screen-title">${escapeQuotationHtml(screen.title || '')}</h1>`,
+        '</header>',
+        screen.subtitle ? `<p class="q-screen-sub">${escapeQuotationHtml(screen.subtitle)}</p>` : ''
+    ].join('');
 
-    // Check for Custom Templates first
-    if (['welcome', 'artist-search', 'artist-confirm', 'body-selector', 'tattoo-styles', 'file-upload', 'artist-recommendations', 'summary'].includes(question.type)) {
-        const template = document.getElementById(`tmpl-${question.type}`);
-        if (template) {
-            stepEl.appendChild(template.content.cloneNode(true));
-            // Initialize custom logic logic after appending
-            setTimeout(() => initCustomStepLogic(question.type), 0);
-        } else {
-            stepEl.innerHTML = `<div class="error">Template not found for ${question.type}</div>`;
-        }
-    } else {
-        // Standard Types Renderer
-        contentHtml = generateStandardQuestionHtml(question);
-        stepEl.innerHTML = contentHtml;
+    const blocks = document.createElement('div');
+    blocks.className = 'q-blocks';
+
+    screen.questions.forEach((q) => {
+        const block = buildQuestionBlock(q, screen);
+        if (block) blocks.appendChild(block);
+    });
+
+    // Figma 01: la referencia inicial vive dentro de la pantalla de la idea y
+    // usa el mismo pipeline de subida que la pantalla 05.
+    if (screen.initialReference) {
+        const refBlock = document.createElement('div');
+        refBlock.className = 'q-block';
+        refBlock.innerHTML =
+            '<p class="q-block-label">Referencia inicial (opcional)</p>' +
+            renderDropzoneHtml();
+        blocks.appendChild(refBlock);
     }
 
+    stepEl.appendChild(blocks);
     container.appendChild(stepEl);
 
-    // Post-render inputs setup
-    // Special case: City needs special logic on "Continuar" + Google Maps Autocomplete
-    if (question.step === 'artist-search') {
-        const input = document.getElementById('artist-username');
-        if (input) {
-            input.focus();
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    searchArtist();
-                }
-            };
+    screen.questions.forEach((q) => setTimeout(() => initQuestionLogic(q, screen), 0));
+    if (screen.initialReference) setTimeout(() => { setupFileUpload(); renderPreviews(); }, 0);
+
+    updateFootbar(screen);
+}
+
+// Bloque de una pregunta: etiqueta mono + control (o template completo).
+function buildQuestionBlock(q, screen) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'q-block';
+    wrapper.dataset.step = q.step;
+    wrapper.id = `block-${q.step}`;
+    if (!isQuestionVisible(q)) wrapper.classList.add('hidden');
+
+    if (TEMPLATE_TYPES.includes(q.type)) {
+        const tpl = document.getElementById(`tmpl-${q.type}`);
+        if (!tpl) {
+            wrapper.innerHTML = `<p class="error-msg">No se encontró el template ${q.type}</p>`;
+            return wrapper;
         }
+        wrapper.classList.add('q-block--full');
+        wrapper.appendChild(tpl.content.cloneNode(true));
+        return wrapper;
     }
 
-    if (question.step === 'city') {
-        const btn = stepEl.querySelector('.btn-primary');
-        if (btn) {
-            btn.onclick = () => handleCitySelection();
-        }
-        const secondaryBtn = stepEl.querySelector('.btn-secondary');
-        if (secondaryBtn) {
-            secondaryBtn.onclick = () => handleCitySelection();
-        }
-        setupCityAutocomplete(question);
-    }
+    const labelText = FIELD_LABELS[q.step] || q.title || '';
+    // En pantallas de una sola pregunta el titular ya dice todo: la etiqueta
+    // solo se muestra cuando el Figma la tiene.
+    const showLabel = !!FIELD_LABELS[q.step] || screen.questions.length > 1;
 
-    if (question.type === 'date-range') setupDatePicker();
-    if (question.type === 'date') setupDatePicker(true);
-    if (question.type === 'currency') setupCurrencyInput(question);
-    if (question.type === 'textarea') setupTextareaCounter(question);
+    wrapper.innerHTML =
+        (showLabel && labelText ? `<p class="q-block-label">${escapeQuotationHtml(labelText)}</p>` : '') +
+        (q.subtitle ? `<p class="q-block-help">${escapeQuotationHtml(q.subtitle)}</p>` : '') +
+        renderQuestionControl(q);
+
+    return wrapper;
+}
+
+function escapeQuotationHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// Barra inferior fija (Figma: ATRÁS a la izquierda · CONTINUAR a la derecha).
+function updateFootbar(screen) {
+    const bar = document.getElementById('q-footbar');
+    const continueBtn = document.getElementById('continue-btn');
+    if (!bar || !continueBtn) return;
+
+    const isSummary = screen && screen.id === 'summary';
+    // El resumen tiene su propio bloque de CTA (SOLICITAR COTIZACIÓN + EDITAR).
+    bar.classList.toggle('hidden', !!isSummary);
+    continueBtn.classList.toggle('hidden', !!isSummary);
+    updateBackButton();
 }
 
 // Setup character counter for textarea
@@ -878,416 +1070,575 @@ function useGpsLocation(questionId) {
 // Make useGpsLocation available globally
 window.useGpsLocation = useGpsLocation;
 
-function generateStandardQuestionHtml(q) {
-    let inputsHtml = '';
+// ============ CONTROLES POR PREGUNTA ============
+// Cada control se dibuja sin titular ni botonera propia: el titular es el de la
+// pantalla y la acción vive en la barra inferior fija (Figma).
 
+function questionPlaceholder(q) {
+    return FIELD_PLACEHOLDERS[q.step] || q.placeholder || '';
+}
+
+function renderQuestionControl(q) {
     switch (q.type) {
         case 'text':
         case 'email':
         case 'tel':
-            let inputField = '';
-            if (q.type === 'tel') {
-                inputField = `
-                    <div class="tel-group">
-                        <select id="country-code-${q.id}" class="wo-select country-select">
-                            <option value="+54">AR +54</option>
-                            <option value="+52">MX +52</option>
-                            <option value="+1">US +1</option>
-                            <option value="+34">ES +34</option>
-                            <option value="+57">CO +57</option>
-                            <option value="+56">CL +56</option>
-                            <option value="+51">PE +51</option>
-                            <option value="+58">VE +58</option>
-                            <option value="+598">UY +598</option>
-                        </select>
-                        <input type="tel" id="field-${q.id}" class="wo-input" placeholder="${q.placeholder || ''}" value="${formData[q.field] ? formData[q.field].split(' ').slice(1).join(' ') : ''}">
-                    </div>
-                `;
-            } else if (q.step === 'instagram') {
-                inputField = `
-                    <input type="text" id="field-${q.id}" class="wo-input" placeholder="@usuario" value="${formData[q.field] || '@'}" oninput="handleInstagramInput(this)">
-                `;
-            } else if (q.step === 'city') {
-                const normalizedCityValue = normalizeQuotationLocation(formData[q.field] || '');
-                if (normalizedCityValue && normalizedCityValue !== formData[q.field]) {
-                    formData[q.field] = normalizedCityValue;
-                }
-                inputField = `
-                    <div class="city-input-group">
-                        <input type="text" id="field-${q.id}" class="wo-input" placeholder="${q.placeholder || ''}" value="${normalizedCityValue || ''}">
-                        <button type="button" class="wo-iconbtn btn-gps" onclick="useGpsLocation(${q.id})" title="Usar mi ubicación" aria-label="Usar mi ubicación">
-                            <i data-wo-icon="crosshair" class="wo-icon-18"></i>
-                        </button>
-                    </div>
-                `;
-            } else if (q.prefix) {
-            } else {
-                inputField = `
-                    <input type="${q.type}" id="field-${q.id}" class="wo-input" placeholder="${q.placeholder || ''}" value="${formData[q.field] || ''}">
-                `;
-            }
-
-            const isOptional = q.optional || (q.step === 'whatsapp' && !formData.client_contact_preference?.includes('WhatsApp'));
-            const hasValue = formData[q.field] !== undefined && formData[q.field] !== null && formData[q.field] !== '';
-
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    ${inputField}
-                    <div class="actions-row">
-                        ${isOptional ? `<button class="wo-btn wo-btn--nav btn-text" onclick="skipStep('${q.field}')">Omitir</button>` : ''}
-                        ${hasValue ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="validateAndNext('${q.field}', '${q.id}', '${q.type}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
-                    </div>
-                </div>
-            `;
-            break;
+            return renderTextControl(q);
 
         case 'textarea':
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : '<p class="subtitle">Contanos tu idea con el mayor detalle posible</p>'}
-                    <div class="textarea-wrapper">
-                        <textarea
-                            id="field-${q.id}"
-                            class="wo-textarea"
-                            placeholder="${q.placeholder || 'Escribí acá tu idea...'}"
-                            rows="6"
-                            maxlength="${q.maxLength || 1000}"
-                        >${formData[q.field] || ''}</textarea>
-                        <div class="textarea-counter">
-                            <span id="char-count-${q.id}">0</span>/${q.maxLength || 1000} caracteres
-                        </div>
-                    </div>
-                    <div class="actions-row">
-                        ${q.optional ? `<button class="wo-btn wo-btn--nav btn-text" onclick="skipStep('${q.field}')">Omitir</button>` : ''}
-                        ${formData[q.field] ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="validateTextarea('${q.field}', '${q.id}', ${q.minLength || 0})">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
-                    </div>
-                </div>
-            `;
-            break;
+            return `
+                <div class="textarea-wrapper">
+                    <textarea id="field-${q.id}" class="wo-textarea"
+                        placeholder="${escapeQuotationHtml(questionPlaceholder(q))}"
+                        rows="5" maxlength="${q.maxLength || 1000}"
+                        aria-label="${escapeQuotationHtml(FIELD_LABELS[q.step] || q.title || '')}"
+                    >${escapeQuotationHtml(formData[q.field] || '')}</textarea>
+                    <div class="textarea-counter"><span id="char-count-${q.id}">0</span>/${q.maxLength || 1000}</div>
+                </div>`;
 
         case 'options':
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <div class="options-list">
-                        ${q.options.map(opt => {
-                            const isSelected = formData[q.field] === toTitleCase(opt);
-                            return `
-                                <button class="btn-option-wide ${isSelected ? 'selected' : ''}" onclick="handleOptionSelect('${q.field}', '${opt}')">
-                                    ${opt}
-                                </button>
-                            `;
-                        }).join('')}
-                    </div>
-                    ${formData[q.field] ? `
-                        <div class="actions-row">
-                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-            break;
+            return renderWideOptions(q, q.step === 'color' ? FIGMA_COLOR_OPTIONS : (q.options || []));
 
         case 'cards':
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <div class="grid-options ${q.options.length > 8 ? 'dense' : ''}">
-                        ${q.options.map(opt => {
-                const label = typeof opt === 'object' ? opt.label : opt;
-                const val = typeof opt === 'object' ? opt.value : opt;
-                const sub = (typeof opt === 'object' && opt.subtitle) ? `<span class="option-hint">${opt.subtitle}</span>` : '';
-                const isSelected = formData[q.field] === toTitleCase(val);
-                return `
-                                <button class="btn-option ${isSelected ? 'selected' : ''}" data-value="${val}" onclick="handleOptionSelect('${q.field}', '${val}')">
-                                    <span class="option-label">${label}</span>
-                                    ${sub}
-                                </button>
-                            `;
-            }).join('')}
-                    </div>
-                    ${formData[q.field] ? `
-                        <div class="actions-row">
-                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-            break;
+            return q.step === 'size' ? renderSizeCards(q) : renderWideOptions(q, q.options || []);
 
         case 'multi-select':
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <div class="checkbox-options">
-                        ${q.options.map(opt => {
-                            const isSelected = formData[q.field] && formData[q.field].split(', ').includes(toTitleCase(opt));
-                            return `
-                                <label class="wo-check checkbox-option">
-                                    <input type="checkbox" name="${q.field}" value="${opt}" ${isSelected ? 'checked' : ''}>
-                                    <span>${opt}</span>
-                                </label>
-                            `;
-                        }).join('')}
-                    </div>
-                    <div class="actions-row">
-                        ${formData[q.field] ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleMultiSelect('${q.field}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
-                    </div>
-                </div>
-            `;
-            break;
+            return `
+                <div class="checkbox-options">
+                    ${(q.options || []).map((opt) => {
+                        const label = typeof opt === 'object' ? opt.label : opt;
+                        const selected = formData[q.field] && String(formData[q.field]).split(', ').includes(toTitleCase(label));
+                        return `
+                            <label class="wo-check checkbox-option">
+                                <input type="checkbox" name="${q.field}" value="${escapeQuotationHtml(label)}" ${selected ? 'checked' : ''}>
+                                <span>${escapeQuotationHtml(label)}</span>
+                            </label>`;
+                    }).join('')}
+                </div>`;
 
         case 'boolean':
-            let subtitleHtml = q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : '';
-            
-            // Special display for travel question to show mismatch
-            if (q.step === 'travel' && formData.artist_current_city && formData.client_city_residence) {
-                subtitleHtml = `
-                    <div class="mismatch-display">
-                        <div class="mismatch-item">
-                            <span class="mismatch-label">Artista en</span>
-                            <span class="mismatch-value">${toTitleCase(formData.artist_current_city)}</span>
-                        </div>
-                        <div class="mismatch-divider"><i data-wo-icon="arrow-right" class="wo-icon-18"></i></div>
-                        <div class="mismatch-item">
-                            <span class="mismatch-label">Vos en</span>
-                            <span class="mismatch-value">${toTitleCase(formData.client_city_residence)}</span>
-                        </div>
-                    </div>
-                    <p class="subtitle">Las ubicaciones no coinciden. ¿Tendrías disponibilidad de viajar para la sesión?</p>
-                `;
-            }
-
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${subtitleHtml}
-                    <div class="options-row">
-                        <button class="btn-option-large ${formData[q.field] === true ? 'selected' : ''}" onclick="handleBoolean('${q.field}', true)">
-                            <i data-wo-icon="check" class="wo-icon-18"></i> Sí
-                        </button>
-                        <button class="btn-option-large ${formData[q.field] === false ? 'selected' : ''}" onclick="handleBoolean('${q.field}', false)">
-                            <i data-wo-icon="x" class="wo-icon-18"></i> No
-                        </button>
-                    </div>
-                    ${formData[q.field] !== undefined && formData[q.field] !== null ? `
-                        <div class="actions-row">
-                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-            break;
+            return `
+                <div class="q-wide-options q-wide-options--pair">
+                    <button type="button" class="q-wide-option ${formData[q.field] === true ? 'is-selected' : ''}"
+                        data-bool="true" onclick="handleBoolean('${q.field}', true)">Sí</button>
+                    <button type="button" class="q-wide-option ${formData[q.field] === false ? 'is-selected' : ''}"
+                        data-bool="false" onclick="handleBoolean('${q.field}', false)">No</button>
+                </div>`;
 
         case 'date-range':
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <input type="text" id="date-picker" class="wo-input" placeholder="Seleccioná fecha(s)" readonly>
-                    <label class="wo-check checkbox-wrapper">
-                        <input type="checkbox" id="date-flexible">
-                        <span>Tengo flexibilidad</span>
-                    </label>
-                    <div class="actions-row">
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleDateSelection('${q.field}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
-                    </div>
-                </div>
-            `;
-            break;
+            return renderDateControl(q);
 
         case 'date':
-            inputsHtml = `
-                <div class="question-container">
-                    <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <input type="text" id="date-picker-single" class="wo-input" placeholder="Seleccioná fecha" readonly>
-                    <div class="actions-row">
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleSingleDateSelection('${q.field}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
-                    </div>
-                </div>
-            `;
-            break;
+            return `<input type="text" id="date-picker-single" class="wo-input" placeholder="Elegí la fecha" value="${escapeQuotationHtml(formData[q.field] || '')}" readonly>`;
 
         case 'currency':
-            inputsHtml = `
-                <div class="question-container">
-                     <h2>${q.title}</h2>
-                     ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                     <div class="budget-input-group">
-                        <select id="currency-select" class="wo-select">
-                            <option value="USD">USD</option><option value="EUR">EUR</option>
-                            <option value="MXN">MXN</option><option value="ARS">ARS</option>
-                        </select>
-                        <input type="number" id="field-${q.id}" class="wo-input" placeholder="0" min="0" value="${formData[q.field] || ''}">
-                     </div>
-                     <div class="actions-row">
-                        ${formData[q.field] ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleCurrency('${q.field}', '${q.id}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
-                     </div>
-                </div>
-            `;
-            break;
+            return renderBudgetControl(q);
+
+        default:
+            return '';
     }
-    return inputsHtml;
 }
 
-function initCustomStepLogic(type) {
-    if (type === 'body-selector') setupBodySelector();
-    if (type === 'tattoo-styles') setupTattooStyles();
-    if (type === 'file-upload') setupFileUpload();
-    if (type === 'artist-recommendations') initRecommendations();
-    if (type === 'summary') generateSummary();
-    if (type === 'artist-confirm') {
-        const artist = formData.artist_data || {}; // Ensure we have artist data
+function renderTextControl(q) {
+    if (q.type === 'tel') {
+        const codes = ['+54', '+52', '+1', '+34', '+57', '+56', '+51', '+58', '+598'];
+        const labels = { '+54': 'AR', '+52': 'MX', '+1': 'US', '+34': 'ES', '+57': 'CO', '+56': 'CL', '+51': 'PE', '+58': 'VE', '+598': 'UY' };
+        const saved = formData[q.field] || '';
+        const savedCode = codes.find((c) => saved.startsWith(c + ' ')) || '+54';
+        const savedNumber = saved ? saved.replace(savedCode + ' ', '') : '';
+        return `
+            <div class="tel-group">
+                <select id="country-code-${q.id}" class="wo-select country-select" aria-label="Código de país">
+                    ${codes.map((c) => `<option value="${c}" ${c === savedCode ? 'selected' : ''}>${labels[c]} ${c}</option>`).join('')}
+                </select>
+                <input type="tel" id="field-${q.id}" class="wo-input" placeholder="${escapeQuotationHtml(questionPlaceholder(q))}" value="${escapeQuotationHtml(savedNumber)}">
+            </div>`;
+    }
+
+    if (q.step === 'instagram') {
+        return `<input type="text" id="field-${q.id}" class="wo-input" placeholder="@usuario" value="${escapeQuotationHtml(formData[q.field] || '@')}" oninput="handleInstagramInput(this)">`;
+    }
+
+    if (q.step === 'city') {
+        const normalized = normalizeQuotationLocation(formData[q.field] || '');
+        if (normalized && normalized !== formData[q.field]) formData[q.field] = normalized;
+        return `
+            <div class="city-input-group">
+                <input type="text" id="field-${q.id}" class="wo-input" placeholder="${escapeQuotationHtml(questionPlaceholder(q))}" value="${escapeQuotationHtml(normalized || '')}">
+                <button type="button" class="wo-iconbtn btn-gps" onclick="useGpsLocation(${q.id})" title="Usar mi ubicación" aria-label="Usar mi ubicación">
+                    <i data-wo-icon="crosshair" class="wo-icon-18"></i>
+                </button>
+            </div>`;
+    }
+
+    return `<input type="${q.type}" id="field-${q.id}" class="wo-input" placeholder="${escapeQuotationHtml(questionPlaceholder(q))}" value="${escapeQuotationHtml(formData[q.field] || '')}">`;
+}
+
+// Opciones anchas en fila (Figma 06 · COLOR).
+function renderWideOptions(q, options) {
+    return `
+        <div class="q-wide-options">
+            ${options.map((opt) => {
+                const label = typeof opt === 'object' ? opt.label : opt;
+                const value = typeof opt === 'object' ? opt.value : opt;
+                const selected = formData[q.field] === toTitleCase(String(value));
+                return `<button type="button" class="q-wide-option ${selected ? 'is-selected' : ''}"
+                    data-value="${escapeQuotationHtml(value)}"
+                    onclick="handleOptionSelect('${q.field}', '${escapeQuotationHtml(String(value)).replace(/'/g, "\\'")}')">${escapeQuotationHtml(label)}</button>`;
+            }).join('')}
+        </div>`;
+}
+
+// Figma 04: 4 tamaños con rango + enlace "No estoy seguro".
+function renderSizeCards(q) {
+    const unsure = formData[q.field] === 'No Estoy Seguro';
+    return `
+        <div class="q-size-grid">
+            ${FIGMA_SIZE_OPTIONS.map((opt) => {
+                const selected = formData[q.field] === toTitleCase(opt.value);
+                return `<button type="button" class="q-size-card ${selected ? 'is-selected' : ''}"
+                    data-value="${opt.value}" onclick="handleOptionSelect('${q.field}', '${opt.value}')">
+                    <span class="q-size-name">${opt.label}</span>
+                    <span class="q-size-range">${opt.subtitle}</span>
+                </button>`;
+            }).join('')}
+        </div>
+        <button type="button" class="q-inline-link ${unsure ? 'is-selected' : ''}" onclick="handleOptionSelect('${q.field}', 'No estoy seguro')">No estoy seguro</button>`;
+}
+
+// Figma 06 · FECHA: chips + calendario mensual embebido.
+function renderDateControl(q) {
+    const current = formData[q.field] || '';
+    return `
+        <div class="q-chips" id="date-chips">
+            ${FIGMA_DATE_CHIPS.map((chip) => `
+                <button type="button" class="q-chip ${current === chip.label ? 'is-active' : ''}"
+                    data-date-chip="${escapeQuotationHtml(chip.label)}"
+                    onclick="selectDateChip('${escapeQuotationHtml(chip.label).replace(/'/g, "\\'")}', ${chip.flexible})">${escapeQuotationHtml(chip.label)}</button>`).join('')}
+        </div>
+        <div class="q-calendar" id="date-calendar"></div>`;
+}
+
+// Figma 06 · PRESUPUESTO: 6 tramos dibujados como barras ascendentes.
+function renderBudgetControl(q) {
+    const symbol = getBudgetSymbol();
+    return `
+        <div class="q-budget">
+            <div class="q-budget-bars">
+                ${FIGMA_BUDGET_TIERS.map((tier, index) => {
+                    const label = tier.label.replace('{s}', symbol);
+                    const active = isBudgetTierActive(tier);
+                    return `<button type="button" class="q-budget-tier ${active ? 'is-active' : ''}"
+                        data-tier="${index}" onclick="selectBudgetTier(${index})" aria-pressed="${active}">
+                        <span class="q-budget-bar" style="height:${tier.bar}px"></span>
+                        <span class="q-budget-label">${escapeQuotationHtml(label)}</span>
+                    </button>`;
+                }).join('')}
+            </div>
+            <p class="q-block-help">El precio final puede variar según el artista, tamaño, complejidad y número de sesiones.</p>
+        </div>`;
+}
+
+function renderDropzoneHtml() {
+    return `
+        <div class="wo-dropzone upload-area" id="drop-zone">
+            <i data-wo-icon="upload-cloud"></i>
+            <p class="q-drop-title">Arrastrá o hacé click</p>
+            <p class="q-drop-hint wo-meta-s">PNG, JPG, HEIC · hasta 4 imágenes</p>
+            <input type="file" id="file-input" multiple accept="image/*,image/heic,image/heif" class="hidden">
+        </div>
+        <div id="preview-container" class="q-ref-grid"></div>`;
+}
+
+// ---------- Moneda del presupuesto ----------
+function getBudgetCurrency() {
+    try {
+        const pref = window.WeOtziCurrency && typeof window.WeOtziCurrency.getDisplayPreference === 'function'
+            ? window.WeOtziCurrency.getDisplayPreference()
+            : null;
+        if (pref && /^[A-Z]{3}$/.test(pref)) return pref;
+    } catch (_) { /* sin catálogo: se usa el fallback */ }
+    return formData.client_budget_currency || 'USD';
+}
+
+function getBudgetSymbol() {
+    const code = getBudgetCurrency();
+    try {
+        const entry = window.WeOtziCurrency && typeof window.WeOtziCurrency.get === 'function'
+            ? window.WeOtziCurrency.get(code)
+            : null;
+        if (entry && entry.symbol) return entry.symbol;
+    } catch (_) { /* fallback abajo */ }
+    return '$';
+}
+
+function isBudgetTierActive(tier) {
+    if (tier.amount === null) return formData.client_budget_amount === null && formData._budget_tier === 'unsure';
+    return String(formData.client_budget_amount || '') === String(tier.amount);
+}
+
+function findBudgetTier(amount) {
+    if (amount === null || amount === undefined || amount === '') return null;
+    return FIGMA_BUDGET_TIERS.find((tier) => String(tier.amount) === String(amount)) || null;
+}
+
+function formatBudgetForDisplay() {
+    if (formData._budget_tier === 'unsure') return 'No estoy seguro';
+    const tier = findBudgetTier(formData.client_budget_amount);
+    if (tier) return tier.label.replace('{s}', getBudgetSymbol());
+    if (formData.client_budget_amount) {
+        return `${formData.client_budget_amount} ${formData.client_budget_currency || ''}`.trim();
+    }
+    return '-';
+}
+
+function selectBudgetTier(index) {
+    const tier = FIGMA_BUDGET_TIERS[index];
+    if (!tier) return;
+
+    if (tier.amount === null) {
+        formData.client_budget_amount = null;
+        formData._budget_tier = 'unsure';
+    } else {
+        formData.client_budget_amount = String(tier.amount);
+        formData.client_budget_currency = getBudgetCurrency();
+        formData._budget_tier = tier.label;
+    }
+
+    document.querySelectorAll('.q-budget-tier').forEach((el) => {
+        const active = Number(el.dataset.tier) === index;
+        el.classList.toggle('is-active', active);
+        el.setAttribute('aria-pressed', String(active));
+    });
+    persistAnswer();
+}
+
+// ---------- Fecha (chips + calendario) ----------
+let _calendarCursor = null;
+
+function selectDateChip(label, flexible) {
+    formData.client_preferred_date = label;
+    formData.client_flexible_dates = !!flexible;
+    formData._preferred_date_iso = null;
+    document.querySelectorAll('[data-date-chip]').forEach((el) => {
+        el.classList.toggle('is-active', el.dataset.dateChip === label);
+    });
+    renderInlineCalendar();
+    persistAnswer();
+}
+
+function pickCalendarDay(iso) {
+    const [year, month, day] = iso.split('-').map(Number);
+    formData.client_preferred_date = `${day} ${MONTHS_SHORT_ES[month - 1]} ${year}`;
+    formData._preferred_date_iso = iso;
+    formData.client_flexible_dates = false;
+    document.querySelectorAll('[data-date-chip]').forEach((el) => el.classList.remove('is-active'));
+    renderInlineCalendar();
+    persistAnswer();
+}
+
+function shiftCalendarMonth(delta) {
+    if (!_calendarCursor) _calendarCursor = new Date();
+    _calendarCursor = new Date(_calendarCursor.getFullYear(), _calendarCursor.getMonth() + delta, 1);
+    renderInlineCalendar();
+}
+
+function renderInlineCalendar() {
+    const host = document.getElementById('date-calendar');
+    if (!host) return;
+
+    if (!_calendarCursor) {
+        const iso = formData._preferred_date_iso;
+        _calendarCursor = iso ? new Date(iso + 'T00:00:00') : new Date();
+        _calendarCursor = new Date(_calendarCursor.getFullYear(), _calendarCursor.getMonth(), 1);
+    }
+
+    const year = _calendarCursor.getFullYear();
+    const month = _calendarCursor.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const offset = (firstDay.getDay() + 6) % 7; // lunes primero
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push('<span class="q-cal-day is-empty"></span>');
+    for (let day = 1; day <= daysInMonth; day++) {
+        const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const selected = formData._preferred_date_iso === iso;
+        const past = iso < todayIso;
+        cells.push(`<button type="button" class="q-cal-day ${selected ? 'is-selected' : ''} ${past ? 'is-past' : ''}"
+            ${past ? 'disabled' : ''} onclick="pickCalendarDay('${iso}')">${day}</button>`);
+    }
+
+    host.innerHTML = `
+        <div class="q-cal-head">
+            <button type="button" class="q-cal-nav" onclick="shiftCalendarMonth(-1)" aria-label="Mes anterior">
+                <i data-wo-icon="chevron-left" class="wo-icon-18"></i>
+            </button>
+            <span class="q-cal-title">${MONTHS_LONG_ES[month]} ${year}</span>
+            <button type="button" class="q-cal-nav" onclick="shiftCalendarMonth(1)" aria-label="Mes siguiente">
+                <i data-wo-icon="chevron-right" class="wo-icon-18"></i>
+            </button>
+        </div>
+        <div class="q-cal-dow">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('')}</div>
+        <div class="q-cal-grid">${cells.join('')}</div>`;
+}
+
+// ---------- Lógica post-render por pregunta ----------
+function initQuestionLogic(q, screen) {
+    if (q.type === 'body-selector') setupBodySelector();
+    if (q.type === 'tattoo-styles') setupTattooStyles();
+    if (q.type === 'file-upload') { setupFileUpload(); renderPreviews(); }
+    if (q.type === 'summary') generateSummary();
+    if (q.type === 'artist-confirm') {
+        const artist = formData.artist_data || {};
         if (artist.name) displayArtistCard(artist);
-        else console.warn('No artist data found for summary');
+    }
 
-        // Setup render logic for confirm (bind events dynamically if needed)
+    if (q.type === 'textarea') setupTextareaCounter(q);
+    if (q.type === 'date') setupDatePicker(true);
+    if (q.type === 'date-range') renderInlineCalendar();
+
+    if (q.step === 'city') {
+        setupCityAutocomplete(q);
+        const input = document.getElementById(`field-${q.id}`);
+        if (input) input.addEventListener('change', () => checkCityMismatch());
+    }
+
+    if (q.step === 'email') {
+        const input = document.getElementById(`field-${q.id}`);
+        if (input) {
+            input.addEventListener('blur', () => {
+                const value = input.value.trim();
+                if (!value || value === formData.client_email) return;
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return;
+                formData.client_email = value;
+                persistAnswer();
+                checkEmailReuse(value);
+            });
+        }
+    }
+
+    // Guardado por pregunta: cada campo de texto persiste al salir del control.
+    if (['text', 'email', 'tel', 'textarea'].includes(q.type)) {
+        const input = document.getElementById(`field-${q.id}`);
+        if (input) input.addEventListener('change', () => { readQuestionValue(q); persistAnswer(); });
     }
 }
 
+// Lee el valor del control de una pregunta y lo escribe en formData.
+// Devuelve el valor normalizado (o null).
+function readQuestionValue(q) {
+    if (!q || !q.field) return null;
+
+    switch (q.type) {
+        case 'text':
+        case 'email':
+        case 'tel': {
+            const input = document.getElementById(`field-${q.id}`);
+            if (!input) return formData[q.field] ?? null;
+            let value = input.value.trim();
+            if (q.type === 'tel' && value) {
+                const code = document.getElementById(`country-code-${q.id}`);
+                value = `${code ? code.value : '+54'} ${value}`;
+            }
+            if (q.type === 'text' && value && q.field !== 'client_instagram') value = toTitleCase(value);
+            if (q.field === 'client_instagram' && value.replace(/@/g, '').trim() === '') value = '';
+            if (q.step === 'city' && value) value = normalizeQuotationLocation(value);
+            formData[q.field] = value || null;
+            return formData[q.field];
+        }
+        case 'textarea': {
+            const textarea = document.getElementById(`field-${q.id}`);
+            if (!textarea) return formData[q.field] ?? null;
+            formData[q.field] = textarea.value.trim() || null;
+            return formData[q.field];
+        }
+        case 'multi-select': {
+            const checked = Array.from(document.querySelectorAll(`input[name="${q.field}"]:checked`))
+                .map((c) => toTitleCase(c.value));
+            formData[q.field] = checked.length ? checked.join(', ') : null;
+            return formData[q.field];
+        }
+        case 'date': {
+            const input = document.getElementById('date-picker-single');
+            if (input) formData[q.field] = input.value.trim() || null;
+            return formData[q.field];
+        }
+        default:
+            return formData[q.field] ?? null;
+    }
+}
+
+// Quita signos de pregunta para armar mensajes de validación legibles.
+function stripQuestionMarks(text) {
+    return String(text || '').replace(/[¿?]/g, '').trim();
+}
+
+// Valida todas las preguntas visibles de la pantalla y las guarda.
+function collectScreenValues(screen) {
+    if (!screen) return { ok: true };
+
+    for (const q of screen.questions) {
+        if (!isQuestionVisible(q)) continue;
+        readQuestionValue(q);
+
+        // En pantallas de una sola pregunta el titular ES la consigna.
+        const label = FIELD_LABELS[q.step] || (screen.questions.length === 1 ? screen.title : q.title) || '';
+        const value = q.field ? formData[q.field] : null;
+        const optional = !!q.optional;
+
+        if (q.type === 'body-selector') {
+            if (!selectedBodyParts.length) return { ok: false, message: 'Elegí una zona del cuerpo.' };
+            const zone = selectedBodyParts[0];
+            if (zone.sides === 'both' && !zone.side) return { ok: false, message: 'Elegí de qué lado va el tatuaje.' };
+            continue;
+        }
+
+        if (q.type === 'tattoo-styles') {
+            const styles = getSelectedStyles();
+            if (!styles.length) return { ok: false, message: 'Elegí al menos un estilo.' };
+            continue;
+        }
+
+        if (q.type === 'file-upload' || q.type === 'summary' || q.type === 'artist-confirm') continue;
+
+        if (q.type === 'boolean') {
+            if (!optional && (value === undefined || value === null)) {
+                return { ok: false, message: `Respondé: ${stripQuestionMarks(label).toLowerCase()}`, el: document.getElementById(`block-${q.step}`) };
+            }
+            continue;
+        }
+
+        if (q.type === 'currency') {
+            if (!optional && !formData.client_budget_amount && formData._budget_tier !== 'unsure') {
+                return { ok: false, message: 'Elegí un rango de presupuesto.' };
+            }
+            continue;
+        }
+
+        if (!optional && (value === undefined || value === null || value === '')) {
+            const isChoice = q.type === 'cards' || q.type === 'options' || q.type === 'multi-select';
+            const message = isChoice
+                ? `Elegí una opción en ${stripQuestionMarks(label).toLowerCase()}.`
+                : `Completá: ${stripQuestionMarks(label).toLowerCase()}`;
+            return { ok: false, message, el: document.getElementById(`field-${q.id}`) || document.getElementById(`block-${q.step}`) };
+        }
+
+        if (q.type === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            return { ok: false, message: 'Revisá el correo electrónico.', el: document.getElementById(`field-${q.id}`) };
+        }
+
+        if (q.minLength && value && String(value).length < q.minLength) {
+            return { ok: false, message: `Escribí al menos ${q.minLength} caracteres en ${stripQuestionMarks(label).toLowerCase()}.`, el: document.getElementById(`field-${q.id}`) };
+        }
+    }
+
+    return { ok: true };
+}
+
+// Guarda la respuesta actual (borrador local + autosave en Supabase).
+function persistAnswer() {
+    if (!formData.quote_id) formData.quote_id = generateQuoteId();
+    saveDraftToLocalStorage();
+    autoSaveQuotation();
+}
 
 // ============ NAVIGATION ============
-function nextStep(triggerVal = null) {
-    const currentQ = questionsConfig[currentStepIndex];
-
-    // Logic Handler (Conditional Jumping)
-    if (currentQ.logic && currentQ.logic.action === 'jump') {
-        const valToCheck = triggerVal !== null ? triggerVal : formData[currentQ.field];
-        if (valToCheck === currentQ.logic.triggerValue) {
-            const targetStep = currentQ.logic.targetStep;
-            const targetIndex = questionsConfig.findIndex(q => q.step === targetStep);
-            if (targetIndex !== -1) {
-                commitStepChange(targetIndex);
-                return;
-            }
-        }
+function findNextScreenIndex(fromIndex) {
+    for (let i = fromIndex; i < screensConfig.length; i++) {
+        if (!isScreenSkipped(screensConfig[i])) return i;
     }
+    return -1;
+}
 
-    // Custom Logic for Medical Conditions
-    if (currentQ.step === 'medical-boolean') {
-        if (formData.client_medical_boolean === false) {
-            // Skip medical-details
-            const detailsIdx = questionsConfig.findIndex(q => q.step === 'medical-details');
-            if (detailsIdx !== -1) {
-                commitStepChange(detailsIdx + 1);
-                return;
-            }
-        }
+function findPrevScreenIndex(fromIndex) {
+    for (let i = fromIndex; i >= 0; i--) {
+        if (!isScreenSkipped(screensConfig[i])) return i;
     }
+    return -1;
+}
 
-    // Default: Next index
-    if (currentStepIndex < questionsConfig.length - 1) {
-        let nextIndex = currentStepIndex + 1;
-        const currentQ = questionsConfig[currentStepIndex];
-
-        // Recommendation Flow
-        if (currentQ.step === 'contact-pref' && formData.no_artist) {
-            // User chose "Continue Without Artist" - go directly to recommendations
-            // Skip the rec-preference boolean since intent was already expressed
-            const recIdx = questionsConfig.findIndex(q => q.step === 'artist-recommendations');
-            if (recIdx !== -1) {
-                commitStepChange(recIdx);
-            } else {
-                commitStepChange(questionsConfig.findIndex(q => q.step === 'summary'));
+function nextStep() {
+    const screen = getCurrentScreen();
+    if (screen) {
+        const result = collectScreenValues(screen);
+        if (!result.ok) {
+            showToastMessage(result.message);
+            if (result.el && typeof result.el.focus === 'function') result.el.focus();
+            if (result.el && typeof result.el.scrollIntoView === 'function') {
+                result.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             return;
-        } else if (currentQ.step === 'contact-pref' && !formData.no_artist) {
-            // Skip recommendations if artist already selected
-            const summaryIdx = questionsConfig.findIndex(q => q.step === 'summary');
-            if (summaryIdx !== -1) nextIndex = summaryIdx;
-        } else if (currentQ.step === 'rec-preference') {
-            // This path is for users who selected an artist but want additional recommendations
-            if (formData.artist_rec_preference === true) {
-                const recIdx = questionsConfig.findIndex(q => q.step === 'artist-recommendations');
-                if (recIdx !== -1) nextIndex = recIdx;
-            } else {
-                const summaryIdx = questionsConfig.findIndex(q => q.step === 'summary');
-                if (summaryIdx !== -1) nextIndex = summaryIdx;
-            }
         }
-
-        // Smart jump: If the form is already mostly completed (e.g. editing from summary)
-        // jump to the next hole or the summary
-        const nextIncomplete = findNextIncompleteStepIndex(nextIndex);
-        if (nextIncomplete !== -1 && nextIncomplete > nextIndex) {
-            nextIndex = nextIncomplete;
-        }
-
-        commitStepChange(nextIndex);
     }
+
+    const nextIndex = findNextScreenIndex(currentStepIndex + 1);
+    if (nextIndex === -1) return;
+    commitStepChange(nextIndex);
 }
 
 function prevStep() {
     if (historyStack.length > 0) {
-        const prevIndex = historyStack.pop();
-        currentStepIndex = prevIndex;
-
-        // Transition effect could be added here similar to old script
+        currentStepIndex = historyStack.pop();
         renderCurrentStep();
-        updateProgress();
         updateBackButton();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
     }
+    const prevIndex = findPrevScreenIndex(currentStepIndex - 1);
+    if (prevIndex === -1) return;
+    currentStepIndex = prevIndex;
+    renderCurrentStep();
+    updateBackButton();
 }
 
 function commitStepChange(newIndex) {
     historyStack.push(currentStepIndex);
     currentStepIndex = newIndex;
     renderCurrentStep();
-    updateProgress();
     updateBackButton();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Auto-save progress (Supabase + localStorage)
     if (formData.quote_id) {
         autoSaveQuotation();
         saveDraftToLocalStorage();
     }
 }
 
-// ============ UTILITIES ============
-function isStepCompleted(question) {
-    if (!question || !question.field) return true; // Steps without fields (like welcome) are "completed"
-    
-    const val = formData[question.field];
-    
-    // Special case for references
-    if (question.type === 'file-upload') {
-        // Only mark as complete if we already have files OR if we reached summary once
-        return uploadedFiles.length > 0 || summaryReached;
-    }
-
-    // Special case for medical details
-    if (question.step === 'medical-details') {
-        if (formData.client_medical_boolean === false) return true;
-        return val !== undefined && val !== null && val !== '';
-    }
-
-    // Optional fields:
-    // If user has reached summary once, they can be considered "completed" even if empty
-    // If not reached summary, user MUST see them (unless they skip them)
-    if (question.optional && summaryReached) return true;
-
-    // Required fields must have a value
-    return val !== undefined && val !== null && val !== '';
+// Salta a una pantalla por id (usado por el botón EDITAR del resumen).
+function goToScreenById(screenId) {
+    const index = getScreenIndexById(screenId);
+    if (index === -1 || index === currentStepIndex) return;
+    commitStepChange(index);
 }
 
-function findNextIncompleteStepIndex(startIndex) {
-    for (let i = startIndex; i < questionsConfig.length; i++) {
-        const q = questionsConfig[i];
-        if (q.step === 'summary') return i;
-        if (!isStepCompleted(q)) return i;
+function editQuotationFromSummary() {
+    goToScreenById('idea');
+}
+
+// ============ UTILITIES ============
+function isScreenCompleted(screen) {
+    if (!screen) return true;
+    return screen.questions.every((q) => {
+        if (!isQuestionVisible(q) || !q.field) return true;
+        if (q.type === 'file-upload' || q.optional) return true;
+        if (q.type === 'body-selector') return !!formData.tattoo_body_part;
+        if (q.type === 'tattoo-styles') return getSelectedStyles().length > 0;
+        const value = formData[q.field];
+        return value !== undefined && value !== null && value !== '';
+    });
+}
+
+function findFirstIncompleteScreenIndex() {
+    for (let i = 0; i < screensConfig.length; i++) {
+        const screen = screensConfig[i];
+        if (isScreenSkipped(screen)) continue;
+        if (screen.id === 'summary') return i;
+        if (!isScreenCompleted(screen)) return i;
     }
-    return -1;
+    return findNextScreenIndex(0);
 }
 
 function handleInstagramInput(input) {
@@ -1472,42 +1823,6 @@ function preparePayload() {
     };
 }
 
-function updateProgress() {
-    const current = currentStepIndex + 1;
-    const total = questionsConfig.length;
-    const progress = (current / total) * 100;
-    
-    const bar = document.getElementById('progress-bar');
-    if (bar) bar.style.width = `${progress}%`;
-
-    const stepText = document.getElementById('progress-step-text');
-    if (stepText) {
-        stepText.textContent = `Paso ${current} de ${total}`;
-        // Brief pulse effect
-        stepText.style.transform = 'scale(1.1)';
-        setTimeout(() => stepText.style.transform = 'scale(1)', 200);
-    }
-
-    // Mensajes de acompañamiento según progreso (DS: sin emoji, sin hype)
-    const funMessages = [
-        { threshold: 0, text: "Empecemos la tinta" },
-        { threshold: 15, text: "Gran elección de artista" },
-        { threshold: 30, text: "Esa zona tiene carácter" },
-        { threshold: 45, text: "Tu idea suena muy bien" },
-        { threshold: 60, text: "Ya falta poco" },
-        { threshold: 75, text: "Últimos detalles" },
-        { threshold: 90, text: "A un paso de tu nueva piel" }
-    ];
-
-    const messageText = document.getElementById('progress-fun-message');
-    if (messageText) {
-        const message = [...funMessages].reverse().find(m => progress >= m.threshold);
-        if (message) {
-            messageText.textContent = message.text;
-        }
-    }
-}
-
 function updateBackButton() {
     const btn = document.getElementById('back-btn');
     if (!btn) return;
@@ -1518,71 +1833,18 @@ function updateBackButton() {
 
 // ============ HANDLERS (Standard) ============
 
-function validateAndNext(field, id, type) {
-    const input = document.getElementById(`field-${id}`);
-    let val = input.value.trim();
-
-    if (type === 'tel') {
-        const countryCode = document.getElementById(`country-code-${id}`).value;
-        if (val) val = `${countryCode} ${val}`;
-    }
-
-    if (type === 'email' && val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-        return;
-    }
-
-    const currentQ = questionsConfig[currentStepIndex];
-    const isOptional = currentQ.optional || (currentQ.step === 'whatsapp' && !formData.client_contact_preference?.includes('WhatsApp'));
-
-    if (!val && !isOptional) {
-        return;
-    }
-
-    if (type === 'text' && val && field !== 'client_instagram') {
-        val = toTitleCase(val);
-    }
-
-    formData[field] = val || null;
-
-    if (type === 'email' && val) {
-        checkEmailReuse(val);
-        return;
-    }
-
-    nextStep();
-}
-
+// Marca el valor sin avanzar: en el Figma cada pantalla agrupa varias
+// preguntas y el avance lo dispara CONTINUAR en la barra inferior.
 function skipStep(field) {
     formData[field] = null;
-    nextStep();
-}
-
-function validateTextarea(field, id, minLength) {
-    const textarea = document.getElementById(`field-${id}`);
-    let val = textarea.value.trim();
-
-    if (minLength && val.length < minLength) {
-        showToastMessage(`Escribí al menos ${minLength} caracteres`);
-        return;
-    }
-
-    // Skip toTitleCase for description fields to preserve user's original formatting
-    // These fields should not have word-by-word capitalization
-    const skipTitleCaseFields = ['tattoo_idea_description', 'client_medical_details', 'client_allergies'];
-    
-    if (val && !skipTitleCaseFields.includes(field)) {
-        val = toTitleCase(val);
-    }
-
-    formData[field] = val;
-    nextStep();
+    persistAnswer();
 }
 
 // Simple toast notification for form
 function showToastMessage(message) {
-    // Never show toasts in summary/revision step
-    const currentQ = questionsConfig[currentStepIndex];
-    if (currentQ && currentQ.step === 'summary') return;
+    // Never show toasts in summary/revision screen
+    const screen = getCurrentScreen();
+    if (screen && screen.id === 'summary') return;
 
     // Check if toast already exists
     let toast = document.getElementById('form-toast');
@@ -1622,7 +1884,6 @@ async function checkEmailReuse(email) {
     try {
         const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
         if (!supabaseClient || (window.ConfigManager.isDemoMode && window.ConfigManager.isDemoMode())) {
-            nextStep();
             return;
         }
 
@@ -1633,14 +1894,10 @@ async function checkEmailReuse(email) {
             row = await WeotziData.Quotations.findLatestByEmailForReuse(normalizedEmail);
         } catch (error) {
             _dbg('Email reuse lookup error:', error.message);
-            nextStep();
             return;
         }
 
-        if (!row) {
-            nextStep();
-            return;
-        }
+        if (!row) return;
 
         _emailReusePendingData = {
             client_full_name: row.client_full_name || null,
@@ -1659,7 +1916,6 @@ async function checkEmailReuse(email) {
         });
     } catch (err) {
         console.warn('Email reuse check error:', err);
-        nextStep();
     }
 }
 
@@ -1697,13 +1953,14 @@ function acceptEmailReuse() {
     }
     _emailReusePendingData = null;
     hideEmailReuseModal();
-    nextStep();
+    // Los datos reutilizados se vuelcan en los campos de la pantalla actual.
+    renderCurrentStep();
+    persistAnswer();
 }
 
 function declineEmailReuse() {
     _emailReusePendingData = null;
     hideEmailReuseModal();
-    nextStep();
 }
 
 function applyReusedClientData(data) {
@@ -1737,388 +1994,66 @@ window.declineEmailReuse = declineEmailReuse;
 
 // ============ END EMAIL REUSE ============
 
+// Selección de una opción (color, tamaño…). No avanza de pantalla: solo marca
+// el estado y guarda. El avance lo dispara CONTINUAR.
 function handleOptionSelect(field, value) {
-    let finalValue = value;
-    
-    // Normalize if simple text
-    if (typeof value === 'string') {
-        finalValue = toTitleCase(value);
-    }
-
+    const finalValue = typeof value === 'string' ? toTitleCase(value) : value;
     formData[field] = finalValue;
-    
-    // Style mismatch warning
-    if (field === 'tattoo_style' && formData.artist_data) {
-        const artist = formData.artist_data;
-        const artistStyles = typeof artist.styles_array === 'string' ? 
-            (artist.styles_array.startsWith('[') ? JSON.parse(artist.styles_array) : [artist.styles_array]) : 
-            (artist.styles_array || []);
-        
-        const cleanVal = finalValue.toLowerCase().trim();
-        const hasMatch = artistStyles.some(s => {
-            const cleanArtistStyle = s.toLowerCase().trim();
-            return cleanArtistStyle.includes(cleanVal) || cleanVal.includes(cleanArtistStyle);
-        });
 
-        if (artistStyles.length > 0 && !hasMatch) {
-            showToastMessage(`Nota: ${artist.name} se especializa en otros estilos, pero puedes continuar con la cotización.`);
-            formData.style_mismatch_acknowledged = true;
-        } else {
-            formData.style_mismatch_acknowledged = false;
-        }
-    }
-    
-    nextStep();
+    const container = document.querySelector(`#block-${fieldToStep(field)}`) || document;
+    container.querySelectorAll('[data-value]').forEach((el) => {
+        el.classList.toggle('is-selected', toTitleCase(String(el.dataset.value)) === finalValue);
+    });
+    const unsureLink = container.querySelector('.q-inline-link');
+    if (unsureLink) unsureLink.classList.toggle('is-selected', finalValue === 'No Estoy Seguro');
+
+    persistAnswer();
 }
 
-function handleMultiSelect(field) {
-    const checked = Array.from(document.querySelectorAll(`input[name="${field}"]:checked`))
-        .map(c => toTitleCase(c.value));
-    if (checked.length === 0) { showToastMessage('Seleccioná al menos una opción'); return; }
-    formData[field] = checked.join(', ');
-    nextStep();
+function fieldToStep(field) {
+    const q = (questionsConfig || []).find((item) => item.field === field);
+    return q ? q.step : '';
 }
 
 function handleBoolean(field, value) {
     formData[field] = value;
-    nextStep(value); // Pass value to logic checker
-}
 
-function handleDateSelection(field) {
-    const val = document.getElementById('date-picker').value;
-    const flex = document.getElementById('date-flexible').checked;
+    const step = fieldToStep(field);
+    const block = document.getElementById(`block-${step}`);
+    if (block) {
+        block.querySelectorAll('[data-bool]').forEach((el) => {
+            el.classList.toggle('is-selected', (el.dataset.bool === 'true') === value);
+        });
+    }
 
-    if (!val && !flex) return;
+    // El detalle médico aparece en la misma pantalla cuando corresponde.
+    if (field === 'client_medical_boolean') {
+        const details = document.getElementById('block-medical-details');
+        if (details) details.classList.toggle('hidden', value !== true);
+    }
 
-    formData[field] = val || 'Flexible';
-    formData['client_flexible_dates'] = flex;
-    nextStep();
-}
-
-function handleCurrency(field, id) {
-    const amount = document.getElementById(`field-${id}`).value;
-    const curr = document.getElementById('currency-select').value;
-    if (!amount) return;
-
-    formData[field] = amount;
-    formData['client_budget_currency'] = curr; // Explicitly save currency
-    nextStep();
+    persistAnswer();
 }
 
 
 // ============ LOGIC MIGRATION (Legacy -> Dynamic) ============
-// Artist Search
-async function searchArtist() {
-    const username = document.getElementById('artist-username').value.trim();
-    const errorEl = document.getElementById('artist-error');
-
-    if (!username) {
-        if (errorEl) {
-            errorEl.textContent = 'Ingresá un usuario para buscar';
-            errorEl.classList.remove('hidden');
-        }
-        return;
-    }
-
-    if (errorEl) errorEl.classList.add('hidden');
-    showLoading();
-
-    try {
-        let artist = null;
-        const usernameLower = username.toLowerCase();
-        // Try Supabase if configured - use ConfigManager to get properly initialized client
-        const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
-
-        if (supabaseClient && !window.ConfigManager.isDemoMode()) {
-            // Case-insensitive lookup using ilike. Public path — exclude
-            // password via the shared column list (config-manager.js).
-            const { data, error } = await WeotziData.Artists.getPublicByUsername(usernameLower, window.ARTIST_PUBLIC_COLUMNS || '*');
-
-            if (error) throw error;
-            artist = data;
-        } else {
-            // Demo mode - simulate search with case-insensitive match
-            await new Promise(r => setTimeout(r, 800));
-            // Try to find in demo artists first
-            const demoArtists = window.ConfigManager ? window.ConfigManager.getDemoArtists() : [];
-            const foundDemo = demoArtists.find(a => a.username && a.username.toLowerCase() === usernameLower);
-            
-            if (foundDemo) {
-                artist = {
-                    user_id: foundDemo.userId,
-                    name: foundDemo.name,
-                    email: foundDemo.email,
-                    instagram: foundDemo.instagram,
-                    styles_array: JSON.stringify(foundDemo.styles),
-                    ubicacion: foundDemo.location,
-                    estudios: foundDemo.studio,
-                    session_price: foundDemo.sessionPrice,
-                    username: foundDemo.username
-                };
-            } else {
-                // Simulated fallback for demo
-                artist = {
-                    user_id: 'demo_123',
-                    name: 'Yomico Moreno (Demo)',
-                    email: 'demo@weotzi.com',
-                    instagram: 'https://instagram.com/' + username,
-                    styles_array: '["Realismo", "Surrealismo"]',
-                    ubicacion: 'Caracas / NYC',
-                    estudios: 'Last Rites',
-                    session_price: '1500 USD',
-                    username: username
-                };
-            }
-        }
-
-        if (!artist) throw new Error('Artista no encontrado');
-
-        // Generate Quote ID if not exists
-        if (!formData.quote_id) {
-            formData.quote_id = generateQuoteId();
-        }
-
-        // Store artist data including username
-        formData.artist_username = artist.username;
-        formData.artist_data = artist;
-        formData.artist_id = artist.user_id;
-        formData.artist_name = artist.name;
-        formData.artist_email = artist.email;
-        formData.artist_instagram = artist.instagram;
-        formData.artist_styles = artist.styles_array;
-        formData.artist_current_city = normalizeQuotationLocation(artist.ubicacion || '');
-        formData.artist_studio_name = artist.estudios;
-        formData.artist_session_cost_amount = artist.session_price;
-        formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram); // Use instagram as fallback
-        formData.no_artist = false; // We found an artist
-
-        hideLoading();
-        
-        // Go to confirmation step (commitStepChange triggers autosave)
-        const confirmIdx = questionsConfig.findIndex(q => q.step === 'artist-confirm');
-        if (confirmIdx !== -1) commitStepChange(confirmIdx);
-        else nextStep();
-
-    } catch (error) {
-        hideLoading();
-        if (errorEl) {
-            errorEl.textContent = 'Artista no encontrado. Verificá el usuario e intentá de nuevo.';
-            errorEl.classList.remove('hidden');
-        }
-        console.error('Artist search error:', error);
-    }
-}
+// El Figma del flujo de cliente no tiene búsqueda de artista: la cotización
+// sale por match. El artista solo llega por deep link (?artist=usuario), que
+// resuelve handleUrlArtist().
 
 function continueWithoutArtist() {
     formData.no_artist = true;
     formData.artist_id = null;
     formData.artist_name = null;
-    
+    formData.artist_data = null;
+
     // Generate Quote ID if not exists
     if (!formData.quote_id) {
         formData.quote_id = generateQuoteId();
     }
 
-    // Jump to body-part step (id: 4 in DEFAULT_QUESTIONS_CONFIG)
-    const targetIdx = questionsConfig.findIndex(q => q.step === 'body-part');
-    if (targetIdx !== -1) {
-        commitStepChange(targetIdx);
-    } else {
-        nextStep();
-    }
-}
-
-async function initRecommendations() {
-    const grid = document.getElementById('recommendations-grid');
-    if (!grid) return;
-
-    showLoading();
-    try {
-        const recommendations = await getRecommendedArtists();
-        grid.innerHTML = '';
-
-        if (recommendations.length === 0) {
-            // This shouldn't happen as getRecommendedArtists always returns top candidates
-            grid.innerHTML = '<p class="text-muted">No hay artistas disponibles en este momento.</p>';
-        } else {
-            // Check if any artist has positive match reasons
-            const hasGoodMatches = recommendations.some(a => a.matchReasons && a.matchReasons.length > 0);
-            if (!hasGoodMatches) {
-                // Show a note that these are closest available matches
-                const notice = document.createElement('p');
-                notice.className = 'text-muted';
-                notice.textContent = 'No encontramos coincidencias exactas, pero estos artistas podrían interesarte:';
-                grid.before(notice);
-            }
-            renderRecommendationCards(recommendations);
-        }
-    } catch (err) {
-        console.error('Error loading recommendations:', err);
-        grid.innerHTML = '<p class="error-msg">Error al cargar recomendaciones.</p>';
-    } finally {
-        hideLoading();
-    }
-}
-
-/**
- * Parse currency string to numeric value
- * Handles formats like "9500,00 US$", "1500 USD", "$1,500.00"
- */
-function parseCurrency(priceStr) {
-    if (!priceStr) return 0;
-    // Remove currency symbols and text, keep only numbers, commas, dots
-    let clean = priceStr.replace(/[^\d.,]/g, '');
-    // Handle European format (1.234,56) vs US format (1,234.56)
-    if (clean.includes(',') && clean.includes('.')) {
-        // Check which comes last - that's the decimal separator
-        const lastComma = clean.lastIndexOf(',');
-        const lastDot = clean.lastIndexOf('.');
-        if (lastComma > lastDot) {
-            // European format: 1.234,56
-            clean = clean.replace(/\./g, '').replace(',', '.');
-        } else {
-            // US format: 1,234.56
-            clean = clean.replace(/,/g, '');
-        }
-    } else if (clean.includes(',')) {
-        // Could be European decimal (1234,56) or US thousands (1,234)
-        // If comma is followed by exactly 2 digits at end, treat as decimal
-        if (/,\d{2}$/.test(clean)) {
-            clean = clean.replace(',', '.');
-        } else {
-            clean = clean.replace(/,/g, '');
-        }
-    }
-    return parseFloat(clean) || 0;
-}
-
-// Helper to format tattoo_style (JSONB or string) for display
-function formatTattooStyleForDisplay(tattooStyle) {
-    if (window.WeotziQuotationShared && typeof window.WeotziQuotationShared.formatTattooStyleForDisplay === 'function') {
-        return window.WeotziQuotationShared.formatTattooStyleForDisplay(tattooStyle);
-    }
-    if (!tattooStyle) return '-';
-    
-    // Handle JSONB object format
-    if (typeof tattooStyle === 'object') {
-        if (tattooStyle.substyle_name) {
-            return `${tattooStyle.style_name} › ${tattooStyle.substyle_name}`;
-        }
-        return tattooStyle.style_name || '-';
-    }
-    
-    // Handle legacy string format
-    return toTitleCase(tattooStyle);
-}
-
-// Helper to get style name string for matching (handles both JSONB and string)
-function getTattooStyleString(tattooStyle) {
-    if (!tattooStyle) return '';
-    
-    if (typeof tattooStyle === 'object') {
-        // Include both style and substyle for matching
-        let styleStr = tattooStyle.style_name || '';
-        if (tattooStyle.substyle_name) {
-            styleStr += ' ' + tattooStyle.substyle_name;
-        }
-        return styleStr.toLowerCase();
-    }
-    
-    return String(tattooStyle).toLowerCase();
-}
-
-async function getRecommendedArtists() {
-    const allArtists = await fetchAllArtists();
-    const style = getTattooStyleString(formData.tattoo_style);
-    const clientCity = (formData.client_city_name || formData.client_city_residence || '').toLowerCase();
-    const clientBudget = parseFloat(formData.client_budget_amount) || 0;
-    const clientCurrency = (formData.client_budget_currency || 'USD').toUpperCase();
-    const travel = formData.client_travel_willing;
-
-    // Scoring system - combines persistent artist_index with dynamic matching
-    const scored = allArtists.map(artist => {
-        // Base score from persistent artist_index (0-100)
-        // Falls back to 0 if not yet calculated
-        let score = artist.artist_index || 0;
-        let reasons = [];
-        
-        // Helper to parse styles_array (handles both array and string formats)
-        const artistStyles = Array.isArray(artist.styles_array) 
-            ? artist.styles_array 
-            : (typeof artist.styles_array === 'string' 
-                ? (artist.styles_array.startsWith('[') ? JSON.parse(artist.styles_array) : [artist.styles_array]) 
-                : []);
-        
-        // 1. Style match (Highest priority - +100 points)
-        if (style && artistStyles.some(s => s && s.toLowerCase().includes(style) || style.includes(s?.toLowerCase() || ''))) {
-            score += 100;
-            reasons.push('Estilo');
-        }
-
-        // 2. Location match (Medium priority - +50 points)
-        const artistCity = normalizeQuotationLocation(artist.city || artist.ubicacion || '').split(',')[0].toLowerCase().trim();
-        if (artistCity && clientCity) {
-            const cityMatch = artistCity.includes(clientCity) || clientCity.includes(artistCity);
-            if (cityMatch) {
-                score += 50;
-                reasons.push('Ubicación');
-            } else if (travel === false) {
-                // Penalize if client doesn't want to travel and artist is far
-                score -= 30;
-            }
-        }
-
-        // 3. Budget match (Low-Medium priority - +30 points)
-        const artistPrice = parseCurrency(artist.session_price);
-        if (clientBudget > 0 && artistPrice > 0) {
-            // Budget is within range: client budget >= artist price OR within 20% above
-            if (clientBudget >= artistPrice || clientBudget >= artistPrice * 0.8) {
-                score += 30;
-                reasons.push('Presupuesto');
-            } else if (clientBudget >= artistPrice * 0.5) {
-                // Partial match if budget is at least 50% of artist price
-                score += 15;
-            }
-        }
-
-        const artistName = toTitleCase(artist.name);
-        
-        // Build match reason based on dynamic matches
-        let matchReason;
-        if (reasons.length > 0) {
-            matchReason = `Recomendado por ${reasons.join(' y ')}`;
-        } else if (artist.artist_index >= 70) {
-            matchReason = 'Artista destacado';
-        } else if (artist.artist_index >= 50) {
-            matchReason = 'Artista establecido';
-        } else {
-            matchReason = 'Artista disponible';
-        }
-
-        return { 
-            ...artist, 
-            name: artistName,
-            score, 
-            matchReason,
-            matchReasons: reasons
-        };
-    });
-
-    // Sort by score and take top candidates
-    // Always return at least 2 artists (the best available) even if no perfect matches
-    const sorted = scored.sort((a, b) => b.score - a.score);
-    
-    // If we have artists with positive scores, prioritize them
-    const withPositiveScore = sorted.filter(a => a.score > 0);
-    if (withPositiveScore.length >= 2) {
-        return withPositiveScore.slice(0, 3);
-    }
-    
-    // Otherwise return top 2-3 artists as "closest" matches
-    return sorted.slice(0, 3).map(a => ({
-        ...a,
-        matchReason: a.score > 0 ? a.matchReason : 'Artista disponible'
-    }));
+    // Sin artista la solicitud sale por match: se arranca en la pantalla 01.
+    goToScreenById('idea');
 }
 
 async function fetchAllArtists() {
@@ -2148,121 +2083,13 @@ async function fetchAllArtists() {
     }
 }
 
-function renderRecommendationCards(artists) {
-    const grid = document.getElementById('recommendations-grid');
-    if (!grid) return;
-    
-    grid.innerHTML = artists.map(artist => {
-        const styles = typeof artist.styles_array === 'string' ? 
-            (artist.styles_array.startsWith('[') ? JSON.parse(artist.styles_array) : [artist.styles_array]) : 
-            (artist.styles_array || []);
-        
-        const profilePic = artist.profile_picture ?
-            `<img src="${artist.profile_picture}" alt="${artist.name}" class="artist-profile-img">` :
-            `<div class="artist-avatar"><i data-wo-icon="pen-tool"></i></div>`;
-
-        // Build match reason badges with icons for each criterion
-        let matchBadgesHtml = '';
-        if (artist.matchReasons && artist.matchReasons.length > 0) {
-            const badgeIcons = {
-                'Estilo': 'pen-tool',
-                'Ubicación': 'map-pin',
-                'Presupuesto': 'dollar-sign'
-            };
-            matchBadgesHtml = `
-                <div class="match-badges">
-                    ${artist.matchReasons.map(reason => {
-                        const icon = badgeIcons[reason] || 'star';
-                        return `<span class="match-badge"><i data-wo-icon="${icon}"></i> ${reason}</span>`;
-                    }).join('')}
-                </div>
-            `;
-        } else if (artist.matchReason) {
-            matchBadgesHtml = `<p class="match-reason-badge"><i data-wo-icon="star"></i> ${artist.matchReason}</p>`;
-        }
-
-        return `
-            <div class="artist-card recommendation-card">
-                <div class="recommendation-header">
-                    ${profilePic}
-                    <div class="recommendation-title">
-                        <h3 class="artist-name">${toTitleCase(artist.name)}</h3>
-                        <p class="artist-styles">${styles.map(toTitleCase).join(', ')}</p>
-                        ${matchBadgesHtml}
-                    </div>
-                </div>
-
-                <div class="recommendation-body">
-                    <div class="artist-meta-small">
-                        <span><i data-wo-icon="map-pin"></i> ${toTitleCase(normalizeQuotationLocation(artist.ubicacion || '') || 'Ubicación no especificada')}</span>
-                        <span class="price-tag"><i data-wo-icon="tag"></i> ${artist.session_price || 'Consultar'}</span>
-                    </div>
-
-                    <div class="recommendation-links">
-                        ${artist.instagram ? `<a href="${formatInstagramUrl(artist.instagram)}" target="_blank" onclick="event.stopPropagation();">Ver portfolio →</a>` : ''}
-                    </div>
-                </div>
-
-                <button class="wo-btn wo-btn--s wo-btn--hard btn-primary" onclick="selectRecommendedArtist('${artist.user_id}')">
-                    Seleccionar artista
-                </button>
-            </div>
-        `;
-    }).join('');
-}
-
-function selectRecommendedArtist(artistId) {
-    // Fetch artist data and proceed with the flow
-    showLoading();
-    fetchAllArtists().then(artists => {
-        const artist = artists.find(a => a.user_id === artistId);
-        if (artist) {
-            // Store artist data including username
-            formData.artist_username = artist.username;
-            formData.artist_data = artist;
-            formData.artist_id = artist.user_id;
-            formData.artist_name = artist.name;
-            formData.artist_email = artist.email;
-            formData.artist_instagram = artist.instagram;
-            formData.artist_styles = Array.isArray(artist.styles_array) ? JSON.stringify(artist.styles_array) : artist.styles_array;
-            formData.artist_current_city = normalizeQuotationLocation(artist.ubicacion || '');
-            formData.artist_studio_name = artist.estudios;
-            formData.artist_session_cost_amount = artist.session_price;
-            formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram);
-            formData.no_artist = false; // Now we have one
-            
-            // Find next incomplete step (commitStepChange triggers autosave)
-            const bodyPartIdx = questionsConfig.findIndex(q => q.step === 'body-part');
-            const nextIncomplete = findNextIncompleteStepIndex(bodyPartIdx !== -1 ? bodyPartIdx : 0);
-            
-            if (nextIncomplete !== -1) {
-                commitStepChange(nextIncomplete);
-            } else {
-                // All steps complete, go to summary
-                const summaryIdx = questionsConfig.findIndex(q => q.step === 'summary');
-                if (summaryIdx !== -1) {
-                    commitStepChange(summaryIdx);
-                } else {
-                    nextStep();
-                }
-            }
-        }
-        hideLoading();
-    }).catch(err => {
-        console.error(err);
-        hideLoading();
-    });
-}
-
 function confirmArtist() {
     // When the user comes from /pre-cotizador, basic tattoo fields are already
-    // filled. Skip those steps and land on the first missing field instead of
-    // forcing the user to retype them.
+    // filled: se salta a la primera pantalla incompleta en vez de pedir de
+    // nuevo lo que ya cargó.
     if (formData.quotation_source === 'prequote') {
-        const bodyPartIdx = questionsConfig.findIndex(q => q.step === 'body-part');
-        const startIdx = bodyPartIdx !== -1 ? bodyPartIdx : currentStepIndex + 1;
-        const nextIncomplete = findNextIncompleteStepIndex(startIdx);
-        if (nextIncomplete !== -1) {
+        const nextIncomplete = findFirstIncompleteScreenIndex();
+        if (nextIncomplete !== -1 && nextIncomplete > currentStepIndex) {
             commitStepChange(nextIncomplete);
             return;
         }
@@ -2308,19 +2135,16 @@ function formatInstagramUrl(instagram) {
 
 
 // City & Travel Logic
-function handleCitySelection() {
-    // Try both fixed ID and dynamic ID (field-14)
-    const q = questionsConfig[currentStepIndex];
-    const cityInput = document.getElementById(`field-${q.id}`) || document.getElementById('client-city');
-    let city = cityInput ? normalizeQuotationLocation(cityInput.value.trim()) : '';
+// La ciudad y la disponibilidad de viaje conviven en la pantalla 07: cuando la
+// ciudad del cliente no coincide con la del artista se revela el bloque de
+// viaje en la misma pantalla (antes era un salto de paso).
+function checkCityMismatch() {
+    const q = (questionsConfig || []).find((item) => item.step === 'city');
+    const cityInput = q ? document.getElementById(`field-${q.id}`) : null;
+    const city = cityInput ? normalizeQuotationLocation(cityInput.value.trim()) : (formData.client_city_residence || '');
 
-    if (!city) {
-        return;
-    }
-
-    if (cityInput) {
-        cityInput.value = city;
-    }
+    if (!city) return;
+    if (cityInput) cityInput.value = city;
 
     formData.client_city_residence = city;
     formData.client_city_name = city.split(',')[0]?.trim() || '';
@@ -2328,630 +2152,352 @@ function handleCitySelection() {
 
     const artistCity = normalizeQuotationLocation(formData.artist_current_city || '');
     formData.artist_current_city = artistCity;
+
     const cleanClientCity = city.split(',')[0].toLowerCase().trim();
     const cleanArtistCity = artistCity.split(',')[0].toLowerCase().trim();
+    const isMatch = getStringSimilarity(cleanClientCity, cleanArtistCity) >= 0.7;
+    const mismatch = !!artistCity && !isMatch;
 
-    // Intelligent match check (70% similarity)
-    const similarity = getStringSimilarity(cleanClientCity, cleanArtistCity);
-    const isMatch = similarity >= 0.7;
+    formData.city_mismatch_acknowledged = mismatch;
+    formData._travel_required = mismatch;
+    if (!mismatch) formData.client_travel_willing = false;
 
-    if (artistCity && !isMatch) {
-        // Warning: City mismatch
-        showToastMessage(`Nota: El artista se encuentra en ${toTitleCase(artistCity)}.`);
-        formData.city_mismatch_acknowledged = true;
-        
-        // Show Travel question
-        const travelIdx = questionsConfig.findIndex(q => q.step === 'travel');
-        if (travelIdx !== -1) commitStepChange(travelIdx);
-        else nextStep();
-    } else {
-        // Cities match or no artist data
-        formData.city_mismatch_acknowledged = false;
-        formData.client_travel_willing = false; // Not needed if cities match
+    const travelBlock = document.getElementById('block-travel');
+    if (travelBlock) travelBlock.classList.toggle('hidden', !mismatch);
+    if (mismatch) showToastMessage(`El artista está en ${toTitleCase(artistCity)}.`);
 
-        // Skip travel, go to next available step after travel
-        const travelIdx = questionsConfig.findIndex(q => q.step === 'travel');
-        if (travelIdx !== -1) {
-            commitStepChange(travelIdx + 1);
-        } else {
-            nextStep();
-        }
-    }
+    persistAnswer();
 }
+
 function setTravel(val) {
     formData.client_travel_willing = val;
     hideToastMessage();
-    nextStep();
+    persistAnswer();
 }
 
 
-// Redesigned Body Selector Logic (Bauhaus Edition)
+// ============ SELECTOR DE ZONA (Figma 03) ============
+// El Figma muestra una grilla PLANA de zonas (BRAZO, ANTEBRAZO, MANO, PIERNA,
+// MUSLO, ESPALDA, PECHO, COSTILLAS, CUELLO, CABEZA) y, debajo, un panel con la
+// zona elegida y "¿DE QUÉ LADO?" (IZQUIERDO / DERECHO). No hay drill-down.
+// La grilla se aplana desde body_parts (zonas raíz + subzonas reales).
+
+function flattenBodyZones() {
+    const flat = [];
+    (BODY_PARTS_DATA || []).forEach((zone) => {
+        flat.push({
+            key: zone.id,
+            id: zone.id,
+            zoneId: zone.id,
+            label: zone.label,
+            zoneLabel: zone.label,
+            image: zone.image || '',
+            sides: zone.sides || 'both',
+            pain_level: zone.pain_level
+        });
+        (zone.subparts || []).forEach((part) => {
+            flat.push({
+                key: `${zone.id}::${part.id}`,
+                id: part.id,
+                zoneId: zone.id,
+                label: part.label,
+                zoneLabel: zone.label,
+                image: part.image || zone.image || '',
+                sides: part.sides || zone.sides || 'both',
+                pain_level: part.pain_level
+            });
+        });
+    });
+    return flat;
+}
+
 function setupBodySelector() {
-    showMainBodyParts();
-    updateBodyUI();
+    renderBodyZones();
+    updateBodySidePanel();
 }
 
-function showMainBodyParts() {
-    currentBodyZone = null;
-    currentBodySide = null;
-    
-    document.getElementById('body-nav-header').classList.add('hidden');
-    document.getElementById('body-sub-view').classList.add('hidden');
-    document.getElementById('body-side-overlay').classList.add('hidden');
-    
-    const mainGrid = document.getElementById('body-main-view');
-    mainGrid.classList.remove('hidden');
+function renderBodyZones() {
+    const grid = document.getElementById('body-zones-grid');
+    if (!grid) return;
 
-    if (!BODY_PARTS_DATA || BODY_PARTS_DATA.length === 0) {
-        mainGrid.innerHTML = `<p class="empty-sheet-msg">No hay zonas configuradas</p>`;
+    const zones = flattenBodyZones();
+    if (!zones.length) {
+        grid.innerHTML = '<p class="empty-sheet-msg">No hay zonas configuradas</p>';
         return;
     }
 
-    mainGrid.innerHTML = BODY_PARTS_DATA.map((zone, index) => {
-        const rotation = index % 2 === 0 ? '-1deg' : '1deg';
-        const hasImage = !!zone.image;
-        
-        return `
-            <div class="bauhaus-card-creative" style="--card-rot: ${rotation}" onclick="handleZoneClick('${zone.id}')">
-                <button class="btn-info-trigger" onclick="event.stopPropagation(); openBodyPartDetail('${zone.id}')" aria-label="Ver información">
-                    <i data-wo-icon="info"></i>
-                </button>
-                <div class="card-img-wrapper ${!hasImage ? 'no-image' : ''}">
-                    ${hasImage ? `<img src="${zone.image}" alt="${zone.label}">` : ''}
-                </div>
-                <div class="card-title-block">
-                    <h3 class="card-title-text">${zone.label}</h3>
-                </div>
-                <div class="bauhaus-pattern-grid">
-                    <div class="card-technical-data">
-                        <div class="tech-item">
-                            <i data-wo-icon="layers"></i>
-                            <span>${(zone.subparts || []).length} subzonas</span>
-                        </div>
-                        <div class="tech-item">
-                            <i data-wo-icon="cpu"></i>
-                            <span>Ref: ${zone.id.toUpperCase()}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+    const selectedKey = selectedBodyParts.length ? selectedBodyParts[0].key : null;
 
-    document.getElementById('body-subtitle').textContent = 'Seleccioná una zona principal para ver detalles';
+    grid.innerHTML = zones.map((zone) => `
+        <button type="button" class="q-zone-tile ${zone.key === selectedKey ? 'is-selected' : ''}"
+            data-zone-key="${escapeQuotationHtml(zone.key)}" onclick="selectBodyZone('${escapeQuotationHtml(zone.key).replace(/'/g, "\\'")}')">
+            <span class="q-zone-media ${zone.image ? '' : 'is-empty'}">
+                ${zone.image ? `<img src="${escapeQuotationHtml(zone.image)}" alt="" loading="lazy">` : ''}
+            </span>
+            <span class="q-zone-label">${escapeQuotationHtml(zone.label)}</span>
+        </button>`).join('');
 }
 
-function handleZoneClick(zoneId) {
-    const zone = BODY_PARTS_DATA.find(z => z.id === zoneId);
+function selectBodyZone(key) {
+    const zone = flattenBodyZones().find((z) => z.key === key);
     if (!zone) return;
 
+    const previous = selectedBodyParts[0];
+    const side = previous && previous.key === key ? previous.side : null;
+
+    selectedBodyParts = [{
+        key: zone.key,
+        id: zone.id,
+        zone: zone.zoneId,
+        label: zone.label,
+        zoneLabel: zone.zoneLabel,
+        sides: zone.sides,
+        side: side || null,
+        sideLabel: side ? (side === 'left' ? 'Izquierdo' : 'Derecho') : null,
+        pain_level: zone.pain_level
+    }];
+
     currentBodyZone = zone;
+    currentBodySide = side || null;
 
-    // If zone has sides, show overlay first
-    if (zone.sides === 'both') {
-        showSideSelection();
-    } else {
-        showSubBodyParts(zoneId, null);
-    }
-}
-
-function showSideSelection() {
-    document.getElementById('body-main-view').classList.add('hidden');
-    document.getElementById('body-side-overlay').classList.remove('hidden');
-    document.getElementById('body-subtitle').textContent = '¿De qué lado va el tatuaje?';
+    renderBodyZones();
+    updateBodySidePanel();
+    commitBodySelection();
 }
 
 function handleSideChosen(side) {
+    if (!selectedBodyParts.length) return;
+    selectedBodyParts[0].side = side;
+    selectedBodyParts[0].sideLabel = side === 'left' ? 'Izquierdo' : 'Derecho';
     currentBodySide = side;
-    document.getElementById('body-side-overlay').classList.add('hidden');
-    showSubBodyParts(currentBodyZone.id, side);
+    updateBodySidePanel();
+    commitBodySelection();
 }
 
-function showSubBodyParts(zoneId, side) {
-    const zone = BODY_PARTS_DATA.find(z => z.id === zoneId);
-    if (!zone) return;
+function updateBodySidePanel() {
+    const panel = document.getElementById('body-side-panel');
+    if (!panel) return;
 
-    currentBodyZone = zone;
-    currentBodySide = side;
-
-    // Update Header
-    document.getElementById('body-nav-header').classList.remove('hidden');
-    const sideText = side ? ` [${side === 'both' ? 'AMBOS' : side === 'left' ? 'IZQUIERDO' : 'DERECHO'}]` : '';
-    document.getElementById('current-body-zone').textContent = zone.label + sideText;
-    document.getElementById('body-subtitle').textContent = 'Elegí las partes específicas';
-
-    // Hide others, Show Sub
-    document.getElementById('body-main-view').classList.add('hidden');
-    document.getElementById('body-side-overlay').classList.add('hidden');
-    const subGrid = document.getElementById('body-sub-view');
-    subGrid.classList.remove('hidden');
-
-    const subparts = zone.subparts || [];
-    const gridContainer = document.getElementById('sub-parts-grid');
-
-    if (subparts.length === 0) {
-        gridContainer.innerHTML = '<p class="empty-sheet-msg">No hay subpartes definidas</p>';
+    const selection = selectedBodyParts[0];
+    if (!selection) {
+        panel.classList.add('hidden');
         return;
     }
 
-    gridContainer.innerHTML = subparts.map(part => {
-        const isSelected = selectedBodyParts.some(p => p.id === part.id && p.zone === zone.id && p.side === side);
-        const painLevel = part.pain_level || 5;
-        const painClass = painLevel <= 3 ? 'pain-val-low' : (painLevel <= 6 ? 'pain-val-medium' : 'pain-val-high');
+    panel.classList.remove('hidden');
+    const zoneEl = document.getElementById('body-side-zone');
+    if (zoneEl) zoneEl.textContent = selection.label;
 
-        return `
-            <div class="bauhaus-sub-card ${isSelected ? 'selected' : ''}" onclick="toggleSubPart('${part.id}', '${zone.id}')">
-                <button class="btn-info-trigger" onclick="event.stopPropagation(); openBodyPartDetail('${part.id}', '${zone.id}')" aria-label="Ver información">
-                    <i data-wo-icon="info"></i>
-                </button>
-                <div class="sub-card-header">
-                    <span class="sub-card-label">${part.label}</span>
-                    <div class="sub-card-indicator">
-                        ${isSelected ? '<i data-wo-icon="check"></i>' : ''}
-                    </div>
-                </div>
-                <div class="card-technical-data">
-                    <div class="tech-item">
-                        <i data-wo-icon="activity"></i>
-                        <span class="${painClass}">Dolor: ${painLevel}/10</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function toggleSubPart(partId, zoneId) {
-    const zone = BODY_PARTS_DATA.find(z => z.id === zoneId);
-    const part = zone.subparts.find(p => p.id === partId);
-    const side = currentBodySide;
-
-    const existingIndex = selectedBodyParts.findIndex(p => p.id === partId && p.zone === zoneId && p.side === side);
-
-    if (existingIndex >= 0) {
-        selectedBodyParts.splice(existingIndex, 1);
-    } else {
-        selectedBodyParts.push({
-            id: partId,
-            zone: zoneId,
-            label: part.label,
-            zoneLabel: zone.label,
-            side: side,
-            sideLabel: side ? (side === 'both' ? 'Ambos' : (side === 'left' ? 'Izquierdo' : 'Derecho')) : null,
-            pain_level: part.pain_level
+    const hasSides = selection.sides === 'both';
+    const label = document.getElementById('body-side-label');
+    const chips = document.getElementById('body-side-chips');
+    if (label) label.classList.toggle('hidden', !hasSides);
+    if (chips) {
+        chips.classList.toggle('hidden', !hasSides);
+        chips.querySelectorAll('[data-side]').forEach((el) => {
+            el.classList.toggle('is-active', el.dataset.side === selection.side);
         });
     }
-
-    // Update the card UI without full re-render if possible, but for simplicity let's re-render sub-parts
-    showSubBodyParts(zoneId, side);
-    updateBodyUI();
 }
 
-function updateBodyUI() {
-    const sheetContent = document.getElementById('selected-parts-sheet');
-    const continueBtn = document.getElementById('body-continue-btn');
-
-    if (!sheetContent) return;
-
-    if (selectedBodyParts.length === 0) {
-        sheetContent.innerHTML = '<p class="empty-sheet-msg">Todavía no seleccionaste ninguna zona</p>';
-        if (continueBtn) continueBtn.disabled = true;
+// Escribe la selección en formData con el mismo formato de texto que ya
+// consumen artista/backoffice ("Zona: Subzona") + el lado en su columna.
+function commitBodySelection() {
+    const selection = selectedBodyParts[0];
+    if (!selection) {
+        formData.tattoo_body_part = null;
+        formData.tattoo_body_side = null;
+        formData.tattoo_body_parts_data = [];
         return;
     }
 
-    sheetContent.innerHTML = selectedBodyParts.map(p => `
-        <div class="sheet-entry">
-            <div class="entry-path">
-                <span class="path-zone">${p.zoneLabel}</span>
-                <span class="path-sep">/</span>
-                <span class="path-part">${p.label}</span>
-                ${p.sideLabel ? `<span class="path-side">${p.sideLabel}</span>` : ''}
-            </div>
-            <button class="btn-entry-remove" onclick="removeBodyPart('${p.id}', '${p.zone}', '${p.side}')" aria-label="Quitar zona">
-                <i data-wo-icon="x"></i>
-            </button>
-        </div>
-    `).join('');
+    const shared = window.WeotziQuotationShared;
+    const label = shared && typeof shared.formatBodyPartLabel === 'function'
+        ? shared.formatBodyPartLabel(selection.zoneLabel, selection.label)
+        : (selection.zoneLabel === selection.label ? selection.label : `${selection.zoneLabel}: ${selection.label}`);
 
-    if (continueBtn) continueBtn.disabled = false;
+    formData.tattoo_body_part = toTitleCase(label);
+    formData.tattoo_body_side = selection.sideLabel || null;
+    formData.tattoo_body_parts_data = selectedBodyParts;
+    persistAnswer();
 }
 
-function removeBodyPart(partId, zoneId, side) {
-    // Correctly handle null side in comparison
-    selectedBodyParts = selectedBodyParts.filter(p => 
-        !(p.id === partId && p.zone === zoneId && (p.side === side || (p.side === null && side === 'null')))
-    );
-
-    // If currently viewing that zone and side, refresh view
-    if (currentBodyZone && currentBodyZone.id === zoneId && (currentBodySide === side || (currentBodySide === null && side === 'null'))) {
-        showSubBodyParts(zoneId, currentBodySide);
-    }
-
-    updateBodyUI();
+function removeBodyPart() {
+    selectedBodyParts = [];
+    currentBodyZone = null;
+    currentBodySide = null;
+    renderBodyZones();
+    updateBodySidePanel();
+    commitBodySelection();
 }
 
 function confirmBodyParts() {
-    const grouped = {};
-    selectedBodyParts.forEach(p => {
-        if (!grouped[p.zoneLabel]) grouped[p.zoneLabel] = [];
-        const sideText = p.sideLabel ? ` (${p.sideLabel})` : '';
-        grouped[p.zoneLabel].push(p.label + sideText);
-    });
-
-    const textResult = Object.keys(grouped).map(k => `${toTitleCase(k)}: ${grouped[k].map(toTitleCase).join(', ')}`).join('; ');
-
-    formData.tattoo_body_part = textResult;
-    formData.tattoo_body_parts_data = selectedBodyParts;
+    commitBodySelection();
     nextStep();
 }
 
-// Clean up unused legacy functions
-function togglePartInfo() {}
-function openBodyPartInfoModal() {}
-function closeBodyPartInfoModal() {}
-function selectSide() {}
-function toggleWholeZone() {}
-function updateZoneSelectAllState() {}
 
-
-function openBodyPartDetail(partId, zoneId = null) {
-    let part = null;
-    
-    if (zoneId) {
-        // Find subpart
-        const zone = BODY_PARTS_DATA.find(z => z.id === zoneId);
-        if (zone) {
-            part = zone.subparts.find(p => p.id === partId);
-        }
-    } else {
-        // Find main zone
-        part = BODY_PARTS_DATA.find(p => p.id === partId);
-    }
-
-    if (!part) return;
-
-    // Populate Modal
-    document.getElementById('body-part-detail-title').textContent = part.label;
-    
-    // Render expanded media in header
-    renderBodyPartDetailMedia(part);
-    
-    // Sensitivity
-    const sensitivity = part.sensitivity || 5;
-    document.getElementById('bp-sensitivity-val').textContent = `${sensitivity}/10`;
-    document.getElementById('bp-sensitivity-fill').style.width = `${sensitivity * 10}%`;
-
-    // Pain
-    const pain = part.pain_level || 5;
-    document.getElementById('bp-pain-val').textContent = `${pain}/10`;
-    document.getElementById('bp-pain-fill').style.width = `${pain * 10}%`;
-
-    // Text Content
-    const setContent = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = text ? text.replace(/\n/g, '<br>') : '<em>No hay información disponible.</em>';
-    };
-
-    setContent('bp-description', part.description);
-    setContent('bp-tattoo-info', part.tattoo_info);
-    setContent('bp-experience-info', part.experience_info);
-
-    // Show Modal
-    const overlay = document.getElementById('body-part-detail-overlay');
-    overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden'; // Prevent background scrolling
-}
-
-/**
- * Render media (image/video) in the body part detail modal header
- * @param {Object} part - The body part data object
- */
-function renderBodyPartDetailMedia(part) {
-    const mediaContainer = document.getElementById('bp-detail-media');
-    const headerContainer = document.getElementById('bp-detail-header');
-    
-    if (!mediaContainer || !headerContainer) return;
-
-    // Get media settings from part data
-    const mediaType = part.expanded_media_type || 'none';
-    const mediaUrl = part.expanded_media_url || '';
-    const mediaBg = part.expanded_media_bg || '#1a1a1a';
-    const alignH = part.expanded_media_align_h || 'center';
-    const alignV = part.expanded_media_align_v || 'center';
-    const mediaFit = part.expanded_media_fit || 'cover';
-
-    // Apply background color to header
-    headerContainer.style.backgroundColor = mediaBg;
-
-    // Build object-position from alignment values
-    const objectPosition = `${alignH} ${alignV}`;
-
-    // Render based on media type
-    if (mediaType === 'image' && mediaUrl) {
-        mediaContainer.innerHTML = `
-            <img 
-                src="${mediaUrl}" 
-                alt="${part.label}" 
-                style="
-                    width: 100%; 
-                    height: 100%; 
-                    object-fit: ${mediaFit}; 
-                    object-position: ${objectPosition};
-                    display: block;
-                "
-            >
-        `;
-        mediaContainer.classList.remove('style-detail-header-placeholder');
-        mediaContainer.style.cssText = 'width: 100%; height: 100%; background: none; display: block;';
-    } else if (mediaType === 'video' && mediaUrl) {
-        mediaContainer.innerHTML = `
-            <video 
-                src="${mediaUrl}" 
-                autoplay 
-                loop 
-                muted 
-                playsinline
-                style="
-                    width: 100%; 
-                    height: 100%; 
-                    object-fit: ${mediaFit}; 
-                    object-position: ${objectPosition};
-                    display: block;
-                "
-            ></video>
-        `;
-        mediaContainer.classList.remove('style-detail-header-placeholder');
-        mediaContainer.style.cssText = 'width: 100%; height: 100%; background: none; display: block;';
-    } else {
-        // Default placeholder
-        mediaContainer.innerHTML = '<i data-wo-icon="layers"></i>';
-        mediaContainer.classList.add('style-detail-header-placeholder');
-        mediaContainer.style.cssText = '';
-        // Reset header background for placeholder mode
-        headerContainer.style.backgroundColor = '';
-    }
-}
-
-function closeBodyPartDetailModal() {
-    const overlay = document.getElementById('body-part-detail-overlay');
-    overlay.classList.add('hidden');
-    document.body.style.overflow = '';
-}
-
-// ============ TATTOO STYLES SELECTOR ============
+// ============ ESTILOS (Figma 02) ============
+// Multi-selección directa sobre la tarjeta: sin modal intermedio. El badge de
+// check va arriba a la derecha y el nombre debajo de la tarjeta, en mono.
 let TATTOO_STYLES_DATA = [];
-let currentModalStyle = null; // Style currently being viewed in modal
-let selectedModalSubstyle = null; // Substyle selected in modal
 
 async function setupTattooStyles() {
     const grid = document.getElementById('styles-grid');
     const loading = document.getElementById('styles-loading');
-    
+
     if (!grid || !loading) return;
-    
-    // Show loading
+
     grid.innerHTML = '';
     loading.classList.remove('hidden');
-    
+
     try {
-        // Load styles from Supabase via ConfigManager
         TATTOO_STYLES_DATA = await window.ConfigManager.loadTattooStylesFromDB();
         loading.classList.add('hidden');
-        
+
         if (!TATTOO_STYLES_DATA || TATTOO_STYLES_DATA.length === 0) {
-            grid.innerHTML = '<p class="empty-state">No hay estilos configurados</p>';
-            return;
+            // Sin catálogo en la DB: se usan los estilos compartidos como
+            // último recurso para que la pantalla siga siendo usable.
+            TATTOO_STYLES_DATA = SHARED_TATTOO_STYLE_OPTIONS.map((opt) => ({
+                id: opt.value, slug: opt.value, name: opt.label, substyles: []
+            }));
         }
-        
+
         renderStylesGrid(TATTOO_STYLES_DATA);
     } catch (err) {
         console.error('Error loading tattoo styles:', err);
         loading.classList.add('hidden');
-        grid.innerHTML = '<p class="error-msg">Error al cargar estilos</p>';
+        grid.innerHTML = '<p class="error-msg">No pudimos cargar los estilos.</p>';
     }
+}
+
+// Devuelve siempre un array con los estilos elegidos, sea cual sea el formato
+// guardado (objeto único del wizard viejo o el nuevo con `styles`).
+function getSelectedStyles() {
+    const value = formData.tattoo_style;
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'object') {
+        if (Array.isArray(value.styles) && value.styles.length) return value.styles;
+        return value.style_id ? [value] : [];
+    }
+    return [{ style_id: String(value), style_slug: String(value), style_name: String(value) }];
+}
+
+function isStyleSelected(styleId) {
+    return getSelectedStyles().some((s) => String(s.style_id) === String(styleId));
 }
 
 function renderStylesGrid(styles) {
     const grid = document.getElementById('styles-grid');
     if (!grid) return;
-    
-    grid.innerHTML = styles.map(style => {
-        const hasSubstyles = style.substyles && style.substyles.length > 0;
-        const coverImg = style.cover_image_url
-            ? `<img src="${style.cover_image_url}" alt="${style.name}" class="style-card-img">`
-            : `<div class="style-card-placeholder"><i data-wo-icon="pen-tool"></i></div>`;
-        
-        // Check if this style is currently selected
-        const currentSelection = formData.tattoo_style;
-        let isSelected = false;
-        if (currentSelection && typeof currentSelection === 'object') {
-            isSelected = currentSelection.style_id === style.id;
-        }
-        
+
+    grid.innerHTML = styles.map((style) => {
+        const selected = isStyleSelected(style.id);
+        const cover = style.cover_image_url
+            ? `<img src="${escapeQuotationHtml(style.cover_image_url)}" alt="" class="style-card-img" loading="lazy">`
+            : '<div class="style-card-placeholder"><i data-wo-icon="pen-tool"></i></div>';
+
         return `
-            <div class="style-card ${isSelected ? 'selected' : ''}" 
-                 onclick="openStyleDetailModal('${style.id}')">
-                <div class="style-card-cover">
-                    ${coverImg}
-                    ${hasSubstyles ? `<span class="style-badge">${style.substyles.length} subestilos</span>` : ''}
-                </div>
-                <div class="style-card-body">
-                    <h4 class="style-card-title">${style.name}</h4>
-                </div>
-            </div>
-        `;
+            <div class="style-card-wrap">
+                <button type="button" class="style-card ${selected ? 'selected' : ''}"
+                    data-style-id="${escapeQuotationHtml(style.id)}"
+                    aria-pressed="${selected}"
+                    onclick="toggleStyleSelection('${escapeQuotationHtml(String(style.id)).replace(/'/g, "\\'")}')">
+                    <span class="style-card-cover">${cover}</span>
+                    ${selected ? '<span class="style-check"><i data-wo-icon="check"></i></span>' : ''}
+                </button>
+                <p class="style-card-title ${selected ? 'is-selected' : ''}">${escapeQuotationHtml(style.name)}</p>
+            </div>`;
     }).join('');
 }
 
-function openStyleDetailModal(styleId) {
-    const style = TATTOO_STYLES_DATA.find(s => s.id === styleId);
-    if (!style) {
-        console.error('Style not found:', styleId);
-        return;
-    }
-    
-    currentModalStyle = style;
-    selectedModalSubstyle = null;
-    
-    // Check if there's already a selection for this style
-    const currentSelection = formData.tattoo_style;
-    if (currentSelection && typeof currentSelection === 'object' && currentSelection.style_id === style.id) {
-        selectedModalSubstyle = currentSelection.substyle_id || null;
-    }
-    
-    // Populate modal
-    const overlay = document.getElementById('style-detail-overlay');
-    const img = document.getElementById('style-detail-img');
-    const placeholder = document.getElementById('style-detail-placeholder');
-    const title = document.getElementById('style-detail-title');
-    const description = document.getElementById('style-detail-description');
-    const substylesCount = document.getElementById('style-detail-substyles-count');
-    const substylesSection = document.getElementById('style-detail-substyles-section');
-    const substylesGrid = document.getElementById('substyles-grid');
-    
-    // Set image or placeholder
-    if (style.cover_image_url) {
-        img.src = style.cover_image_url;
-        img.alt = style.name;
-        img.classList.remove('hidden');
-        placeholder.classList.add('hidden');
-    } else {
-        img.classList.add('hidden');
-        placeholder.classList.remove('hidden');
-    }
-    
-    // Set title and description
-    title.textContent = style.name;
-    description.textContent = style.description || 'Sin descripción disponible.';
-    
-    // Handle substyles
-    const hasSubstyles = style.substyles && style.substyles.length > 0;
-    if (hasSubstyles) {
-        substylesCount.textContent = `${style.substyles.length} Subestilos`;
-        substylesCount.classList.remove('hidden');
-        substylesSection.classList.remove('hidden');
-        
-        // Render substyles options
-        substylesGrid.innerHTML = style.substyles.map(sub => {
-            const isSubSelected = selectedModalSubstyle === sub.id;
-            return `
-                <div class="substyle-option ${isSubSelected ? 'selected' : ''}" 
-                     onclick="selectModalSubstyle('${sub.id}')">
-                    <span class="substyle-option-name">${sub.name}</span>
-                    <span class="substyle-option-check">${isSubSelected ? '✓' : ''}</span>
-                </div>
-            `;
-        }).join('');
-    } else {
-        substylesCount.classList.add('hidden');
-        substylesSection.classList.add('hidden');
-        substylesGrid.innerHTML = '';
-    }
-    
-    // Update button state
-    updateSelectButtonState();
-    
-    // Show modal
-    overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
+function toggleStyleSelection(styleId) {
+    const style = (TATTOO_STYLES_DATA || []).find((s) => String(s.id) === String(styleId));
+    if (!style) return;
 
-function selectModalSubstyle(substyleId) {
-    // Toggle selection
-    if (selectedModalSubstyle === substyleId) {
-        selectedModalSubstyle = null;
+    let selected = getSelectedStyles();
+    const already = selected.some((s) => String(s.style_id) === String(styleId));
+
+    if (already) {
+        selected = selected.filter((s) => String(s.style_id) !== String(styleId));
     } else {
-        selectedModalSubstyle = substyleId;
+        selected = selected.concat([{
+            style_id: style.id,
+            style_slug: style.slug,
+            style_name: style.name,
+            substyle_id: null,
+            substyle_slug: null,
+            substyle_name: null
+        }]);
     }
-    
-    // Update UI
-    document.querySelectorAll('.substyle-option').forEach(opt => {
-        opt.classList.remove('selected');
-        opt.querySelector('.substyle-option-check').textContent = '';
-    });
-    
-    if (selectedModalSubstyle) {
-        const selectedOpt = document.querySelector(`.substyle-option[onclick*="${selectedModalSubstyle}"]`);
-        if (selectedOpt) {
-            selectedOpt.classList.add('selected');
-            selectedOpt.querySelector('.substyle-option-check').textContent = '✓';
-        }
-    }
-    
-    updateSelectButtonState();
-}
 
-function updateSelectButtonState() {
-    const btn = document.getElementById('btn-select-style');
-    if (!btn || !currentModalStyle) return;
-    
-    const hasSubstyles = currentModalStyle.substyles && currentModalStyle.substyles.length > 0;
-    
-    if (hasSubstyles && selectedModalSubstyle) {
-        const sub = currentModalStyle.substyles.find(s => s.id === selectedModalSubstyle);
-        btn.querySelector('span').textContent = `Seleccionar "${sub?.name || 'Subestilo'}"`;
-    } else if (hasSubstyles) {
-        btn.querySelector('span').textContent = `Seleccionar "${currentModalStyle.name}" (sin subestilo)`;
+    // Formato compatible: el primer estilo queda en la raíz (lo que ya leen
+    // artista, backoffice y dashboard del cliente) y la selección completa
+    // viaja en `styles`.
+    if (!selected.length) {
+        formData.tattoo_style = null;
     } else {
-        btn.querySelector('span').textContent = `Seleccionar "${currentModalStyle.name}"`;
+        formData.tattoo_style = Object.assign({}, selected[0], { styles: selected });
     }
-}
 
-function closeStyleDetailModal() {
-    const overlay = document.getElementById('style-detail-overlay');
-    overlay.classList.add('hidden');
-    document.body.style.overflow = '';
-    currentModalStyle = null;
-    selectedModalSubstyle = null;
-}
-
-function confirmStyleSelection() {
-    if (!currentModalStyle) return;
-    
-    let substyle = null;
-    if (selectedModalSubstyle && currentModalStyle.substyles) {
-        substyle = currentModalStyle.substyles.find(s => s.id === selectedModalSubstyle);
-    }
-    
-    // Save as JSONB object matching the plan structure
-    formData.tattoo_style = {
-        style_id: currentModalStyle.id,
-        style_slug: currentModalStyle.slug,
-        style_name: currentModalStyle.name,
-        substyle_id: substyle ? substyle.id : null,
-        substyle_slug: substyle ? substyle.slug : null,
-        substyle_name: substyle ? substyle.name : null
-    };
-    
-    _dbg('Selected tattoo style:', formData.tattoo_style);
-    
-    // Close modal
-    closeStyleDetailModal();
-    
-    // Update grid to show selection
+    checkStyleMismatch();
     renderStylesGrid(TATTOO_STYLES_DATA);
-    
-    // Proceed to next step after a short delay
-    setTimeout(() => nextStep(), 200);
+    persistAnswer();
 }
 
-// Make functions globally available
-window.openStyleDetailModal = openStyleDetailModal;
-window.closeStyleDetailModal = closeStyleDetailModal;
-window.selectModalSubstyle = selectModalSubstyle;
-window.confirmStyleSelection = confirmStyleSelection;
+// Aviso (no bloqueante) si el artista elegido trabaja otros estilos.
+function checkStyleMismatch() {
+    const artist = formData.artist_data;
+    if (!artist) return;
+
+    const artistStyles = typeof artist.styles_array === 'string'
+        ? (artist.styles_array.startsWith('[') ? JSON.parse(artist.styles_array) : [artist.styles_array])
+        : (artist.styles_array || []);
+    if (!artistStyles.length) return;
+
+    const chosen = getSelectedStyles().map((s) => String(s.style_name || '').toLowerCase().trim()).filter(Boolean);
+    if (!chosen.length) return;
+
+    const hasMatch = chosen.some((name) => artistStyles.some((s) => {
+        const clean = String(s).toLowerCase().trim();
+        return clean.includes(name) || name.includes(clean);
+    }));
+
+    formData.style_mismatch_acknowledged = !hasMatch;
+    if (!hasMatch) showToastMessage(`${artist.name} trabaja otros estilos, pero podés seguir con la cotización.`);
+}
+
+window.toggleStyleSelection = toggleStyleSelection;
 
 
 // File Upload
+// La zona de subida existe en dos lugares: la caja completa de la pantalla 01
+// (REFERENCIA INICIAL) y el tile "AÑADIR REFERENCIA" de la pantalla 05. Ambos
+// usan el mismo input y el mismo pipeline (storage + Drive/n8n).
 function setupFileUpload() {
-    const drop = document.getElementById('drop-zone');
     const input = document.getElementById('file-input');
-    if (!drop || !input) return;
+    if (!input) return;
 
-    drop.onclick = () => input.click();
-    input.onchange = (e) => handleFiles(e.target.files);
-    // Drag/Drop events (simplified for brevity)
+    input.onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+
+    const drop = document.getElementById('drop-zone');
+    if (drop) {
+        drop.onclick = () => input.click();
+        drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('dragover'); };
+        drop.ondragleave = () => drop.classList.remove('dragover');
+        drop.ondrop = (e) => {
+            e.preventDefault();
+            drop.classList.remove('dragover');
+            if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+        };
+    }
 }
+
+window.openReferencePicker = function openReferencePicker() {
+    const input = document.getElementById('file-input');
+    if (input) input.click();
+};
 async function handleFiles(files) {
     const remainingSlots = 4 - uploadedFiles.length;
     if (remainingSlots <= 0) {
@@ -2978,49 +2524,57 @@ async function handleFiles(files) {
     renderPreviews();
 }
 
+// Figma 05: cada referencia es un tile con botón de borrado arriba a la
+// derecha; la última celda es "AÑADIR REFERENCIA" (borde punteado).
 function renderPreviews() {
     const cont = document.getElementById('preview-container');
     if (!cont) return;
     cont.innerHTML = '';
-    
-    uploadedFiles.forEach((f, index) => {
-        const url = URL.createObjectURL(f);
-        const div = document.createElement('div');
-        div.className = 'preview-item';
-        div.style.backgroundImage = `url(${url})`;
-        
+
+    uploadedFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        const tile = document.createElement('div');
+        tile.className = 'q-ref-tile';
+        tile.style.backgroundImage = `url(${url})`;
+
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-btn';
-        removeBtn.innerHTML = '&times;';
+        removeBtn.type = 'button';
+        removeBtn.className = 'q-ref-remove';
+        removeBtn.setAttribute('aria-label', 'Quitar referencia');
+        removeBtn.innerHTML = '<i data-wo-icon="x"></i>';
         removeBtn.onclick = (e) => {
             e.stopPropagation();
             removeUploadedFile(index);
         };
-        
-        div.appendChild(removeBtn);
-        cont.appendChild(div);
+
+        tile.appendChild(removeBtn);
+        cont.appendChild(tile);
     });
 
-    // Update drop zone visibility/state if needed
-    const dropZone = document.getElementById('drop-zone');
-    if (dropZone) {
-        if (uploadedFiles.length >= 4) {
-            dropZone.style.opacity = '0.5';
-            dropZone.style.pointerEvents = 'none';
-        } else {
-            dropZone.style.opacity = '1';
-            dropZone.style.pointerEvents = 'auto';
-        }
+    // Tile "AÑADIR REFERENCIA" (solo en la pantalla 05, donde no hay dropzone).
+    if (!document.getElementById('drop-zone') && uploadedFiles.length < 4) {
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.className = 'q-ref-add';
+        add.onclick = () => window.openReferencePicker();
+        add.innerHTML = '<i data-wo-icon="plus"></i><span>Añadir referencia</span>';
+        cont.appendChild(add);
     }
+
+    const dropZone = document.getElementById('drop-zone');
+    if (dropZone) dropZone.classList.toggle('is-full', uploadedFiles.length >= 4);
 }
 
 function removeUploadedFile(index) {
     uploadedFiles.splice(index, 1);
     formData.reference_images_count = uploadedFiles.length;
     renderPreviews();
+    persistAnswer();
 }
+
 function skipReferences() {
     uploadedFiles = [];
+    formData.reference_images_count = 0;
     nextStep();
 }
 
@@ -3394,107 +2948,94 @@ async function processReferenceImages(quoteId) {
 }
 
 
-// Summary
+// ============ RESUMEN (Figma 08 · "Tu tatuaje") ============
+// Grilla plana de 7 datos + MOODBOARD + bloque de CTA. Los datos personales
+// no aparecen acá: en el Figma viven en el centro de cuenta.
 function generateSummary() {
     hideToastMessage();
-    summaryReached = true; // Mark that user reached the end
+    summaryReached = true;
+
     const cont = document.getElementById('summary-content');
     if (!cont) return;
 
-    // Calculate age if birth date exists
-    let ageDisplay = '-';
-    if (formData.client_birth_date) {
-        try {
-            const birthDate = parseSpanishDate(formData.client_birth_date);
-            if (birthDate && !isNaN(birthDate.getTime())) {
-                const today = new Date();
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const m = today.getMonth() - birthDate.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-                ageDisplay = age + ' Años';
-                formData.client_age = age.toString(); // Sync age field
-            }
-        } catch (e) { console.error('Error calculating age', e); }
+    const styles = getSelectedStyles();
+    const stylesText = styles.length
+        ? styles.map((s) => s.substyle_name ? `${s.style_name} › ${s.substyle_name}` : s.style_name).join(' · ')
+        : '-';
+
+    const location = [formData.tattoo_body_part, formData.tattoo_body_side]
+        .filter(Boolean).join(' · ') || '-';
+
+    const size = formatTattooSizeForDisplay(formData.tattoo_size);
+    const referencesCount = uploadedFiles.length || formData.reference_images_count || 0;
+    const referencesText = referencesCount === 1 ? '1 imagen' : `${referencesCount} imágenes`;
+
+    const rows = [
+        { label: 'Idea', value: formData.tattoo_idea_description || '-', wide: true },
+        { label: 'Estilo', value: stylesText },
+        { label: 'Ubicación', value: location },
+        { label: 'Tamaño', value: size },
+        { label: 'Referencias', value: referencesText },
+        { label: 'Presupuesto', value: formatBudgetForDisplay() },
+        { label: 'Fecha', value: formData.client_preferred_date || '-' }
+    ];
+
+    cont.innerHTML = rows.map((row) => `
+        <div class="q-summary-item ${row.wide ? 'q-summary-item--wide' : ''}">
+            <span class="q-summary-k">${escapeQuotationHtml(row.label)}</span>
+            <span class="q-summary-v">${escapeQuotationHtml(row.value)}</span>
+        </div>`).join('');
+
+    // Moodboard: miniaturas reales de las referencias subidas.
+    const moodboard = document.getElementById('summary-moodboard');
+    if (moodboard) {
+        if (uploadedFiles.length) {
+            moodboard.classList.remove('hidden');
+            moodboard.innerHTML =
+                '<p class="q-summary-k">Moodboard</p>' +
+                '<div class="q-moodboard-grid">' +
+                uploadedFiles.map((file) => {
+                    const url = URL.createObjectURL(file);
+                    return `<span class="q-moodboard-thumb" style="background-image:url(${url})"></span>`;
+                }).join('') +
+                '</div>';
+        } else {
+            moodboard.classList.add('hidden');
+            moodboard.innerHTML = '';
+        }
     }
 
-    const medicalConditions = formData.client_medical_boolean ?
-        `Sí (${formData.client_medical_details || 'Sin detalles'})` : 'No';
-    
-    const allergies = formData.client_allergies || 'Ninguna';
-
-    // Reference image thumbnails
-    let imagesHtml = '';
-    if (uploadedFiles.length > 0) {
-        imagesHtml = `
-            <div class="summary-thumbnails">
-                ${uploadedFiles.map(f => {
-                    const url = URL.createObjectURL(f);
-                    return `<div class="summary-thumb" style="background-image: url(${url})"></div>`;
-                }).join('')}
-            </div>
-        `;
+    // El copy final depende de si hay artista elegido (deep link) o si la
+    // solicitud sale a los artistas que hagan match.
+    const copy = document.getElementById('q-final-copy');
+    if (copy) {
+        copy.textContent = formData.artist_name
+            ? `Vamos a enviar tu solicitud a ${toTitleCase(formData.artist_name)} con todos los detalles.`
+            : 'Vamos a enviar tu solicitud a artistas que trabajen con este estilo y ubicación.';
     }
-
-    cont.innerHTML = `
-        <div class="summary-section">
-            <div class="section-header">
-                <h3 class="summary-title">Artista</h3>
-                <button class="btn-edit-small" onclick="goToStepByField('artist_username')">Editar</button>
-            </div>
-            <div class="summary-rows">
-                <div class="summary-row"><span class="summary-label">Nombre</span> <span class="summary-value">${toTitleCase(formData.artist_name) || 'Pendiente de recomendación'}</span></div>
-                ${formData.artist_studio_name ? `<div class="summary-row"><span class="summary-label">Estudio</span> <span class="summary-value">${toTitleCase(formData.artist_studio_name)}</span></div>` : ''}
-                ${formData.artist_session_cost_amount ? `<div class="summary-row"><span class="summary-label">Costo sesión</span> <span class="summary-value">${formData.artist_session_cost_amount}</span></div>` : ''}
-                ${formData.artist_portfolio ? `<div class="summary-row"><span class="summary-label">Portfolio</span> <span class="summary-value"><a href="${formData.artist_portfolio}" target="_blank" class="summary-link">Ver trabajo <i data-wo-icon="external-link"></i></a></span></div>` : ''}
-            </div>
-        </div>
-
-        <div class="summary-section">
-            <div class="section-header">
-                <h3 class="summary-title">Tatuaje</h3>
-                <button class="btn-edit-small" onclick="goToStepByField('tattoo_body_part')">Editar</button>
-            </div>
-            <div class="summary-rows">
-                <div class="summary-row summary-row--full"><span class="summary-label">Idea</span> <span class="summary-value">${formData.tattoo_idea_description || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Estilo</span> <span class="summary-value">${formatTattooStyleForDisplay(formData.tattoo_style)}</span></div>
-                <div class="summary-row"><span class="summary-label">Zona</span> <span class="summary-value">${toTitleCase(formData.tattoo_body_part) || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Tamaño</span> <span class="summary-value">${toTitleCase(formData.tattoo_size) || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Color</span> <span class="summary-value">${toTitleCase(formData.tattoo_color_type) || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Referencias</span> <span class="summary-value">${formData.reference_images_count || 0} imágenes</span></div>
-                ${imagesHtml}
-            </div>
-        </div>
-
-        <div class="summary-section">
-            <div class="section-header">
-                <h3 class="summary-title">Tus datos</h3>
-                <button class="btn-edit-small" onclick="goToStepByField('client_full_name')">Editar</button>
-            </div>
-            <div class="summary-rows">
-                <div class="summary-row"><span class="summary-label">Nombre</span> <span class="summary-value">${toTitleCase(formData.client_full_name) || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Edad</span> <span class="summary-value">${ageDisplay}</span></div>
-                <div class="summary-row"><span class="summary-label">Ciudad</span> <span class="summary-value">${toTitleCase(formData.client_city_residence) || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">WhatsApp</span> <span class="summary-value">${formData.client_whatsapp || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Instagram</span> <span class="summary-value">${formData.client_instagram ? (formData.client_instagram.startsWith('@') ? formData.client_instagram : '@' + formData.client_instagram) : '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Fecha</span> <span class="summary-value">${formData.client_preferred_date || '-'}</span></div>
-                <div class="summary-row"><span class="summary-label">Presupuesto</span> <span class="summary-value">${formData.client_budget_amount || '-'} ${formData.client_budget_currency || ''}</span></div>
-                <div class="summary-row"><span class="summary-label">Salud</span> <span class="summary-value">${medicalConditions}</span></div>
-                <div class="summary-row"><span class="summary-label">Alergias</span> <span class="summary-value">${allergies}</span></div>
-            </div>
-        </div>
-    `;
 }
 
+// Muestra el tamaño como en el Figma ("Pequeño (5–8 cm)").
+function formatTattooSizeForDisplay(value) {
+    if (!value) return '-';
+    const option = FIGMA_SIZE_OPTIONS.find((opt) => toTitleCase(opt.value) === value || opt.label === value);
+    if (option) return `${option.label} (${option.subtitle})`;
+    const shared = (SHARED_TATTOO_SIZE_OPTIONS || []).find((opt) => toTitleCase(opt.value) === value);
+    if (shared) return shared.subtitle ? `${shared.label} (${shared.subtitle})` : shared.label;
+    return String(value).replace(/_/g, ' ');
+}
+
+
+// Salta a la pantalla que contiene un campo dado (por ejemplo desde EDITAR).
 function goToStepByField(fieldName) {
-    const stepIdx = questionsConfig.findIndex(q => q.field === fieldName);
-    if (stepIdx !== -1) {
-        commitStepChange(stepIdx);
-    }
+    const screenIdx = screensConfig.findIndex((screen) =>
+        screen.questions.some((q) => q.field === fieldName));
+    if (screenIdx !== -1) commitStepChange(screenIdx);
 }
 
 window.goToStepByField = goToStepByField;
+window.editQuotationFromSummary = editQuotationFromSummary;
+window.goToScreenById = goToScreenById;
 
 // Submit
 let _isSubmittingQuotation = false;
@@ -3535,7 +3076,7 @@ async function submitQuotation() {
                 if (referenceImagesResult.filesUploaded > 0 && 
                     referenceImagesResult.filesUploadedToDrive === 0) {
                     // All files failed to upload to Google Drive
-                    uploadWarnings.push('Las imagenes de referencia no se pudieron subir a Google Drive, pero se guardaron en el servidor.');
+                    uploadWarnings.push('Las imágenes de referencia no se pudieron subir a Google Drive, pero quedaron guardadas en el servidor.');
                     console.warn('Warning: All files failed to upload to Google Drive');
                 } else if (referenceImagesResult.filesUploaded > referenceImagesResult.filesUploadedToDrive) {
                     // Some files failed
@@ -3545,7 +3086,7 @@ async function submitQuotation() {
                 }
             } else {
                 // Image upload completely failed
-                uploadWarnings.push('No se pudieron procesar las imagenes de referencia.');
+                uploadWarnings.push('No pudimos procesar las imágenes de referencia.');
                 console.error('Error processing reference images:', referenceImagesResult.error);
             }
         }
@@ -3572,8 +3113,8 @@ async function submitQuotation() {
         }
 
         // 3. Fetch Next Steps content from app_settings
-        let nextStepsContent = '<p><strong>1. Revisa tu correo</strong><br>El artista recibira tu solicitud y te contactara pronto.</p><p><strong>2. Prepara tus referencias</strong><br>Si tienes mas imagenes de inspiracion, tenlas listas para compartir.</p><p><strong>3. Agenda tu cita</strong><br>Una vez confirmes los detalles con el artista, agenda tu sesion.</p>';
-        let websiteUrl = 'https://beta.weotzi.com';
+        let nextStepsContent = '<p><strong>1. Revisá tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepará tus referencias</strong><br>Si tenés más imágenes que te inspiran, tenelas listas para compartir.</p><p><strong>3. Agendá tu sesión</strong><br>Cuando cierres los detalles con el artista, reservá la fecha.</p>';
+        let websiteUrl = '';
         
         if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
             try {
@@ -3684,7 +3225,7 @@ async function submitQuotation() {
                     <i data-wo-icon="alert-triangle" class="wo-icon-18"></i>
                     <div>
                         <p><strong>Aviso:</strong> ${uploadWarnings.join(' ')}</p>
-                        <p>Tu solicitud fue enviada correctamente. El artista igual puede ver tus referencias.</p>
+                        <p>Tu solicitud se envió igual y las referencias siguen disponibles.</p>
                     </div>
                 </div>
             `;
@@ -3698,7 +3239,9 @@ async function submitQuotation() {
                     ${warningHtml}
                     <p class="success-quote-id">Tu ID · <span class="highlight-text">${formData.quote_id}</span></p>
                     <p class="success-msg">
-                        <span>${formData.artist_name}</span> recibió tu solicitud.
+                        ${formData.artist_name
+                            ? `<span>${escapeQuotationHtml(toTitleCase(formData.artist_name))}</span> recibió tu solicitud.`
+                            : 'Tu solicitud ya está viajando a los artistas que trabajan con tu estilo y ubicación.'}
                     </p>
 
                     <!-- Create Account Invitation -->
@@ -3747,11 +3290,9 @@ async function submitQuotation() {
 function showLoading() { document.getElementById('loading-overlay')?.classList.remove('hidden'); }
 function hideLoading() { document.getElementById('loading-overlay')?.classList.add('hidden'); }
 
-// Muestra/oculta el "chrome" del wizard (barra de progreso + barra Atrás).
-// En la pantalla de éxito se ocultan; el topbar de marca queda visible.
+// Muestra/oculta el "chrome" del wizard (barra inferior ATRÁS + CONTINUAR).
+// En la pantalla de éxito se oculta; el topbar de marca queda visible.
 function _setQuotationChromeVisible(visible) {
-    const progressEl = document.querySelector('.progress-wrapper');
-    if (progressEl) progressEl.style.display = visible ? '' : 'none';
     const footbarEl = document.getElementById('q-footbar');
     if (footbarEl) footbarEl.style.display = visible ? '' : 'none';
 }
@@ -3790,10 +3331,21 @@ function goToClientRegistration() {
 /**
  * Show traditional success page without account invitation
  */
+// El CTA "Conocer We Ötzi" apunta al sitio corporativo. Mientras se trabaja en
+// local (o sobre un túnel del server local) no se sale del entorno: se usa la
+// home de la app. En producción sigue mandando el valor de app_settings.
+function resolveWebsiteUrl(configuredUrl) {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' ||
+        /\.ngrok(-free)?\.(app|io)$/.test(host) || /^192\.168\./.test(host);
+    if (isLocal) return '/inicio';
+    return configuredUrl || '/inicio';
+}
+
 async function showSuccessWithoutAccount() {
     // Fetch Next Steps content from app_settings
-    let nextStepsContent = '<p><strong>1. Revisa tu correo</strong><br>El artista recibira tu solicitud y te contactara pronto.</p><p><strong>2. Prepara tus referencias</strong><br>Si tienes mas imagenes de inspiracion, tenlas listas para compartir.</p><p><strong>3. Agenda tu cita</strong><br>Una vez confirmes los detalles con el artista, agenda tu sesion.</p>';
-    let websiteUrl = 'https://beta.weotzi.com';
+    let nextStepsContent = '<p><strong>1. Revisá tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepará tus referencias</strong><br>Si tenés más imágenes que te inspiran, tenelas listas para compartir.</p><p><strong>3. Agendá tu sesión</strong><br>Cuando cierres los detalles con el artista, reservá la fecha.</p>';
+    let websiteUrl = '';
     
     if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
         try {
@@ -3840,7 +3392,7 @@ async function showSuccessWithoutAccount() {
                     <button class="wo-btn wo-btn--hard btn-primary" onclick="resetQuotation()">
                         <i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Volver a cotizar
                     </button>
-                    <a href="${websiteUrl}" target="_blank" class="wo-btn wo-btn--ghost btn-secondary">
+                    <a href="${resolveWebsiteUrl(websiteUrl)}" class="wo-btn wo-btn--ghost btn-secondary">
                         <i data-wo-icon="globe" class="wo-icon-18"></i> Conocer We Ötzi
                     </a>
                 </div>
@@ -3880,92 +3432,79 @@ function resetQuotation() {
     uploadedFiles = [];
     historyStack = [];
     summaryReached = false;
-    currentStepIndex = 0;
     currentBodyZone = null;
     currentBodySide = null;
-    
-    // Show the progress/back bars again
+    _calendarCursor = null;
+
+    buildScreensConfig();
+    currentStepIndex = Math.max(0, findNextScreenIndex(0));
+
+    // Show the footbar again
     _setQuotationChromeVisible(true);
-    
-    // Re-render the first step
+
     renderCurrentStep();
     updateBackButton();
-    
+
     _dbg('Quotation form reset');
 }
 
 function setupKeyboardNavigation() {
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            // Special handling for search step is now in renderCurrentStep input listener
-            const currentQ = questionsConfig[currentStepIndex];
-            if (currentQ && currentQ.step === 'artist-search') return;
+        if (e.key !== 'Enter') return;
+        // Enter en textarea = salto de línea; en el resto avanza la pantalla.
+        const target = e.target;
+        if (target && (target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+        const overlayOpen = document.querySelector('.q-login-overlay:not(.hidden), .draft-recovery-overlay:not(.hidden)');
+        if (overlayOpen) return;
 
-            const btn = document.querySelector('.step.active .btn-primary');
-            if (btn && !btn.disabled) btn.click();
+        const btn = document.getElementById('continue-btn');
+        if (btn && !btn.disabled && !btn.classList.contains('hidden')) {
+            e.preventDefault();
+            btn.click();
         }
     });
 }
-function setupDatePicker(isSingle = false) {
-    if (window.flatpickr) {
-        if (isSingle) {
-            flatpickr('#date-picker-single', {
-                mode: 'single', dateFormat: 'd M Y', maxDate: 'today', locale: 'es'
-            });
-        } else {
-            flatpickr('#date-picker', {
-                mode: 'range', dateFormat: 'd M Y', minDate: 'today', locale: 'es'
-            });
-        }
+
+// Solo la fecha de nacimiento usa flatpickr; la fecha preferida se dibuja con
+// el calendario embebido del Figma (chips + mes).
+function setupDatePicker(isSingle = true) {
+    if (window.flatpickr && isSingle) {
+        flatpickr('#date-picker-single', {
+            mode: 'single', dateFormat: 'd M Y', maxDate: 'today', locale: 'es'
+        });
     }
 }
 
-function handleSingleDateSelection(field) {
-    const val = document.getElementById('date-picker-single').value;
-    if (!val) return;
-    formData[field] = val;
-    nextStep();
-}
-function setupCurrencyInput(q) {
-    // Optional: setup logic if needed
-}
-
 // Export global functions for onclick
-window.searchArtist = searchArtist;
 window.confirmArtist = confirmArtist;
 window.continueWithoutArtist = continueWithoutArtist;
-window.selectRecommendedArtist = selectRecommendedArtist;
 window.nextStep = nextStep;
 window.skipStep = skipStep;
 window.prevStep = prevStep;
-window.validateAndNext = validateAndNext;
 window.handleOptionSelect = handleOptionSelect;
-window.handleMultiSelect = handleMultiSelect;
 window.handleBoolean = handleBoolean;
-window.handleDateSelection = handleDateSelection;
-window.handleSingleDateSelection = handleSingleDateSelection;
-window.handleCurrency = handleCurrency;
-window.handleCitySelection = handleCitySelection;
+window.handleInstagramInput = handleInstagramInput;
+window.selectDateChip = selectDateChip;
+window.pickCalendarDay = pickCalendarDay;
+window.shiftCalendarMonth = shiftCalendarMonth;
+window.selectBudgetTier = selectBudgetTier;
+window.checkCityMismatch = checkCityMismatch;
+window.handleCitySelection = checkCityMismatch;
 window.setTravel = setTravel;
 window.confirmBodyParts = confirmBodyParts;
 window.removeBodyPart = removeBodyPart;
 window.skipReferences = skipReferences;
 window.submitQuotation = submitQuotation;
 window.resetQuotation = resetQuotation;
-window.validateTextarea = validateTextarea;
 window.toggleTheme = toggleTheme;
 
 // Draft Recovery Functions
 window.continueDraft = continueDraft;
 window.startNewQuotation = startNewQuotation;
 
-// Body Selector Imports
-window.showMainBodyParts = showMainBodyParts;
-window.handleZoneClick = handleZoneClick;
+// Body Selector
+window.selectBodyZone = selectBodyZone;
 window.handleSideChosen = handleSideChosen;
-window.showSubBodyParts = showSubBodyParts;
-window.toggleSubPart = toggleSubPart;
-window.toggleWholeZone = toggleWholeZone;
 
 // ============ QUOTATION LOGIN MODAL ============
 

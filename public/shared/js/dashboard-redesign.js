@@ -7,11 +7,13 @@
    las superficies nuevas del dashboard y las alimenta con datos reales:
 
      · saludo del hero            ← nombre + sesiones de hoy
-     · Agenda del día             ← quotation_sessions ⋈ quotations_db
+     · Agenda del día             ← quotation_sessions ⋈ quotations_db (con duración)
+     · Diseños en proceso         ← cotizaciones confirmadas + sesiones + adjuntos
      · stats de Cotizaciones      ← quotations_db (pendientes/aprobadas/rechazadas)
      · Actividad reciente         ← derivada de las cotizaciones reales
      · card de perfil (rail)      ← artistData (evento wo:dashboard-ready)
-     · contador de la galería     ← espejo del grid que pinta dashboard.js
+     · INGRESOS (rail)            ← final_budget_amount de cotizaciones completadas
+     · galería                    ← realce del grid que pinta dashboard.js
      · panel de notificaciones Ö  ← chat_messages (no leídos) + invitaciones
                                      pendientes + cotizaciones pendientes
 
@@ -71,6 +73,27 @@
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
   function pad2(n) { return String(n).padStart(2, '0'); }
+  var MONTHS_ES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO',
+    'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+  var MONTHS_ES_SHORT = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  function dayMonth(d) { return pad2(d.getDate()) + ' ' + MONTHS_ES_SHORT[d.getMonth()]; }
+  // Miniatura de un adjunto de Drive (mismo criterio que shared-drawer.js).
+  function driveThumb(url) {
+    if (!url) return '';
+    if (url.indexOf('drive.google.com') === -1) return url;
+    var fileId = '';
+    if (url.indexOf('/d/') !== -1) fileId = url.split('/d/')[1].split('/')[0];
+    else if (url.indexOf('id=') !== -1) fileId = url.split('id=')[1].split('&')[0];
+    return fileId ? 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w600' : '';
+  }
+  // Formatea un monto con la moneda del artista (WeOtziCurrency si está listo).
+  function money(amount, code) {
+    var c = window.WeOtziCurrency;
+    if (c && typeof c.format === 'function') {
+      try { return c.format(amount, code, { decimals: 0 }); } catch (e) { /* sigue */ }
+    }
+    return (code || '') + ' ' + Math.round(amount).toLocaleString('es-AR');
+  }
 
   /* ===================================================================== *
    *  HERO — "Buen día, {nombre}. Hoy tenés {n} sesiones programadas."      *
@@ -141,6 +164,25 @@
     var styles = styleList(artist.styles_array || artist.styles || artist.estilos);
     var ss = $('stat-styles'); if (ss && (ss.textContent === '—' || ss.textContent === '')) ss.textContent = styles.length || '—';
     var se = $('stat-experience'); if (se && (se.textContent === '—' || se.textContent === '')) se.textContent = artist.years_experience || '—';
+    applyStylesWord();
+  }
+
+  /* Figma: "1 ESTILO" en singular. dashboard.js escribe el número en
+     #stat-styles; acá solo concordamos la palabra que lo acompaña. */
+  function applyStylesWord() {
+    var n = $('stat-styles'), w = $('wod-styles-word');
+    if (!n || !w) return;
+    var v = parseInt(String(n.textContent || '').replace(/[^0-9]/g, ''), 10);
+    w.textContent = v === 1 ? 'ESTILO' : 'ESTILOS';
+  }
+  var stylesWordWatched = false;
+  function watchStylesWord() {
+    var n = $('stat-styles'); if (!n || stylesWordWatched) return;
+    stylesWordWatched = true;
+    applyStylesWord();
+    try {
+      new MutationObserver(applyStylesWord).observe(n, { childList: true, characterData: true, subtree: true });
+    } catch (e) { /* opcional */ }
   }
 
   /* ===================================================================== *
@@ -153,9 +195,29 @@
     if (s === 'pending' || s === 'tentative' || s === 'pending_confirmation') return { cls: 'is-warn', txt: 'POR CONFIRMAR' };
     return { cls: 'is-warn', txt: (status || 'POR CONFIRMAR').toString().toUpperCase() };
   }
+  // Duración real de la sesión: 3H / 1.5H → 90M. Sin dato, sin chip.
+  function durationLabel(hours) {
+    var h = parseFloat(hours);
+    if (!isFinite(h) || h <= 0) return '';
+    if (h < 1) return Math.round(h * 60) + 'M';
+    if (Math.abs(h - Math.round(h)) < 0.01) return Math.round(h) + 'H';
+    return Math.round(h * 60) + 'M';
+  }
+  // El select por defecto del repo no trae duration_hours; lo pedimos y, si la
+  // columna no estuviera disponible, reintentamos con el select por defecto para
+  // no degradar la agenda entera por un campo opcional.
+  function fetchAgendaRows(nowIso) {
+    var cols = 'id, session_date, session_number, status, notes, duration_hours, quotation_id, ' +
+      'quotations_db(client_full_name, tattoo_style, tattoo_body_part)';
+    return WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 30, select: cols })
+      .catch(function (e) {
+        console.warn('[redesign] agenda sin duration_hours', e);
+        return WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 30 });
+      });
+  }
   function loadAgenda() {
     var nowIso = new Date().toISOString();
-    return withLiveTimeout(WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 30 }), 'agenda')
+    return withLiveTimeout(fetchAgendaRows(nowIso), 'agenda')
       .then(function (rows) {
         rows = (rows || []).filter(function (s) { return String(s.status || '').toLowerCase() !== 'cancelled'; });
         var now = new Date();
@@ -165,8 +227,10 @@
         }).length;
         renderHero();
 
+        // El Figma define un único título para el bloque; las filas ya llevan
+        // el chip de día cuando el turno no es de hoy.
         var cap = $('wod-agenda-cap');
-        if (cap) cap.textContent = todaySessions > 0 ? 'Agenda del día' : 'Agenda · próximos turnos';
+        if (cap) cap.textContent = 'Agenda del día';
 
         var box = $('wod-agenda-rows'); if (!box) return rows.length;
         if (!rows.length) {
@@ -182,6 +246,7 @@
           var dayLabel = isToday ? '' :
             (isNaN(d) ? '' : ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'][d.getDay()] + ' ' + pad2(d.getDate()));
           var st = sessionState(s.status);
+          var dur = durationLabel(s.duration_hours);
           var detailParts = [];
           detailParts.push(s.session_number ? 'Sesión ' + s.session_number : 'Sesión');
           var style = styleList(q.tattoo_style)[0];
@@ -199,6 +264,7 @@
             '</div>' +
             '<div class="wo-dash-agendameta">' +
               '<span class="wo-dash-state ' + st.cls + '">' + esc(st.txt) + '</span>' +
+              (dur ? '<span class="wo-dash-agendadur">' + esc(dur) + '</span>' : '') +
             '</div>' +
           '</div>';
         }).join('');
@@ -261,6 +327,9 @@
           var nb = $('wod-nav-msg-badge'); if (nb) { nb.textContent = pending; nb.hidden = false; }
         }
         renderActivity(quotes);
+        lastQuotes = quotes;
+        renderDesigns(quotes);
+        renderIncome(quotes);
         notifCounts.solic = pending;
         applyNotifCounts();
         loadNotifMessages(quotes);
@@ -276,17 +345,319 @@
   }
 
   /* ===================================================================== *
-   *  CONTADOR DE GALERÍA — espejo del grid que pinta dashboard.js          *
+   *  DISEÑOS EN PROCESO  (live · quotations_db ⋈ quotation_sessions ⋈       *
+   *  quotations_attachments)                                               *
+   *  El Figma pide "etapa (BOCETO/ENTINTADO/FINAL)", "% de avance" y        *
+   *  "LÍMITE <fecha>". No existe pipeline de diseño ni deadline en el       *
+   *  modelo, así que se derivan datos reales equivalentes:                  *
+   *    · etapa   → estado real de la cotización (CONFIRMADA / LISTA…)       *
+   *    · avance  → sesiones completadas / sesiones totales                  *
+   *    · fecha   → PRÓXIMA <fecha de la siguiente sesión agendada>          *
+   *  La imagen es la primera referencia adjunta del cliente; si no hay,     *
+   *  queda el placeholder de la caja que dibuja el Figma.                   *
    * ===================================================================== */
+  var DESIGN_STAGES = {
+    client_approved: 'CONFIRMADA',
+    artist_completed: 'LISTA PARA CLIENTE'
+  };
+  function designTitle(q) {
+    var parts = [];
+    var style = styleList(q.tattoo_style)[0];
+    if (style) parts.push(String(style).trim());
+    if (q.tattoo_body_part) parts.push(String(q.tattoo_body_part).trim());
+    if (parts.length) return parts.join(' · ');
+    return q.quote_id ? 'Cotización ' + q.quote_id : 'Cotización';
+  }
+  function designCard(q, sessions, thumb) {
+    var now = new Date();
+    var live = (sessions || []).filter(function (s) { return String(s.status || '').toLowerCase() !== 'cancelled'; });
+    var done = live.filter(function (s) { return String(s.status || '').toLowerCase() === 'completed'; }).length;
+    var declared = parseInt(q.final_sessions || q.tattoo_estimated_sessions, 10);
+    var total = Math.max(isFinite(declared) ? declared : 0, live.length);
+    var pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
+
+    var next = live
+      .map(function (s) { return new Date(s.session_date); })
+      .filter(function (d) { return !isNaN(d) && d >= now; })
+      .sort(function (a, b) { return a - b; })[0];
+
+    var stage = DESIGN_STAGES[q.quote_status] || String(q.quote_status || '').toUpperCase();
+    var ready = q.quote_status === 'artist_completed';
+
+    var media = thumb
+      ? '<img src="' + esc(thumb) + '" alt="" loading="lazy">'
+      : '<i data-wo-icon="image"></i>';
+
+    return '<article class="wo-dash-design">' +
+      '<div class="wo-dash-design-media">' + media + '</div>' +
+      '<h3 class="wo-dash-design-title">' + esc(designTitle(q)) + '</h3>' +
+      '<p class="wo-dash-design-client">' + esc(q.client_full_name || 'Cliente') + '</p>' +
+      (pct === null ? '' :
+        '<div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (ready ? ' is-ready' : '') +
+        '" style="width:' + pct + '%"></div></div>') +
+      '<div class="wo-dash-design-foot">' +
+        '<span>' + esc(stage) + '</span>' +
+        (next ? '<span>PRÓXIMA ' + esc(dayMonth(next)) + '</span>' : '') +
+      '</div>' +
+    '</article>';
+  }
+  function renderDesigns(quotes) {
+    var sec = $('wod-designs-section'), box = $('wod-designs-grid');
+    if (!sec || !box) return;
+    var inWork = (quotes || []).filter(function (q) {
+      return q.quote_status === 'client_approved' || q.quote_status === 'artist_completed';
+    });
+    inWork.sort(function (a, b) {
+      return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
+    });
+    inWork = inWork.slice(0, 3);
+    if (!inWork.length) { sec.hidden = true; return; }
+
+    var paint = function (sessionsByQuote, thumbByQuote) {
+      box.innerHTML = inWork.map(function (q) {
+        return designCard(q, sessionsByQuote[q.id] || [], thumbByQuote[q.quote_id] || '');
+      }).join('');
+      sec.hidden = false;
+      if (window.WoIcons) window.WoIcons.hydrate(box);
+    };
+
+    var ids = inWork.map(function (q) { return q.id; }).filter(function (v) { return v != null; });
+    var quoteIds = inWork.map(function (q) { return q.quote_id; }).filter(Boolean);
+
+    var sessionsP = ids.length
+      ? withLiveTimeout(WeotziData.Sessions.listByQuotationIds(ids), 'sesiones de diseños')
+          .catch(function (e) { console.warn('[redesign] sesiones de diseños', e); return []; })
+      : Promise.resolve([]);
+    var thumbsP = quoteIds.length
+      ? withLiveTimeout(WeotziData.Attachments.listByQuoteIds(quoteIds), 'referencias')
+          .catch(function (e) { console.warn('[redesign] referencias', e); return []; })
+      : Promise.resolve([]);
+
+    Promise.all([sessionsP, thumbsP]).then(function (res) {
+      var byQuote = {};
+      (res[0] || []).forEach(function (s) {
+        (byQuote[s.quotation_id] = byQuote[s.quotation_id] || []).push(s);
+      });
+      var thumbs = {};
+      (res[1] || []).forEach(function (a) {
+        if (thumbs[a.quotation_id]) return;
+        var t = driveThumb(a.google_drive_url);
+        if (t) thumbs[a.quotation_id] = t;
+      });
+      paint(byQuote, thumbs);
+    });
+  }
+
+  /* ===================================================================== *
+   *  INGRESOS (rail) — suma real de final_budget_amount de cotizaciones     *
+   *  completadas, convertida a la moneda de tarifa del artista.            *
+   *  La fecha de cierre sale de client_completed_at / artist_completed_at   *
+   *  (los sella el trigger de estado) con updated_at como respaldo para     *
+   *  filas cerradas antes de esa migración.                                 *
+   *  "SALDO PEND." del Figma se omite: no existe ledger de pagos.           *
+   * ===================================================================== */
+  var lastQuotes = null;
+  function renderIncome(quotes) {
+    var sec = $('wod-income');
+    if (!sec || !quotes) return;
+    var target = String((artist && artist.session_price_currency) || 'USD').toUpperCase();
+    var cur = window.WeOtziCurrency;
+
+    var now = new Date();
+    var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    var weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)); // lunes
+
+    var month = 0, week = 0, counted = 0;
+    quotes.forEach(function (q) {
+      if (q.quote_status !== 'completed') return;
+      var raw = parseFloat(q.final_budget_amount);
+      if (!isFinite(raw) || raw <= 0) return;
+      var from = String(q.final_budget_currency || target).toUpperCase();
+      var value = raw;
+      if (from !== target) {
+        var conv = cur && typeof cur.convert === 'function' ? cur.convert(raw, from, target) : null;
+        if (conv === null || !isFinite(conv)) return; // sin tipo de cambio no inventamos
+        value = conv;
+      }
+      var when = new Date(q.client_completed_at || q.artist_completed_at || q.updated_at || q.created_at);
+      if (isNaN(when)) return;
+      counted++;
+      if (when >= monthStart) month += value;
+      if (when >= weekStart) week += value;
+    });
+
+    if (!counted) { sec.hidden = true; return; }
+    var cap = $('wod-income-cap');
+    if (cap) cap.textContent = 'INGRESOS · ' + MONTHS_ES[now.getMonth()];
+    var t = $('wod-income-total'); if (t) t.textContent = money(month, target);
+    var w = $('wod-income-week'); if (w) w.textContent = money(week, target);
+    sec.hidden = false;
+  }
+
+  /* ===================================================================== *
+   *  GALERÍA — contador + realce del grid que pinta dashboard.js           *
+   *  (card destacada 2×2 con bandera ★, caption y cluster de acciones,     *
+   *  y la dropzone SUBIR MÁS dentro de la grilla, como en el Figma).       *
+   *  Se opera sobre el DOM ya pintado: dashboard.js sigue siendo el dueño  *
+   *  del markup y de la persistencia del feed.                             *
+   * ===================================================================== */
+  var GALLERY_CATEGORIES = [
+    ['realizados', 'Trabajos realizados'],
+    ['flash', 'Flash disponibles'],
+    ['proyectos', 'Proyectos']
+  ];
+  function galleryFeed() {
+    return typeof window.normalizeDashboardGalleryFeedItems === 'function'
+      ? window.normalizeDashboardGalleryFeedItems() : null;
+  }
+  function persistFeed(next) {
+    if (typeof window.persistDashboardGalleryFeed !== 'function') return Promise.resolve();
+    return Promise.resolve(window.persistDashboardGalleryFeed(next)).then(function () {
+      if (typeof window.renderGalleryAdmin === 'function') window.renderGalleryAdmin();
+    }).catch(function (e) { console.warn('[redesign] galería', e); });
+  }
+  // ★ Destacar = mover el archivo al primer lugar del feed (la card 2×2).
+  function featureGalleryItem(index) {
+    var feed = galleryFeed();
+    if (!feed || index <= 0 || index >= feed.length) return;
+    var next = feed.slice();
+    next.unshift(next.splice(index, 1)[0]);
+    persistFeed(next);
+  }
+  // ✎ Editar = cambiar la categoría del archivo (único metadato editable).
+  function openCategoryEditor(item, index) {
+    if (item.querySelector('.wod-gal-catsel')) return;
+    var feed = galleryFeed();
+    if (!feed || !feed[index]) return;
+    var sel = document.createElement('select');
+    sel.className = 'wod-gal-catsel';
+    sel.setAttribute('aria-label', 'Categoría del archivo');
+    GALLERY_CATEGORIES.forEach(function (pair) {
+      var o = document.createElement('option');
+      o.value = pair[0]; o.textContent = pair[1];
+      sel.appendChild(o);
+    });
+    sel.value = feed[index].category || 'realizados';
+    sel.addEventListener('click', function (e) { e.stopPropagation(); });
+    sel.addEventListener('change', function (e) {
+      e.stopPropagation();
+      var next = galleryFeed();
+      if (!next || !next[index]) { sel.remove(); return; }
+      next[index] = Object.assign({}, next[index], { category: sel.value });
+      persistFeed(next);
+    });
+    sel.addEventListener('blur', function () { sel.remove(); });
+    item.appendChild(sel);
+    sel.focus();
+  }
+  function actionButton(icon, label) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    b.innerHTML = '<i data-wo-icon="' + icon + '"></i>';
+    return b;
+  }
+  function enhanceGallery() {
+    var grid = $('gallery-admin-grid');
+    if (!grid) return;
+    var items = grid.querySelectorAll('.gallery-item');
+    Array.prototype.forEach.call(items, function (item, i) {
+      if (item.getAttribute('data-wod-gal') === '1') return;
+      item.setAttribute('data-wod-gal', '1');
+
+      var acts = document.createElement('div');
+      acts.className = 'wod-gal-acts';
+
+      var star = actionButton('star', i === 0 ? 'Ya es el trabajo destacado' : 'Destacar este trabajo');
+      if (i === 0) {
+        star.setAttribute('aria-disabled', 'true');
+        star.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); });
+      } else {
+        star.addEventListener('click', function (e) { e.stopPropagation(); featureGalleryItem(i); });
+      }
+      acts.appendChild(star);
+
+      var pen = actionButton('edit-2', 'Cambiar la categoría del archivo');
+      pen.addEventListener('click', function (e) { e.stopPropagation(); openCategoryEditor(item, i); });
+      acts.appendChild(pen);
+
+      var del = item.querySelector('.gallery-item-delete');
+      if (del) acts.appendChild(del);
+      item.appendChild(acts);
+
+      if (i === 0) {
+        var flag = document.createElement('span');
+        flag.className = 'wod-gal-flag';
+        flag.setAttribute('aria-hidden', 'true');
+        flag.textContent = '★';
+        item.appendChild(flag);
+
+        var badge = item.querySelector('.gallery-category-badge');
+        var cap = document.createElement('div');
+        cap.className = 'wod-gal-caption';
+        cap.innerHTML = '<span class="wod-gal-captxt">' +
+          esc(((badge && badge.textContent) || 'Trabajo') + ' — destacado') + '</span>';
+        item.appendChild(cap);
+      }
+    });
+
+    // dashboard.js emite un slot vacío por hueco libre; el Figma dibuja una
+    // sola dropzone "SUBIR MÁS" (el resto se oculta por CSS).
+    var slot = grid.querySelector('.gallery-item-slot');
+    if (slot && slot.getAttribute('data-wod-gal') !== '1') {
+      slot.setAttribute('data-wod-gal', '1');
+      slot.removeAttribute('aria-hidden');
+      slot.setAttribute('role', 'button');
+      slot.setAttribute('tabindex', '0');
+      slot.setAttribute('aria-label', 'Subir más archivos');
+      slot.innerHTML = '<i data-wo-icon="image"></i><span class="wo-meta-s">SUBIR MÁS</span>';
+      var pick = function (e) {
+        e.stopPropagation();
+        var input = $('gallery-input');
+        if (input) input.click();
+      };
+      slot.addEventListener('click', pick);
+      slot.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); }
+      });
+    }
+
+    if (window.WoIcons) window.WoIcons.hydrate(grid);
+  }
+  var galleryWatched = false;
   function watchGalleryCount() {
     var grid = $('gallery-admin-grid'), out = $('wod-gallery-count');
-    if (!grid || !out) return;
+    if (!grid || galleryWatched) return;
+    galleryWatched = true;
     var apply = function () {
-      var n = grid.querySelectorAll('.gallery-item').length;
-      out.textContent = '— ' + n;
+      if (out) out.textContent = '— ' + grid.querySelectorAll('.gallery-item').length;
+      enhanceGallery();
     };
     apply();
     try { new MutationObserver(apply).observe(grid, { childList: true }); } catch (e) { /* opcional */ }
+  }
+
+  /* ---- Botón IMPORTAR INSTAGRAM (lo monta instagram-import.js) ---------- */
+  /* El componente compartido inyecta un ícono de Font Awesome, que esta página
+     no carga, y el label "Importar desde Instagram". El Figma pide el glifo
+     Feather y "IMPORTAR INSTAGRAM": se normaliza acá, sin tocar el módulo. */
+  function enhanceIgTrigger() {
+    var mount = $('ig-import-mount-dashboard');
+    if (!mount) return;
+    var btn = mount.querySelector('.ig-import-trigger');
+    if (!btn || btn.getAttribute('data-wod-ig') === '1') return;
+    btn.setAttribute('data-wod-ig', '1');
+    btn.innerHTML = '<i data-wo-icon="instagram"></i><span>IMPORTAR INSTAGRAM</span>';
+    if (window.WoIcons) window.WoIcons.hydrate(btn);
+  }
+  var igWatched = false;
+  function watchIgTrigger() {
+    var mount = $('ig-import-mount-dashboard');
+    if (!mount || igWatched) return;
+    igWatched = true;
+    enhanceIgTrigger();
+    try { new MutationObserver(enhanceIgTrigger).observe(mount, { childList: true }); } catch (e) { /* opcional */ }
   }
 
   /* ===================================================================== *
@@ -414,6 +785,8 @@
 
     renderHero();
     watchGalleryCount();
+    watchIgTrigger();
+    watchStylesWord();
     wireNotifPanel();
 
     if (!sb || !user) { console.warn('[redesign] missing supabase/user; aborting live layer'); return; }
@@ -441,14 +814,24 @@
     } else if (++tries > 60) { clearInterval(poll); }
   }, 250);
 
+  // El catálogo de monedas carga async: cuando llega (o cuando el usuario
+  // cambia la moneda de visualización) se recalcula INGRESOS con los mismos
+  // datos ya cargados, sin volver a consultar.
+  document.addEventListener('weotzi:currencies-loaded', function () { renderIncome(lastQuotes); });
+  document.addEventListener('weotzi:currency-changed', function () { renderIncome(lastQuotes); });
+
   // El hero (fecha/saludo) y el panel Ö no dependen de datos: apenas el DOM.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       wireNotifPanel();
+      watchIgTrigger();
+      watchStylesWord();
       if (!booted) renderHero();
     });
   } else {
     wireNotifPanel();
+    watchIgTrigger();
+    watchStylesWord();
     if (!booted) renderHero();
   }
 })();

@@ -15,49 +15,86 @@
 </head>
 <body class="wo-app">
 
-    <!-- TopBar -->
+    <!-- TopBar de artista -->
     <header class="wo-topbar">
         <div class="wo-topbar-left">
             <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación de artista">
-                <a href="/artist/dashboard" class="wo-topbar-item">Mi panel</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
+                <a href="/job-board" class="wo-topbar-item">Job board</a>
                 <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/artist/invitations" class="wo-topbar-item is-active" aria-current="page">Invitaciones</a>
-                <a href="/explore" class="wo-topbar-item">Mapa</a>
+                <a href="/calendar" class="wo-topbar-item">Calendario</a>
+                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
+                <span class="wo-topbar-item is-soon" aria-disabled="true">Travel</span>
+                <span class="wo-topbar-item is-soon" aria-disabled="true">Inbox</span>
             </nav>
         </div>
         <div class="wo-topbar-right">
-            <span class="wo-marks" aria-hidden="true">
-                <i class="wo-mark-square"></i><i class="wo-mark-circle"></i><i class="wo-mark-triangle"></i>
-            </span>
+            <button class="wo-btn wo-btn--ghost wo-btn--s inv-menu-toggle" id="inv-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="inv-mobile-menu">
+                Menú
+            </button>
+            <a href="/artist/dashboard" id="auth-nav-btn" class="inv-auth">
+                <span class="wo-o-tile inv-o-tile" aria-hidden="true">Ö</span>
+                <span id="auth-nav-label" class="wo-sr-only">Mi panel</span>
+            </a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono inv-logout hidden" id="auth-logout">Log out</button>
         </div>
     </header>
+    <nav class="inv-mobile-menu" id="inv-mobile-menu" aria-label="Navegación móvil de artista" hidden>
+        <a href="/my-quotations">Cotizaciones</a>
+        <a href="/job-board">Job board</a>
+        <a href="/studio-spots">Spots</a>
+        <a href="/calendar">Calendario</a>
+        <a href="/my-quotations/statistics">Estadísticas</a>
+    </nav>
 
     <main class="wo-container inv-shell">
-        <header class="inv-head">
-            <div>
-                <span class="wo-eyebrow" id="inv-eyebrow">Invitaciones</span>
-                <h1 class="inv-title">Los <span class="wo-highlight">estudios</span> que te quieren en su equipo.</h1>
-                <p class="inv-sub">
-                    Aceptá para sumarte al roster del estudio: vas a aparecer en su perfil público y en el mapa.
-                    Tu perfil personal sigue siendo tuyo — el estudio no puede editarlo.
-                </p>
-            </div>
-            <div class="inv-count">
-                <span class="inv-count-num" id="inv-count">0</span>
-                <span class="wo-meta-s wo-faint">Invitaciones abiertas</span>
-            </div>
-        </header>
 
-        <section aria-label="Invitaciones pendientes">
+        <!-- Vista 1 · Listado -->
+        <div id="inv-feed-view">
+            <header class="inv-head">
+                <div>
+                    <span class="wo-eyebrow" id="inv-eyebrow">Invitaciones</span>
+                    <h1 class="inv-title">Los <span class="wo-highlight">estudios</span> que te quieren en su equipo.</h1>
+                    <p class="inv-sub" id="inv-sub">Cargando…</p>
+                </div>
+                <div class="inv-count">
+                    <span class="inv-count-num" id="inv-count">00</span>
+                    <span class="wo-meta-s wo-faint">Invitaciones abiertas</span>
+                </div>
+                <nav class="inv-index" id="inv-index" aria-label="Índice de estudios"></nav>
+            </header>
+
+            <div class="inv-bar">
+                <div class="inv-tabs" id="inv-tabs" role="tablist" aria-label="Filtrar invitaciones">
+                    <button type="button" class="inv-tab is-active" data-tab="all" role="tab" aria-selected="true">Todas</button>
+                    <button type="button" class="inv-tab" data-tab="pending" role="tab" aria-selected="false">Pendientes</button>
+                    <button type="button" class="inv-tab" data-tab="active" role="tab" aria-selected="false">Aceptadas</button>
+                    <button type="button" class="inv-tab" data-tab="rejected" role="tab" aria-selected="false">Rechazadas</button>
+                </div>
+                <span class="inv-bar-sep" aria-hidden="true"></span>
+                <select class="wo-select inv-sort" id="inv-sort" aria-label="Ordenar invitaciones">
+                    <option value="recent">Ordenar · más recientes</option>
+                    <option value="oldest">Ordenar · más antiguas</option>
+                    <option value="studio">Ordenar · estudio A–Z</option>
+                </select>
+                <input type="search" class="wo-input inv-search" id="inv-search" placeholder="Buscar estudio o ciudad" aria-label="Buscar estudio o ciudad" autocomplete="off">
+                <span class="inv-bar-sep" aria-hidden="true"></span>
+                <div class="inv-legend" aria-hidden="true">
+                    <span><i class="inv-dot inv-dot--pending"></i>Pendiente</span>
+                    <span><i class="inv-dot inv-dot--active"></i>Aceptada</span>
+                    <span><i class="inv-dot inv-dot--rejected"></i>Rechazada</span>
+                </div>
+                <a class="inv-map-btn" href="/explore">
+                    <i data-wo-icon="map" class="wo-icon-18" aria-hidden="true"></i> Mapa de estudios
+                </a>
+            </div>
+
             <div id="invitations-list" class="inv-list"><em class="wo-muted">Cargando…</em></div>
-        </section>
+        </div>
 
-        <section class="inv-section" aria-label="Membresías activas">
-            <hr class="wo-divider wo-divider--strong">
-            <h2 class="wo-h2 inv-h2">Membresías activas</h2>
-            <div id="active-list"><em class="wo-muted">Cargando…</em></div>
-        </section>
+        <!-- Vista 2 · Detalle de la invitación -->
+        <div id="inv-detail-view" class="inv-detail hidden"></div>
     </main>
 
     <script src="/shared/js/config-manager.js"></script>

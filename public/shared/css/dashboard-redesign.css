@@ -1882,8 +1882,11 @@ body.wod-profile-details-page .wod-footer {
   .wod-cols-cotiz { grid-template-columns: 40px 1fr 110px 110px 110px; }
   .wod-cotiz__body { display: none; }
 
-  /* Agenda → 2-up card grid */
-  #wod-agenda-rows { display: grid; grid-template-columns: 1fr 1fr; }
+  /* Agenda → 2-up card grid.
+     El contenedor #wod-agenda-rows YA NO se estilea acá: el markup `.wod-trow`
+     de esta variante no existe más y la regla convertía la agenda del rediseño
+     en una grilla de 2 columnas por debajo de 768px (filas partidas al medio).
+     Las reglas `.wod-*` que siguen quedan inertes: ningún markup las usa. */
   .wod-thead.wod-cols-agenda { display: none; }
   .wod-trow.wod-cols-agenda {
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
@@ -2197,15 +2200,6 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-topbar .wo-topbar-item { font-family: var(--font-body); font-weight: var(--weight-bold); font-size: 12px; letter-spacing: 0.1em; }
 .wo-dash-topbar .wo-topbar-item.is-disabled { cursor: default; opacity: var(--opacity-muted); }
 .wo-dash-topbar .wo-topbar-item.is-disabled:hover { color: var(--neutral-400); border-bottom-color: transparent; }
-.wo-dash-soon {
-  margin-left: var(--space-2);
-  padding: 2px 6px;
-  background: var(--neutral-500);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-}
 .wo-dash-navcount {
   margin-left: var(--space-2);
   min-width: 18px;
@@ -2259,7 +2253,13 @@ body.wod-profile-details-page .wod-footer {
 
 /* ---- Hero / saludo -------------------------------------------------------- */
 .wo-dash-hero { padding: var(--space-12) 0 var(--space-10); }
-.wo-dash-hero-date { margin: 0 0 var(--space-5); }
+/* Figma: mono 16px sobre --text-faint (no --text-muted 12px). */
+.wo-dash-hero-date {
+  margin: 0 0 var(--space-5);
+  font-size: 16px;
+  letter-spacing: var(--meta-m-track);
+  color: var(--text-faint);
+}
 .wo-dash-hero-title {
   margin: 0;
   font-family: var(--font-display);
@@ -2298,6 +2298,18 @@ body.wod-profile-details-page .wod-footer {
   white-space: nowrap;
 }
 .wo-dash-seclink:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+.wo-dash-sechead--tight { margin-bottom: var(--space-4); }
+
+/* ---- Fila de 2 columnas: Cotizaciones (izq) + Actividad reciente (der) ----- */
+/* Figma: una sola fila dentro de la columna principal, alineadas por su línea
+   de base superior; izquierda ~65 % del ancho, derecha ~35 %. */
+.wo-dash-row2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  gap: var(--space-10);
+  align-items: start;
+}
+.wo-dash-row2 > .wo-dash-section { padding-top: var(--space-6); }
 
 /* ---- Agenda del día ------------------------------------------------------- */
 .wo-dash-agendarow {
@@ -2320,6 +2332,14 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-agendawho { font-family: var(--font-body); font-weight: var(--weight-bold); font-size: 20px; color: var(--ink); }
 .wo-dash-agendadetail { margin-top: var(--space-1); font-size: var(--body-m-size); color: var(--text-muted); }
 .wo-dash-agendameta { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+/* Duración real de la sesión (quotation_sessions.duration_hours): 3H / 45M. */
+.wo-dash-agendadur {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: var(--meta-m-track);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
 .wo-dash-state {
   display: inline-flex;
   align-items: center;
@@ -2333,6 +2353,61 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-state.is-ok { background: var(--status-success-bg); color: var(--status-success-fg); }
 .wo-dash-state.is-warn { background: var(--status-warning-bg); color: var(--status-warning-fg); }
 .wod-empty { padding: var(--space-8) 0; font-size: var(--body-s-size); color: var(--text-muted); }
+
+/* ---- Diseños en proceso --------------------------------------------------- */
+/* Cards derivadas de cotizaciones confirmadas (client_approved / artist_completed)
+   + sus quotation_sessions: avance = sesiones completadas / totales, pie mono con
+   el estado real y la fecha de la próxima sesión. */
+.wo-dash-designs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-10);
+}
+.wo-dash-design { min-width: 0; }
+.wo-dash-design-media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--surface-media);
+  border: var(--border-hairline) solid var(--ink);
+  color: var(--neutral-500);
+}
+.wo-dash-design-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wo-dash-design-media [data-wo-icon] { width: 38px; height: 38px; }
+.wo-dash-design-title {
+  margin: var(--space-4) 0 0;
+  font-family: var(--font-body);
+  font-weight: var(--weight-bold);
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.wo-dash-design-client { margin: var(--space-2) 0 0; font-size: 17px; color: var(--text-muted); }
+.wo-dash-design-track {
+  margin-top: var(--space-5);
+  height: 10px;
+  background: var(--neutral-200);
+  overflow: hidden;
+}
+.wo-dash-design-fill { height: 100%; width: 0; background: var(--yellow-300); }
+.wo-dash-design-fill.is-ready { background: var(--system-success); }
+.wo-dash-design-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: var(--meta-m-track);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.wo-dash-design-foot > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Stats de Cotizaciones ------------------------------------------------ */
 .wo-dash-quotestats {
@@ -2368,8 +2443,9 @@ body.wod-profile-details-page .wod-footer {
 }
 
 /* ---- Rail derecho --------------------------------------------------------- */
+/* La VerticalBorder del Figma es ink, no un hairline de arena. */
 .wo-dash-rail {
-  border-left: var(--border-hairline) solid var(--border-subtle);
+  border-left: var(--border-hairline) solid var(--ink);
   padding: var(--space-2) 0 var(--space-8) var(--space-10);
   min-width: 0;
 }
@@ -2423,13 +2499,40 @@ body.wod-profile-details-page .wod-footer {
 }
 .wo-dash-profile-edit:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 
+/* Ingresos · suma real de final_budget_amount de cotizaciones completadas */
+.wo-dash-income[hidden] { display: none !important; }
+.wo-dash-income { margin-bottom: var(--space-8); }
+.wo-dash-income-cap { display: block; margin: 0 0 var(--space-4); color: var(--text-faint); }
+.wo-dash-income-total {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(44px, 4.6vw, 69px);
+  line-height: 0.95;
+  color: var(--system-success);
+  overflow-wrap: anywhere;
+}
+.wo-dash-income-split { display: flex; align-items: flex-start; gap: var(--space-8); margin-top: var(--space-5); }
+.wo-dash-income-cell { min-width: 0; }
+.wo-dash-income-cell + .wo-dash-income-cell {
+  padding-left: var(--space-8);
+  border-left: var(--border-hairline) solid var(--border-subtle);
+}
+.wo-dash-income-sub {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1;
+  color: var(--ink);
+}
+.wo-dash-income-lbl { display: block; margin: var(--space-3) 0 0; color: var(--text-faint); }
+
 /* Acciones rápidas */
-.wo-dash-quick .wo-eyebrow { display: block; margin: 0 0 var(--space-4); }
+.wo-dash-quick .wo-eyebrow { display: block; margin: 0 0 var(--space-4); color: var(--text-faint); }
 .wo-dash-quick-list { display: flex; flex-direction: column; gap: var(--space-3); }
-.wo-dash-quick-list .wo-btn { justify-content: flex-start; gap: var(--space-3); text-align: left; }
+.wo-dash-quick-list .wo-btn { justify-content: center; gap: var(--space-3); }
 .wo-dash-quick-list .wo-btn svg { width: 18px; height: 18px; flex: none; }
-.wo-dash-quick-danger { color: var(--text-danger); }
-.wo-dash-quick-danger:hover { color: var(--text-danger); }
+.wo-app .wo-dash-quick-list a.wo-btn { color: var(--action-ghost-fg); text-decoration: none; }
+.wo-app .wo-dash-quick-list a.wo-btn:hover { color: var(--action-ghost-fg); text-decoration: none; }
 
 /* ---- Galería de trabajos -------------------------------------------------- */
 .wo-dash-gallery { padding: var(--space-8) 0 var(--space-10); }
@@ -2452,7 +2555,27 @@ body.wod-profile-details-page .wod-footer {
 }
 .wo-dash-gallery-count { font-family: var(--font-mono); font-size: 0.62em; color: var(--text-faint); font-weight: var(--weight-regular); }
 .wo-dash-gallery-tools { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.wo-dash-gallery-select { width: auto; min-height: var(--control-h-sm); padding-top: var(--space-2); padding-bottom: var(--space-2); background-color: var(--white); }
+/* Botón que monta instagram-import.js: crema con borde ink, Inter bold uppercase
+   (el ícono lo reemplaza dashboard-redesign.js por el Feather `instagram`). */
+.wo-dash-gallery-tools .ig-import-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  min-height: var(--control-h-md);
+  background: var(--surface-page);
+  border: var(--border-hairline) solid var(--ink);
+  border-radius: var(--radius-none);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: var(--weight-bold);
+  font-size: 18px;
+  letter-spacing: var(--button-m-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.wo-dash-gallery-tools .ig-import-trigger:hover { background: var(--neutral-200); color: var(--ink); }
+.wo-dash-gallery-tools .ig-import-trigger svg { width: 22px; height: 22px; flex: none; }
 .wo-dash-gallery-stage { background: var(--surface-dark); }
 .wo-dash-gallery-bar {
   display: flex;
@@ -2465,19 +2588,25 @@ body.wod-profile-details-page .wod-footer {
   flex-wrap: wrap;
 }
 .wo-dash-gallery-hint { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-accent); }
-.wo-dash-gallery-grid {
+/* Grilla del Figma: 4 columnas, celdas 2:1, primera card destacada 2×2 y la
+   dropzone SUBIR MÁS + la card "subiendo" DENTRO de la grilla. `display:contents`
+   sobre #gallery-admin-grid deja que sus celdas y el bloque de progreso compartan
+   el mismo grid sin tocar el innerHTML que reescribe dashboard.js. */
+.wo-dash-gallery-cells {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
   padding: var(--space-8);
 }
+.wo-dash-gallery-grid { display: contents; }
 .wo-dash-gallery-grid .gallery-item {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 2 / 1;
   background: var(--neutral-400);
   overflow: hidden;
   cursor: pointer;
 }
+.wo-dash-gallery-grid .gallery-item:first-child { grid-column: span 2; grid-row: span 2; }
 .wo-dash-gallery-grid .gallery-item img,
 .wo-dash-gallery-grid .gallery-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .wo-dash-gallery-grid .gallery-item::after {
@@ -2522,32 +2651,125 @@ body.wod-profile-details-page .wod-footer {
   font-size: 22px;
   pointer-events: none;
 }
-.wo-dash-gallery-grid .gallery-item-delete {
+/* Bandera de esquina ★ + caption de la card destacada (Figma) */
+.wo-dash-gallery-grid .wod-gal-flag {
   position: absolute;
-  left: var(--space-2);
-  top: var(--space-2);
-  z-index: 2;
-  width: 28px;
-  height: 28px;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: var(--corner-flag-sm);
+  height: var(--corner-flag-sm);
   display: grid;
   place-items: center;
-  padding: 0;
-  background: var(--neutral-500);
+  padding-right: var(--space-3);
+  padding-bottom: var(--space-3);
+  background: var(--yellow-300);
+  color: var(--neutral-500);
+  font-size: 18px;
+  line-height: 1;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  pointer-events: none;
+}
+.wo-dash-gallery-grid .wod-gal-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-5) var(--space-5);
+  background: var(--protection-bottom);
+  pointer-events: none;
+}
+.wo-dash-gallery-grid .wod-gal-captxt {
+  min-width: 0;
+  font-family: var(--font-body);
+  font-weight: var(--weight-bold);
+  font-size: 17px;
   color: var(--neutral-100);
-  border: var(--border-hairline) solid var(--neutral-100);
-  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* En la card destacada la categoría ya viaja en el caption. */
+.wo-dash-gallery-grid .gallery-item:first-child .gallery-category-badge { display: none; }
+
+/* Cluster de acciones abajo-derecha (destacar · categoría · eliminar) */
+.wo-dash-gallery-grid .wod-gal-acts {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 4;
+  display: flex;
+  gap: var(--space-1);
   opacity: 0;
   transition: opacity var(--duration-press);
 }
-.wo-dash-gallery-grid .gallery-item:hover .gallery-item-delete,
-.wo-dash-gallery-grid .gallery-item-delete:focus-visible { opacity: 1; }
-.wo-dash-gallery-grid .gallery-item-slot {
-  aspect-ratio: 4 / 3;
-  border: var(--border-hairline) dashed var(--dark-rule);
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235A5449' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5' y1='12' x2='19' y2='12'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
+.wo-dash-gallery-grid .gallery-item:hover .wod-gal-acts,
+.wo-dash-gallery-grid .gallery-item:focus-within .wod-gal-acts,
+.wo-dash-gallery-grid .gallery-item:first-child .wod-gal-acts { opacity: 1; }
+.wo-dash-gallery-grid .wod-gal-acts button {
+  width: 30px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--neutral-100);
+  color: var(--neutral-500);
+  border: var(--border-hairline) solid var(--neutral-500);
+  cursor: pointer;
 }
+.wo-dash-gallery-grid .wod-gal-acts button:hover { background: var(--yellow-300); }
+.wo-dash-gallery-grid .wod-gal-acts button[aria-disabled="true"] { background: var(--yellow-300); cursor: default; }
+.wo-dash-gallery-grid .wod-gal-acts svg { width: 15px; height: 15px; }
+.wo-dash-gallery-grid .gallery-item-delete {
+  position: static;
+  width: 30px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--neutral-100);
+  color: var(--neutral-500);
+  border: var(--border-hairline) solid var(--neutral-500);
+  cursor: pointer;
+  opacity: 1;
+}
+.wo-dash-gallery-grid .gallery-item-delete:hover { background: var(--red-300); color: var(--white); }
+
+/* Selector de categoría en la card (acción del lápiz) */
+.wo-dash-gallery-grid .wod-gal-catsel {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 5;
+  max-width: calc(100% - var(--space-16));
+  padding: var(--space-1) var(--space-2);
+  background: var(--neutral-100);
+  color: var(--neutral-500);
+  border: var(--border-hairline) solid var(--neutral-500);
+  border-radius: var(--radius-none);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Dropzone SUBIR MÁS: una sola celda punteada amarilla dentro de la grilla.
+   dashboard.js emite un slot por hueco libre; el Figma dibuja uno solo. */
+.wo-dash-gallery-grid .gallery-item-slot {
+  aspect-ratio: 2 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: var(--border-hairline) dashed var(--yellow-300);
+  color: var(--yellow-300);
+  background: transparent;
+  cursor: pointer;
+}
+.wo-dash-gallery-grid .gallery-item-slot ~ .gallery-item-slot { display: none; }
+.wo-dash-gallery-grid .gallery-item-slot svg { width: 24px; height: 24px; }
 .wo-dash-gallery-grid #gallery-empty {
   grid-column: 1 / -1;
   padding: var(--space-16) var(--space-6);
@@ -2556,20 +2778,39 @@ body.wod-profile-details-page .wod-footer {
   font-family: var(--font-mono);
   font-size: var(--body-s-size);
 }
-.wo-dash-gallery-stage .gallery-admin-loading { padding: 0 var(--space-8) var(--space-8); }
-.wo-dash-gallery-stage .gallery-upload-progress-header {
+
+/* Card "subiendo" · celda propia de la grilla, no un bloque debajo (Figma) */
+.wo-dash-gallery-cells .gallery-admin-loading {
+  position: relative;
+  aspect-ratio: 2 / 1;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--neutral-400);
   color: var(--neutral-100);
-  margin-bottom: var(--space-2);
+  text-align: center;
 }
-.wo-dash-gallery-stage .gallery-progress-track {
-  height: 6px;
-  border: var(--border-hairline) solid var(--neutral-100);
-  background: var(--neutral-500);
+.wo-dash-gallery-cells .gallery-admin-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--surface-ink);
+  opacity: var(--opacity-muted);
+}
+.wo-dash-gallery-cells .gallery-admin-loading > * { position: relative; }
+.wo-dash-gallery-cells .gallery-upload-label { display: none; }
+.wo-dash-gallery-cells .gallery-upload-spinner { border-color: var(--dark-rule); border-top-color: var(--neutral-100); flex: none; }
+.wo-dash-gallery-cells .gallery-upload-counter { color: var(--neutral-100); }
+.wo-dash-gallery-cells .gallery-progress-track {
+  width: 60%;
+  height: 5px;
+  background: var(--neutral-200);
   overflow: hidden;
 }
-.wo-dash-gallery-stage .gallery-progress-fill { height: 100%; width: 0; background: var(--yellow-300); transition: width var(--duration-fast) var(--ease-standard); }
+.wo-dash-gallery-cells .gallery-progress-fill { height: 100%; width: 0; background: var(--blue-400); transition: width var(--duration-fast) var(--ease-standard); }
 
 /* ---- CTA · subí tu trabajo ------------------------------------------------ */
 .wo-dash-cta { background: var(--surface-dark); padding: var(--space-16) 0; }
@@ -2630,10 +2871,19 @@ body.wod-profile-details-page .wod-footer {
 .qr-canvas-wrapper { display: grid; place-items: center; margin: var(--space-4) auto; }
 
 /* ---- Responsive ----------------------------------------------------------- */
+/* La nav completa (7 items) + marca + cluster derecho no entra por debajo de
+   ~1100px: el .wo-topbar del DS degrada a scroll horizontal y deja LOG OUT
+   fuera de vista. Acá pasamos antes al menú de hamburguesa. */
+@media (max-width: 1100px) {
+  .wo-dash-topbar .wo-topbar-nav { display: none; }
+  .wo-dash-burger { display: inline-flex; }
+}
 @media (max-width: 1024px) {
   .wo-dash-layout { grid-template-columns: 1fr; gap: var(--space-8); }
   .wo-dash-rail { border-left: none; border-top: var(--border-strong-width) solid var(--border-strong); padding: var(--space-8) 0 0; }
-  .wo-dash-gallery-grid { grid-template-columns: repeat(3, 1fr); }
+  .wo-dash-gallery-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wo-dash-row2 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--space-8); }
+  .wo-dash-designs { gap: var(--space-6); }
 }
 @media (max-width: 768px) {
   .wo-dash-burger { display: inline-flex; }
@@ -2642,7 +2892,9 @@ body.wod-profile-details-page .wod-footer {
   .wo-dash-agendahour { font-size: 26px; }
   .wo-dash-agendameta { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
   .wo-dash-quotestat { padding: var(--space-4) var(--space-5); }
-  .wo-dash-gallery-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-2); padding: var(--space-4); }
+  .wo-dash-row2 { grid-template-columns: 1fr; gap: var(--space-2); }
+  .wo-dash-designs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wo-dash-gallery-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-4); }
   .wo-dash-gallery-head, .wo-dash-gallery-bar { padding-left: var(--space-4); padding-right: var(--space-4); }
   .wo-dash-footer-frame { padding: var(--space-8) var(--space-5) var(--space-5); }
   .wo-dash-footer-cols { grid-template-columns: 1fr 1fr; gap: var(--space-6); }
@@ -2658,6 +2910,16 @@ body.wod-profile-details-page .wod-footer {
   .wo-dash-quotestat:first-child { border-top: none; }
   .wo-dash-footer-cols { grid-template-columns: 1fr; }
   .wo-dash-mobilemenu { top: 56px; }
+  /* Sin scroll horizontal en 375px: topbar compacta, una columna en diseños
+     y en la galería. */
+  .wo-dash-topbar .wo-topbar-brand { font-size: 16px; }
+  .wo-dash-topbar .wo-topbar-right { gap: var(--space-2); }
+  .wo-dash-logout { padding: var(--space-3); }
+  .wo-dash-designs { grid-template-columns: 1fr; gap: var(--space-8); }
+  .wo-dash-gallery-cells { grid-template-columns: 1fr; }
+  .wo-dash-gallery-grid .gallery-item:first-child { grid-column: span 1; grid-row: span 1; }
+  .wo-dash-gallery-tools .ig-import-trigger { width: 100%; justify-content: center; font-size: 15px; }
+  .wo-dash-income-total { font-size: 48px; }
 }
 
 /* ---- Overrides de color de links bajo .wo-app (gana a `.wo-app a`) -------- */

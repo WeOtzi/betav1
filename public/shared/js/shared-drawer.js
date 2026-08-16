@@ -688,6 +688,131 @@ const STATUS_LABELS = {
     'expired': 'EXPIRADA'
 };
 
+// Familias de color del Figma para el badge de estado (pendiente / respondida /
+// confirmada / rechazada / vencida). Comparte las clases .q-status de quotations.css.
+const STATUS_TONES = {
+    'pending': 'pending',
+    'responded': 'responded',
+    'client_approved': 'confirmed',
+    'in_progress': 'confirmed',
+    'artist_completed': 'confirmed',
+    'completed': 'confirmed',
+    'client_rejected': 'rejected',
+    'expired': 'expired'
+};
+
+const DRAWER_MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function drawerEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function drawerInitials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '··';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function drawerShortDate(isoString) {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    return `${String(date.getDate()).padStart(2, '0')} ${DRAWER_MONTHS[date.getMonth()]}`;
+}
+
+// Cabecera del drawer (Figma 26-cotizaciones): avatar + nombre + ciudad + estado + fecha.
+function renderDrawerHead(quote) {
+    const tone = STATUS_TONES[quote.quote_status] || 'expired';
+    const label = STATUS_LABELS[quote.quote_status] || quote.quote_status || '';
+    const city = quote.client_city_residence;
+    return `
+        <div class="drawer-head">
+            <span class="drawer-avatar" aria-hidden="true">${drawerEscape(drawerInitials(quote.client_full_name))}</span>
+            <div class="drawer-head-main">
+                <p class="drawer-ref">Expediente · ${drawerEscape(quote.quote_id || quote.id)}</p>
+                <h2 class="drawer-name">${drawerEscape(quote.client_full_name || 'Sin nombre')}</h2>
+                ${city ? `<p class="drawer-place"><i data-wo-icon="map-pin" aria-hidden="true"></i>${drawerEscape(city)}</p>` : ''}
+                <div class="drawer-head-badges">
+                    <span class="q-status q-status--${tone}">${drawerEscape(label)}</span>
+                    <span class="drawer-date">${drawerEscape(drawerShortDate(quote.created_at))}</span>
+                </div>
+            </div>
+        </div>`;
+}
+
+// RESUMEN DEL TATUAJE: ZONA / ESTILO / TAMAÑO + descripción (Figma 26-cotizaciones).
+function renderTattooSummary(quote) {
+    const cells = [
+        ['Zona', quote.tattoo_body_part],
+        ['Estilo', getStyleDisplayName(quote.tattoo_style)],
+        ['Tamaño', quote.tattoo_size]
+    ];
+    return `
+        <div class="drawer-section-title"><span>Resumen del tatuaje</span></div>
+        <div class="summary-grid">
+            ${cells.map(([label, value]) => `
+                <div class="summary-cell">
+                    <span class="summary-label">${drawerEscape(label)}</span>
+                    <span class="summary-value">${drawerEscape(value && value !== 'TBD' ? value : '—')}</span>
+                </div>`).join('')}
+        </div>
+        <p class="summary-desc">${drawerEscape(quote.tattoo_idea_description || 'Sin descripción')}</p>`;
+}
+
+// RESUMEN ECONÓMICO: tiles ink con cifras amarillas (Figma 26-cotizaciones).
+// Precio y sesiones salen de la cotización; la duración se suma de
+// quotation_sessions.duration_hours (única fuente real de horas).
+function renderEconomicSummary(quote, sessions) {
+    const amount = quote.final_budget_amount || quote.artist_budget_amount || quote.client_budget_amount;
+    const currency = quote.final_budget_amount
+        ? (quote.final_budget_currency || 'USD')
+        : (quote.artist_budget_amount ? (quote.artist_budget_currency || 'USD') : (quote.client_budget_currency || 'USD'));
+
+    // El tile del Figma muestra la cifra abreviada ("$185K") para entrar en 410px.
+    let price = '—';
+    if (amount) {
+        const num = parseFloat(amount);
+        if (isFinite(num)) {
+            try {
+                price = new Intl.NumberFormat('es-AR', {
+                    style: 'currency',
+                    currency: (currency || 'USD').toUpperCase(),
+                    notation: 'compact',
+                    maximumFractionDigits: 1
+                }).format(num);
+            } catch (e) {
+                price = `${num} ${currency}`;
+            }
+        } else {
+            price = `${amount} ${currency}`;
+        }
+    }
+
+    const hours = (sessions || []).reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
+    const sessionCount = quote.final_sessions || quote.tattoo_estimated_sessions || (sessions || []).length || '—';
+
+    const tiles = [
+        { value: price, label: 'Precio' },
+        { value: hours > 0 ? `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h` : '—', label: 'Duración' },
+        { value: sessionCount, label: 'Sesiones' }
+    ];
+
+    return `
+        <div class="drawer-section-title"><span>Resumen económico</span></div>
+        <div class="econ-grid">
+            ${tiles.map(t => `
+                <div class="econ-tile">
+                    <span class="econ-value">${drawerEscape(t.value)}</span>
+                    <span class="econ-label">${drawerEscape(t.label)}</span>
+                </div>`).join('')}
+        </div>`;
+}
+
 window.updateQuoteStatus = async function(quoteId, newStatus) {
     try {
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
@@ -2212,33 +2337,21 @@ window.inspectQuote = async function(quoteId, options = {}) {
     }
     
     drawerContent.innerHTML = `
-        <div class="shape-decor"></div>
-        <div style="margin-bottom: 2rem;">
-            <p style="font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); margin: 0 0 0.5rem;">Expediente · ${quote.quote_id || quote.id}</p>
-            <div class="status-priority-row">
-                <select onchange="updateQuoteStatus('${quote.id}', this.value)" class="status-dropdown" ${readOnly ? 'disabled' : ''}>
-                    <option value="${quote.quote_status}" selected>${STATUS_LABELS[quote.quote_status] || quote.quote_status.toUpperCase()}</option>
-                    ${(VALID_STATUS_TRANSITIONS[quote.quote_status] || []).map(s => `<option value="${s}">${STATUS_LABELS[s] || s.toUpperCase()}</option>`).join('')}
-                </select>
-                <select onchange="updateQuotePriority('${quote.id}', this.value)" class="priority-dropdown priority-${currentPriority}" ${readOnly ? 'disabled' : ''}>
-                    <option value="low" ${currentPriority === 'low' ? 'selected' : ''}>BAJA</option>
-                    <option value="medium" ${currentPriority === 'medium' ? 'selected' : ''}>MEDIA</option>
-                    <option value="high" ${currentPriority === 'high' ? 'selected' : ''}>ALTA</option>
-                </select>
-            </div>
+        ${renderDrawerHead(quote)}
+        <div class="status-priority-row" style="margin-bottom: 2rem;">
+            <select onchange="updateQuoteStatus('${quote.id}', this.value)" class="status-dropdown" aria-label="Estado de la cotización" ${readOnly ? 'disabled' : ''}>
+                <option value="${quote.quote_status}" selected>${STATUS_LABELS[quote.quote_status] || quote.quote_status.toUpperCase()}</option>
+                ${(VALID_STATUS_TRANSITIONS[quote.quote_status] || []).map(s => `<option value="${s}">${STATUS_LABELS[s] || s.toUpperCase()}</option>`).join('')}
+            </select>
+            <select onchange="updateQuotePriority('${quote.id}', this.value)" class="priority-dropdown priority-${currentPriority}" aria-label="Prioridad" ${readOnly ? 'disabled' : ''}>
+                <option value="low" ${currentPriority === 'low' ? 'selected' : ''}>BAJA</option>
+                <option value="medium" ${currentPriority === 'medium' ? 'selected' : ''}>MEDIA</option>
+                <option value="high" ${currentPriority === 'high' ? 'selected' : ''}>ALTA</option>
+            </select>
         </div>
         ${renderQuoteTimeline(quote)}
-        <h2 style="margin-bottom: 2rem;">Expediente de cotización</h2>
-        <div class="info-grid" style="gap: 2rem 1.5rem; margin-bottom: 2rem;">
-            <div class="info-block"><label>Cliente</label><p>${quote.client_full_name || '—'}</p></div>
-            <div class="info-block"><label>Presupuesto del cliente</label><p>${quote.client_budget_amount ? `${quote.client_budget_amount} ${quote.client_budget_currency || ''}` : '—'}</p></div>
-            <div class="info-block"><label>Tu presupuesto</label><p>${quote.artist_budget_amount ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady() ? window.WeOtziCurrency.formatInline(quote.artist_budget_amount, quote.artist_budget_currency || 'USD') : `${quote.artist_budget_amount} ${quote.artist_budget_currency || ''}`) : '—'}</p></div>
-            <div class="info-block"><label>Sesiones</label><p>${quote.tattoo_estimated_sessions || '—'}</p></div>
-            <div class="info-block"><label>Zona del cuerpo</label><p>${quote.tattoo_body_part || '—'}</p></div>
-            <div class="info-block"><label>Estilo</label><p>${getStyleDisplayName(quote.tattoo_style)}</p></div>
-            <div class="info-block"><label>Ubicación</label><p>${quote.client_city_residence || '—'}</p></div>
-            <div class="info-block"><label>Fecha deseada</label><p>${quote.client_preferred_date || 'Flexible'}</p></div>
-        </div>
+        ${renderTattooSummary(quote)}
+        ${renderEconomicSummary(quote, currentQuoteSessions)}
         ${quote.final_budget_amount ? `
         <div class="info-block" style="margin-top: 2rem; padding: 1.5rem; background: var(--yellow-300); border-radius: 0;">
             <label style="color: var(--neutral-500); margin-bottom: 0.75rem;">PRESUPUESTO FINAL APROBADO</label>
@@ -2248,14 +2361,14 @@ window.inspectQuote = async function(quoteId, options = {}) {
         </div>
         ` : ''}
         ${quote.quote_status === 'completed' ? renderSessionsSection(quote.id, currentQuoteSessions, readOnly) : ''}
-        <div class="info-block" style="margin-top: 2.5rem;"><label style="margin-bottom: 0.75rem;">Idea del Tatuaje</label><p style="font-weight: 400; border-left: 4px solid var(--yellow-300); padding-left: 1rem;">"${quote.tattoo_idea_description || 'No description provided.'}"</p></div>
-        
         <button class="action-btn expand-info-btn" onclick="toggleAdditionalQuoteInfo()" id="expand-quote-info-btn" style="width: 100%; margin-top: 2rem; font-family: var(--font-mono); font-size: 0.75rem;">
             Ampliar información
         </button>
-        
+
         <div id="additional-quote-info" class="additional-info-section" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background: rgba(0,0,0,0.02); border: 2px dashed var(--neutral-500);">
             <div class="info-grid" style="gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="info-block"><label>Presupuesto del cliente</label><p>${quote.client_budget_amount ? `${quote.client_budget_amount} ${quote.client_budget_currency || ''}` : '—'}</p></div>
+                <div class="info-block"><label>Fecha deseada</label><p>${quote.client_preferred_date || 'Flexible'}</p></div>
                 <div class="info-block"><label>Email</label><p>${quote.client_email || '-'}</p></div>
                 <div class="info-block"><label>WhatsApp</label><p>${quote.client_whatsapp || '-'}</p></div>
                 <div class="info-block"><label>Instagram</label><p>${quote.client_instagram || '-'}</p></div>

@@ -17,6 +17,8 @@ let currentQuotations = [];
 let currentFilter = 'all';
 let currentQuotationId = null;
 let chatChannel = null;
+// Total de mensajes del artista sin leer (contador "Mensajes nuevos" del Figma)
+let unreadMessagesTotal = 0;
 
 // ============================================
 // Initialization
@@ -29,6 +31,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load data
     await loadClientProfile();
     await loadQuotations();
+
+    // Job board: alimenta "Publicaciones activas" / "Propuestas recibidas"
+    // aunque el panel de solicitudes esté colapsado.
+    await loadJobBoardRequests();
+    updateStats();
+
+    // Feed de actividad + artistas sugeridos (bloques del Figma del dashboard)
+    loadActivityFeed();
+    loadSuggestedArtists();
 
     // Setup realtime subscriptions
     setupRealtimeSubscriptions();
@@ -113,28 +124,8 @@ async function linkQuotationsByEmail(userId, email) {
 async function loadClientProfile() {
     if (!currentClient) return;
 
-    // Update profile display
-    const nameEl = document.getElementById('profile-name');
-    const emailEl = document.getElementById('profile-email');
-    const avatarEl = document.getElementById('profile-avatar');
-
-    if (nameEl) nameEl.textContent = currentClient.full_name || 'Cliente';
-    if (emailEl) {
-        const publicParts = [
-            currentClient.public_username ? `@${currentClient.public_username}` : currentClient.email,
-            currentClient.country || ''
-        ].filter(Boolean);
-        emailEl.textContent = publicParts.join(' · ');
-    }
-
-    if (avatarEl) {
-        if (currentClient.profile_picture) {
-            avatarEl.innerHTML = `<img src="${currentClient.profile_picture}" alt="Avatar">`;
-        } else {
-            const initials = getInitials(currentClient.full_name || currentClient.email);
-            avatarEl.innerHTML = `<span class="profile-avatar-placeholder">${initials}</span>`;
-        }
-    }
+    // El Figma del dashboard no tiene card de "Centro de cuenta": el acceso es el
+    // tile Ö de la topbar. Acá sólo se pintan el saludo del hero y ese tile.
 
     // Saludo del hero (voseo, según hora local)
     const greetingEl = document.getElementById('hero-greeting');
@@ -201,21 +192,22 @@ async function loadQuotations() {
 // Update Stats
 // ============================================
 
+// Los 4 contadores del Figma cruzan los dominios del cliente:
+// cotizaciones · chat · publicaciones del job board · propuestas recibidas.
 function updateStats() {
-    const totalEl = document.getElementById('stat-total');
-    const activeEl = document.getElementById('stat-active');
-    const pendingEl = document.getElementById('stat-pending');
-    const completedEl = document.getElementById('stat-completed');
-    
-    const total = currentQuotations.length;
-    const active = currentQuotations.filter(q => ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'].includes(q.quote_status)).length;
-    const pending = currentQuotations.filter(q => q.quote_status === 'pending').length;
-    const completed = currentQuotations.filter(q => q.quote_status === 'completed').length;
-    
-    if (totalEl) totalEl.textContent = total;
-    if (activeEl) activeEl.textContent = active;
-    if (pendingEl) pendingEl.textContent = pending;
-    if (completedEl) completedEl.textContent = completed;
+    const pendingQuotesEl = document.getElementById('stat-pending-quotes');
+    const newMessagesEl = document.getElementById('stat-new-messages');
+    const activePostsEl = document.getElementById('stat-active-posts');
+    const proposalsEl = document.getElementById('stat-proposals');
+
+    const pendingQuotes = currentQuotations.filter(q => q.quote_status === 'pending').length;
+    const activePosts = jbRequests.filter(r => r.status === 'open' || r.status === 'in_review').length;
+    const proposals = jbRequests.reduce((sum, r) => sum + ((r.job_board_applications || []).length), 0);
+
+    if (pendingQuotesEl) pendingQuotesEl.textContent = pendingQuotes;
+    if (newMessagesEl) newMessagesEl.textContent = unreadMessagesTotal;
+    if (activePostsEl) activePostsEl.textContent = activePosts;
+    if (proposalsEl) proposalsEl.textContent = proposals;
 }
 
 // ============================================
@@ -352,6 +344,8 @@ async function loadUnreadCounts() {
         const quoteIds = currentQuotations.map(q => q.quote_id);
         const counts = await WeotziData.Chat.countUnreadByQuotationIds(quoteIds, 'artist');
 
+        unreadMessagesTotal = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
         for (const quotation of currentQuotations) {
             const count = counts[quotation.quote_id] || 0;
             const badge = document.getElementById(`unread-${quotation.quote_id}`);
@@ -360,8 +354,270 @@ async function loadUnreadCounts() {
                 badge.style.display = 'inline-flex';
             }
         }
+
+        updateStats();
     } catch (error) {
         console.error('Error loading unread counts:', error);
+    }
+}
+
+// ============================================
+// Feed de actividad (columna izquierda de "Tu actividad")
+// Eventos reales: historial de estado de cotizaciones + mensajes del artista
+// sin leer + postulaciones recibidas en el job board. Sin tabla de
+// notificaciones, el feed se deriva de esas tres fuentes.
+// ============================================
+
+const FEED_MAX_ROWS = 4;
+
+function escapeFeedHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// "Hace 2h" / "Hace 1d" — formato mono del Figma.
+function formatRelative(dateStr) {
+    if (!dateStr) return '';
+    const then = new Date(dateStr).getTime();
+    if (Number.isNaN(then)) return '';
+    const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+    if (mins < 1) return 'Recién';
+    if (mins < 60) return `Hace ${mins}m`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `Hace ${hours}h`;
+    const days = Math.round(hours / 24);
+    if (days < 30) return `Hace ${days}d`;
+    const months = Math.round(days / 30);
+    return `Hace ${months}me`;
+}
+
+const FEED_STATUS_EVENTS = {
+    responded: { icon: 'message-square', text: (artist) => `${artist} te respondió tu cotización` },
+    client_approved: { icon: 'check-circle', text: (artist) => `Tu cotización con ${artist} quedó confirmada` },
+    in_progress: { icon: 'check-circle', text: (artist) => `Tu cotización con ${artist} quedó confirmada` },
+    artist_completed: { icon: 'check-circle', text: (artist) => `${artist} marcó tu tatuaje como terminado` },
+    completed: { icon: 'check-circle', text: (artist) => `Tu tatuaje con ${artist} quedó finalizado` }
+};
+
+async function loadActivityFeed() {
+    const container = document.getElementById('activity-feed');
+    if (!container) return;
+
+    try {
+        const events = [];
+        const quoteIds = currentQuotations.map(q => q.quote_id).filter(Boolean);
+        const artistByQuote = {};
+        currentQuotations.forEach(q => { artistByQuote[q.quote_id] = q.artist_name || 'El artista'; });
+
+        if (quoteIds.length) {
+            // Cambios de estado (quotation_status_history)
+            const { data: history } = await WeotziData
+                .from('quotation_status_history')
+                .select('quote_id, new_status, changed_at')
+                .in('quote_id', quoteIds)
+                .order('changed_at', { ascending: false })
+                .limit(30);
+
+            (history || []).forEach(row => {
+                const spec = FEED_STATUS_EVENTS[row.new_status];
+                if (!spec) return;
+                events.push({
+                    at: row.changed_at,
+                    icon: spec.icon,
+                    text: spec.text(artistByQuote[row.quote_id] || 'El artista')
+                });
+            });
+
+            // Mensajes del artista sin leer (chat_messages)
+            const { data: messages } = await WeotziData
+                .from('chat_messages')
+                .select('quotation_id, created_at')
+                .in('quotation_id', quoteIds)
+                .eq('sender_type', 'artist')
+                .eq('is_read', false)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            const seenQuote = new Set();
+            (messages || []).forEach(row => {
+                if (seenQuote.has(row.quotation_id)) return;
+                seenQuote.add(row.quotation_id);
+                events.push({
+                    at: row.created_at,
+                    icon: 'mail',
+                    text: `Nuevo mensaje de ${artistByQuote[row.quotation_id] || 'un artista'}`
+                });
+            });
+        }
+
+        // Postulaciones recibidas en el job board
+        jbRequests.forEach(req => {
+            (req.job_board_applications || []).forEach(app => {
+                events.push({
+                    at: app.created_at,
+                    icon: 'briefcase',
+                    text: 'Recibiste una propuesta en tu publicación'
+                });
+            });
+        });
+
+        renderActivityFeed(events);
+    } catch (error) {
+        console.error('Error loading activity feed:', error);
+        renderActivityFeed([]);
+    }
+}
+
+function renderActivityFeed(events) {
+    const container = document.getElementById('activity-feed');
+    if (!container) return;
+
+    const rows = events
+        .filter(e => e.at)
+        .sort((a, b) => new Date(b.at) - new Date(a.at))
+        .slice(0, FEED_MAX_ROWS);
+
+    if (rows.length === 0) {
+        container.innerHTML = '<p class="client-feed-empty">Todavía no hay movimientos. Cuando un artista te responda o recibas una propuesta, lo vas a ver acá.</p>';
+        return;
+    }
+
+    container.innerHTML = rows.map(row => `
+        <div class="client-feed-row">
+            <span class="client-feed-icon"><i data-wo-icon="${row.icon}"></i></span>
+            <span class="client-feed-text">${escapeFeedHtml(row.text)}</span>
+            <span class="client-feed-time">${escapeFeedHtml(formatRelative(row.at))}</span>
+        </div>
+    `).join('');
+}
+
+// ============================================
+// Artistas para vos
+// Orden real por artist_index (el mismo ranking que usa el marketplace).
+// Badges derivados de datos reales: cercanía por ciudad/país del cliente,
+// guest activo en artist_tattoo_locations y el flag is_recommended.
+// Rating desde public_review_summary (se omite si el artista no tiene reseñas).
+// ============================================
+
+const SUGGESTED_ARTISTS_COUNT = 3;
+const SUGGESTED_SELECT = 'user_id, username, name, profile_picture, styles_array, ' +
+    'city, country, ubicacion, is_recommended, artist_index';
+
+function normalizePlace(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function parseArtistStyles(styles) {
+    if (!styles) return [];
+    if (Array.isArray(styles)) return styles;
+    if (typeof styles === 'string') {
+        try {
+            if (styles.trim().startsWith('[')) return JSON.parse(styles);
+        } catch (e) { /* cae al split */ }
+        return styles.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+async function loadSuggestedArtists() {
+    const section = document.getElementById('artistas-para-vos');
+    const grid = document.getElementById('suggested-artists');
+    if (!section || !grid) return;
+
+    try {
+        const { data: artists, error } = await WeotziData.Artists.listPublic(SUGGESTED_SELECT);
+        if (error) throw error;
+        if (!artists || artists.length === 0) return;
+
+        const ranked = artists
+            .slice()
+            .sort((a, b) => (b.artist_index || 0) - (a.artist_index || 0))
+            .slice(0, SUGGESTED_ARTISTS_COUNT);
+        if (ranked.length === 0) return;
+
+        const userIds = ranked.map(a => a.user_id).filter(Boolean);
+
+        // Guests activos hoy (period_type = 'upcoming' con el rango en curso)
+        const today = new Date().toISOString().slice(0, 10);
+        const guestNow = new Set();
+        if (userIds.length) {
+            const { data: locations } = await WeotziData
+                .from('artist_tattoo_locations')
+                .select('artist_user_id, start_date, end_date')
+                .in('artist_user_id', userIds)
+                .eq('period_type', 'upcoming')
+                .lte('start_date', today)
+                .gte('end_date', today);
+            (locations || []).forEach(l => guestNow.add(l.artist_user_id));
+        }
+
+        // Rating público agregado
+        const ratings = {};
+        if (userIds.length) {
+            const { data: summaries } = await WeotziData
+                .from('public_review_summary')
+                .select('reviewee_user_id, average_rating, review_count')
+                .eq('reviewee_type', 'artist')
+                .in('reviewee_user_id', userIds);
+            (summaries || []).forEach(s => { ratings[s.reviewee_user_id] = s; });
+        }
+
+        const clientCity = normalizePlace(currentClient && currentClient.city_residence);
+        const clientCountry = normalizePlace(currentClient && currentClient.country);
+
+        grid.innerHTML = ranked.map(artist => {
+            const city = (artist.city || (artist.ubicacion || '').split(',')[0] || '').trim();
+            const place = [city, artist.country].filter(Boolean).join(', ');
+            const isNear = (clientCity && normalizePlace(city) === clientCity) ||
+                (clientCountry && normalizePlace(artist.country) === clientCountry);
+
+            let badge = '';
+            if (isNear) badge = '<span class="client-suggested-badge client-suggested-badge--near">Cerca de vos</span>';
+            else if (guestNow.has(artist.user_id)) badge = '<span class="client-suggested-badge client-suggested-badge--guest">Guest artist</span>';
+            else if (artist.is_recommended) badge = '<span class="client-suggested-badge client-suggested-badge--reco">Recomendado</span>';
+
+            const summary = ratings[artist.user_id];
+            const rating = summary && summary.average_rating
+                ? `<span class="client-suggested-rating"><i data-wo-icon="star"></i>${Number(summary.average_rating).toFixed(1)}</span>`
+                : '';
+
+            const styles = parseArtistStyles(artist.styles_array).slice(0, 2)
+                .map(s => `<span class="client-suggested-style">${escapeFeedHtml(s)}</span>`).join('');
+
+            const href = `/artist/profile?artist=${encodeURIComponent(artist.username || '')}`;
+            const name = escapeFeedHtml(artist.name || artist.username || 'Artista');
+
+            return `
+                <a class="client-suggested-card" href="${href}">
+                    <div class="client-suggested-media">
+                        <i data-wo-icon="image" class="client-suggested-ph" aria-hidden="true"></i>
+                        ${artist.profile_picture ? `<img src="${escapeFeedHtml(artist.profile_picture)}" alt="${name}" loading="lazy" onerror="this.remove();">` : ''}
+                        ${badge}
+                    </div>
+                    <div class="client-suggested-head">
+                        <h3 class="client-suggested-name">${name}</h3>
+                        ${rating}
+                    </div>
+                    ${place ? `<p class="client-suggested-place"><i data-wo-icon="map-pin"></i>${escapeFeedHtml(place)}</p>` : ''}
+                    ${styles ? `<div class="client-suggested-styles">${styles}</div>` : ''}
+                </a>
+            `;
+        }).join('');
+
+        section.hidden = false;
+    } catch (error) {
+        console.error('Error loading suggested artists:', error);
+    }
+}
+
+// Abre el widget de soporte (links "Soporte" / "Centro de ayuda" del footer)
+function openSupportChat() {
+    if (window.SupportChat && typeof window.SupportChat.openPanel === 'function') {
+        window.SupportChat.openPanel();
     }
 }
 
@@ -1119,23 +1375,41 @@ document.addEventListener('keydown', (e) => {
 let jbRequests = [];
 let jbCurrentRequest = null;
 
+// El Figma del dashboard no embebe la lista de cotizaciones: se llega desde el
+// nav (COTIZACIONES / JOB BOARD) y desde los contadores. Este helper revela el
+// panel y lo trae a la vista.
+function revealQuotationsPanel() {
+    const panel = document.getElementById('mis-cotizaciones');
+    if (!panel) return;
+    panel.classList.remove('is-collapsed');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // Switch to Job Board tab
 function switchToJobBoard() {
+    revealQuotationsPanel();
+
     // Update tab active states
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector('[data-filter="job-board"]').classList.add('active');
+    const jbTab = document.querySelector('[data-filter="job-board"]');
+    if (jbTab) jbTab.classList.add('active');
 
     // Hide quotations, show JB
-    document.getElementById('quotations-list').style.display = 'none';
-    document.getElementById('jb-requests-list').style.display = 'block';
+    const list = document.getElementById('quotations-list');
+    const jbList = document.getElementById('jb-requests-list');
+    if (list) list.style.display = 'none';
+    if (jbList) jbList.style.display = 'block';
 
     loadJobBoardRequests();
 }
 
 // Switch back to quotations
 function switchToQuotations(filter) {
-    document.getElementById('quotations-list').style.display = 'block';
-    document.getElementById('jb-requests-list').style.display = 'none';
+    revealQuotationsPanel();
+    const list = document.getElementById('quotations-list');
+    const jbList = document.getElementById('jb-requests-list');
+    if (list) list.style.display = 'block';
+    if (jbList) jbList.style.display = 'none';
     filterQuotations(filter);
 }
 
@@ -1182,6 +1456,7 @@ async function loadJobBoardRequests() {
             badge.style.display = 'inline-flex';
         }
 
+        updateStats();
         renderJobBoardRequests();
     } catch (err) {
         console.error('Error loading JB requests:', err);

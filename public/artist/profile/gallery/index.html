@@ -91,34 +91,10 @@
             </div>
         </section>
 
-        <section class="feed-band feed-band--ink feed-stats-band">
-            <div class="feed-shell feed-stats">
-                <div class="statcell">
-                    <strong id="stat-total">0</strong>
-                    <span>Publicaciones</span>
-                </div>
-                <div class="statcell statcell--accent">
-                    <strong id="stat-realizados">0</strong>
-                    <span>Realizados</span>
-                </div>
-                <div class="statcell">
-                    <strong id="stat-flash">0</strong>
-                    <span>Flash</span>
-                </div>
-                <div class="statcell statcell--accent">
-                    <strong id="stat-proyectos">0</strong>
-                    <span>Proyectos</span>
-                </div>
-            </div>
-        </section>
-
-        <section class="feed-band feed-band--ink feed-panel" aria-label="Feed de galería">
+        <section class="feed-band feed-panel" aria-label="Feed de galería">
             <div class="feed-shell">
-                <div class="feed-tabs" role="tablist" aria-label="Categorías de galería">
-                    <button class="feed-tab is-active" id="tab-realizados" role="tab" aria-selected="true" data-category="realizados" type="button">Trabajos realizados</button>
-                    <button class="feed-tab" id="tab-flash" role="tab" aria-selected="false" data-category="flash" type="button">Flash disponibles</button>
-                    <button class="feed-tab" id="tab-proyectos" role="tab" aria-selected="false" data-category="proyectos" type="button">Proyectos</button>
-                </div>
+                <h2 class="feed-panel-title">Portafolio</h2>
+                <div class="feed-chips" id="feed-chips" role="group" aria-label="Filtrar el portafolio"></div>
 
                 <p id="feed-empty" class="feed-empty" style="display:none;">Esta categoría todavía no tiene publicaciones.</p>
                 <div id="feed-grid" class="feed-grid" aria-live="polite"></div>

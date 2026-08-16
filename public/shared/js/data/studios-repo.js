@@ -244,23 +244,41 @@
                 .eq('status', 'active');
         },
 
+        // Columnas de una invitacion/membership vista desde el artista: incluye
+        // `notes` (el mensaje del estudio) y `revenue_split_pct` (la condicion
+        // economica), que la pagina de invitaciones muestra en la card y el detalle.
+        INVITE_COLS:
+            'id, role, status, location_id, invited_at, started_at, ended_at, revenue_split_pct, notes, ' +
+            'studios:studio_id ( id, slug, name, tagline, bio, cover_image, logo_image, photo_feed_items, instagram, website, primary_location_id ), ' +
+            'location:location_id ( id, label, city, country, formatted_address )',
+
         // Invitaciones pendientes de un artista, con estudio y sede embebidos.
-        // Cubre artist-invitations.js:29 (renderPending).
+        // Cubre artist-invitations.js (renderPending).
         listPendingForArtist(artistUserId) {
             return from('studio_artist_memberships')
-                .select('id, role, status, location_id, invited_at, studios:studio_id ( id, slug, name, tagline, cover_image, logo_image, instagram, primary_location_id ), location:location_id ( id, label, city, country, formatted_address )')
+                .select(StudioMemberships.INVITE_COLS)
                 .eq('artist_user_id', artistUserId)
                 .eq('status', 'pending_acceptance')
                 .order('invited_at', { ascending: false });
         },
 
-        // Memberships activas de un artista con datos basicos del estudio. Cubre
-        // artist-invitations.js:75 (renderActive).
+        // Memberships activas de un artista (mismo set de columnas que las
+        // invitaciones: la pagina las muestra como cards del mismo listado).
         listActiveForArtist(artistUserId) {
             return from('studio_artist_memberships')
-                .select('id, role, status, location_id, started_at, studios:studio_id ( id, slug, name, logo_image )')
+                .select(StudioMemberships.INVITE_COLS)
                 .eq('artist_user_id', artistUserId)
                 .eq('status', 'active');
+        },
+
+        // Invitaciones que el artista rechazo (estado 'rejected' del enum de
+        // status). Cubre la pestania RECHAZADAS de artist-invitations.js.
+        listRejectedForArtist(artistUserId) {
+            return from('studio_artist_memberships')
+                .select(StudioMemberships.INVITE_COLS)
+                .eq('artist_user_id', artistUserId)
+                .eq('status', 'rejected')
+                .order('ended_at', { ascending: false });
         },
 
         // Crea una membership directa (al aceptar postulacion). Cubre
@@ -330,10 +348,12 @@
         },
 
         // Directorio publico de spots abiertos con estudio y sede embebidos. Cubre
-        // studio-spots-directory.js:29.
+        // studio-spots-directory.js:29. El embed de studios incluye website,
+        // logo_image y photo_feed_items para la galeria y la fila de redes del
+        // detalle del spot (ref Figma 06).
         listOpenWithStudioAndLocation() {
             return from('studio_spots')
-                .select('id, title, kind, description, styles_wanted, language_requirements, experience_min_years, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, start_date, end_date, weeks_minimum, weeks_maximum, application_count, max_applications, expires_at, cover_image, studios:studio_id ( id, slug, name, tagline, cover_image, instagram, primary_location_id ), location:location_id ( id, label, city, country, formatted_address, latitude, longitude )')
+                .select('id, title, kind, description, styles_wanted, language_requirements, experience_min_years, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, start_date, end_date, weeks_minimum, weeks_maximum, application_count, max_applications, expires_at, cover_image, studios:studio_id ( id, slug, name, tagline, bio, cover_image, logo_image, photo_feed_items, instagram, website, primary_location_id ), location:location_id ( id, label, city, country, formatted_address, latitude, longitude )')
                 .eq('status', 'open')
                 .order('created_at', { ascending: false });
         },
@@ -412,9 +432,12 @@
         },
 
         // Crea una postulacion del artista a un spot. Cubre
-        // studio-spots-directory.js:265.
-        createApplication({ spotId, artistUserId, message, portfolioUrl }) {
-            return from('studio_spot_applications').insert({ spot_id: spotId, artist_user_id: artistUserId, message, portfolio_url: portfolioUrl });
+        // studio-spots-directory.js:265. `requestedDates` es opcional y viaja como
+        // literal DATERANGE ('[inicio,fin)') cuando el artista elige fechas.
+        createApplication({ spotId, artistUserId, message, portfolioUrl, requestedDates }) {
+            const row = { spot_id: spotId, artist_user_id: artistUserId, message, portfolio_url: portfolioUrl };
+            if (requestedDates) row.requested_dates = requestedDates;
+            return from('studio_spot_applications').insert(row);
         },
 
         // Acepta/rechaza una postulacion (status + decided_at). Cubre

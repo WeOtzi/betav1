@@ -99,94 +99,26 @@
 
         <!-- Main Form Area -->
         <main id="main-content">
-            <!-- Progress -->
-            <div class="progress-wrapper">
-                <div class="progress-info">
-                    <span id="progress-step-text" class="progress-step-info">Paso 1 de 27</span>
-                    <span id="progress-fun-message" class="progress-message">Empecemos la tinta</span>
-                </div>
-                <div class="progress-container wo-progress">
-                    <span id="progress-bar" class="progress-bar"></span>
-                </div>
-            </div>
-
             <!-- DYNAMIC FORM CONTAINER -->
             <div id="form-steps-container">
-                <!-- Steps will be injected here by script.js -->
+                <!-- Las pantallas se inyectan acá desde script.js -->
             </div>
 
-            <!-- Barra inferior: volver -->
+            <!-- Barra inferior fija: ATRÁS (izq) + CONTINUAR (der) -->
             <div class="q-footbar" id="q-footbar">
-                <button id="back-btn" class="wo-btn wo-btn--ghost hidden" aria-label="Volver al paso anterior" onclick="prevStep()">
+                <button id="back-btn" class="wo-btn wo-btn--nav hidden" aria-label="Volver a la pantalla anterior" onclick="prevStep()">
                     <i data-wo-icon="arrow-left" class="wo-icon-18"></i> Atrás
                 </button>
-                <span class="q-footbar-meta wo-meta-s">We Ötzi · Cotizador</span>
+                <button id="continue-btn" class="wo-btn wo-btn--hard btn-primary" onclick="nextStep()">
+                    Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
+                </button>
             </div>
 
             <!-- TEMPLATES FOR COMPLEX STEPS -->
 
-            <!-- TEMPLATE: WELCOME -->
-            <template id="tmpl-welcome">
-                <div class="question-container q-welcome">
-                    <p class="wo-eyebrow q-step-kicker">Cotizá tu tatuaje</p>
-                    <img class="q-welcome-symbol" src="/shared/img/weotzi-isotipo.svg" alt="" aria-hidden="true" loading="eager" decoding="async">
-                    <h1 class="q-welcome-title">Cotizá tu próximo tatuaje con los mejores artistas del mundo.</h1>
-                    <p class="q-welcome-sub">Contanos tu idea y te conectamos con el artista indicado. Toma menos de 5 minutos.</p>
-                    <button class="wo-btn wo-btn--accent wo-btn--hard btn-primary q-welcome-cta" onclick="nextStep()">
-                        Comenzar <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
-                    </button>
-                </div>
-            </template>
-
-            <!-- TEMPLATE: ARTIST SEARCH -->
-            <template id="tmpl-artist-search">
-                <div class="question-container">
-                    <p class="wo-eyebrow q-step-kicker">Artista</p>
-                    <h2>¿Con qué artista te querés tatuar?</h2>
-                    <p class="subtitle">Ingresá el usuario del artista. Ejemplo: yomicoart.wo</p>
-
-                    <div class="wo-field q-artist-search-field">
-                        <label class="wo-label" for="artist-username">Usuario del artista</label>
-                        <div class="q-input-row">
-                            <input type="text" id="artist-username" class="wo-input" placeholder="usuario.wo" autocomplete="off" aria-describedby="artist-hint artist-error">
-                            <button class="wo-iconbtn q-search-submit" onclick="searchArtist()" aria-label="Buscar artista">
-                                <i data-wo-icon="search"></i>
-                            </button>
-                        </div>
-                        <p id="artist-error" class="wo-error-msg error-msg hidden">Artista no encontrado. Verificá el usuario e intentá de nuevo.</p>
-                        <p id="artist-hint" class="wo-help hint-text">Presioná Enter para buscar</p>
-                    </div>
-
-                    <hr class="wo-divider">
-
-                    <div class="q-alt-row">
-                        <div class="q-alt-text">
-                            <p class="q-alt-title">¿No sabés el usuario?</p>
-                            <p class="q-alt-copy">Explorá artistas disponibles y volvé con su usuario.</p>
-                        </div>
-                        <a href="/marketplace" class="wo-btn wo-btn--ghost" id="btn-find-artists-manual">
-                            <i data-wo-icon="search" class="wo-icon-18"></i> Buscar artistas
-                        </a>
-                    </div>
-
-                    <div class="q-alt-row">
-                        <div class="q-alt-text">
-                            <p class="q-alt-title">Sin artista definido</p>
-                            <p class="q-alt-copy">Probá nuestra recomendación 100% personalizada.</p>
-                        </div>
-                        <button class="wo-btn wo-btn--ghost" id="btn-skip-artist" onclick="continueWithoutArtist()">
-                            Continuar sin artista
-                        </button>
-                    </div>
-                </div>
-            </template>
-
             <!-- TEMPLATE: ARTIST CONFIRM -->
             <template id="tmpl-artist-confirm">
                 <div class="question-container">
-                    <p class="wo-eyebrow q-step-kicker">Artista</p>
-                    <h2>Confirmá tu artista</h2>
-
                     <div id="artist-card" class="wo-card q-artist-card">
                         <div class="wo-avatar wo-avatar--xl wo-avatar--bordered q-artist-avatar">
                             <div id="artist-avatar-default" class="q-avatar-fallback">
@@ -213,94 +145,42 @@
                         <p class="q-artist-price" id="artist-price-display">— / sesión</p>
                     </div>
 
-                    <div class="actions-stack">
+                    <div class="actions-row">
                         <button class="wo-btn wo-btn--hard btn-primary" onclick="confirmArtist()">
                             Cotizar con este artista
                         </button>
-                        <button class="wo-btn wo-btn--ghost btn-secondary" onclick="prevStep()">
-                            Buscar otro artista
+                        <button class="wo-btn wo-btn--ghost btn-secondary" onclick="continueWithoutArtist()">
+                            Seguir sin artista definido
                         </button>
                     </div>
                 </div>
             </template>
 
-            <!-- TEMPLATE: BODY SELECTOR -->
+            <!-- TEMPLATE: BODY SELECTOR (Figma 03: grilla plana + panel de lado) -->
             <template id="tmpl-body-selector">
-                <div class="question-container wide">
-                    <h2>¿Dónde querés llevarlo?</h2>
-                    <p class="subtitle" id="body-subtitle">Seleccioná una zona principal para ver detalles</p>
-
-                    <div class="body-selector-container">
-                        <!-- Navigation -->
-                        <div id="body-nav-header" class="body-nav-header hidden">
-                            <button class="wo-btn wo-btn--nav btn-text" onclick="showMainBodyParts()">
-                                <i data-wo-icon="arrow-left" class="wo-icon-18"></i> Volver a zonas
-                            </button>
-                            <span id="current-body-zone" class="current-zone-title"></span>
-                        </div>
-
-                        <!-- MAIN ZONES GRID -->
-                        <div id="body-main-view" class="bauhaus-grid-creative">
-                            <!-- Injected via JS -->
-                        </div>
-
-                        <!-- SIDE SELECTION OVERLAY -->
-                        <div id="body-side-overlay" class="bauhaus-side-overlay hidden">
-                            <div class="side-overlay-header">
-                                <h3 class="current-zone-title">¿De qué lado?</h3>
-                            </div>
-                            <div class="side-options-container">
-                                <div class="side-option-bauhaus" onclick="handleSideChosen('left')">
-                                    <i data-wo-icon="arrow-left"></i>
-                                    <span>Izquierdo</span>
-                                </div>
-                                <div class="side-option-bauhaus" onclick="handleSideChosen('both')">
-                                    <i data-wo-icon="move"></i>
-                                    <span>Ambos</span>
-                                </div>
-                                <div class="side-option-bauhaus" onclick="handleSideChosen('right')">
-                                    <i data-wo-icon="arrow-right"></i>
-                                    <span>Derecho</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- SUB ZONES GRID -->
-                        <div id="body-sub-view" class="body-grid-view hidden">
-                            <div id="sub-parts-grid" class="bauhaus-grid-creative">
-                                <!-- Injected via JS -->
-                            </div>
-                        </div>
+                <div class="q-body-selector">
+                    <div id="body-zones-grid" class="q-zone-grid">
+                        <!-- Zonas inyectadas por JS desde body_parts (Supabase) -->
                     </div>
 
-                    <!-- SELECTION SHEET -->
-                    <div class="technical-selection-sheet">
-                        <div class="sheet-header">Tu selección</div>
-                        <div class="sheet-content" id="selected-parts-sheet">
-                            <p class="empty-sheet-msg">Todavía no seleccionaste ninguna zona</p>
+                    <div id="body-side-panel" class="q-side-panel hidden">
+                        <h3 class="q-side-zone" id="body-side-zone">—</h3>
+                        <p class="q-block-label" id="body-side-label">¿De qué lado?</p>
+                        <div class="q-chips" id="body-side-chips">
+                            <button type="button" class="q-chip" data-side="left" onclick="handleSideChosen('left')">Izquierdo</button>
+                            <button type="button" class="q-chip" data-side="right" onclick="handleSideChosen('right')">Derecho</button>
                         </div>
-                    </div>
-
-                    <div class="actions-stack">
-                        <button class="wo-btn wo-btn--hard btn-primary" id="body-continue-btn" onclick="confirmBodyParts()" disabled>
-                            Confirmar selección y continuar
-                        </button>
                     </div>
                 </div>
             </template>
 
-            <!-- TEMPLATE: TATTOO STYLES SELECTOR -->
+            <!-- TEMPLATE: TATTOO STYLES SELECTOR (Figma 02: multi-selección directa) -->
             <template id="tmpl-tattoo-styles">
-                <div class="question-container wide">
-                    <h2 id="styles-title">¿Qué estilo estás buscando?</h2>
-                    <p class="subtitle" id="styles-subtitle">Hacé clic en un estilo para ver más información</p>
-
-                    <!-- Styles Grid -->
+                <div class="q-styles-block">
                     <div id="styles-grid" class="styles-grid">
-                        <!-- Injected by JS -->
+                        <!-- Inyectado por JS desde tattoo_styles (Supabase) -->
                     </div>
 
-                    <!-- Loading State -->
                     <div id="styles-loading" class="styles-loading hidden">
                         <div class="wo-spinner"></div>
                         <p>Cargando estilos…</p>
@@ -308,68 +188,33 @@
                 </div>
             </template>
 
-            <!-- TEMPLATE: FILE UPLOAD -->
+            <!-- TEMPLATE: FILE UPLOAD (Figma 05: grilla de referencias + añadir) -->
             <template id="tmpl-file-upload">
-                <div class="question-container">
-                    <p class="wo-eyebrow q-step-kicker">Referencias</p>
-                    <h2>Mostranos lo que te inspira</h2>
-                    <p class="subtitle">Subí imágenes de referencia o inspiración · máx. 4</p>
-
-                    <div class="wo-dropzone upload-area" id="drop-zone">
-                        <i data-wo-icon="upload-cloud"></i>
-                        <p class="q-drop-title">Arrastrá o hacé clic para subir</p>
-                        <p class="q-drop-hint wo-meta-s">PNG · JPG · HEIC · máx. 4 imágenes</p>
-                        <input type="file" id="file-input" multiple accept="image/*,image/heic,image/heif" class="hidden">
-                    </div>
-
-                    <div id="preview-container" class="preview-grid"></div>
-
-                    <div class="actions-row">
-                        <button class="wo-btn wo-btn--nav btn-text" onclick="skipReferences()">Omitir este paso</button>
-                        <button class="wo-btn wo-btn--hard btn-primary" onclick="nextStep()" id="ref-continue-btn">
-                            Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
-                        </button>
-                    </div>
+                <div class="q-refs-block">
+                    <div id="preview-container" class="q-ref-grid"></div>
+                    <input type="file" id="file-input" multiple accept="image/*,image/heic,image/heif" class="hidden">
                 </div>
             </template>
 
-            <!-- TEMPLATE: ARTIST RECOMMENDATIONS -->
-            <template id="tmpl-artist-recommendations">
-                <div class="question-container wide">
-                    <p class="wo-eyebrow q-step-kicker">Recomendaciones</p>
-                    <h2>Recomendaciones para vos</h2>
-                    <p class="subtitle">Según tu estilo, ubicación y presupuesto, estos artistas encajan con tu idea.</p>
-
-                    <div id="recommendations-grid" class="recommendations-grid">
-                        <!-- Recommended artists will be injected here -->
-                    </div>
-
-                    <div class="actions-stack">
-                        <button class="wo-btn wo-btn--ghost btn-secondary" onclick="prevStep()">
-                            <i data-wo-icon="arrow-left" class="wo-icon-18"></i> Volver
-                        </button>
-                    </div>
-                </div>
-            </template>
-
-            <!-- TEMPLATE: SUMMARY -->
+            <!-- TEMPLATE: SUMMARY (Figma 08) -->
             <template id="tmpl-summary">
-                <div class="question-container wide">
-                    <p class="wo-eyebrow q-step-kicker">Resumen</p>
-                    <h2>Tu solicitud</h2>
-                    <p class="subtitle">Revisá que todo esté correcto antes de enviar.</p>
-
-                    <div class="summary-card" id="summary-content">
-                        <!-- Generated by JS -->
+                <div class="q-summary-block">
+                    <div class="q-summary-grid" id="summary-content">
+                        <!-- Generado por JS -->
                     </div>
 
-                    <div class="q-summary-cta">
-                        <h3 class="q-summary-cta-title">¿Listo para encontrar a tu artista?</h3>
-                        <p class="q-summary-cta-copy">Vamos a enviar tu solicitud al artista con todos los detalles.</p>
-                        <div class="actions-row q-summary-actions">
+                    <div class="q-moodboard" id="summary-moodboard"></div>
+
+                    <div class="q-final">
+                        <h3 class="q-final-title">¿Listo para encontrar a tu artista?</h3>
+                        <p class="q-final-copy" id="q-final-copy">Vamos a enviar tu solicitud a artistas que trabajen con este estilo y ubicación.</p>
+                        <div class="q-final-actions">
                             <button class="wo-btn wo-btn--hard btn-primary" onclick="submitQuotation()" id="submit-btn">
                                 <span class="btn-text-content">Solicitar cotización</span>
                                 <i data-wo-icon="send" class="wo-icon-18"></i>
+                            </button>
+                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="editQuotationFromSummary()">
+                                <i data-wo-icon="edit-2" class="wo-icon-18"></i> Editar
                             </button>
                         </div>
                     </div>
@@ -410,120 +255,6 @@
 
     <!-- App Logic -->
     <script src="/shared/js/script.js"></script>
-
-    <!-- Style Detail Modal -->
-    <div id="style-detail-overlay" class="style-detail-overlay hidden">
-        <div class="style-detail-modal">
-            <div class="style-detail-header">
-                <img id="style-detail-img" src="" alt="" class="hidden">
-                <div id="style-detail-placeholder" class="style-detail-header-placeholder">
-                    <i data-wo-icon="pen-tool"></i>
-                </div>
-                <button class="style-detail-close" onclick="closeStyleDetailModal()" aria-label="Cerrar">
-                    <i data-wo-icon="x" class="wo-icon-18"></i>
-                </button>
-                <div class="style-detail-title-bar">
-                    <h2 id="style-detail-title">Nombre del estilo</h2>
-                    <span id="style-detail-substyles-count" class="substyles-count hidden">0 subestilos</span>
-                </div>
-            </div>
-            <div class="style-detail-body">
-                <p id="style-detail-description" class="style-detail-description">
-                    Descripción del estilo…
-                </p>
-                <div id="style-detail-substyles-section" class="style-detail-substyles hidden">
-                    <h3 class="wo-eyebrow">Especialidades · subestilos</h3>
-                    <div id="substyles-grid" class="substyles-grid">
-                        <!-- Substyles injected by JS -->
-                    </div>
-                </div>
-            </div>
-            <div class="style-detail-actions">
-                <button class="wo-btn wo-btn--ghost btn-cancel-style" onclick="closeStyleDetailModal()">Cancelar</button>
-                <button id="btn-select-style" class="wo-btn wo-btn--hard btn-select-style" onclick="confirmStyleSelection()">
-                    <span>Seleccionar estilo</span>
-                    <i data-wo-icon="check" class="wo-icon-18"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Body Part Detail Modal -->
-    <div id="body-part-detail-overlay" class="style-detail-overlay hidden">
-        <div class="style-detail-modal">
-            <div id="bp-detail-header" class="style-detail-header">
-                <div id="bp-detail-media" class="style-detail-header-placeholder">
-                    <i data-wo-icon="layers"></i>
-                </div>
-                <button class="style-detail-close" onclick="closeBodyPartDetailModal()" aria-label="Cerrar">
-                    <i data-wo-icon="x" class="wo-icon-18"></i>
-                </button>
-                <div class="style-detail-title-bar">
-                    <h2 id="body-part-detail-title">Nombre de la zona</h2>
-                </div>
-            </div>
-            <div class="style-detail-body">
-
-                <!-- Metrics -->
-                <div class="metric-container">
-                    <div class="metric-row">
-                        <label>Nivel de sensibilidad</label>
-                        <span id="bp-sensitivity-val" class="metric-value">5/10</span>
-                        <div class="metric-bar-bg">
-                            <div id="bp-sensitivity-fill" class="metric-bar-fill" style="width: 50%"></div>
-                        </div>
-                        <div class="metric-labels">
-                            <span>Baja</span>
-                            <span>Media</span>
-                            <span>Alta</span>
-                        </div>
-                    </div>
-
-                    <div class="metric-row">
-                        <label>Nivel de dolor</label>
-                        <span id="bp-pain-val" class="metric-value">6/10</span>
-                        <div class="metric-bar-bg">
-                            <div id="bp-pain-fill" class="metric-bar-fill" style="width: 60%"></div>
-                        </div>
-                        <div class="metric-labels">
-                            <span>Soportable</span>
-                            <span>Intenso</span>
-                            <span>Extremo</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="expanded-info-section">
-                    <h3 class="wo-eyebrow">Información expandida</h3>
-
-                    <div class="info-block">
-                        <h4>Descripción general</h4>
-                        <div id="bp-description" class="info-text-box">
-                            <!-- Content -->
-                        </div>
-                    </div>
-
-                    <div class="info-block">
-                        <h4>Info de tatuajes</h4>
-                        <div id="bp-tattoo-info" class="info-text-box">
-                            <!-- Content -->
-                        </div>
-                    </div>
-
-                    <div class="info-block">
-                        <h4>Experiencia de tatuaje</h4>
-                        <div id="bp-experience-info" class="info-text-box">
-                            <!-- Content -->
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-            <div class="style-detail-actions">
-                <button class="wo-btn wo-btn--ghost btn-cancel-style" onclick="closeBodyPartDetailModal()">Cerrar</button>
-            </div>
-        </div>
-    </div>
 
     <!-- EMAIL REUSE MODAL -->
     <div id="email-reuse-modal" class="draft-recovery-overlay hidden">

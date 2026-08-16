@@ -373,32 +373,6 @@
     height: 12px;
 }
 
-.hero-level {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    background: var(--neutral-500);
-    color: var(--accent);
-    font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-s-track);
-    text-transform: uppercase;
-}
-
-.hero-embajador {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: 3px 9px;
-    background: var(--surface-card);
-    border: var(--border-hairline) solid var(--border-strong);
-    color: var(--neutral-500);
-    font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-s-track);
-    text-transform: uppercase;
-}
-
 /* Estilos del artista — franja tipográfica (spans .style-tag inyectados por JS) */
 .hero-styles {
     display: flex;
@@ -470,6 +444,7 @@
     overflow: hidden;
 }
 
+/* Figma: cuadrado amarillo 93×93 con borde 2px ink (no círculo). */
 .hero-portrait::after {
     content: "";
     position: absolute;
@@ -478,9 +453,40 @@
     bottom: 2px;
     width: 84px;
     height: 84px;
-    border-radius: var(--radius-circle);
+    border-radius: var(--radius-none);
     background: var(--bauhaus-circle);
     border: var(--border-strong-width) solid var(--ink);
+}
+
+/* Badge de disponibilidad montado sobre el retrato */
+.hero-agenda {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: calc(-1 * var(--space-3));
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 6px var(--space-3);
+    background: var(--system-success);
+    border: var(--border-hairline) solid var(--ink);
+    color: var(--neutral-100);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+}
+
+.hero-agenda[hidden] {
+    display: none;
+}
+
+.hero-agenda-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--neutral-100);
+    flex: none;
 }
 
 .avatar-image {
@@ -518,20 +524,29 @@
     padding: var(--space-8) 0;
 }
 
+/* Se reparte entre las celdas visibles: el Figma pide 4, pero solo se pintan
+   las métricas con fuente real (ver informe). */
 .stats-strip {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
 }
 
 .statcell {
     display: flex;
+    flex: 1 1 0;
+    min-width: 0;
     flex-direction: column;
     gap: var(--space-2);
     padding: var(--space-4) var(--space-6);
     border-left: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 20%, transparent);
 }
 
-.statcell:first-child {
+.statcell[hidden] {
+    display: none;
+}
+
+/* La primera celda VISIBLE no lleva filete (la marca el JS al pintar). */
+.statcell--lead {
     border-left: 0;
     padding-left: 0;
 }
@@ -634,290 +649,542 @@
     text-decoration: none;
 }
 
-/* ---------- Residencias ---------- */
-.presence-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-8);
-    align-items: start;
-}
-
-.presence-panel {
-    border: var(--border-hairline) solid var(--ink);
-    background: var(--surface-card);
-}
-
-.presence-heading {
-    margin: 0;
-    padding: var(--space-5) var(--space-6);
-    font-family: var(--font-display);
-    font-size: var(--h3-size);
-    line-height: var(--h3-lh);
-    color: var(--ink);
-    border-bottom: var(--border-hairline) solid var(--ink);
-}
-
-.tattoo-presence-item {
-    padding: var(--space-5) var(--space-6);
-    border-bottom: var(--border-hairline) solid var(--border-subtle);
-}
-
-.tattoo-presence-item:last-child {
-    border-bottom: 0;
-}
-
-.tattoo-presence-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-}
-
-.tattoo-presence-title {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: clamp(19px, 2vw, 26px);
-    line-height: 1.15;
-    color: var(--ink);
-}
-
-.tattoo-presence-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 5px 10px;
-    font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-s-track);
-    text-transform: uppercase;
-    background: var(--neutral-200);
-    color: var(--neutral-500);
-    text-decoration: none;
-}
-
-.tattoo-presence-badge[data-state="open"] {
-    background: var(--system-success);
-    color: var(--neutral-100);
-}
-
-a.tattoo-presence-badge-link:hover {
-    background: var(--success-fg);
-    color: var(--neutral-100);
-    text-decoration: none;
-}
-
-.tattoo-presence-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-8);
-    margin-top: var(--space-3);
-}
-
-.tattoo-presence-line {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.presence-meta-label {
-    font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-wide-track);
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
-.tattoo-presence-value {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.06em;
-    color: var(--ink);
-}
-
-.tattoo-presence-empty {
-    margin: 0;
-    padding: var(--space-6);
-    font-family: var(--font-mono);
-    font-size: var(--meta-m-size);
-    letter-spacing: var(--meta-m-track);
-    text-transform: uppercase;
-    color: var(--text-faint);
-}
-
-/* ---------- Mapa ---------- */
-.map-band {
-    padding-top: 0;
-}
-
-.artist-map-canvas {
+/* ---------- Bloques geométricos de banda (Figma: cuadrados sangrando) ---------- */
+.sobre-band,
+.cta-band {
     position: relative;
-    height: 460px;
-    border: var(--border-hairline) solid var(--ink);
-    background: var(--surface-media);
     overflow: hidden;
 }
 
-.artist-map-empty {
+.sobre-band > .profile-shell,
+.cta-band > .profile-shell {
+    position: relative;
+    z-index: 1;
+}
+
+.band-block {
     position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: var(--space-6);
-    font-family: var(--font-mono);
-    font-size: var(--body-s-size);
-    color: var(--text-muted);
-    z-index: 2;
+    display: block;
     pointer-events: none;
 }
 
-.artist-map-canvas.is-initialized .artist-map-empty[hidden] {
+.band-block--sobre-yellow {
+    top: calc(-1 * var(--space-16));
+    left: calc(-1 * var(--space-12));
+    width: 220px;
+    height: 220px;
+    background: var(--yellow-300);
+}
+
+.band-block--sobre-red {
+    right: calc(-1 * var(--space-8));
+    bottom: calc(-1 * var(--space-10));
+    width: 130px;
+    height: 130px;
+    background: var(--red-300);
+}
+
+.band-block--cta-yellow {
+    top: 50%;
+    right: calc(-1 * var(--space-16));
+    width: 210px;
+    height: 210px;
+    background: var(--yellow-300);
+    transform: translateY(-50%);
+}
+
+/* ---------- Sobre: frase-manifiesto ---------- */
+.sobre-manifesto {
+    margin: 0 0 var(--space-6);
+    font-family: var(--font-display);
+    font-size: clamp(26px, 3.2vw, 40px);
+    line-height: 1.12;
+    color: var(--neutral-100);
+    overflow-wrap: anywhere;
+}
+
+.sobre-manifesto[hidden] {
     display: none;
 }
 
-.artist-map-canvas .jvm-container {
-    width: 100%;
-    height: 100%;
+/* ---------- Especialidades (tabla numerada) ---------- */
+.specialties-band[hidden] {
+    display: none;
 }
 
-.artist-map-canvas .jvm-zoom-btn {
-    background: var(--surface-card);
-    border: var(--border-hairline) solid var(--ink);
-    border-radius: var(--radius-none);
-    color: var(--ink);
+.specialty-table {
+    margin-top: var(--space-8);
+    border-top: var(--border-hairline) solid var(--sand-350);
 }
 
-.jvm-tooltip {
-    background: var(--ink);
-    color: var(--neutral-100);
-    border-radius: var(--radius-none);
+.specialty-row {
+    display: grid;
+    grid-template-columns: 56px 22px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-5);
+    min-height: 109px;
+    padding: var(--space-5) var(--space-6) var(--space-5) 0;
+    border-bottom: var(--border-hairline) solid var(--sand-350);
+}
+
+.specialty-row:nth-child(even) {
+    background: var(--sand-050);
+}
+
+.specialty-index {
     font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.5;
-    padding: var(--space-3);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    color: var(--neutral-400);
+    padding-left: var(--space-6);
 }
 
-.jvm-tooltip a {
-    color: var(--yellow-300);
+.specialty-swatch {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    background: var(--specialty-color, var(--ink));
 }
 
-.artist-map-info-card {
-    position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
-    width: 280px;
-    max-width: calc(100% - var(--space-8));
+.specialty-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(22px, 2.8vw, 34px);
+    line-height: 1.1;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Reseñas (panel amarillo + 3 citas) ---------- */
+.reviews-band[hidden] {
+    display: none;
+}
+
+.reviews-box {
+    display: grid;
+    grid-template-columns: 374px minmax(0, 1fr);
+    border: var(--border-hairline) solid var(--ink);
     background: var(--surface-card);
-    border: var(--border-strong-width) solid var(--ink);
-    padding: var(--space-5);
-    z-index: 5;
-    box-sizing: border-box;
 }
 
-.artist-map-info-kicker {
-    margin: 0 0 var(--space-1);
+.reviews-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    background: var(--yellow-300);
+    overflow: hidden;
+}
+
+.reviews-panel-block {
+    position: absolute;
+    right: calc(-1 * var(--space-12));
+    bottom: calc(-1 * var(--space-12));
+    width: 150px;
+    height: 150px;
+    background: var(--ink);
+    pointer-events: none;
+}
+
+.reviews-panel > *:not(.reviews-panel-block) {
+    position: relative;
+    z-index: 1;
+}
+
+.reviews-eyebrow {
+    margin: 0;
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
     letter-spacing: var(--meta-wide-track);
     text-transform: uppercase;
-    color: var(--text-danger);
+    color: var(--neutral-500);
 }
 
-.artist-map-info-title {
-    margin: 0 0 var(--space-2);
-    font-family: var(--font-display);
-    font-size: 18px;
-    line-height: 1.2;
-    color: var(--ink);
-}
-
-.artist-map-info-address {
-    margin: 0 0 var(--space-2);
-    font-size: var(--body-s-size);
-    line-height: var(--body-s-lh);
-    color: var(--text-muted);
-}
-
-.artist-map-info-coords {
-    margin: 0 0 var(--space-3);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-faint);
-}
-
-.artist-map-info-link {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink);
-    border-bottom: var(--border-hairline) solid var(--ink);
-    text-decoration: none;
-}
-
-.artist-map-info-link:hover {
-    color: var(--blue-400);
-    border-bottom-color: var(--blue-400);
-    text-decoration: none;
-}
-
-.artist-map-points {
-    list-style: none;
-    margin: var(--space-5) 0 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-}
-
-.artist-map-points li {
+.reviews-score {
     margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(48px, 6vw, 78px);
+    line-height: 1;
+    color: var(--ink);
 }
 
-.artist-map-point-chip {
+.reviews-stars {
+    display: flex;
+    gap: var(--space-1);
+    color: var(--ink);
+}
+
+.reviews-stars [data-wo-icon] {
+    width: 16px;
+    height: 16px;
     display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: 9px 14px;
-    background: var(--surface-card);
+}
+
+.reviews-stars .is-empty {
+    opacity: var(--opacity-disabled);
+}
+
+.reviews-count {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-wide-track);
+    text-transform: uppercase;
+    color: var(--neutral-500);
+}
+
+.reviews-all-link {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: transparent;
     border: var(--border-hairline) solid var(--ink);
     border-radius: var(--radius-none);
     font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
     text-transform: uppercase;
     color: var(--ink);
     cursor: pointer;
     transition: transform var(--duration-press), box-shadow var(--duration-press);
 }
 
-.artist-map-point-chip::before {
-    content: "";
-    width: 10px;
-    height: 10px;
-    border-radius: var(--radius-circle);
-    background: var(--pin-color, var(--ink));
-    flex: none;
-}
-
-.artist-map-point-chip:hover {
+.reviews-all-link:hover {
     transform: translate(-2px, -2px);
     box-shadow: var(--shadow-hard-sm);
 }
 
-.artist-map-point-chip:active {
+.reviews-all-link:active {
     transform: none;
     box-shadow: none;
 }
 
-.artist-map-point-chip.is-active {
+.reviews-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.review-quote-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding: var(--space-6);
+    border-left: var(--border-hairline) solid var(--sand-350);
+}
+
+.review-quote-card:first-child {
+    border-left: 0;
+}
+
+.review-quote-text {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-body);
+    overflow-wrap: anywhere;
+}
+
+.review-quote-author {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.review-quote-avatar {
+    width: 32px;
+    height: 32px;
+    flex: none;
+    display: grid;
+    place-content: center;
+    background: var(--review-avatar-bg, var(--ink));
+    color: var(--neutral-100);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+}
+
+.review-quote-name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: var(--weight-bold);
+    color: var(--ink);
+}
+
+.review-quote-meta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ---------- Estudio (foto + panel ink) ---------- */
+.studio-band[hidden] {
+    display: none;
+}
+
+.studio-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 658fr) minmax(0, 599fr);
+    align-items: stretch;
+    gap: var(--space-8);
+}
+
+.studio-photo {
+    position: relative;
+    aspect-ratio: 3 / 2;
+    border: var(--border-hairline) solid var(--ink);
+    background: var(--surface-media);
+    overflow: hidden;
+}
+
+.studio-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.studio-photo img:not([src]),
+.studio-photo img[src=""] {
+    display: none;
+}
+
+.studio-photo-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    color: var(--neutral-300);
+}
+
+.studio-photo-empty[hidden] {
+    display: none;
+}
+
+.studio-photo-empty [data-wo-icon] {
+    width: 40px;
+    height: 40px;
+}
+
+.studio-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+    padding: var(--space-8);
     background: var(--ink);
     color: var(--neutral-100);
 }
 
-.artist-map-point-empty {
+.studio-eyebrow {
     margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-wide-track);
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--neutral-100) 60%, transparent);
+}
+
+.studio-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 1.2;
+    color: var(--neutral-100);
+    overflow-wrap: anywhere;
+}
+
+.studio-address {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: 0.06em;
+    color: color-mix(in srgb, var(--neutral-100) 75%, transparent);
+    overflow-wrap: anywhere;
+}
+
+.studio-address[hidden] {
+    display: none;
+}
+
+.studio-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    margin: var(--space-4) 0 0;
+}
+
+.studio-fact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.studio-fact dt {
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-wide-track);
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--neutral-100) 60%, transparent);
+}
+
+.studio-fact dd {
+    margin: 0;
+    font-size: var(--body-s-size);
+    color: var(--neutral-100);
+}
+
+.studio-panel .studio-link {
+    margin-top: auto;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    color: var(--yellow-300);
+    text-decoration: none;
+}
+
+.studio-panel .studio-link[hidden] {
+    display: none;
+}
+
+.studio-panel .studio-link:hover {
+    color: var(--yellow-200);
+    text-decoration: underline;
+}
+
+/* ---------- Próximas residencias (tabla única) ---------- */
+.presence-band[hidden] {
+    display: none;
+}
+
+.presence-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+}
+
+.presence-head .presence-globe-link {
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    color: var(--blue-400);
+    text-decoration: none;
+    flex: none;
+}
+
+.presence-head .presence-globe-link:hover {
+    color: var(--blue-500);
+    text-decoration: underline;
+}
+
+.presence-table {
+    border-top: var(--border-hairline) solid var(--sand-350);
+}
+
+.presence-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    min-height: 87px;
+    padding: var(--space-3) 0;
+    border-bottom: var(--border-hairline) solid var(--sand-350);
+}
+
+.presence-place {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-width: 0;
+}
+
+.presence-pin {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    color: var(--ink);
+}
+
+.presence-city {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3vw, 38px);
+    line-height: 1.05;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.presence-venue {
+    margin: var(--space-1) 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--neutral-400);
+    overflow-wrap: anywhere;
+}
+
+.presence-when {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+}
+
+.presence-dates {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+}
+
+.presence-table .presence-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    background: var(--neutral-200);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.presence-table .presence-badge[data-state="open"] {
+    background: var(--system-success);
+    color: var(--neutral-100);
+}
+
+.presence-table .presence-badge[data-state="waitlist"] {
+    background: var(--yellow-300);
+    color: var(--ink);
+}
+
+.presence-table a.presence-badge:hover {
+    text-decoration: none;
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+
+.presence-empty {
+    margin: 0;
+    padding: var(--space-6) 0;
     font-family: var(--font-mono);
     font-size: var(--meta-m-size);
     letter-spacing: var(--meta-m-track);
@@ -925,69 +1192,245 @@ a.tattoo-presence-badge-link:hover {
     color: var(--text-faint);
 }
 
-.artist-map-point-panel {
-    margin-top: var(--space-2);
-    padding: var(--space-4);
-    background: var(--surface-card);
-    border: var(--border-hairline) solid var(--ink);
+/* ---------- Dónde tatué (bloque tipográfico) ---------- */
+.cities-band[hidden] {
+    display: none;
 }
 
-.artist-map-point-panel-kicker {
-    margin: 0 0 var(--space-1);
+.cities-band {
+    padding-top: 0;
+}
+
+.cities-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    margin-bottom: var(--space-8);
+}
+
+.cities-eyebrow {
+    margin: 0;
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--meta-lead-track);
+    text-transform: uppercase;
+    color: var(--neutral-400);
+}
+
+.cities-rule {
+    flex: 1 1 auto;
+    height: var(--border-hairline);
+    background: var(--ink);
+}
+
+.cities-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4) var(--space-5);
+    margin: 0;
+}
+
+.city-name {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 3vw, 36px);
+    line-height: 1.1;
+    color: var(--ink);
+}
+
+.city-name[data-tone="red"] {
+    color: var(--red-300);
+}
+
+.city-name[data-tone="blue"] {
+    color: var(--blue-400);
+}
+
+.city-sep {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    background: var(--ink);
+}
+
+/* ---------- CTA: chips de mes ---------- */
+.cta-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+    flex: none;
+}
+
+.cta-months {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.cta-months:empty {
+    display: none;
+}
+
+.cta-month {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px var(--space-4);
+    border: var(--border-hairline) solid var(--neutral-100);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--neutral-100);
+}
+
+/* ---------- Barra de acción sticky ---------- */
+.profile-actionbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 110;
+    background: var(--ink);
+    color: var(--neutral-100);
+}
+
+.profile-actionbar[hidden] {
+    display: none;
+}
+
+.profile-actionbar-inner {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: var(--space-3) var(--margin-md);
+    box-sizing: border-box;
+    min-height: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+}
+
+.actionbar-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    min-width: 0;
+}
+
+.actionbar-dot {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    background: var(--system-success);
+}
+
+.actionbar-dot[hidden] {
+    display: none;
+}
+
+.actionbar-name {
+    font-family: var(--font-display);
+    font-size: 17px;
+    color: var(--neutral-100);
+    overflow-wrap: anywhere;
+}
+
+.actionbar-status {
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-wide-track);
+    letter-spacing: var(--meta-s-track);
     text-transform: uppercase;
-    color: var(--text-danger);
+    color: color-mix(in srgb, var(--neutral-100) 60%, transparent);
 }
 
-.artist-map-point-panel-title {
-    margin: 0 0 var(--space-2);
-    font-family: var(--font-display);
-    font-size: 16px;
+.actionbar-status[hidden] {
+    display: none;
+}
+
+.actionbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.profile-actionbar .actionbar-btn {
+    background: transparent;
+    border-color: color-mix(in srgb, var(--neutral-100) 45%, transparent);
+    color: var(--neutral-100);
+}
+
+.profile-actionbar a.actionbar-btn:hover {
+    background: var(--neutral-100);
+    border-color: var(--neutral-100);
     color: var(--ink);
 }
 
-.artist-map-point-panel-address {
-    margin: 0 0 var(--space-2);
-    font-size: var(--body-s-size);
-    color: var(--text-muted);
+/* ---------- Portafolio (banda crema, celdas 3:2) ---------- */
+.gallery-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: var(--space-6) 0 var(--space-8);
 }
 
-.artist-map-point-panel-coords {
-    margin: 0 0 var(--space-2);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-faint);
+.gallery-chips[hidden] {
+    display: none;
 }
 
-.artist-map-point-panel-link {
+.gallery-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-h-sm);
+    padding: var(--space-2) var(--space-4);
+    background: var(--white);
+    border: var(--border-hairline) solid var(--neutral-500);
+    border-radius: var(--radius-none);
     font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
     text-transform: uppercase;
     color: var(--ink);
-    border-bottom: var(--border-hairline) solid var(--ink);
-    text-decoration: none;
+    cursor: pointer;
+    transition: transform var(--duration-press), box-shadow var(--duration-press);
 }
 
-/* ---------- Portafolio (banda ink) ---------- */
+.gallery-chip:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+
+.gallery-chip:active {
+    transform: none;
+    box-shadow: none;
+}
+
+.gallery-chip.is-active {
+    background: var(--yellow-300);
+    font-weight: var(--weight-bold);
+}
+
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-5);
+    gap: var(--space-8);
+    margin-top: var(--space-8);
 }
 
 .gallery-image-item {
     position: relative;
     display: block;
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 3 / 2;
     padding: 0;
-    border: 0;
+    border: var(--border-hairline) solid var(--ink);
     border-radius: var(--radius-none);
-    background: var(--surface-stage);
+    background: var(--surface-media);
     overflow: hidden;
+    box-sizing: border-box;
     cursor: pointer;
 }
 
@@ -1038,9 +1481,9 @@ a.tattoo-presence-badge-link:hover {
 
 .gallery-image-item.is-placeholder {
     cursor: default;
-    background: color-mix(in srgb, var(--neutral-100) 6%, transparent);
-    border: var(--border-hairline) dashed color-mix(in srgb, var(--neutral-100) 30%, transparent);
-    box-sizing: border-box;
+    background: var(--sand-050);
+    border-style: dashed;
+    border-color: var(--sand-350);
 }
 
 .gallery-image-item.is-placeholder img {
@@ -1058,14 +1501,14 @@ a.tattoo-presence-badge-link:hover {
     font-size: var(--meta-s-size);
     letter-spacing: var(--meta-s-track);
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--neutral-100) 55%, transparent);
+    color: var(--text-faint);
 }
 
 .gallery-empty {
     margin: var(--space-6) 0 0;
     font-family: var(--font-mono);
     font-size: var(--body-s-size);
-    color: color-mix(in srgb, var(--neutral-100) 65%, transparent);
+    color: var(--text-muted);
 }
 
 .gallery-footer-actions {
@@ -1074,178 +1517,15 @@ a.tattoo-presence-badge-link:hover {
     margin-top: var(--space-10);
 }
 
-.gallery-view-all {
-    border-color: color-mix(in srgb, var(--neutral-100) 35%, transparent);
-}
-
-.gallery-view-all:hover {
-    border-color: var(--neutral-100);
-}
-
-/* ---------- Reseñas (widget compartido tematizado por variables) ---------- */
+/* ---------- Reseñas (widget compartido, revelado bajo demanda) ---------- */
 .reviews-band #artist-reviews {
     --fg: var(--ink);
     --bg: var(--surface-page);
+    margin-top: var(--space-8);
 }
 
-/* ---------- Contacto ---------- */
-.contact-band {
-    padding-top: 0;
-}
-
-.contact-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    gap: var(--space-12);
-    align-items: start;
-}
-
-.contact-info .wo-eyebrow {
-    display: block;
-    margin: 0 0 var(--space-2);
-}
-
-.contact-info .section-title {
-    margin-bottom: var(--space-6);
-}
-
-.link-list p {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    margin: 0;
-    padding: var(--space-4) 0;
-    border-bottom: var(--border-hairline) solid var(--border-subtle);
-}
-
-.link-list p:first-child {
-    border-top: var(--border-hairline) solid var(--ink);
-}
-
-.link-list span {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: var(--meta-m-track);
-    text-transform: uppercase;
-    color: var(--text-muted);
-    flex: none;
-}
-
-.link-list a,
-.link-list a strong {
-    color: var(--ink);
-    font-size: var(--body-m-size);
-    font-weight: var(--weight-bold);
-    overflow-wrap: anywhere;
-    text-align: right;
-}
-
-.link-list a:hover,
-.link-list a:hover strong {
-    color: var(--blue-400);
-}
-
-.link-list a.is-empty {
-    pointer-events: none;
-    text-decoration: none;
-}
-
-.link-list a.is-empty strong {
-    color: var(--text-faint);
-    font-weight: var(--weight-regular);
-}
-
-.contact-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
-}
-
-.action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: var(--space-3);
-    min-height: var(--control-h-md);
-    padding: var(--space-3) var(--space-5);
-    background: var(--surface-card);
-    border: var(--border-hairline) solid var(--ink);
-    border-radius: var(--radius-none);
-    font-family: var(--font-body);
-    font-size: var(--button-s-size);
-    font-weight: var(--weight-bold);
-    letter-spacing: var(--button-s-track);
-    text-transform: uppercase;
-    color: var(--ink);
-    text-decoration: none;
-    cursor: pointer;
-    box-sizing: border-box;
-    transition: transform var(--duration-press), box-shadow var(--duration-press), background var(--duration-press);
-}
-
-.action-btn:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-hard-sm);
-    color: var(--ink);
-    text-decoration: none;
-}
-
-.action-btn:active {
-    transform: none;
-    box-shadow: none;
-}
-
-.action-btn.is-disabled,
-.action-btn[aria-disabled="true"] {
-    background: var(--action-disabled-bg);
-    border-color: var(--action-disabled-bg);
-    color: var(--action-disabled-fg);
-    pointer-events: none;
-}
-
-.action-btn.shared {
-    border-color: var(--system-success);
-    color: var(--success-fg);
-}
-
-/* ---------- Ficha completa ---------- */
-.ficha-band {
-    padding-top: 0;
-}
-
-.full-profile-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 var(--space-12);
-    border-top: var(--border-hairline) solid var(--ink);
-}
-
-.full-profile-grid p {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-4);
-    margin: 0;
-    padding: var(--space-4) 0;
-    border-bottom: var(--border-hairline) solid var(--border-subtle);
-}
-
-.full-profile-grid span {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: var(--meta-m-track);
-    text-transform: uppercase;
-    color: var(--text-muted);
-    flex: none;
-}
-
-.full-profile-grid strong {
-    font-size: var(--body-s-size);
-    font-weight: var(--weight-bold);
-    color: var(--ink);
-    text-align: right;
-    overflow-wrap: anywhere;
+.reviews-band #artist-reviews[hidden] {
+    display: none;
 }
 
 /* ---------- CTA final (banda roja) ---------- */
@@ -1354,26 +1634,6 @@ a.tattoo-presence-badge-link:hover {
     color: var(--neutral-100);
 }
 
-/* ---------- Mensajes de estado ---------- */
-.status-message {
-    position: fixed;
-    bottom: var(--space-6);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1300;
-    background: var(--ink);
-    color: var(--neutral-100);
-    font-family: var(--font-mono);
-    font-size: var(--meta-m-size);
-    letter-spacing: 0.06em;
-    padding: var(--space-3) var(--space-5);
-    max-width: min(90vw, 480px);
-}
-
-.status-message:empty {
-    display: none;
-}
-
 /* ---------- Revelado de secciones ---------- */
 @keyframes profile-reveal {
     from {
@@ -1408,28 +1668,32 @@ a.tattoo-presence-badge-link:hover {
 @media (max-width: 1024px) {
     .hero-grid,
     .sobre-grid,
-    .contact-grid {
+    .studio-grid {
         gap: var(--space-8);
     }
 
     .hero-name {
         font-size: clamp(40px, 8vw, 72px);
     }
+
+    .reviews-box {
+        grid-template-columns: 1fr;
+    }
+
+    .reviews-cards {
+        border-top: var(--border-hairline) solid var(--ink);
+    }
 }
 
 @media (max-width: 900px) {
-    .hero-grid {
+    .hero-grid,
+    .sobre-grid,
+    .studio-grid {
         grid-template-columns: 1fr;
     }
 
     .hero-portrait {
         max-width: 560px;
-    }
-
-    .sobre-grid,
-    .contact-grid,
-    .presence-grid {
-        grid-template-columns: 1fr;
     }
 
     .profile-error__grid {
@@ -1455,26 +1719,49 @@ a.tattoo-presence-badge-link:hover {
     }
 
     .stats-strip {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--space-6) 0;
     }
 
-    .statcell:nth-child(odd) {
-        border-left: 0;
-        padding-left: 0;
+    .statcell {
+        flex: 1 1 50%;
+        padding: var(--space-3) var(--space-5);
     }
 
     .gallery-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-3);
+        gap: var(--space-5);
     }
 
-    .full-profile-grid {
+    .reviews-cards {
         grid-template-columns: 1fr;
     }
 
-    .artist-map-canvas {
-        height: 340px;
+    .review-quote-card {
+        border-left: 0;
+        border-top: var(--border-hairline) solid var(--sand-350);
+    }
+
+    .review-quote-card:first-child {
+        border-top: 0;
+    }
+
+    .specialty-row {
+        grid-template-columns: 40px 18px minmax(0, 1fr);
+        gap: var(--space-4);
+        min-height: 0;
+        padding: var(--space-4) var(--space-4) var(--space-4) 0;
+    }
+
+    .specialty-index {
+        padding-left: var(--space-4);
+    }
+
+    .presence-row {
+        min-height: 0;
+    }
+
+    .band-block {
+        display: none;
     }
 
     .lightbox-nav {
@@ -1486,21 +1773,31 @@ a.tattoo-presence-badge-link:hover {
 @media (max-width: 480px) {
     .gallery-grid {
         grid-template-columns: 1fr;
+        gap: var(--space-4);
     }
 
-    .contact-actions {
-        grid-template-columns: 1fr;
-    }
-
-    .hero-cta-row .wo-btn {
+    .hero-cta-row .wo-btn,
+    .cta-btn,
+    .actionbar-btn {
         width: 100%;
     }
 
-    .cta-btn {
-        width: 100%;
+    .statcell {
+        flex: 1 1 100%;
+        border-left: 0;
+        padding-left: 0;
     }
 
-    .artist-map-canvas {
-        height: 280px;
+    .presence-when {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .profile-actionbar-inner {
+        padding: var(--space-3) var(--margin-xs);
+    }
+
+    .actionbar-actions {
+        width: 100%;
     }
 }

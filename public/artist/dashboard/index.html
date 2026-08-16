@@ -26,7 +26,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
-    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-2">
+    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-3">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
 
@@ -75,8 +75,8 @@
                 <a class="wo-topbar-item" href="/studio-spots">SPOTS</a>
                 <a class="wo-topbar-item" href="/calendar">CALENDARIO</a>
                 <a class="wo-topbar-item" href="/my-quotations/statistics">ESTADÍSTICAS</a>
-                <span class="wo-topbar-item is-disabled" aria-disabled="true">TRAVEL<span class="wo-dash-soon">PRONTO</span></span>
-                <span class="wo-topbar-item is-disabled" aria-disabled="true">INBOX<span class="wo-dash-soon">PRONTO</span></span>
+                <span class="wo-topbar-item" aria-disabled="true">TRAVEL</span>
+                <span class="wo-topbar-item" aria-disabled="true">INBOX</span>
             </nav>
         </div>
         <div class="wo-topbar-right">
@@ -212,33 +212,49 @@
 
                 <hr class="wo-divider wo-divider--strong">
 
-                <!-- Cotizaciones -->
-                <section class="wo-dash-section" aria-label="Cotizaciones">
+                <!-- Diseños en proceso · cotizaciones confirmadas del artista + sus sesiones -->
+                <section class="wo-dash-section" id="wod-designs-section" aria-label="Diseños en proceso" hidden>
                     <header class="wo-dash-sechead">
-                        <h2 class="wo-h2">Cotizaciones</h2>
-                        <a class="wo-dash-seclink" href="/my-quotations">VER TODO →</a>
+                        <h2 class="wo-h2">Diseños en proceso</h2>
+                        <a class="wo-dash-seclink" href="/my-quotations">VER TODOS →</a>
                     </header>
-                    <div class="wo-dash-quotestats">
-                        <div class="wo-dash-quotestat">
-                            <div class="wo-dash-quotestat-v" id="ws-pending">—</div>
-                            <div class="wo-dash-quotestat-l wo-meta is-pending">PENDIENTES</div>
-                        </div>
-                        <div class="wo-dash-quotestat">
-                            <div class="wo-dash-quotestat-v is-success" id="ws-approved">—</div>
-                            <div class="wo-dash-quotestat-l wo-meta">APROBADAS</div>
-                        </div>
-                        <div class="wo-dash-quotestat">
-                            <div class="wo-dash-quotestat-v is-danger" id="ws-rejected">—</div>
-                            <div class="wo-dash-quotestat-l wo-meta">RECHAZADAS</div>
-                        </div>
-                    </div>
+                    <div class="wo-dash-designs" id="wod-designs-grid"></div>
                 </section>
 
-                <!-- Actividad reciente -->
-                <section class="wo-dash-section" id="wod-activity-section" aria-label="Actividad reciente" hidden>
-                    <h2 class="wo-h3 wo-dash-activity-title">Actividad reciente</h2>
-                    <div class="wo-dash-activity" id="wod-activity-list"></div>
-                </section>
+                <!-- Fila de 2 columnas: Cotizaciones (izq) + Actividad reciente (der) -->
+                <div class="wo-dash-row2">
+
+                    <!-- Cotizaciones -->
+                    <section class="wo-dash-section wo-dash-col--quotes" aria-label="Cotizaciones">
+                        <header class="wo-dash-sechead">
+                            <h2 class="wo-h2">Cotizaciones</h2>
+                        </header>
+                        <div class="wo-dash-quotestats">
+                            <div class="wo-dash-quotestat">
+                                <div class="wo-dash-quotestat-v" id="ws-pending">—</div>
+                                <div class="wo-dash-quotestat-l wo-meta is-pending">PENDIENTES</div>
+                            </div>
+                            <div class="wo-dash-quotestat">
+                                <div class="wo-dash-quotestat-v is-success" id="ws-approved">—</div>
+                                <div class="wo-dash-quotestat-l wo-meta">APROBADAS</div>
+                            </div>
+                            <div class="wo-dash-quotestat">
+                                <div class="wo-dash-quotestat-v is-danger" id="ws-rejected">—</div>
+                                <div class="wo-dash-quotestat-l wo-meta">RECHAZADAS</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Actividad reciente -->
+                    <section class="wo-dash-section wo-dash-col--activity" id="wod-activity-section" aria-label="Actividad reciente" hidden>
+                        <header class="wo-dash-sechead wo-dash-sechead--tight">
+                            <h2 class="wo-h3 wo-dash-activity-title">Actividad reciente</h2>
+                            <a class="wo-dash-seclink" href="/my-quotations">VER TODO →</a>
+                        </header>
+                        <div class="wo-dash-activity" id="wod-activity-list"></div>
+                    </section>
+
+                </div>
 
             </div>
 
@@ -264,22 +280,29 @@
                         <span class="wo-badge wo-badge--s wo-badge--success artist-level-badge" id="artist-level-badge"><span class="level-text" id="level-text">NUEVO</span></span>
                         <span class="wo-badge wo-badge--s wo-badge--outline embajador-badge" id="embajador-badge" style="display:none;">EMBAJADOR</span>
                     </div>
-                    <p class="wo-dash-profile-meta wo-meta"><span id="stat-price">—</span> / SESIÓN · <span id="stat-styles">—</span> ESTILOS · <span id="stat-experience">—</span> AÑOS</p>
+                    <p class="wo-dash-profile-meta wo-meta"><span id="stat-price">—</span> / SESIÓN · <span id="stat-styles">—</span> <span id="wod-styles-word">ESTILOS</span> · <span id="stat-experience">—</span> AÑOS</p>
                     <a class="wo-dash-profile-edit" href="/artist/profile/details">Editar perfil →</a>
                 </section>
 
                 <hr class="wo-divider">
 
+                <!-- Ingresos · cotizaciones completadas con monto final real -->
+                <section class="wo-dash-income" id="wod-income" aria-label="Ingresos" hidden>
+                    <p class="wo-eyebrow wo-dash-income-cap" id="wod-income-cap">INGRESOS</p>
+                    <p class="wo-dash-income-total" id="wod-income-total">—</p>
+                    <div class="wo-dash-income-split">
+                        <div class="wo-dash-income-cell">
+                            <p class="wo-dash-income-sub" id="wod-income-week">—</p>
+                            <p class="wo-meta-s wo-dash-income-lbl">SEMANA</p>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Acciones rápidas -->
                 <section class="wo-dash-quick" aria-label="Acciones rápidas">
-                    <p class="wo-eyebrow">Acciones rápidas</p>
+                    <p class="wo-eyebrow">ACCIONES RÁPIDAS</p>
                     <div class="wo-dash-quick-list">
-                        <button class="wo-btn wo-btn--hard wo-btn--block" id="preview-profile-btn" type="button"><i data-wo-icon="eye" class="wo-icon-18"></i>VER PERFIL PÚBLICO</button>
-                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="request-verification-btn" type="button"><i data-wo-icon="shield" class="wo-icon-18"></i>VERIFICAR PERFIL</button>
-                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="share-profile-btn" type="button"><i data-wo-icon="share-2" class="wo-icon-18"></i>COMPARTIR PERFIL</button>
-                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="qr-profile-btn" type="button" onclick="openQRModal()"><i data-wo-icon="grid" class="wo-icon-18"></i>TARJETA QR</button>
-                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="change-password-btn" type="button"><i data-wo-icon="lock" class="wo-icon-18"></i>CAMBIAR CONTRASEÑA</button>
-                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block wo-dash-quick-danger" id="logout-btn" type="button"><i data-wo-icon="log-out" class="wo-icon-18"></i>CERRAR SESIÓN</button>
+                        <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/calendar"><i data-wo-icon="calendar" class="wo-icon-18"></i>NUEVA CITA</a>
                     </div>
                 </section>
             </aside>
@@ -294,11 +317,6 @@
                 <header class="wo-dash-gallery-head">
                     <h2 class="wo-dash-gallery-title">Galería de trabajos <span class="wo-dash-gallery-count" id="wod-gallery-count">— 0</span></h2>
                     <div class="wo-dash-gallery-tools">
-                        <select id="gallery-category-select" class="wo-select wo-dash-gallery-select" aria-label="Categoría para nuevos archivos">
-                            <option value="realizados">Trabajos realizados</option>
-                            <option value="flash">Flash disponibles</option>
-                            <option value="proyectos">Proyectos</option>
-                        </select>
                         <div id="ig-import-mount-dashboard"></div>
                     </div>
                 </header>
@@ -307,18 +325,19 @@
                         <span class="wo-meta-s">MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span>
                         <span class="wo-meta-s wo-dash-gallery-hint"><i data-wo-icon="move" class="wo-icon-18"></i>ARRASTRÁ PARA REORDENAR</span>
                     </div>
-                    <div class="wo-dash-gallery-grid" id="gallery-admin-grid">
-                        <div class="gallery-empty wod-empty" id="gallery-empty">Aún no subiste archivos</div>
-                    </div>
-                    <div class="gallery-admin-loading" id="gallery-admin-loading" style="display:none;">
-                        <div class="gallery-upload-progress">
-                            <div class="gallery-upload-progress-header">
-                                <span class="gallery-upload-label wo-meta-s">Subiendo archivos</span>
-                                <span class="gallery-upload-counter wo-meta-s" id="gallery-upload-counter">0 / 0</span>
-                            </div>
+                    <!-- La grilla es `display:contents`: sus celdas y la card "subiendo"
+                         comparten el mismo grid del wrapper, como en el Figma. -->
+                    <div class="wo-dash-gallery-cells">
+                        <div class="wo-dash-gallery-grid" id="gallery-admin-grid">
+                            <div class="gallery-empty wod-empty" id="gallery-empty">Aún no subiste archivos</div>
+                        </div>
+                        <div class="gallery-admin-loading" id="gallery-admin-loading" style="display:none;">
+                            <span class="gallery-upload-spinner wo-spinner" aria-hidden="true"></span>
                             <div class="gallery-progress-track">
                                 <div class="gallery-progress-fill" id="gallery-progress-fill"></div>
                             </div>
+                            <span class="gallery-upload-label wo-meta-s">Subiendo archivos</span>
+                            <span class="gallery-upload-counter wo-meta-s" id="gallery-upload-counter">0 / 0</span>
                         </div>
                     </div>
                 </div>
@@ -329,7 +348,7 @@
     <!-- ============================ CTA · SUBIR TRABAJO ============================ -->
     <section class="wo-dash-cta" aria-label="Subí tu trabajo">
         <div class="wo-container wo-dash-cta-inner">
-            <i data-wo-icon="target" class="wo-dash-cta-icon"></i>
+            <i data-wo-icon="pen-tool" class="wo-dash-cta-icon"></i>
             <h2 class="wo-dash-cta-title">Mostrá tu mejor trabajo</h2>
             <p class="wo-dash-cta-copy">Un portfolio con fotos de calidad genera más cotizaciones.</p>
             <label class="wo-btn wo-btn--accent wo-btn--hard wo-dash-cta-btn" for="gallery-input" id="profile-gallery-upload-btn"><i data-wo-icon="plus" class="wo-icon-18"></i>SUBIR FOTOS/VIDEOS</label>
@@ -353,19 +372,18 @@
                     </div>
                     <div class="wo-dash-footer-col">
                         <p class="wo-meta-s wo-dash-footer-cap">AYUDA</p>
-                        <a href="https://weotzi.com/faqs">Preguntas frecuentes</a>
+                        <a href="/faqs">Preguntas frecuentes</a>
                         <a href="mailto:artistas@weotzi.com">Centro de ayuda</a>
                     </div>
                     <div class="wo-dash-footer-col">
                         <p class="wo-meta-s wo-dash-footer-cap">TÉRMINOS</p>
-                        <a href="https://weotzi.com/about-us">Términos y condiciones</a>
-                        <a href="https://weotzi.com/about-us">Privacidad</a>
+                        <a href="/terminos">Términos y condiciones</a>
+                        <a href="/privacidad">Privacidad</a>
                     </div>
                 </div>
                 <div class="wo-dash-footer-bottom">
                     <span class="wo-meta-s">© 2026 WE ÖTZI. TODOS LOS DERECHOS RESERVADOS.</span>
                     <div class="wo-dash-footer-right">
-                        <div class="wo-dash-footer-cur" data-weotzi-currency-mount></div>
                         <a class="wo-dash-footer-ig wo-meta-s" href="https://www.instagram.com/weotzi" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18"></i>INSTAGRAM</a>
                     </div>
                 </div>
@@ -390,6 +408,32 @@
          page. Do not surface this block visually.
          ============================================================ -->
     <div class="wod-hook-hidden" aria-hidden="true">
+        <!-- Controles de cuenta que el frame del Figma no dibuja en el rail.
+             Siguen acá SOLO como hooks: dashboard.js los cablea por id y los
+             modales (QR / contraseña / verificación) siguen operativos. La UI
+             visible de estas acciones vive en /artist/profile/details. -->
+        <button id="preview-profile-btn" type="button">VER PERFIL PÚBLICO</button>
+        <button id="request-verification-btn" type="button">VERIFICAR PERFIL</button>
+        <button id="share-profile-btn" type="button">COMPARTIR PERFIL</button>
+        <button id="qr-profile-btn" type="button" onclick="openQRModal()">TARJETA QR</button>
+        <button id="change-password-btn" type="button">CAMBIAR CONTRASEÑA</button>
+        <button id="logout-btn" type="button">CERRAR SESIÓN</button>
+
+        <!-- Selector de categoría de la galería: el header del Figma solo lleva
+             título + contador + IMPORTAR INSTAGRAM. dashboard.js lo lee por id
+             al subir archivos (getSelectedGalleryCategory). -->
+        <select id="gallery-category-select" aria-label="Categoría para nuevos archivos">
+            <option value="realizados">Trabajos realizados</option>
+            <option value="flash">Flash disponibles</option>
+            <option value="proyectos">Proyectos</option>
+        </select>
+
+        <!-- Punto de montaje del selector de moneda: fuera del bottom bar (el
+             Figma solo tiene copyright + INSTAGRAM). Si se borra el nodo,
+             currency-utils.js monta un widget flotante, que tampoco está en el
+             diseño; por eso se conserva oculto. -->
+        <div class="wo-dash-footer-cur" data-weotzi-currency-mount></div>
+
         <!-- identity / social -->
         <p id="artist-location"><a id="location-link" href="#"><span id="location-text">-</span></a></p>
         <a href="#" id="instagram-link"></a>
@@ -704,7 +748,7 @@
     <script src="/shared/js/address-picker.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/dashboard.js?v=20260816-ds-dashboard-1"></script>
-    <script src="/shared/js/dashboard-redesign.js?v=20260816-ds-dashboard-2"></script>
+    <script src="/shared/js/dashboard-redesign.js?v=20260816-ds-dashboard-3"></script>
 </body>
 
 </html>

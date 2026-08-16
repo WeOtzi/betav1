@@ -1,7 +1,8 @@
 // ============================================
-// WE OTZI - Quotations Admin Panel Logic
-// Connected to Supabase quotations_db
-// Uses shared-drawer.js for drawer functionality
+// WE OTZI - Cotizaciones del artista (/my-quotations)
+// Lista de tarjetas agrupadas por período (fidelidad Figma 23-cotizaciones).
+// Datos: capa PostgREST unificada (window.WeotziData).
+// El drawer de detalle vive en shared-drawer.js.
 // ============================================
 
 // Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
@@ -40,25 +41,56 @@ let selectedQuotes = new Set();
 let allAttachments = [];
 let allTattooStyles = [];
 
-// Column Configuration (Updated V4 · DS Bauhaus)
-const defaultColumns = [
-    { id: 'select', label: '', width: '40px', field: 'select' },
-    { id: 'created_at', label: 'Fecha', width: '100px', field: 'created_at' },
-    { id: 'id', label: 'ID', width: '80px', field: 'id' },
-    { id: 'client', label: 'Cliente', width: '2fr', field: 'client_full_name' },
-    { id: 'location', label: 'Ubicación', width: '1.5fr', field: 'client_city_residence' },
-    { id: 'concept', label: 'Proyecto', width: '2fr', field: 'tattoo_idea_description' },
-    { id: 'timing', label: 'Fecha deseada', width: '1.5fr', field: 'client_preferred_date' },
-    { id: 'value', label: 'Valor', width: '110px', field: 'client_budget_amount' },
-    { id: 'action', label: 'Acción', width: '150px', field: 'action' }
-];
-
-// Force reset if using old column version
-let tableColumns = JSON.parse(localStorage.getItem('wo_table_columns_v4')) || defaultColumns;
+// Paginación del listado (Figma: "CARGAR COTIZACIONES ANTERIORES")
+const PAGE_SIZE = 8;
+let visibleCount = PAGE_SIZE;
 
 // Filters & Sorting State
 let sortConfig = { field: 'created_at', direction: 'desc' };
-let filterConfig = { status: 'all', search: '' };
+let filterConfig = { status: 'all', priority: 'all', quick: 'all', scope: 'all', search: '' };
+
+// ============================================
+// VOCABULARIO DE ESTADO Y PRIORIDAD
+// ============================================
+
+// Familias de color del Figma: pendiente / respondida / confirmada / rechazada / vencida.
+const QUOTE_STATUS_VIEW = {
+    pending:          { label: 'Pendiente',          tone: 'pending' },
+    responded:        { label: 'Respondida',         tone: 'responded' },
+    client_approved:  { label: 'Confirmada',         tone: 'confirmed' },
+    in_progress:      { label: 'En progreso',        tone: 'confirmed' },
+    artist_completed: { label: 'Lista para cliente', tone: 'confirmed' },
+    completed:        { label: 'Completada',         tone: 'confirmed' },
+    client_rejected:  { label: 'Rechazada',          tone: 'rejected' },
+    expired:          { label: 'Vencida',            tone: 'expired' }
+};
+
+const CONFIRMED_STATUSES = ['client_approved', 'in_progress', 'artist_completed', 'completed'];
+const ANSWERED_STATUSES = ['responded', 'client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected'];
+const CLOSED_STATUSES = ['completed', 'client_rejected', 'expired'];
+
+const PRIORITY_VIEW = {
+    high:   { label: 'Alta',  tone: 'high' },
+    medium: { label: 'Media', tone: 'medium' },
+    low:    { label: 'Baja',  tone: 'low' }
+};
+
+function statusView(status) {
+    return QUOTE_STATUS_VIEW[status] || { label: status || 'Sin estado', tone: 'expired' };
+}
+
+function priorityView(priority) {
+    return PRIORITY_VIEW[priority] || PRIORITY_VIEW.medium;
+}
+
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 // ============================================
 // AUTH & LOGOUT
@@ -68,7 +100,7 @@ async function handleLogout() {
     try {
         const { error } = await _supabase.auth.signOut();
         if (error) throw error;
-        
+
         window.location.href = appUrl('/registerclosedbeta');
     } catch (error) {
         console.error('Logout error:', error);
@@ -84,14 +116,14 @@ window.handleLogout = handleLogout;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeAdmin();
-    restoreThemeAndZoom();
+    restoreZoom();
 });
 
 async function initializeAdmin() {
     try {
         // 1. Auth Check
         const { data: { session }, error: authError } = await _supabase.auth.getSession();
-        
+
         if (authError || !session) {
             console.log('No authenticated session. Redirecting...');
             window.location.href = buildArtistLoginUrl('/my-quotations');
@@ -99,7 +131,7 @@ async function initializeAdmin() {
         }
 
         currentUser = session.user;
-        
+
         // 2. Load Artist Profile
         const { data: artist, error: artistError } = await WeotziData.Artists.getByUserIdSingle(currentUser.id);
 
@@ -110,13 +142,11 @@ async function initializeAdmin() {
         }
 
         artistData = artist;
-        const displayName = artist.username ? artist.username.toUpperCase() : currentUser.email.split('@')[0].toUpperCase();
-        document.getElementById('logged-as').textContent = `LOGGED_AS: ${displayName}`;
 
         // Initialize UI
-        renderHeaders();
-        updateGridStyles();
+        renderHeroEyebrow();
         setupToolbarListeners();
+        setupCurrencySelect();
 
         // 3. Load Quotations & Attachments
         await loadQuotations();
@@ -128,25 +158,14 @@ async function initializeAdmin() {
 
     } catch (err) {
         console.error('Initialization error:', err);
-        document.getElementById('status-indicator').textContent = 'STATUS: OFFLINE (ERROR)';
+        const list = document.getElementById('quotes-table-body');
+        if (list) list.innerHTML = '<div class="table-empty">No pudimos cargar tus cotizaciones. Probá recargar la página.</div>';
     }
 }
 
 // ============================================
-// THEME & ZOOM CONTROLS
+// ZOOM (el DS Bauhaus no tiene modo oscuro)
 // ============================================
-
-function toggleTheme() {
-    const isDark = document.body.classList.toggle('dark-mode');
-    localStorage.setItem('weotzi-theme', isDark ? 'dark' : 'light');
-    
-    // Bauhaus visual feedback
-    const btn = document.querySelector('.theme-toggle');
-    if (btn) {
-        btn.style.backgroundColor = 'var(--bauhaus-yellow)';
-        setTimeout(() => btn.style.backgroundColor = '', 300);
-    }
-}
 
 const ZOOM_MIN = 0.6;
 const ZOOM_MAX = 1.2;
@@ -168,12 +187,9 @@ function zoomOut() {
     setZoom(current - ZOOM_STEP);
 }
 
-function restoreThemeAndZoom() {
-    // Sin modo oscuro en el DS Bauhaus: solo se restaura el zoom.
+function restoreZoom() {
     const savedZoom = localStorage.getItem('weotzi-zoom');
-    if (savedZoom) {
-        setZoom(parseFloat(savedZoom));
-    }
+    if (savedZoom) setZoom(parseFloat(savedZoom));
 }
 
 // ============================================
@@ -183,7 +199,12 @@ function restoreThemeAndZoom() {
 function setupToolbarListeners() {
     const searchInput = document.getElementById('search-input');
     const statusFilter = document.getElementById('status-filter');
+    const priorityFilter = document.getElementById('priority-filter');
+    const scopeSelect = document.getElementById('scope-select');
     const sortSelect = document.getElementById('sort-select');
+    const moreFiltersBtn = document.getElementById('more-filters-btn');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const exportBtn = document.getElementById('export-quotes-btn');
 
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -195,6 +216,22 @@ function setupToolbarListeners() {
     if (statusFilter) {
         statusFilter.addEventListener('change', (e) => {
             filterConfig.status = e.target.value;
+            if (filterConfig.quick !== 'all') setQuickFilter('all', { silent: true });
+            applyFiltersAndSort();
+        });
+    }
+
+    if (priorityFilter) {
+        priorityFilter.addEventListener('change', (e) => {
+            filterConfig.priority = e.target.value;
+            if (filterConfig.quick === 'high' && e.target.value !== 'high') setQuickFilter('all', { silent: true });
+            applyFiltersAndSort();
+        });
+    }
+
+    if (scopeSelect) {
+        scopeSelect.addEventListener('change', (e) => {
+            filterConfig.scope = e.target.value;
             applyFiltersAndSort();
         });
     }
@@ -206,6 +243,170 @@ function setupToolbarListeners() {
             applyFiltersAndSort();
         });
     }
+
+    document.querySelectorAll('.q-chip[data-quick]').forEach((chip) => {
+        chip.addEventListener('click', () => setQuickFilter(chip.dataset.quick));
+    });
+
+    if (moreFiltersBtn) {
+        moreFiltersBtn.addEventListener('click', () => {
+            const panel = document.getElementById('more-filters');
+            if (!panel) return;
+            const willOpen = panel.hasAttribute('hidden');
+            if (willOpen) panel.removeAttribute('hidden');
+            else panel.setAttribute('hidden', '');
+            moreFiltersBtn.setAttribute('aria-expanded', String(willOpen));
+            moreFiltersBtn.classList.toggle('is-active', willOpen);
+        });
+    }
+
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', () => {
+            visibleCount += PAGE_SIZE;
+            renderList();
+        });
+    }
+
+    if (exportBtn) exportBtn.addEventListener('click', exportQuotationsCsv);
+}
+
+function setQuickFilter(value, options = {}) {
+    filterConfig.quick = value;
+
+    document.querySelectorAll('.q-chip[data-quick]').forEach((chip) => {
+        const active = chip.dataset.quick === value;
+        chip.classList.toggle('is-active', active);
+        chip.setAttribute('aria-pressed', String(active));
+    });
+
+    // El chip manda: reinicia los selects finos para no filtrar dos veces.
+    const statusFilter = document.getElementById('status-filter');
+    const priorityFilter = document.getElementById('priority-filter');
+    if (value === 'high') {
+        filterConfig.status = 'all';
+        filterConfig.priority = 'high';
+    } else if (value !== 'all') {
+        filterConfig.priority = 'all';
+        filterConfig.status = 'all';
+    } else if (!options.silent) {
+        filterConfig.status = 'all';
+        filterConfig.priority = 'all';
+    }
+    if (statusFilter) statusFilter.value = filterConfig.status;
+    if (priorityFilter) priorityFilter.value = filterConfig.priority;
+
+    if (!options.silent) applyFiltersAndSort();
+}
+
+// ============================================
+// MONEDA
+// ============================================
+
+function displayCurrencyPreference() {
+    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.getDisplayPreference === 'function') {
+        return window.WeOtziCurrency.getDisplayPreference();
+    }
+    return 'local';
+}
+
+function setupCurrencySelect() {
+    const select = document.getElementById('currency-select');
+    if (!select) return;
+
+    function rebuild() {
+        const current = displayCurrencyPreference();
+        select.innerHTML = '';
+        const localOpt = document.createElement('option');
+        localOpt.value = 'local';
+        localOpt.textContent = 'Moneda original';
+        select.appendChild(localOpt);
+
+        const catalog = (window.WeOtziCurrency && typeof window.WeOtziCurrency.list === 'function')
+            ? window.WeOtziCurrency.list()
+            : [];
+        catalog.forEach((currency) => {
+            if (!currency || !currency.code) return;
+            const opt = document.createElement('option');
+            opt.value = currency.code;
+            opt.textContent = currency.name ? `${currency.name} (${currency.code})` : currency.code;
+            select.appendChild(opt);
+        });
+        select.value = current;
+    }
+
+    rebuild();
+    document.addEventListener('weotzi:currencies-loaded', rebuild);
+
+    select.addEventListener('change', () => {
+        if (window.WeOtziCurrency && typeof window.WeOtziCurrency.setDisplayPreference === 'function') {
+            window.WeOtziCurrency.setDisplayPreference(select.value);
+        }
+        renderList();
+        updateStats();
+    });
+}
+
+// Suma importes en una sola moneda. Devuelve null si no hay ninguno convertible.
+function aggregateAmount(entries) {
+    const usable = entries.filter((e) => e && isFinite(parseFloat(e.amount)) && parseFloat(e.amount) > 0);
+    if (!usable.length) return null;
+
+    const pref = displayCurrencyPreference();
+    let target = pref !== 'local' ? pref : null;
+    if (!target) {
+        const tally = {};
+        usable.forEach((e) => {
+            const code = (e.currency || 'USD').toUpperCase();
+            tally[code] = (tally[code] || 0) + 1;
+        });
+        target = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0] || 'USD';
+    }
+
+    const canConvert = window.WeOtziCurrency && typeof window.WeOtziCurrency.convert === 'function';
+    let total = 0;
+    let counted = 0;
+    usable.forEach((e) => {
+        const amount = parseFloat(e.amount);
+        const code = (e.currency || 'USD').toUpperCase();
+        if (code === target) { total += amount; counted++; return; }
+        if (!canConvert) return;
+        const converted = window.WeOtziCurrency.convert(amount, code, target);
+        if (converted != null) { total += converted; counted++; }
+    });
+
+    if (!counted) return null;
+    return { total, currency: target };
+}
+
+function formatMoney(total, currency) {
+    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.format === 'function') {
+        return window.WeOtziCurrency.format(total, currency, { decimals: 0 });
+    }
+    return `${currency} ${Math.round(total).toLocaleString('es-AR')}`;
+}
+
+function formatAggregate(entries, empty = '—') {
+    const agg = aggregateAmount(entries);
+    if (!agg) return empty;
+    return formatMoney(agg.total, agg.currency);
+}
+
+// Importe que se muestra en la fila: el final si la cotización cerró, si no el del cliente.
+function quoteAmountEntry(quote) {
+    const useFinal = quote.quote_status === 'completed' && quote.final_budget_amount;
+    return {
+        amount: useFinal ? quote.final_budget_amount : quote.client_budget_amount,
+        currency: useFinal ? (quote.final_budget_currency || 'USD') : (quote.client_budget_currency || 'USD')
+    };
+}
+
+function formatQuoteAmount(quote) {
+    const entry = quoteAmountEntry(quote);
+    if (!entry.amount) return 'A definir';
+    if (window.WeOtziCurrency && window.WeOtziCurrency.isReady()) {
+        return window.WeOtziCurrency.formatInline(entry.amount, entry.currency, { showSecondary: false });
+    }
+    return `${entry.amount} ${entry.currency}`;
 }
 
 // ============================================
@@ -243,10 +444,11 @@ async function loadQuotations() {
 
         applyFiltersAndSort();
         updateStats();
+        renderHeroTitle();
 
     } catch (err) {
         console.error('Error loading quotations:', err);
-        document.getElementById('quotes-table-body').innerHTML = `<div class="table-empty" style="color: var(--red-700);">Error al cargar los datos: ${err.message}</div>`;
+        document.getElementById('quotes-table-body').innerHTML = `<div class="table-empty">Error al cargar los datos: ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -254,18 +456,38 @@ async function loadQuotations() {
 // FILTERING & SORTING LOGIC
 // ============================================
 
+function matchesQuickFilter(quote) {
+    switch (filterConfig.quick) {
+        case 'pending': return quote.quote_status === 'pending';
+        case 'high': return (quote.priority || 'medium') === 'high';
+        case 'confirmed': return CONFIRMED_STATUSES.includes(quote.quote_status);
+        default: return true;
+    }
+}
+
+function matchesScope(quote) {
+    if (filterConfig.scope === 'open') return !CLOSED_STATUSES.includes(quote.quote_status);
+    if (filterConfig.scope === 'closed') return CLOSED_STATUSES.includes(quote.quote_status);
+    return true;
+}
+
 function applyFiltersAndSort() {
-    // 1. Filter
     filteredQuotations = quotations.filter(q => {
         const matchesStatus = filterConfig.status === 'all' || q.quote_status === filterConfig.status;
-        const searchStr = (q.client_full_name + ' ' + (q.quote_id || q.id)).toLowerCase();
+        const matchesPriority = filterConfig.priority === 'all' || (q.priority || 'medium') === filterConfig.priority;
+        const searchStr = [
+            q.client_full_name,
+            q.client_city_residence,
+            q.quote_id || q.id,
+            q.tattoo_idea_description
+        ].filter(Boolean).join(' ').toLowerCase();
         const matchesSearch = filterConfig.search === '' || searchStr.includes(filterConfig.search);
-        return matchesStatus && matchesSearch;
+        return matchesStatus && matchesPriority && matchesSearch && matchesQuickFilter(q) && matchesScope(q);
     });
 
-    // 2. Sort
     filteredQuotations.sort((a, b) => {
-        let valA, valB;
+        let valA = 0;
+        let valB = 0;
 
         if (sortConfig.field === 'created_at') {
             valA = new Date(a.created_at).getTime();
@@ -279,44 +501,51 @@ function applyFiltersAndSort() {
         return valB - valA;
     });
 
-    renderTable();
+    visibleCount = PAGE_SIZE;
+    renderList();
 }
 
 // ============================================
-// UI RENDERING & COLUMN MANAGEMENT
+// AGRUPACIÓN POR PERÍODO
 // ============================================
 
-function renderHeaders() {
-    const headerContainer = document.getElementById('table-header');
-    headerContainer.innerHTML = '';
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-    tableColumns.forEach((col, index) => {
-        const th = document.createElement('div');
-        th.className = 'header-cell';
-        if (col.id !== 'select') {
-            th.draggable = true;
-            th.dataset.index = index;
-            th.innerHTML = `<span>${col.label}</span><div class="resize-handle" data-index="${index}"></div>`;
-            th.addEventListener('dragstart', handleDragStart);
-            th.addEventListener('dragover', handleDragOver);
-            th.addEventListener('drop', handleDrop);
-            th.addEventListener('dragend', handleDragEnd);
-            const resizer = th.querySelector('.resize-handle');
-            resizer.addEventListener('mousedown', initResize);
-        } else {
-            th.innerHTML = `<input type="checkbox" id="select-all-quotes" onclick="toggleSelectAll(event)">`;
+function startOfWeek(date) {
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    const offset = (day.getDay() + 6) % 7; // lunes = 0
+    day.setDate(day.getDate() - offset);
+    return day;
+}
+
+function periodLabel(createdAt) {
+    const created = new Date(createdAt);
+    if (isNaN(created.getTime())) return 'Sin fecha';
+
+    const thisWeek = startOfWeek(new Date());
+    if (created >= thisWeek) return 'Esta semana';
+
+    const lastWeek = new Date(thisWeek);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    if (created >= lastWeek) return 'Semana pasada';
+
+    return `${MONTH_NAMES[created.getMonth()]} ${created.getFullYear()}`;
+}
+
+function groupByPeriod(list) {
+    const groups = [];
+    const index = {};
+    list.forEach((quote) => {
+        const label = periodLabel(quote.created_at);
+        if (!index[label]) {
+            index[label] = { label, quotes: [] };
+            groups.push(index[label]);
         }
-        headerContainer.appendChild(th);
+        index[label].quotes.push(quote);
     });
-}
-
-function updateGridStyles() {
-    const gridTemplate = tableColumns.map(col => col.width).join(' ');
-    document.getElementById('table-container').style.setProperty('--table-columns', gridTemplate);
-}
-
-function saveColumnConfig() {
-    localStorage.setItem('wo_table_columns_v4', JSON.stringify(tableColumns));
+    return groups;
 }
 
 // ============================================
@@ -335,114 +564,201 @@ function getStyleDisplayName(tattooStyle) {
     return 'TBD';
 }
 
+function shortQuoteRef(quote) {
+    if (quote.quote_id) return quote.quote_id;
+    return `COT-${String(quote.id).slice(-4).toUpperCase()}`;
+}
+
+function shortDate(isoString) {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '—';
+    return `${String(date.getDate()).padStart(2, '0')} ${MONTH_SHORT[date.getMonth()]}`;
+}
+
 // ============================================
-// ROW RENDERING
+// RENDER DE LA LISTA (tarjetas agrupadas)
 // ============================================
 
-function renderTable() {
-    const tbody = document.getElementById('quotes-table-body');
-    
+function renderQuoteCard(quote, index) {
+    const status = statusView(quote.quote_status);
+    const priority = priorityView(quote.priority || 'medium');
+    const styleName = getStyleDisplayName(quote.tattoo_style);
+    const bodyPart = quote.tattoo_body_part;
+
+    const chips = [];
+    if (styleName && styleName !== 'TBD') chips.push(styleName);
+    if (bodyPart) chips.push(bodyPart);
+
+    return `
+        <article class="q-card" data-quote-id="${escapeHtml(quote.id)}" style="--q-card-delay:${index * 0.04}s">
+            <span class="q-card-rail" aria-hidden="true"></span>
+            <div class="q-card-prio">
+                <span class="q-prio-mark q-prio-mark--${priority.tone}" aria-hidden="true"></span>
+                <span class="q-prio-label">${escapeHtml(priority.label)}</span>
+            </div>
+            <div class="q-card-body">
+                <p class="q-card-meta">${escapeHtml(shortQuoteRef(quote))} · ${escapeHtml(shortDate(quote.created_at))}</p>
+                <p class="q-card-head">
+                    <span class="q-card-name">${escapeHtml(quote.client_full_name || 'Sin nombre')}</span>
+                    ${quote.client_city_residence ? `<span class="q-card-city">${escapeHtml(quote.client_city_residence)}</span>` : ''}
+                </p>
+                <p class="q-card-desc">${escapeHtml(quote.tattoo_idea_description || 'Sin descripción')}</p>
+                ${chips.length ? `<div class="q-card-chips">${chips.map(c => `<span class="q-chip-tag">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
+            </div>
+            <div class="q-card-side">
+                <span class="q-status q-status--${status.tone}">${escapeHtml(status.label)}</span>
+                <span class="q-card-price">${escapeHtml(formatQuoteAmount(quote))}</span>
+                <button type="button" class="q-card-cta" onclick="inspectQuote('${escapeHtml(quote.id)}')">
+                    Ver detalle
+                    <i data-wo-icon="arrow-up-right" aria-hidden="true"></i>
+                </button>
+            </div>
+        </article>`;
+}
+
+function renderList() {
+    const container = document.getElementById('quotes-table-body');
+    const loadMoreWrap = document.getElementById('load-more-wrap');
+    if (!container) return;
+
+    updateLegendCount();
+
     if (filteredQuotations.length === 0) {
-        tbody.innerHTML = `<div class="table-empty">No hay cotizaciones que coincidan con la búsqueda</div>`;
+        container.innerHTML = '<div class="table-empty">No hay cotizaciones que coincidan con la búsqueda</div>';
+        if (loadMoreWrap) loadMoreWrap.setAttribute('hidden', '');
         return;
     }
 
-    tbody.innerHTML = filteredQuotations.map((quote, index) => {
-        const id = (quote.quote_id || quote.id.toString()).slice(-5).toUpperCase();
-        const date = new Date(quote.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        // Show final_budget if completed, otherwise show client_budget
-        const displayAmount = quote.quote_status === 'completed' && quote.final_budget_amount 
-            ? quote.final_budget_amount 
-            : quote.client_budget_amount;
-        const displayCurrency = quote.quote_status === 'completed' && quote.final_budget_currency 
-            ? quote.final_budget_currency 
-            : quote.client_budget_currency;
-        const value = displayAmount
-            ? (window.WeOtziCurrency && window.WeOtziCurrency.isReady()
-                ? window.WeOtziCurrency.formatInline(displayAmount, displayCurrency || 'USD')
-                : `${displayAmount} ${displayCurrency || ''}`)
-            : 'A definir';
-        const isFinished = ['responded', 'completed', 'client_approved', 'artist_completed', 'client_rejected'].includes(quote.quote_status);
-        const isSelected = selectedQuotes.has(quote.id.toString());
+    const visible = filteredQuotations.slice(0, visibleCount);
+    const groups = groupByPeriod(visible);
 
-        const dataMap = {
-            select: `<input type="checkbox" class="quote-checkbox" data-id="${quote.id}" ${isSelected ? 'checked' : ''} onclick="toggleSelect('${quote.id}', event)">`,
-            created_at: `<span class="quote-date">${date}</span>`,
-            id: `<span class="quote-id">#QN${id}</span>`,
-            client: `
-                <div class="client-cell">
-                    <span class="client-name">${quote.client_full_name || 'Sin nombre'}</span>
-                    <span class="client-sub">${quote.client_age ? quote.client_age + ' años' : '—'} · ${quote.client_instagram || 'sin instagram'}</span>
-                </div>
-            `,
-            location: `<div class="location-cell">${quote.client_city_residence || '—'}</div>`,
-            concept: `
-                <div class="tattoo-cell">
-                    <span class="tattoo-idea">${quote.tattoo_idea_description || 'Sin descripción'}</span>
-                    <span class="tattoo-specs">${quote.tattoo_body_part || 'A definir'} · ${getStyleDisplayName(quote.tattoo_style)}</span>
-                </div>
-            `,
-            timing: `<div class="timing-cell"><span class="status-badge ${isFinished ? 'completed' : ''}">${quote.client_preferred_date || 'Flexible'}</span></div>`,
-            value: `<div class="price-cell">${value}</div>`,
-            action: `
-                <button class="action-btn detail-btn" onclick="inspectQuote('${quote.id}')">
-                    Ver detalle
-                    <i data-wo-icon="arrow-up-right" class="wo-icon-18"></i>
-                </button>
-            `
-        };
-
-        const rowCells = tableColumns.map(col => dataMap[col.id] || `<div>-</div>`).join('');
-
-        return `<div class="quote-row ${isSelected ? 'selected' : ''}" style="opacity: 0; transform: translateY(12px); transition: opacity var(--duration-fade) var(--ease-standard), transform var(--duration-fade) var(--ease-standard); transition-delay: ${index * 0.04}s">${rowCells}</div>`;
+    let cardIndex = 0;
+    container.innerHTML = groups.map((group) => {
+        const count = group.quotes.length;
+        const subtotal = formatAggregate(group.quotes.map(quoteAmountEntry), 'Sin importe');
+        const cards = group.quotes.map((quote) => renderQuoteCard(quote, cardIndex++)).join('');
+        return `
+            <section class="q-group">
+                <header class="q-group-head">
+                    <span class="q-group-title">${escapeHtml(group.label)}</span>
+                    <span class="q-group-sum">${count} ${count === 1 ? 'cotización' : 'cotizaciones'} · ${escapeHtml(subtotal)}</span>
+                </header>
+                ${cards}
+            </section>`;
     }).join('');
 
-    setTimeout(() => {
-        const rows = document.querySelectorAll('.quote-row');
-        rows.forEach(row => { row.style.opacity = '1'; row.style.transform = 'translateY(0)'; });
-    }, 50);
+    if (loadMoreWrap) {
+        if (filteredQuotations.length > visibleCount) loadMoreWrap.removeAttribute('hidden');
+        else loadMoreWrap.setAttribute('hidden', '');
+    }
 
-    updateBulkBar();
+    requestAnimationFrame(() => {
+        container.querySelectorAll('.q-card').forEach((card) => card.classList.add('is-in'));
+    });
+}
+
+function updateLegendCount() {
+    const el = document.getElementById('legend-count');
+    if (!el) return;
+    const shown = Math.min(visibleCount, filteredQuotations.length);
+    const total = filteredQuotations.length;
+    el.textContent = `Mostrando ${shown} de ${total} ${total === 1 ? 'cotización' : 'cotizaciones'}`;
+}
+
+// ============================================
+// HERO Y MÉTRICAS
+// ============================================
+
+function renderHeroEyebrow() {
+    const el = document.getElementById('q-hero-eyebrow');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = `Módulo · Cotizaciones · ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+function renderHeroTitle() {
+    const el = document.getElementById('q-hero-title');
+    if (!el) return;
+    const weekStart = startOfWeek(new Date());
+    const pendingThisWeek = quotations.filter(q =>
+        q.quote_status === 'pending' && new Date(q.created_at) >= weekStart
+    ).length;
+    const noun = pendingThisWeek === 1 ? 'cotización' : 'cotizaciones';
+    const verb = pendingThisWeek === 1 ? 'espera' : 'esperan';
+    el.innerHTML = `<span class="wo-highlight">${pendingThisWeek} ${noun}</span> ${verb} tu respuesta esta semana.`;
 }
 
 function updateStats() {
     const total = quotations.length;
     const pending = quotations.filter(q => q.quote_status === 'pending').length;
-    document.getElementById('stat-total-quotes').textContent = total;
-    document.getElementById('stat-pending-quotes').textContent = pending;
-    // Only count completed quotes using final_budget_amount
-    const revenue = quotations
+    const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status)).length;
+    const highPriority = quotations.filter(q => (q.priority || 'medium') === 'high').length;
+    const responseRate = total > 0 ? Math.round((answered / total) * 100) : 0;
+
+    const revenueEntries = quotations
         .filter(q => q.quote_status === 'completed')
-        .reduce((sum, q) => sum + (parseFloat(q.final_budget_amount) || 0), 0);
-    document.getElementById('stat-revenue').textContent = `$${(revenue / 1000).toFixed(1)}k`;
+        .map(q => ({ amount: q.final_budget_amount, currency: q.final_budget_currency || 'USD' }));
+
+    setText('stat-total-quotes', total);
+    setText('stat-pending-quotes', pending);
+    setText('stat-response-rate', `${responseRate}%`);
+    setText('stat-revenue', formatAggregate(revenueEntries, '$0'));
+    setText('stat-high-priority', highPriority);
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
 }
 
 // ============================================
-// SELECTION & BULK ACTIONS
+// EXPORTAR (CSV de lo que está filtrado)
 // ============================================
 
-window.toggleSelect = function(id, e) {
-    if (selectedQuotes.has(id.toString())) selectedQuotes.delete(id.toString());
-    else selectedQuotes.add(id.toString());
-    renderTable();
-};
-
-window.toggleSelectAll = function(e) {
-    if (e.target.checked) filteredQuotations.forEach(q => selectedQuotes.add(q.id.toString()));
-    else selectedQuotes.clear();
-    renderTable();
-};
-
-function updateBulkBar() {
-    const bar = document.getElementById('bulk-action-bar');
-    if (!bar) return;
-    if (selectedQuotes.size > 0) {
-        bar.classList.add('active');
-        document.getElementById('selection-count').textContent = selectedQuotes.size === 1
-            ? '1 seleccionada'
-            : `${selectedQuotes.size} seleccionadas`;
-    } else bar.classList.remove('active');
+function csvCell(value) {
+    const str = String(value == null ? '' : value).replace(/"/g, '""');
+    return `"${str}"`;
 }
+
+function exportQuotationsCsv() {
+    if (!filteredQuotations.length) {
+        window.showToast?.('No hay cotizaciones para exportar', 'error');
+        return;
+    }
+
+    const header = ['ID', 'Fecha', 'Cliente', 'Ciudad', 'Estado', 'Prioridad', 'Estilo', 'Zona', 'Idea', 'Importe', 'Moneda'];
+    const rows = filteredQuotations.map((quote) => {
+        const entry = quoteAmountEntry(quote);
+        return [
+            shortQuoteRef(quote),
+            new Date(quote.created_at).toISOString().slice(0, 10),
+            quote.client_full_name || '',
+            quote.client_city_residence || '',
+            statusView(quote.quote_status).label,
+            priorityView(quote.priority || 'medium').label,
+            getStyleDisplayName(quote.tattoo_style),
+            quote.tattoo_body_part || '',
+            quote.tattoo_idea_description || '',
+            entry.amount || '',
+            entry.amount ? entry.currency : ''
+        ].map(csvCell).join(',');
+    });
+
+    const csv = '﻿' + [header.map(csvCell).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cotizaciones-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============================================
+// ARCHIVADO (lo dispara el drawer)
+// ============================================
 
 window.bulkArchive = async function() {
     if (selectedQuotes.size === 0) return;
@@ -451,28 +767,7 @@ window.bulkArchive = async function() {
         await WeotziData.Quotations.setArchivedByIds(ids, true);
         selectedQuotes.clear();
         await loadQuotations();
-    } catch (err) { alert('Error archiving: ' + err.message); }
-};
-
-window.bulkDelete = async function() {
-    if (selectedQuotes.size === 0) return;
-    if (!confirm('¿Seguro que querés eliminar las cotizaciones seleccionadas?')) return;
-    const ids = Array.from(selectedQuotes);
-    try {
-        await WeotziData.Quotations.hardDeleteByIds(ids);
-        selectedQuotes.clear();
-        await loadQuotations();
-    } catch (err) { alert('Error deleting: ' + err.message); }
-};
-
-window.bulkUpdateStatus = async function(newStatus) {
-    if (selectedQuotes.size === 0) return;
-    const ids = Array.from(selectedQuotes);
-    try {
-        await WeotziData.Quotations.updateStatusByIds(ids, newStatus);
-        selectedQuotes.clear();
-        await loadQuotations();
-    } catch (err) { alert('Error updating status: ' + err.message); }
+    } catch (err) { window.showToast?.('Error al archivar: ' + err.message, 'error'); }
 };
 
 window.bulkArchiveSingle = async function(id) {
@@ -488,66 +783,13 @@ window.bulkArchiveSingle = async function(id) {
 };
 
 // ============================================
-// LIST MANAGEMENT
-// ============================================
-
-window.openCreateListModal = function() {
-    document.getElementById('create-list-modal').style.display = 'flex';
-};
-
-window.closeCreateListModal = function() {
-    document.getElementById('create-list-modal').style.display = 'none';
-    document.getElementById('new-list-name').value = '';
-};
-
-window.createList = function() {
-    const name = document.getElementById('new-list-name').value.trim();
-    if (!name) {
-        alert('Please enter a list name');
-        return;
-    }
-    // List creation logic would go here
-    console.log('Creating list:', name);
-    closeCreateListModal();
-};
-
-// ============================================
-// DRAG & RESIZE LOGIC
-// ============================================
-
-let dragSrcIndex = null;
-function handleDragStart(e) { this.classList.add('dragging'); dragSrcIndex = this.dataset.index; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); }
-function handleDragOver(e) { if (e.preventDefault) e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
-function handleDrop(e) {
-    if (e.stopPropagation) e.stopPropagation();
-    const dropTarget = e.target.closest('.header-cell');
-    if (dropTarget && dragSrcIndex !== dropTarget.dataset.index) {
-        const fromIndex = parseInt(dragSrcIndex);
-        const toIndex = parseInt(dropTarget.dataset.index);
-        const itemToMove = tableColumns[fromIndex];
-        tableColumns.splice(fromIndex, 1);
-        tableColumns.splice(toIndex, 0, itemToMove);
-        saveColumnConfig(); renderHeaders(); updateGridStyles(); renderTable();
-    }
-    return false;
-}
-function handleDragEnd() { this.classList.remove('dragging'); document.querySelectorAll('.header-cell').forEach(col => col.classList.remove('dragging')); }
-
-let startX, startWidth, resizerColIndex;
-function initResize(e) { e.preventDefault(); e.stopPropagation(); const resizer = e.target; const headerCell = resizer.closest('.header-cell'); resizerColIndex = headerCell.dataset.index; startX = e.clientX; startWidth = headerCell.offsetWidth; document.documentElement.addEventListener('mousemove', doResize); document.documentElement.addEventListener('mouseup', stopResize); document.body.style.cursor = 'col-resize'; }
-function doResize(e) { const newWidth = startWidth + (e.clientX - startX); if (newWidth > 50) { tableColumns[resizerColIndex].width = `${newWidth}px`; updateGridStyles(); } }
-function stopResize() { document.documentElement.removeEventListener('mousemove', doResize); document.documentElement.removeEventListener('mouseup', stopResize); document.body.style.cursor = ''; saveColumnConfig(); }
-
-// ============================================
 // JOB BOARD - ARTIST APPLICATIONS VIEW
+// (deep link /my-quotations?tab=applications desde job-board-feed.js)
 // ============================================
 
 let myApplications = [];
 
 function showApplicationsView() {
-    // Hide main quotations content, show applications
-    const mainContent = document.querySelector('main > *:not(#applications-view)');
-    // Actually, let's hide everything in main except applications-view
     const mainEl = document.querySelector('main');
     Array.from(mainEl.children).forEach(child => {
         if (child.id === 'applications-view') {
@@ -557,10 +799,7 @@ function showApplicationsView() {
         }
     });
 
-    // Update nav active states
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('is-active'));
-    const navApp = document.getElementById('nav-applications');
-    if (navApp) navApp.classList.add('is-active');
 
     loadMyApplications();
 }
@@ -575,15 +814,17 @@ function showQuotationsView() {
         }
     });
 
-    // Reset nav
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('is-active'));
     const quotesNav = document.querySelector('a.nav-item[href="/my-quotations"]');
     if (quotesNav) quotesNav.classList.add('is-active');
 }
 
-// Make existing nav items restore quotations view
+window.showApplicationsView = showApplicationsView;
+window.showQuotationsView = showQuotationsView;
+
+// Volver al listado desde la vista de postulaciones sin recargar.
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.nav-item:not(#nav-applications)').forEach(nav => {
+    document.querySelectorAll('.nav-item').forEach(nav => {
         if (nav.getAttribute('href') === '/my-quotations') {
             nav.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -610,7 +851,7 @@ async function loadMyApplications() {
         renderApplicationsView();
     } catch (err) {
         console.error('Error loading applications:', err);
-        container.innerHTML = '<div style="text-align:center; padding:2rem;">Error al cargar postulaciones</div>';
+        container.innerHTML = '<div class="table-empty">Error al cargar postulaciones</div>';
     }
 }
 

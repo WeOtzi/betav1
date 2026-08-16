@@ -4,7 +4,10 @@ const _supabase = window.supabase?.createClient
     ? (window._supabase = window._supabase || window.supabase.createClient(supabaseUrl, supabaseKey))
     : null;
 
-const ARTIST_PUBLIC_FIELDS = [
+// Columnas del perfil público. `studio_id` y `gallery_feed_items` alimentan las
+// secciones Estudio y Portafolio del diseño; si un deploy viejo no las tiene, se
+// reintenta con el set legacy (ver loadArtistData).
+const ARTIST_PUBLIC_FIELDS_LEGACY = [
     'username',
     'user_id',
     'name',
@@ -16,30 +19,21 @@ const ARTIST_PUBLIC_FIELDS = [
     'ubicacion',
     'city',
     'country',
-    'portafolio',
-    'instagram',
-    'whatsapp_url',
     'gallery_images',
-    'work_type',
-    'estudios',
-    'nivel',
     'verification_state',
-    'embajador',
     'languages'
 ].join(',');
 
-const INITIAL_GALLERY_SLOTS = 9;
+const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items`;
+
+// Figma: grilla de 3 columnas con 12 slots; nunca menos de 9 (3 filas llenas).
+const MIN_GALLERY_SLOTS = 9;
+const MAX_GALLERY_SLOTS = 12;
 const GALLERY_PLACEHOLDER_SRC = '/shared/assets/placeholders/gallery-default.svg';
 const PROFILE_MOBILE_MENU_BREAKPOINT = 768;
-const ARTIST_MAP_CONTAINER_ID = 'artist-map';
-const ARTIST_MAP_EMPTY_ID = 'artist-map-empty';
-const ARTIST_MAP_POINTS_ID = 'artist-map-points';
-const ARTIST_MAP_INFO_CARD_ID = 'artist-map-info-card';
-const GEOCODE_CACHE_PREFIX = 'weotzi:artist-map:geocode:v1:';
-const GEOCODE_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
-const GEOCODE_MIN_INTERVAL_MS = 280;
-const GEOCODE_OVER_QUERY_LIMIT_RETRIES = 3;
-const GEOCODE_UNKNOWN_ERROR_RETRIES = 1;
+const REVIEW_QUOTE_COUNT = 3;
+const GALLERY_ALL_FILTER = 'todos';
+
 const PROFILE_ERROR_CONTENT = {
     not_found: {
         eyebrow: 'Perfil público · No encontrado',
@@ -52,6 +46,7 @@ const PROFILE_ERROR_CONTENT = {
         message: 'Podés intentarlo de nuevo o explorar otros artistas en el marketplace.'
     }
 };
+
 const ERROR_SCENE_SHAPE_CONFIG = {
     circle: { moveX: 6, moveY: 5, rotate: 1.1 },
     bar: { moveX: 8, moveY: 2.5, rotate: 0.55 },
@@ -59,40 +54,40 @@ const ERROR_SCENE_SHAPE_CONFIG = {
     'line-a': { moveX: 4, moveY: -2.5, rotate: 0.3 },
     'line-b': { moveX: -3.5, moveY: 4, rotate: -0.28 }
 };
-const AGENDA_STATUS_LABELS = {
-    open: 'Agenda abierta',
-    closed: 'Agenda cerrada'
+
+// Estados de residencia del Figma. `waitlist` queda mapeado para cuando el CHECK
+// de artist_tattoo_locations lo admita (hoy solo acepta open/closed).
+const PRESENCE_BADGES = {
+    open: { label: 'Agenda abierta', state: 'open' },
+    waitlist: { label: 'Lista de espera', state: 'waitlist' },
+    upcoming: { label: 'Próximamente', state: 'upcoming' },
+    closed: { label: 'Agenda cerrada', state: 'closed' }
 };
 
-const VERIFICATION_META = {
-    No: { label: 'No verificado', state: 'unverified' },
-    Requested: { label: 'Verificacion solicitada', state: 'review' },
-    'In Progress': { label: 'En verificacion', state: 'review' },
-    'In Analysis': { label: 'En analisis', state: 'review' },
-    Yes: { label: 'Verificado', state: 'verified' },
-    Denied: { label: 'Verificacion denegada', state: 'unverified' },
-    Canceled: { label: 'Verificacion cancelada', state: 'unverified' }
+// Rotación cromática del DS para tablas/listas tipográficas (rojo · azul · ink).
+const SPECIALTY_COLORS = ['var(--red-300)', 'var(--blue-300)', 'var(--yellow-300)', 'var(--ink)'];
+const CITY_TONES = ['red', 'blue', 'ink'];
+const REVIEW_AVATAR_COLORS = ['var(--ink)', 'var(--red-300)', 'var(--blue-300)'];
+
+const GALLERY_CATEGORY_LABELS = {
+    realizados: 'Realizados',
+    flash: 'Flash',
+    proyectos: 'Proyectos'
 };
 
 let artistData = null;
+let studioData = null;
 let tattooLocations = [];
 let galleryItems = [];
-let galleryExpanded = false;
+let galleryFilter = GALLERY_ALL_FILTER;
 let currentLightboxIndex = 0;
-let artistMap = null;
-let artistMapPoints = [];
-let googleGeocoder = null;
-let geocodeLastRequestAt = 0;
-let artistMapRenderToken = 0;
-let activeMapPointIndex = -1;
+let reviewsWidgetMounted = false;
 let errorSceneParallaxRaf = 0;
-let errorSceneParallaxEl = null;
 let errorSceneMotionShapes = [];
-const geocodeInFlight = new Map();
 
 function isUrlVideo(url) {
     const ext = String(url || '').split('?')[0].split('.').pop()?.toLowerCase();
-    return ext === 'mp4' || ext === 'mov';
+    return ext === 'mp4' || ext === 'mov' || ext === 'webm' || ext === 'm4v';
 }
 
 function parseStylesArray(styles) {
@@ -106,6 +101,17 @@ function parseStylesArray(styles) {
         }
     }
     return [];
+}
+
+function parseJsonArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
 }
 
 function escapeHtml(value) {
@@ -127,14 +133,6 @@ function formatRequestedArtist(value) {
     return normalized ? `@${normalized}` : '';
 }
 
-function normalizeExternalUrl(value) {
-    if (!value) return '';
-    const raw = String(value).trim();
-    if (!raw) return '';
-    if (/^https?:\/\//i.test(raw)) return raw;
-    return `https://${raw}`;
-}
-
 function getQuotationUrl() {
     const username = artistData?.username || '';
     return `/quotations?artist=${encodeURIComponent(username)}`;
@@ -150,56 +148,16 @@ function getGalleryFeedUrl() {
     return `/artist/profile/gallery?artist=${encodeURIComponent(username)}`;
 }
 
-function getWhatsappQuoteUrl() {
-    if (artistData?.whatsapp_url) return artistData.whatsapp_url;
-
-    const weOtziWA = window.CONFIG?.weOtzi?.whatsapp || '+541127015926';
-    const cleanWeOtziNumber = weOtziWA.replace(/[^0-9]/g, '');
-    const artistUsername = artistData?.username || 'artista';
-    const whatsappMessage = encodeURIComponent(`Hola Otzi, quiero cotizar con ${artistUsername}`);
-    return `https://api.whatsapp.com/send?phone=${cleanWeOtziNumber}&text=${whatsappMessage}`;
+// `years_experience` viene como rango ("0-1", "5-10", "10+") o número suelto.
+// El statstrip lo muestra crudo; la ficha lateral lo lee como "X años".
+function formatExperienceStat(value) {
+    return String(value || '').trim();
 }
 
-function getInstagramProfileUrl(instagramValue) {
-    if (!instagramValue) return '';
-    const handle = String(instagramValue).trim().replace(/^@+/, '');
-    if (!handle) return '';
-    return `https://instagram.com/${encodeURIComponent(handle)}`;
-}
-
-function getVerificationMeta(state) {
-    return VERIFICATION_META[state] || VERIFICATION_META.No;
-}
-
-function getEmbajadorLabel(value) {
-    const normalized = String(value || '').toLowerCase();
-    if (normalized === 'si') return 'Si';
-    if (normalized === 'pendiente') return 'Pendiente';
-    return 'No';
-}
-
-function resolveWorkType(data) {
-    const wt = data.work_type
-        || (data.estudios === 'Sin estudio/Independiente' ? 'independent'
-            : (data.estudios ? 'studio' : ''));
-
-    const labels = {
-        independent: 'Independiente',
-        studio: 'Estudio',
-        both: 'Estudio e independiente'
-    };
-
-    return {
-        key: wt,
-        label: labels[wt] || 'No especificado'
-    };
-}
-
-function formatExperience(value) {
-    if (!value) return 'No especificada';
-    const raw = String(value).trim();
-    if (!raw) return 'No especificada';
-    return /^\d+$/.test(raw) ? `${raw} años` : raw;
+function formatExperienceFact(value) {
+    const raw = formatExperienceStat(value);
+    if (!raw) return '';
+    return /años/i.test(raw) ? raw : `${raw} años`;
 }
 
 function getLocationParts(data) {
@@ -214,702 +172,65 @@ function getLocationParts(data) {
     };
 }
 
+// "Sin ciudad" es el marcador de ciudad vacía que deja el alta de residencias.
+function normalizeCityName(value) {
+    const city = String(value || '').trim();
+    return /^sin ciudad$/i.test(city) ? '' : city;
+}
+
 function normalizeTattooLocationRecord(record) {
+    const agenda = String(record?.agenda_status || 'open').toLowerCase();
     return {
         id: record?.id || null,
         period_type: record?.period_type === 'upcoming' ? 'upcoming' : 'current',
         studio_name: (record?.studio_name || '').trim(),
-        city: (record?.city || '').trim(),
-        agenda_status: record?.agenda_status === 'closed' ? 'closed' : 'open',
+        city: normalizeCityName(record?.city),
+        agenda_status: PRESENCE_BADGES[agenda] ? agenda : 'open',
         start_date: record?.start_date || '',
         end_date: record?.end_date || '',
         sort_order: Number.isFinite(record?.sort_order) ? record.sort_order : 0
     };
 }
 
-function formatTattooRange(startDate, endDate) {
-    if (!startDate || !endDate) return '-';
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '-';
+function toDate(value) {
+    if (!value) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
-    const startLabel = start.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }).toUpperCase();
-    const endLabel = end.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-    return `${startLabel} - ${endLabel}`;
+function shortMonthLabel(date) {
+    return date
+        .toLocaleDateString('es-AR', { month: 'short' })
+        .replace(/\./g, '')
+        .toLowerCase();
+}
+
+// Figma: "12 – 18 oct" (mismo mes) · "28 sep – 4 oct" (meses distintos).
+function formatResidencyRange(startDate, endDate) {
+    const start = toDate(startDate);
+    const end = toDate(endDate);
+    if (!start || !end) return '';
+
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${start.getDate()} – ${end.getDate()} ${shortMonthLabel(end)}`;
+    }
+    return `${start.getDate()} ${shortMonthLabel(start)} – ${end.getDate()} ${shortMonthLabel(end)}`;
+}
+
+function resolvePresenceBadge(location) {
+    if (location.agenda_status === 'open') return PRESENCE_BADGES.open;
+    if (location.agenda_status === 'waitlist') return PRESENCE_BADGES.waitlist;
+
+    const start = toDate(location.start_date);
+    if (start && start.getTime() > Date.now()) return PRESENCE_BADGES.upcoming;
+    return PRESENCE_BADGES.closed;
 }
 
 function getLegacyTattooLocations() {
-    if (!artistData?.estudios || artistData.estudios === 'Sin estudio/Independiente') {
-        return [];
-    }
-
-    return [{
-        period_type: 'current',
-        studio_name: artistData.estudios,
-        city: artistData.city || '',
-        agenda_status: 'open',
-        start_date: '',
-        end_date: '',
-        sort_order: 0
-    }];
+    return [];
 }
-
-function normalizeLocationQuery(value) {
-    return String(value || '')
-        .replace(/\s+/g, ' ')
-        .replace(/\s*,\s*/g, ', ')
-        .trim();
-}
-
-function getGeocodeCacheKey(query) {
-    return `${GEOCODE_CACHE_PREFIX}${encodeURIComponent(query)}`;
-}
-
-function readGeocodeCache(query, { allowExpired = false } = {}) {
-    try {
-        const raw = window.localStorage.getItem(getGeocodeCacheKey(query));
-        if (!raw) return null;
-
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return null;
-        if (!Number.isFinite(parsed.lat) || !Number.isFinite(parsed.lng)) return null;
-        if (!Number.isFinite(parsed.cachedAt)) return null;
-        if (!allowExpired && Date.now() - parsed.cachedAt > GEOCODE_CACHE_TTL_MS) return null;
-
-        return {
-            lat: parsed.lat,
-            lng: parsed.lng,
-            displayName: String(parsed.displayName || query),
-            placeId: String(parsed.placeId || '')
-        };
-    } catch {
-        return null;
-    }
-}
-
-function writeGeocodeCache(query, value) {
-    try {
-        window.localStorage.setItem(getGeocodeCacheKey(query), JSON.stringify({
-            lat: value.lat,
-            lng: value.lng,
-            displayName: value.displayName || query,
-            placeId: value.placeId || '',
-            cachedAt: Date.now()
-        }));
-    } catch {
-        // Ignore quota or privacy mode errors.
-    }
-}
-
-function wait(ms) {
-    return new Promise((resolve) => {
-        window.setTimeout(resolve, ms);
-    });
-}
-
-function hasGoogleGeocoderApi() {
-    return Boolean(window.google?.maps?.Geocoder);
-}
-
-function ensureGoogleGeocoder() {
-    if (!hasGoogleGeocoderApi()) return null;
-    if (!googleGeocoder) {
-        googleGeocoder = new window.google.maps.Geocoder();
-    }
-    return googleGeocoder;
-}
-
-function geocodeGoogleRequest(geocoder, query) {
-    return new Promise((resolve, reject) => {
-        const timeoutId = window.setTimeout(() => {
-            resolve({ results: [], status: 'TIMEOUT' });
-        }, 7000);
-
-        try {
-            geocoder.geocode({ address: query }, (results, status) => {
-                window.clearTimeout(timeoutId);
-                resolve({ results, status });
-            });
-        } catch (error) {
-            window.clearTimeout(timeoutId);
-            reject(error);
-        }
-    });
-}
-
-async function geocodeWithGoogleMaps(query) {
-    const geocoder = ensureGoogleGeocoder();
-    if (!geocoder) {
-        return { ok: false, status: 'GOOGLE_NOT_READY', result: null };
-    }
-
-    let overQueryRetries = 0;
-    let unknownRetries = 0;
-
-    while (true) {
-        const { results, status } = await geocodeGoogleRequest(geocoder, query);
-
-        if (status === 'OK' && Array.isArray(results) && results.length) {
-            const first = results[0];
-            const loc = first?.geometry?.location;
-            const lat = typeof loc?.lat === 'function' ? Number(loc.lat()) : NaN;
-            const lng = typeof loc?.lng === 'function' ? Number(loc.lng()) : NaN;
-            if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                return {
-                    ok: true,
-                    status,
-                    result: {
-                        lat,
-                        lng,
-                        displayName: String(first.formatted_address || query),
-                        placeId: String(first.place_id || '')
-                    }
-                };
-            }
-            return { ok: false, status: 'INVALID_GEOMETRY', result: null };
-        }
-
-        if (status === 'OVER_QUERY_LIMIT' && overQueryRetries < GEOCODE_OVER_QUERY_LIMIT_RETRIES) {
-            const backoff = 400 * (2 ** overQueryRetries);
-            overQueryRetries += 1;
-            await wait(backoff);
-            continue;
-        }
-
-        if (status === 'UNKNOWN_ERROR' && unknownRetries < GEOCODE_UNKNOWN_ERROR_RETRIES) {
-            unknownRetries += 1;
-            await wait(300);
-            continue;
-        }
-
-        return { ok: false, status: String(status || 'UNKNOWN'), result: null };
-    }
-}
-
-async function geocodeLocationQuery(query) {
-    const normalizedQuery = normalizeLocationQuery(query);
-    if (!normalizedQuery) return null;
-
-    const fromCache = readGeocodeCache(normalizedQuery);
-    if (fromCache) return fromCache;
-
-    const inflight = geocodeInFlight.get(normalizedQuery);
-    if (inflight) return inflight;
-
-    const request = (async () => {
-        const elapsedSinceLast = Date.now() - geocodeLastRequestAt;
-        if (elapsedSinceLast < GEOCODE_MIN_INTERVAL_MS) {
-            await wait(GEOCODE_MIN_INTERVAL_MS - elapsedSinceLast);
-        }
-        geocodeLastRequestAt = Date.now();
-
-        const googleResult = await geocodeWithGoogleMaps(normalizedQuery);
-        if (googleResult.ok && googleResult.result) {
-            writeGeocodeCache(normalizedQuery, googleResult.result);
-            return googleResult.result;
-        }
-
-        // Fallback definido: solo usar cache antigua si Google falla.
-        const staleCache = readGeocodeCache(normalizedQuery, { allowExpired: true });
-        if (staleCache) return staleCache;
-
-        return null;
-    })()
-        .catch((error) => {
-            console.warn('Geocoding failed:', normalizedQuery, error);
-            return null;
-        })
-        .finally(() => {
-            geocodeInFlight.delete(normalizedQuery);
-        });
-
-    geocodeInFlight.set(normalizedQuery, request);
-    return request;
-}
-
-function buildMapPointQuery({ studio, city, country, fallback }) {
-    const parts = [studio, city, country, fallback]
-        .map((item) => String(item || '').trim())
-        .filter(Boolean);
-    return normalizeLocationQuery(parts.join(', '));
-}
-
-function buildArtistMapCandidates() {
-    if (!artistData) return [];
-
-    const candidates = [];
-    const primaryLocation = getLocationParts(artistData);
-    const mainQuery = buildMapPointQuery({
-        city: artistData.city,
-        country: artistData.country,
-        fallback: artistData.ubicacion || primaryLocation.full
-    });
-
-    if (mainQuery) {
-        candidates.push({
-            type: 'main',
-            label: 'Ubicacion principal',
-            query: mainQuery
-        });
-    }
-
-    tattooLocations
-        .filter((item) => item.period_type === 'current')
-        .forEach((item) => {
-            const query = buildMapPointQuery({
-                studio: item.studio_name,
-                city: item.city,
-                country: artistData.country
-            });
-            if (!query) return;
-
-            candidates.push({
-                type: 'current',
-                label: item.studio_name || item.city || 'Tatuando en',
-                query
-            });
-        });
-
-    tattooLocations
-        .filter((item) => item.period_type === 'upcoming')
-        .forEach((item) => {
-            const query = buildMapPointQuery({
-                studio: item.studio_name,
-                city: item.city,
-                country: artistData.country
-            });
-            if (!query) return;
-
-            candidates.push({
-                type: 'upcoming',
-                label: item.studio_name || item.city || 'Proximamente en',
-                query
-            });
-        });
-
-    return candidates;
-}
-
-function typeToMapLabel(type) {
-    if (type === 'main') return 'Principal';
-    if (type === 'current') return 'Actual';
-    return 'Próximamente';
-}
-
-// Colores del DS Bauhaus (tokens --red-300 / --blue-400 / --yellow-300).
-function markerColorByType(type) {
-    if (type === 'main') return '#E63A1F';
-    if (type === 'current') return '#0055FF';
-    return '#F2B519';
-}
-
-function isMobileArtistMapLayout() {
-    return window.matchMedia(`(max-width: ${PROFILE_MOBILE_MENU_BREAKPOINT - 1}px)`).matches;
-}
-
-function getGoogleMapsUrlForPoint(point) {
-    if (!point) return 'https://www.google.com/maps';
-    const query = point.displayName || point.query || `${point.lat},${point.lng}`;
-    const baseUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-    if (point.placeId) {
-        return `${baseUrl}&query_place_id=${encodeURIComponent(point.placeId)}`;
-    }
-    return baseUrl;
-}
-
-function setArtistMapInfoCard(point) {
-    const mapEl = document.getElementById(ARTIST_MAP_CONTAINER_ID);
-    if (!mapEl) return;
-
-    let card = document.getElementById(ARTIST_MAP_INFO_CARD_ID);
-    if (!card) {
-        card = document.createElement('article');
-        card.id = ARTIST_MAP_INFO_CARD_ID;
-        card.className = 'artist-map-info-card';
-        card.hidden = true;
-        mapEl.appendChild(card);
-    }
-
-    if (isMobileArtistMapLayout()) {
-        card.hidden = true;
-        card.innerHTML = '';
-        return;
-    }
-
-    if (!point) {
-        card.hidden = true;
-        card.innerHTML = '';
-        return;
-    }
-
-    const mapsUrl = getGoogleMapsUrlForPoint(point);
-    card.hidden = false;
-    card.innerHTML = `
-        <p class="artist-map-info-kicker">${escapeHtml(typeToMapLabel(point.type))}</p>
-        <h4 class="artist-map-info-title">${escapeHtml(point.label || '-')}</h4>
-        <p class="artist-map-info-address">${escapeHtml(point.displayName || point.query || '-')}</p>
-        <p class="artist-map-info-coords">${escapeHtml(Number(point.lat).toFixed(4))}, ${escapeHtml(Number(point.lng).toFixed(4))}</p>
-        <a class="artist-map-info-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps →</a>
-    `;
-}
-
-function getArtistMapPointPanelHtml(point) {
-    if (!point) return '';
-    const mapsUrl = getGoogleMapsUrlForPoint(point);
-    return `
-        <p class="artist-map-point-panel-kicker">${escapeHtml(typeToMapLabel(point.type))}</p>
-        <h4 class="artist-map-point-panel-title">${escapeHtml(point.label || '-')}</h4>
-        <p class="artist-map-point-panel-address">${escapeHtml(point.displayName || point.query || '-')}</p>
-        <p class="artist-map-point-panel-coords">${escapeHtml(Number(point.lat).toFixed(4))}, ${escapeHtml(Number(point.lng).toFixed(4))}</p>
-        <a class="artist-map-point-panel-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps →</a>
-    `;
-}
-
-function focusArtistMapPoint(point, { openGoogleMaps = false } = {}) {
-    if (!point) return;
-
-    if (artistMap && typeof artistMap.setFocus === 'function') {
-        try {
-            artistMap.setFocus({
-                coords: [point.lat, point.lng],
-                scale: 4.8,
-                animate: true
-            });
-        } catch (error) {
-            console.warn('Artist map focus failed:', error);
-        }
-    }
-
-    setArtistMapInfoCard(point);
-
-    if (openGoogleMaps) {
-        const mapsUrl = getGoogleMapsUrlForPoint(point);
-        window.setTimeout(() => {
-            window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-        }, 140);
-    }
-}
-
-function hasGoogleMapsApiKey() {
-    return Boolean(window.CONFIG?.googleMaps?.apiKey);
-}
-
-function applyMarkerJitter(points) {
-    const usage = new Map();
-    return points.map((point) => {
-        const key = `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
-        const seen = usage.get(key) || 0;
-        usage.set(key, seen + 1);
-
-        if (!seen) return point;
-
-        const offsetStep = 0.12;
-        const angle = (seen * 45) * (Math.PI / 180);
-        return {
-            ...point,
-            lat: point.lat + Math.sin(angle) * offsetStep,
-            lng: point.lng + Math.cos(angle) * offsetStep
-        };
-    });
-}
-
-function setArtistMapEmptyState(isEmpty, message = '') {
-    const emptyEl = document.getElementById(ARTIST_MAP_EMPTY_ID);
-    if (!emptyEl) return;
-
-    emptyEl.hidden = !isEmpty;
-    emptyEl.style.display = isEmpty ? '' : 'none';
-    if (isEmpty && message) {
-        emptyEl.textContent = message;
-    }
-}
-
-function renderArtistMapPointsList(points) {
-    const listEl = document.getElementById(ARTIST_MAP_POINTS_ID);
-    if (!listEl) return;
-
-    listEl.innerHTML = '';
-
-    if (!points.length) {
-        const emptyItem = document.createElement(listEl.tagName === 'UL' || listEl.tagName === 'OL' ? 'li' : 'p');
-        emptyItem.className = 'artist-map-point-empty';
-        emptyItem.textContent = 'No hay puntos geolocalizados disponibles.';
-        listEl.appendChild(emptyItem);
-        return;
-    }
-
-    const isMobile = isMobileArtistMapLayout();
-    if (activeMapPointIndex >= points.length) {
-        activeMapPointIndex = -1;
-    }
-
-    points.forEach((point, index) => {
-        const item = document.createElement(listEl.tagName === 'UL' || listEl.tagName === 'OL' ? 'li' : 'p');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'artist-map-point-chip';
-        button.dataset.mapPointIndex = String(index);
-        button.dataset.pinType = point.type;
-        button.style.setProperty('--pin-color', markerColorByType(point.type));
-        button.textContent = `${typeToMapLabel(point.type)} · ${point.label}`;
-        const isActive = activeMapPointIndex === index;
-        if (isActive) {
-            button.classList.add('is-active');
-        }
-        button.setAttribute('aria-expanded', String(Boolean(isMobile && isActive)));
-        item.appendChild(button);
-
-        if (isMobile && isActive) {
-            const panel = document.createElement('div');
-            panel.className = 'artist-map-point-panel';
-            panel.innerHTML = getArtistMapPointPanelHtml(point);
-            item.appendChild(panel);
-        }
-
-        listEl.appendChild(item);
-    });
-}
-
-function ensureArtistMapInstance(mapElement, markers = []) {
-    if (!window.jsVectorMap || !mapElement) return null;
-
-    if (artistMap) return artistMap;
-
-    try {
-        artistMap = new window.jsVectorMap({
-            selector: `#${ARTIST_MAP_CONTAINER_ID}`,
-            map: 'world',
-            backgroundColor: 'transparent',
-            zoomOnScroll: true,
-            zoomButtons: true,
-            draggable: true,
-            minZoom: 1,
-            maxZoom: 8,
-            markers,
-            regionStyle: {
-                initial: {
-                    fill: '#EDE8DC',
-                    stroke: 'rgba(0, 17, 37, 0.22)',
-                    strokeWidth: 0.55
-                },
-                hover: {
-                    fill: '#DED8C9'
-                }
-            },
-            onMarkerTooltipShow: (_event, tooltip, index) => {
-                const point = artistMapPoints[Number(index)];
-                if (!point || !tooltip) return;
-                const label = `${typeToMapLabel(point.type)} · ${point.label}`;
-                const mapsUrl = getGoogleMapsUrlForPoint(point);
-                tooltip.text(`
-                    <strong>${escapeHtml(label)}</strong><br>
-                    ${escapeHtml(point.displayName || point.query || '')}<br>
-                    <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps →</a>
-                `, true);
-                setArtistMapInfoCard(point);
-            },
-            onMarkerClick: (_event, index) => {
-                const point = artistMapPoints[Number(index)];
-                if (!point) return;
-                activeMapPointIndex = Number(index);
-                renderArtistMapPointsList(artistMapPoints);
-                focusArtistMapPoint(point, { openGoogleMaps: !isMobileArtistMapLayout() });
-            }
-        });
-        mapElement.classList.add('is-initialized');
-        if (mapElement.dataset.infoCardBound !== 'true') {
-            mapElement.addEventListener('mouseleave', () => {
-                setArtistMapInfoCard(null);
-            });
-            mapElement.dataset.infoCardBound = 'true';
-        }
-    } catch (error) {
-        console.error('Artist map initialization failed:', error);
-        artistMap = null;
-    }
-
-    return artistMap;
-}
-
-async function renderArtistDynamicMap() {
-    const renderToken = ++artistMapRenderToken;
-    const mapElement = document.getElementById(ARTIST_MAP_CONTAINER_ID);
-    const hasMapUi = Boolean(mapElement || document.getElementById(ARTIST_MAP_EMPTY_ID) || document.getElementById(ARTIST_MAP_POINTS_ID));
-    if (!hasMapUi) return;
-
-    try {
-        const candidates = buildArtistMapCandidates();
-        if (!candidates.length) {
-            if (renderToken !== artistMapRenderToken) return;
-            renderArtistMapPointsList([]);
-            setArtistMapInfoCard(null);
-            setArtistMapEmptyState(true, 'Sin ubicaciones geocodificables.');
-            return;
-        }
-
-        const resolved = [];
-        for (const candidate of candidates) {
-            if (renderToken !== artistMapRenderToken) return;
-
-            const geocoded = await geocodeLocationQuery(candidate.query);
-            if (renderToken !== artistMapRenderToken) return;
-            if (!geocoded) continue;
-
-            resolved.push({
-                ...candidate,
-                lat: geocoded.lat,
-                lng: geocoded.lng,
-                displayName: geocoded.displayName,
-                placeId: geocoded.placeId || ''
-            });
-        }
-
-        if (renderToken !== artistMapRenderToken) return;
-
-        if (!resolved.length) {
-            renderArtistMapPointsList([]);
-            setArtistMapInfoCard(null);
-            if (!hasGoogleMapsApiKey()) {
-                setArtistMapEmptyState(true, 'Google Maps no configurado para geocodificar ubicaciones.');
-            } else if (!hasGoogleGeocoderApi()) {
-                setArtistMapEmptyState(true, 'Cargando Google Maps para geocodificar ubicaciones...');
-            } else {
-                setArtistMapEmptyState(true, 'No pudimos geocodificar ubicaciones para el mapa.');
-            }
-
-            artistMapPoints = [];
-            if (artistMap && typeof artistMap.removeMarkers === 'function') {
-                try {
-                    artistMap.removeMarkers();
-                } catch (error) {
-                    console.warn('Artist map marker reset failed:', error);
-                }
-            }
-            return;
-        }
-
-        if (!window.jsVectorMap || !mapElement) {
-            setArtistMapEmptyState(true, 'Mapa no disponible en este navegador.');
-            artistMapPoints = [];
-            setArtistMapInfoCard(null);
-            return;
-        }
-
-        const jitteredPoints = applyMarkerJitter(resolved);
-        if (activeMapPointIndex >= jitteredPoints.length) {
-            activeMapPointIndex = -1;
-        }
-        renderArtistMapPointsList(jitteredPoints);
-        const markers = jitteredPoints.map((point) => ({
-            coords: [point.lat, point.lng],
-            name: `${typeToMapLabel(point.type)} · ${point.label}`,
-            style: {
-                initial: {
-                    fill: markerColorByType(point.type),
-                    stroke: '#001125',
-                    strokeWidth: 1.1,
-                    r: 5
-                },
-                hover: {
-                    fill: '#001125',
-                    stroke: '#FCFCFC',
-                    strokeWidth: 1.5
-                }
-            }
-        }));
-
-        artistMapPoints = jitteredPoints;
-        if (!isMobileArtistMapLayout()) {
-            if (activeMapPointIndex < 0 && jitteredPoints.length) {
-                activeMapPointIndex = 0;
-            }
-            setArtistMapInfoCard(jitteredPoints[activeMapPointIndex] || jitteredPoints[0] || null);
-        } else {
-            setArtistMapInfoCard(null);
-        }
-
-        const mapWasCreated = !artistMap;
-        const map = ensureArtistMapInstance(mapElement, markers);
-        if (!map) {
-            setArtistMapEmptyState(true, 'No fue posible inicializar el mapa.');
-            artistMapPoints = [];
-            return;
-        }
-
-        if (!mapWasCreated && typeof map.removeMarkers === 'function') {
-            try {
-                map.removeMarkers();
-            } catch (error) {
-                console.warn('Artist map marker cleanup failed:', error);
-            }
-        }
-
-        if (!mapWasCreated && typeof map.addMarkers === 'function') {
-            try {
-                map.addMarkers(markers);
-            } catch (error) {
-                console.error('Artist map marker render failed:', error);
-                artistMapPoints = [];
-                setArtistMapEmptyState(true, 'No fue posible actualizar los pines del mapa.');
-                return;
-            }
-        } else if (!mapWasCreated) {
-            console.error('Artist map marker API not available on jsVectorMap 1.7.0.');
-            artistMapPoints = [];
-            setArtistMapEmptyState(true, 'No fue posible actualizar los pines del mapa.');
-            return;
-        }
-
-        setArtistMapEmptyState(false);
-    } catch (error) {
-        console.error('Artist map render failed:', error);
-        if (renderToken !== artistMapRenderToken) return;
-        artistMapPoints = [];
-        setArtistMapInfoCard(null);
-        setArtistMapEmptyState(true, 'No fue posible cargar el mapa.');
-    }
-}
-
-function getPortfolioLabel(value) {
-    const url = normalizeExternalUrl(value);
-    if (!url) return '-';
-    try {
-        return new URL(url).hostname.replace(/^www\./i, '');
-    } catch {
-        return value;
-    }
-}
-
-function setQuoteLinks() {
-    const quotationUrl = getQuotationUrl();
-    const topLink = document.getElementById('quote-cta-top-btn');
-    const bottomLink = document.getElementById('quote-cta-bottom-btn');
-    const headerLink = document.getElementById('profile-header-quote-link');
-    const mobileLink = document.getElementById('profile-mobile-quote-link');
-
-    if (topLink) topLink.href = quotationUrl;
-    if (bottomLink) bottomLink.href = quotationUrl;
-    if (headerLink) headerLink.href = quotationUrl;
-    if (mobileLink) mobileLink.href = quotationUrl;
-}
-
-function initArtistProfileGoogleMaps() {
-    try {
-        ensureGoogleGeocoder();
-        if (artistData) {
-            void renderArtistDynamicMap();
-        }
-    } catch (error) {
-        console.warn('Artist profile Google Maps bootstrap failed:', error);
-    }
-}
-
-window.initArtistProfileGoogleMaps = initArtistProfileGoogleMaps;
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (hasGoogleGeocoderApi()) {
-        initArtistProfileGoogleMaps();
-    }
     initializeProfile();
     setupEventListeners();
 });
@@ -944,7 +265,14 @@ async function loadArtistData(username) {
     }
 
     try {
-        const { data: artist, error } = await WeotziData.Artists.getPublicByExactUsername(searchUsername, ARTIST_PUBLIC_FIELDS);
+        let { data: artist, error } = await WeotziData.Artists.getPublicByExactUsername(searchUsername, ARTIST_PUBLIC_FIELDS);
+
+        // Deploys sin studio_id / gallery_feed_items: reintento con el set legacy.
+        if (error) {
+            const retry = await WeotziData.Artists.getPublicByExactUsername(searchUsername, ARTIST_PUBLIC_FIELDS_LEGACY);
+            artist = retry.data;
+            error = retry.error;
+        }
 
         if (error) {
             console.error('Error loading artist data:', error);
@@ -959,11 +287,12 @@ async function loadArtistData(username) {
 
         artistData = artist;
         tattooLocations = await loadArtistTattooLocations(artist.user_id);
+        studioData = await loadArtistStudio(artist.studio_id);
+
         populateProfile();
         hideLoading();
         showContent();
-        renderArtistReviews();
-        void renderArtistDynamicMap();
+        void renderArtistReviews();
 
         // Track this profile visit (fire-and-forget, throttled client-side to 1h)
         trackProfileVisit(artist.username).catch(() => { /* noop */ });
@@ -1040,19 +369,39 @@ async function loadArtistTattooLocations(artistUserId) {
     }
 }
 
+// Estudio del artista + tamaño del roster (único dato de la fila del Figma con
+// fuente real; AMBIENTE y ACCESOS no existen como columnas).
+async function loadArtistStudio(studioId) {
+    if (!studioId || !WeotziData?.Studios?.getById) return null;
+
+    try {
+        const { data: studio, error } = await WeotziData.Studios.getById(
+            studioId,
+            'id, slug, name, cover_image, photo_feed_items, formatted_address, street, street_number, locality, city, country'
+        );
+        if (error || !studio) return null;
+
+        let rosterCount = 0;
+        try {
+            const { data: roster } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
+            rosterCount = Array.isArray(roster) ? roster.length : 0;
+        } catch (rosterError) {
+            console.warn('Studio roster unavailable:', rosterError);
+        }
+
+        return { ...studio, rosterCount };
+    } catch (error) {
+        console.warn('Studio lookup failed:', error);
+        return null;
+    }
+}
+
 function populateProfile() {
     if (!artistData) return;
 
     const artisticName = artistData.username ? artistData.username.replace(/\.wo$/, '') : 'Artista';
     const styles = parseStylesArray(artistData.styles_array);
     const location = getLocationParts(artistData);
-    const verification = getVerificationMeta(artistData.verification_state || 'No');
-    const workType = resolveWorkType(artistData);
-    const portfolioUrl = normalizeExternalUrl(artistData.portafolio);
-    const instagramUrl = getInstagramProfileUrl(artistData.instagram);
-    const whatsappUrl = getWhatsappQuoteUrl();
-    const languages = Array.isArray(artistData.languages) ? artistData.languages.filter(Boolean) : [];
-    const primaryCurrentLocation = tattooLocations.find((item) => item.period_type === 'current') || null;
 
     document.title = `${artisticName} | We Otzi`;
     document.getElementById('og-title').content = `${artisticName} - Tatuador en We Otzi`;
@@ -1071,32 +420,25 @@ function populateProfile() {
 
     setText('artist-name', artisticName);
     setText('artist-username', `@${artistData.username || 'usuario.wo'}`);
+    setText('display-city', location.city);
+    setText('display-country', location.country);
 
     const verifiedIcon = document.getElementById('artist-verified-icon');
     if (verifiedIcon) {
         verifiedIcon.hidden = artistData.verification_state !== 'Yes';
     }
 
-    const level = artistData.nivel || 'Nuevo';
-    setText('avatar-level-chip', level);
-
-    const embajadorLabel = getEmbajadorLabel(artistData.embajador);
-    const embajadorIcon = document.getElementById('avatar-embajador-icon');
-    if (embajadorIcon) {
-        embajadorIcon.hidden = embajadorLabel !== 'Si';
-    }
-
-    setText('display-city', location.city);
-    setText('display-country', location.country);
-    setText('display-city-detail', location.city);
-    setText('display-country-detail', location.country);
-    setText('display-location-detail', location.full);
-    setLocationLink(location.full);
-
     renderStyles(styles);
-    setText('stat-styles', styles.length ? String(styles.length) : '-');
-    setText('display-experience', formatExperience(artistData.years_experience));
-    setText('display-price', artistData.session_price || 'Consultar');
+    renderStats();
+    renderSobreFacts();
+    renderSpecialties(styles);
+    renderStudio();
+    renderGallery();
+    renderPresence();
+    renderCities();
+    renderCtaMonths();
+    renderActionbar(artisticName);
+    setQuoteLinks();
 
     const bioTextEl = document.getElementById('bio-text');
     if (window.BioFormatting) {
@@ -1104,35 +446,6 @@ function populateProfile() {
     } else {
         bioTextEl.textContent = artistData.bio_description || 'Este artista todavía no agregó una descripción.';
     }
-
-    setText('display-artistic-name', artisticName);
-    setText('display-full-name', artistData.name || '-');
-    setText('display-username', `@${artistData.username || '-'}`);
-    setText('display-level', level);
-    setText('display-verification', verification.label);
-    setText('display-embajador', embajadorLabel);
-    setText('display-work-type', workType.label);
-    setText('display-studio', primaryCurrentLocation?.studio_name || artistData.estudios || '-');
-    setText('display-languages', languages.length ? languages.join(', ') : '-');
-
-    setLink('display-instagram-link', instagramUrl, artistData.instagram || '-');
-    setLink('display-portfolio-link', portfolioUrl, getPortfolioLabel(artistData.portafolio));
-    setLink('display-whatsapp-link', whatsappUrl, 'Cotizar por WhatsApp');
-
-    setupActionButtons({ instagramUrl, portfolioUrl, whatsappUrl });
-    renderTattooPresence();
-    renderGallery();
-    setQuoteLinks();
-}
-
-function renderArtistReviews() {
-    if (!artistData?.user_id || !window.WeOtziReviews) return;
-    window.WeOtziReviews.renderPublicReviews({
-        mount: 'artist-reviews',
-        revieweeType: 'artist',
-        revieweeId: artistData.user_id,
-        title: 'Resenas del artista'
-    });
 }
 
 function setText(id, value) {
@@ -1141,39 +454,18 @@ function setText(id, value) {
     el.textContent = value || '-';
 }
 
-function setLocationLink(value) {
-    const locationLink = document.getElementById('display-location-link');
-    const textEl = document.getElementById('display-location');
-    if (!locationLink || !textEl) return;
-
-    textEl.textContent = value || '-';
-    if (value && value !== '-') {
-        locationLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
-        locationLink.classList.remove('is-empty');
-    } else {
-        locationLink.removeAttribute('href');
-        locationLink.classList.add('is-empty');
-    }
-}
-
-function setLink(id, href, label) {
-    const anchor = document.getElementById(id);
-    if (!anchor) return;
-
-    const strong = anchor.querySelector('strong');
-    if (strong) strong.textContent = label || '-';
-
-    if (href) {
-        anchor.href = href;
-        anchor.classList.remove('is-empty');
-    } else {
-        anchor.removeAttribute('href');
-        anchor.classList.add('is-empty');
+function setQuoteLinks() {
+    const quotationUrl = getQuotationUrl();
+    for (const id of ['quote-cta-top-btn', 'quote-cta-bottom-btn', 'quote-cta-bar-btn', 'profile-header-quote-link', 'profile-mobile-quote-link']) {
+        const el = document.getElementById(id);
+        if (el) el.href = quotationUrl;
     }
 }
 
 function renderStyles(styles) {
     const stylesContainer = document.getElementById('display-styles');
+    if (!stylesContainer) return;
+
     stylesContainer.innerHTML = '';
 
     if (!styles.length) {
@@ -1189,89 +481,239 @@ function renderStyles(styles) {
     }
 }
 
-function renderTattooPresence() {
-    const currentLocations = tattooLocations.filter((item) => item.period_type === 'current');
-    const upcomingLocations = tattooLocations.filter((item) => item.period_type === 'upcoming');
+/**
+ * Statstrip. El Figma pide 4 métricas; solo `AÑOS TATUANDO` (years_experience) y
+ * `CALIFICACIÓN` (public_review_summary) tienen fuente real — TATUAJES y TASA DE
+ * RESPUESTA no existen como columnas y quedan fuera.
+ */
+function renderStats() {
+    const experienceCell = document.getElementById('statcell-experience');
+    const experience = formatExperienceStat(artistData?.years_experience);
 
-    renderTattooPresenceGroup('current-tattoo-locations', currentLocations, false);
-    renderTattooPresenceGroup('upcoming-tattoo-locations', upcomingLocations, true);
+    if (experienceCell) {
+        experienceCell.hidden = !experience;
+        if (experience) setText('display-experience', experience);
+    }
+
+    markLeadStatcell();
 }
 
-function renderTattooPresenceGroup(containerId, locations, isUpcoming) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
+function markLeadStatcell() {
+    const strip = document.getElementById('stats-strip');
+    const band = document.getElementById('stats-band');
+    if (!strip) return;
 
-    if (!locations.length) {
-        container.innerHTML = `<p class="tattoo-presence-empty">${isUpcoming ? 'No hay destinos proximos cargados.' : 'No hay estudios actuales cargados.'}</p>`;
+    const visible = Array.from(strip.querySelectorAll('.statcell')).filter((cell) => !cell.hidden);
+    strip.querySelectorAll('.statcell').forEach((cell) => cell.classList.remove('statcell--lead'));
+    if (visible.length) visible[0].classList.add('statcell--lead');
+    if (band) band.hidden = visible.length === 0;
+}
+
+/**
+ * Ficha lateral de la banda azul. El Figma lista EXPERIENCIA / IDIOMAS / SESIÓN
+ * MÍNIMA / TIEMPO DE RESPUESTA; las tres primeras existen en artists_db, la
+ * cuarta no tiene columna y se omite.
+ */
+function renderSobreFacts() {
+    const experience = formatExperienceFact(artistData?.years_experience);
+    const languages = Array.isArray(artistData?.languages) ? artistData.languages.filter(Boolean) : [];
+    const price = String(artistData?.session_price || '').trim();
+
+    toggleFact('fact-experience', 'display-experience-fact', experience);
+    toggleFact('fact-languages', 'display-languages', languages.length ? languages.join(' · ') : '');
+    toggleFact('fact-price', 'display-price', price);
+}
+
+function toggleFact(wrapperId, valueId, value) {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+
+    wrapper.hidden = !value;
+    if (value) setText(valueId, value);
+}
+
+/**
+ * Tabla de Especialidades: numeral + cuadrado de color + nombre del estilo, todo
+ * derivado de `styles_array`. La descripción y la miniatura por estilo del Figma
+ * no tienen fuente (el catálogo guarda solo label/value) y se omiten.
+ */
+function renderSpecialties(styles) {
+    const band = document.getElementById('specialties-band');
+    const table = document.getElementById('specialty-table');
+    if (!band || !table) return;
+
+    if (!styles.length) {
+        band.hidden = true;
+        table.innerHTML = '';
         return;
     }
 
-    const quoteFormUrl = getQuotationFormUrl();
+    band.hidden = false;
+    table.innerHTML = styles.map((styleName, index) => `
+        <div class="specialty-row">
+            <span class="specialty-index">${escapeHtml(String(index + 1).padStart(2, '0'))}</span>
+            <span class="specialty-swatch" style="--specialty-color: ${SPECIALTY_COLORS[index % SPECIALTY_COLORS.length]}" aria-hidden="true"></span>
+            <p class="specialty-name">${escapeHtml(styleName)}</p>
+        </div>
+    `).join('');
+}
 
-    container.innerHTML = locations.map((location) => {
-        const cityLine = location.city
-            ? `<div class="tattoo-presence-line"><span class="presence-meta-label">Ciudad</span><span class="tattoo-presence-value">${escapeHtml(location.city)}</span></div>`
-            : '';
-        const dateLine = isUpcoming
-            ? `<div class="tattoo-presence-line"><span class="presence-meta-label">Fecha</span><span class="tattoo-presence-value">${escapeHtml(formatTattooRange(location.start_date, location.end_date))}</span></div>`
-            : '';
-        const isAgendaOpen = location.agenda_status === 'open';
-        const agendaBadge = isAgendaOpen
-            ? `<a href="${escapeHtml(quoteFormUrl)}" class="tattoo-presence-badge tattoo-presence-badge-link" data-state="open">Agenda abierta</a>`
-            : `<span class="tattoo-presence-badge" data-state="${escapeHtml(location.agenda_status)}">${escapeHtml(AGENDA_STATUS_LABELS[location.agenda_status] || AGENDA_STATUS_LABELS.open)}</span>`;
+function buildStudioAddress(studio) {
+    if (!studio) return '';
+    if (studio.formatted_address) return String(studio.formatted_address).trim();
 
-        return `
-            <article class="tattoo-presence-item">
-                <div class="tattoo-presence-head">
-                    <h4 class="tattoo-presence-title">${escapeHtml(location.studio_name || '-')}</h4>
-                    ${agendaBadge}
-                </div>
-                <div class="tattoo-presence-meta">
-                    ${cityLine}
-                    ${dateLine}
-                </div>
-            </article>
-        `;
-    }).join('');
+    const street = [studio.street, studio.street_number].filter(Boolean).join(' ').trim();
+    const area = [studio.locality, studio.city].filter(Boolean).join(' · ').trim();
+    return [street, area].filter(Boolean).join(', ');
+}
+
+/**
+ * Panel de Estudio. Nombre, dirección y foto salen de `studios`; `ARTISTAS` sale
+ * del roster activo. `AMBIENTE` y `ACCESOS` del Figma no tienen columna y no se
+ * maquetan.
+ */
+function renderStudio() {
+    const band = document.getElementById('studio-band');
+    if (!band) return;
+
+    if (!studioData?.name) {
+        band.hidden = true;
+        return;
+    }
+
+    band.hidden = false;
+    setText('studio-name', studioData.name);
+
+    const address = buildStudioAddress(studioData);
+    const addressEl = document.getElementById('studio-address');
+    if (addressEl) {
+        addressEl.hidden = !address;
+        addressEl.textContent = address;
+    }
+
+    const photos = parseJsonArray(studioData.photo_feed_items);
+    const photoUrl = String(studioData.cover_image || photos.find((item) => item?.url)?.url || '').trim();
+    const photoImg = document.getElementById('studio-photo-img');
+    const photoEmpty = document.getElementById('studio-photo-empty');
+    if (photoImg) {
+        if (photoUrl) {
+            photoImg.src = photoUrl;
+            photoImg.alt = `Estudio ${studioData.name}`;
+        } else {
+            photoImg.removeAttribute('src');
+            photoImg.alt = '';
+        }
+    }
+    if (photoEmpty) photoEmpty.hidden = Boolean(photoUrl);
+
+    const facts = document.getElementById('studio-facts');
+    if (facts) {
+        facts.innerHTML = studioData.rosterCount
+            ? `<div class="studio-fact"><dt>Artistas</dt><dd>${escapeHtml(String(studioData.rosterCount))} ${studioData.rosterCount === 1 ? 'residente' : 'residentes'}</dd></div>`
+            : '';
+    }
+
+    const link = document.getElementById('studio-link');
+    if (link) {
+        const ref = studioData.slug || studioData.id;
+        link.hidden = !ref;
+        if (ref) link.href = `/studio/profile?studio=${encodeURIComponent(ref)}`;
+    }
+}
+
+/**
+ * Portafolio: una sola tabla de trabajos con chips de filtro. Los chips filtran
+ * por categoría de `gallery_feed_items` (dato real); el filtrado por estilo del
+ * Figma necesitaría etiquetar cada imagen con su estilo.
+ */
+function normalizeGalleryItems() {
+    const items = [];
+    const seen = new Set();
+
+    for (const raw of parseJsonArray(artistData?.gallery_feed_items)) {
+        const url = String(raw?.url || '').trim();
+        if (!url || seen.has(url)) continue;
+        const category = GALLERY_CATEGORY_LABELS[String(raw?.category || '').toLowerCase()]
+            ? String(raw.category).toLowerCase()
+            : 'realizados';
+        items.push({ url, category, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
+        seen.add(url);
+    }
+
+    if (!items.length) {
+        for (const entry of parseJsonArray(artistData?.gallery_images)) {
+            const url = typeof entry === 'string' ? entry.trim() : String(entry?.url || '').trim();
+            if (!url || seen.has(url)) continue;
+            items.push({ url, category: 'realizados', kind: isUrlVideo(url) ? 'video' : 'image' });
+            seen.add(url);
+        }
+    }
+
+    return items;
+}
+
+function getVisibleGalleryItems() {
+    if (galleryFilter === GALLERY_ALL_FILTER) return galleryItems;
+    return galleryItems.filter((item) => item.category === galleryFilter);
+}
+
+function renderGalleryChips() {
+    const chips = document.getElementById('gallery-chips');
+    if (!chips) return;
+
+    const categories = Array.from(new Set(galleryItems.map((item) => item.category)));
+    if (categories.length < 2) {
+        chips.hidden = true;
+        chips.innerHTML = '';
+        galleryFilter = GALLERY_ALL_FILTER;
+        return;
+    }
+
+    chips.hidden = false;
+    const options = [{ value: GALLERY_ALL_FILTER, label: 'Todos' }]
+        .concat(categories.map((category) => ({ value: category, label: GALLERY_CATEGORY_LABELS[category] || category })));
+
+    chips.innerHTML = options.map((option) => `
+        <button type="button" class="gallery-chip${option.value === galleryFilter ? ' is-active' : ''}" data-gallery-filter="${escapeHtml(option.value)}" aria-pressed="${option.value === galleryFilter}">${escapeHtml(option.label)}</button>
+    `).join('');
 }
 
 function renderGallery() {
-    galleryItems = Array.isArray(artistData?.gallery_images)
-        ? artistData.gallery_images.filter(Boolean)
-        : [];
+    galleryItems = normalizeGalleryItems();
+    renderGalleryChips();
+    renderGalleryGrid();
+}
 
+function renderGalleryGrid() {
     const galleryGrid = document.getElementById('gallery-grid');
     const galleryEmpty = document.getElementById('gallery-empty');
     const viewAllBtn = document.getElementById('gallery-view-all-btn');
-    const hasGallery = galleryItems.length > 0;
+    if (!galleryGrid) return;
 
-    galleryEmpty.style.display = hasGallery ? 'none' : 'block';
+    const visible = getVisibleGalleryItems();
+    if (galleryEmpty) galleryEmpty.style.display = visible.length ? 'none' : 'block';
 
-    const slotCount = galleryExpanded
-        ? Math.max(INITIAL_GALLERY_SLOTS, Math.ceil(galleryItems.length / 3) * 3)
-        : INITIAL_GALLERY_SLOTS;
-
-    const itemsToRender = galleryExpanded
-        ? galleryItems.slice(0, slotCount)
-        : galleryItems.slice(0, INITIAL_GALLERY_SLOTS);
+    const slotCount = Math.min(
+        MAX_GALLERY_SLOTS,
+        Math.max(MIN_GALLERY_SLOTS, Math.ceil(visible.length / 3) * 3)
+    );
 
     let html = '';
     for (let index = 0; index < slotCount; index += 1) {
-        const url = itemsToRender[index];
-        if (url) {
-            const isVideo = isUrlVideo(url);
+        const item = visible[index];
+        if (item) {
             html += `
                 <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="Abrir trabajo ${index + 1}">
-                    ${isVideo
-                        ? `<video src="${escapeHtml(url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay"><i data-wo-icon="play" class="wo-icon-18" aria-hidden="true"></i></span>`
-                        : `<img src="${escapeHtml(url)}" alt="Trabajo ${index + 1}" loading="lazy" width="1200" height="1200">`}
+                    ${item.kind === 'video'
+                        ? `<video src="${escapeHtml(item.url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay"><i data-wo-icon="play" class="wo-icon-18" aria-hidden="true"></i></span>`
+                        : `<img src="${escapeHtml(item.url)}" alt="Trabajo ${index + 1}" loading="lazy" width="1200" height="800">`}
                     <span class="gallery-overlay"><span>Ver</span><span>${String(index + 1).padStart(2, '0')}</span></span>
                 </button>
             `;
         } else {
             html += `
                 <div class="gallery-image-item is-placeholder" aria-hidden="true">
-                    <img src="${GALLERY_PLACEHOLDER_SRC}" alt="Slot disponible" loading="lazy" width="1200" height="1200">
+                    <img src="${GALLERY_PLACEHOLDER_SRC}" alt="" loading="lazy" width="1200" height="800">
                     <span class="gallery-placeholder-meta"><span>Disponible</span><span>Slot libre</span></span>
                 </div>
             `;
@@ -1280,35 +722,276 @@ function renderGallery() {
 
     galleryGrid.innerHTML = html;
 
-    if (galleryItems.length > 0) {
-        viewAllBtn.style.display = 'inline-flex';
-        viewAllBtn.textContent = 'Abrir galería completa →';
-    } else {
-        viewAllBtn.style.display = 'none';
+    if (viewAllBtn) {
+        viewAllBtn.style.display = galleryItems.length ? 'inline-flex' : 'none';
     }
 }
 
-function setupActionButtons({ instagramUrl, portfolioUrl, whatsappUrl }) {
-    setActionLink(document.getElementById('whatsapp-quote-btn'), whatsappUrl, true);
-    setActionLink(document.getElementById('instagram-link'), instagramUrl, Boolean(instagramUrl));
-    setActionLink(document.getElementById('portfolio-action-link'), portfolioUrl, Boolean(portfolioUrl));
-    setActionLink(document.getElementById('gallery-cta-btn'), getGalleryFeedUrl(), true);
-    setActionLink(document.getElementById('gallery-feed-action-link'), getGalleryFeedUrl(), true);
+/**
+ * Próximas residencias: una sola tabla (sin separar actual/próximo). La línea
+ * secundaria usa el nombre del estudio — `artist_tattoo_locations` no guarda país.
+ */
+function renderPresence() {
+    const band = document.getElementById('presence-band');
+    const table = document.getElementById('presence-table');
+    if (!band || !table) return;
+
+    if (!tattooLocations.length) {
+        band.hidden = true;
+        table.innerHTML = '';
+        return;
+    }
+
+    band.hidden = false;
+    const quoteFormUrl = getQuotationFormUrl();
+
+    table.innerHTML = tattooLocations.map((location) => {
+        const badge = resolvePresenceBadge(location);
+        const dates = formatResidencyRange(location.start_date, location.end_date);
+        const badgeHtml = badge.state === 'open'
+            ? `<a class="presence-badge" data-state="open" href="${escapeHtml(quoteFormUrl)}">${escapeHtml(badge.label)}</a>`
+            : `<span class="presence-badge" data-state="${escapeHtml(badge.state)}">${escapeHtml(badge.label)}</span>`;
+
+        return `
+            <div class="presence-row">
+                <div class="presence-place">
+                    <i class="presence-pin" data-wo-icon="map-pin" aria-hidden="true"></i>
+                    <div>
+                        <p class="presence-city">${escapeHtml(location.city || location.studio_name || '-')}</p>
+                        ${location.city && location.studio_name ? `<p class="presence-venue">${escapeHtml(location.studio_name)}</p>` : ''}
+                    </div>
+                </div>
+                <div class="presence-when">
+                    ${dates ? `<span class="presence-dates">${escapeHtml(dates)}</span>` : ''}
+                    ${badgeHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
-function setActionLink(anchor, href, enabled) {
-    if (!anchor) return;
+/**
+ * "Dónde tatué": ciudades únicas del artista (base + residencias cargadas),
+ * en bloque tipográfico con colores alternados.
+ */
+function renderCities() {
+    const band = document.getElementById('cities-band');
+    const list = document.getElementById('cities-list');
+    if (!band || !list) return;
 
-    if (enabled) {
-        anchor.href = href;
-        anchor.classList.remove('is-disabled');
-        anchor.setAttribute('aria-disabled', 'false');
-    } else {
-        anchor.href = '#';
-        anchor.classList.add('is-disabled');
-        anchor.setAttribute('aria-disabled', 'true');
+    const location = getLocationParts(artistData);
+    const cities = [];
+    const seen = new Set();
+
+    for (const candidate of [location.city, ...tattooLocations.map((item) => item.city)]) {
+        const city = normalizeCityName(candidate);
+        if (!city || city === '-') continue;
+        const key = city.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cities.push(city);
+    }
+
+    if (!cities.length) {
+        band.hidden = true;
+        list.innerHTML = '';
+        return;
+    }
+
+    band.hidden = false;
+    list.innerHTML = cities.map((city, index) => {
+        const separator = index < cities.length - 1 ? '<span class="city-sep" aria-hidden="true"></span>' : '';
+        return `<span class="city-name" data-tone="${CITY_TONES[index % CITY_TONES.length]}">${escapeHtml(city)}</span>${separator}`;
+    }).join('');
+}
+
+/**
+ * Chips de mes del CTA rojo: meses cubiertos por las residencias con agenda
+ * abierta. Sin fechas cargadas no se inventa disponibilidad — no se pintan.
+ */
+function renderCtaMonths() {
+    const container = document.getElementById('cta-months');
+    if (!container) return;
+
+    const months = [];
+    const seen = new Set();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const location of tattooLocations) {
+        if (location.agenda_status !== 'open') continue;
+        const start = toDate(location.start_date);
+        const end = toDate(location.end_date);
+        // Solo tramos vigentes o futuros: no se anuncian meses ya pasados.
+        if (!start || !end || end < today) continue;
+
+        const cursor = new Date(Math.max(start.getTime(), today.getTime()));
+        cursor.setDate(1);
+        while (cursor <= end && months.length < 4) {
+            const key = `${cursor.getFullYear()}-${cursor.getMonth()}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                months.push(cursor.toLocaleDateString('es-AR', { month: 'long' }));
+            }
+            cursor.setMonth(cursor.getMonth() + 1);
+        }
+    }
+
+    container.innerHTML = months
+        .map((month) => `<span class="cta-month">${escapeHtml(month)}</span>`)
+        .join('');
+}
+
+function hasOpenAgenda() {
+    return tattooLocations.some((location) => location.agenda_status === 'open');
+}
+
+function renderActionbar(artisticName) {
+    const bar = document.getElementById('profile-actionbar');
+    if (!bar) return;
+
+    bar.hidden = false;
+    setText('actionbar-name', artisticName);
+
+    const isOpen = hasOpenAgenda();
+    const dot = document.getElementById('actionbar-dot');
+    const status = document.getElementById('actionbar-status');
+    const heroBadge = document.getElementById('hero-agenda-badge');
+
+    if (dot) dot.hidden = !isOpen;
+    if (status) {
+        status.hidden = !isOpen;
+        status.textContent = isOpen ? 'Agenda abierta' : '';
+    }
+    if (heroBadge) heroBadge.hidden = !isOpen;
+}
+
+/* ---------- Reseñas ---------- */
+
+function renderStars(container, average) {
+    if (!container) return;
+    const rounded = Math.round(Number(average) || 0);
+    container.innerHTML = Array.from({ length: 5 }, (_, index) => (
+        `<i data-wo-icon="star" class="${index < rounded ? '' : 'is-empty'}" aria-hidden="true"></i>`
+    )).join('');
+}
+
+function getReviewInitials(name) {
+    return String(name || 'WO')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join('')
+        .toUpperCase() || 'WO';
+}
+
+function formatReviewMeta(review) {
+    const place = String(review?.reviewer_country || '').trim();
+    const year = review?.created_at ? new Date(review.created_at).getFullYear() : '';
+    return [place, Number.isFinite(year) && year ? String(year) : '']
+        .filter(Boolean)
+        .join(' · ');
+}
+
+/**
+ * Panel amarillo de resumen + 3 citas, tal como el Figma. `verified_reviews` y
+ * `public_review_summary` son las fuentes reales; el widget completo (filtros,
+ * tags, paginación y respuestas) queda detrás de "Ver todas las reseñas".
+ */
+async function renderArtistReviews() {
+    const panel = document.getElementById('artist-reviews-panel');
+    if (!panel || !artistData?.user_id || !WeotziData?.from) return;
+
+    try {
+        const [summaryResult, quotesResult] = await Promise.all([
+            WeotziData
+                .from('public_review_summary')
+                .select('review_count, average_rating')
+                .eq('reviewee_type', 'artist')
+                .eq('reviewee_user_id', artistData.user_id)
+                .maybeSingle(),
+            WeotziData
+                .from('verified_reviews')
+                .select('id, reviewer_display_name, reviewer_country, comment, created_at')
+                .eq('reviewee_type', 'artist')
+                .eq('reviewee_user_id', artistData.user_id)
+                .eq('moderation_status', 'approved')
+                .eq('is_public', true)
+                .order('created_at', { ascending: false })
+                .limit(REVIEW_QUOTE_COUNT)
+        ]);
+
+        const summary = summaryResult?.data || null;
+        const quotes = Array.isArray(quotesResult?.data) ? quotesResult.data : [];
+        const reviewCount = Number(summary?.review_count || 0);
+
+        if (!reviewCount && !quotes.length) {
+            panel.hidden = true;
+            return;
+        }
+
+        panel.hidden = false;
+
+        const average = Number(summary?.average_rating || 0);
+        setText('reviews-score', average ? average.toFixed(1) : '-');
+        renderStars(document.getElementById('reviews-stars'), average);
+        setText('reviews-count', reviewCount ? `Sobre ${reviewCount} ${reviewCount === 1 ? 'reseña' : 'reseñas'}` : 'Sin reseñas todavía');
+
+        // Calificación del statstrip: misma fuente real que el panel.
+        const ratingCell = document.getElementById('statcell-rating');
+        if (ratingCell) {
+            ratingCell.hidden = !average;
+            if (average) setText('display-rating', average.toFixed(1));
+            markLeadStatcell();
+        }
+
+        const cards = document.getElementById('reviews-cards');
+        if (cards) {
+            cards.innerHTML = quotes.map((review, index) => `
+                <article class="review-quote-card">
+                    <p class="review-quote-text">“${escapeHtml(review.comment || '')}”</p>
+                    <div class="review-quote-author">
+                        <span class="review-quote-avatar" style="--review-avatar-bg: ${REVIEW_AVATAR_COLORS[index % REVIEW_AVATAR_COLORS.length]}" aria-hidden="true">${escapeHtml(getReviewInitials(review.reviewer_display_name))}</span>
+                        <span>
+                            <span class="review-quote-name">${escapeHtml(review.reviewer_display_name || 'Cliente verificado')}</span>
+                            <span class="review-quote-meta">${escapeHtml(formatReviewMeta(review))}</span>
+                        </span>
+                    </div>
+                </article>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Artist reviews render failed:', error);
+        panel.hidden = true;
     }
 }
+
+function toggleFullReviews() {
+    const mount = document.getElementById('artist-reviews');
+    const trigger = document.getElementById('reviews-all-link');
+    if (!mount) return;
+
+    const shouldOpen = mount.hidden;
+    mount.hidden = !shouldOpen;
+    if (trigger) {
+        trigger.setAttribute('aria-expanded', String(shouldOpen));
+        trigger.textContent = shouldOpen ? 'Ocultar las reseñas →' : 'Ver todas las reseñas →';
+    }
+
+    if (shouldOpen && !reviewsWidgetMounted && window.WeOtziReviews && artistData?.user_id) {
+        reviewsWidgetMounted = true;
+        window.WeOtziReviews.renderPublicReviews({
+            mount: 'artist-reviews',
+            revieweeType: 'artist',
+            revieweeId: artistData.user_id,
+            title: 'Reseñas del artista'
+        });
+    }
+}
+
+/* ---------- Escena Bauhaus del estado de error ---------- */
 
 function supportsProfileErrorSceneParallax() {
     return Boolean(
@@ -1385,7 +1068,6 @@ function setupProfileErrorSceneInteractivity() {
     if (!errorEl || !sceneEl) return;
     if (errorEl.dataset.sceneBound === 'true') return;
 
-    errorSceneParallaxEl = sceneEl;
     errorSceneMotionShapes = Array.from(sceneEl.querySelectorAll('[data-shape]')).map((el) => {
         const config = ERROR_SCENE_SHAPE_CONFIG[el.dataset.shape] || { moveX: 4, moveY: 4, rotate: 0.4 };
         return {
@@ -1425,12 +1107,22 @@ function setupProfileErrorSceneInteractivity() {
     errorEl.dataset.sceneBound = 'true';
 }
 
+/* ---------- Eventos ---------- */
+
 function setupEventListeners() {
     setupProfileNavigationMenu();
     setupProfileErrorSceneInteractivity();
 
-    document.getElementById('share-profile-btn')?.addEventListener('click', shareProfile);
-    document.getElementById(ARTIST_MAP_POINTS_ID)?.addEventListener('click', handleMapPointChipActivation);
+    document.getElementById('reviews-all-link')?.addEventListener('click', toggleFullReviews);
+
+    document.getElementById('gallery-chips')?.addEventListener('click', (event) => {
+        const chip = event.target.closest('[data-gallery-filter]');
+        if (!chip) return;
+        galleryFilter = chip.dataset.galleryFilter || GALLERY_ALL_FILTER;
+        renderGalleryChips();
+        renderGalleryGrid();
+    });
+
     document.getElementById('gallery-view-all-btn')?.addEventListener('click', () => {
         window.location.href = getGalleryFeedUrl();
     });
@@ -1451,16 +1143,6 @@ function setupEventListeners() {
         if (event.key === 'Escape') closeLightbox();
         if (event.key === 'ArrowLeft') navigateLightbox(-1);
         if (event.key === 'ArrowRight') navigateLightbox(1);
-    });
-
-    window.addEventListener('resize', () => {
-        if (!artistMapPoints.length) return;
-        renderArtistMapPointsList(artistMapPoints);
-        if (isMobileArtistMapLayout()) {
-            setArtistMapInfoCard(null);
-        } else if (activeMapPointIndex >= 0) {
-            setArtistMapInfoCard(artistMapPoints[activeMapPointIndex] || null);
-        }
     });
 }
 
@@ -1512,37 +1194,18 @@ function setupProfileNavigationMenu() {
     toggleBtn.dataset.menuBound = 'true';
 }
 
+/* ---------- Lightbox ---------- */
+
 function handleGalleryActivation(event) {
     const item = event.target.closest('[data-gallery-index]');
     if (!item) return;
     const index = Number(item.dataset.galleryIndex);
-    if (!Number.isInteger(index) || !galleryItems[index]) return;
+    if (!Number.isInteger(index) || !getVisibleGalleryItems()[index]) return;
     openLightbox(index);
 }
 
-function handleMapPointChipActivation(event) {
-    const button = event.target.closest('[data-map-point-index]');
-    if (!button) return;
-
-    const index = Number(button.dataset.mapPointIndex);
-    if (!Number.isInteger(index)) return;
-
-    const point = artistMapPoints[index];
-    if (!point) return;
-
-    if (isMobileArtistMapLayout()) {
-        activeMapPointIndex = activeMapPointIndex === index ? -1 : index;
-        renderArtistMapPointsList(artistMapPoints);
-    } else {
-        activeMapPointIndex = index;
-        renderArtistMapPointsList(artistMapPoints);
-    }
-
-    focusArtistMapPoint(point, { openGoogleMaps: false });
-}
-
 function openLightbox(index) {
-    if (!galleryItems.length) return;
+    if (!getVisibleGalleryItems().length) return;
     currentLightboxIndex = index;
     updateLightboxImage();
     const lightbox = document.getElementById('gallery-lightbox');
@@ -1570,10 +1233,13 @@ function navigateLightbox(direction) {
     const video = document.getElementById('lightbox-video');
     if (video) video.pause();
 
+    const visible = getVisibleGalleryItems();
+    if (!visible.length) return;
+
     currentLightboxIndex += direction;
     if (currentLightboxIndex < 0) {
-        currentLightboxIndex = galleryItems.length - 1;
-    } else if (currentLightboxIndex >= galleryItems.length) {
+        currentLightboxIndex = visible.length - 1;
+    } else if (currentLightboxIndex >= visible.length) {
         currentLightboxIndex = 0;
     }
 
@@ -1584,14 +1250,15 @@ function updateLightboxImage() {
     const image = document.getElementById('lightbox-image');
     const video = document.getElementById('lightbox-video');
     const counter = document.getElementById('lightbox-counter');
-    const url = galleryItems[currentLightboxIndex];
-    const isVideo = isUrlVideo(url);
+    const visible = getVisibleGalleryItems();
+    const item = visible[currentLightboxIndex];
+    if (!item) return;
 
-    if (isVideo) {
+    if (item.kind === 'video') {
         image.style.display = 'none';
         image.src = '';
         video.style.display = 'block';
-        video.src = url;
+        video.src = item.url;
         video.load();
     } else {
         video.pause();
@@ -1599,44 +1266,13 @@ function updateLightboxImage() {
         video.removeAttribute('src');
         video.load();
         image.style.display = 'block';
-        image.src = url;
+        image.src = item.url;
     }
 
-    counter.textContent = `${currentLightboxIndex + 1} / ${galleryItems.length}`;
+    counter.textContent = `${currentLightboxIndex + 1} / ${visible.length}`;
 }
 
-async function shareProfile() {
-    const shareBtn = document.getElementById('share-profile-btn');
-    const username = artistData?.username || 'artista';
-    const profileUrl = window.location.href;
-
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: `${username} - We Otzi`,
-                text: `Conoce el trabajo de ${username} como tatuador en We Otzi`,
-                url: profileUrl
-            });
-            shareBtn?.classList.add('shared');
-            setTimeout(() => shareBtn?.classList.remove('shared'), 2000);
-            return;
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.log('Share failed, falling back to clipboard');
-            }
-        }
-    }
-
-    try {
-        await navigator.clipboard.writeText(profileUrl);
-        shareBtn?.classList.add('shared');
-        showStatusMessage('Enlace del perfil copiado al portapapeles.');
-        setTimeout(() => shareBtn?.classList.remove('shared'), 2000);
-    } catch (error) {
-        console.error('Error sharing profile:', error);
-        showStatusMessage('Error al compartir el perfil.');
-    }
-}
+/* ---------- Estados de página ---------- */
 
 function showLoading() {
     resetProfileErrorState();
@@ -1702,14 +1338,3 @@ function showContent() {
     document.getElementById('profile-error').style.display = 'none';
     document.getElementById('profile-content').style.display = 'grid';
 }
-
-function showStatusMessage(message) {
-    const messageDiv = document.getElementById('status-message');
-    if (!messageDiv) return;
-
-    messageDiv.textContent = message;
-    setTimeout(() => {
-        messageDiv.textContent = '';
-    }, 4000);
-}
-

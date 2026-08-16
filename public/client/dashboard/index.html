@@ -54,48 +54,38 @@
                     <h2 class="wo-h2">Tu actividad</h2>
                 </header>
                 <div class="client-activity-grid">
-                    <!-- Centro de cuenta (resumen de perfil) -->
-                    <aside class="client-profile-card">
-                        <p class="wo-eyebrow">Centro de cuenta</p>
-                        <div class="client-profile-row">
-                            <div class="wo-avatar wo-avatar--l" id="profile-avatar">
-                                <span class="profile-avatar-placeholder">··</span>
-                            </div>
-                            <div class="client-profile-info">
-                                <h3 class="client-profile-name" id="profile-name">Cargando…</h3>
-                                <p class="client-profile-meta" id="profile-email"></p>
-                            </div>
-                        </div>
-                        <button class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard" type="button" onclick="openEditProfileModal()">
-                            <i data-wo-icon="edit-2" class="wo-icon-18"></i>
-                            Editar perfil
-                        </button>
-                    </aside>
+                    <!-- Feed de actividad (eventos reales: cotizaciones, chat, job board) -->
+                    <div class="client-feed" id="activity-feed">
+                        <div class="loading-skeleton loading-skeleton--row"></div>
+                        <div class="loading-skeleton loading-skeleton--row"></div>
+                        <div class="loading-skeleton loading-skeleton--row"></div>
+                    </div>
 
                     <!-- Contadores -->
                     <div class="client-counters">
-                        <div class="client-counter client-counter--yellow">
-                            <span class="client-counter-label">Cotizaciones totales</span>
-                            <span class="client-counter-value" id="stat-total">0</span>
-                        </div>
-                        <div class="client-counter client-counter--blue">
-                            <span class="client-counter-label">Activas en proceso</span>
-                            <span class="client-counter-value" id="stat-active">0</span>
-                        </div>
-                        <div class="client-counter client-counter--yellow">
-                            <span class="client-counter-label">Pendientes de respuesta</span>
-                            <span class="client-counter-value" id="stat-pending">0</span>
-                        </div>
-                        <div class="client-counter client-counter--green">
-                            <span class="client-counter-label">Completadas</span>
-                            <span class="client-counter-value" id="stat-completed">0</span>
-                        </div>
+                        <button class="client-counter client-counter--yellow" type="button" onclick="switchToQuotations('pending')">
+                            <span class="client-counter-label">Cotizaciones pendientes</span>
+                            <span class="client-counter-value" id="stat-pending-quotes">0</span>
+                        </button>
+                        <button class="client-counter client-counter--blue" type="button" onclick="switchToQuotations('all')">
+                            <span class="client-counter-label">Mensajes nuevos</span>
+                            <span class="client-counter-value" id="stat-new-messages">0</span>
+                        </button>
+                        <button class="client-counter client-counter--green" type="button" onclick="switchToJobBoard()">
+                            <span class="client-counter-label">Publicaciones activas</span>
+                            <span class="client-counter-value" id="stat-active-posts">0</span>
+                        </button>
+                        <button class="client-counter client-counter--yellow" type="button" onclick="switchToJobBoard()">
+                            <span class="client-counter-label">Propuestas recibidas</span>
+                            <span class="client-counter-value" id="stat-proposals">0</span>
+                        </button>
                     </div>
                 </div>
             </section>
 
-            <!-- Mis cotizaciones -->
-            <section class="client-quotations" id="mis-cotizaciones">
+            <!-- Mis cotizaciones · panel al que llega el ítem COTIZACIONES del nav
+                 (el Figma del dashboard no lo muestra embebido: se abre desde el nav) -->
+            <section class="client-quotations is-collapsed" id="mis-cotizaciones">
                 <header class="client-section-head">
                     <h2 class="wo-h2">Mis cotizaciones</h2>
                 </header>
@@ -157,6 +147,17 @@
             </div>
         </section>
 
+        <!-- Artistas para vos -->
+        <section class="client-suggested" id="artistas-para-vos" hidden>
+            <div class="wo-container">
+                <header class="client-section-head">
+                    <h2 class="wo-h2">Artistas para vos</h2>
+                    <a class="wo-meta client-section-link" href="/marketplace">Ver todos</a>
+                </header>
+                <div class="client-suggested-grid" id="suggested-artists"></div>
+            </div>
+        </section>
+
         <!-- Footer -->
         <footer class="client-footer">
             <div class="wo-container client-footer-inner">
@@ -167,10 +168,25 @@
                 <div class="client-footer-col">
                     <p class="wo-eyebrow">Contacto</p>
                     <a href="mailto:clientes@weotzi.com">clientes@weotzi.com</a>
+                    <button type="button" class="client-footer-link" onclick="openSupportChat()">Soporte</button>
+                </div>
+                <div class="client-footer-col">
+                    <p class="wo-eyebrow">Ayuda</p>
+                    <a href="/faqs">Preguntas frecuentes</a>
+                    <button type="button" class="client-footer-link" onclick="openSupportChat()">Centro de ayuda</button>
+                </div>
+                <div class="client-footer-col">
+                    <p class="wo-eyebrow">Términos</p>
+                    <a href="/legal/terms">Términos y condiciones</a>
+                    <a href="/legal/privacy">Privacidad</a>
                 </div>
             </div>
             <div class="wo-container client-footer-legal">
-                <span class="wo-meta-s">© 2026 We Ötzi · Todos los derechos reservados</span>
+                <span class="wo-meta-s">© 2026 We Ötzi. Todos los derechos reservados.</span>
+                <a class="client-footer-social wo-meta-s" href="https://instagram.com/weotzi" target="_blank" rel="noopener">
+                    <i data-wo-icon="instagram" class="wo-icon-18"></i>
+                    Instagram
+                </a>
             </div>
         </footer>
     </main>

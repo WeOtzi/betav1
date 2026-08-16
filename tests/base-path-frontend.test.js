@@ -40,21 +40,48 @@ test('landing social login redirects preserve the active app base path', () => {
     assert.doesNotMatch(mainJs, /signInWithOAuth/);
 });
 
-test('registration wizard clears all active steps before activating a target step', () => {
+test('el acordeón de registro deja un solo grupo abierto a la vez', () => {
     assert.match(mainJs, /function appUrl\(/);
     const registerJs = fs.readFileSync(
         path.resolve(__dirname, '..', 'public', 'shared', 'js', 'register.js'),
         'utf8'
     );
 
-    assert.ok(registerJs.includes("querySelectorAll('.form-step.active')"));
-    assert.ok(registerJs.includes('activeSteps.forEach'));
+    // renderGroups() es el único que decide visibilidad: el panel se muestra
+    // solo para el grupo activo y la sección solo si está activa o completada.
+    assert.match(registerJs, /function renderGroups/);
+    assert.match(registerJs, /panel\.hidden\s*=\s*!isActive/);
+    assert.match(registerJs, /section\.hidden\s*=\s*!isActive\s*&&\s*!isDone/);
 });
 
-test('instagram registration source activates the IG step before async auth finishes', () => {
-    assert.match(registerArtistHtml, /new URLSearchParams\(window\.location\.search\)\.get\('source'\) === 'instagram'/);
-    assert.ok(registerArtistHtml.includes("document.querySelector('.form-step[data-step=\"0\"]')?.classList.add('active')"));
-    assert.ok(registerArtistHtml.includes("label.textContent = 'IG / 11'"));
+test('el registro por Instagram no muestra el primer grupo antes de resolver la sesión', () => {
+    // El markup arranca con todos los paneles ocultos, así que no hay flash del
+    // grupo 01 mientras se resuelve el auth async.
+    // Cada grupo arranca cerrado: o la sección entera está oculta, o su panel.
+    const sections = registerArtistHtml.split('<section class="ra-group').slice(1);
+    assert.ok(sections.length >= 8, `esperaba las secciones del acordeón, encontré ${sections.length}`);
+    for (const section of sections) {
+        const openTag = section.slice(0, section.indexOf('>'));
+        const panelTag = section.slice(section.indexOf('<div class="ra-panel'));
+        const panelOpen = panelTag.slice(0, panelTag.indexOf('>'));
+        const group = (openTag.match(/data-group="([^"]+)"/) || [])[1] || '?';
+        assert.ok(
+            /hidden/.test(openTag) || /hidden/.test(panelOpen),
+            `el grupo ${group} arranca abierto`
+        );
+    }
+    // La entrada alterna ?source=instagram sigue existiendo y se evalúa antes
+    // de esperar a Supabase, para poder abrir el grupo IG en el primer render.
+    assert.match(registerArtistHtml, /data-group="ig"[^>]*hidden/);
+    const registerJs = fs.readFileSync(
+        path.resolve(__dirname, '..', 'public', 'shared', 'js', 'register.js'),
+        'utf8'
+    );
+    assert.match(registerJs, /function isInstagramSignup/);
+    const igCheck = registerJs.indexOf('const igSignupPreAuth = isInstagramSignup()');
+    const authCall = registerJs.indexOf('await _supabase.auth.getSession()', igCheck);
+    assert.notEqual(igCheck, -1, 'falta la detección temprana del alta por Instagram');
+    assert.ok(igCheck < authCall, 'el origen Instagram debe resolverse antes del await de sesión');
 });
 
 test('artist workspace redirects stay on the active app host and base path', () => {

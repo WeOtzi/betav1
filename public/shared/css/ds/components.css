@@ -10,7 +10,11 @@
    ========================================================================== */
 
 /* ---------- Base de elementos ---------- */
-.wo-app{background:var(--surface-page);color:var(--text-body);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+/* overflow-x:clip evita el scroll horizontal que provocan los bloques full-bleed
+   con width:100vw (100vw incluye la barra de scroll vertical). Se usa clip y no
+   hidden porque hidden crearia un contenedor de scroll y romperia position:sticky.
+   Regla del DS: el contenido ancho (tablas, diagramas) scrollea en su propia caja. */
+.wo-app{background:var(--surface-page);color:var(--text-body);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overflow-x:clip}
 .wo-app ::selection{background:var(--selection-bg);color:var(--selection-fg)}
 .wo-app a{color:var(--text-link);text-decoration:none}
 .wo-app a:hover{color:var(--text-link-hover);text-decoration:underline}

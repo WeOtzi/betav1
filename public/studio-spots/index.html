@@ -16,69 +16,65 @@
 </head>
 <body class="wo-app">
 
-    <!-- TopBar -->
+    <!-- TopBar de artista -->
     <header class="wo-topbar">
         <div class="wo-topbar-left">
-            <a href="/" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación">
-                <a href="/marketplace" class="wo-topbar-item">Marketplace</a>
-                <a href="/explore" class="wo-topbar-item">Mapa</a>
+            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
                 <a href="/job-board" class="wo-topbar-item">Job board</a>
                 <a href="/studio-spots" class="wo-topbar-item is-active" aria-current="page">Spots</a>
+                <a href="/calendar" class="wo-topbar-item">Calendario</a>
+                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
+                <span class="wo-topbar-item is-soon" aria-disabled="true">Travel</span>
+                <span class="wo-topbar-item is-soon" aria-disabled="true">Inbox</span>
             </nav>
         </div>
         <div class="wo-topbar-right">
-            <span class="wo-marks" aria-hidden="true">
-                <i class="wo-mark-square"></i><i class="wo-mark-circle"></i><i class="wo-mark-triangle"></i>
-            </span>
+            <button class="wo-btn wo-btn--ghost wo-btn--s sps-menu-toggle" id="spots-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="spots-mobile-menu">
+                Menú
+            </button>
+            <a href="/artist/dashboard" id="auth-nav-btn" class="sps-auth">
+                <span class="wo-o-tile sps-o-tile" aria-hidden="true">Ö</span>
+                <span id="auth-nav-label" class="wo-sr-only">Ingresá</span>
+            </a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono sps-logout hidden" id="auth-logout">Log out</button>
         </div>
     </header>
+    <nav class="sps-mobile-menu" id="spots-mobile-menu" aria-label="Navegación móvil de artista" hidden>
+        <a href="/my-quotations">Cotizaciones</a>
+        <a href="/job-board">Job board</a>
+        <a href="/studio-spots" class="is-active">Spots</a>
+        <a href="/calendar">Calendario</a>
+        <a href="/my-quotations/statistics">Estadísticas</a>
+    </nav>
 
-    <main class="wo-container sps-shell">
-        <header class="sps-head">
-            <span class="wo-eyebrow">Spots · directorio</span>
-            <h1 class="sps-title">Residencias, <span class="wo-highlight">itinerantes</span> y guest spots</h1>
-            <p class="sps-sub">
-                Los estudios publican acá sus posiciones abiertas. Postulate con un mensaje y tu portfolio;
-                el estudio revisa y te contesta. Si te aceptan, el spot se suma automáticamente a tu agenda.
-            </p>
-        </header>
+    <main class="sps-shell" id="spots-main">
 
-        <div class="sps-filter" id="spots-filter" role="tablist" aria-label="Filtrar por tipo de spot">
-            <button class="wo-chip is-active" data-kind="">Todos</button>
-            <button class="wo-chip" data-kind="resident"><i data-wo-icon="home" class="wo-icon-18" aria-hidden="true"></i> Residencias</button>
-            <button class="wo-chip" data-kind="itinerant"><i data-wo-icon="map" class="wo-icon-18" aria-hidden="true"></i> Itinerantes</button>
-            <button class="wo-chip" data-kind="guest_spot"><i data-wo-icon="briefcase" class="wo-icon-18" aria-hidden="true"></i> Guest spots</button>
-        </div>
+        <!-- Vista 1 · Directorio -->
+        <div id="spots-feed-view">
+            <!-- Spot destacado, franja de ancho completo -->
+            <section id="spots-feature" class="sps-feature-slot" aria-label="Spot destacado"></section>
 
-        <div id="spots-grid" class="sps-grid">
-            <em class="wo-muted">Cargando spots…</em>
-        </div>
-    </main>
+            <!-- Mosaico editorial sobre fondo ink -->
+            <section id="spots-mosaic" class="sps-mosaic" aria-label="Spots abiertos"></section>
 
-    <!-- Modal de spot -->
-    <div class="wo-overlay hidden" id="spot-modal-backdrop">
-        <div class="wo-modal sps-modal" role="dialog" aria-modal="true" aria-labelledby="spot-modal-title">
-            <button class="wo-iconbtn wo-iconbtn--s sps-modal-close" id="spot-modal-close" aria-label="Cerrar">
-                <i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>
-            </button>
-            <div class="sps-modal-cover" id="spot-modal-cover"></div>
-            <div class="sps-modal-body">
-                <span class="wo-badge wo-badge--s sps-kind sps-kind--guest_spot" id="spot-modal-kind">Guest spot</span>
-                <h2 class="sps-modal-title" id="spot-modal-title">Spot</h2>
-                <p class="sps-modal-studio wo-body-s wo-muted" id="spot-modal-studio">—</p>
-                <p class="sps-modal-desc" id="spot-modal-description"></p>
+            <!-- Cinta de spots que cierran -->
+            <section id="spots-ribbon" class="sps-ribbon" aria-label="Spots que cierran pronto"></section>
 
-                <span class="sps-label">Detalles de la oportunidad</span>
-                <div class="sps-meta-grid" id="spot-modal-meta"></div>
-
-                <span class="sps-label">Estilos buscados</span>
-                <div class="sps-styles" id="spot-modal-styles"></div>
-
-                <div id="spot-modal-apply" class="sps-apply"></div>
+            <div id="spots-empty" class="wo-empty hidden">
+                <i data-wo-icon="inbox" aria-hidden="true"></i>
+                <span class="wo-empty-title">No hay spots abiertos</span>
+                <p>Volvé más tarde: los estudios publican sus posiciones acá.</p>
             </div>
         </div>
-    </div>
+
+        <!-- Vista 2 · Detalle del spot + aside de postulación -->
+        <div id="spot-detail-view" class="sps-detail hidden"></div>
+
+        <!-- Vista 3 · Solicitud enviada -->
+        <div id="spot-sent-view" class="sps-sent hidden"></div>
+    </main>
 
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
