@@ -1,0 +1,153 @@
+/* ============================================================================
+   We Ötzi · Design System (Bauhaus Edition) — TOKENS
+   Fuente: proyecto "We Ötzi Design System" (claude.ai/design fe3404ee).
+   Este archivo es la única fuente de verdad de color/tipografía/espaciado.
+   Regla: ningún hex suelto en CSS de páginas — siempre var(--token).
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  /* ---- Color · ramps ---- */
+  /* Primario · azul */
+  --blue-100:#DCEBFF; --blue-200:#7BAAF7; --blue-300:#1E3FA6; --blue-400:#0055FF; --blue-500:#0041C4;
+  /* Secundario · rojo */
+  --red-100:#FFF2EF; --red-200:#FFB7A9; --red-300:#E63A1F; --red-400:#C82D16; --red-500:#991E0D;
+  /* Terciario · amarillo */
+  --yellow-100:#FFF2CF; --yellow-200:#FFD25A; --yellow-300:#F2B519; --yellow-400:#D99200; --yellow-500:#A86A00;
+  /* Neutral · arena */
+  --neutral-100:#FAF8F3; --neutral-200:#E8E3D7; --neutral-300:#B9AE98; --neutral-400:#5A5449; --neutral-500:#24211D;
+  /* Sistema */
+  --system-success:#1E9F74; --system-warning:#EEBB2D; --system-error:#E42121;
+  /* Tinta y papel */
+  --ink:#001125; --white:#FCFCFC; --black:#000000;
+  /* Primitivas Bauhaus del isotipo */
+  --bauhaus-square:#E42121; --bauhaus-circle:#F2B519; --bauhaus-triangle:#0055FF;
+  /* Superficies oscuras y reglas */
+  --ink-stage:#1E1E1E; --ink-slate:#1B2A3A; --ink-rule:#3C4552; --dark-rule:#3C3A36; --dark-hover:#332F29;
+  /* Arenas de media */
+  --sand-050:#EFEBE1; --sand-150:#EDE8DC; --sand-200:#EDEBE6; --sand-250:#DED8C9; --sand-350:#D5CFC0;
+  /* Pares de estado (fondo + texto) */
+  --success-bg:#E0F2EA; --success-fg:#14654A;
+  --warning-bg:#FFF2CF; --warning-fg:#A86A00;
+  --error-bg:#FFF2EF;   --error-fg:#C82D16;
+  --info-bg:#DCEBFF;    --info-fg:#1E3FA6;
+  /* Rojo accesible para texto sobre crema (#E63A1F mide ~3.96:1 — solo titular grande) */
+  --red-700:#991E0D;
+  --red-on-red-strong:#FFD9D0; --red-on-red-soft:#FFE4DD;
+
+  /* ---- Tipografía ---- */
+  --font-display:'Archivo Black',system-ui,sans-serif;
+  --font-body:Inter,system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  --weight-regular:400; --weight-medium:500; --weight-semibold:600; --weight-bold:700; --weight-extrabold:800;
+  --display-size:72px; --display-lh:1.05; --display-track:-0.02em;
+  --h1-size:56px; --h1-lh:1.08; --h1-track:-0.015em;
+  --h2-size:32px; --h2-lh:1.15; --h2-track:-0.01em;
+  --h3-size:24px; --h3-lh:1.2;  --h3-track:0;
+  --title-xl-size:44px; --title-lg-size:38px; --title-md-size:30px; --title-sm-size:28px;
+  --body-l-size:20px; --body-l-lh:1.5;
+  --body-m-size:16px; --body-m-lh:1.55;
+  --body-s-size:14px; --body-s-lh:1.55;
+  --button-m-size:14px; --button-m-track:0.04em;
+  --button-s-size:12px; --button-s-track:0.04em;
+  --meta-m-size:12px; --meta-m-track:0.14em;
+  --meta-s-size:10px; --meta-s-track:0.14em;
+  --meta-lead-track:0.16em; --meta-wide-track:0.18em; --meta-widest-track:0.2em;
+  --font-size-min:10px;
+
+  /* ---- Espaciado · escala 4pt (el número ES el múltiplo de 4) ---- */
+  --space-0:0; --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
+  --space-6:24px; --space-7:28px; --space-8:32px; --space-10:40px; --space-12:48px; --space-16:64px;
+  --control-h-sm:36px; --control-h-md:44px; --control-h-lg:56px; --tap-target-min:44px;
+  --control-padding-y:var(--space-4); --control-padding-x:var(--space-5);
+  --field-padding-y:var(--space-4); --field-padding-x:var(--space-4);
+  --card-padding:var(--space-6); --icon-button-size:var(--control-h-lg);
+
+  /* ---- Grid ---- */
+  --container-max:1280px; --grid-cols:12;
+  --bp-xs:480px; --bp-sm:768px; --bp-md:1024px; --bp-lg:1280px;
+  --gutter-xs:var(--space-4); --gutter-sm:var(--space-5); --gutter-md:var(--space-6);
+  --margin-xs:var(--space-4); --margin-sm:var(--space-6); --margin-md:var(--space-8); --margin-lg:var(--space-10);
+
+  /* ---- Bordes, radios y sombras ---- */
+  --radius-none:0; --radius-sm:2px; --radius-pill:999px; --radius-circle:50%;
+  --border-hairline:1px; --border-strong-width:2px; --border-rule-width:3px;
+  --shadow-none:none;
+  --shadow-focus:0 0 0 3px rgba(0,85,255,0.35); /* única sombra permanente · solo :focus-visible */
+  --shadow-hard-sm:4px 4px 0 var(--neutral-500);
+  --shadow-hard:6px 6px 0 var(--neutral-500);
+  --shadow-hard-field:5px 5px 0 var(--neutral-500);
+  --shadow-hard-lg:8px 8px 0 var(--neutral-500);
+  --shadow-hard-xl:10px 10px 0 var(--black);
+  --shadow-hard-sand:6px 6px 0 var(--neutral-300);
+  --protection-bottom:linear-gradient(transparent,rgba(0,0,0,0.72));
+  --protection-diagonal:linear-gradient(105deg,rgba(20,18,16,0.9),rgba(20,18,16,0.45));
+  --corner-flag-sm:34px; --corner-flag-md:44px; --corner-flag-lg:58px;
+
+  /* ---- Opacidad semántica ---- */
+  --opacity-0:0; --opacity-disabled:0.40; --opacity-muted:0.60; --opacity-subtle:0.72; --opacity-full:1;
+  --opacity-hover-tint:0.10;
+
+  /* ---- Movimiento ---- */
+  --ease-standard:cubic-bezier(.4,0,.2,1); --ease-linear:linear;
+  --duration-press:.08s; --duration-fade:.24s; --duration-fast:.3s; --duration-panel:.34s;
+  --duration-spin:.8s; --duration-spin-slow:.9s; --duration-blink:1.1s;
+  --lift-offset:2px;
+
+  /* ---- Aliases semánticos ---- */
+  /* Texto */
+  --text-heading:var(--ink);
+  --text-body:var(--neutral-500);
+  --text-muted:var(--neutral-400);
+  --text-faint:var(--neutral-300);
+  --text-inverse:var(--white);
+  --text-on-dark:var(--neutral-200);
+  --text-accent:var(--yellow-300);
+  --text-link:var(--blue-400);
+  --text-link-hover:var(--blue-500);
+  --text-danger:var(--red-700);
+  /* Superficies — jerarquía por borde y fondo, no por elevación */
+  --surface-page:var(--neutral-100);
+  --surface-card:var(--white);
+  --surface-overlay:var(--neutral-500);
+  --surface-overlay-border:var(--yellow-300);
+  --surface-inverse:var(--neutral-500);
+  --surface-input:var(--neutral-100);
+  --surface-input-hover:var(--neutral-200);
+  --surface-input-disabled:var(--neutral-200);
+  --surface-media:var(--sand-050);
+  --surface-stage:var(--ink-stage);
+  --surface-panel:var(--white);
+  --surface-field:var(--surface-input);
+  --surface-field-hover:var(--surface-input-hover);
+  --surface-field-disabled:var(--surface-input-disabled);
+  --surface-dark:var(--neutral-500);
+  --surface-ink:var(--ink);
+  /* Bordes */
+  --border-strong:var(--neutral-500);
+  --border-subtle:var(--neutral-200);
+  --border-muted:var(--neutral-300);
+  --border-focus:var(--blue-400);
+  --border-inverse:var(--dark-rule);
+  /* Acciones */
+  --action-primary:var(--neutral-500);        --action-primary-hover:var(--black);   --action-primary-fg:var(--white);
+  --action-accent:var(--yellow-300);          --action-accent-hover:var(--yellow-400); --action-accent-fg:var(--neutral-500);
+  --action-direct:var(--blue-400);            --action-direct-hover:var(--blue-500); --action-direct-fg:var(--white);
+  --action-danger:var(--red-300);             --action-danger-hover:var(--red-400);  --action-danger-fg:var(--white);
+  --action-ghost:transparent;                 --action-ghost-hover:var(--neutral-200); --action-ghost-fg:var(--neutral-500);
+  --action-disabled-bg:var(--neutral-200);    --action-disabled-fg:var(--neutral-400);
+  --action-secondary-bg:var(--neutral-100);   --action-secondary-bg-hover:var(--neutral-200); --action-secondary-fg:var(--neutral-500);
+  /* Estado */
+  --status-success-bg:var(--success-bg); --status-success-fg:var(--success-fg);
+  --status-warning-bg:var(--warning-bg); --status-warning-fg:var(--warning-fg);
+  --status-error-bg:var(--error-bg);     --status-error-fg:var(--error-fg);
+  --status-info-bg:var(--info-bg);       --status-info-fg:var(--info-fg);
+  /* Acento del sistema */
+  --accent:var(--yellow-300); --accent-hover:var(--yellow-400); --accent-fg:var(--neutral-500);
+  --selection-bg:var(--yellow-300); --selection-fg:var(--neutral-500);
+}
+
+@keyframes om-spin{to{transform:rotate(360deg)}}
+@keyframes om-blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes om-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes om-shimmer{0%{background-position:100% 50%}100%{background-position:0% 50%}}
