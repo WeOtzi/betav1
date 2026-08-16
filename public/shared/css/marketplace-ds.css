@@ -1,0 +1,119 @@
+/* ============================================================================
+   We Ötzi · Marketplace (flujo clientes) — capa de página sobre el DS Bauhaus
+   Requiere ds/tokens.css + ds/components.css. Solo var(--token), cero hex.
+   Referencia: Figma "flujo-clientes/06-marketplace" (desktop 1440).
+   ========================================================================== */
+
+/* ---------- Página ---------- */
+.mk-page{display:flex;flex-direction:column;min-height:100vh}
+.mk-main{width:100%;flex:1;padding-top:var(--space-10);padding-bottom:var(--space-12)}
+.hidden{display:none !important}
+
+/* ---------- TopBar ---------- */
+.mk-topbar-cta{align-self:center}
+
+/* ---------- Hero ---------- */
+.mk-hero{display:flex;flex-direction:column;gap:var(--space-6)}
+.mk-title{font-family:var(--font-display);font-size:clamp(var(--title-sm-size),5vw,var(--title-xl-size));line-height:1.05;letter-spacing:var(--h1-track);color:var(--ink);margin:0}
+.mk-sub{font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted);margin:calc(-1 * var(--space-3)) 0 0}
+
+/* ---------- Búsqueda ---------- */
+.mk-search{position:relative}
+.mk-search-icon{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);display:inline-flex;color:var(--text-faint);pointer-events:none;z-index:1}
+.mk-search-input{background:var(--surface-page);border-color:var(--border-strong);padding-left:var(--space-12)}
+.mk-search-input:focus{padding-left:calc(var(--space-12) - 1px)}
+.mk-suggestions{position:absolute;top:100%;left:0;right:0;z-index:40;margin-top:calc(-1 * var(--border-hairline));background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong);max-height:320px;overflow-y:auto}
+.mk-suggestion{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) var(--space-4);cursor:pointer;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.mk-suggestion:last-child{border-bottom:0}
+.mk-suggestion:hover{background:var(--surface-input-hover)}
+.mk-suggestion-label{font-size:var(--body-s-size);color:var(--text-body)}
+.mk-suggestion-cat{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-muted);flex:none}
+
+/* ---------- Pills de estilos ---------- */
+.mk-styles{display:flex;flex-direction:column;gap:var(--space-3)}
+.mk-styles-row{display:flex;gap:var(--space-2);overflow-x:auto;padding:var(--space-1) var(--space-1) var(--space-3);scrollbar-width:thin}
+.mk-style-chip{flex:none}
+.mk-chip-count{font-family:var(--font-mono);font-size:var(--meta-s-size);color:inherit;opacity:var(--opacity-muted)}
+
+/* ---------- Filtros avanzados ---------- */
+.mk-adv-filters{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4)}
+
+/* ---------- Filtros activos ---------- */
+.mk-active-filters{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);margin-top:var(--space-6);padding:var(--space-3) 0;border-top:var(--border-hairline) solid var(--border-subtle)}
+.mk-active-label{color:var(--text-muted)}
+.mk-active-list{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.mk-filter-tag [data-wo-icon]{width:14px;height:14px}
+.mk-clear-btn{margin-left:auto}
+
+/* ---------- Barra de resultados ---------- */
+.mk-results{margin-top:var(--space-8)}
+.mk-results-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) var(--space-4);border-top:var(--border-hairline) solid var(--border-strong);border-bottom:var(--border-hairline) solid var(--border-strong)}
+.mk-count{color:var(--text-body)}
+.mk-results-tools{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-6)}
+.mk-view-toggle{display:inline-flex;border:var(--border-hairline) solid var(--border-strong)}
+.mk-view-btn{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);font-family:var(--font-body);font-size:var(--button-s-size);font-weight:var(--weight-bold);letter-spacing:var(--button-s-track);text-transform:uppercase;color:var(--neutral-500);text-decoration:none;cursor:pointer}
+.wo-app a.mk-view-btn:hover{color:var(--neutral-500);text-decoration:none;background:var(--surface-input-hover)}
+.mk-view-btn.is-active{background:var(--neutral-500);color:var(--neutral-100);cursor:default}
+.mk-view-btn [data-wo-icon]{width:14px;height:14px}
+.mk-sort{display:flex;align-items:center;gap:var(--space-3)}
+.mk-sort .wo-label{white-space:nowrap}
+.mk-sort-select{width:auto;min-height:var(--control-h-sm);padding-top:var(--space-2);padding-bottom:var(--space-2)}
+.mk-sort-select:focus{padding-top:calc(var(--space-2) - 1px);padding-bottom:calc(var(--space-2) - 1px)}
+
+/* ---------- Grid de artistas ---------- */
+.mk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-5);margin-top:var(--space-6)}
+.mk-card{display:flex;flex-direction:column;cursor:pointer}
+
+/* Media full-bleed con protección inferior (gradiente permitido sobre imagen) */
+.mk-card-media{position:relative;aspect-ratio:4 / 5;background:var(--surface-media)}
+.mk-card-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.mk-media-ph{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;color:var(--text-faint)}
+.mk-card-overlay{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:var(--space-3);padding:var(--space-8) var(--space-4) var(--space-4);background:var(--protection-bottom)}
+.mk-card-avatar{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;border-radius:var(--radius-pill);background:var(--yellow-300);color:var(--neutral-500);font-family:var(--font-display);font-size:15px;text-transform:uppercase;overflow:hidden}
+.mk-card-id{min-width:0}
+.mk-card-name{font-family:var(--font-display);font-size:18px;line-height:1.15;color:var(--white);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk-card-meta{font-family:var(--font-mono);font-size:11px;letter-spacing:var(--button-m-track);text-transform:uppercase;color:var(--white);opacity:var(--opacity-subtle);margin:var(--space-1) 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Badge de recomendado (arriba a la izquierda) */
+.mk-card-flag{position:absolute;top:var(--space-3);left:var(--space-3);display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2);background:var(--neutral-500);color:var(--neutral-100);font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase}
+.mk-card-flag::before{content:"";width:6px;height:6px;border-radius:var(--radius-pill);background:var(--yellow-300)}
+
+/* Pie de card: precio + acciones */
+.mk-card-foot{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--border-hairline) solid var(--border-subtle);background:var(--surface-card)}
+.mk-card-foot-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)}
+.mk-price{display:flex;flex-direction:column;gap:var(--space-1);min-width:0}
+.mk-price-label{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-wide-track);text-transform:uppercase;color:var(--text-muted)}
+.mk-price-val{font-family:var(--font-mono);font-size:var(--body-m-size);font-weight:var(--weight-bold);color:var(--text-heading);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-card .wo-btn [data-wo-icon]{width:14px;height:14px}
+
+/* ---------- Paginación ---------- */
+.mk-pagination{display:flex;align-items:center;justify-content:center;gap:var(--space-5);padding:var(--space-10) 0 var(--space-4)}
+.mk-pagination .wo-iconbtn:disabled{cursor:not-allowed;transform:none;box-shadow:none;color:var(--text-faint)}
+.mk-page-info{color:var(--text-body)}
+
+/* ---------- Estado vacío ---------- */
+.mk-empty-icon{width:48px;height:48px;color:var(--text-faint)}
+
+/* ---------- Loading overlay ---------- */
+.mk-loading-box{display:flex;flex-direction:column;align-items:center;gap:var(--space-4);padding:var(--space-8) var(--space-10);background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong)}
+.mk-loading-box p{margin:0;color:var(--text-body)}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1024px){
+  .mk-grid{grid-template-columns:repeat(3,1fr)}
+  .mk-adv-filters{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:768px){
+  .mk-main{padding-top:var(--space-6)}
+  .mk-grid{grid-template-columns:repeat(2,1fr);gap:var(--space-4)}
+  .mk-results-bar{align-items:flex-start;flex-direction:column}
+  .mk-results-tools{width:100%;justify-content:space-between}
+  .mk-clear-btn{margin-left:0}
+}
+@media (max-width:480px){
+  .mk-grid{grid-template-columns:1fr}
+  .mk-adv-filters{grid-template-columns:1fr}
+  .mk-view-toggle{display:none}
+  .mk-sort{width:100%}
+  .mk-sort-select{flex:1}
+}

@@ -1,0 +1,84 @@
+/* ============================================================================
+   We Ötzi · Auth de clientes (login + registro) — capa de página sobre el DS
+   Requiere: /shared/css/ds/tokens.css + /shared/css/ds/components.css
+   Regla: solo var(--token), cero hex sueltos.
+   ========================================================================== */
+
+/* ---- Shell: hero oscuro + columna de formulario ---- */
+.ca-page{margin:0;min-height:100vh}
+.ca-split{display:grid;grid-template-columns:1fr 1.05fr;min-height:100vh}
+
+.ca-hero{position:relative;background:var(--surface-inverse);color:var(--text-on-dark);display:flex;align-items:center;padding:var(--space-16) var(--space-12);overflow:hidden}
+.ca-hero-inner{display:flex;flex-direction:column;gap:var(--space-8)}
+.ca-hero-title{font-family:var(--font-display);font-size:clamp(44px,5.5vw,72px);line-height:0.95;letter-spacing:var(--h1-track);margin:0;text-transform:uppercase}
+.ca-hero-title .l1{color:var(--neutral-100)}
+.ca-hero-title .l2{color:var(--blue-400)}
+.ca-hero-title .l3{color:var(--yellow-300)}
+.ca-hero-deco{position:absolute;right:var(--space-12);bottom:var(--space-10);width:88px;height:80px;border:var(--border-rule-width) solid var(--yellow-300)}
+
+/* Marcas Bauhaus a 20px (el DS trae 14px) */
+.ca-marks-lg{gap:var(--space-2)}
+.ca-marks-lg .wo-mark-square,.ca-marks-lg .wo-mark-circle{width:20px;height:20px}
+.ca-marks-lg .wo-mark-triangle{border-left-width:11px;border-right-width:11px;border-bottom-width:20px}
+
+/* ---- Columna del formulario ---- */
+.ca-form-col{display:flex;align-items:center;justify-content:center;padding:var(--space-12) var(--space-6);background:var(--surface-page)}
+.ca-form{width:100%;max-width:420px;display:flex;flex-direction:column;gap:var(--space-5)}
+.ca-brand{display:inline-flex;align-items:center;gap:var(--space-3);text-decoration:none;align-self:flex-start}
+.ca-brand:hover{text-decoration:none}
+.ca-wordmark{font-family:var(--font-display);font-size:20px;letter-spacing:0.04em;color:var(--text-heading)}
+.ca-head{display:flex;flex-direction:column;gap:var(--space-2)}
+.ca-title{font-family:var(--font-display);font-size:var(--h2-size);line-height:var(--h2-lh);letter-spacing:var(--h2-track);color:var(--text-heading);margin:0}
+.ca-subtitle{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+
+/* ---- Campos ---- */
+.ca-fields{display:flex;flex-direction:column;gap:var(--space-4)}
+.ca-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)}
+.ca-form .wo-input{border-color:var(--border-strong)}
+.ca-form .wo-input:focus{border-color:var(--border-focus)}
+.ca-opt{color:var(--text-faint);text-transform:lowercase;letter-spacing:0}
+
+/* Input con ícono a la izquierda (login) */
+.ca-input-wrap{position:relative}
+.ca-input-wrap [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);color:var(--text-faint);pointer-events:none}
+.ca-input-wrap .wo-input{padding-left:var(--space-12)}
+.ca-input-wrap .wo-input:focus{padding-left:calc(var(--space-12) - 1px)}
+
+/* Spinner que inyecta client-auth.js dentro del botón en estado loading */
+.ca-form .spinner{width:18px;height:18px;border-radius:var(--radius-circle);border:2px solid var(--neutral-400);border-top-color:var(--white);animation:om-spin var(--duration-spin) linear infinite}
+
+/* ---- Divider "O continuá con" ---- */
+.ca-divider{display:flex;align-items:center;gap:var(--space-3);color:var(--text-faint);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase}
+.ca-divider::before,.ca-divider::after{content:"";flex:1;height:0;border-top:var(--border-hairline) solid var(--border-subtle)}
+
+/* ---- OAuth (badge Recomendado + botón Google) ---- */
+.ca-oauth{display:flex;flex-direction:column;gap:var(--space-3);align-items:flex-start}
+.ca-oauth .wo-btn{gap:var(--space-3)}
+.ca-google-g{width:18px;height:18px;flex:none}
+
+/* ---- Mensajes del formulario (client-auth.js setea la clase y display) ---- */
+.form-message{display:none;padding:var(--space-4) var(--space-5);border:var(--border-hairline) solid;border-left-width:var(--border-rule-width);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.form-message.error{background:var(--status-error-bg);border-color:var(--system-error);color:var(--status-error-fg)}
+.form-message.success{background:var(--status-success-bg);border-color:var(--system-success);color:var(--status-success-fg)}
+.form-message.info{background:var(--status-info-bg);border-color:var(--blue-400);color:var(--status-info-fg)}
+.form-message a{color:inherit;text-decoration:underline;font-weight:var(--weight-bold)}
+
+/* Aviso de datos pre-cargados desde una cotización (registro) */
+.ca-notice{padding:var(--space-4) var(--space-5);background:var(--status-warning-bg);border:var(--border-hairline) solid var(--yellow-300);border-left-width:var(--border-rule-width);color:var(--status-warning-fg);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.ca-notice strong{display:block;margin-bottom:var(--space-1)}
+
+/* ---- Links de pie ---- */
+.ca-links{display:flex;flex-direction:column;gap:var(--space-3);text-align:center;margin-top:var(--space-2)}
+.ca-links p{margin:0;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-faint)}
+.ca-links a{color:var(--text-heading)}
+.ca-links a:hover{color:var(--text-heading)}
+
+/* ---- Responsive ---- */
+@media (max-width:1024px){
+  .ca-split{grid-template-columns:1fr}
+  .ca-hero{display:none}
+  .ca-form-col{padding:var(--space-10) var(--space-4)}
+}
+@media (max-width:480px){
+  .ca-row{grid-template-columns:1fr}
+}

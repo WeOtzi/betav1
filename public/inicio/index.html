@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Inicio</title>
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <style>
+        /* Página Inicio (selector de rol) — solo tokens del DS, cero hex sueltos */
+        .inicio-topbar{justify-content:flex-start}
+        .inicio-main{padding-top:var(--space-12);padding-bottom:var(--space-16)}
+        .inicio-head{max-width:640px;margin:0 auto var(--space-10);text-align:center;display:flex;flex-direction:column;gap:var(--space-4)}
+        .inicio-title{font-family:var(--font-display);font-size:clamp(28px,3.2vw,38px);line-height:1.15;letter-spacing:var(--h2-track);color:var(--text-heading);margin:0}
+        .inicio-sub{margin:0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted)}
+
+        .inicio-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-8);max-width:1120px;margin:0 auto}
+        .inicio-card{display:flex;flex-direction:column;color:inherit}
+        .inicio-card:hover,.inicio-card:active{color:inherit;text-decoration:none}
+
+        .inicio-media{position:relative;height:280px;background:var(--surface-media);border-bottom:var(--border-strong-width) solid var(--border-strong);overflow:hidden}
+        .inicio-media span{position:absolute}
+        .im-circle{width:180px;height:180px;border-radius:var(--radius-circle);background:var(--bauhaus-circle);top:32px;left:44px}
+        .im-square{width:120px;height:120px;background:var(--bauhaus-square);bottom:-24px;right:104px}
+        .im-triangle{width:0;height:0;border-left:80px solid transparent;border-right:80px solid transparent;border-bottom:140px solid var(--bauhaus-triangle);top:56px;right:-36px}
+        .inicio-media--alt .im-circle{left:auto;right:44px}
+        .inicio-media--alt .im-square{right:auto;left:104px}
+        .inicio-media--alt .im-triangle{right:auto;left:-36px}
+
+        .inicio-body{display:flex;flex-direction:column;gap:var(--space-4);flex:1}
+        .inicio-card-title{font-family:var(--font-display);font-size:26px;line-height:1.1;color:var(--text-heading);margin:0}
+        .inicio-card-desc{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+        .inicio-card .wo-tag{align-self:flex-start}
+        .inicio-feats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--space-3)}
+        .inicio-feats li{display:flex;align-items:center;gap:var(--space-3);font-size:var(--body-s-size);color:var(--text-body)}
+        .inicio-feats [data-wo-icon]{color:var(--text-muted)}
+        .inicio-cta{display:inline-flex;align-items:center;gap:var(--space-2);margin-top:auto;padding-top:var(--space-4);color:var(--text-muted)}
+        .inicio-card:hover .inicio-cta{color:var(--text-heading)}
+
+        .inicio-note{margin:var(--space-10) auto 0;max-width:640px;text-align:center;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-faint)}
+
+        @media (max-width:1024px){
+            .inicio-cards{grid-template-columns:1fr;max-width:560px}
+        }
+        @media (max-width:480px){
+            .inicio-media{height:200px}
+            .inicio-main{padding-top:var(--space-8)}
+        }
+    </style>
+</head>
+<body class="wo-app">
+    <header class="wo-topbar inicio-topbar">
+        <a class="wo-topbar-brand" href="/inicio">
+            <span class="wo-marks">
+                <span class="wo-mark-square"></span>
+                <span class="wo-mark-circle"></span>
+                <span class="wo-mark-triangle"></span>
+            </span>
+            WE ÖTZI
+        </a>
+    </header>
+
+    <main class="wo-container inicio-main">
+        <header class="inicio-head">
+            <h1 class="inicio-title">¡Bienvenido!<br>¿Cómo querés usar We Ötzi?</h1>
+            <p class="inicio-sub">Elegí la experiencia que mejor se adapte a vos. Vas a poder cambiar esta opción más adelante desde tu perfil.</p>
+        </header>
+
+        <div class="inicio-cards">
+            <a class="wo-card wo-card--media wo-card--hover inicio-card" href="/marketplace">
+                <div class="inicio-media" aria-hidden="true">
+                    <span class="im-circle"></span>
+                    <span class="im-square"></span>
+                    <span class="im-triangle"></span>
+                </div>
+                <div class="wo-card-body inicio-body">
+                    <span class="wo-tag wo-tag--soft">Cliente</span>
+                    <h2 class="inicio-card-title">Quiero tatuarme</h2>
+                    <p class="inicio-card-desc">Encontrá artistas, explorá portafolios, pedí cotizaciones y agendá tu próxima sesión.</p>
+                    <ul class="inicio-feats">
+                        <li><i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>Explorar artistas</li>
+                        <li><i data-wo-icon="grid" class="wo-icon-18" aria-hidden="true"></i>Comparar estilos</li>
+                        <li><i data-wo-icon="file-text" class="wo-icon-18" aria-hidden="true"></i>Solicitar cotizaciones</li>
+                        <li><i data-wo-icon="calendar" class="wo-icon-18" aria-hidden="true"></i>Reservar citas</li>
+                    </ul>
+                    <span class="wo-meta inicio-cta">Continuar como cliente <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></span>
+                </div>
+            </a>
+
+            <a class="wo-card wo-card--media wo-card--hover inicio-card" href="/artist/login">
+                <div class="inicio-media inicio-media--alt" aria-hidden="true">
+                    <span class="im-circle"></span>
+                    <span class="im-square"></span>
+                    <span class="im-triangle"></span>
+                </div>
+                <div class="wo-card-body inicio-body">
+                    <span class="wo-tag wo-tag--soft">Artista</span>
+                    <h2 class="inicio-card-title">Soy tatuador</h2>
+                    <p class="inicio-card-desc">Creá tu portafolio, recibí solicitudes, gestioná reservas y conseguí nuevos clientes.</p>
+                    <ul class="inicio-feats">
+                        <li><i data-wo-icon="image" class="wo-icon-18" aria-hidden="true"></i>Publicar portafolio</li>
+                        <li><i data-wo-icon="inbox" class="wo-icon-18" aria-hidden="true"></i>Recibir solicitudes</li>
+                        <li><i data-wo-icon="calendar" class="wo-icon-18" aria-hidden="true"></i>Gestionar agenda</li>
+                        <li><i data-wo-icon="bar-chart-2" class="wo-icon-18" aria-hidden="true"></i>Ver estadísticas</li>
+                    </ul>
+                    <span class="wo-meta inicio-cta">Continuar como tatuador <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></span>
+                </div>
+            </a>
+        </div>
+
+        <p class="inicio-note">Podés cambiar esta experiencia en cualquier momento desde la configuración de tu cuenta.</p>
+    </main>
+</body>
+</html>

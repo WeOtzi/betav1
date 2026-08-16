@@ -3,172 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Atlas — Explora Tatuadores en el Mapa</title>
-    <meta name="description" content="Atlas interactivo de tatuadores. Filtra por estilo, ciudad y precio sobre un mapa editorial.">
+    <title>We Ötzi · Atlas — Descubrí tatuadores en el mapa</title>
+    <meta name="description" content="Atlas interactivo de tatuadores. Filtrá por estilo, ciudad y precio sobre un mapa editorial.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/marketplace.css">
+    <!-- We Ötzi Design System -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/explore-map.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
 </head>
-<body data-theme="light">
-    <div class="explore-app">
-        <header class="explore-header">
-            <div class="explore-header-left">
-                <a href="/marketplace" class="explore-back" aria-label="Volver al marketplace">←</a>
-                <a href="/" class="explore-logo" aria-label="We Ötzi inicio">
-                    <span class="explore-logo-marks" aria-hidden="true">
-                        <span class="sq"></span>
-                        <span class="ci"></span>
-                        <span class="tr"></span>
-                    </span>
-                    <span class="explore-logo-text">WE<span class="umlaut">Ö</span>TZI</span>
-                </a>
-                <p class="explore-tag" id="atlas-counter">
-                    <span class="dot" aria-hidden="true"></span>
-                    <span class="explore-tag-label">Atlas</span>
-                    <span class="explore-tag-counter"><span id="atlas-counter-value">000</span> pins · <span id="atlas-counter-countries">0</span> países</span>
-                </p>
-            </div>
+<body class="wo-app explore-page">
 
-            <div></div>
-
-            <div class="explore-header-right">
-                <nav class="explore-nav-links" aria-label="Navegación principal">
-                    <a href="/marketplace">Marketplace</a>
-                    <a href="/quotation">Cotizar</a>
-                    <a href="/job-board">Job Board</a>
-                    <a href="/client/login">Acceder</a>
-                </nav>
-                <a href="/explore/globe" class="explore-globe-cta" aria-label="Abrir vista de globo interactivo">Vista Globo</a>
-                <button id="theme-toggle" class="explore-theme-mark" type="button" aria-label="Cambiar tema" onclick="toggleTheme()">Ö</button>
-                <button class="explore-burger" id="explore-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="explore-mobile-menu" aria-label="Abrir menú">
-                    <i></i><i></i><i></i>
-                </button>
-            </div>
-        </header>
-
-        <nav class="dashboard-mobile-menu explore-mobile-menu" id="explore-mobile-menu" aria-label="Navegación móvil" hidden>
-            <a href="/explore/globe" class="dashboard-mobile-menu-link explore-mobile-menu-link-globe">
-                <i class="fa-solid fa-earth-americas" aria-hidden="true"></i> Vista Globo
+    <!-- TopBar -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/" class="wo-topbar-brand">
+                <span class="wo-o-tile">Ö</span>
+                WE ÖTZI
             </a>
-            <a href="/marketplace" class="dashboard-mobile-menu-link">Marketplace</a>
-            <a href="/quotation" class="dashboard-mobile-menu-link">Cotizar</a>
-            <a href="/job-board" class="dashboard-mobile-menu-link dashboard-mobile-menu-link-job-board">Job Board</a>
-            <a href="/client/login" class="dashboard-mobile-menu-link">Acceder</a>
-        </nav>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal">
+                <a href="/marketplace" class="wo-topbar-item">Marketplace</a>
+                <a href="/explore" class="wo-topbar-item is-active" aria-current="page">Mapa</a>
+                <a href="/quotation" class="wo-topbar-item">Cotizar</a>
+                <a href="/job-board" class="wo-topbar-item">Job board</a>
+                <a href="/client/login" class="wo-topbar-item">Acceder</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a href="/explore/globe" class="wo-btn wo-btn--accent wo-btn--s wo-btn--hard explore-globe-cta"
+               aria-label="Abrir vista de globo interactivo">Vista globo →</a>
+            <button class="wo-iconbtn wo-iconbtn--s explore-burger" id="explore-mobile-menu-toggle" type="button"
+                    aria-expanded="false" aria-controls="explore-mobile-menu" aria-label="Abrir menú">
+                <i data-wo-icon="menu" class="wo-icon-18" aria-hidden="true"></i>
+            </button>
+        </div>
+    </header>
 
+    <nav class="explore-mobile-menu" id="explore-mobile-menu" aria-label="Navegación móvil" hidden>
+        <a href="/explore/globe" class="explore-mobile-menu-link">Vista globo →</a>
+        <a href="/marketplace" class="explore-mobile-menu-link">Marketplace</a>
+        <a href="/quotation" class="explore-mobile-menu-link">Cotizar</a>
+        <a href="/job-board" class="explore-mobile-menu-link">Job board</a>
+        <a href="/client/login" class="explore-mobile-menu-link">Acceder</a>
+    </nav>
+
+    <main class="wo-container explore-shell">
+
+        <!-- Hero -->
+        <section class="explore-hero">
+            <p class="explore-tag wo-meta-s" id="atlas-counter">
+                <span class="dot" aria-hidden="true"></span>
+                Atlas ·
+                <span class="wo-mono-num" id="atlas-counter-value">000</span> pins ·
+                <span class="wo-mono-num" id="atlas-counter-countries">0</span> países
+            </p>
+            <h1 class="explore-title">Descubrí artistas</h1>
+            <p class="explore-sub">Encontrá el tatuador que encaja con tu estilo, directo en el mapa.</p>
+        </section>
+
+        <!-- Filtros -->
         <section class="explore-filters" aria-label="Filtros">
             <div class="explore-filters-row">
                 <div class="filter-pill-group" id="style-filter-pills" aria-label="Filtros por estilo">
-                    <!-- Pills de estilos + Estudios toggle inyectados por explore-map.js -->
+                    <!-- Pills de estilos + toggle Estudios inyectados por explore-map.js -->
                 </div>
-                <button class="explore-filters-toggle" id="explore-filters-toggle" type="button" aria-expanded="false" aria-controls="explore-filter-drawer">
+                <button class="explore-filters-toggle" id="explore-filters-toggle" type="button"
+                        aria-expanded="false" aria-controls="explore-filter-drawer">
                     <span class="explore-filters-toggle-dot" aria-hidden="true" hidden></span>
+                    <i data-wo-icon="filter" class="wo-icon-18" aria-hidden="true"></i>
                     Filtros
-                    <span class="chev" aria-hidden="true">↓</span>
                 </button>
             </div>
             <div class="explore-filter-drawer" id="explore-filter-drawer" hidden>
                 <div class="filter-select-group">
-                    <select id="filter-country" aria-label="País">
-                        <option value="">Todos los países</option>
-                    </select>
-                    <select id="filter-price" aria-label="Rango de precio">
-                        <option value="">Cualquier precio</option>
-                        <option value="low">Económico (&lt; 200 USD)</option>
-                        <option value="medium">Medio (200 - 800 USD)</option>
-                        <option value="high">Premium (&gt; 800 USD)</option>
-                    </select>
-                    <select id="filter-language" aria-label="Idioma">
-                        <option value="">Cualquier idioma</option>
-                    </select>
-                    <select id="filter-experience" aria-label="Experiencia">
-                        <option value="">Cualquier experiencia</option>
-                        <option value="junior">Junior (1-3 años)</option>
-                        <option value="mid">Intermedio (4-7 años)</option>
-                        <option value="senior">Senior (8+ años)</option>
-                    </select>
-                    <button class="explore-clear-btn" id="explore-clear-btn">Limpiar</button>
+                    <div class="wo-field">
+                        <label class="wo-label" for="filter-country">País</label>
+                        <select id="filter-country" class="wo-select">
+                            <option value="">Todos los países</option>
+                        </select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="filter-price">Precio</label>
+                        <select id="filter-price" class="wo-select">
+                            <option value="">Cualquier precio</option>
+                            <option value="low">Económico · &lt; 200 USD</option>
+                            <option value="medium">Medio · 200 – 800 USD</option>
+                            <option value="high">Premium · &gt; 800 USD</option>
+                        </select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="filter-language">Idioma</label>
+                        <select id="filter-language" class="wo-select">
+                            <option value="">Cualquier idioma</option>
+                        </select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="filter-experience">Experiencia</label>
+                        <select id="filter-experience" class="wo-select">
+                            <option value="">Cualquier experiencia</option>
+                            <option value="junior">Junior · 1-3 años</option>
+                            <option value="mid">Intermedio · 4-7 años</option>
+                            <option value="senior">Senior · 8+ años</option>
+                        </select>
+                    </div>
+                    <button class="wo-btn wo-btn--ghost wo-btn--s explore-clear-btn" id="explore-clear-btn" type="button">Limpiar</button>
                 </div>
             </div>
         </section>
 
-        <div class="explore-tabs" role="tablist" aria-label="Vistas">
-            <button class="explore-tab is-active" role="tab" data-view="map" aria-selected="true">
-                <i class="fa-solid fa-map-location-dot"></i> Mapa
-            </button>
-            <button class="explore-tab" role="tab" data-view="list" aria-selected="false">
-                <i class="fa-solid fa-list"></i> Lista
-            </button>
-        </div>
-
-        <main class="explore-main" id="explore-main" data-view="map">
-            <aside class="explore-list-panel" id="explore-list-panel" aria-label="Lista de artistas filtrados">
-                <div class="explore-list-meta">
-                    <span id="explore-results-count">Cargando…</span>
-                </div>
-                <div class="explore-list" id="explore-list">
-                    <!-- Cards inyectadas por explore-map.js -->
-                </div>
-                <div class="explore-list-empty hidden" id="explore-list-empty">
-                    <h2>Sin resultados</h2>
-                    <p>Limpia los filtros o cambia los criterios.</p>
-                </div>
-            </aside>
-
-            <section class="explore-map-panel" aria-label="Mapa de artistas">
-                <div id="explore-map" class="explore-map" role="application" aria-label="Mapa interactivo"></div>
-                <div id="explore-map-empty" class="explore-map-empty hidden">
-                    <span>Cargando atlas…</span>
-                </div>
-            </section>
-        </main>
-
-        <div class="explore-modal-backdrop hidden" id="artist-modal-backdrop" aria-hidden="true">
-            <div class="explore-modal" role="dialog" aria-labelledby="modal-artist-name" aria-modal="true">
-                <button class="explore-modal-close" id="modal-close-btn" aria-label="Cerrar">
-                    <i class="fa-solid fa-xmark"></i>
+        <!-- Barra de resultados + vistas -->
+        <div class="explore-toolbar">
+            <span class="wo-meta explore-count" id="explore-results-count">Cargando…</span>
+            <div class="explore-tabs" role="tablist" aria-label="Vistas">
+                <button class="explore-tab is-active" type="button" role="tab" data-view="map" aria-selected="true">
+                    <i data-wo-icon="map" class="wo-icon-18" aria-hidden="true"></i> Mapa
                 </button>
-                <div class="modal-cover" id="modal-cover"></div>
-                <div class="modal-body">
-                    <div class="modal-styles" id="modal-styles"></div>
-                    <h2 class="modal-name" id="modal-artist-name">Artista</h2>
-                    <span class="modal-source-badge" id="modal-source-badge" hidden></span>
-                    <div class="modal-meta">
-                        <div class="modal-meta-row"><i class="fa-solid fa-location-dot"></i> <span id="modal-location">—</span></div>
-                        <div class="modal-meta-row" id="modal-address-row" hidden><i class="fa-solid fa-signs-post"></i> <span id="modal-address">—</span></div>
-                        <div class="modal-meta-row"><i class="fa-solid fa-bolt"></i> <span id="modal-experience">—</span></div>
-                    </div>
-                    <div class="modal-bio" id="modal-bio"></div>
-                    <div class="modal-price-row">
-                        <span class="price-label">Sesión desde</span>
-                        <span class="price-value" id="modal-price">—</span>
-                    </div>
-                    <div class="modal-cta-row">
-                        <button class="btn-primary modal-cta-quote" id="modal-cta-quote">
-                            <i class="fa-solid fa-paper-plane"></i> Cotizar
-                        </button>
-                        <button class="btn-secondary modal-cta-profile" id="modal-cta-profile">
-                            <i class="fa-solid fa-user"></i> Ver perfil
-                        </button>
-                    </div>
-                    <a class="modal-cta-directions" id="modal-cta-directions" target="_blank" rel="noopener" hidden>
-                        <i class="fa-solid fa-route"></i> Cómo llegar
-                    </a>
-                </div>
+                <button class="explore-tab" type="button" role="tab" data-view="list" aria-selected="false">
+                    <i data-wo-icon="list" class="wo-icon-18" aria-hidden="true"></i> Lista
+                </button>
             </div>
         </div>
 
-        <div id="loading-overlay" class="loading-overlay hidden">
-            <div class="loader"></div>
-            <p>Cargando atlas…</p>
+        <!-- Mapa + lista -->
+        <div class="explore-main" id="explore-main" data-view="map">
+            <section class="explore-map-panel" aria-label="Mapa de artistas">
+                <div id="explore-map" class="explore-map" role="application" aria-label="Mapa interactivo"></div>
+                <div id="explore-map-empty" class="explore-map-empty hidden">
+                    <span class="wo-meta">Cargando atlas…</span>
+                </div>
+            </section>
+
+            <aside class="explore-list-panel" id="explore-list-panel" aria-label="Lista de artistas filtrados">
+                <div class="explore-list" id="explore-list">
+                    <!-- Cards inyectadas por explore-map.js -->
+                </div>
+                <div class="wo-empty explore-list-empty hidden" id="explore-list-empty">
+                    <div class="wo-empty-title">Sin resultados</div>
+                    <p>Limpiá los filtros o probá con otros criterios.</p>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Modal de artista -->
+    <div class="wo-overlay explore-modal-backdrop hidden" id="artist-modal-backdrop" aria-hidden="true">
+        <div class="explore-modal" role="dialog" aria-labelledby="modal-artist-name" aria-modal="true">
+            <button class="wo-iconbtn wo-iconbtn--s explore-modal-close" id="modal-close-btn" aria-label="Cerrar">
+                <i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>
+            </button>
+            <div class="modal-cover" id="modal-cover"></div>
+            <div class="modal-body">
+                <span class="modal-source-badge" id="modal-source-badge" hidden></span>
+                <div class="modal-styles" id="modal-styles"></div>
+                <h2 class="modal-name" id="modal-artist-name">Artista</h2>
+                <div class="modal-meta">
+                    <div class="modal-meta-row"><i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i> <span id="modal-location">—</span></div>
+                    <div class="modal-meta-row" id="modal-address-row" hidden><i data-wo-icon="navigation" class="wo-icon-18" aria-hidden="true"></i> <span id="modal-address">—</span></div>
+                    <div class="modal-meta-row"><i data-wo-icon="zap" class="wo-icon-18" aria-hidden="true"></i> <span id="modal-experience">—</span></div>
+                </div>
+                <div class="modal-bio" id="modal-bio"></div>
+                <div class="modal-price-row">
+                    <span class="price-label">Sesión desde</span>
+                    <span class="price-value wo-mono-num" id="modal-price">—</span>
+                </div>
+                <div class="modal-cta-row">
+                    <button class="wo-btn wo-btn--hard modal-cta-quote" id="modal-cta-quote" type="button">
+                        <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i> Cotizar
+                    </button>
+                    <button class="wo-btn wo-btn--ghost wo-btn--hard modal-cta-profile" id="modal-cta-profile" type="button">
+                        <i data-wo-icon="user" class="wo-icon-18" aria-hidden="true"></i> Ver perfil
+                    </button>
+                </div>
+                <a class="modal-cta-directions" id="modal-cta-directions" target="_blank" rel="noopener" hidden>
+                    <i data-wo-icon="corner-up-right" class="wo-icon-18" aria-hidden="true"></i> Cómo llegar →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading-overlay" class="wo-overlay explore-loading hidden">
+        <div class="explore-loading-box">
+            <div class="wo-spinner" aria-hidden="true"></div>
+            <p class="wo-meta">Cargando atlas…</p>
         </div>
     </div>
 
@@ -185,21 +207,8 @@
     <script src="/shared/js/geocoder.js"></script>
     <script src="/shared/js/explore-map.js"></script>
     <script>
-        function toggleTheme() {
-            const body = document.body;
-            const newTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-            body.setAttribute('data-theme', newTheme);
-            const icon = document.querySelector('#theme-toggle i');
-            if (icon) icon.className = newTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-            localStorage.setItem('weotzi_theme', newTheme);
-        }
         document.addEventListener('DOMContentLoaded', () => {
-            const savedTheme = localStorage.getItem('weotzi_theme') || 'light';
-            document.body.setAttribute('data-theme', savedTheme);
-            const icon = document.querySelector('#theme-toggle i');
-            if (icon) icon.className = savedTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-
-            // Mobile nav menu toggle
+            // Menú móvil
             const menuToggle = document.getElementById('explore-mobile-menu-toggle');
             const mobileMenu = document.getElementById('explore-mobile-menu');
             if (menuToggle && mobileMenu) {

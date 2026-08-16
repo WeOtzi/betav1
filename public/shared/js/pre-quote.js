@@ -1,293 +1,13 @@
 /**
- * WE OTZI - PRE COTIZADOR
- */
-(function () {
-    'use strict';
-
-    var PREQUOTE_HANDOFF_KEY = 'weotzi_prequote_handoff';
-    var HANDOFF_TTL_MS = 30 * 60 * 1000;
-    var SUBZONE_NONE = '__none__';
-    var SUBZONE_WHOLE = '__whole__';
-    var BODY_PARTS_TREE = [];
-
-    function ready(fn) {
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
-        else fn();
-    }
-
-    function escapeHtml(value) {
-        if (value === null || value === undefined) return '';
-        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-
-    function showLoading() { document.getElementById('loading-overlay')?.classList.remove('hidden'); }
-    function hideLoading() { document.getElementById('loading-overlay')?.classList.add('hidden'); }
-
-    function showError(message) {
-        var el = document.getElementById('prequote-error');
-        if (!el) return;
-        el.textContent = message || '';
-        el.classList.toggle('hidden', !message);
-    }
-
-    function getSelectedBodyZone() {
-        var select = document.getElementById('prequote-body-zone');
-        if (!select || !select.value) return null;
-        return BODY_PARTS_TREE.find(function (zone) { return String(zone.id) === select.value; }) || null;
-    }
-
-    function getSelectedSubzoneIds() {
-        var container = document.getElementById('prequote-body-subzone');
-        if (!container) return [];
-        return Array.prototype.slice.call(container.querySelectorAll('input[type="checkbox"]:checked')).map(function (input) { return input.value; });
-    }
-
-    function buildBodyPartLabel() {
-        var zone = getSelectedBodyZone();
-        if (!zone) return '';
-        var ids = getSelectedSubzoneIds();
-        if (!ids.length) return '';
-        var shared = window.WeotziQuotationShared || {};
-        var format = shared.formatBodyPartLabel || function (z, s) { return s ? z + ': ' + s : z; };
-        if (ids.includes(SUBZONE_NONE)) return zone.label;
-        if (ids.includes(SUBZONE_WHOLE)) return format(zone.label, 'Zona entera');
-        var selected = (zone.subparts || []).filter(function (sub) { return ids.includes(String(sub.id)); });
-        return format(zone.label, selected.map(function (sub) { return sub.label; }).join(', '));
-    }
-
-    function collectInput() {
-        return {
-            tattoo_idea_description: document.getElementById('prequote-idea').value.trim(),
-            tattoo_style: document.getElementById('prequote-style').value,
-            tattoo_size: document.getElementById('prequote-size').value,
-            tattoo_body_part: buildBodyPartLabel(),
-            client_city_residence: document.getElementById('prequote-city').value.trim()
-        };
-    }
-
-    function validateInput(input) {
-        if (!input.tattoo_idea_description || input.tattoo_idea_description.length < 5) return 'Cuéntanos un poco más sobre la idea del tatuaje.';
-        if (!input.tattoo_style) return 'Selecciona un estilo.';
-        if (!input.tattoo_size) return 'Selecciona un tamaño.';
-        var zone = getSelectedBodyZone();
-        if (!zone) return 'Selecciona la zona del cuerpo.';
-        if (zone.subparts && zone.subparts.length && !getSelectedSubzoneIds().length) return 'Marca al menos una subzona, "Sin subzona específica" o "Zona entera".';
-        if (!input.client_city_residence) return 'Indica tu ciudad.';
-        return null;
-    }
-
-    function populateStyleAndSize() {
-        var shared = window.WeotziQuotationShared || {};
-        var styleSelect = document.getElementById('prequote-style');
-        var sizeSelect = document.getElementById('prequote-size');
-        styleSelect.innerHTML = '<option value="">Selecciona un estilo</option>' + (shared.TATTOO_STYLE_OPTIONS || []).map(function (option) {
-            return '<option value="' + option.value + '">' + option.label + '</option>';
-        }).join('');
-        sizeSelect.innerHTML = '<option value="">Selecciona un tamaño</option>' + (shared.TATTOO_SIZE_OPTIONS || []).map(function (option) {
-            return '<option value="' + option.value + '">' + option.label + (option.subtitle ? ' · ' + option.subtitle : '') + '</option>';
-        }).join('');
-    }
-
-    async function waitForConfigManager() {
-        var start = Date.now();
-        while (!window.ConfigManager && Date.now() - start < 3000) await new Promise(function (resolve) { setTimeout(resolve, 50); });
-    }
-
-    async function loadBodyParts() {
-        await waitForConfigManager();
-        if (!window.ConfigManager) return [];
-        try {
-            if (typeof window.ConfigManager.loadBodyPartsFromDB === 'function') {
-                var dbParts = await window.ConfigManager.loadBodyPartsFromDB();
-                if (Array.isArray(dbParts) && dbParts.length) return dbParts;
-            }
-            if (typeof window.ConfigManager.getBodyParts === 'function') {
-                var local = window.ConfigManager.getBodyParts();
-                if (Array.isArray(local)) return local;
-            }
-        } catch (err) {
-            console.warn('[PreQuote] Could not load body parts:', err);
-        }
-        return [];
-    }
-
-    function populateBodyZones() {
-        var select = document.getElementById('prequote-body-zone');
-        if (!select) return;
-        if (!BODY_PARTS_TREE.length) {
-            select.innerHTML = '<option value="">No hay zonas disponibles</option>';
-            select.disabled = true;
-            return;
-        }
-        select.disabled = false;
-        select.innerHTML = '<option value="">Selecciona una zona</option>' + BODY_PARTS_TREE.map(function (zone) {
-            return '<option value="' + escapeHtml(zone.id) + '">' + escapeHtml(zone.label) + '</option>';
-        }).join('');
-    }
-
-    function buildSubzoneCheckbox(value, label, special) {
-        return '<label class="prequote-checkbox' + (special ? ' prequote-checkbox--special' : '') + '"><input type="checkbox" value="' + escapeHtml(value) + '"><span>' + escapeHtml(label) + '</span></label>';
-    }
-
-    function syncSubzoneStates() {
-        var values = getSelectedSubzoneIds();
-        var none = values.includes(SUBZONE_NONE);
-        var whole = values.includes(SUBZONE_WHOLE);
-        document.querySelectorAll('#prequote-body-subzone .prequote-checkbox').forEach(function (label) {
-            var input = label.querySelector('input');
-            var disabled = (none && input.value !== SUBZONE_NONE) || (whole && input.value !== SUBZONE_WHOLE);
-            input.disabled = disabled;
-            label.classList.toggle('prequote-checkbox--disabled', disabled);
-            label.classList.toggle('prequote-checkbox--checked', input.checked);
-        });
-    }
-
-    function handleSubzoneChange(event) {
-        if (!event.target || event.target.type !== 'checkbox') return;
-        var input = event.target;
-        var container = document.getElementById('prequote-body-subzone');
-        if (input.checked && (input.value === SUBZONE_NONE || input.value === SUBZONE_WHOLE)) {
-            container.querySelectorAll('input[type="checkbox"]').forEach(function (other) { if (other !== input) other.checked = false; });
-        } else if (input.checked) {
-            container.querySelectorAll('input[value="' + SUBZONE_NONE + '"], input[value="' + SUBZONE_WHOLE + '"]').forEach(function (other) { other.checked = false; });
-        }
-        syncSubzoneStates();
-    }
-
-    function populateSubzones() {
-        var container = document.getElementById('prequote-body-subzone');
-        var zone = getSelectedBodyZone();
-        if (!container) return;
-        container.classList.toggle('prequote-checkbox-grid--empty', !zone);
-        if (!zone) {
-            container.innerHTML = '<p class="prequote-checkbox-empty">Selecciona una zona primero</p>';
-            return;
-        }
-        var html = [buildSubzoneCheckbox(SUBZONE_NONE, 'Sin subzona específica', true)];
-        if (zone.subparts && zone.subparts.length) {
-            html.push(buildSubzoneCheckbox(SUBZONE_WHOLE, 'Zona entera (todas)', true));
-            zone.subparts.forEach(function (sub) { html.push(buildSubzoneCheckbox(String(sub.id), sub.label, false)); });
-        }
-        container.innerHTML = html.join('');
-        if (!zone.subparts || !zone.subparts.length) {
-            var none = container.querySelector('input[value="' + SUBZONE_NONE + '"]');
-            if (none) none.checked = true;
-        }
-        syncSubzoneStates();
-    }
-
-    function setupCityAutocomplete() {
-        var input = document.getElementById('prequote-city');
-        var shared = window.WeotziQuotationShared || {};
-        if (input && typeof shared.attachCityAutocomplete === 'function') {
-            shared.attachCityAutocomplete(input, { onSelect: function (city) { input.value = city.normalizedLocation; } });
-        }
-    }
-
-    async function requestEstimate(input) {
-        var response = await fetch('/api/pre-quote/estimate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(input)
-        });
-        var data = await response.json().catch(function () { return null; });
-        if (!response.ok || !data || !data.success) throw new Error((data && data.error) || 'No se pudo calcular el estimado.');
-        return data;
-    }
-
-    function formatMoney(amount, currency) {
-        try {
-            return new Intl.NumberFormat('es', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(Math.round(Number(amount) || 0));
-        } catch (_) {
-            return Math.round(Number(amount) || 0) + ' ' + (currency || 'USD');
-        }
-    }
-
-    function renderArtistCard(artist) {
-        var styles = Array.isArray(artist.styles_array) ? artist.styles_array.join(', ') : (artist.styles_array || '');
-        var name = escapeHtml(artist.name || artist.username || 'Artista');
-        return '<article class="artist-card prequote-artist-card">'
-            + '<div class="artist-avatar-container">' + (artist.profile_picture ? '<img src="' + escapeHtml(artist.profile_picture) + '" alt="' + name + '" class="artist-profile-img-large">' : '<div class="artist-avatar"><i class="fa-solid fa-palette"></i></div>') + '</div>'
-            + '<h3 class="artist-name">' + name + '</h3>'
-            + '<div class="artist-meta"><span>' + escapeHtml(styles || 'Estilos por consultar') + '</span><span>•</span><span>' + escapeHtml(artist.ubicacion || artist.city || 'Ubicación por consultar') + '</span></div>'
-            + '<div class="artist-price">' + escapeHtml(artist.session_price || 'Consultar') + ' / sesión</div>'
-            + '<div class="actions-stack"><button class="btn btn-primary" type="button" data-prequote-cta="' + escapeHtml(artist.username || '') + '">Cotizar con este artista <i class="fa-solid fa-arrow-right"></i></button></div>'
-            + '</article>';
-    }
-
-    function renderEstimate(input, data) {
-        var results = document.getElementById('prequote-results');
-        var estimate = data.estimate || {};
-        var artists = data.suggestedArtists || [];
-        results.innerHTML = '<div class="prequote-estimate-card">'
-            + '<p class="technical-label">Estimado aproximado</p>'
-            + '<h2 class="prequote-range">' + escapeHtml(formatMoney(estimate.minAmount, estimate.currency)) + ' — ' + escapeHtml(formatMoney(estimate.maxAmount, estimate.currency)) + '</h2>'
-            + '<ul class="prequote-meta"><li><strong>' + estimate.estimatedSessionsMin + '-' + estimate.estimatedSessionsMax + ' sesiones</strong> estimadas según el tamaño</li><li>Basado en ' + estimate.sampleSize + ' artista(s) compatible(s)</li><li>Confianza ' + escapeHtml(estimate.confidence || 'baja') + '</li></ul>'
-            + '<p class="prequote-disclaimer">Este es un estimado de referencia. El precio final lo define el artista según el detalle de la pieza, agenda y materiales.</p>'
-            + '</div>'
-            + '<div class="prequote-artists-section"><h3 class="prequote-section-title">Artistas sugeridos para tu idea</h3><div class="prequote-artists-grid">' + artists.map(renderArtistCard).join('') + '</div></div>';
-        results.classList.remove('hidden');
-        results.querySelectorAll('[data-prequote-cta]').forEach(function (button) {
-            button.addEventListener('click', function () { startQuotationWithArtist(button.getAttribute('data-prequote-cta'), input, estimate); });
-        });
-        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function startQuotationWithArtist(username, input, estimate) {
-        var handoff = {
-            source: 'prequote',
-            expiresAt: Date.now() + HANDOFF_TTL_MS,
-            formData: {
-                tattoo_idea_description: input.tattoo_idea_description,
-                tattoo_style: input.tattoo_style,
-                tattoo_size: input.tattoo_size,
-                tattoo_body_part: input.tattoo_body_part,
-                client_city_residence: input.client_city_residence,
-                client_budget_amount: String(Math.round(estimate.averageAmount || estimate.maxAmount || 0) || ''),
-                client_budget_currency: estimate.currency || 'USD',
-                tattoo_estimated_sessions: estimate.estimatedSessionsMin + '-' + estimate.estimatedSessionsMax
-            }
-        };
-        localStorage.setItem(PREQUOTE_HANDOFF_KEY, JSON.stringify(handoff));
-        window.location.href = '/quotation?artist=' + encodeURIComponent(username) + '&source=prequote';
-    }
-
-    async function handleSubmit(event) {
-        event.preventDefault();
-        showError('');
-        var input = collectInput();
-        var validation = validateInput(input);
-        if (validation) return showError(validation);
-        showLoading();
-        try {
-            renderEstimate(input, await requestEstimate(input));
-        } catch (err) {
-            console.error('[PreQuote] Estimate failed:', err);
-            showError(err.message || 'No se pudo calcular el estimado.');
-        } finally {
-            hideLoading();
-        }
-    }
-
-    ready(function () {
-        populateStyleAndSize();
-        document.getElementById('prequote-form')?.addEventListener('submit', handleSubmit);
-        document.getElementById('prequote-body-zone')?.addEventListener('change', populateSubzones);
-        document.getElementById('prequote-body-subzone')?.addEventListener('change', handleSubzoneChange);
-        loadBodyParts().then(function (parts) {
-            BODY_PARTS_TREE = Array.isArray(parts) ? parts : [];
-            populateBodyZones();
-            populateSubzones();
-        });
-        setupCityAutocomplete();
-    });
-})();
-/**
  * WE ÖTZI - PRE COTIZADOR
  *
- * Captures basic tattoo inputs, calls /api/pre-quote/estimate, renders an
- * approximate price range and suggested artists, and hands off to the
- * existing /quotation flow with prefilled fields.
+ * Captura los datos básicos del tatuaje, llama a /api/pre-quote/estimate,
+ * renderiza un rango aproximado de precio con artistas sugeridos y hace el
+ * handoff al flujo /quotation con los campos pre-cargados
+ * (localStorage `weotzi_prequote_handoff`, consumido por script.js).
+ *
+ * UI sobre el Design System Bauhaus (clases wo-* + prequote-*), íconos
+ * Feather vía data-wo-icon (wo-icons.js hidrata también el DOM dinámico).
  */
 (function () {
     'use strict';
@@ -295,11 +15,11 @@
     var PREQUOTE_HANDOFF_KEY = 'weotzi_prequote_handoff';
     var HANDOFF_TTL_MS = 30 * 60 * 1000;
 
-    // Special subzone tokens. They are mutually exclusive with the rest.
+    // Tokens especiales de subzona. Son mutuamente excluyentes con el resto.
     var SUBZONE_NONE = '__none__';   // "Sin subzona específica"
     var SUBZONE_WHOLE = '__whole__'; // "Zona entera"
 
-    // Cache of body parts loaded from ConfigManager (Supabase + local fallback).
+    // Cache de zonas del cuerpo cargadas desde ConfigManager (Supabase + fallback local).
     var BODY_PARTS_TREE = [];
 
     function ready(fn) {
@@ -308,6 +28,16 @@
         } else {
             fn();
         }
+    }
+
+    function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function showLoading() {
@@ -388,17 +118,17 @@
 
     function validateInput(input) {
         if (!input.tattoo_idea_description || input.tattoo_idea_description.length < 5) {
-            return 'Cuéntanos un poco más sobre la idea del tatuaje (mínimo 5 caracteres).';
+            return 'Contanos un poco más sobre la idea del tatuaje (mínimo 5 caracteres).';
         }
-        if (!input.tattoo_style) return 'Selecciona un estilo.';
-        if (!input.tattoo_size) return 'Selecciona un tamaño.';
+        if (!input.tattoo_style) return 'Seleccioná un estilo.';
+        if (!input.tattoo_size) return 'Seleccioná un tamaño.';
         var zone = getSelectedBodyZone();
-        if (!zone) return 'Selecciona la zona del cuerpo.';
+        if (!zone) return 'Seleccioná la zona del cuerpo.';
         if (zone.subparts && zone.subparts.length && !getSelectedSubzoneIds().length) {
-            return 'Marca al menos una subzona, "Sin subzona específica" o "Zona entera".';
+            return 'Marcá al menos una subzona, "Sin subzona específica" o "Zona entera".';
         }
-        if (!input.tattoo_body_part) return 'Selecciona la zona del cuerpo.';
-        if (!input.client_city_residence) return 'Indica tu ciudad (incluye el país, ej: "Bogotá, Colombia").';
+        if (!input.tattoo_body_part) return 'Seleccioná la zona del cuerpo.';
+        if (!input.client_city_residence) return 'Indicá tu ciudad (incluí el país, ej: "Buenos Aires, Argentina").';
         return null;
     }
 
@@ -408,14 +138,14 @@
         var sizeSelect = document.getElementById('prequote-size');
 
         if (styleSelect) {
-            styleSelect.innerHTML = '<option value="">Selecciona un estilo</option>' +
+            styleSelect.innerHTML = '<option value="">Seleccioná un estilo</option>' +
                 (shared.TATTOO_STYLE_OPTIONS || []).map(function (option) {
                     return '<option value="' + option.value + '">' + option.label + '</option>';
                 }).join('');
         }
 
         if (sizeSelect) {
-            sizeSelect.innerHTML = '<option value="">Selecciona un tamaño</option>' +
+            sizeSelect.innerHTML = '<option value="">Seleccioná un tamaño</option>' +
                 (shared.TATTOO_SIZE_OPTIONS || []).map(function (option) {
                     var suffix = option.subtitle ? ' · ' + option.subtitle : '';
                     return '<option value="' + option.value + '">' + option.label + suffix + '</option>';
@@ -432,7 +162,7 @@
             return;
         }
         zoneSelect.disabled = false;
-        zoneSelect.innerHTML = '<option value="">Selecciona una zona</option>' +
+        zoneSelect.innerHTML = '<option value="">Seleccioná una zona</option>' +
             BODY_PARTS_TREE.map(function (zone) {
                 return '<option value="' + escapeHtml(zone.id) + '">' + escapeHtml(zone.label) + '</option>';
             }).join('');
@@ -461,7 +191,7 @@
             if (!input) return;
             var value = input.value;
             var isSpecial = value === SUBZONE_NONE || value === SUBZONE_WHOLE;
-            // Disable normal subzones when an exclusive option is checked
+            // Deshabilita las subzonas normales cuando hay una opción excluyente marcada
             var disable = false;
             if (noneChecked && value !== SUBZONE_NONE) disable = true;
             if (wholeChecked && value !== SUBZONE_WHOLE) disable = true;
@@ -480,14 +210,14 @@
 
         if (input.checked) {
             var value = input.value;
-            // Exclusive options clear all other selections
+            // Las opciones excluyentes limpian el resto de la selección
             if (value === SUBZONE_NONE || value === SUBZONE_WHOLE) {
                 Array.prototype.forEach.call(
                     container.querySelectorAll('input[type="checkbox"]'),
                     function (other) { if (other !== input) other.checked = false; }
                 );
             } else {
-                // Selecting a normal subzone clears the exclusive options
+                // Marcar una subzona normal limpia las opciones excluyentes
                 Array.prototype.forEach.call(
                     container.querySelectorAll('input[value="' + SUBZONE_NONE + '"], input[value="' + SUBZONE_WHOLE + '"]'),
                     function (other) { other.checked = false; }
@@ -506,7 +236,7 @@
 
         if (!zone) {
             container.classList.add('prequote-checkbox-grid--empty');
-            container.innerHTML = '<p class="prequote-checkbox-empty">Selecciona una zona primero</p>';
+            container.innerHTML = '<p class="prequote-checkbox-empty">Seleccioná una zona primero</p>';
             return;
         }
 
@@ -523,7 +253,7 @@
         }
         container.innerHTML = html.join('');
 
-        // Default to "Sin subzona específica" if the zone has no subparts at all
+        // Sin subpartes: marca "Sin subzona específica" por defecto
         if (!hasSubparts) {
             var defaultInput = container.querySelector('input[value="' + SUBZONE_NONE + '"]');
             if (defaultInput) defaultInput.checked = true;
@@ -578,20 +308,10 @@
         });
         var data = await response.json().catch(function () { return null; });
         if (!response.ok || !data || !data.success) {
-            var message = (data && data.error) || 'No se pudo calcular el estimado. Intenta de nuevo.';
+            var message = (data && data.error) || 'No se pudo calcular el estimado. Probá de nuevo.';
             throw new Error(message);
         }
         return data;
-    }
-
-    function escapeHtml(value) {
-        if (value === null || value === undefined) return '';
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
     }
 
     function formatMoney(amount, currency) {
@@ -609,16 +329,10 @@
         }
     }
 
-    function formatStyleLabel(value) {
-        var shared = window.WeotziQuotationShared || {};
-        if (shared.formatTattooStyleForDisplay) return shared.formatTattooStyleForDisplay(value);
-        return value || '-';
-    }
-
-    function confidenceLabel(confidence) {
-        if (confidence === 'alta') return 'Confianza alta';
-        if (confidence === 'media') return 'Confianza media';
-        return 'Confianza baja';
+    function confidenceValue(confidence) {
+        if (confidence === 'alta') return 'Alta';
+        if (confidence === 'media') return 'Media';
+        return 'Baja';
     }
 
     function fallbackTierMessage(tier) {
@@ -633,32 +347,28 @@
     function renderArtistCard(artist) {
         var shared = window.WeotziQuotationShared || {};
         var displayName = shared.toTitleCase ? shared.toTitleCase(artist.name || artist.username || '') : (artist.name || artist.username || '');
-        var styles = Array.isArray(artist.styles_array) ? artist.styles_array.join(', ') : (artist.styles_array || '');
+        var styles = Array.isArray(artist.styles_array) ? artist.styles_array.join(' · ') : (artist.styles_array || '');
         var location = artist.ubicacion || artist.city || 'Ubicación por consultar';
         var price = artist.session_price || 'Consultar';
         var portfolioUrl = artist.portafolio || (artist.instagram ? 'https://www.instagram.com/' + String(artist.instagram).replace('@', '').trim() + '/' : '');
 
         var avatar = artist.profile_picture
-            ? '<img src="' + escapeHtml(artist.profile_picture) + '" alt="' + escapeHtml(displayName) + '" class="artist-profile-img-large">'
-            : '<div class="artist-avatar"><i class="fa-solid fa-palette"></i></div>';
+            ? '<img src="' + escapeHtml(artist.profile_picture) + '" alt="' + escapeHtml(displayName) + '">'
+            : '<i data-wo-icon="pen-tool" aria-hidden="true"></i>';
 
         var portfolioBtn = portfolioUrl
-            ? '<a href="' + escapeHtml(portfolioUrl) + '" target="_blank" rel="noopener" class="btn btn-secondary btn-small"><i class="fa-brands fa-instagram"></i> Ver Portfolio</a>'
+            ? '<a href="' + escapeHtml(portfolioUrl) + '" target="_blank" rel="noopener" class="wo-btn wo-btn--ghost wo-btn--s"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i> Ver portfolio</a>'
             : '';
 
         return [
-            '<article class="artist-card prequote-artist-card" data-username="' + escapeHtml(artist.username || '') + '">',
-            '  <div class="artist-avatar-container">' + avatar + '</div>',
-            '  <h3 class="artist-name">' + escapeHtml(displayName) + '</h3>',
-            '  <div class="artist-meta">',
-            '    <span>' + escapeHtml(styles || 'Estilos por consultar') + '</span>',
-            styles ? '    <span>•</span>' : '',
-            '    <span>' + escapeHtml(location) + '</span>',
-            '  </div>',
-            '  <div class="artist-price">' + escapeHtml(price) + ' / sesión</div>',
-            '  <div class="actions-stack">',
-            '    <button class="btn btn-primary" type="button" data-prequote-cta="' + escapeHtml(artist.username || '') + '">',
-            '      Cotizar con este artista <i class="fa-solid fa-arrow-right"></i>',
+            '<article class="wo-card wo-card--hover prequote-artist-card" data-username="' + escapeHtml(artist.username || '') + '">',
+            '  <div class="wo-avatar wo-avatar--l wo-avatar--bordered prequote-artist-avatar">' + avatar + '</div>',
+            '  <h3 class="prequote-artist-name">' + escapeHtml(displayName) + '</h3>',
+            '  <p class="prequote-artist-meta wo-meta-s">' + escapeHtml([styles || 'Estilos por consultar', location].join(' · ')) + '</p>',
+            '  <p class="prequote-artist-price">' + escapeHtml(price) + ' / sesión</p>',
+            '  <div class="prequote-artist-actions">',
+            '    <button class="wo-btn wo-btn--hard" type="button" data-prequote-cta="' + escapeHtml(artist.username || '') + '">',
+            '      Cotizar con este artista →',
             '    </button>',
             portfolioBtn,
             '  </div>',
@@ -675,43 +385,52 @@
 
         var rangeLabel = (estimate.minAmount === 0 && estimate.maxAmount === 0)
             ? 'Sin datos suficientes'
-            : (formatMoney(estimate.minAmount, estimate.currency) + ' — ' + formatMoney(estimate.maxAmount, estimate.currency));
+            : (formatMoney(estimate.minAmount, estimate.currency) + ' – ' + formatMoney(estimate.maxAmount, estimate.currency));
 
         var sessionLabel = estimate.estimatedSessionsMin === estimate.estimatedSessionsMax
             ? estimate.estimatedSessionsMin + ' sesión'
             : estimate.estimatedSessionsMin + '-' + estimate.estimatedSessionsMax + ' sesiones';
 
         var sampleLabel = estimate.sampleSize
-            ? 'Basado en ' + estimate.sampleSize + ' artista' + (estimate.sampleSize === 1 ? '' : 's') + ' compatible' + (estimate.sampleSize === 1 ? '' : 's')
-            : 'Aún no hay datos suficientes para el cálculo';
+            ? estimate.sampleSize + ' artista' + (estimate.sampleSize === 1 ? '' : 's') + ' compatible' + (estimate.sampleSize === 1 ? '' : 's')
+            : 'Sin datos suficientes';
+
+        function summaryItem(label, value) {
+            return '<div class="prequote-summary-item"><dt>' + escapeHtml(label) + '</dt><dd>' + escapeHtml(value) + '</dd></div>';
+        }
 
         resultsEl.innerHTML = [
             '<div class="prequote-estimate-card">',
-            '  <p class="technical-label">Estimado aproximado</p>',
+            '  <p class="wo-eyebrow">Estimado aproximado</p>',
             '  <h2 class="prequote-range">' + escapeHtml(rangeLabel) + '</h2>',
-            '  <ul class="prequote-meta">',
-            '    <li><strong>' + escapeHtml(sessionLabel) + '</strong> estimadas según el tamaño</li>',
-            '    <li>' + escapeHtml(sampleLabel) + '</li>',
-            '    <li>' + escapeHtml(confidenceLabel(estimate.confidence) + ' · ' + fallbackTierMessage(estimate.fallbackTier || data.fallbackTier)) + '</li>',
-            '  </ul>',
+            '  <dl class="prequote-summary-grid">',
+            summaryItem('Sesiones', sessionLabel + ' según el tamaño'),
+            summaryItem('Muestra', sampleLabel),
+            summaryItem('Confianza', confidenceValue(estimate.confidence)),
+            summaryItem('Método', fallbackTierMessage(estimate.fallbackTier || data.fallbackTier)),
+            '  </dl>',
             '  <p class="prequote-disclaimer">',
             '    Este es un estimado de referencia. El precio final lo define el artista según el detalle de la pieza, agenda y materiales.',
             '  </p>',
             '</div>',
             artists.length
                 ? '<div class="prequote-artists-section">'
-                    + '  <h3 class="prequote-section-title">Artistas sugeridos para tu idea</h3>'
-                    + '  <p class="subtitle">Selecciona uno para continuar la cotización con sus datos pre-cargados.</p>'
+                    + '  <h3 class="wo-h2 prequote-artists-title">Artistas sugeridos para tu idea</h3>'
+                    + '  <p class="prequote-artists-sub">Elegí uno para continuar la cotización con sus datos pre-cargados.</p>'
                     + '  <div class="prequote-artists-grid">'
                     + artists.map(renderArtistCard).join('\n')
                     + '  </div>'
                     + '</div>'
-                : '<p class="prequote-empty">Aún no encontramos artistas activos para esta combinación. Puedes continuar a /quotation y buscar manualmente.</p>'
+                : '<div class="wo-empty prequote-empty">'
+                    + '  <p class="wo-empty-title">Sin artistas para esta combinación</p>'
+                    + '  <p>Todavía no encontramos artistas activos para tu idea. Podés continuar en el cotizador y buscar manualmente.</p>'
+                    + '  <a class="wo-btn wo-btn--ghost" href="/quotation">Ir al cotizador →</a>'
+                    + '</div>'
         ].join('\n');
 
         resultsEl.classList.remove('hidden');
 
-        // Wire CTA buttons to handoff
+        // Conecta los CTA al handoff
         var buttons = resultsEl.querySelectorAll('[data-prequote-cta]');
         for (var i = 0; i < buttons.length; i++) {
             buttons[i].addEventListener('click', function (e) {
@@ -778,7 +497,7 @@
             renderEstimate(input, data);
         } catch (err) {
             console.error('[PreQuote] Estimate failed:', err);
-            showError(err.message || 'No se pudo calcular el estimado. Intenta de nuevo.');
+            showError(err.message || 'No se pudo calcular el estimado. Probá de nuevo.');
         } finally {
             hideLoading();
         }
@@ -800,18 +519,18 @@
             subzoneContainer.addEventListener('change', handleSubzoneCheckboxChange);
         }
 
-        // Async: load body parts from ConfigManager (Supabase + local fallback)
+        // Async: carga las zonas del cuerpo desde ConfigManager (Supabase + fallback local)
         loadBodyParts().then(function (parts) {
             BODY_PARTS_TREE = Array.isArray(parts) ? parts : [];
             populateBodyZoneSelect();
             populateBodySubzoneCheckboxes();
         });
 
-        // Wire Google Places autocomplete on the city input. The helper polls
-        // until window.google.maps.places is ready, so order is not an issue.
+        // Google Places autocomplete en el input de ciudad. El helper hace polling
+        // hasta que window.google.maps.places está listo, así que el orden no importa.
         setupCityAutocomplete();
     });
 
-    // Expose for test/console use; not required by HTML now that we use addEventListener.
+    // Expuesto para tests/consola; el HTML ya no lo requiere (usa addEventListener).
     window.startQuotationWithArtist = startQuotationWithArtist;
 })();

@@ -26,6 +26,15 @@ function toTitleCase(str) {
         .join(' ');
 }
 
+function getInitials(name) {
+    if (!name || typeof name !== 'string') return 'Ö';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'Ö';
+    const first = parts[0].charAt(0);
+    const second = parts.length > 1 ? parts[parts.length - 1].charAt(0) : (parts[0].charAt(1) || '');
+    return (first + second).toUpperCase();
+}
+
 function showLoading() { document.getElementById('loading-overlay')?.classList.remove('hidden'); }
 function hideLoading() { document.getElementById('loading-overlay')?.classList.add('hidden'); }
 
@@ -56,55 +65,58 @@ let currentFilters = {
     sort: 'recommended'
 };
 
+// Estilos destacados (pills). Sin íconos: el DS usa chips tipográficos.
+// Nota: el formato `label: '...'` es literal a propósito — lo verifica
+// tests/tattoo-styles-catalog.test.js contra lib/expanded-tattoo-styles.
 const TOP_STYLES = [
-    { label: 'Realismo', icon: 'fa-solid fa-eye' },
-    { label: 'Tradicional', icon: 'fa-solid fa-anchor' },
-    { label: 'Fine Line', icon: 'fa-solid fa-pen-nib' },
-    { label: 'Blackwork', icon: 'fa-solid fa-brush' },
-    { label: 'Minimalista', icon: 'fa-solid fa-minus' },
-    { label: 'Japonés', icon: 'fa-solid fa-dragon' },
-    { label: 'Geométrico', icon: 'fa-solid fa-shapes' },
-    { label: 'Acuarela', icon: 'fa-solid fa-droplet' },
-    { label: 'Black & Grey', icon: 'fa-solid fa-circle-half-stroke' },
-    { label: 'Microrealismo', icon: 'fa-solid fa-magnifying-glass' },
-    { label: 'Hiperrealismo', icon: 'fa-solid fa-eye' },
-    { label: 'Ornamental', icon: 'fa-solid fa-fan' },
-    { label: 'Mandala', icon: 'fa-solid fa-circle-dot' },
-    { label: 'Tribal', icon: 'fa-solid fa-bolt' },
-    { label: 'Polinesio', icon: 'fa-solid fa-water' },
-    { label: 'Maori', icon: 'fa-solid fa-shield-halved' },
-    { label: 'Haida', icon: 'fa-solid fa-feather' },
-    { label: 'Celta', icon: 'fa-solid fa-ring' },
-    { label: 'Nordico / Viking', icon: 'fa-solid fa-mountain' },
-    { label: 'Lettering', icon: 'fa-solid fa-font' },
-    { label: 'Blackletter / Gotico', icon: 'fa-solid fa-book' },
-    { label: 'Caligrafia', icon: 'fa-solid fa-pen-fancy' },
-    { label: 'Ignorant', icon: 'fa-solid fa-pencil' },
-    { label: 'Handpoke / Stick and Poke', icon: 'fa-solid fa-hand-point-up' },
-    { label: 'Abstracto', icon: 'fa-solid fa-shapes' },
-    { label: 'Sketch / Boceto', icon: 'fa-solid fa-pencil' },
-    { label: 'Etching / Grabado', icon: 'fa-solid fa-layer-group' },
-    { label: 'Woodcut / Xilografia', icon: 'fa-solid fa-tree' },
-    { label: 'Linework', icon: 'fa-solid fa-pen-nib' },
-    { label: 'Ilustracion botanica', icon: 'fa-solid fa-leaf' },
-    { label: 'Floral', icon: 'fa-solid fa-spa' },
-    { label: 'Fineline botanico', icon: 'fa-solid fa-seedling' },
-    { label: 'Biomecanico', icon: 'fa-solid fa-gears' },
-    { label: 'Bioorganico', icon: 'fa-solid fa-dna' },
-    { label: 'Horror', icon: 'fa-solid fa-ghost' },
-    { label: 'Dark Art', icon: 'fa-solid fa-moon' },
-    { label: 'Glitch', icon: 'fa-solid fa-wave-square' },
-    { label: 'Pixel Art', icon: 'fa-solid fa-border-all' },
-    { label: 'Graffiti', icon: 'fa-solid fa-spray-can' },
-    { label: 'Pop Art', icon: 'fa-solid fa-star' },
-    { label: 'Art Nouveau', icon: 'fa-solid fa-fan' },
-    { label: 'Art Deco', icon: 'fa-solid fa-gem' },
-    { label: 'Barroco', icon: 'fa-solid fa-landmark' },
-    { label: 'Abstract Brush', icon: 'fa-solid fa-brush' },
-    { label: 'Patchwork', icon: 'fa-solid fa-table-cells-large' },
-    { label: 'Religious / Sacro', icon: 'fa-solid fa-church' },
-    { label: 'Ornamental Blackwork', icon: 'fa-solid fa-circle' },
-    { label: 'Pointillism', icon: 'fa-solid fa-braille' }
+    { label: 'Realismo' },
+    { label: 'Tradicional' },
+    { label: 'Fine Line' },
+    { label: 'Blackwork' },
+    { label: 'Minimalista' },
+    { label: 'Japonés' },
+    { label: 'Geométrico' },
+    { label: 'Acuarela' },
+    { label: 'Black & Grey' },
+    { label: 'Microrealismo' },
+    { label: 'Hiperrealismo' },
+    { label: 'Ornamental' },
+    { label: 'Mandala' },
+    { label: 'Tribal' },
+    { label: 'Polinesio' },
+    { label: 'Maori' },
+    { label: 'Haida' },
+    { label: 'Celta' },
+    { label: 'Nordico / Viking' },
+    { label: 'Lettering' },
+    { label: 'Blackletter / Gotico' },
+    { label: 'Caligrafia' },
+    { label: 'Ignorant' },
+    { label: 'Handpoke / Stick and Poke' },
+    { label: 'Abstracto' },
+    { label: 'Sketch / Boceto' },
+    { label: 'Etching / Grabado' },
+    { label: 'Woodcut / Xilografia' },
+    { label: 'Linework' },
+    { label: 'Ilustracion botanica' },
+    { label: 'Floral' },
+    { label: 'Fineline botanico' },
+    { label: 'Biomecanico' },
+    { label: 'Bioorganico' },
+    { label: 'Horror' },
+    { label: 'Dark Art' },
+    { label: 'Glitch' },
+    { label: 'Pixel Art' },
+    { label: 'Graffiti' },
+    { label: 'Pop Art' },
+    { label: 'Art Nouveau' },
+    { label: 'Art Deco' },
+    { label: 'Barroco' },
+    { label: 'Abstract Brush' },
+    { label: 'Patchwork' },
+    { label: 'Religious / Sacro' },
+    { label: 'Ornamental Blackwork' },
+    { label: 'Pointillism' }
 ];
 
 // ============ INIT ============
@@ -200,9 +212,9 @@ function initStyleFilters() {
     container.innerHTML = TOP_STYLES.map(style => {
         const count = allArtists.filter(a => parseStyles(a.styles_array).some(s => s.toLowerCase() === style.label.toLowerCase())).length;
         return `
-            <button class="filter-btn" onclick="toggleStyleFilter('${style.label}')" data-style="${style.label}">
-                <i class="${style.icon}"></i>
-                <span>${style.label} (${count})</span>
+            <button type="button" class="wo-chip mk-style-chip" onclick="toggleStyleFilter('${style.label}')" data-style="${style.label}">
+                <span>${style.label}</span>
+                <span class="mk-chip-count">${count}</span>
             </button>
         `;
     }).join('');
@@ -265,7 +277,7 @@ function renderArtists(artists) {
     if (emptyState) emptyState.classList.add('hidden');
     if (countEl) countEl.textContent = `${filteredArtists.length} artistas encontrados`;
 
-    grid.innerHTML = artists.map((artist, index) => {
+    grid.innerHTML = artists.map(artist => {
         const styles = parseStyles(artist.styles_array);
         let price;
         if (artist.session_price_amount && artist.session_price_currency
@@ -279,50 +291,38 @@ function renderArtists(artists) {
             price = artist.session_price || 'Consultar';
         }
         const profilePic = artist.profile_picture;
-        const experience = artist.years_experience ? `${artist.years_experience} años exp.` : 'Pro';
-        const rotation = (index % 2 === 0 ? 0.5 : -0.5);
-        
+        const city = toTitleCase((artist.city || artist.ubicacion || '').split(',')[0].trim());
+        const mainStyle = styles.length > 0 ? styles[0] : '';
+        const metaLine = [city, mainStyle].filter(Boolean).join(' · ');
+
         return `
-            <div class="marketplace-card" onclick="selectArtist('${artist.username}')" style="--card-rot: ${rotation}deg">
-                ${artist.is_recommended ? '<div class="recommendation-badge">Selección Ötzi</div>' : ''}
-                <div class="card-img-wrapper ${!profilePic ? 'no-image' : ''}">
-                    ${profilePic ? `<img src="${profilePic}" alt="${artist.name}" loading="lazy" onerror="this.parentElement.classList.add('no-image'); this.remove();">` : ''}
-                </div>
-                <div class="card-content">
-                    <div class="card-styles-bar">
-                        ${styles.slice(0, 3).map(s => `<span class="tag-mini">${s}</span>`).join('')}
-                    </div>
-                    <div class="artist-name-block">
-                        <h3 class="card-artist-name">${toTitleCase(artist.name)}</h3>
-                    </div>
-                    <div class="card-meta">
-                        <div class="meta-item">
-                            <i class="fa-solid fa-location-dot"></i>
-                            <span>${toTitleCase(artist.city || artist.ubicacion)}</span>
+            <article class="wo-card wo-card--media wo-card--hover mk-card" onclick="selectArtist('${artist.username}')">
+                <div class="mk-card-media">
+                    <i data-wo-icon="image" class="mk-media-ph" aria-hidden="true"></i>
+                    ${profilePic ? `<img src="${profilePic}" alt="${artist.name}" loading="lazy" onerror="this.remove();">` : ''}
+                    ${artist.is_recommended ? '<span class="mk-card-flag">Selección Ötzi</span>' : ''}
+                    <div class="mk-card-overlay">
+                        <span class="mk-card-avatar" aria-hidden="true">${getInitials(artist.name)}</span>
+                        <div class="mk-card-id">
+                            <h3 class="mk-card-name">${toTitleCase(artist.name)}</h3>
+                            <p class="mk-card-meta">${metaLine}</p>
                         </div>
-                        <div class="meta-item">
-                            <i class="fa-solid fa-bolt"></i>
-                            <span>${experience}</span>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <div class="footer-top-row">
-                            <div class="price-box">
-                                <span class="price-label">ESTIMADO</span>
-                                <span class="price-val">${price.replace(',00', '')}</span>
-                            </div>
-                            <button class="profile-btn" onclick="event.stopPropagation(); viewArtistProfile('${artist.username}')">
-                                <i class="fa-solid fa-user"></i>
-                                <span>Perfil</span>
-                            </button>
-                        </div>
-                        <button class="quote-btn">
-                            <span>Cotizar</span>
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
                     </div>
                 </div>
-            </div>
+                <div class="mk-card-foot">
+                    <div class="mk-card-foot-row">
+                        <div class="mk-price">
+                            <span class="mk-price-label">Estimado</span>
+                            <span class="mk-price-val">${price.replace(',00', '')}</span>
+                        </div>
+                        <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" onclick="event.stopPropagation(); viewArtistProfile('${artist.username}')">Perfil</button>
+                    </div>
+                    <button type="button" class="wo-btn wo-btn--s wo-btn--block wo-btn--hard">
+                        Cotizá
+                        <i data-wo-icon="arrow-right"></i>
+                    </button>
+                </div>
+            </article>
         `;
     }).join('');
 }
@@ -350,19 +350,21 @@ function updateActiveFiltersUI() {
     if (activeFilters.length > 0) {
         container.classList.remove('hidden');
         list.innerHTML = activeFilters.map(f => `
-            <div class="filter-chip">
+            <span class="wo-tag mk-filter-tag">
                 <span>${f.label}</span>
-                <button onclick="removeFilter('${f.type}')">&times;</button>
-            </div>
+                <button type="button" class="wo-tag-x" onclick="removeFilter('${f.type}')" aria-label="Quitar filtro">
+                    <i data-wo-icon="x"></i>
+                </button>
+            </span>
         `).join('');
     } else {
         container.classList.add('hidden');
     }
 
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    document.querySelectorAll('.mk-style-chip').forEach(btn => {
         const style = btn.dataset.style;
-        if (style === currentFilters.style) btn.classList.add('active');
-        else btn.classList.remove('active');
+        if (style === currentFilters.style) btn.classList.add('is-active');
+        else btn.classList.remove('is-active');
     });
 
     if (document.getElementById('filter-country')) document.getElementById('filter-country').value = currentFilters.country || '';
@@ -516,9 +518,9 @@ function setupSearch() {
 
         if (matches.length > 0) {
             suggestions.innerHTML = matches.map(m => `
-                <div class="suggestion-item" onclick="selectSuggestion('${m.type}', '${m.label}', '${m.username || ''}')">
-                    <span class="suggestion-label">${m.label}</span>
-                    <span class="suggestion-category">${m.category}</span>
+                <div class="mk-suggestion" onclick="selectSuggestion('${m.type}', '${m.label}', '${m.username || ''}')">
+                    <span class="mk-suggestion-label">${m.label}</span>
+                    <span class="mk-suggestion-cat">${m.category}</span>
                 </div>
             `).join('');
             suggestions.classList.remove('hidden');

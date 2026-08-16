@@ -262,16 +262,15 @@
                 var count = STATE.all.filter(function (a) {
                     return parseStyles(a.styles_array).some(function (x) { return x.toLowerCase() === s.label.toLowerCase(); });
                 }).length;
-                return '<button class="filter-pill" data-style="' + escapeHtml(s.label) + '">'
-                    + '<i class="' + s.icon + '"></i>'
+                return '<button class="filter-pill" type="button" data-style="' + escapeHtml(s.label) + '">'
                     + '<span>' + escapeHtml(s.label) + '</span>'
-                    + '<span class="pill-count">(' + count + ')</span>'
+                    + '<span class="pill-count">' + count + '</span>'
                     + '</button>';
             }).join('');
 
             // Plus a separator button that toggles the studios layer.
             var studioToggleHtml = '<button class="filter-pill is-active" id="toggle-studios-btn" type="button" aria-pressed="true" title="Mostrar/ocultar estudios">'
-                + '<i class="fa-solid fa-building"></i>'
+                + '<i data-wo-icon="home" class="pin-ico" aria-hidden="true"></i>'
                 + '<span>Estudios</span>'
                 + '</button>';
 
@@ -543,7 +542,7 @@
 
         if (countEl) {
             var n = STATE.filtered.length;
-            countEl.textContent = (n < 1000 ? String(n).padStart(3, '0') : String(n)) + ' Artistas';
+            countEl.textContent = (n < 1000 ? String(n).padStart(3, '0') : String(n)) + ' artistas';
         }
         updateAtlasCounter();
 
@@ -561,16 +560,21 @@
                 : '';
             var imgClass = a.profile_picture ? '' : ' no-image';
             var price = a.session_price ? String(a.session_price).replace(',00', '') : 'Consultar';
-            var indexLabel = '№ ' + String(idx + 1).padStart(3, '0');
+            var indexLabel = String(idx + 1).padStart(3, '0');
+            var recTag = a.is_recommended
+                ? '<span class="explore-card-rec">Recomendado</span>'
+                : '';
             return '<article class="explore-card" data-user-id="' + escapeHtml(a.user_id) + '" data-index="' + escapeHtml(indexLabel) + '">'
                 +   '<div class="explore-card-img' + imgClass + '" ' + img + '></div>'
+                +   '<span class="explore-card-index">' + escapeHtml(indexLabel) + '</span>'
+                +   '<span class="explore-card-price">' + escapeHtml(price) + '</span>'
+                +   recTag
                 +   '<div class="explore-card-body">'
                 +     '<div class="explore-card-styles">'
                 +       styles.map(function (s) { return '<span class="tag-mini">' + escapeHtml(s) + '</span>'; }).join('')
                 +     '</div>'
                 +     '<h3 class="explore-card-name">' + escapeHtml(toTitleCase(a.name || a.username)) + '</h3>'
                 +     '<div class="explore-card-meta">' + escapeHtml(toTitleCase(a.city || a.country || 'Ubicación reservada')) + '</div>'
-                +     '<span class="explore-card-price">' + escapeHtml(price) + '</span>'
                 +   '</div>'
                 + '</article>';
         }).join('');
@@ -728,8 +732,8 @@
             var lat = Number(s.latitude), lng = Number(s.longitude);
             if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
             var html = '<div class="bauhaus-pin bauhaus-pin-studio" title="' + escapeHtml(s.formatted_address || '') + '">'
-                     + '<i class="fa-solid fa-building" style="margin-right:4px;"></i>'
-                     + escapeHtml(s.name)
+                     + '<i data-wo-icon="home" class="pin-ico" aria-hidden="true"></i>'
+                     + '<span>' + escapeHtml(s.name) + '</span>'
                      + '</div>';
             var overlay = new STATE.studioOverlayClass(
                 new google.maps.LatLng(lat, lng),

@@ -17,12 +17,12 @@ let _supabase = null;
 const STEPS = [
     { id: 'welcome', title: null },
     { id: 'body-part', title: 'Zona del cuerpo', required: true },
-    { id: 'description', title: 'Describe tu idea', required: true },
-    { id: 'size', title: 'Tamano del tatuaje', required: true },
+    { id: 'description', title: 'Contá tu idea', required: true },
+    { id: 'size', title: 'Tamaño aproximado', required: true },
     { id: 'style', title: 'Estilo', required: false },
     { id: 'color-refs', title: 'Color y referencias', required: false },
     { id: 'preferences', title: 'Preferencias', required: false },
-    { id: 'account-gate', title: 'Publicar solicitud', required: true }
+    { id: 'account-gate', title: 'Publicá tu solicitud', required: true }
 ];
 
 const DRAFT_KEY = 'weotzi_job_board_draft';
@@ -134,13 +134,14 @@ function checkDraftResume() {
 
     // Show resume prompt
     container.innerHTML = `
-        <div class="jb-step active" data-step="draft-resume">
-            <div class="jb-step-content jb-center">
-                <h2 class="jb-title">Tienes un borrador guardado</h2>
-                <p class="jb-subtitle">Encontramos una solicitud en progreso. Quieres continuar donde la dejaste?</p>
-                <div class="jb-actions-row" style="margin-top: 2rem; gap: 1rem; display: flex; justify-content: center; flex-wrap: wrap;">
-                    <button class="jb-btn jb-btn-primary" onclick="resumeDraft()">Continuar borrador</button>
-                    <button class="jb-btn jb-btn-secondary" onclick="discardDraft()">Empezar de nuevo</button>
+        <div class="jbr-step is-active" data-step="draft-resume">
+            <div class="jbr-step-content jbr-center">
+                <span class="wo-eyebrow">Borrador guardado</span>
+                <h2 class="jbr-title">Tenés una solicitud en curso</h2>
+                <p class="jbr-subtitle">Guardamos lo que cargaste. ¿Querés seguir donde la dejaste?</p>
+                <div style="margin-top: var(--space-6); gap: var(--space-3); display: flex; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" class="wo-btn wo-btn--hard" onclick="resumeDraft()">Continuar borrador →</button>
+                    <button type="button" class="wo-btn wo-btn--ghost" onclick="discardDraft()">Empezar de nuevo</button>
                 </div>
             </div>
         </div>
@@ -189,19 +190,23 @@ function updateProgress() {
     const label = document.getElementById('jb-progress-label');
     if (!fill) return;
 
+    const totalSteps = STEPS.length - 1;
+    const pad2 = (n) => String(n).padStart(2, '0');
+
     if (currentStep === 0) {
         fill.style.width = '0%';
         if (label) label.textContent = '';
     } else {
-        const pct = Math.round((currentStep / (STEPS.length - 1)) * 100);
+        const pct = Math.round((currentStep / totalSteps) * 100);
         fill.style.width = pct + '%';
-        if (label) label.textContent = `${currentStep} / ${STEPS.length - 1}`;
+        if (label) label.textContent = `${pad2(currentStep)} / ${pad2(totalSteps)}`;
     }
 }
 
 function updateNavButtons() {
     const btnBack = document.getElementById('jb-btn-back');
     const btnNext = document.getElementById('jb-btn-next');
+    const kbdHint = document.getElementById('jb-kbd-hint');
 
     if (btnBack) {
         btnBack.style.display = (currentStep === 0) ? 'none' : '';
@@ -214,9 +219,13 @@ function updateNavButtons() {
             btnNext.style.display = 'none';
         } else {
             btnNext.style.display = '';
-            btnNext.textContent = 'Siguiente';
+            btnNext.textContent = 'Siguiente →';
             btnNext.onclick = () => handleNext();
         }
+    }
+
+    if (kbdHint) {
+        kbdHint.style.display = (currentStep === STEPS.length - 1) ? 'none' : '';
     }
 }
 
@@ -266,7 +275,7 @@ function renderCurrentStep() {
     if (!step) return;
 
     const stepEl = document.createElement('div');
-    stepEl.className = 'jb-step active';
+    stepEl.className = 'jbr-step is-active';
     stepEl.dataset.step = step.id;
 
     switch (step.id) {
@@ -294,33 +303,27 @@ function renderCurrentStep() {
 
 function renderWelcome(el) {
     el.innerHTML = `
-        <div class="jb-step-content jb-center">
-            <h1 class="jb-hero-title">Publica tu solicitud de tatuaje</h1>
-            <p class="jb-hero-subtitle">Describe tu idea y deja que los artistas te encuentren. Recibe propuestas, compara y elige.</p>
-            <div class="jb-features-row">
-                <div class="jb-feature-card">
-                    <div class="jb-feature-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    </div>
-                    <h3>Describe tu idea</h3>
-                    <p>Cuentanos que tatuaje quieres en pocos pasos</p>
+        <div class="jbr-step-content jbr-center">
+            <h1 class="jbr-hero-title">¿Qué tatuaje tenés en mente?</h1>
+            <p class="jbr-hero-subtitle">Contanos los detalles y dejá que los tatuadores te encuentren. Recibí propuestas, comparalas y elegí.</p>
+            <div class="jbr-features">
+                <div class="jbr-feature">
+                    <i data-wo-icon="edit-3"></i>
+                    <h3>Contá tu idea</h3>
+                    <p>Describí el tatuaje que querés en pocos pasos.</p>
                 </div>
-                <div class="jb-feature-card">
-                    <div class="jb-feature-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    </div>
-                    <h3>Recibe propuestas</h3>
-                    <p>Artistas interesados te enviaran sus propuestas</p>
+                <div class="jbr-feature">
+                    <i data-wo-icon="message-square"></i>
+                    <h3>Recibí propuestas</h3>
+                    <p>Los tatuadores interesados te mandan sus propuestas.</p>
                 </div>
-                <div class="jb-feature-card">
-                    <div class="jb-feature-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    </div>
-                    <h3>Elige tu artista</h3>
-                    <p>Compara portfolios y elige al que mas te guste</p>
+                <div class="jbr-feature">
+                    <i data-wo-icon="check-circle"></i>
+                    <h3>Elegí a tu artista</h3>
+                    <p>Compará portfolios y elegí al que más te guste.</p>
                 </div>
             </div>
-            <button class="jb-btn jb-btn-primary jb-btn-lg" onclick="goToStep(1)">Comenzar</button>
+            <button type="button" class="wo-btn wo-btn--accent wo-btn--hard wo-btn--block" style="max-width: 320px; margin: 0 auto;" onclick="goToStep(1)">Comenzar →</button>
         </div>
     `;
 }
@@ -337,20 +340,19 @@ function renderBodyPart(el) {
         const zoneLabel = zone.label || zone.id;
         const isSelected = formData.tattoo_body_part_parent === zoneLabel;
         zonesHtml += `
-            <div class="jb-option-card ${isSelected ? 'selected' : ''}" data-zone="${zoneLabel}" data-zone-id="${zone.id}" onclick="selectBodyZone(this)">
-                <span class="jb-option-label">${zoneLabel}</span>
-            </div>
+            <div class="wo-chip ${isSelected ? 'is-active' : ''}" data-zone="${zoneLabel}" data-zone-id="${zone.id}" onclick="selectBodyZone(this)">${zoneLabel}</div>
         `;
     });
 
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Donde te gustaria el tatuaje?</h2>
-            <p class="jb-subtitle">Selecciona la zona del cuerpo</p>
-            <div class="jb-options-grid cols-3" id="jb-body-zones">
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">¿Dónde va el tatuaje?</h2>
+            <p class="jbr-subtitle">Elegí la zona del cuerpo.</p>
+            <span class="jbr-section-label">Parte del cuerpo</span>
+            <div class="jbr-options" id="jb-body-zones">
                 ${zonesHtml}
             </div>
-            <div id="jb-body-subparts" class="jb-subparts-container"></div>
+            <div id="jb-body-subparts" class="jbr-subparts"></div>
         </div>
     `;
 
@@ -362,8 +364,8 @@ function renderBodyPart(el) {
 
 window.selectBodyZone = function(card) {
     // Deselect all parent cards
-    document.querySelectorAll('#jb-body-zones .jb-option-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
+    document.querySelectorAll('#jb-body-zones .wo-chip').forEach(c => c.classList.remove('is-active'));
+    card.classList.add('is-active');
 
     const zoneName = card.dataset.zone;
     formData.tattoo_body_part_parent = zoneName;
@@ -391,14 +393,12 @@ function renderBodySubParts(parentName) {
         return;
     }
 
-    let html = '<p class="jb-subparts-label">Selecciona la zona especifica (opcional)</p><div class="jb-options-grid cols-3">';
+    let html = '<span class="jbr-section-label">Zona específica · opcional</span><div class="jbr-options">';
     children.forEach(child => {
         const childLabel = child.label || child.id;
         const isSelected = formData.tattoo_body_side === childLabel;
         html += `
-            <div class="jb-option-card jb-option-sm ${isSelected ? 'selected' : ''}" data-subpart="${childLabel}" onclick="selectBodySubPart(this)">
-                <span class="jb-option-label">${childLabel}</span>
-            </div>
+            <div class="wo-chip ${isSelected ? 'is-active' : ''}" data-subpart="${childLabel}" onclick="selectBodySubPart(this)">${childLabel}</div>
         `;
     });
     html += '</div>';
@@ -406,8 +406,8 @@ function renderBodySubParts(parentName) {
 }
 
 window.selectBodySubPart = function(card) {
-    document.querySelectorAll('#jb-body-subparts .jb-option-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
+    document.querySelectorAll('#jb-body-subparts .wo-chip').forEach(c => c.classList.remove('is-active'));
+    card.classList.add('is-active');
 
     const subpartName = card.dataset.subpart;
     formData.tattoo_body_side = subpartName;
@@ -424,19 +424,20 @@ function renderDescription(el) {
     const isCover = formData.is_cover_up || false;
 
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Describe tu idea</h2>
-            <p class="jb-subtitle">Se lo mas detallado posible para que los artistas entiendan tu vision</p>
-            <div class="jb-textarea-wrapper">
-                <textarea id="jb-description" class="jb-textarea" maxlength="1000" placeholder="Describe la idea de tu tatuaje... Se lo mas detallado posible">${descVal}</textarea>
-                <div class="jb-char-counter"><span id="jb-desc-count">${descVal.length}</span> / 1000</div>
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Contá tu idea</h2>
+            <p class="jbr-subtitle">Cuanto más detallada sea, mejor van a entender tu visión los tatuadores.</p>
+            <div class="wo-field jbr-textarea-wrap">
+                <label class="wo-label" for="jb-description">Descripción de la idea</label>
+                <textarea id="jb-description" class="wo-textarea" maxlength="1000" placeholder="Ej.: quiero un lobo aullando, estilo blackwork, en el antebrazo. Busco líneas gruesas y buen contraste…">${descVal}</textarea>
+                <div class="jbr-char-counter"><span id="jb-desc-count">${descVal.length}</span> / 1000</div>
             </div>
-            <div class="jb-checkboxes" style="margin-top: 1.5rem;">
-                <label class="jb-checkbox-label">
+            <div class="jbr-checks">
+                <label class="wo-check">
                     <input type="checkbox" id="jb-first-tattoo" ${isFirst ? 'checked' : ''}>
                     <span>Es mi primer tatuaje</span>
                 </label>
-                <label class="jb-checkbox-label">
+                <label class="wo-check">
                     <input type="checkbox" id="jb-cover-up" ${isCover ? 'checked' : ''}>
                     <span>Es un cover-up</span>
                 </label>
@@ -450,6 +451,7 @@ function renderDescription(el) {
         textarea.addEventListener('input', () => {
             formData.tattoo_idea_description = textarea.value;
             if (counter) counter.textContent = textarea.value.length;
+            textarea.classList.remove('wo-input--error');
         });
         setTimeout(() => textarea.focus(), 100);
     }
@@ -467,28 +469,28 @@ function renderDescription(el) {
 
 function renderSize(el) {
     const sizes = [
-        { label: 'Pequeno', value: 'pequeno', subtitle: '< 5cm' },
-        { label: 'Mediano', value: 'mediano', subtitle: '5 - 15cm' },
-        { label: 'Grande', value: 'grande', subtitle: '15 - 30cm' },
-        { label: 'Muy Grande', value: 'muy_grande', subtitle: '> 30cm' }
+        { label: 'Pequeño', value: 'pequeno', subtitle: '< 5 cm' },
+        { label: 'Mediano', value: 'mediano', subtitle: '5 – 15 cm' },
+        { label: 'Grande', value: 'grande', subtitle: '15 – 30 cm' },
+        { label: 'Muy grande', value: 'muy_grande', subtitle: '> 30 cm' }
     ];
 
     let cardsHtml = '';
     sizes.forEach(s => {
         const isSelected = formData.tattoo_size === s.value;
         cardsHtml += `
-            <div class="jb-option-card ${isSelected ? 'selected' : ''}" data-value="${s.value}" onclick="selectSize(this)">
-                <span class="jb-option-label">${s.label}</span>
-                <span class="jb-option-sub">${s.subtitle}</span>
+            <div class="jbr-card ${isSelected ? 'is-active' : ''}" data-value="${s.value}" onclick="selectSize(this)">
+                <span class="jbr-card-label">${s.label}</span>
+                <span class="jbr-card-sub">${s.subtitle}</span>
             </div>
         `;
     });
 
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Tamano del tatuaje</h2>
-            <p class="jb-subtitle">Selecciona el tamano aproximado</p>
-            <div class="jb-options-grid cols-2">
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Tamaño aproximado</h2>
+            <p class="jbr-subtitle">Elegí el tamaño estimado del tatuaje.</p>
+            <div class="jbr-cards">
                 ${cardsHtml}
             </div>
         </div>
@@ -496,8 +498,8 @@ function renderSize(el) {
 }
 
 window.selectSize = function(card) {
-    document.querySelectorAll('.jb-step[data-step="size"] .jb-option-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
+    document.querySelectorAll('.jbr-step[data-step="size"] .jbr-card').forEach(c => c.classList.remove('is-active'));
+    card.classList.add('is-active');
     formData.tattoo_size = card.dataset.value;
 };
 
@@ -512,31 +514,29 @@ function renderStyle(el) {
     tattooStyles.forEach(style => {
         const isSelected = selectedStyles.includes(style.name);
         cardsHtml += `
-            <div class="jb-option-card jb-option-multi ${isSelected ? 'selected' : ''}" data-style="${style.name}" onclick="toggleStyle(this)">
-                <span class="jb-option-label">${style.name}</span>
-            </div>
+            <div class="wo-chip ${isSelected ? 'is-active' : ''}" data-style="${style.name}" onclick="toggleStyle(this)">${style.name}</div>
         `;
     });
 
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Estilo de tatuaje</h2>
-            <p class="jb-subtitle">Puedes seleccionar uno o varios estilos (opcional)</p>
-            <div class="jb-options-grid cols-3" id="jb-styles-grid">
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Estilo</h2>
+            <p class="jbr-subtitle">Podés elegir uno o varios estilos · opcional.</p>
+            <div class="jbr-options" id="jb-styles-grid">
                 ${cardsHtml}
             </div>
-            <button class="jb-btn jb-btn-ghost" onclick="skipStep()" style="margin-top: 1.5rem;">Saltar este paso</button>
+            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-skip" onclick="skipStep()">Saltar este paso →</button>
         </div>
     `;
 }
 
 window.toggleStyle = function(card) {
-    card.classList.toggle('selected');
+    card.classList.toggle('is-active');
     const styleName = card.dataset.style;
 
     let selected = formData.tattoo_style ? (typeof formData.tattoo_style === 'string' ? JSON.parse(formData.tattoo_style) : [...formData.tattoo_style]) : [];
 
-    if (card.classList.contains('selected')) {
+    if (card.classList.contains('is-active')) {
         if (!selected.includes(styleName)) selected.push(styleName);
     } else {
         selected = selected.filter(s => s !== styleName);
@@ -555,8 +555,8 @@ window.skipStep = function() {
 
 function renderColorRefs(el) {
     const colorOptions = [
-        { label: 'Full Color', value: 'full_color' },
-        { label: 'Black & Grey', value: 'black_grey' },
+        { label: 'Blanco y negro', value: 'black_grey' },
+        { label: 'Color', value: 'full_color' },
         { label: 'Sin preferencia', value: 'no_preference' }
     ];
 
@@ -564,9 +564,10 @@ function renderColorRefs(el) {
     colorOptions.forEach(opt => {
         const isSelected = formData.tattoo_color_type === opt.value;
         colorHtml += `
-            <div class="jb-option-card ${isSelected ? 'selected' : ''}" data-value="${opt.value}" onclick="selectColor(this)">
-                <span class="jb-option-label">${opt.label}</span>
-            </div>
+            <label class="wo-radio">
+                <input type="radio" name="jb-color-type" value="${opt.value}" ${isSelected ? 'checked' : ''} onchange="selectColor(this)">
+                <span>${opt.label}</span>
+            </label>
         `;
     });
 
@@ -574,39 +575,38 @@ function renderColorRefs(el) {
     let previewsHtml = '';
     uploadedFiles.forEach((file, idx) => {
         previewsHtml += `
-            <div class="jb-file-preview" data-index="${idx}">
+            <div class="jbr-preview" data-index="${idx}">
                 <img src="${URL.createObjectURL(file)}" alt="ref-${idx}">
-                <button class="jb-file-remove" onclick="removeFile(${idx})" title="Eliminar">&times;</button>
+                <button type="button" class="jbr-preview-remove" onclick="removeFile(${idx})" title="Eliminar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
             </div>
         `;
     });
 
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Color y referencias</h2>
-            <p class="jb-subtitle">Selecciona el tipo de color</p>
-            <div class="jb-options-grid cols-3" style="margin-bottom: 2rem;">
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Color y referencias</h2>
+            <p class="jbr-subtitle">Contanos cómo lo imaginás.</p>
+            <span class="jbr-section-label">Color</span>
+            <div class="jbr-radios">
                 ${colorHtml}
             </div>
-            <h3 class="jb-section-title">Imagenes de referencia (opcional)</h3>
-            <p class="jb-hint">Maximo ${MAX_FILES} imagenes, 5MB cada una</p>
-            <div class="jb-upload-area" id="jb-upload-area" onclick="triggerFileInput()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <p>Arrastra imagenes aqui o haz click para seleccionar</p>
+            <span class="jbr-section-label">Imágenes de referencia · opcional</span>
+            <div class="wo-dropzone jbr-dropzone" id="jb-upload-area" onclick="triggerFileInput()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                <i data-wo-icon="upload"></i>
+                <p class="jbr-dropzone-title">Arrastrá o hacé click</p>
+                <p class="jbr-dropzone-help">JPG, PNG o WebP · máx. ${MAX_FILES} imágenes · 5MB cada una</p>
             </div>
             <input type="file" id="jb-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple style="display:none" onchange="handleFileSelect(event)">
-            <div class="jb-file-previews" id="jb-file-previews">
+            <div class="jbr-previews" id="jb-file-previews">
                 ${previewsHtml}
             </div>
-            <button class="jb-btn jb-btn-ghost" onclick="skipStep()" style="margin-top: 1.5rem;">Saltar este paso</button>
+            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-skip" onclick="skipStep()">Saltar este paso →</button>
         </div>
     `;
 }
 
-window.selectColor = function(card) {
-    document.querySelectorAll('.jb-step[data-step="color-refs"] .jb-options-grid:first-of-type .jb-option-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    formData.tattoo_color_type = card.dataset.value;
+window.selectColor = function(input) {
+    formData.tattoo_color_type = input.value;
 };
 
 window.triggerFileInput = function() {
@@ -622,19 +622,19 @@ window.handleFileSelect = function(e) {
 window.handleDragOver = function(e) {
     e.preventDefault();
     e.stopPropagation();
-    document.getElementById('jb-upload-area')?.classList.add('drag-over');
+    document.getElementById('jb-upload-area')?.classList.add('dragover');
 };
 
 window.handleDragLeave = function(e) {
     e.preventDefault();
     e.stopPropagation();
-    document.getElementById('jb-upload-area')?.classList.remove('drag-over');
+    document.getElementById('jb-upload-area')?.classList.remove('dragover');
 };
 
 window.handleDrop = function(e) {
     e.preventDefault();
     e.stopPropagation();
-    document.getElementById('jb-upload-area')?.classList.remove('drag-over');
+    document.getElementById('jb-upload-area')?.classList.remove('dragover');
     const files = Array.from(e.dataTransfer?.files || []);
     addFiles(files);
 };
@@ -642,7 +642,7 @@ window.handleDrop = function(e) {
 async function addFiles(files) {
     const remaining = MAX_FILES - uploadedFiles.length;
     if (remaining <= 0) {
-        showFormNotice('Maximo ' + MAX_FILES + ' imagenes permitidas');
+        showFormNotice('Máximo ' + MAX_FILES + ' imágenes permitidas');
         return;
     }
 
@@ -654,11 +654,11 @@ async function addFiles(files) {
         const compressed = await compressImage(converted);
 
         if (!ACCEPTED_IMAGE_TYPES.includes(compressed.type)) {
-            showFormNotice('Solo se permiten imagenes JPG, PNG o WebP');
+            showFormNotice('Solo se permiten imágenes JPG, PNG o WebP');
             continue;
         }
         if (compressed.size > MAX_FILE_SIZE) {
-            showFormNotice('El archivo ' + file.name + ' supera los 5MB tras compresion');
+            showFormNotice('El archivo ' + file.name + ' supera los 5MB tras compresión');
             continue;
         }
 
@@ -680,11 +680,11 @@ function renderFilePreviews() {
     container.innerHTML = '';
     uploadedFiles.forEach((file, idx) => {
         const div = document.createElement('div');
-        div.className = 'jb-file-preview';
+        div.className = 'jbr-preview';
         div.dataset.index = idx;
         div.innerHTML = `
             <img src="${URL.createObjectURL(file)}" alt="ref-${idx}">
-            <button class="jb-file-remove" onclick="removeFile(${idx})" title="Eliminar">&times;</button>
+            <button type="button" class="jbr-preview-remove" onclick="removeFile(${idx})" title="Eliminar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
         `;
         container.appendChild(div);
     });
@@ -704,44 +704,46 @@ function renderPreferences(el) {
     const travelWilling = formData.travel_willing || false;
 
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Preferencias</h2>
-            <p class="jb-subtitle">Toda esta informacion es opcional</p>
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Preferencias</h2>
+            <p class="jbr-subtitle">Todo esto es opcional, pero ayuda a que te lleguen mejores propuestas.</p>
 
-            <div class="jb-form-group">
-                <label class="jb-label">Presupuesto estimado</label>
-                <div class="jb-budget-row">
-                    <input type="number" id="jb-budget-min" class="jb-input jb-input-sm" placeholder="Min" value="${budgetMin}" min="0">
-                    <span class="jb-budget-sep">-</span>
-                    <input type="number" id="jb-budget-max" class="jb-input jb-input-sm" placeholder="Max" value="${budgetMax}" min="0">
-                    <select id="jb-budget-currency" class="jb-select jb-select-sm">
-                        ${['USD', 'EUR', 'ARS', 'MXN', 'COP', 'BRL'].map(c => `<option value="${c}" ${budgetCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
-                    </select>
+            <div class="jbr-form">
+                <div class="wo-field">
+                    <label class="wo-label">Presupuesto estimado</label>
+                    <div class="jbr-budget-row">
+                        <input type="number" id="jb-budget-min" class="wo-input" placeholder="Mín." value="${budgetMin}" min="0">
+                        <span class="jbr-budget-sep">–</span>
+                        <input type="number" id="jb-budget-max" class="wo-input" placeholder="Máx." value="${budgetMax}" min="0">
+                        <select id="jb-budget-currency" class="wo-select">
+                            ${['USD', 'EUR', 'ARS', 'MXN', 'COP', 'BRL'].map(c => `<option value="${c}" ${budgetCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="wo-field">
+                    <label class="wo-label" for="city-input">Ciudad</label>
+                    <input type="text" id="city-input" class="wo-input" placeholder="Tu ciudad" value="${cityVal}" autocomplete="off">
+                </div>
+
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-pref-date">Fecha aproximada</label>
+                    <input type="month" id="jb-pref-date" class="wo-input" value="${prefDate}">
+                </div>
+
+                <div class="jbr-checks">
+                    <label class="wo-check">
+                        <input type="checkbox" id="jb-flexible-dates" ${flexDates ? 'checked' : ''}>
+                        <span>Fechas flexibles</span>
+                    </label>
+                    <label class="wo-check">
+                        <input type="checkbox" id="jb-travel-willing" ${travelWilling ? 'checked' : ''}>
+                        <span>Puedo viajar</span>
+                    </label>
                 </div>
             </div>
 
-            <div class="jb-form-group">
-                <label class="jb-label">Ciudad</label>
-                <input type="text" id="city-input" class="jb-input" placeholder="Tu ciudad" value="${cityVal}" autocomplete="off">
-            </div>
-
-            <div class="jb-form-group">
-                <label class="jb-label">Fecha preferida</label>
-                <input type="month" id="jb-pref-date" class="jb-input" value="${prefDate}">
-            </div>
-
-            <div class="jb-checkboxes">
-                <label class="jb-checkbox-label">
-                    <input type="checkbox" id="jb-flexible-dates" ${flexDates ? 'checked' : ''}>
-                    <span>Fechas flexibles</span>
-                </label>
-                <label class="jb-checkbox-label">
-                    <input type="checkbox" id="jb-travel-willing" ${travelWilling ? 'checked' : ''}>
-                    <span>Dispuesto/a a viajar</span>
-                </label>
-            </div>
-
-            <button class="jb-btn jb-btn-ghost" onclick="skipStep()" style="margin-top: 1.5rem;">Saltar este paso</button>
+            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-skip" onclick="skipStep()">Saltar este paso →</button>
         </div>
     `;
 
@@ -794,7 +796,7 @@ function renderPreferences(el) {
 // ============================================
 
 async function renderAccountGate(el) {
-    el.innerHTML = '<div class="jb-step-content jb-center"><div class="jb-loading-spinner"></div><p>Verificando sesion...</p></div>';
+    el.innerHTML = '<div class="jbr-step-content jbr-center" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-4);padding-top:var(--space-12);"><div class="wo-spinner"></div><p class="wo-meta">Verificando sesión…</p></div>';
 
     if (!_supabase) {
         renderAuthContainer(el);
@@ -832,58 +834,58 @@ async function renderAccountGate(el) {
 
 function renderAuthContainer(el) {
     el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Publicar solicitud</h2>
-            <p class="jb-subtitle">Necesitas una cuenta para publicar tu solicitud</p>
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Publicá tu solicitud</h2>
+            <p class="jbr-subtitle">Necesitás una cuenta para publicarla y recibir propuestas.</p>
 
-            <div class="jb-auth-tabs">
-                <button class="jb-tab active" data-tab="register" onclick="switchAuthTab('register')">Registrarse</button>
-                <button class="jb-tab" data-tab="login" onclick="switchAuthTab('login')">Iniciar sesion</button>
+            <div class="wo-tabs jbr-auth-tabs">
+                <button type="button" class="wo-tab is-active" data-tab="register" onclick="switchAuthTab('register')">Crear cuenta</button>
+                <button type="button" class="wo-tab" data-tab="login" onclick="switchAuthTab('login')">Iniciar sesión</button>
             </div>
 
-            <div id="jb-auth-register" class="jb-auth-panel active">
-                <div class="jb-form-group">
-                    <label class="jb-label">Nombre completo</label>
-                    <input type="text" id="jb-reg-name" class="jb-input" placeholder="Tu nombre" autocomplete="name">
+            <div id="jb-auth-register" class="jbr-auth-panel is-active">
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-reg-name">Nombre completo</label>
+                    <input type="text" id="jb-reg-name" class="wo-input" placeholder="Tu nombre" autocomplete="name">
                 </div>
-                <div class="jb-form-group">
-                    <label class="jb-label">Email</label>
-                    <input type="email" id="jb-reg-email" class="jb-input" placeholder="tu@email.com" autocomplete="email">
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-reg-email">Email</label>
+                    <input type="email" id="jb-reg-email" class="wo-input" placeholder="tu@email.com" autocomplete="email">
                 </div>
-                <div class="jb-form-group">
-                    <label class="jb-label">Contrasena</label>
-                    <input type="password" id="jb-reg-password" class="jb-input" placeholder="Minimo 6 caracteres" autocomplete="new-password">
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-reg-password">Contraseña</label>
+                    <input type="password" id="jb-reg-password" class="wo-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
                 </div>
-                <div class="jb-form-group">
-                    <label class="jb-label">Confirmar contrasena</label>
-                    <input type="password" id="jb-reg-confirm" class="jb-input" placeholder="Repite tu contrasena" autocomplete="new-password">
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-reg-confirm">Confirmar contraseña</label>
+                    <input type="password" id="jb-reg-confirm" class="wo-input" placeholder="Repetí tu contraseña" autocomplete="new-password">
                 </div>
-                <div id="jb-reg-message" class="jb-form-message"></div>
-                <button class="jb-btn jb-btn-primary jb-btn-full" id="jb-btn-register" onclick="handleJBRegister()">Crear cuenta y publicar</button>
+                <div id="jb-reg-message" class="jbr-msg"></div>
+                <button type="button" class="wo-btn wo-btn--hard wo-btn--block" id="jb-btn-register" onclick="handleJBRegister()">Crear cuenta y publicar</button>
             </div>
 
-            <div id="jb-auth-login" class="jb-auth-panel">
-                <div class="jb-form-group">
-                    <label class="jb-label">Email</label>
-                    <input type="email" id="jb-login-email" class="jb-input" placeholder="tu@email.com" autocomplete="email">
+            <div id="jb-auth-login" class="jbr-auth-panel">
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-login-email">Email</label>
+                    <input type="email" id="jb-login-email" class="wo-input" placeholder="tu@email.com" autocomplete="email">
                 </div>
-                <div class="jb-form-group">
-                    <label class="jb-label">Contrasena</label>
-                    <input type="password" id="jb-login-password" class="jb-input" placeholder="Tu contrasena" autocomplete="current-password">
+                <div class="wo-field">
+                    <label class="wo-label" for="jb-login-password">Contraseña</label>
+                    <input type="password" id="jb-login-password" class="wo-input" placeholder="Tu contraseña" autocomplete="current-password">
                 </div>
-                <div id="jb-login-message" class="jb-form-message"></div>
-                <button class="jb-btn jb-btn-primary jb-btn-full" id="jb-btn-login" onclick="handleJBLogin()">Iniciar sesion y publicar</button>
+                <div id="jb-login-message" class="jbr-msg"></div>
+                <button type="button" class="wo-btn wo-btn--hard wo-btn--block" id="jb-btn-login" onclick="handleJBLogin()">Iniciar sesión y publicar</button>
             </div>
         </div>
     `;
 }
 
 window.switchAuthTab = function(tab) {
-    document.querySelectorAll('.jb-auth-tabs .jb-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.jb-tab[data-tab="${tab}"]`)?.classList.add('active');
+    document.querySelectorAll('.jbr-auth-tabs .wo-tab').forEach(t => t.classList.remove('is-active'));
+    document.querySelector(`.jbr-auth-tabs .wo-tab[data-tab="${tab}"]`)?.classList.add('is-active');
 
-    document.getElementById('jb-auth-register').classList.toggle('active', tab === 'register');
-    document.getElementById('jb-auth-login').classList.toggle('active', tab === 'login');
+    document.getElementById('jb-auth-register').classList.toggle('is-active', tab === 'register');
+    document.getElementById('jb-auth-login').classList.toggle('is-active', tab === 'login');
 };
 
 // ============================================
@@ -892,7 +894,7 @@ window.switchAuthTab = function(tab) {
 
 window.handleJBRegister = async function() {
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recarga la pagina.');
+        showFormNotice('Servicio no disponible. Recargá la página.');
         return;
     }
 
@@ -903,23 +905,23 @@ window.handleJBRegister = async function() {
     const password = document.getElementById('jb-reg-password')?.value;
     const confirm = document.getElementById('jb-reg-confirm')?.value;
 
-    if (msgEl) { msgEl.textContent = ''; msgEl.className = 'jb-form-message'; }
+    if (msgEl) { msgEl.textContent = ''; msgEl.className = 'jbr-msg'; }
 
     if (!name || !email || !password) {
-        showAuthMessage('jb-reg-message', 'Completa todos los campos obligatorios.', 'error');
+        showAuthMessage('jb-reg-message', 'Completá todos los campos obligatorios.', 'error');
         return;
     }
     if (password !== confirm) {
-        showAuthMessage('jb-reg-message', 'Las contrasenas no coinciden.', 'error');
+        showAuthMessage('jb-reg-message', 'Las contraseñas no coinciden.', 'error');
         return;
     }
     if (password.length < 6) {
-        showAuthMessage('jb-reg-message', 'La contrasena debe tener al menos 6 caracteres.', 'error');
+        showAuthMessage('jb-reg-message', 'La contraseña tiene que tener al menos 6 caracteres.', 'error');
         return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Creando cuenta...';
+    btn.textContent = 'Creando cuenta…';
 
     try {
         const { data: authData, error: authError } = await _supabase.auth.signUp({
@@ -978,11 +980,11 @@ window.handleJBRegister = async function() {
             formData._client_email = email;
             formData._client_name = name;
 
-            showAuthMessage('jb-reg-message', 'Cuenta creada exitosamente.', 'success');
+            showAuthMessage('jb-reg-message', 'Cuenta creada.', 'success');
 
             // Re-render as logged-in user with summary
             setTimeout(() => {
-                renderAccountGate(document.querySelector('.jb-step[data-step="account-gate"]'));
+                renderAccountGate(document.querySelector('.jbr-step[data-step="account-gate"]'));
             }, 800);
         }
 
@@ -993,7 +995,7 @@ window.handleJBRegister = async function() {
 
         let errorMessage = 'Error al crear la cuenta.';
         if (error.message?.includes('already registered')) {
-            errorMessage = 'Este email ya esta registrado. Intenta iniciar sesion.';
+            errorMessage = 'Este email ya está registrado. Probá iniciar sesión.';
         }
         showAuthMessage('jb-reg-message', errorMessage, 'error');
     }
@@ -1001,7 +1003,7 @@ window.handleJBRegister = async function() {
 
 window.handleJBLogin = async function() {
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recarga la pagina.');
+        showFormNotice('Servicio no disponible. Recargá la página.');
         return;
     }
 
@@ -1010,12 +1012,12 @@ window.handleJBLogin = async function() {
     const password = document.getElementById('jb-login-password')?.value;
 
     if (!email || !password) {
-        showAuthMessage('jb-login-message', 'Ingresa tu email y contrasena.', 'error');
+        showAuthMessage('jb-login-message', 'Ingresá tu email y contraseña.', 'error');
         return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Validando...';
+    btn.textContent = 'Validando…';
 
     try {
         const { data, error } = await _supabase.auth.signInWithPassword({
@@ -1042,21 +1044,21 @@ window.handleJBLogin = async function() {
         formData._client_email = client?.email || email;
         formData._client_name = client?.full_name || data.user.user_metadata?.full_name || '';
 
-        showAuthMessage('jb-login-message', 'Sesion iniciada correctamente.', 'success');
+        showAuthMessage('jb-login-message', 'Sesión iniciada.', 'success');
 
         // Re-render as logged-in user
         setTimeout(() => {
-            renderAccountGate(document.querySelector('.jb-step[data-step="account-gate"]'));
+            renderAccountGate(document.querySelector('.jbr-step[data-step="account-gate"]'));
         }, 800);
 
     } catch (error) {
         console.error('Login error:', error);
         btn.disabled = false;
-        btn.textContent = 'Iniciar sesion y publicar';
+        btn.textContent = 'Iniciar sesión y publicar';
 
-        let errorMessage = 'Error al iniciar sesion.';
+        let errorMessage = 'Error al iniciar sesión.';
         if (error.message?.includes('Invalid login credentials')) {
-            errorMessage = 'Email o contrasena incorrectos.';
+            errorMessage = 'Email o contraseña incorrectos.';
         }
         showAuthMessage('jb-login-message', errorMessage, 'error');
     }
@@ -1066,7 +1068,7 @@ function showAuthMessage(elementId, message, type) {
     const el = document.getElementById(elementId);
     if (!el) return;
     el.textContent = message;
-    el.className = 'jb-form-message jb-msg-' + type;
+    el.className = 'jbr-msg jbr-msg--' + type;
 }
 
 // ============================================
@@ -1079,77 +1081,50 @@ function renderSummaryAndSubmit(el, session, client) {
     const sizeDisplay = formatSizeDisplay();
     const budgetDisplay = formatBudgetDisplay();
 
-    el.innerHTML = `
-        <div class="jb-step-content">
-            <h2 class="jb-title">Resumen de tu solicitud</h2>
-            <p class="jb-subtitle">Revisa la informacion antes de publicar</p>
+    const summaryItem = (label, value) => `
+        <div class="jbr-summary-item">
+            <dt>${label}</dt>
+            <dd>${value}</dd>
+        </div>
+    `;
 
-            <div class="jb-summary-card">
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Zona del cuerpo</span>
-                    <span class="jb-summary-value">${formData.tattoo_body_part || '-'}</span>
-                </div>
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Descripcion</span>
-                    <span class="jb-summary-value jb-summary-desc">${escapeHtml(formData.tattoo_idea_description || '-')}</span>
-                </div>
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Tamano</span>
-                    <span class="jb-summary-value">${sizeDisplay}</span>
-                </div>
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Estilo</span>
-                    <span class="jb-summary-value">${styleDisplay}</span>
-                </div>
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Color</span>
-                    <span class="jb-summary-value">${colorDisplay}</span>
-                </div>
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Referencias</span>
-                    <span class="jb-summary-value">${uploadedFiles.length > 0 ? uploadedFiles.length + ' imagen(es)' : 'Ninguna'}</span>
-                </div>
-                ${budgetDisplay ? `
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Presupuesto</span>
-                    <span class="jb-summary-value">${budgetDisplay}</span>
-                </div>
-                ` : ''}
-                ${formData.client_city ? `
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Ciudad</span>
-                    <span class="jb-summary-value">${escapeHtml(formData.client_city)}</span>
-                </div>
-                ` : ''}
-                ${formData.preferred_date ? `
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Fecha preferida</span>
-                    <span class="jb-summary-value">${formData.preferred_date}${formData.flexible_dates ? ' (flexible)' : ''}</span>
-                </div>
-                ` : ''}
-                ${formData.is_first_tattoo ? `
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Primer tatuaje</span>
-                    <span class="jb-summary-value">Si</span>
-                </div>
-                ` : ''}
-                ${formData.is_cover_up ? `
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Cover-up</span>
-                    <span class="jb-summary-value">Si</span>
-                </div>
-                ` : ''}
-                ${formData.travel_willing ? `
-                <div class="jb-summary-row">
-                    <span class="jb-summary-label">Dispuesto a viajar</span>
-                    <span class="jb-summary-value">Si</span>
-                </div>
-                ` : ''}
+    let refsHtml = '';
+    if (uploadedFiles.length > 0) {
+        refsHtml = '<div class="jbr-summary-refs">' + uploadedFiles.map((file, idx) =>
+            `<img src="${URL.createObjectURL(file)}" alt="Referencia ${idx + 1}">`
+        ).join('') + '</div>';
+    }
+
+    el.innerHTML = `
+        <div class="jbr-step-content">
+            <h2 class="jbr-title">Revisá tu publicación</h2>
+            <p class="jbr-subtitle">Así la van a ver los tatuadores en el Job Board.</p>
+
+            <div class="jbr-summary">
+                <span class="jbr-summary-eyebrow">Tu idea</span>
+                <p class="jbr-summary-desc">${escapeHtml(formData.tattoo_idea_description || '–')}</p>
+                ${refsHtml}
+                <dl class="jbr-summary-grid">
+                    ${summaryItem('Zona del cuerpo', escapeHtml(formData.tattoo_body_part || '–'))}
+                    ${summaryItem('Tamaño', sizeDisplay)}
+                    ${summaryItem('Estilo', escapeHtml(styleDisplay))}
+                    ${summaryItem('Color', colorDisplay)}
+                    ${summaryItem('Referencias', uploadedFiles.length > 0 ? uploadedFiles.length + (uploadedFiles.length === 1 ? ' imagen' : ' imágenes') : 'Ninguna')}
+                    ${budgetDisplay ? summaryItem('Presupuesto', budgetDisplay) : ''}
+                    ${formData.client_city ? summaryItem('Ciudad', escapeHtml(formData.client_city)) : ''}
+                    ${formData.preferred_date ? summaryItem('Fecha', `${formData.preferred_date}${formData.flexible_dates ? ' · flexible' : ''}`) : ''}
+                    ${formData.is_first_tattoo ? summaryItem('Primer tatuaje', 'Sí') : ''}
+                    ${formData.is_cover_up ? summaryItem('Cover-up', 'Sí') : ''}
+                    ${formData.travel_willing ? summaryItem('Viaje', 'Puedo viajar') : ''}
+                </dl>
             </div>
 
-            <div class="jb-submit-section">
-                <p class="jb-logged-as">Publicando como: <strong>${escapeHtml(formData._client_name || formData._client_email)}</strong></p>
-                <button class="jb-btn jb-btn-primary jb-btn-lg jb-btn-full" id="jb-btn-submit" onclick="submitRequest()">Publicar solicitud</button>
+            <div class="jbr-submit-row">
+                <p class="jbr-logged-as">Publicás como <strong>${escapeHtml(formData._client_name || formData._client_email)}</strong></p>
+                <div class="jbr-submit-actions">
+                    <button type="button" class="wo-btn wo-btn--ghost" onclick="goBack()">← Editar</button>
+                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jb-btn-submit" onclick="submitRequest()">Publicar solicitud →</button>
+                </div>
             </div>
         </div>
     `;
@@ -1164,8 +1139,8 @@ function formatStyleDisplay() {
 
 function formatColorDisplay() {
     const map = {
-        'full_color': 'Full Color',
-        'black_grey': 'Black & Grey',
+        'full_color': 'Color',
+        'black_grey': 'Blanco y negro',
         'no_preference': 'Sin preferencia'
     };
     return map[formData.tattoo_color_type] || 'Sin preferencia';
@@ -1173,22 +1148,22 @@ function formatColorDisplay() {
 
 function formatSizeDisplay() {
     const map = {
-        'pequeno': 'Pequeno (< 5cm)',
-        'mediano': 'Mediano (5-15cm)',
-        'grande': 'Grande (15-30cm)',
-        'muy_grande': 'Muy Grande (> 30cm)'
+        'pequeno': 'Pequeño (< 5 cm)',
+        'mediano': 'Mediano (5 – 15 cm)',
+        'grande': 'Grande (15 – 30 cm)',
+        'muy_grande': 'Muy grande (> 30 cm)'
     };
-    return map[formData.tattoo_size] || '-';
+    return map[formData.tattoo_size] || '–';
 }
 
 function formatBudgetDisplay() {
     if (!formData.budget_min && !formData.budget_max) return '';
     const currency = formData.budget_currency || 'USD';
     if (formData.budget_min && formData.budget_max) {
-        return `${formData.budget_min} - ${formData.budget_max} ${currency}`;
+        return `$${formData.budget_min} – $${formData.budget_max} ${currency}`;
     }
-    if (formData.budget_min) return `Desde ${formData.budget_min} ${currency}`;
-    if (formData.budget_max) return `Hasta ${formData.budget_max} ${currency}`;
+    if (formData.budget_min) return `Desde $${formData.budget_min} ${currency}`;
+    if (formData.budget_max) return `Hasta $${formData.budget_max} ${currency}`;
     return '';
 }
 
@@ -1199,7 +1174,7 @@ function formatBudgetDisplay() {
 window.submitRequest = async function() {
     if (isSubmitting) return;
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recarga la pagina.');
+        showFormNotice('Servicio no disponible. Recargá la página.');
         return;
     }
     isSubmitting = true;
@@ -1209,7 +1184,7 @@ window.submitRequest = async function() {
 
     if (btn) {
         btn.disabled = true;
-        btn.textContent = 'Publicando...';
+        btn.textContent = 'Publicando…';
     }
     if (overlay) overlay.classList.remove('hidden');
 
@@ -1350,9 +1325,9 @@ window.submitRequest = async function() {
         if (overlay) overlay.classList.add('hidden');
         if (btn) {
             btn.disabled = false;
-            btn.textContent = 'Publicar solicitud';
+            btn.textContent = 'Publicar solicitud →';
         }
-        showFormNotice('Error al publicar la solicitud. Por favor, intenta de nuevo.');
+        showFormNotice('No pudimos publicar la solicitud. Probá de nuevo.');
     }
 };
 
@@ -1375,7 +1350,7 @@ function validateCurrentStep() {
         case 'body-part':
             if (!formData.tattoo_body_part) {
                 shakeElement('#jb-body-zones');
-                showFormNotice('Selecciona una zona del cuerpo');
+                showFormNotice('Elegí una zona del cuerpo');
                 return false;
             }
             return true;
@@ -1384,17 +1359,17 @@ function validateCurrentStep() {
             // Sync current textarea value before validating
             syncDescriptionField();
             if (!formData.tattoo_idea_description || formData.tattoo_idea_description.trim().length < 10) {
-                showFormNotice('La descripcion debe tener al menos 10 caracteres');
+                showFormNotice('La descripción tiene que tener al menos 10 caracteres');
                 const textarea = document.getElementById('jb-description');
-                if (textarea) textarea.classList.add('jb-input-error');
+                if (textarea) textarea.classList.add('wo-input--error');
                 return false;
             }
             return true;
 
         case 'size':
             if (!formData.tattoo_size) {
-                shakeElement('.jb-step[data-step="size"] .jb-options-grid');
-                showFormNotice('Selecciona un tamano');
+                shakeElement('.jbr-step[data-step="size"] .jbr-cards');
+                showFormNotice('Elegí un tamaño');
                 return false;
             }
             return true;
@@ -1458,7 +1433,7 @@ function syncPreferencesFields() {
 function shakeElement(selector) {
     const el = document.querySelector(selector);
     if (!el) return;
-    el.style.animation = 'jb-shake 0.5s ease';
+    el.style.animation = 'jbr-shake 0.5s ease';
     setTimeout(() => { el.style.animation = ''; }, 500);
 }
 
@@ -1468,13 +1443,13 @@ function showFormNotice(message) {
     if (!notice) {
         notice = document.createElement('div');
         notice.id = 'jb-notice';
-        notice.className = 'jb-notice';
+        notice.className = 'jbr-notice';
         document.body.appendChild(notice);
     }
     notice.textContent = message;
-    notice.classList.add('visible');
+    notice.classList.add('is-visible');
     setTimeout(() => {
-        notice.classList.remove('visible');
+        notice.classList.remove('is-visible');
     }, 3000);
 }
 

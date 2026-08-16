@@ -398,33 +398,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     initApp();
 });
 
-// ============ THEME LOGIC ============
+// ============ THEME LOGIC (DS Bauhaus: solo tema claro) ============
+// El design system no tiene modo oscuro. Se limpia cualquier tema oscuro
+// persistido de la versión anterior y toggleTheme queda como stub inofensivo.
 function initTheme() {
-    const savedTheme = localStorage.getItem('weotzi_theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    let theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
-    setTheme(theme);
+    document.documentElement.removeAttribute('data-theme');
+    try { localStorage.removeItem('weotzi_theme'); } catch (_) {}
 }
 
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-}
-
-function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('weotzi_theme', theme);
-    
-    const icon = document.getElementById('theme-icon');
-    if (icon) {
-        icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-    }
-    
-    // Dispatch event for components that might need to react
-    window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme } }));
-}
+function toggleTheme() { /* stub: el toggle de tema fue removido del DS */ }
 
 async function waitForConfigManager(maxWait = 3000) {
     const start = Date.now();
@@ -823,7 +805,7 @@ function useGpsLocation(questionId) {
     }
 
     if (!window.google || !window.google.maps || !window.google.maps.Geocoder) {
-        showToastMessage('El mapa aún está cargando. Intenta de nuevo en unos segundos.');
+        showToastMessage('El mapa aún está cargando. Intentá de nuevo en unos segundos.');
         return;
     }
 
@@ -864,7 +846,7 @@ function useGpsLocation(questionId) {
                         formData.client_country = countryName || formattedAddress.split(',').pop()?.trim() || '';
                         showToastMessage('Ubicación detectada correctamente');
                     } else {
-                        showToastMessage('No se pudo determinar tu ciudad. Ingrésala manualmente.');
+                        showToastMessage('No se pudo determinar tu ciudad. Ingresala manualmente.');
                     }
                 });
             } catch (err) {
@@ -877,13 +859,13 @@ function useGpsLocation(questionId) {
             resetBtn();
             switch (error.code) {
                 case error.PERMISSION_DENIED:
-                    showToastMessage('Permiso de ubicación denegado. Ingresa tu ciudad manualmente.');
+                    showToastMessage('Permiso de ubicación denegado. Ingresá tu ciudad manualmente.');
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    showToastMessage('Ubicación no disponible. Ingresa tu ciudad manualmente.');
+                    showToastMessage('Ubicación no disponible. Ingresá tu ciudad manualmente.');
                     break;
                 case error.TIMEOUT:
-                    showToastMessage('Tiempo de espera agotado. Ingresa tu ciudad manualmente.');
+                    showToastMessage('Tiempo de espera agotado. Ingresá tu ciudad manualmente.');
                     break;
                 default:
                     showToastMessage('Error al obtener tu ubicación');
@@ -907,23 +889,23 @@ function generateStandardQuestionHtml(q) {
             if (q.type === 'tel') {
                 inputField = `
                     <div class="tel-group">
-                        <select id="country-code-${q.id}" class="country-select">
-                            <option value="+54">🇦🇷 +54</option>
-                            <option value="+52">🇲🇽 +52</option>
-                            <option value="+1">🇺🇸 +1</option>
-                            <option value="+34">🇪🇸 +34</option>
-                            <option value="+57">🇨🇴 +57</option>
-                            <option value="+56">🇨🇱 +56</option>
-                            <option value="+51">🇵🇪 +51</option>
-                            <option value="+58">🇻🇪 +58</option>
-                            <option value="+598">🇺🇾 +598</option>
+                        <select id="country-code-${q.id}" class="wo-select country-select">
+                            <option value="+54">AR +54</option>
+                            <option value="+52">MX +52</option>
+                            <option value="+1">US +1</option>
+                            <option value="+34">ES +34</option>
+                            <option value="+57">CO +57</option>
+                            <option value="+56">CL +56</option>
+                            <option value="+51">PE +51</option>
+                            <option value="+58">VE +58</option>
+                            <option value="+598">UY +598</option>
                         </select>
-                        <input type="tel" id="field-${q.id}" placeholder="${q.placeholder || ''}" value="${formData[q.field] ? formData[q.field].split(' ').slice(1).join(' ') : ''}">
+                        <input type="tel" id="field-${q.id}" class="wo-input" placeholder="${q.placeholder || ''}" value="${formData[q.field] ? formData[q.field].split(' ').slice(1).join(' ') : ''}">
                     </div>
                 `;
             } else if (q.step === 'instagram') {
                 inputField = `
-                    <input type="text" id="field-${q.id}" placeholder="@usuario" value="${formData[q.field] || '@'}" oninput="handleInstagramInput(this)">
+                    <input type="text" id="field-${q.id}" class="wo-input" placeholder="@usuario" value="${formData[q.field] || '@'}" oninput="handleInstagramInput(this)">
                 `;
             } else if (q.step === 'city') {
                 const normalizedCityValue = normalizeQuotationLocation(formData[q.field] || '');
@@ -932,16 +914,16 @@ function generateStandardQuestionHtml(q) {
                 }
                 inputField = `
                     <div class="city-input-group">
-                        <input type="text" id="field-${q.id}" placeholder="${q.placeholder || ''}" value="${normalizedCityValue || ''}">
-                        <button type="button" class="btn-gps" onclick="useGpsLocation(${q.id})" title="Usar mi ubicación">
-                            <i class="fa-solid fa-location-crosshairs"></i>
+                        <input type="text" id="field-${q.id}" class="wo-input" placeholder="${q.placeholder || ''}" value="${normalizedCityValue || ''}">
+                        <button type="button" class="wo-iconbtn btn-gps" onclick="useGpsLocation(${q.id})" title="Usar mi ubicación" aria-label="Usar mi ubicación">
+                            <i data-wo-icon="crosshair" class="wo-icon-18"></i>
                         </button>
                     </div>
                 `;
             } else if (q.prefix) {
             } else {
                 inputField = `
-                    <input type="${q.type}" id="field-${q.id}" placeholder="${q.placeholder || ''}" value="${formData[q.field] || ''}">
+                    <input type="${q.type}" id="field-${q.id}" class="wo-input" placeholder="${q.placeholder || ''}" value="${formData[q.field] || ''}">
                 `;
             }
 
@@ -954,9 +936,9 @@ function generateStandardQuestionHtml(q) {
                     ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
                     ${inputField}
                     <div class="actions-row">
-                        ${isOptional ? `<button class="btn btn-text" onclick="skipStep('${q.field}')">Omitir</button>` : ''}
-                        ${hasValue ? `<button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="btn btn-primary" onclick="validateAndNext('${q.field}', '${q.id}', '${q.type}')">Continuar</button>
+                        ${isOptional ? `<button class="wo-btn wo-btn--nav btn-text" onclick="skipStep('${q.field}')">Omitir</button>` : ''}
+                        ${hasValue ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
+                        <button class="wo-btn wo-btn--hard btn-primary" onclick="validateAndNext('${q.field}', '${q.id}', '${q.type}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
                     </div>
                 </div>
             `;
@@ -966,11 +948,12 @@ function generateStandardQuestionHtml(q) {
             inputsHtml = `
                 <div class="question-container">
                     <h2>${q.title}</h2>
-                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : '<p class="subtitle">Describe tu idea con el mayor detalle posible</p>'}
+                    ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : '<p class="subtitle">Contanos tu idea con el mayor detalle posible</p>'}
                     <div class="textarea-wrapper">
-                        <textarea 
-                            id="field-${q.id}" 
-                            placeholder="${q.placeholder || 'Escribe aquí tu idea...'}"
+                        <textarea
+                            id="field-${q.id}"
+                            class="wo-textarea"
+                            placeholder="${q.placeholder || 'Escribí acá tu idea...'}"
                             rows="6"
                             maxlength="${q.maxLength || 1000}"
                         >${formData[q.field] || ''}</textarea>
@@ -979,9 +962,9 @@ function generateStandardQuestionHtml(q) {
                         </div>
                     </div>
                     <div class="actions-row">
-                        ${q.optional ? `<button class="btn btn-text" onclick="skipStep('${q.field}')">Omitir</button>` : ''}
-                        ${formData[q.field] ? `<button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="btn btn-primary" onclick="validateTextarea('${q.field}', '${q.id}', ${q.minLength || 0})">Continuar</button>
+                        ${q.optional ? `<button class="wo-btn wo-btn--nav btn-text" onclick="skipStep('${q.field}')">Omitir</button>` : ''}
+                        ${formData[q.field] ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
+                        <button class="wo-btn wo-btn--hard btn-primary" onclick="validateTextarea('${q.field}', '${q.id}', ${q.minLength || 0})">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
                     </div>
                 </div>
             `;
@@ -1003,8 +986,8 @@ function generateStandardQuestionHtml(q) {
                         }).join('')}
                     </div>
                     ${formData[q.field] ? `
-                        <div class="actions-row" style="margin-top: 20px;">
-                            <button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>
+                        <div class="actions-row">
+                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>
                         </div>
                     ` : ''}
                 </div>
@@ -1020,12 +1003,10 @@ function generateStandardQuestionHtml(q) {
                         ${q.options.map(opt => {
                 const label = typeof opt === 'object' ? opt.label : opt;
                 const val = typeof opt === 'object' ? opt.value : opt;
-                const icon = (typeof opt === 'object' && opt.icon) ? `<span class="option-icon">${opt.icon}</span>` : '';
                 const sub = (typeof opt === 'object' && opt.subtitle) ? `<span class="option-hint">${opt.subtitle}</span>` : '';
                 const isSelected = formData[q.field] === toTitleCase(val);
                 return `
                                 <button class="btn-option ${isSelected ? 'selected' : ''}" data-value="${val}" onclick="handleOptionSelect('${q.field}', '${val}')">
-                                    ${icon}
                                     <span class="option-label">${label}</span>
                                     ${sub}
                                 </button>
@@ -1033,8 +1014,8 @@ function generateStandardQuestionHtml(q) {
             }).join('')}
                     </div>
                     ${formData[q.field] ? `
-                        <div class="actions-row" style="margin-top: 20px;">
-                            <button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>
+                        <div class="actions-row">
+                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>
                         </div>
                     ` : ''}
                 </div>
@@ -1050,17 +1031,16 @@ function generateStandardQuestionHtml(q) {
                         ${q.options.map(opt => {
                             const isSelected = formData[q.field] && formData[q.field].split(', ').includes(toTitleCase(opt));
                             return `
-                                <label class="checkbox-option">
+                                <label class="wo-check checkbox-option">
                                     <input type="checkbox" name="${q.field}" value="${opt}" ${isSelected ? 'checked' : ''}>
-                                    <span class="checkbox-box"></span>
                                     <span>${opt}</span>
                                 </label>
                             `;
                         }).join('')}
                     </div>
                     <div class="actions-row">
-                        ${formData[q.field] ? `<button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="btn btn-primary" onclick="handleMultiSelect('${q.field}')">Continuar</button>
+                        ${formData[q.field] ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
+                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleMultiSelect('${q.field}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
                     </div>
                 </div>
             `;
@@ -1074,16 +1054,16 @@ function generateStandardQuestionHtml(q) {
                 subtitleHtml = `
                     <div class="mismatch-display">
                         <div class="mismatch-item">
-                            <span class="mismatch-label">Artista en:</span>
+                            <span class="mismatch-label">Artista en</span>
                             <span class="mismatch-value">${toTitleCase(formData.artist_current_city)}</span>
                         </div>
-                        <div class="mismatch-divider"><i class="fa-solid fa-arrows-left-right"></i></div>
+                        <div class="mismatch-divider"><i data-wo-icon="arrow-right" class="wo-icon-18"></i></div>
                         <div class="mismatch-item">
-                            <span class="mismatch-label">Tú en:</span>
+                            <span class="mismatch-label">Vos en</span>
                             <span class="mismatch-value">${toTitleCase(formData.client_city_residence)}</span>
                         </div>
                     </div>
-                    <p class="subtitle" style="margin-top: 20px;">Las ubicaciones no coinciden. ¿Tendrías disponibilidad de viajar para la sesión?</p>
+                    <p class="subtitle">Las ubicaciones no coinciden. ¿Tendrías disponibilidad de viajar para la sesión?</p>
                 `;
             }
 
@@ -1092,16 +1072,16 @@ function generateStandardQuestionHtml(q) {
                     <h2>${q.title}</h2>
                     ${subtitleHtml}
                     <div class="options-row">
-                        <button class="btn btn-option-large ${formData[q.field] === true ? 'selected' : ''}" onclick="handleBoolean('${q.field}', true)">
-                            <i class="fa-solid fa-check"></i> Sí
+                        <button class="btn-option-large ${formData[q.field] === true ? 'selected' : ''}" onclick="handleBoolean('${q.field}', true)">
+                            <i data-wo-icon="check" class="wo-icon-18"></i> Sí
                         </button>
-                        <button class="btn btn-option-large ${formData[q.field] === false ? 'selected' : ''}" onclick="handleBoolean('${q.field}', false)">
-                            <i class="fa-solid fa-xmark"></i> No
+                        <button class="btn-option-large ${formData[q.field] === false ? 'selected' : ''}" onclick="handleBoolean('${q.field}', false)">
+                            <i data-wo-icon="x" class="wo-icon-18"></i> No
                         </button>
                     </div>
                     ${formData[q.field] !== undefined && formData[q.field] !== null ? `
-                        <div class="actions-row" style="margin-top: 20px;">
-                            <button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>
+                        <div class="actions-row">
+                            <button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>
                         </div>
                     ` : ''}
                 </div>
@@ -1113,13 +1093,14 @@ function generateStandardQuestionHtml(q) {
                 <div class="question-container">
                     <h2>${q.title}</h2>
                     ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <input type="text" id="date-picker" placeholder="Selecciona fecha(s)" readonly>
-                    <label class="checkbox-wrapper">
+                    <input type="text" id="date-picker" class="wo-input" placeholder="Seleccioná fecha(s)" readonly>
+                    <label class="wo-check checkbox-wrapper">
                         <input type="checkbox" id="date-flexible">
-                        <span class="checkmark"></span>
                         <span>Tengo flexibilidad</span>
                     </label>
-                    <button class="btn btn-primary" onclick="handleDateSelection('${q.field}')">Continuar</button>
+                    <div class="actions-row">
+                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleDateSelection('${q.field}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
+                    </div>
                 </div>
             `;
             break;
@@ -1129,8 +1110,10 @@ function generateStandardQuestionHtml(q) {
                 <div class="question-container">
                     <h2>${q.title}</h2>
                     ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
-                    <input type="text" id="date-picker-single" placeholder="Selecciona fecha" readonly>
-                    <button class="btn btn-primary" onclick="handleSingleDateSelection('${q.field}')">Continuar</button>
+                    <input type="text" id="date-picker-single" class="wo-input" placeholder="Seleccioná fecha" readonly>
+                    <div class="actions-row">
+                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleSingleDateSelection('${q.field}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
+                    </div>
                 </div>
             `;
             break;
@@ -1141,15 +1124,15 @@ function generateStandardQuestionHtml(q) {
                      <h2>${q.title}</h2>
                      ${q.subtitle ? `<p class="subtitle">${q.subtitle}</p>` : ''}
                      <div class="budget-input-group">
-                        <select id="currency-select">
+                        <select id="currency-select" class="wo-select">
                             <option value="USD">USD</option><option value="EUR">EUR</option>
                             <option value="MXN">MXN</option><option value="ARS">ARS</option>
                         </select>
-                        <input type="number" id="field-${q.id}" placeholder="0" min="0" value="${formData[q.field] || ''}">
+                        <input type="number" id="field-${q.id}" class="wo-input" placeholder="0" min="0" value="${formData[q.field] || ''}">
                      </div>
                      <div class="actions-row">
-                        ${formData[q.field] ? `<button class="btn btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
-                        <button class="btn btn-primary" onclick="handleCurrency('${q.field}', '${q.id}')">Continuar</button>
+                        ${formData[q.field] ? `<button class="wo-btn wo-btn--ghost btn-secondary" onclick="nextStep()">Siguiente</button>` : ''}
+                        <button class="wo-btn wo-btn--hard btn-primary" onclick="handleCurrency('${q.field}', '${q.id}')">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>
                      </div>
                 </div>
             `;
@@ -1505,15 +1488,15 @@ function updateProgress() {
         setTimeout(() => stepText.style.transform = 'scale(1)', 200);
     }
 
-    // Fun messages based on progress
+    // Mensajes de acompañamiento según progreso (DS: sin emoji, sin hype)
     const funMessages = [
-        { threshold: 0, text: "¡Empecemos la tinta! ✍️" },
-        { threshold: 15, text: "Gran elección de artista 😎" },
-        { threshold: 30, text: "Esa zona va a doler... ¡mentira! 😂" },
-        { threshold: 45, text: "Tu idea suena increíble ✨" },
-        { threshold: 60, text: "Casi lo tenemos, no te rindas 💪" },
-        { threshold: 75, text: "Últimos detalles, ¡ya casi! 🚀" },
-        { threshold: 90, text: "¡A un paso de tu nueva piel! 🔥" }
+        { threshold: 0, text: "Empecemos la tinta" },
+        { threshold: 15, text: "Gran elección de artista" },
+        { threshold: 30, text: "Esa zona tiene carácter" },
+        { threshold: 45, text: "Tu idea suena muy bien" },
+        { threshold: 60, text: "Ya falta poco" },
+        { threshold: 75, text: "Últimos detalles" },
+        { threshold: 90, text: "A un paso de tu nueva piel" }
     ];
 
     const messageText = document.getElementById('progress-fun-message');
@@ -1579,7 +1562,7 @@ function validateTextarea(field, id, minLength) {
     let val = textarea.value.trim();
 
     if (minLength && val.length < minLength) {
-        showToastMessage(`Por favor escribe al menos ${minLength} caracteres`);
+        showToastMessage(`Escribí al menos ${minLength} caracteres`);
         return;
     }
 
@@ -1685,7 +1668,7 @@ function showEmailReuseModal(preview) {
     if (summaryEl) {
         summaryEl.innerHTML = `
             <div class="reuse-detail">
-                <span class="reuse-label">Cotizacion</span>
+                <span class="reuse-label">Cotización</span>
                 <span class="reuse-value highlight">${preview.quote_id || '-'}</span>
             </div>
             <div class="reuse-detail">
@@ -1791,7 +1774,7 @@ function handleOptionSelect(field, value) {
 function handleMultiSelect(field) {
     const checked = Array.from(document.querySelectorAll(`input[name="${field}"]:checked`))
         .map(c => toTitleCase(c.value));
-    if (checked.length === 0) { alert('Selecciona al menos uno'); return; }
+    if (checked.length === 0) { showToastMessage('Seleccioná al menos una opción'); return; }
     formData[field] = checked.join(', ');
     nextStep();
 }
@@ -1831,7 +1814,7 @@ async function searchArtist() {
 
     if (!username) {
         if (errorEl) {
-            errorEl.textContent = 'Por favor ingresa un usuario';
+            errorEl.textContent = 'Ingresá un usuario para buscar';
             errorEl.classList.remove('hidden');
         }
         return;
@@ -1919,7 +1902,7 @@ async function searchArtist() {
     } catch (error) {
         hideLoading();
         if (errorEl) {
-            errorEl.textContent = 'Artista no encontrado. Verifica el usuario e intenta de nuevo.';
+            errorEl.textContent = 'Artista no encontrado. Verificá el usuario e intentá de nuevo.';
             errorEl.classList.remove('hidden');
         }
         console.error('Artist search error:', error);
@@ -2174,30 +2157,30 @@ function renderRecommendationCards(artists) {
             (artist.styles_array.startsWith('[') ? JSON.parse(artist.styles_array) : [artist.styles_array]) : 
             (artist.styles_array || []);
         
-        const profilePic = artist.profile_picture ? 
-            `<img src="${artist.profile_picture}" alt="${artist.name}" class="artist-profile-img">` : 
-            `<div class="artist-avatar"><i class="fa-solid fa-palette"></i></div>`;
-        
+        const profilePic = artist.profile_picture ?
+            `<img src="${artist.profile_picture}" alt="${artist.name}" class="artist-profile-img">` :
+            `<div class="artist-avatar"><i data-wo-icon="pen-tool"></i></div>`;
+
         // Build match reason badges with icons for each criterion
         let matchBadgesHtml = '';
         if (artist.matchReasons && artist.matchReasons.length > 0) {
             const badgeIcons = {
-                'Estilo': 'fa-paintbrush',
-                'Ubicación': 'fa-location-dot',
-                'Presupuesto': 'fa-dollar-sign'
+                'Estilo': 'pen-tool',
+                'Ubicación': 'map-pin',
+                'Presupuesto': 'dollar-sign'
             };
             matchBadgesHtml = `
                 <div class="match-badges">
                     ${artist.matchReasons.map(reason => {
-                        const icon = badgeIcons[reason] || 'fa-star';
-                        return `<span class="match-badge"><i class="fa-solid ${icon}"></i> ${reason}</span>`;
+                        const icon = badgeIcons[reason] || 'star';
+                        return `<span class="match-badge"><i data-wo-icon="${icon}"></i> ${reason}</span>`;
                     }).join('')}
                 </div>
             `;
         } else if (artist.matchReason) {
-            matchBadgesHtml = `<p class="match-reason-badge"><i class="fa-solid fa-star"></i> ${artist.matchReason}</p>`;
+            matchBadgesHtml = `<p class="match-reason-badge"><i data-wo-icon="star"></i> ${artist.matchReason}</p>`;
         }
-        
+
         return `
             <div class="artist-card recommendation-card">
                 <div class="recommendation-header">
@@ -2208,20 +2191,20 @@ function renderRecommendationCards(artists) {
                         ${matchBadgesHtml}
                     </div>
                 </div>
-                
+
                 <div class="recommendation-body">
                     <div class="artist-meta-small">
-                        <span><i class="fa-solid fa-location-dot"></i> ${toTitleCase(normalizeQuotationLocation(artist.ubicacion || '') || 'Ubicación no especificada')}</span>
-                        <span class="price-tag"><i class="fa-solid fa-tag"></i> ${artist.session_price || 'Consultar'}</span>
+                        <span><i data-wo-icon="map-pin"></i> ${toTitleCase(normalizeQuotationLocation(artist.ubicacion || '') || 'Ubicación no especificada')}</span>
+                        <span class="price-tag"><i data-wo-icon="tag"></i> ${artist.session_price || 'Consultar'}</span>
                     </div>
-                    
+
                     <div class="recommendation-links">
-                        ${artist.instagram ? `<a href="${formatInstagramUrl(artist.instagram)}" target="_blank" class="btn-text" onclick="event.stopPropagation();">Ver Portfolio</a>` : ''}
+                        ${artist.instagram ? `<a href="${formatInstagramUrl(artist.instagram)}" target="_blank" onclick="event.stopPropagation();">Ver portfolio →</a>` : ''}
                     </div>
                 </div>
 
-                <button class="btn btn-primary btn-sm" onclick="selectRecommendedArtist('${artist.user_id}')">
-                    Seleccionar Artista
+                <button class="wo-btn wo-btn--s wo-btn--hard btn-primary" onclick="selectRecommendedArtist('${artist.user_id}')">
+                    Seleccionar artista
                 </button>
             </div>
         `;
@@ -2411,7 +2394,7 @@ function showMainBodyParts() {
         return `
             <div class="bauhaus-card-creative" style="--card-rot: ${rotation}" onclick="handleZoneClick('${zone.id}')">
                 <button class="btn-info-trigger" onclick="event.stopPropagation(); openBodyPartDetail('${zone.id}')" aria-label="Ver información">
-                    <i class="fa-solid fa-info"></i>
+                    <i data-wo-icon="info"></i>
                 </button>
                 <div class="card-img-wrapper ${!hasImage ? 'no-image' : ''}">
                     ${hasImage ? `<img src="${zone.image}" alt="${zone.label}">` : ''}
@@ -2422,12 +2405,12 @@ function showMainBodyParts() {
                 <div class="bauhaus-pattern-grid">
                     <div class="card-technical-data">
                         <div class="tech-item">
-                            <i class="fa-solid fa-layer-group"></i>
-                            <span>${(zone.subparts || []).length} SUBSISTEMAS</span>
+                            <i data-wo-icon="layers"></i>
+                            <span>${(zone.subparts || []).length} subzonas</span>
                         </div>
                         <div class="tech-item">
-                            <i class="fa-solid fa-microchip"></i>
-                            <span>REF: ${zone.id.toUpperCase()}</span>
+                            <i data-wo-icon="cpu"></i>
+                            <span>Ref: ${zone.id.toUpperCase()}</span>
                         </div>
                     </div>
                 </div>
@@ -2435,7 +2418,7 @@ function showMainBodyParts() {
         `;
     }).join('');
 
-    document.getElementById('body-subtitle').textContent = 'Selecciona una zona principal para ver detalles';
+    document.getElementById('body-subtitle').textContent = 'Seleccioná una zona principal para ver detalles';
 }
 
 function handleZoneClick(zoneId) {
@@ -2455,7 +2438,7 @@ function handleZoneClick(zoneId) {
 function showSideSelection() {
     document.getElementById('body-main-view').classList.add('hidden');
     document.getElementById('body-side-overlay').classList.remove('hidden');
-    document.getElementById('body-subtitle').textContent = '¿De qué lado será el tatuaje?';
+    document.getElementById('body-subtitle').textContent = '¿De qué lado va el tatuaje?';
 }
 
 function handleSideChosen(side) {
@@ -2475,7 +2458,7 @@ function showSubBodyParts(zoneId, side) {
     document.getElementById('body-nav-header').classList.remove('hidden');
     const sideText = side ? ` [${side === 'both' ? 'AMBOS' : side === 'left' ? 'IZQUIERDO' : 'DERECHO'}]` : '';
     document.getElementById('current-body-zone').textContent = zone.label + sideText;
-    document.getElementById('body-subtitle').textContent = 'Selecciona las partes específicas';
+    document.getElementById('body-subtitle').textContent = 'Elegí las partes específicas';
 
     // Hide others, Show Sub
     document.getElementById('body-main-view').classList.add('hidden');
@@ -2499,18 +2482,18 @@ function showSubBodyParts(zoneId, side) {
         return `
             <div class="bauhaus-sub-card ${isSelected ? 'selected' : ''}" onclick="toggleSubPart('${part.id}', '${zone.id}')">
                 <button class="btn-info-trigger" onclick="event.stopPropagation(); openBodyPartDetail('${part.id}', '${zone.id}')" aria-label="Ver información">
-                    <i class="fa-solid fa-info"></i>
+                    <i data-wo-icon="info"></i>
                 </button>
                 <div class="sub-card-header">
                     <span class="sub-card-label">${part.label}</span>
                     <div class="sub-card-indicator">
-                        ${isSelected ? '<i class="fa-solid fa-check"></i>' : ''}
+                        ${isSelected ? '<i data-wo-icon="check"></i>' : ''}
                     </div>
                 </div>
                 <div class="card-technical-data">
                     <div class="tech-item">
-                        <i class="fa-solid fa-fire"></i>
-                        <span class="${painClass}">DOLOR: ${painLevel}/10</span>
+                        <i data-wo-icon="activity"></i>
+                        <span class="${painClass}">Dolor: ${painLevel}/10</span>
                     </div>
                 </div>
             </div>
@@ -2551,7 +2534,7 @@ function updateBodyUI() {
     if (!sheetContent) return;
 
     if (selectedBodyParts.length === 0) {
-        sheetContent.innerHTML = '<p class="empty-sheet-msg">Ninguna zona seleccionada en el sistema</p>';
+        sheetContent.innerHTML = '<p class="empty-sheet-msg">Todavía no seleccionaste ninguna zona</p>';
         if (continueBtn) continueBtn.disabled = true;
         return;
     }
@@ -2562,10 +2545,10 @@ function updateBodyUI() {
                 <span class="path-zone">${p.zoneLabel}</span>
                 <span class="path-sep">/</span>
                 <span class="path-part">${p.label}</span>
-                ${p.sideLabel ? `<span class="path-side">${p.sideLabel.toUpperCase()}</span>` : ''}
+                ${p.sideLabel ? `<span class="path-side">${p.sideLabel}</span>` : ''}
             </div>
-            <button class="btn-entry-remove" onclick="removeBodyPart('${p.id}', '${p.zone}', '${p.side}')">
-                <i class="fa-solid fa-times"></i>
+            <button class="btn-entry-remove" onclick="removeBodyPart('${p.id}', '${p.zone}', '${p.side}')" aria-label="Quitar zona">
+                <i data-wo-icon="x"></i>
             </button>
         </div>
     `).join('');
@@ -2720,8 +2703,8 @@ function renderBodyPartDetailMedia(part) {
         mediaContainer.classList.remove('style-detail-header-placeholder');
         mediaContainer.style.cssText = 'width: 100%; height: 100%; background: none; display: block;';
     } else {
-        // Default placeholder with gradient background
-        mediaContainer.innerHTML = '<i class="fa-solid fa-layer-group"></i>';
+        // Default placeholder
+        mediaContainer.innerHTML = '<i data-wo-icon="layers"></i>';
         mediaContainer.classList.add('style-detail-header-placeholder');
         mediaContainer.style.cssText = '';
         // Reset header background for placeholder mode
@@ -2774,9 +2757,9 @@ function renderStylesGrid(styles) {
     
     grid.innerHTML = styles.map(style => {
         const hasSubstyles = style.substyles && style.substyles.length > 0;
-        const coverImg = style.cover_image_url 
+        const coverImg = style.cover_image_url
             ? `<img src="${style.cover_image_url}" alt="${style.name}" class="style-card-img">`
-            : `<div class="style-card-placeholder"><i class="fa-solid fa-palette"></i></div>`;
+            : `<div class="style-card-placeholder"><i data-wo-icon="pen-tool"></i></div>`;
         
         // Check if this style is currently selected
         const currentSelection = formData.tattoo_style;
@@ -3436,8 +3419,8 @@ function generateSummary() {
         } catch (e) { console.error('Error calculating age', e); }
     }
 
-    const medicalConditions = formData.client_medical_boolean ? 
-        `Si (${formData.client_medical_details || 'Sin detalles'})` : 'No';
+    const medicalConditions = formData.client_medical_boolean ?
+        `Sí (${formData.client_medical_details || 'Sin detalles'})` : 'No';
     
     const allergies = formData.client_allergies || 'Ninguna';
 
@@ -3460,10 +3443,12 @@ function generateSummary() {
                 <h3 class="summary-title">Artista</h3>
                 <button class="btn-edit-small" onclick="goToStepByField('artist_username')">Editar</button>
             </div>
-            <div class="summary-row"><span class="summary-label">Nombre:</span> <span class="summary-value">${toTitleCase(formData.artist_name) || 'Pendiente de recomendación'}</span></div>
-            ${formData.artist_studio_name ? `<div class="summary-row"><span class="summary-label">Estudio:</span> <span class="summary-value">${toTitleCase(formData.artist_studio_name)}</span></div>` : ''}
-            ${formData.artist_session_cost_amount ? `<div class="summary-row"><span class="summary-label">Costo sesión:</span> <span class="summary-value">${formData.artist_session_cost_amount}</span></div>` : ''}
-            ${formData.artist_portfolio ? `<div class="summary-row"><span class="summary-label">Portfolio:</span> <span class="summary-value"><a href="${formData.artist_portfolio}" target="_blank" class="summary-link">Ver Trabajo <i class="fa-solid fa-external-link"></i></a></span></div>` : ''}
+            <div class="summary-rows">
+                <div class="summary-row"><span class="summary-label">Nombre</span> <span class="summary-value">${toTitleCase(formData.artist_name) || 'Pendiente de recomendación'}</span></div>
+                ${formData.artist_studio_name ? `<div class="summary-row"><span class="summary-label">Estudio</span> <span class="summary-value">${toTitleCase(formData.artist_studio_name)}</span></div>` : ''}
+                ${formData.artist_session_cost_amount ? `<div class="summary-row"><span class="summary-label">Costo sesión</span> <span class="summary-value">${formData.artist_session_cost_amount}</span></div>` : ''}
+                ${formData.artist_portfolio ? `<div class="summary-row"><span class="summary-label">Portfolio</span> <span class="summary-value"><a href="${formData.artist_portfolio}" target="_blank" class="summary-link">Ver trabajo <i data-wo-icon="external-link"></i></a></span></div>` : ''}
+            </div>
         </div>
 
         <div class="summary-section">
@@ -3471,29 +3456,33 @@ function generateSummary() {
                 <h3 class="summary-title">Tatuaje</h3>
                 <button class="btn-edit-small" onclick="goToStepByField('tattoo_body_part')">Editar</button>
             </div>
-            <div class="summary-row"><span class="summary-label">Idea:</span> <span class="summary-value">${formData.tattoo_idea_description || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Estilo:</span> <span class="summary-value">${formatTattooStyleForDisplay(formData.tattoo_style)}</span></div>
-            <div class="summary-row"><span class="summary-label">Zona:</span> <span class="summary-value">${toTitleCase(formData.tattoo_body_part) || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Tamaño:</span> <span class="summary-value">${toTitleCase(formData.tattoo_size) || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Color:</span> <span class="summary-value">${toTitleCase(formData.tattoo_color_type) || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Referencias:</span> <span class="summary-value">${formData.reference_images_count || 0} imágenes</span></div>
-            ${imagesHtml}
+            <div class="summary-rows">
+                <div class="summary-row summary-row--full"><span class="summary-label">Idea</span> <span class="summary-value">${formData.tattoo_idea_description || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Estilo</span> <span class="summary-value">${formatTattooStyleForDisplay(formData.tattoo_style)}</span></div>
+                <div class="summary-row"><span class="summary-label">Zona</span> <span class="summary-value">${toTitleCase(formData.tattoo_body_part) || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Tamaño</span> <span class="summary-value">${toTitleCase(formData.tattoo_size) || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Color</span> <span class="summary-value">${toTitleCase(formData.tattoo_color_type) || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Referencias</span> <span class="summary-value">${formData.reference_images_count || 0} imágenes</span></div>
+                ${imagesHtml}
+            </div>
         </div>
 
         <div class="summary-section">
             <div class="section-header">
-                <h3 class="summary-title">Tus Datos</h3>
+                <h3 class="summary-title">Tus datos</h3>
                 <button class="btn-edit-small" onclick="goToStepByField('client_full_name')">Editar</button>
             </div>
-            <div class="summary-row"><span class="summary-label">Nombre:</span> <span class="summary-value">${toTitleCase(formData.client_full_name) || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Edad:</span> <span class="summary-value">${ageDisplay}</span></div>
-            <div class="summary-row"><span class="summary-label">Ciudad:</span> <span class="summary-value">${toTitleCase(formData.client_city_residence) || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">WhatsApp:</span> <span class="summary-value">${formData.client_whatsapp || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Instagram:</span> <span class="summary-value">${formData.client_instagram ? (formData.client_instagram.startsWith('@') ? formData.client_instagram : '@' + formData.client_instagram) : '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Fecha:</span> <span class="summary-value">${formData.client_preferred_date || '-'}</span></div>
-            <div class="summary-row"><span class="summary-label">Presupuesto:</span> <span class="summary-value">${formData.client_budget_amount || '-'} ${formData.client_budget_currency || ''}</span></div>
-            <div class="summary-row"><span class="summary-label">Salud:</span> <span class="summary-value">${medicalConditions}</span></div>
-            <div class="summary-row"><span class="summary-label">Alergias:</span> <span class="summary-value">${allergies}</span></div>
+            <div class="summary-rows">
+                <div class="summary-row"><span class="summary-label">Nombre</span> <span class="summary-value">${toTitleCase(formData.client_full_name) || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Edad</span> <span class="summary-value">${ageDisplay}</span></div>
+                <div class="summary-row"><span class="summary-label">Ciudad</span> <span class="summary-value">${toTitleCase(formData.client_city_residence) || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">WhatsApp</span> <span class="summary-value">${formData.client_whatsapp || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Instagram</span> <span class="summary-value">${formData.client_instagram ? (formData.client_instagram.startsWith('@') ? formData.client_instagram : '@' + formData.client_instagram) : '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Fecha</span> <span class="summary-value">${formData.client_preferred_date || '-'}</span></div>
+                <div class="summary-row"><span class="summary-label">Presupuesto</span> <span class="summary-value">${formData.client_budget_amount || '-'} ${formData.client_budget_currency || ''}</span></div>
+                <div class="summary-row"><span class="summary-label">Salud</span> <span class="summary-value">${medicalConditions}</span></div>
+                <div class="summary-row"><span class="summary-label">Alergias</span> <span class="summary-value">${allergies}</span></div>
+            </div>
         </div>
     `;
 }
@@ -3691,14 +3680,12 @@ async function submitQuotation() {
         let warningHtml = '';
         if (uploadWarnings.length > 0) {
             warningHtml = `
-                <div class="upload-warning" style="background: #FFF3CD; border: 1px solid #FFECB5; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; text-align: left;">
-                    <p style="margin: 0; color: #856404; font-size: 14px;">
-                        <i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i>
-                        <strong>Aviso:</strong> ${uploadWarnings.join(' ')}
-                    </p>
-                    <p style="margin: 8px 0 0; color: #856404; font-size: 12px;">
-                        Tu solicitud fue enviada correctamente. El artista aun puede ver tus referencias.
-                    </p>
+                <div class="wo-alert wo-alert--warning upload-warning">
+                    <i data-wo-icon="alert-triangle" class="wo-icon-18"></i>
+                    <div>
+                        <p><strong>Aviso:</strong> ${uploadWarnings.join(' ')}</p>
+                        <p>Tu solicitud fue enviada correctamente. El artista igual puede ver tus referencias.</p>
+                    </div>
                 </div>
             `;
         }
@@ -3706,40 +3693,40 @@ async function submitQuotation() {
         container.innerHTML = `
             <section class="step active" id="step-success">
                 <div class="success-content">
-                    <div class="success-icon"><i class="fa-solid fa-check"></i></div>
-                    <h1>¡Solicitud Enviada!</h1>
+                    <div class="success-icon"><i data-wo-icon="check"></i></div>
+                    <h1>Solicitud enviada</h1>
                     ${warningHtml}
-                    <p class="success-quote-id">Tu ID: <span class="highlight-text">${formData.quote_id}</span></p>
+                    <p class="success-quote-id">Tu ID · <span class="highlight-text">${formData.quote_id}</span></p>
                     <p class="success-msg">
-                        <span>${formData.artist_name}</span> ha recibido tu solicitud.
+                        <span>${formData.artist_name}</span> recibió tu solicitud.
                     </p>
-                    
+
                     <!-- Create Account Invitation -->
                     <div class="create-account-section">
                         <div class="account-benefits">
-                            <h3><i class="fa-solid fa-user-plus"></i> Crea tu cuenta gratuita</h3>
-                            <p class="benefits-intro">Accede a funciones exclusivas:</p>
+                            <h3><i data-wo-icon="user-plus" class="wo-icon-18"></i> Creá tu cuenta gratuita</h3>
+                            <p class="benefits-intro">Accedé a funciones exclusivas:</p>
                             <ul class="benefits-list">
-                                <li><i class="fa-solid fa-eye"></i> Ver el estado de tu cotizacion en tiempo real</li>
-                                <li><i class="fa-solid fa-comments"></i> Chatear directamente con el artista</li>
-                                <li><i class="fa-solid fa-history"></i> Guardar historial de cotizaciones</li>
-                                <li><i class="fa-solid fa-bell"></i> Recibir notificaciones de actualizaciones</li>
+                                <li><i data-wo-icon="eye"></i> Ver el estado de tu cotización en tiempo real</li>
+                                <li><i data-wo-icon="message-circle"></i> Chatear directamente con el artista</li>
+                                <li><i data-wo-icon="clock"></i> Guardar tu historial de cotizaciones</li>
+                                <li><i data-wo-icon="bell"></i> Recibir notificaciones de actualizaciones</li>
                             </ul>
                         </div>
                         <div class="account-actions">
-                            <button class="btn btn-primary btn-create-account" onclick="goToClientRegistration()">
-                                <i class="fa-solid fa-user-plus"></i> Crear Cuenta Gratis
+                            <button class="wo-btn wo-btn--accent wo-btn--hard btn-primary btn-create-account" onclick="goToClientRegistration()">
+                                <i data-wo-icon="user-plus" class="wo-icon-18"></i> Crear cuenta gratis
                             </button>
-                            <button class="btn btn-secondary btn-skip-account" onclick="showSuccessWithoutAccount()">
-                                <i class="fa-solid fa-arrow-right"></i> Continuar sin cuenta
+                            <button class="wo-btn wo-btn--ghost btn-secondary btn-skip-account" onclick="showSuccessWithoutAccount()">
+                                Continuar sin cuenta <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
                             </button>
                         </div>
                     </div>
                 </div>
             </section>
         `;
-        // Hide progress bar on success
-        document.querySelector('.app-header').style.display = 'none';
+        // Hide progress + back bar on success (topbar stays visible)
+        _setQuotationChromeVisible(false);
 
         // Clear draft from localStorage after successful submission
         clearDraftFromLocalStorage();
@@ -3752,13 +3739,22 @@ async function submitQuotation() {
         if (submitBtn) submitBtn.disabled = false;
         hideLoading();
         console.error('Submit error:', error);
-        alert('Hubo un error al enviar la solicitud. Por favor intenta de nuevo.');
+        alert('Hubo un error al enviar la solicitud. Intentá de nuevo.');
     }
 }
 
 // Utilities
 function showLoading() { document.getElementById('loading-overlay')?.classList.remove('hidden'); }
 function hideLoading() { document.getElementById('loading-overlay')?.classList.add('hidden'); }
+
+// Muestra/oculta el "chrome" del wizard (barra de progreso + barra Atrás).
+// En la pantalla de éxito se ocultan; el topbar de marca queda visible.
+function _setQuotationChromeVisible(visible) {
+    const progressEl = document.querySelector('.progress-wrapper');
+    if (progressEl) progressEl.style.display = visible ? '' : 'none';
+    const footbarEl = document.getElementById('q-footbar');
+    if (footbarEl) footbarEl.style.display = visible ? '' : 'none';
+}
 
 // ============================================
 // Client Registration Functions
@@ -3816,42 +3812,42 @@ async function showSuccessWithoutAccount() {
     container.innerHTML = `
         <section class="step active" id="step-success">
             <div class="success-content">
-                <div class="success-icon"><i class="fa-solid fa-check"></i></div>
-                <h1>¡Solicitud Enviada!</h1>
-                <p class="success-quote-id">Tu ID: <span class="highlight-text">${formData.quote_id}</span></p>
+                <div class="success-icon"><i data-wo-icon="check"></i></div>
+                <h1>Solicitud enviada</h1>
+                <p class="success-quote-id">Tu ID · <span class="highlight-text">${formData.quote_id}</span></p>
                 <p class="success-msg">
-                    <span>${formData.artist_name}</span> ha recibido tu solicitud.
+                    <span>${formData.artist_name}</span> recibió tu solicitud.
                 </p>
-                
+
                 <!-- Next Steps Section -->
                 <div class="next-steps-section">
-                    <h3><i class="fa-solid fa-list-check"></i> Proximos Pasos</h3>
+                    <h3><i data-wo-icon="list" class="wo-icon-18"></i> Próximos pasos</h3>
                     <div class="next-steps-content">
                         ${nextStepsContent}
                     </div>
                 </div>
-                
+
                 <!-- Reminder to create account -->
                 <div class="account-reminder">
-                    <p><i class="fa-solid fa-info-circle"></i> 
-                        Recuerda: puedes <a href="/client/register" onclick="goToClientRegistration(); return false;">crear una cuenta</a> 
-                        en cualquier momento para ver el estado de tu cotizacion y chatear con el artista.
+                    <p><i data-wo-icon="info"></i>
+                        Recordá: podés <a href="/client/register" onclick="goToClientRegistration(); return false;">crear una cuenta</a>
+                        en cualquier momento para ver el estado de tu cotización y chatear con el artista.
                     </p>
                 </div>
-                
+
                 <!-- Action Buttons -->
                 <div class="success-actions">
-                    <button class="btn btn-primary" onclick="resetQuotation()">
-                        <i class="fa-solid fa-rotate-left"></i> Volver a Cotizar
+                    <button class="wo-btn wo-btn--hard btn-primary" onclick="resetQuotation()">
+                        <i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Volver a cotizar
                     </button>
-                    <a href="${websiteUrl}" target="_blank" class="btn btn-secondary">
-                        <i class="fa-solid fa-globe"></i> Conocer We Otzi
+                    <a href="${websiteUrl}" target="_blank" class="wo-btn wo-btn--ghost btn-secondary">
+                        <i data-wo-icon="globe" class="wo-icon-18"></i> Conocer We Ötzi
                     </a>
                 </div>
-                
+
                 <div class="social-links">
                     <a href="https://instagram.com/weotzi" target="_blank" class="social-btn">
-                        <i class="fa-brands fa-instagram"></i> Seguir a We Otzi
+                        <i data-wo-icon="instagram" class="wo-icon-18"></i> Seguir a We Ötzi
                     </a>
                 </div>
             </div>
@@ -3888,11 +3884,8 @@ function resetQuotation() {
     currentBodyZone = null;
     currentBodySide = null;
     
-    // Show the header/progress bar again
-    const appHeader = document.querySelector('.app-header');
-    if (appHeader) {
-        appHeader.style.display = '';
-    }
+    // Show the progress/back bars again
+    _setQuotationChromeVisible(true);
     
     // Re-render the first step
     renderCurrentStep();
@@ -4078,7 +4071,7 @@ async function handleQuotationLogin(e) {
     _clearLoginMessage();
 
     if (!email || !password) {
-        _showLoginMessage('Ingresa tu email y contrasena.', 'error');
+        _showLoginMessage('Ingresá tu email y contraseña.', 'error');
         return;
     }
 
@@ -4107,9 +4100,9 @@ async function handleQuotationLogin(e) {
 
     } catch (error) {
         console.error('Quotation login error:', error);
-        let msg = 'Error al iniciar sesion.';
+        let msg = 'Error al iniciar sesión.';
         if (error.message?.includes('Invalid login credentials')) {
-            msg = 'Email o contrasena incorrectos.';
+            msg = 'Email o contraseña incorrectos.';
         }
         _showLoginMessage(msg, 'error');
     } finally {
@@ -4122,7 +4115,7 @@ async function handleQuotationPasswordRecovery(e) {
     const email = document.getElementById('q-login-email')?.value.trim().toLowerCase();
 
     if (!email) {
-        _showLoginMessage('Ingresa tu email para recuperar tu contrasena.', 'info');
+        _showLoginMessage('Ingresá tu email para recuperar tu contraseña.', 'info');
         return;
     }
 
@@ -4130,7 +4123,7 @@ async function handleQuotationPasswordRecovery(e) {
 
     try {
         await window.ClientAuth.resetPassword(email);
-        _showLoginMessage('Te enviamos un email con tu contrasena temporal.', 'success');
+        _showLoginMessage('Te enviamos un email con tu contraseña temporal.', 'success');
     } catch (error) {
         _showLoginMessage(error.message || 'Error al procesar la solicitud.', 'error');
     }

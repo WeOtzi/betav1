@@ -122,7 +122,7 @@ function stripAppBasePath(req, res, next) {
     const search = queryIndex === -1 ? '' : rawUrl.slice(queryIndex);
 
     if (pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`) {
-        return res.redirect(`${APP_BASE_PATH}/quotation${search}`);
+        return res.redirect(`${APP_BASE_PATH}/inicio${search}`);
     }
 
     if (pathname.startsWith(`${APP_BASE_PATH}/`)) {
@@ -5830,9 +5830,9 @@ app.post('/api/email/:eventId', async (req, res) => {
 });
 
 
-// Redirect root to quotation page
+// Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {
-    res.redirect('/quotation');
+    res.redirect('/inicio');
 });
 
 // Serve static files from public directory
@@ -5917,6 +5917,7 @@ const routeDescriptions = {
     '/explore/globe': 'Explore globe',
     '/job-board': 'Job board public feed',
     '/job-board/request': 'Publish tattoo request',
+    '/landing-tatuador': 'Landing page for tattoo artists',
     '/marketplace': 'Artists marketplace',
     '/migration-log': 'Migration log',
     '/my-quotations': 'Artist quotations panel',

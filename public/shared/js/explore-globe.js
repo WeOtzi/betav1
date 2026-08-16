@@ -1,21 +1,21 @@
 /**
- * EXPLORE GLOBE â€” Page /explore/globe
+ * EXPLORE GLOBE — Page /explore/globe
  *
  * Premium global discovery experience powered by COBE (vendored at
- * /shared/vendor/cobe/index.esm.js). Renders the entire We Ã–tzi roster
+ * /shared/vendor/cobe/index.esm.js). Renders the entire We Ötzi roster
  * on an interactive WebGL globe with:
  *
  *   - Auto-rotation that pauses on hover/drag/touch.
- *   - Bauhaus-styled DOM labels anchored to each artist (or cluster) â€”
+ *   - Bauhaus-styled DOM labels anchored to each artist (or cluster) —
  *     positioned manually so we don't depend on CSS Anchor Positioning
  *     (which is Chromium-only). Labels are clickable (open modal),
  *     fade as they rotate to the back of the globe.
  *   - Country/city clustering so dense areas don't drown the page in
  *     overlapping labels.
- *   - Synced side panel (Airbnb-style list) â€” clicking a card focuses
+ *   - Synced side panel (Airbnb-style list) — clicking a card focuses
  *     and selects that artist on the globe and renders a connecting
- *     arc from We Ã–tzi HQ to the artist's location.
- *   - Reuses the same modal+CTAs (Cotizar / Ver perfil / CÃ³mo llegar)
+ *     arc from We Ötzi HQ to the artist's location.
+ *   - Reuses the same modal+CTAs (Cotizar / Ver perfil / Cómo llegar)
  *     pattern from /explore (Google Maps view).
  *
  * Why COBE projection is reimplemented locally:
@@ -41,8 +41,8 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         { label: 'Fine Line',    icon: 'fa-solid fa-pen-nib' },
         { label: 'Blackwork',    icon: 'fa-solid fa-brush' },
         { label: 'Minimalista',  icon: 'fa-solid fa-minus' },
-        { label: 'JaponÃ©s',      icon: 'fa-solid fa-dragon' },
-        { label: 'GeomÃ©trico',   icon: 'fa-solid fa-shapes' },
+        { label: 'Japonés',      icon: 'fa-solid fa-dragon' },
+        { label: 'Geométrico',   icon: 'fa-solid fa-shapes' },
         { label: 'Acuarela',     icon: 'fa-solid fa-droplet' },
         { label: 'Black & Grey', icon: 'fa-solid fa-circle-half-stroke' },
         { label: 'Microrealismo', icon: 'fa-solid fa-magnifying-glass' },
@@ -87,11 +87,11 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     ];
 
     // Origin point used as the source of arcs when an artist is selected.
-    // Buenos Aires is We Ã–tzi HQ; if we ever want to use the visitor's IP
+    // Buenos Aires is We Ötzi HQ; if we ever want to use the visitor's IP
     // location as the source, swap this with a fetch to /api/client-info.
-    const HQ = { name: 'We Ã–tzi HQ', lat: -34.6037, lng: -58.3816 };
+    const HQ = { name: 'We Ötzi HQ', lat: -34.6037, lng: -58.3816 };
 
-    // View modes â€” drive every render in the page.
+    // View modes — drive every render in the page.
     //   GLOBAL:   no artist selected. Show all artists as tiny illuminated
     //             dots, plus a quiet web of connection arcs. The spotlight
     //             loop highlights one random visible artist at a time.
@@ -100,7 +100,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     const VIEW_GLOBAL = 'global';
     const VIEW_SELECTED = 'selected';
 
-    // Spotlight cadence â€” how long a single name is on screen and how
+    // Spotlight cadence — how long a single name is on screen and how
     // long we wait between spotlights. The total cycle has to give the
     // user a beat of "huh, who's that?" without becoming busy.
     const SPOTLIGHT_VISIBLE_MS = 2000;
@@ -118,7 +118,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     // for adjacent dots to not visually merge.
     const PIN_JITTER_DEG       = 0.55;
 
-    // Globe colors (RGB 0..1 floats â€” COBE convention).
+    // Globe colors (RGB 0..1 floats — COBE convention).
     // `baseColor` is the LAND DOTS color (not the globe sphere). Brighter
     // than the previous value so continents read clearly from a distance
     // even before the user starts to interact.
@@ -137,7 +137,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     // so the motion is perceptible without being jittery.
     const PREFERS_REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const AUTOROTATE_SPEED = PREFERS_REDUCED_MOTION ? 0.0009 : 0.0028;
-    // Drag sensitivity â€” pixels to radians.
+    // Drag sensitivity — pixels to radians.
     const DRAG_SENSITIVITY = 0.005;
     // Inertia decay for momentum after release.
     const INERTIA_DECAY = 0.94;
@@ -329,7 +329,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         });
 
         cityGroups.forEach(group => {
-            // Single artist in this city â€” sit them on the exact coord.
+            // Single artist in this city — sit them on the exact coord.
             if (group.length === 1) {
                 JITTER_MAP.set(group[0].user_id, [0, 0]);
                 return;
@@ -412,7 +412,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             return [];
         }
         return (resp.data || []).map(a => Object.assign({}, a, {
-            languages: a.languages || ['EspaÃ±ol'],
+            languages: a.languages || ['Español'],
             country: a.country || 'Desconocido'
         }));
     }
@@ -502,7 +502,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
                         item.formatted_address = point.displayName || r.city;
                         item.source = 'geocoded';
                     }
-                } catch (err) { /* silent â€” we just skip this entry */ }
+                } catch (err) { /* silent — we just skip this entry */ }
             }
             if (Number.isFinite(item.lat) && Number.isFinite(item.lng)) enriched.push(item);
         }
@@ -511,8 +511,8 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         return enriched;
     }
 
-    // Date helpers â€” the itinerary card needs to render compact ranges
-    // (e.g. "12 nov Â· 03 dic" or "Desde feb 2027").
+    // Date helpers — the itinerary card needs to render compact ranges
+    // (e.g. "12 nov · 03 dic" or "Desde feb 2027").
     function formatItineraryDate(iso) {
         if (!iso) return '';
         const d = new Date(iso);
@@ -528,7 +528,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         if (from && to) return `${from} â†’ ${to}`;
         if (from) return `Desde ${from}`;
         if (to) return `Hasta ${to}`;
-        return 'PrÃ³ximamente';
+        return 'Próximamente';
     }
 
     // -------------------------------------------------------------
@@ -603,9 +603,8 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
                     parseStyles(a.styles_array).some(x => x.toLowerCase() === s.label.toLowerCase())
                 ).length;
                 return `<button class="filter-pill" data-style="${escapeHtml(s.label)}" type="button">
-                    <i class="${s.icon}"></i>
                     <span>${escapeHtml(s.label)}</span>
-                    <span class="pill-count">(${count})</span>
+                    <span class="pill-count">${count}</span>
                 </button>`;
             }).join('');
             pills.innerHTML = stylePillsHtml;
@@ -722,7 +721,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
                         ${styles.map(s => `<span class="tag-mini">${escapeHtml(s)}</span>`).join('')}
                     </div>
                     <h3 class="globe-card-name">${escapeHtml(toTitleCase(a.name || a.username))}</h3>
-                    <div class="globe-card-meta">${escapeHtml(toTitleCase(a.city || a.country || 'Sin ubicaciÃ³n'))}</div>
+                    <div class="globe-card-meta">${escapeHtml(toTitleCase(a.city || a.country || 'Sin ubicación'))}</div>
                     <span class="globe-card-price">${escapeHtml(price)}</span>
                 </div>
             </article>`;
@@ -739,7 +738,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     }
 
     // -------------------------------------------------------------
-    // COBE projection â€” kept in sync with phi/theta/state.size
+    // COBE projection — kept in sync with phi/theta/state.size
     // (mirrors the math in cobe@2.0.1 dist/index.esm.js).
     // -------------------------------------------------------------
     function latLngToXYZ(lat, lng) {
@@ -956,11 +955,11 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
 
         const name = toTitleCase(artist.name || artist.username || 'Artista');
         const location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ')
-            || 'UbicaciÃ³n reservada';
+            || 'Ubicación reservada';
         setText('globe-selected-name', name);
         setText('globe-selected-location', location);
 
-        // Source pill: "Estudio Â· X" or "Independiente". Sits next to the
+        // Source pill: "Estudio · X" or "Independiente". Sits next to the
         // location eyebrow so the user knows where the artist works.
         const sourceEl = $('globe-selected-source');
         if (sourceEl) {
@@ -988,7 +987,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             ).join('');
         }
 
-        // Bio: short snippet (140 chars) â€” keeps the card from growing too tall.
+        // Bio: short snippet (140 chars) — keeps the card from growing too tall.
         const bio = bioPlainSnippet(artist.bio_description, 140, '');
         const bioEl = $('globe-selected-bio');
         if (bioEl) {
@@ -1003,7 +1002,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         // Facts row: experience, languages, street address. Each fact hides
         // itself when the underlying value is missing so the card stays tidy.
         const expVal = artist.years_experience
-            ? `${artist.years_experience} aÃ±os exp.`
+            ? `${artist.years_experience} años exp.`
             : null;
         if (expVal) setText('globe-selected-experience', expVal);
         setHidden('globe-selected-experience',
@@ -1014,7 +1013,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         const langs = Array.isArray(artist.languages)
             ? artist.languages.filter(Boolean)
             : (artist.languages ? [artist.languages] : []);
-        const langText = langs.length ? langs.join(' Â· ') : null;
+        const langText = langs.length ? langs.join(' · ') : null;
         if (langText) setText('globe-selected-languages', langText);
         $('globe-selected-facts')?.querySelector('[data-fact="languages"]')
             ?.toggleAttribute('hidden', !langText);
@@ -1036,7 +1035,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             : 'Consultar';
         setText('globe-selected-price', price);
 
-        // "CÃ³mo llegar" â€” only visible when we can build a Google Maps URL.
+        // "Cómo llegar" — only visible when we can build a Google Maps URL.
         const directions = $('globe-selected-directions');
         if (directions) {
             const url = buildDirectionsUrl(artist);
@@ -1072,7 +1071,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             const order = String(idx + 1).padStart(2, '0');
             const venue = entry.studio_name || entry.city || 'Sin estudio';
             const where = [entry.city, entry.formatted_address && entry.formatted_address !== entry.city ? entry.formatted_address : null]
-                .filter(Boolean).join(' Â· ') || (entry.city || '');
+                .filter(Boolean).join(' · ') || (entry.city || '');
             const range = formatItineraryRange(entry);
             return `<li class="itinerary-row" data-itinerary-id="${escapeHtml(entry.id)}" data-period="${escapeHtml(entry.period_type)}">
                 <button type="button" class="itinerary-row-btn">
@@ -1736,7 +1735,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             phi: STATE.phi,
             theta: STATE.theta,
             // `dark: 1` flips the day/night shading so the lit hemisphere
-            // looks night-toned â€” perfect for our editorial-dark page.
+            // looks night-toned — perfect for our editorial-dark page.
             dark: 1,
             diffuse: 3,
             mapSamples: 16000,
@@ -1801,7 +1800,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     }
 
     // -------------------------------------------------------------
-    // RAF loop â€” COBE 2.0.1 doesn't run its own loop, so we step the
+    // RAF loop — COBE 2.0.1 doesn't run its own loop, so we step the
     // camera every frame and push phi/theta into the globe ourselves.
     // -------------------------------------------------------------
     function startRenderLoop() {
@@ -1837,7 +1836,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         const stage = STATE.canvas?.parentElement;
         if (!stage) return;
         const rect = stage.getBoundingClientRect();
-        // Canvas is square â€” fit largest square inside the stage frame.
+        // Canvas is square — fit largest square inside the stage frame.
         const side = Math.max(64, Math.min(rect.width, rect.height));
         STATE.size.width = side;
         STATE.size.height = side;
@@ -1853,7 +1852,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
 
         // Resume auto-rotation after the user has been idle long enough.
         // Note: while an artist is selected we keep the globe still on
-        // purpose â€” the page promise is "go to their location and stop"
+        // purpose — the page promise is "go to their location and stop"
         // so they can read the itinerary without the camera drifting.
         if (!STATE.pointerDown
             && !STATE.autoRotate
@@ -1964,7 +1963,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         const arcs = [];
 
         if (mode === VIEW_SELECTED) {
-            // SELECTED â€” only the artist's itinerary stops + arcs of light
+            // SELECTED — only the artist's itinerary stops + arcs of light
             // connecting them. Nothing else on the globe so the user can
             // read the journey at a glance.
             const itin = STATE.selectedItinerary
@@ -2013,7 +2012,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
                 }
             }
         } else {
-            // GLOBAL â€” every filtered artist as a tiny illuminated dot
+            // GLOBAL — every filtered artist as a tiny illuminated dot
             // (sized just above the COBE land-dots so it reads as a pin
             // without dominating the map) plus a quiet web of connection
             // arcs. The current spotlight pick is rendered at ~4x the
@@ -2081,8 +2080,8 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
 
     // The quiet web of "connections that exist" between artists, drawn
     // only in GLOBAL view. We use two real signals from the data:
-    //   1. studio_id  â€” colleagues sharing a studio. Strong link, gold.
-    //   2. country    â€” chained pairs in the same country (cap 3/country).
+    //   1. studio_id  — colleagues sharing a studio. Strong link, gold.
+    //   2. country    — chained pairs in the same country (cap 3/country).
     //                   Loose link, blue. The cap keeps the globe readable.
     //
     // Arcs that would render as a single point are filtered out because
@@ -2097,7 +2096,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             Number(a.longitude) + getJitter(a.user_id, 'lng')
         ];
 
-        // 1) Studio links â€” every pair sharing a studio.
+        // 1) Studio links — every pair sharing a studio.
         const byStudio = new Map();
         STATE.filtered.forEach(a => {
             if (!a.studio_id) return;
@@ -2211,7 +2210,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             const badge = $('globe-modal-source-badge');
             if (badge) {
                 if (artist.location_source === 'studio' && artist.studio_name) {
-                    badge.textContent = 'Estudio Â· ' + artist.studio_name;
+                    badge.textContent = 'Estudio · ' + artist.studio_name;
                     badge.classList.add('is-studio'); badge.classList.remove('is-independent');
                     badge.hidden = false;
                 } else if (artist.work_type === 'independent' || artist.location_source === 'independent') {
@@ -2224,7 +2223,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             }
 
             const location = [artist.city, artist.country].filter(Boolean).map(toTitleCase).join(', ')
-                || 'UbicaciÃ³n no disponible';
+                || 'Ubicación no disponible';
             setText('globe-modal-location', location);
 
             const addrRow = $('globe-modal-address-row');
@@ -2252,7 +2251,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             }
 
             setText('globe-modal-experience',
-                artist.years_experience ? `${artist.years_experience} aÃ±os exp.` : 'Experiencia reservada');
+                artist.years_experience ? `${artist.years_experience} años exp.` : 'Experiencia reservada');
 
             setBioHtml('globe-modal-bio', artist.bio_description, 'Este artista todavia no escribio una bio.');
 

@@ -1,1149 +1,630 @@
-/* ============================================
-   WE ÖTZI — ATLAS DE TATUADORES (/explore)
-   Bauhaus unificado (mismo lenguaje que /registerclosedbeta):
-   regla fina 1.5px, cream/ink del tema global, un solo set de acentos.
-   Typography:  Archivo Black (display)
-                JetBrains Mono (technical)
-                Inter (body)
-   ============================================ */
+/* ============================================================================
+   We Ötzi · /explore — Atlas de tatuadores (mapa)
+   Rediseño Bauhaus sobre el DS (ds/tokens.css + ds/components.css).
+   Referencia Figma: "Descubrí artistas" (flujo clientes · pantalla 25).
+   Regla: solo var(--token); radius 0; sombra dura solo en hover.
+   Página autosuficiente: ya no carga styles.css ni marketplace.css.
+   ========================================================================== */
 
-/* Page-scoped font import (does not pollute the rest of the app). */
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;700;800&display=swap');
+/* ---------- Utilidades locales ---------- */
+.explore-page .hidden { display: none !important; }
 
-/* ----- TOKENS (page-scoped; bg/fg inherit theme tokens from styles.css) ----- */
-.explore-app {
-    --atlas-display: 'Archivo Black', 'Inter', sans-serif;
-    --atlas-mono: 'JetBrains Mono', 'Consolas', monospace;
-    --atlas-body: 'Inter', system-ui, sans-serif;
+/* ---------- TopBar: ajustes de página ---------- */
+.explore-globe-cta { flex: none; }
+.explore-burger { display: none; }
 
-    /* Acentos alineados a la edición Bauhaus del registro. */
-    --primary-red: #E63A1F;
-    --primary-yellow: #F2B519;
-    --primary-blue: #1E3FA6;
-    --atlas-red-deep: #C42E15;
-
-    --atlas-rule: 1.5px;
-    --atlas-pad: clamp(16px, 2.2vw, 32px);
-    --atlas-header-h: 64px;
-
-    --atlas-shadow-sm: 3px 3px 0 var(--fg);
-    --atlas-shadow-md: 4px 4px 0 var(--fg);
-    --atlas-shadow-lg: 8px 8px 0 var(--fg);
-
-    height: 100vh;
-    height: 100dvh;
-    display: grid;
-    grid-template-rows: auto auto auto 1fr;
-    /* minmax(0, 1fr) evita que el rail de pills (overflow-x) ensanche
-       la única columna del grid más allá del viewport. */
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-        "masthead"
-        "filters"
-        "tabs"
-        "main";
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--atlas-body);
-    overflow: hidden;
-    position: relative;
-}
-
-/* Hide the global noise overlay on this page — it muddies the map. */
-.explore-app ~ *,
-body:has(.explore-app)::before { opacity: 0 !important; }
-
-/* ============================================================
-   MASTHEAD — nav unificado WEÖTZI + tag Atlas
-   ============================================================ */
-.explore-header {
-    grid-area: masthead;
-    position: relative;
-    z-index: 30;
-    background: var(--bg);
-    border-bottom: var(--atlas-rule) solid var(--fg);
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    height: var(--atlas-header-h);
-    padding: 0 var(--atlas-pad);
-    gap: 24px;
-}
-
-/* LEFT — back + logo + tag Atlas con contador */
-.explore-header-left {
+/* Menú móvil bajo el topbar */
+.explore-mobile-menu {
     display: flex;
-    align-items: center;
-    height: 100%;
-    min-width: 0;
-}
-
-.explore-back {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    text-decoration: none;
-    font-family: var(--atlas-mono);
-    font-size: 0.95rem;
-    margin-right: 18px;
-    flex-shrink: 0;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.explore-back:hover {
-    background: var(--fg);
-    color: var(--bg);
-}
-
-.explore-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--atlas-display);
-    font-size: 17px;
-    letter-spacing: 0.02em;
-    color: var(--fg);
-    text-decoration: none;
-    margin-right: 22px;
-    flex-shrink: 0;
-}
-
-.explore-logo-marks {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.explore-logo-marks .sq { width: 13px; height: 13px; background: var(--primary-red); }
-.explore-logo-marks .ci { width: 13px; height: 13px; background: var(--primary-yellow); border-radius: 50%; }
-.explore-logo-marks .tr {
-    width: 0; height: 0;
-    border-left: 6.5px solid transparent;
-    border-right: 6.5px solid transparent;
-    border-bottom: 13px solid var(--primary-blue);
-}
-
-.explore-logo .umlaut { display: inline-block; transform: translateY(-1px); }
-
-.explore-tag {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--atlas-mono);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--fg);
-    padding-left: 22px;
-    border-left: var(--atlas-rule) solid var(--fg);
-    align-self: stretch;
-    margin: 0;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.explore-tag .dot {
-    width: 7px;
-    height: 7px;
-    background: var(--primary-red);
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.explore-tag .explore-tag-label {
-    font-weight: 700;
-}
-
-.explore-tag .explore-tag-counter {
-    color: var(--text-secondary);
-    font-variant-numeric: tabular-nums;
-}
-
-/* RIGHT — nav links + globo + toggle Ö + burger */
-.explore-header-right {
-    display: flex;
-    align-items: center;
-    gap: 22px;
-}
-
-.explore-nav-links {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    font-family: var(--atlas-body);
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.explore-nav-links a {
-    color: var(--fg);
-    text-decoration: none;
-    transition: color 0.15s ease;
-}
-
-.explore-nav-links a:hover { color: var(--primary-red); }
-
-.explore-globe-cta {
-    background: var(--primary-red);
-    color: #F2EFE6;
-    font-family: var(--atlas-body);
-    font-weight: 800;
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 9px 16px;
-    border: none;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: background 0.15s ease, transform 0.12s ease;
-}
-
-.explore-globe-cta:hover {
-    background: var(--atlas-red-deep);
-    transform: translateY(-1px);
-}
-
-#theme-toggle.explore-theme-mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    display: grid;
-    place-items: center;
-    font-family: var(--atlas-display);
-    font-size: 13px;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-#theme-toggle.explore-theme-mark:hover {
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-}
-
-.explore-burger {
-    display: none;
-    width: 34px;
-    height: 34px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    cursor: pointer;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 4px;
-    padding: 0;
-    flex-shrink: 0;
+    background: var(--surface-card);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
 }
-
-.explore-burger i {
-    width: 16px;
-    height: 2px;
-    background: var(--fg);
+.explore-mobile-menu[hidden] { display: none; }
+.explore-mobile-menu-link {
     display: block;
-    transition: transform 0.18s ease, opacity 0.18s ease;
+    padding: var(--space-4) var(--space-6);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--neutral-500);
+    text-decoration: none;
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+}
+.explore-mobile-menu-link:hover {
+    background: var(--neutral-100);
+    color: var(--neutral-500);
+    text-decoration: none;
+}
+.explore-mobile-menu-link:last-child { border-bottom: 0; }
+
+/* ---------- Shell ---------- */
+.explore-shell { padding-bottom: var(--space-16); }
+
+/* ---------- Hero ---------- */
+.explore-hero {
+    padding: var(--space-10) 0 var(--space-6);
+    border-bottom: var(--border-rule-width) solid var(--border-strong);
+}
+.explore-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-3);
+    color: var(--text-muted);
+}
+.explore-tag .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--system-success);
+    animation: om-blink var(--duration-blink) infinite;
+}
+.explore-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--title-xl-size);
+    line-height: var(--h1-lh);
+    letter-spacing: var(--h1-track);
+    color: var(--text-heading);
+}
+.explore-sub {
+    margin: var(--space-3) 0 0;
+    font-size: var(--body-m-size);
+    line-height: var(--body-m-lh);
+    color: var(--text-muted);
+    max-width: 52ch;
 }
 
-.explore-burger[aria-expanded="true"] i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-.explore-burger[aria-expanded="true"] i:nth-child(2) { opacity: 0; }
-.explore-burger[aria-expanded="true"] i:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-
-.explore-mobile-menu.dashboard-mobile-menu { display: none; }
-.explore-mobile-menu.dashboard-mobile-menu[hidden] { display: none !important; }
-
-/* ============================================================
-   FILTERS — pills visibles + drawer de filtros avanzados
-   ============================================================ */
-.explore-filters {
-    grid-area: filters;
-    border-bottom: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    position: relative;
-    z-index: 25;
-    min-width: 0;
-}
-
+/* ---------- Filtros ---------- */
+.explore-filters { padding: var(--space-5) 0 0; }
 .explore-filters-row {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 12px var(--atlas-pad);
+    gap: var(--space-3);
 }
-
-.explore-app .filter-pill-group {
-    flex: 1;
+.filter-pill-group {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: var(--space-2);
     overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 24px), transparent);
+    flex: 1;
     min-width: 0;
-    /* Aire para que translate+sombra del hover no se recorte. */
-    padding: 4px 4px 6px 0;
-    margin: -4px 0 -2px;
-}
-
-.explore-app .filter-pill-group::-webkit-scrollbar { display: none; }
-
-.explore-app .filter-pill {
-    flex: 0 0 auto;
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.64rem;
-    letter-spacing: 0.08em;
-    padding: 8px 13px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    white-space: nowrap;
-}
-
-.explore-app .filter-pill i { font-size: 0.85em; }
-
-.explore-app .filter-pill:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: var(--atlas-shadow-sm);
-}
-
-.explore-app .filter-pill.is-active {
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
-}
-
-.explore-app .filter-pill .pill-count { opacity: 0.5; font-size: 0.92em; }
-
-.explore-filters-toggle {
-    flex-shrink: 0;
-    height: 36px;
-    padding: 0 14px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    font-size: 0.66rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: background 0.15s ease, color 0.15s ease;
-    position: relative;
-}
-
-.explore-filters-toggle:hover,
-.explore-filters-toggle[aria-expanded="true"] {
-    background: var(--fg);
-    color: var(--bg);
-}
-
-.explore-filters-toggle .chev {
-    font-size: 0.8em;
-    transition: transform 0.18s ease;
-}
-
-.explore-filters-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
-
-/* Punto rojo = hay filtros avanzados activos. */
-.explore-filters-toggle .explore-filters-toggle-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--primary-red);
-    flex-shrink: 0;
-}
-
-.explore-filters-toggle .explore-filters-toggle-dot[hidden] { display: none; }
-
-/* Drawer */
-.explore-filter-drawer {
-    border-top: var(--atlas-rule) solid var(--fg);
-    background: var(--surface-color);
-    padding: 14px var(--atlas-pad);
-    animation: explore-drawer-in 0.18s ease;
-}
-
-.explore-filter-drawer[hidden] { display: none; }
-
-@keyframes explore-drawer-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Scoped under .explore-app to override marketplace.css, which stacks
-   .filter-select-group vertically. */
-.explore-app .filter-select-group {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    min-width: 0;
-}
-
-.explore-app .filter-select-group select {
-    flex: 0 0 auto;
-    width: auto; /* marketplace.css fuerza width:100% y apila los selects */
-    min-width: 168px;
-    height: 38px;
-    padding: 0 32px 0 12px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--atlas-mono);
-    font-size: 0.68rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    cursor: pointer;
-    margin: 0;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%230A0A0A' stroke-width='1.5' fill='none'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px 12px;
-    transition: border-color 0.15s ease;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-}
-
-[data-theme="dark"] .explore-app .filter-select-group select {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23F2F0E9' stroke-width='1.5' fill='none'/></svg>");
-}
-
-.explore-app .filter-select-group select:hover,
-.explore-app .filter-select-group select:focus {
-    border-color: var(--primary-red);
-    outline: none;
-}
-
-.explore-clear-btn {
-    height: 38px;
-    padding: 0 16px;
-    border: var(--atlas-rule) solid var(--primary-red);
-    background: transparent;
-    color: var(--primary-red);
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    margin-left: auto;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.explore-clear-btn:hover {
-    background: var(--primary-red);
-    color: #F2EFE6;
-}
-
-/* ============================================================
-   TABS (mobile only — hidden on desktop)
-   ============================================================ */
-.explore-tabs {
-    display: none;
-    grid-area: tabs;
-}
-
-@media (max-width: 900px) {
-    .explore-tabs {
-        display: flex;
-        border-bottom: var(--atlas-rule) solid var(--fg);
-        background: var(--bg);
-    }
-    .explore-tab {
-        flex: 1;
-        height: 46px;
-        background: transparent;
-        border: none;
-        border-right: var(--atlas-rule) solid var(--fg);
-        font-family: var(--atlas-mono);
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        font-size: 0.72rem;
-        cursor: pointer;
-        display: flex; align-items: center; justify-content: center; gap: 8px;
-        color: var(--fg);
-        transition: background 0.15s ease, color 0.15s ease;
-    }
-    .explore-tab:last-child { border-right: none; }
-    .explore-tab.is-active {
-        background: var(--fg);
-        color: var(--bg);
-    }
-}
-
-/* ============================================================
-   MAIN — split shell (list rail + map atlas)
-   ============================================================ */
-/* The global `main {}` rule in styles.css adds padding, max-width: 1400px,
-   align-items: center, and flex-grow. We override every property here so
-   the split layout fills its grid track edge-to-edge. */
-main.explore-main {
-    grid-area: main;
-    display: grid;
-    grid-template-columns: minmax(360px, 36%) 1fr;
-    grid-template-rows: 1fr;
-    min-height: 0;
-    overflow: hidden;
-    padding: 0;
-    margin: 0;
-    max-width: none;
-    width: 100%;
-    align-items: stretch;
-    justify-content: stretch;
-    flex-grow: 0;
-}
-
-/* ----- LIST RAIL -----
-   min-height: 0 + min-width: 0 are required so the panel can shrink below
-   its content's intrinsic size and trigger overflow-y: auto correctly inside
-   the grid track. */
-.explore-list-panel {
-    border-right: var(--atlas-rule) solid var(--fg);
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--bg);
-    padding: 0 var(--atlas-pad) 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 0;
-    min-width: 0;
-    height: 100%;
+    padding-bottom: var(--space-1);
     scrollbar-width: thin;
-    scrollbar-color: var(--fg) transparent;
+}
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    min-height: var(--control-h-sm);
+    background: var(--surface-card);
+    color: var(--neutral-500);
+    border: var(--border-hairline) solid var(--border-muted);
+    border-radius: var(--radius-none);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    flex: none;
+    transition: transform var(--duration-press), box-shadow var(--duration-press),
+                background var(--duration-press), color var(--duration-press);
+}
+.filter-pill:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+    border-color: var(--border-strong);
+}
+.filter-pill:active { transform: none; box-shadow: none; }
+.filter-pill.is-active {
+    background: var(--neutral-500);
+    color: var(--accent);
+    border-color: var(--neutral-500);
+}
+.filter-pill .pill-count {
+    font-size: var(--font-size-min);
+    color: var(--text-faint);
+}
+.filter-pill.is-active .pill-count { color: var(--text-on-dark); }
+.filter-pill .pin-ico { width: 12px; height: 12px; }
+
+/* Botón "Filtros" con punto de estado */
+.explore-filters-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    min-height: var(--control-h-sm);
+    background: var(--surface-card);
+    color: var(--neutral-500);
+    border: var(--border-strong-width) solid var(--border-strong);
+    border-radius: var(--radius-none);
+    font-family: var(--font-body);
+    font-size: var(--button-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--button-s-track);
+    text-transform: uppercase;
+    cursor: pointer;
+    flex: none;
+    transition: transform var(--duration-press), box-shadow var(--duration-press);
+}
+.explore-filters-toggle:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+.explore-filters-toggle:active { transform: none; box-shadow: none; }
+.explore-filters-toggle[aria-expanded="true"] {
+    background: var(--neutral-500);
+    color: var(--accent);
+}
+.explore-filters-toggle-dot {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 10px;
+    height: 10px;
+    background: var(--red-300);
+    border: var(--border-strong-width) solid var(--surface-page);
 }
 
-.explore-list-panel::-webkit-scrollbar { width: 6px; }
-.explore-list-panel::-webkit-scrollbar-track { background: transparent; }
-.explore-list-panel::-webkit-scrollbar-thumb { background: var(--fg); border-radius: 0; }
+/* Drawer de selects */
+.explore-filter-drawer {
+    margin-top: var(--space-4);
+    border: var(--border-strong-width) solid var(--border-strong);
+    background: var(--surface-card);
+    padding: var(--space-5);
+}
+.filter-select-group {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    gap: var(--space-4);
+    align-items: end;
+}
+.explore-clear-btn { min-height: var(--control-h-md); }
 
-.explore-list-meta {
+/* ---------- Toolbar de resultados + tabs ---------- */
+.explore-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    border-bottom: var(--atlas-rule) solid var(--fg);
-    padding: 16px 0 10px;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 2;
+    gap: var(--space-4);
+    padding: var(--space-5) 0 var(--space-4);
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+    margin-bottom: var(--space-6);
 }
+.explore-count { color: var(--text-muted); }
 
-.explore-list-meta #explore-results-count {
-    font-family: var(--atlas-mono);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--fg);
-    font-variant-numeric: tabular-nums;
+/* Segmentado LISTA / MAPA (Figma: segmento activo en tinta).
+   En desktop mapa y grilla conviven apilados; el conmutador solo
+   tiene sentido en móvil, donde alterna las dos vistas. */
+.explore-tabs {
+    display: none;
+    border: var(--border-strong-width) solid var(--border-strong);
+    background: var(--surface-card);
 }
-
-.explore-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    /* Aire para el desplazamiento del hover. */
-    padding: 4px 4px 4px 0;
-    margin: -4px 0;
-}
-
-/* ----- ARTIST CARD ----- */
-.explore-card {
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    cursor: pointer;
-    display: grid;
-    grid-template-columns: 96px 1fr;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.explore-card:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-md);
-}
-
-.explore-card.is-active {
-    border-color: var(--primary-red);
-    box-shadow: 4px 4px 0 var(--primary-red);
-    transform: translate(-2px, -2px);
-}
-
-.explore-card-img {
-    background: var(--surface-color);
-    aspect-ratio: 1 / 1;
-    background-size: cover;
-    background-position: center;
-    border-right: var(--atlas-rule) solid var(--fg);
-}
-
-.explore-card-img.no-image {
-    background:
-        radial-gradient(circle at 32% 36%, var(--primary-yellow) 26%, transparent 26.5%),
-        linear-gradient(135deg, var(--primary-red) 22%, transparent 22.5%),
-        var(--surface-color);
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-}
-
-.explore-card-body {
-    padding: 13px 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.explore-card-name {
-    font-family: var(--atlas-display);
-    font-size: 1rem;
-    line-height: 1;
-    letter-spacing: -0.01em;
-    text-transform: uppercase;
-    color: var(--fg);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.explore-card-meta {
-    font-family: var(--atlas-mono);
-    font-size: 0.64rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.explore-card-styles {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    order: -1;
-}
-
-.explore-card-styles .tag-mini {
-    font-family: var(--atlas-mono);
-    font-size: 0.55rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid var(--text-secondary);
-    padding: 1px 6px;
-    color: var(--text-secondary);
+.explore-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    min-height: var(--control-h-sm);
     background: transparent;
+    color: var(--neutral-400);
+    border: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.explore-tab + .explore-tab { border-left: var(--border-hairline) solid var(--border-subtle); }
+.explore-tab:hover { color: var(--neutral-500); background: var(--neutral-100); }
+.explore-tab.is-active {
+    background: var(--neutral-500);
+    color: var(--accent);
 }
 
-.explore-card-price {
-    margin-top: auto;
-    padding-top: 4px;
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    font-size: 0.74rem;
-    letter-spacing: 0.05em;
-    color: var(--primary-red);
-    font-variant-numeric: tabular-nums;
+/* ---------- Main: mapa arriba, grilla debajo (Figma) ---------- */
+.explore-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
 }
 
-/* ============================================================
-   MAP PANEL — full-bleed atlas, sin overlays decorativos
-   ============================================================ */
 .explore-map-panel {
     position: relative;
-    overflow: hidden;
-    background: var(--surface-color);
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
+    border: var(--border-strong-width) solid var(--border-strong);
+    background: var(--surface-media);
 }
-
-.explore-map { width: 100%; height: 100%; min-height: 200px; }
-
-/* Mapless / loading veil */
+.explore-map {
+    width: 100%;
+    height: clamp(420px, 58vh, 640px);
+    background: var(--surface-media);
+}
 .explore-map-empty {
     position: absolute;
     inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    font-size: 0.78rem;
-    background: var(--bg);
-    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-media);
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--space-6);
+    z-index: 2;
 }
 
+/* ---------- Lista de artistas (grilla de cards editoriales) ---------- */
+.explore-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-5);
+}
+.explore-card {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    background: var(--surface-media);
+    border: var(--border-strong-width) solid var(--border-strong);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--duration-press), box-shadow var(--duration-press);
+}
+.explore-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard);
+}
+.explore-card:active { transform: none; box-shadow: none; }
+.explore-card.is-active { box-shadow: var(--shadow-hard-sm); transform: translate(-2px, -2px); }
+
+.explore-card-img {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--sand-250);
+}
+.explore-card-img.no-image { background-color: var(--sand-250); }
+/* Protección inferior para el texto sobre la imagen (gradiente permitido del DS) */
+.explore-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--protection-bottom);
+    pointer-events: none;
+}
+
+.explore-card-index {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    z-index: 2;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    color: var(--white);
+    opacity: var(--opacity-subtle);
+}
+.explore-card-price {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 2;
+    background: var(--neutral-500);
+    color: var(--neutral-100);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: 0.08em;
+    padding: var(--space-1) var(--space-2);
+}
+.explore-card-rec {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    transform: translateY(calc(100% + var(--space-2)));
+    z-index: 2;
+    background: var(--red-300);
+    color: var(--white);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    padding: var(--space-1) var(--space-2);
+}
+
+.explore-card-body {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.explore-card-styles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+.tag-mini {
+    display: inline-flex;
+    background: var(--surface-card);
+    color: var(--neutral-500);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-min);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+}
+.explore-card-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 1.15;
+    color: var(--white);
+}
+.explore-card-meta {
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    color: var(--neutral-200);
+}
+
+/* Estado vacío */
+.explore-list-empty { border: var(--border-hairline) solid var(--border-subtle); }
+
 /* ============================================================
-   BAUHAUS MAP PIN (custom OverlayView)
+   PIN BAUHAUS (OverlayView de Google Maps — clases usadas por JS)
    ============================================================ */
 .bauhaus-pin-wrap {
     position: absolute;
-    /* The point of the triangle (6px below the .bauhaus-pin box) must
-       sit exactly on the artist's lat/lng. So we shift the wrap up by
-       100% of its own height, then push back up by the triangle height. */
+    /* La punta del triángulo (6px bajo la caja) cae exactamente en el lat/lng. */
     transform: translate(-50%, calc(-100% - 6px));
     cursor: pointer;
     pointer-events: auto;
     z-index: 20;
     will-change: transform;
 }
-
 .bauhaus-pin {
     position: relative;
-    background: var(--bg);
-    color: var(--fg);
-    border: var(--atlas-rule) solid var(--fg);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--surface-card);
+    color: var(--neutral-500);
+    border: var(--border-strong-width) solid var(--border-strong);
     padding: 5px 11px;
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    font-size: 0.74rem;
+    font-family: var(--font-mono);
+    font-weight: var(--weight-bold);
+    font-size: var(--meta-m-size);
     letter-spacing: 0.04em;
-    box-shadow: 2px 2px 0 var(--fg);
     white-space: nowrap;
-    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    transition: transform var(--duration-press), background var(--duration-press),
+                color var(--duration-press), box-shadow var(--duration-press);
     user-select: none;
 }
-
-/* Triangle stem — anchors to .bauhaus-pin via position:relative. */
+/* Pico del pin */
 .bauhaus-pin::after {
     content: '';
     position: absolute;
     bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    width: 0; height: 0;
+    width: 0;
+    height: 0;
     border-left: 7px solid transparent;
     border-right: 7px solid transparent;
-    border-top: 8px solid var(--fg);
+    border-top: 8px solid var(--border-strong);
 }
-
-/* Active / hovered pin: punches forward, fills with yellow. */
 .bauhaus-pin-wrap:hover { z-index: 21; }
 .bauhaus-pin-wrap:hover .bauhaus-pin,
 .bauhaus-pin-wrap.is-active .bauhaus-pin {
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
+    background: var(--yellow-300);
+    color: var(--neutral-500);
     transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-md);
-    z-index: 22;
+    box-shadow: var(--shadow-hard-sm);
 }
-
 .bauhaus-pin-wrap.is-recommended .bauhaus-pin {
-    background: var(--primary-red);
-    color: #F2EFE6;
+    background: var(--red-300);
+    color: var(--white);
 }
-
-.bauhaus-pin-wrap.is-recommended .bauhaus-pin::after { border-top-color: var(--fg); }
-
-/* Studio pin variant: blue accent, reads the studio name. */
+/* Pin de estudio: azul, con ícono */
 .bauhaus-pin-wrap.is-studio { z-index: 18; }
 .bauhaus-pin.bauhaus-pin-studio {
-    background: var(--primary-blue);
-    color: #F2EFE6;
-    border-color: var(--fg);
-    font-family: var(--atlas-display);
-    font-size: 0.68rem;
-    letter-spacing: -0.01em;
+    background: var(--blue-400);
+    color: var(--white);
     text-transform: uppercase;
+    font-size: 11px;
     padding: 4px 10px;
-    box-shadow: 2px 2px 0 var(--fg);
 }
-.bauhaus-pin.bauhaus-pin-studio::after { border-top-color: var(--fg); }
+.bauhaus-pin .pin-ico { width: 12px; height: 12px; flex: none; }
 .bauhaus-pin-wrap.is-studio:hover { z-index: 22; }
 .bauhaus-pin-wrap.is-studio:hover .bauhaus-pin {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-md);
-    background: var(--primary-yellow);
-    color: var(--text-on-light);
+    background: var(--yellow-300);
+    color: var(--neutral-500);
 }
 
 /* ============================================================
-   ARTIST MODAL
+   MODAL DE ARTISTA
    ============================================================ */
-.explore-modal-backdrop {
-    position: fixed; inset: 0; z-index: 80;
-    background: rgba(10, 10, 10, 0.6);
-    display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-}
-
+.explore-modal-backdrop { z-index: 1000; }
 .explore-modal {
-    background: var(--bg);
-    border: var(--atlas-rule) solid var(--fg);
-    box-shadow: var(--atlas-shadow-lg);
-    width: min(560px, 100%);
-    max-height: calc(100dvh - 32px);
-    overflow-y: auto;
     position: relative;
-    animation: explore-modal-in 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
-}
-
-@keyframes explore-modal-in {
-    from { opacity: 0; transform: translateY(10px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.explore-modal-close {
-    position: absolute; top: 10px; right: 10px;
-    background: var(--bg); color: var(--fg);
-    border: var(--atlas-rule) solid var(--fg);
-    width: 36px; height: 36px;
-    cursor: pointer;
-    z-index: 5;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.explore-modal-close:hover {
-    background: var(--primary-red);
-    color: #F2EFE6;
-}
-
-.modal-cover {
     width: 100%;
-    aspect-ratio: 16 / 9;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--surface-card);
+    border: var(--border-strong-width) solid var(--border-strong);
+    animation: om-fade-in var(--duration-fade) var(--ease-standard);
+}
+.explore-modal-close {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    z-index: 3;
+}
+.modal-cover {
+    height: 220px;
+    background-color: var(--surface-media);
     background-size: cover;
     background-position: center;
-    background-color: var(--surface-color);
-    border-bottom: var(--atlas-rule) solid var(--fg);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
 }
-
 .modal-body {
-    padding: 22px 24px 26px;
+    padding: var(--space-6);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--space-4);
 }
-
-.modal-styles { display: flex; flex-wrap: wrap; gap: 6px; }
+.modal-source-badge {
+    align-self: flex-start;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    padding: var(--space-1) var(--space-2);
+}
+.modal-source-badge.is-studio { background: var(--info-bg); color: var(--info-fg); }
+.modal-source-badge.is-independent { background: var(--warning-bg); color: var(--warning-fg); }
+.modal-styles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
 .modal-styles .tag-mini {
-    font-family: var(--atlas-mono);
-    font-size: 0.6rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border: 1px solid var(--text-secondary);
-    padding: 2px 7px;
-    color: var(--text-secondary);
-    background: transparent;
+    background: var(--neutral-100);
+    border: var(--border-hairline) solid var(--border-subtle);
 }
-
 .modal-name {
-    font-family: var(--atlas-display);
-    font-size: 1.8rem;
-    line-height: 0.95;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
-    color: var(--fg);
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--h2-size);
+    line-height: var(--h2-lh);
+    color: var(--text-heading);
 }
-
-.modal-meta { display: flex; flex-direction: column; gap: 6px; }
+.modal-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
 .modal-meta-row {
-    font-family: var(--atlas-mono);
-    font-size: 0.74rem;
-    letter-spacing: 0.04em;
     display: flex;
     align-items: center;
-    gap: 10px;
-    color: var(--fg);
+    gap: var(--space-2);
+    font-size: var(--body-s-size);
+    color: var(--text-body);
 }
-.modal-meta-row i { color: var(--primary-red); width: 14px; text-align: center; }
-
+.modal-meta-row [data-wo-icon] { color: var(--text-muted); }
 .modal-bio {
-    font-family: var(--atlas-body);
-    font-size: 0.92rem;
-    line-height: 1.55;
-    color: var(--text-secondary);
-    border-left: var(--atlas-rule) solid var(--fg);
-    padding-left: 14px;
-    overflow-wrap: anywhere;
+    font-size: var(--body-s-size);
+    line-height: var(--body-s-lh);
+    color: var(--text-body);
+    border-left: var(--border-rule-width) solid var(--border-strong);
+    padding-left: var(--space-4);
 }
-.modal-bio p,
-.modal-bio div { margin: 0 0 0.62em; }
-.modal-bio p:last-child,
-.modal-bio div:last-child { margin-bottom: 0; }
-.modal-bio ul,
-.modal-bio ol { margin: 0.5em 0 0.5em 1.25em; padding: 0; }
-.modal-bio a {
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 0.16em;
-}
-
 .modal-price-row {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 10px;
-    border-top: var(--atlas-rule) solid var(--fg);
-    border-bottom: var(--atlas-rule) solid var(--fg);
-    padding: 12px 0;
+    gap: var(--space-3);
+    border-top: var(--border-hairline) solid var(--border-subtle);
+    padding-top: var(--space-4);
 }
 .modal-price-row .price-label {
-    font-family: var(--atlas-mono);
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-wide-track);
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 .modal-price-row .price-value {
-    font-family: var(--atlas-display);
-    font-size: 1.5rem;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    color: var(--fg);
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-display);
+    font-size: var(--h3-size);
+    color: var(--text-heading);
 }
-
-/* Source badge (Estudio / Independiente) sits between the name and meta. */
-.modal-source-badge {
-    display: inline-flex;
-    align-items: center;
-    align-self: flex-start;
-    font-family: var(--atlas-mono);
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 4px 9px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--bg);
-    color: var(--fg);
-    margin-top: -4px;
+.modal-cta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
 }
-
-.modal-source-badge.is-studio { background: var(--primary-yellow); color: var(--text-on-light); }
-.modal-source-badge.is-independent { background: var(--bg); color: var(--fg); }
-
-.modal-cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-.modal-cta-quote, .modal-cta-profile {
-    height: 48px;
-    border: var(--atlas-rule) solid var(--fg);
-    font-family: var(--atlas-body);
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.72rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.modal-cta-quote { background: var(--primary-red); color: #F2EFE6; border-color: var(--primary-red); }
-.modal-cta-quote:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-sm);
-    background: var(--atlas-red-deep);
-    border-color: var(--atlas-red-deep);
-}
-
-.modal-cta-profile { background: var(--bg); color: var(--fg); }
-.modal-cta-profile:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-sm);
-}
-
-/* "Cómo llegar" — wide secondary action, opens Google Maps. */
 .modal-cta-directions {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    margin-top: 2px;
-    border: var(--atlas-rule) solid var(--fg);
-    background: var(--fg);
-    color: var(--bg);
-    font-family: var(--atlas-body);
-    font-weight: 800;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.7rem;
-    text-decoration: none;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    color: var(--text-link);
+    padding: var(--space-2) 0;
 }
+.modal-cta-directions:hover { color: var(--text-link-hover); }
 
-.modal-cta-directions:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--atlas-shadow-sm);
-}
-
-.modal-cta-directions[hidden] { display: none !important; }
-
-/* ----- LOADING OVERLAY ----- */
-.loading-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    background: var(--bg);
+/* ---------- Loading ---------- */
+.explore-loading { z-index: 1200; }
+.explore-loading-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 18px;
-    font-family: var(--atlas-mono);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    font-size: 0.78rem;
-    color: var(--fg);
+    gap: var(--space-4);
+    background: var(--surface-card);
+    border: var(--border-strong-width) solid var(--border-strong);
+    padding: var(--space-8);
+    color: var(--text-muted);
 }
-
-.loading-overlay .loader {
-    width: 52px;
-    height: 52px;
-    border: var(--atlas-rule) solid var(--fg);
-    border-top-color: var(--primary-red);
-    border-radius: 50%;
-    animation: atlas-spin 0.9s linear infinite;
-}
-
-@keyframes atlas-spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ----- EMPTY STATE ----- */
-.explore-list-empty {
-    border: var(--atlas-rule) solid var(--fg);
-    padding: 28px 24px;
-    text-align: center;
-    background: var(--surface-color);
-}
-
-.explore-list-empty h2 {
-    font-family: var(--atlas-display);
-    font-size: 1.25rem;
-    text-transform: uppercase;
-    letter-spacing: -0.01em;
-    margin-bottom: 8px;
-    color: var(--fg);
-}
-
-.explore-list-empty p {
-    font-family: var(--atlas-mono);
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-}
-
-/* ----- HIDDEN HELPER ----- */
-.hidden { display: none !important; }
 
 /* ============================================================
    RESPONSIVE
    ============================================================ */
-@media (max-width: 1200px) {
-    .explore-tag .explore-tag-counter { display: none; }
-    .explore-nav-links { gap: 18px; }
-}
-
-@media (max-width: 900px) {
-    .explore-main {
-        grid-template-columns: 1fr;
-    }
-    .explore-list-panel { border-right: none; }
-    .explore-main[data-view="map"] .explore-list-panel { display: none; }
-    .explore-main[data-view="list"] .explore-map-panel { display: none; }
-
-    .explore-filters-row { padding: 10px 16px; }
-    .explore-filter-drawer { padding: 12px 16px; }
-    .explore-app .filter-select-group select { min-width: 0; flex: 1 1 calc(50% - 5px); }
-    .explore-clear-btn { margin-left: 0; flex: 1 1 100%; }
+@media (max-width: 1024px) {
+    .explore-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .filter-select-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
-    .explore-app { --atlas-header-h: 56px; }
-    .explore-header { padding: 0 16px; gap: 12px; }
-    .explore-nav-links { display: none; }
+    .explore-burger { display: inline-flex; }
     .explore-globe-cta { display: none; }
-    .explore-burger { display: flex; }
-    .explore-back { margin-right: 12px; width: 30px; height: 30px; }
-    .explore-logo { font-size: 15px; margin-right: 14px; gap: 7px; }
-    .explore-logo-marks .sq,
-    .explore-logo-marks .ci { width: 11px; height: 11px; }
-    .explore-logo-marks .tr {
-        border-left-width: 5.5px;
-        border-right-width: 5.5px;
-        border-bottom-width: 11px;
+
+    .explore-hero { padding-top: var(--space-6); }
+    .explore-title { font-size: var(--h2-size); }
+
+    .explore-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+    .filter-select-group { grid-template-columns: 1fr; }
+
+    .explore-toolbar {
+        flex-wrap: wrap;
     }
-    .explore-tag { padding-left: 14px; }
-    .explore-header-right { gap: 10px; }
-    #theme-toggle.explore-theme-mark { width: 30px; height: 30px; font-size: 11px; }
+    .explore-tabs { display: inline-flex; }
 
-    .explore-mobile-menu.dashboard-mobile-menu {
-        position: fixed;
-        left: 0;
-        right: 0;
-        top: var(--atlas-header-h, 56px);
-        z-index: 35;
-        display: flex;
-        flex-direction: column;
-        background: var(--bg);
-        border-bottom: var(--atlas-rule) solid var(--fg);
-        padding: 12px 16px 16px;
-        animation: explore-drawer-in 0.18s ease;
-    }
+    /* En móvil las tabs conmutan entre mapa y lista */
+    .explore-main[data-view="map"] .explore-list-panel { display: none; }
+    .explore-main[data-view="list"] .explore-map-panel { display: none; }
+    .explore-map { height: clamp(360px, 62vh, 560px); }
 
-    .explore-mobile-menu .dashboard-mobile-menu-link {
-        min-height: 48px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-decoration: none;
-        font-family: var(--atlas-body);
-        font-size: 0.78rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        font-weight: 700;
-        color: var(--fg);
-        border-bottom: 1px solid var(--text-secondary);
-        transition: color 0.15s ease;
-    }
-
-    .explore-mobile-menu .dashboard-mobile-menu-link:last-child { border-bottom: none; }
-    .explore-mobile-menu .dashboard-mobile-menu-link:hover { color: var(--primary-red); }
-    .explore-mobile-menu .explore-mobile-menu-link-globe { color: var(--primary-red); }
-
-    .modal-name { font-size: 1.45rem; }
+    .explore-modal { max-width: 100%; }
     .modal-cta-row { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 769px) {
+    .explore-mobile-menu { display: none; }
+}
+
+@media (max-width: 480px) {
+    .explore-list { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .explore-tag .dot { animation: none; }
+    .explore-card,
+    .filter-pill,
+    .explore-filters-toggle,
+    .bauhaus-pin { transition: none; }
 }

@@ -23,76 +23,16 @@ let chatChannel = null;
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Restore preferences
-    restoreZoomPreference();
-    restoreThemePreference();
-    restoreColorScheme();
-    
     // Check authentication
     await checkDashboardAuth();
-    
+
     // Load data
     await loadClientProfile();
     await loadQuotations();
-    
+
     // Setup realtime subscriptions
     setupRealtimeSubscriptions();
-
-    // Bauhaus enhancements
-    initMouseTracking();
-    initEntranceAnimations();
 });
-
-// ============================================
-// Bauhaus Interactive Enhancements
-// ============================================
-
-function initMouseTracking() {
-    const shapes = document.querySelectorAll('.bauhaus-shape');
-    
-    document.addEventListener('mousemove', (e) => {
-        const x = e.clientX / window.innerWidth;
-        const y = e.clientY / window.innerHeight;
-        
-        shapes.forEach((shape, index) => {
-            const speed = (index + 1) * 20;
-            const xOffset = (x - 0.5) * speed;
-            const yOffset = (y - 0.5) * speed;
-            
-            // Get original rotation if any
-            let rotation = 0;
-            if (shape.classList.contains('shape-square')) rotation = 15;
-            
-            shape.style.transform = `translate(${xOffset}px, ${yOffset}px) rotate(${rotation}deg)`;
-        });
-    });
-}
-
-function initEntranceAnimations() {
-    const profileBlocks = [
-        '.profile-avatar-block',
-        '.profile-name-block',
-        '.profile-email-block',
-        '.stat-item',
-        '.btn-edit-profile',
-        '.quick-actions-card',
-        '.quotations-section'
-    ];
-    
-    profileBlocks.forEach((selector, index) => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = el.style.transform + ' translateY(20px)';
-            el.style.transition = 'all 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
-            
-            setTimeout(() => {
-                el.style.opacity = '1';
-                el.style.transform = el.style.transform.replace('translateY(20px)', 'translateY(0)');
-            }, 100 * (index + 1));
-        });
-    });
-}
 
 // ============================================
 // Authentication Check
@@ -172,12 +112,12 @@ async function linkQuotationsByEmail(userId, email) {
 
 async function loadClientProfile() {
     if (!currentClient) return;
-    
+
     // Update profile display
     const nameEl = document.getElementById('profile-name');
     const emailEl = document.getElementById('profile-email');
     const avatarEl = document.getElementById('profile-avatar');
-    
+
     if (nameEl) nameEl.textContent = currentClient.full_name || 'Cliente';
     if (emailEl) {
         const publicParts = [
@@ -186,13 +126,32 @@ async function loadClientProfile() {
         ].filter(Boolean);
         emailEl.textContent = publicParts.join(' · ');
     }
-    
+
     if (avatarEl) {
         if (currentClient.profile_picture) {
             avatarEl.innerHTML = `<img src="${currentClient.profile_picture}" alt="Avatar">`;
         } else {
             const initials = getInitials(currentClient.full_name || currentClient.email);
             avatarEl.innerHTML = `<span class="profile-avatar-placeholder">${initials}</span>`;
+        }
+    }
+
+    // Saludo del hero (voseo, según hora local)
+    const greetingEl = document.getElementById('hero-greeting');
+    if (greetingEl) {
+        const hour = new Date().getHours();
+        const saludo = hour < 13 ? 'Buen día' : (hour < 20 ? 'Buenas tardes' : 'Buenas noches');
+        const firstName = (currentClient.full_name || '').trim().split(/\s+/)[0];
+        greetingEl.textContent = firstName ? `${saludo}, ${firstName}` : saludo;
+    }
+
+    // Tile de perfil en la topbar
+    const tileEl = document.getElementById('topbar-avatar');
+    if (tileEl) {
+        if (currentClient.profile_picture) {
+            tileEl.innerHTML = `<img src="${currentClient.profile_picture}" alt="">`;
+        } else {
+            tileEl.textContent = getInitials(currentClient.full_name || currentClient.email);
         }
     }
 }
@@ -206,7 +165,7 @@ async function loadQuotations() {
     if (!listContainer) return;
     
     // Show loading state
-    listContainer.innerHTML = '<div class="loading-skeleton" style="height: 150px; margin-bottom: 1rem;"></div>'.repeat(3);
+    listContainer.innerHTML = '<div class="loading-skeleton"></div>'.repeat(3);
     
     try {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -218,7 +177,7 @@ async function loadQuotations() {
             quotations = await WeotziData.Quotations.listForClient(session.user.id, currentClient.email);
         } catch (error) {
             console.error('Error loading quotations:', error);
-            listContainer.innerHTML = '<div class="empty-state"><h3>Error al cargar</h3><p>No pudimos cargar tus cotizaciones</p></div>';
+            listContainer.innerHTML = '<div class="empty-state"><i data-wo-icon="alert-triangle"></i><h3>Error al cargar</h3><p>No pudimos cargar tus cotizaciones</p></div>';
             return;
         }
 
@@ -280,14 +239,9 @@ function renderQuotations() {
     if (filtered.length === 0) {
         listContainer.innerHTML = `
             <div class="empty-state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                </svg>
+                <i data-wo-icon="file-text"></i>
                 <h3>Sin cotizaciones</h3>
-                <p>Aun no tienes cotizaciones ${currentFilter !== 'all' ? 'en este estado' : ''}</p>
+                <p>Todavía no tenés cotizaciones${currentFilter !== 'all' ? ' en este estado' : ''}</p>
             </div>
         `;
         return;
@@ -304,14 +258,14 @@ function renderQuotationCard(quotation) {
         'client_rejected': 'Rechazada',
         'artist_completed': 'Por finalizar',
         'completed': 'Completada',
-        'in_progress': 'En Proceso'
+        'in_progress': 'En proceso'
     };
-    
+
     const artistInitials = getInitials(quotation.artist_name || 'AR');
-    const styleInfo = typeof quotation.tattoo_style === 'object' 
-        ? quotation.tattoo_style?.style_name 
+    const styleInfo = typeof quotation.tattoo_style === 'object'
+        ? quotation.tattoo_style?.style_name
         : quotation.tattoo_style;
-    
+
     return `
         <div class="quotation-card" data-quote-id="${quotation.quote_id}">
             <div class="quotation-header">
@@ -329,11 +283,11 @@ function renderQuotationCard(quotation) {
                 <div class="quotation-details">
                     <div class="detail-item">
                         <div class="detail-label">Zona</div>
-                        <div class="detail-value">${quotation.tattoo_body_part || '-'}</div>
+                        <div class="detail-value">${quotation.tattoo_body_part || '–'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Estilo</div>
-                        <div class="detail-value">${styleInfo || '-'}</div>
+                        <div class="detail-value">${styleInfo || '–'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Fecha</div>
@@ -342,13 +296,13 @@ function renderQuotationCard(quotation) {
                 </div>
             </div>
             <div class="quotation-footer">
-                <button class="quotation-btn" onclick="viewQuotationDetail('${quotation.quote_id}')">
-                    Ver Detalle
-                </button>
-                <button class="quotation-btn chat" onclick="openChat('${quotation.quote_id}')">
+                <button class="wo-btn wo-btn--s" onclick="openChat('${quotation.quote_id}')">
                     Chat <span class="unread-badge" id="unread-${quotation.quote_id}" style="display: none;">0</span>
                 </button>
-                <button class="quotation-btn danger" onclick="hideQuotation('${quotation.quote_id}')">
+                <button class="wo-btn wo-btn--ghost wo-btn--s" onclick="viewQuotationDetail('${quotation.quote_id}')">
+                    Ver detalle
+                </button>
+                <button class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" onclick="hideQuotation('${quotation.quote_id}')">
                     Borrar
                 </button>
             </div>
@@ -361,7 +315,7 @@ function renderQuotationCard(quotation) {
 // ============================================
 
 async function hideQuotation(quoteId) {
-    if (!confirm('¿Estas seguro de que quieres borrar esta cotizacion?')) {
+    if (!confirm('¿Seguro que querés borrar esta cotización?')) {
         return;
     }
 
@@ -381,7 +335,7 @@ async function hideQuotation(quoteId) {
 
     } catch (error) {
         console.error('Error hiding quotation:', error);
-        alert('No se pudo borrar la cotizacion: ' + error.message);
+        alert('No se pudo borrar la cotización: ' + error.message);
     }
 }
 
@@ -446,92 +400,92 @@ async function viewQuotationDetail(quoteId) {
     
     detailContent.innerHTML = `
         <div class="detail-section">
-            <h3 class="detail-section-title">Informacion del Tatuaje</h3>
+            <h3 class="detail-section-title">Información del tatuaje</h3>
             <div class="detail-grid">
                 <div class="detail-field">
-                    <label>Zona del Cuerpo</label>
-                    <span>${quotation.tattoo_body_part || '-'} ${quotation.tattoo_body_side ? `(${quotation.tattoo_body_side})` : ''}</span>
+                    <label>Zona del cuerpo</label>
+                    <span>${quotation.tattoo_body_part || '–'} ${quotation.tattoo_body_side ? `(${quotation.tattoo_body_side})` : ''}</span>
                 </div>
                 <div class="detail-field">
-                    <label>Tamano</label>
-                    <span>${quotation.tattoo_size || '-'}</span>
+                    <label>Tamaño</label>
+                    <span>${quotation.tattoo_size || '–'}</span>
                 </div>
                 <div class="detail-field">
                     <label>Estilo</label>
-                    <span>${styleInfo || '-'}</span>
+                    <span>${styleInfo || '–'}</span>
                 </div>
                 <div class="detail-field">
                     <label>Color</label>
-                    <span>${quotation.tattoo_color_type || '-'}</span>
+                    <span>${quotation.tattoo_color_type || '–'}</span>
                 </div>
             </div>
-            <div class="detail-field" style="margin-top: 1rem;">
-                <label>Descripcion de la Idea</label>
-                <span>${quotation.tattoo_idea_description || 'Sin descripcion'}</span>
+            <div class="detail-field" style="margin-top: var(--space-4);">
+                <label>Descripción de la idea</label>
+                <span>${quotation.tattoo_idea_description || 'Sin descripción'}</span>
             </div>
             ${quotation.tattoo_references ? `
-                <div class="detail-field" style="margin-top: 1rem;">
+                <div class="detail-field" style="margin-top: var(--space-4);">
                     <label>Referencias</label>
-                    <a href="${quotation.tattoo_references}" target="_blank" style="color: var(--bauhaus-green);">Ver imagenes de referencia</a>
+                    <a href="${quotation.tattoo_references}" target="_blank" class="detail-link">Ver imágenes de referencia →</a>
                 </div>
             ` : ''}
         </div>
-        
+
         <div class="detail-section">
-            <h3 class="detail-section-title">Informacion del Artista</h3>
+            <h3 class="detail-section-title">Información del artista</h3>
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Nombre</label>
-                    <span>${quotation.artist_name || '-'}</span>
+                    <span>${quotation.artist_name || '–'}</span>
                 </div>
                 <div class="detail-field">
                     <label>Estudio</label>
-                    <span>${quotation.artist_studio_name || '-'}</span>
+                    <span>${quotation.artist_studio_name || '–'}</span>
                 </div>
                 <div class="detail-field">
                     <label>Ciudad</label>
-                    <span>${quotation.artist_current_city || '-'}</span>
+                    <span>${quotation.artist_current_city || '–'}</span>
                 </div>
                 <div class="detail-field">
-                    <label>Costo por Sesion</label>
-                    <span>${quotation.artist_session_cost_amount || '-'}</span>
+                    <label>Costo por sesión</label>
+                    <span>${quotation.artist_session_cost_amount || '–'}</span>
                 </div>
             </div>
         </div>
-        
+
         <div class="detail-section">
             <h3 class="detail-section-title">Preferencias</h3>
             <div class="detail-grid">
                 <div class="detail-field">
-                    <label>Fecha Preferida</label>
+                    <label>Fecha preferida</label>
                     <span>${quotation.client_preferred_date || 'Flexible'}</span>
                 </div>
                 <div class="detail-field">
                     <label>Presupuesto</label>
-                    <span>${quotation.client_budget_amount ? `${quotation.client_budget_amount} ${quotation.client_budget_currency || 'USD'}` : '-'}</span>
+                    <span>${quotation.client_budget_amount ? `${quotation.client_budget_amount} ${quotation.client_budget_currency || 'USD'}` : '–'}</span>
                 </div>
             </div>
         </div>
-        
+
         <button class="expand-info-btn" onclick="toggleAdditionalInfo()" id="expand-info-btn">
-            Ampliar informacion
+            Ampliar información
         </button>
 
         ${renderReviewWorkflowPanel(quotation)}
-        
+
         <div class="detail-section additional-info-section" id="additional-info-section" style="display: none;">
-            <h3 class="detail-section-title">Informacion Adicional</h3>
+            <h3 class="detail-section-title">Información adicional</h3>
             <div class="detail-grid">
                 <div class="detail-field">
-                    <label>Disponibilidad para Viajar</label>
-                    <span>${quotation.client_travel_willing ? 'Si' : 'No'}</span>
+                    <label>Disponibilidad para viajar</label>
+                    <span>${quotation.client_travel_willing ? 'Sí' : 'No'}</span>
                 </div>
                 <div class="detail-field">
                     <label>Alergias</label>
                     <span>${quotation.client_allergies || 'Ninguna'}</span>
                 </div>
                 <div class="detail-field">
-                    <label>Condiciones de Salud</label>
+                    <label>Condiciones de salud</label>
                     <span>${quotation.client_health_conditions || 'Ninguna'}</span>
                 </div>
             </div>
@@ -561,7 +515,7 @@ function renderReviewWorkflowPanel(quotation) {
     if (disputeStatus === 'open') {
         return `
             <div class="review-completion-panel">
-                <p>Esta cotizacion tiene un reclamo abierto. No se puede finalizar ni reseñar hasta que soporte lo resuelva.</p>
+                <p>Esta cotización tiene un reclamo abierto. No se puede finalizar ni reseñar hasta que soporte lo resuelva.</p>
             </div>
         `;
     }
@@ -569,9 +523,9 @@ function renderReviewWorkflowPanel(quotation) {
     if (quotation.quote_status === 'artist_completed') {
         return `
             <div class="review-completion-panel">
-                <p>El artista marco el trabajo como terminado. Confirma el cierre si el servicio fue entregado correctamente.</p>
+                <p>El artista marcó el trabajo como terminado. Confirmá el cierre si el servicio se entregó correctamente.</p>
                 <div class="review-completion-actions">
-                    <button type="button" class="review-finalize-btn" onclick="acceptQuotationCompletion('${quotation.quote_id}')">Aceptar finalizacion</button>
+                    <button type="button" class="review-finalize-btn" onclick="acceptQuotationCompletion('${quotation.quote_id}')">Aceptar finalización</button>
                 </div>
             </div>
         `;
@@ -581,10 +535,10 @@ function renderReviewWorkflowPanel(quotation) {
         const studioId = quotation.studio_id || quotation.artist_studio_id || quotation.artist_studio_user_id || '';
         return `
             <div class="review-completion-panel">
-                <p>Trabajo finalizado. Puedes dejar resenas verificadas para esta experiencia.</p>
+                <p>Trabajo finalizado. Podés dejar reseñas verificadas de esta experiencia.</p>
                 <div class="review-completion-actions">
-                    ${quotation.artist_id ? `<button type="button" class="review-write-btn" onclick="openQuotationArtistReview('${quotation.quote_id}')">Resenar artista</button>` : ''}
-                    ${studioId ? `<button type="button" class="review-write-btn" onclick="openQuotationStudioReview('${quotation.quote_id}')">Resenar estudio</button>` : ''}
+                    ${quotation.artist_id ? `<button type="button" class="review-write-btn" onclick="openQuotationArtistReview('${quotation.quote_id}')">Reseñar artista</button>` : ''}
+                    ${studioId ? `<button type="button" class="review-write-btn" onclick="openQuotationStudioReview('${quotation.quote_id}')">Reseñar estudio</button>` : ''}
                 </div>
             </div>
         `;
@@ -597,7 +551,7 @@ async function acceptQuotationCompletion(quoteId) {
     const quotation = currentQuotations.find(q => q.quote_id === quoteId);
     if (!quotation) return;
 
-    if (!confirm('Confirmas que el trabajo fue finalizado correctamente?')) return;
+    if (!confirm('¿Confirmás que el trabajo se finalizó correctamente?')) return;
 
     try {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -616,7 +570,7 @@ async function acceptQuotationCompletion(quoteId) {
         await viewQuotationDetail(quoteId);
     } catch (error) {
         console.error('Error accepting completion:', error);
-        alert(error.message || 'No se pudo finalizar la cotizacion');
+        alert(error.message || 'No se pudo finalizar la cotización');
     }
 }
 
@@ -628,7 +582,7 @@ function openQuotationArtistReview(quoteId) {
         return;
     }
     if (!quotation.id || !quotation.artist_id) {
-        alert('Esta cotizacion no tiene datos suficientes para crear una resena verificada.');
+        alert('Esta cotización no tiene datos suficientes para crear una reseña verificada.');
         return;
     }
 
@@ -647,7 +601,7 @@ function openQuotationStudioReview(quoteId) {
     if (!quotation || !window.WeOtziReviews) return;
     const studioId = quotation.studio_id || quotation.artist_studio_id || quotation.artist_studio_user_id;
     if (!studioId) {
-        alert('Esta cotizacion no tiene un estudio vinculado para reseñar.');
+        alert('Esta cotización no tiene un estudio vinculado para reseñar.');
         return;
     }
 
@@ -681,7 +635,7 @@ async function loadChatMessages(quoteId) {
         if (!messages || messages.length === 0) {
             chatContainer.innerHTML = `
                 <div class="chat-empty">
-                    <p>Inicia una conversacion con el artista</p>
+                    <p>Iniciá la conversación con el artista</p>
                 </div>
             `;
             return;
@@ -821,10 +775,10 @@ function toggleAdditionalInfo() {
     
     if (section.style.display === 'none') {
         section.style.display = 'block';
-        btn.textContent = 'Ocultar informacion';
+        btn.textContent = 'Ocultar información';
     } else {
         section.style.display = 'none';
-        btn.textContent = 'Ampliar informacion';
+        btn.textContent = 'Ampliar información';
     }
 }
 
@@ -921,233 +875,16 @@ function formatTime(dateStr) {
 }
 
 // ============================================
-// Theme & Zoom
+// Esquema de color — paleta fija del Design System
+// Los esquemas personalizados guardados en perfiles viejos se ignoran:
+// el DS Bauhaus define los colores por token y no se customiza por usuario.
 // ============================================
 
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('weotzi-theme', isDark ? 'dark' : 'light');
-}
-
-function restoreThemePreference() {
-    const savedTheme = localStorage.getItem('weotzi-theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-    }
-}
-
-const ZOOM_MIN = 0.6;
-const ZOOM_MAX = 1.2;
-const ZOOM_STEP = 0.1;
-
-function getCurrentZoom() {
-    const root = document.documentElement;
-    const currentZoom = getComputedStyle(root).getPropertyValue('--zoom-factor');
-    return parseFloat(currentZoom) || 0.85;
-}
-
-function setZoom(factor) {
-    const clampedFactor = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, factor));
-    document.documentElement.style.setProperty('--zoom-factor', clampedFactor);
-    localStorage.setItem('weotzi-zoom', clampedFactor);
-}
-
-function zoomIn() {
-    setZoom(getCurrentZoom() + ZOOM_STEP);
-}
-
-function zoomOut() {
-    setZoom(getCurrentZoom() - ZOOM_STEP);
-}
-
-function restoreZoomPreference() {
-    const savedZoom = localStorage.getItem('weotzi-zoom');
-    if (savedZoom) {
-        setZoom(parseFloat(savedZoom));
-    }
-}
-
-// ============================================
-// Advanced Color Scheme Management
-// ============================================
-
-let currentColorScheme = {
-    type: 'preset', // 'preset' or 'custom'
-    scheme: 'bauhaus',
-    primary: '#E23E28',
-    secondary: '#1A4B8E',
-    tertiary: '#F4B942',
-    useTertiary: true
-};
 let pendingAvatarFile = null;
 
-// Preset scheme definitions
-const COLOR_PRESETS = {
-    bauhaus: { primary: '#E23E28', secondary: '#1A4B8E', tertiary: '#F4B942' },
-    mondrian: { primary: '#DD1C1A', secondary: '#034078', tertiary: '#FECB00' },
-    ocean: { primary: '#0077B6', secondary: '#00B4D8', tertiary: '#90E0EF' },
-    sunset: { primary: '#E63946', secondary: '#F77F00', tertiary: '#FCBF49' },
-    forest: { primary: '#2D6A4F', secondary: '#40916C', tertiary: '#95D5B2' },
-    minimal: { primary: '#1A1A1A', secondary: '#6B6B6B', tertiary: '#EBEBEB' }
-};
-
-function applyColorScheme(scheme, animate = true) {
-    const root = document.documentElement;
-    
-    // Add transition for smooth color changes
-    if (animate) {
-        root.style.transition = 'all 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
-        document.querySelectorAll('.stat-item, .profile-avatar-block, .profile-decor-block, .profile-email-block, .bauhaus-shape').forEach(el => {
-            el.style.transition = 'all 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
-        });
-    }
-    
-    root.style.setProperty('--color-primary', scheme.primary);
-    root.style.setProperty('--color-secondary', scheme.secondary);
-    root.style.setProperty('--color-tertiary', scheme.useTertiary !== false ? scheme.tertiary : scheme.secondary);
-    
-    if (scheme.type === 'preset') {
-        root.setAttribute('data-scheme', scheme.scheme);
-    } else {
-        root.removeAttribute('data-scheme');
-    }
-    
-    currentColorScheme = { ...scheme };
-    updateColorPreview();
-    
-    // Remove transition after animation completes
-    if (animate) {
-        setTimeout(() => {
-            root.style.transition = '';
-        }, 400);
-    }
-}
-
-function restoreColorScheme() {
-    const saved = localStorage.getItem('weotzi-color-scheme');
-    if (saved) {
-        try {
-            const scheme = JSON.parse(saved);
-            applyColorScheme(scheme, false); // No animation on page load
-        } catch (e) {
-            // Fallback to default
-            applyColorScheme(currentColorScheme, false);
-        }
-    } else {
-        applyColorScheme(currentColorScheme, false);
-    }
-}
-
-function saveColorScheme() {
-    localStorage.setItem('weotzi-color-scheme', JSON.stringify(currentColorScheme));
-    applyColorScheme(currentColorScheme);
-}
-
-function selectPresetScheme(schemeName) {
-    const preset = COLOR_PRESETS[schemeName];
-    if (!preset) return;
-    
-    // Update scheme
-    currentColorScheme = {
-        type: 'preset',
-        scheme: schemeName,
-        primary: preset.primary,
-        secondary: preset.secondary,
-        tertiary: preset.tertiary,
-        useTertiary: true
-    };
-    
-    // Update UI
-    document.querySelectorAll('.scheme-preset').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.scheme === schemeName);
-    });
-    
-    // Update color pickers to match
-    updateColorPickerInputs();
-    applyColorScheme(currentColorScheme);
-}
-
-function updateCustomColor(colorType, value) {
-    // Switch to custom mode
-    currentColorScheme.type = 'custom';
-    currentColorScheme.scheme = 'custom';
-    currentColorScheme[colorType] = value;
-    
-    // Update hex display
-    const hexEl = document.getElementById(`hex-${colorType}`);
-    if (hexEl) hexEl.textContent = value.toUpperCase();
-    
-    // Remove active state from presets
-    document.querySelectorAll('.scheme-preset').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    applyColorScheme(currentColorScheme);
-}
-
-function toggleTertiaryColor() {
-    const checkbox = document.getElementById('use-tertiary');
-    currentColorScheme.useTertiary = checkbox ? checkbox.checked : true;
-    applyColorScheme(currentColorScheme);
-}
-
-function updateColorPickerInputs() {
-    const primaryInput = document.getElementById('color-primary');
-    const secondaryInput = document.getElementById('color-secondary');
-    const tertiaryInput = document.getElementById('color-tertiary');
-    const hexPrimary = document.getElementById('hex-primary');
-    const hexSecondary = document.getElementById('hex-secondary');
-    const hexTertiary = document.getElementById('hex-tertiary');
-    const useTertiaryCheckbox = document.getElementById('use-tertiary');
-    
-    if (primaryInput) primaryInput.value = currentColorScheme.primary;
-    if (secondaryInput) secondaryInput.value = currentColorScheme.secondary;
-    if (tertiaryInput) tertiaryInput.value = currentColorScheme.tertiary;
-    if (hexPrimary) hexPrimary.textContent = currentColorScheme.primary.toUpperCase();
-    if (hexSecondary) hexSecondary.textContent = currentColorScheme.secondary.toUpperCase();
-    if (hexTertiary) hexTertiary.textContent = currentColorScheme.tertiary.toUpperCase();
-    if (useTertiaryCheckbox) useTertiaryCheckbox.checked = currentColorScheme.useTertiary !== false;
-}
-
-function updateColorPreview() {
-    const primaryPreview = document.querySelector('.primary-preview');
-    const secondaryPreview = document.querySelector('.secondary-preview');
-    const tertiaryPreview = document.querySelector('.tertiary-preview');
-    
-    if (primaryPreview) primaryPreview.style.background = currentColorScheme.primary;
-    if (secondaryPreview) secondaryPreview.style.background = currentColorScheme.secondary;
-    if (tertiaryPreview) {
-        tertiaryPreview.style.background = currentColorScheme.useTertiary !== false 
-            ? currentColorScheme.tertiary 
-            : currentColorScheme.secondary;
-    }
-}
-
-function initializeColorPickers() {
-    // Set active preset if applicable
-    if (currentColorScheme.type === 'preset') {
-        document.querySelectorAll('.scheme-preset').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.scheme === currentColorScheme.scheme);
-        });
-    }
-    
-    // Update color picker inputs
-    updateColorPickerInputs();
-    updateColorPreview();
-}
-
-// Legacy function for compatibility
-function selectColorSwatch(color) {
-    // Map old colors to new presets
-    const colorMap = {
-        'green': 'forest',
-        'red': 'sunset',
-        'blue': 'ocean',
-        'yellow': 'bauhaus'
-    };
-    selectPresetScheme(colorMap[color] || 'bauhaus');
-}
+function applyColorScheme() { /* no-op: el DS aplica siempre su paleta fija */ }
+function restoreColorScheme() { /* no-op: se ignoran esquemas guardados */ }
+function selectColorSwatch() { /* legacy no-op */ }
 
 // ============================================
 // Edit Profile Modal
@@ -1197,9 +934,6 @@ function openEditProfileModal() {
         }
     }
     
-    // Initialize color pickers with current scheme
-    initializeColorPickers();
-    
     // Reset pending avatar
     pendingAvatarFile = null;
     
@@ -1225,13 +959,13 @@ function handleAvatarPreview(event) {
     
     // Validate file type
     if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona una imagen.');
+        alert('Elegí una imagen.');
         return;
     }
-    
+
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-        alert('La imagen es muy grande. Maximo 5MB.');
+        alert('La imagen es muy grande. Máximo 5MB.');
         return;
     }
     
@@ -1256,12 +990,12 @@ async function handleProfileUpdate(event) {
     const saveBtn = document.getElementById('btn-save-profile');
     const originalText = saveBtn.textContent;
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Guardando...';
+    saveBtn.textContent = 'Guardando…';
     
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) {
-            alert('Sesion expirada. Por favor inicia sesion nuevamente.');
+            alert('Sesión expirada. Iniciá sesión de nuevo.');
             window.location.href = '/client/login';
             return;
         }
@@ -1343,26 +1077,23 @@ async function handleProfileUpdate(event) {
             ...currentClient,
             ...updateData
         };
-        
-        // Save color scheme
-        saveColorScheme();
-        
+
         // Update UI
         loadClientProfile();
-        
+
         // Close modal
         closeEditProfileModal();
-        
+
         // Show success message (brief visual feedback)
-        saveBtn.textContent = 'Guardado!';
+        saveBtn.textContent = 'Guardado';
         setTimeout(() => {
             saveBtn.textContent = originalText;
             saveBtn.disabled = false;
         }, 1000);
-        
+
     } catch (error) {
         console.error('Error updating profile:', error);
-        alert('Error al guardar los cambios. Por favor intenta de nuevo.');
+        alert('No se pudieron guardar los cambios. Probá de nuevo.');
         saveBtn.textContent = originalText;
         saveBtn.disabled = false;
     }
@@ -1429,7 +1160,7 @@ async function loadJobBoardRequests() {
     if (!_supabase) return;
 
     const container = document.getElementById('jb-requests-list');
-    container.innerHTML = '<div class="loading-skeleton" style="height: 150px;"></div>';
+    container.innerHTML = '<div class="loading-skeleton"></div>';
 
     try {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -1454,7 +1185,7 @@ async function loadJobBoardRequests() {
         renderJobBoardRequests();
     } catch (err) {
         console.error('Error loading JB requests:', err);
-        container.innerHTML = '<div class="empty-state"><p>Error al cargar solicitudes</p></div>';
+        container.innerHTML = '<div class="empty-state"><i data-wo-icon="alert-triangle"></i><p>Error al cargar solicitudes</p></div>';
     }
 }
 
@@ -1464,8 +1195,10 @@ function renderJobBoardRequests() {
     if (jbRequests.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <p>No tienes solicitudes en el Job Board</p>
-                <a href="/job-board/request" style="display:inline-block; margin-top:1rem; padding:12px 24px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9); text-decoration:none; font-weight:700; text-transform:uppercase; font-size:0.85rem;">Publicar Solicitud</a>
+                <i data-wo-icon="radio"></i>
+                <h3>Sin solicitudes</h3>
+                <p>Todavía no publicaste solicitudes en el Job Board</p>
+                <a href="/job-board/request" class="wo-btn wo-btn--hard">Publicar idea <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
             </div>`;
         return;
     }
@@ -1474,18 +1207,10 @@ function renderJobBoardRequests() {
         const statusLabels = {
             'draft': 'Borrador',
             'open': 'Abierta',
-            'in_review': 'En Revision',
+            'in_review': 'En revisión',
             'accepted': 'Aceptada',
             'closed': 'Cerrada',
             'expired': 'Expirada'
-        };
-        const statusColors = {
-            'draft': '#6b6b75',
-            'open': '#22c55e',
-            'in_review': '#F4B942',
-            'accepted': '#1A4B8E',
-            'closed': '#6b6b75',
-            'expired': '#E23E28'
         };
         const pendingApps = (req.job_board_applications || []).filter(a => a.status === 'pending' || a.status === 'viewed').length;
         const totalApps = (req.job_board_applications || []).length;
@@ -1496,24 +1221,24 @@ function renderJobBoardRequests() {
         <div class="quotation-card" data-request-id="${req.id}" onclick="viewJBRequestDetail('${req.id}')">
             <div class="quotation-header">
                 <span class="quotation-id">${req.request_code}</span>
-                <span class="quotation-status" style="background:${statusColors[req.status] || '#6b6b75'}; color:white; padding:2px 8px; font-size:0.7rem;">${statusLabels[req.status] || req.status}</span>
+                <span class="quotation-status jb-${req.status}">${statusLabels[req.status] || req.status}</span>
             </div>
             <div class="quotation-body">
                 <div class="quotation-artist">
-                    ${thumbnail ? `<img src="${thumbnail}" style="width:48px;height:48px;object-fit:cover;border:2px solid var(--fg,#0A0A0A);" alt="">` : '<div class="artist-avatar" style="background:var(--primary-yellow,#F4B942);color:var(--fg,#0A0A0A);">JB</div>'}
+                    ${thumbnail ? `<img src="${thumbnail}" alt="">` : '<div class="artist-avatar">JB</div>'}
                     <div class="artist-info">
-                        <h4>${req.tattoo_idea_description ? req.tattoo_idea_description.substring(0, 60) + (req.tattoo_idea_description.length > 60 ? '...' : '') : 'Sin descripcion'}</h4>
+                        <h4>${req.tattoo_idea_description ? req.tattoo_idea_description.substring(0, 60) + (req.tattoo_idea_description.length > 60 ? '…' : '') : 'Sin descripción'}</h4>
                         <p>${req.tattoo_body_part || ''} ${styles ? '· ' + styles : ''}</p>
                     </div>
                 </div>
                 <div class="quotation-details">
                     <div class="detail-item">
                         <div class="detail-label">Zona</div>
-                        <div class="detail-value">${req.tattoo_body_part || '-'}</div>
+                        <div class="detail-value">${req.tattoo_body_part || '–'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Presupuesto</div>
-                        <div class="detail-value">${req.client_budget_min && req.client_budget_max ? '$' + req.client_budget_min + '-$' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD') : 'Sin definir'}</div>
+                        <div class="detail-value">${req.client_budget_min && req.client_budget_max ? '$' + req.client_budget_min + ' – $' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD') : 'Sin definir'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Postulaciones</div>
@@ -1522,8 +1247,8 @@ function renderJobBoardRequests() {
                 </div>
             </div>
             <div class="quotation-footer">
-                <button class="quotation-btn" onclick="event.stopPropagation(); viewJBRequestDetail('${req.id}')">
-                    Ver Postulaciones
+                <button class="wo-btn wo-btn--ghost wo-btn--s" onclick="event.stopPropagation(); viewJBRequestDetail('${req.id}')">
+                    Ver postulaciones
                 </button>
             </div>
         </div>`;
@@ -1544,7 +1269,7 @@ async function viewJBRequestDetail(requestId) {
     const applications = req.job_board_applications || [];
 
     if (applications.length === 0) {
-        contentEl.innerHTML = '<div style="text-align:center; padding:2rem; opacity:0.6;"><p>Aun no hay postulaciones para esta solicitud.</p><p style="margin-top:0.5rem; font-size:0.85rem;">Comparte el enlace del Job Board para atraer mas artistas.</p></div>';
+        contentEl.innerHTML = '<div class="jb-modal-empty"><p>Todavía no hay postulaciones para esta solicitud.</p><p class="hint">Compartí el enlace del Job Board para atraer más artistas.</p></div>';
         modal.style.display = 'flex';
         return;
     }
@@ -1564,35 +1289,34 @@ async function viewJBRequestDetail(requestId) {
     contentEl.innerHTML = applications.map(app => {
         const artist = artistsMap[app.artist_id] || {};
         const statusLabels = { pending: 'Pendiente', viewed: 'Vista', accepted: 'Aceptada', rejected: 'Rechazada', withdrawn: 'Retirada' };
-        const statusColors = { pending: '#F4B942', viewed: '#1A4B8E', accepted: '#22c55e', rejected: '#E23E28', withdrawn: '#6b6b75' };
         const isPending = app.status === 'pending' || app.status === 'viewed';
         const styles = artist.styles_array ? artist.styles_array.slice(0, 3).join(', ') : '';
 
         return `
-        <div style="border:2px solid var(--fg,#0A0A0A); margin-bottom:1rem; overflow:hidden;">
-            <div style="display:flex; align-items:center; gap:12px; padding:1rem; border-bottom:1px solid rgba(0,0,0,0.1);">
-                ${artist.profile_picture ? `<img src="${artist.profile_picture}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--fg,#0A0A0A);" alt="">` : '<div style="width:48px;height:48px;border-radius:50%;background:var(--fg,#0A0A0A);color:var(--bg,#F2F0E9);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.8rem;">' + (artist.name || 'A').charAt(0).toUpperCase() + '</div>'}
-                <div style="flex:1;">
-                    <div style="font-weight:900; font-size:0.95rem;">${artist.name || artist.username || 'Artista'}</div>
-                    <div style="font-size:0.8rem; color:var(--text-secondary,#6b6b75);">${artist.ubicacion || ''} ${styles ? '· ' + styles : ''}</div>
+        <div class="jb-app">
+            <div class="jb-app-head">
+                <div class="jb-app-avatar">${artist.profile_picture ? `<img src="${artist.profile_picture}" alt="">` : (artist.name || 'A').charAt(0).toUpperCase()}</div>
+                <div class="jb-app-info">
+                    <div class="jb-app-name">${artist.name || artist.username || 'Artista'}</div>
+                    <div class="jb-app-meta">${artist.ubicacion || ''} ${styles ? '· ' + styles : ''}</div>
                 </div>
-                <span style="background:${statusColors[app.status]}; color:white; padding:2px 10px; font-size:0.7rem; font-weight:700; text-transform:uppercase;">${statusLabels[app.status]}</span>
+                <span class="jb-app-status st-${app.status}">${statusLabels[app.status]}</span>
             </div>
-            <div style="padding:1rem;">
-                <p style="margin-bottom:0.8rem; line-height:1.5;">${app.message || 'Sin mensaje'}</p>
-                <div style="display:flex; gap:1rem; flex-wrap:wrap; font-size:0.85rem; color:var(--text-secondary,#6b6b75);">
-                    ${app.estimated_price ? '<span><strong>Precio est.:</strong> ' + app.estimated_price + '</span>' : ''}
-                    ${app.estimated_sessions ? '<span><strong>Sesiones:</strong> ' + app.estimated_sessions + '</span>' : ''}
-                    ${app.availability_note ? '<span><strong>Disponibilidad:</strong> ' + app.availability_note + '</span>' : ''}
+            <div class="jb-app-body">
+                <p class="jb-app-msg">${app.message || 'Sin mensaje'}</p>
+                <div class="jb-app-facts">
+                    ${app.estimated_price ? '<span>Precio est. · ' + app.estimated_price + '</span>' : ''}
+                    ${app.estimated_sessions ? '<span>Sesiones · ' + app.estimated_sessions + '</span>' : ''}
+                    ${app.availability_note ? '<span>Disponibilidad · ' + app.availability_note + '</span>' : ''}
                 </div>
-                ${artist.username ? '<a href="/artist/profile?u=' + artist.username + '" target="_blank" style="display:inline-block; margin-top:0.8rem; font-size:0.8rem; color:var(--primary-blue,#1A4B8E); font-weight:700; text-transform:uppercase;">Ver Perfil del Artista</a>' : ''}
+                ${artist.username ? '<a href="/artist/profile?u=' + artist.username + '" target="_blank" class="jb-app-link">Ver perfil del artista →</a>' : ''}
             </div>
             ${isPending ? `
-            <div style="display:flex; border-top:2px solid var(--fg,#0A0A0A);">
-                <button onclick="acceptApplication('${app.id}', '${req.id}')" style="flex:1; padding:12px; background:var(--fg,#0A0A0A); color:var(--bg,#F2F0E9); border:none; font-weight:900; text-transform:uppercase; font-size:0.85rem; cursor:pointer;">Aceptar</button>
-                <button onclick="rejectApplication('${app.id}', '${req.id}')" style="flex:1; padding:12px; background:transparent; border:none; border-left:2px solid var(--fg,#0A0A0A); font-weight:700; text-transform:uppercase; font-size:0.85rem; cursor:pointer; color:var(--primary-red,#E23E28);">Rechazar</button>
+            <div class="jb-app-actions">
+                <button class="wo-btn wo-btn--s" onclick="acceptApplication('${app.id}', '${req.id}')">Aceptar</button>
+                <button class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" onclick="rejectApplication('${app.id}', '${req.id}')">Rechazar</button>
             </div>` : ''}
-            ${app.status === 'accepted' && req.resulting_quote_id ? '<div style="padding:0.8rem 1rem; background:var(--primary-blue,#1A4B8E); color:white; text-align:center;"><a href="/my-quotations" style="color:white; font-weight:700; text-transform:uppercase; font-size:0.85rem;">Ver Cotizacion Creada</a></div>' : ''}
+            ${app.status === 'accepted' && req.resulting_quote_id ? '<div class="jb-app-quote-link"><a href="/my-quotations">Ver cotización creada →</a></div>' : ''}
         </div>`;
     }).join('');
 
@@ -1600,12 +1324,12 @@ async function viewJBRequestDetail(requestId) {
 }
 
 async function acceptApplication(applicationId, requestId) {
-    if (!confirm('¿Aceptar esta postulacion? Se creara una cotizacion con este artista y las demas postulaciones seran rechazadas.')) return;
+    if (!confirm('¿Aceptás esta postulación? Se crea una cotización con este artista y las demás postulaciones se rechazan.')) return;
 
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session?.access_token) {
-            alert('Tu sesion expiro. Recarga la pagina e inicia sesion de nuevo.');
+            alert('Tu sesión expiró. Recargá la página e iniciá sesión de nuevo.');
             return;
         }
 
@@ -1639,7 +1363,7 @@ async function acceptApplication(applicationId, requestId) {
             });
         } catch (e) { /* n8n notification failure should not break main flow */ }
 
-        alert('Artista aceptado. Se ha creado una cotizacion.');
+        alert('Artista aceptado. Se creó una cotización.');
         closeJBModal();
         loadJobBoardRequests();
     } catch (err) {
@@ -1649,7 +1373,7 @@ async function acceptApplication(applicationId, requestId) {
 }
 
 async function rejectApplication(applicationId, requestId) {
-    if (!confirm('¿Rechazar esta postulacion?')) return;
+    if (!confirm('¿Rechazás esta postulación?')) return;
 
     try {
         const { error } = await WeotziData

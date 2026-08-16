@@ -4,18 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WE OTZI | Publica tu Solicitud de Tatuaje</title>
+    <title>We Ötzi · Publicá tu solicitud de tatuaje</title>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <!-- Styles -->
+    <!-- Design system (Bauhaus) -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/job-board-request.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -58,66 +53,46 @@
     </script>
 </head>
 
-<body>
-    <!-- Bauhaus Background Shapes -->
-    <div class="bauhaus-shape shape-circle"></div>
-    <div class="bauhaus-shape shape-square"></div>
-    <div class="bauhaus-shape shape-triangle"></div>
+<body class="wo-app jbr-body">
 
     <!-- Main Container -->
-    <main class="jb-request-container">
+    <main class="jbr-shell">
 
         <!-- Header with Progress -->
-        <header class="jb-request-header">
-            <a href="/" class="jb-back-home">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="3" stroke-linecap="square">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-                <span>We Otzi</span>
-            </a>
-            <div class="jb-progress-wrapper">
-                <div class="jb-progress-bar">
-                    <div class="jb-progress-fill" id="jb-progress-fill"></div>
+        <header class="jbr-header">
+            <a href="/" class="jbr-brand">← <span>WE ÖTZI</span></a>
+            <div class="jbr-progress">
+                <div class="wo-progress jbr-progress-track">
+                    <span id="jb-progress-fill"></span>
                 </div>
-                <span class="jb-progress-label" id="jb-progress-label">01 / 05</span>
+                <span class="jbr-progress-label" id="jb-progress-label"></span>
             </div>
         </header>
 
         <!-- Back Button -->
-        <button type="button" class="jb-btn-back" id="jb-btn-back" style="display: none;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="3" stroke-linecap="square">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Atras
-        </button>
+        <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-back" id="jb-btn-back" style="display: none;">← Volver</button>
 
         <!-- Steps Container (rendered dynamically by JS) -->
-        <div id="steps-container" class="jb-steps-container"></div>
+        <div id="steps-container" class="jbr-steps"></div>
 
         <!-- Navigation Footer -->
-        <footer class="jb-request-footer">
-            <div class="jb-keyboard-hint">
-                <span>Presiona</span>
+        <footer class="jbr-footer">
+            <div class="jbr-kbd-hint" id="jb-kbd-hint">
+                <span>Presioná</span>
                 <kbd>Enter</kbd>
                 <span>para continuar</span>
             </div>
-            <button type="button" class="jb-btn-next" id="jb-btn-next">
-                Siguiente
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="3" stroke-linecap="square">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-            </button>
+            <button type="button" class="wo-btn wo-btn--hard jbr-next" id="jb-btn-next">Siguiente →</button>
         </footer>
 
     </main>
 
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="jb-loading-overlay hidden">
-        <div class="jb-loader"></div>
-        <p>Publicando solicitud...</p>
+    <div id="loading-overlay" class="wo-overlay jbr-overlay hidden">
+        <div class="jbr-overlay-box">
+            <div class="wo-spinner"></div>
+            <p class="wo-meta">Publicando tu solicitud…</p>
+        </div>
     </div>
 
     <!-- Main Script -->

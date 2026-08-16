@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi - Buscar Artistas</title>
-    <meta name="description" content="Encuentra al artista ideal para tu próximo tatuaje en We Ötzi.">
+    <title>We Ötzi · Marketplace de artistas</title>
+    <meta name="description" content="Descubrí artistas y encontrá el tatuador que encaja con tu estilo en We Ötzi.">
 
     <!-- Microsoft Clarity - Behavior Analytics -->
     <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
@@ -20,159 +20,158 @@
         })();
     </script>
 
-    <!-- Fonts - Bauhaus Typography -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Styles -->
-    <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/marketplace.css">
+    <!-- We Ötzi Design System -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/marketplace-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
 </head>
-<body data-theme="light">
-    <div class="app-container">
-        <!-- Marketplace Header -->
-        <header class="app-header">
-            <a href="/quotation" class="nav-btn" aria-label="Volver a Cotización">
-                <i class="fa-solid fa-arrow-left"></i>
+<body class="wo-app mk-page">
+
+    <!-- TopBar -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/" class="wo-topbar-brand">
+                <span class="wo-o-tile">Ö</span>
+                WE ÖTZI
             </a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal">
+                <a href="/marketplace" class="wo-topbar-item is-active" aria-current="page">Marketplace</a>
+                <a href="/explore" class="wo-topbar-item">Mapa</a>
+                <a href="/studio/login" class="wo-topbar-item">Estudios</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a href="/quotation" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard mk-topbar-cta">Cotizá &rarr;</a>
+        </div>
+    </header>
 
-            <div class="header-logo">We Ötzi Marketplace</div>
+    <main id="marketplace-content" class="wo-container mk-main">
 
-            <div class="header-actions" style="display:flex; gap:8px;">
-                <a href="/explore" class="nav-btn" aria-label="Ver en mapa" title="Explorar en mapa">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                </a>
-                <a href="/studio/login" class="nav-btn" aria-label="Estudios" title="Acceso para estudios">
-                    <i class="fa-solid fa-building"></i>
-                </a>
-                <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
+        <!-- Hero + búsqueda -->
+        <section class="mk-hero">
+            <h1 class="mk-title">Descubrí artistas</h1>
+            <p class="mk-sub">Encontrá el tatuador que encaja con tu estilo.</p>
+
+            <div class="mk-search">
+                <span class="mk-search-icon" aria-hidden="true"><i data-wo-icon="search" class="wo-icon-18"></i></span>
+                <input type="text" id="smart-search" class="wo-input mk-search-input"
+                       placeholder="Buscar artistas, estilos, ciudades…" autocomplete="off"
+                       aria-label="Buscar artistas, estilos, ciudades">
+                <div id="search-suggestions" class="mk-suggestions hidden"></div>
             </div>
-        </header>
 
-        <main id="marketplace-content">
-            <!-- Hero Section with Smart Search -->
-            <section class="marketplace-hero">
-                <h1 class="brand-title">Encuentra tu Artista</h1>
-                <p class="subtitle">Busca por estilo, ciudad, nombre o presupuesto.</p>
-
-                <div class="smart-search-container">
-                    <div class="search-input-wrapper">
-                        <input type="text" id="smart-search" placeholder="Escribe 'Realismo', 'Madrid', 'Yomico'..." autocomplete="off">
-                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <div id="search-suggestions" class="suggestions-dropdown hidden"></div>
-                    </div>
+            <!-- Pills de estilos -->
+            <div class="mk-styles">
+                <span class="wo-eyebrow">Estilos populares</span>
+                <div class="mk-styles-row" id="style-filters">
+                    <!-- Chips inyectados por marketplace.js -->
                 </div>
+            </div>
 
-                <!-- Visual Style Filters -->
-                <div class="visual-filters">
-                    <div class="filter-group">
-                        <span class="filter-label">Estilos Populares</span>
-                        <div class="filter-grid" id="style-filters">
-                            <!-- Injected by marketplace.js -->
-                        </div>
-                    </div>
+            <!-- Filtros avanzados -->
+            <div class="mk-adv-filters">
+                <div class="wo-field">
+                    <label class="wo-label" for="filter-country">País</label>
+                    <select id="filter-country" class="wo-select" onchange="handleFilterChange('country', this.value)">
+                        <option value="">Todos los países</option>
+                    </select>
                 </div>
-
-                <!-- Advanced Filters Bar -->
-                <div class="advanced-filters-bar">
-                    <div class="filter-select-group">
-                        <label for="filter-country">País</label>
-                        <select id="filter-country" onchange="handleFilterChange('country', this.value)">
-                            <option value="">Todos los países</option>
-                        </select>
-                    </div>
-                    <div class="filter-select-group">
-                        <label for="filter-price">Rango de Precio</label>
-                        <select id="filter-price" onchange="handleFilterChange('priceRange', this.value)">
-                            <option value="">Cualquier precio</option>
-                            <option value="low">Económico (< 200 USD)</option>
-                            <option value="medium">Medio (200 - 800 USD)</option>
-                            <option value="high">Premium (> 800 USD)</option>
-                        </select>
-                    </div>
-                    <div class="filter-select-group">
-                        <label for="filter-language">Idioma</label>
-                        <select id="filter-language" onchange="handleFilterChange('language', this.value)">
-                            <option value="">Cualquier idioma</option>
-                        </select>
-                    </div>
-                    <div class="filter-select-group">
-                        <label for="filter-experience">Experiencia</label>
-                        <select id="filter-experience" onchange="handleFilterChange('experience', this.value)">
-                            <option value="">Cualquier experiencia</option>
-                            <option value="junior">Junior (1-3 años)</option>
-                            <option value="mid">Intermedio (4-7 años)</option>
-                            <option value="senior">Senior (8+ años)</option>
-                        </select>
-                    </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="filter-price">Precio</label>
+                    <select id="filter-price" class="wo-select" onchange="handleFilterChange('priceRange', this.value)">
+                        <option value="">Cualquier precio</option>
+                        <option value="low">Económico · &lt; 200 USD</option>
+                        <option value="medium">Medio · 200 – 800 USD</option>
+                        <option value="high">Premium · &gt; 800 USD</option>
+                    </select>
                 </div>
-            </section>
-
-            <!-- Active Filters Area -->
-            <section id="active-filters-section" class="active-filters-container hidden">
-                <div class="active-filters-header">
-                    <span class="technical-label">Filtros Activos:</span>
-                    <button class="btn-text" onclick="clearAllFilters()">Limpiar todo</button>
+                <div class="wo-field">
+                    <label class="wo-label" for="filter-language">Idioma</label>
+                    <select id="filter-language" class="wo-select" onchange="handleFilterChange('language', this.value)">
+                        <option value="">Cualquier idioma</option>
+                    </select>
                 </div>
-                <div id="active-filters-list" class="active-filters-list"></div>
-            </section>
+                <div class="wo-field">
+                    <label class="wo-label" for="filter-experience">Experiencia</label>
+                    <select id="filter-experience" class="wo-select" onchange="handleFilterChange('experience', this.value)">
+                        <option value="">Cualquier experiencia</option>
+                        <option value="junior">Junior · 1-3 años</option>
+                        <option value="mid">Intermedio · 4-7 años</option>
+                        <option value="senior">Senior · 8+ años</option>
+                    </select>
+                </div>
+            </div>
+        </section>
 
-            <!-- Results Section -->
-            <section class="results-section">
-                <div class="results-meta">
-                    <span id="results-count" class="technical-label">Cargando artistas...</span>
-                    <div class="sort-control">
-                        <label for="sort-select">Ordenar por:</label>
-                        <select id="sort-select" onchange="handleSortChange()">
+        <!-- Filtros activos -->
+        <section id="active-filters-section" class="mk-active-filters hidden">
+            <span class="wo-meta mk-active-label">Filtros activos</span>
+            <div id="active-filters-list" class="mk-active-list"></div>
+            <button type="button" class="wo-btn wo-btn--nav mk-clear-btn" onclick="clearAllFilters()">Limpiar todo</button>
+        </section>
+
+        <!-- Resultados -->
+        <section class="mk-results">
+            <div class="mk-results-bar">
+                <span id="results-count" class="wo-meta mk-count">Cargando artistas…</span>
+                <div class="mk-results-tools">
+                    <div class="mk-view-toggle" role="group" aria-label="Vista de resultados">
+                        <span class="mk-view-btn is-active"><i data-wo-icon="grid" class="wo-icon-18"></i>Lista</span>
+                        <a class="mk-view-btn" href="/explore" title="Explorar en mapa"><i data-wo-icon="map" class="wo-icon-18"></i>Mapa</a>
+                    </div>
+                    <div class="mk-sort">
+                        <label class="wo-label" for="sort-select">Ordenar</label>
+                        <select id="sort-select" class="wo-select mk-sort-select" onchange="handleSortChange()">
                             <option value="recommended">Recomendados</option>
-                            <option value="price-low">Precio: Menor a Mayor</option>
-                            <option value="price-high">Precio: Mayor a Menor</option>
+                            <option value="price-low">Precio: menor a mayor</option>
+                            <option value="price-high">Precio: mayor a menor</option>
                             <option value="name">Nombre</option>
                         </select>
                     </div>
                 </div>
+            </div>
 
-                <div id="marketplace-grid" class="marketplace-grid">
-                    <!-- Artists cards injected here -->
-                </div>
+            <div id="marketplace-grid" class="mk-grid">
+                <!-- Cards de artistas inyectadas por marketplace.js -->
+            </div>
 
-                <!-- Pagination Controls -->
-                <div id="pagination-controls" class="pagination-container hidden">
-                    <button class="nav-btn" id="prev-page" onclick="changePage(-1)">
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <span id="page-info" class="page-info">Página 1 de 1</span>
-                    <button class="nav-btn" id="next-page" onclick="changePage(1)">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                </div>
+            <!-- Paginación -->
+            <div id="pagination-controls" class="mk-pagination hidden">
+                <button type="button" class="wo-iconbtn wo-iconbtn--s" id="prev-page" onclick="changePage(-1)" aria-label="Página anterior">
+                    <i data-wo-icon="chevron-left" class="wo-icon-18"></i>
+                </button>
+                <span id="page-info" class="wo-meta mk-page-info">Página 1 de 1</span>
+                <button type="button" class="wo-iconbtn wo-iconbtn--s" id="next-page" onclick="changePage(1)" aria-label="Página siguiente">
+                    <i data-wo-icon="chevron-right" class="wo-icon-18"></i>
+                </button>
+            </div>
 
-                <!-- Empty State -->
-                <div id="empty-state" class="empty-state hidden">
-                    <div class="empty-icon">🎨</div>
-                    <h2>No encontramos artistas con esos criterios</h2>
-                    <p>Prueba buscando otro estilo o ciudad, o limpia los filtros para ver todos.</p>
-                    <button class="btn btn-secondary" onclick="clearAllFilters()">Ver todos los artistas</button>
-                </div>
-            </section>
-        </main>
+            <!-- Estado vacío -->
+            <div id="empty-state" class="wo-empty hidden">
+                <i data-wo-icon="image" class="mk-empty-icon"></i>
+                <div class="wo-empty-title">No encontramos artistas con esos criterios</div>
+                <p>Probá con otro estilo o ciudad, o limpiá los filtros para ver todos.</p>
+                <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard" onclick="clearAllFilters()">Ver todos los artistas</button>
+            </div>
+        </section>
+    </main>
 
-        <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
-    </div>
+    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
 
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="loader"></div>
-        <p>Buscando inspiración...</p>
+    <div id="loading-overlay" class="wo-overlay mk-loading hidden">
+        <div class="mk-loading-box">
+            <div class="wo-spinner"></div>
+            <p class="wo-meta">Buscando inspiración…</p>
+        </div>
     </div>
 
     <script src="/shared/js/config-manager.js"></script>
@@ -187,26 +186,5 @@
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/marketplace.js"></script>
-    <script>
-        function toggleTheme() {
-            const body = document.body;
-            const currentTheme = body.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            body.setAttribute('data-theme', newTheme);
-            const icon = document.querySelector('#theme-toggle i');
-            icon.className = newTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-            localStorage.setItem('weotzi_theme', newTheme);
-        }
-
-        // Initialize theme
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTheme = localStorage.getItem('weotzi_theme') || 'light';
-            document.body.setAttribute('data-theme', savedTheme);
-            const icon = document.querySelector('#theme-toggle i');
-            if (icon) {
-                icon.className = savedTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-            }
-        });
-    </script>
 </body>
 </html>

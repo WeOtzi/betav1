@@ -1,17 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Pre Cotizador de Tatuaje</title>
-    <meta name="description" content="Calcula un estimado aproximado del costo de tu tatuaje y encuentra artistas compatibles.">
+    <title>We Ötzi · Pre cotizador de tatuaje</title>
+    <meta name="description" content="Calculá un estimado aproximado del costo de tu tatuaje y encontrá artistas compatibles.">
 
+    <!-- Fonts - Bauhaus Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <!-- Google Maps API (Places) - loaded dynamically from config -->
     <script>
         function loadGoogleMapsWhenReady() {
             if (window.CONFIG && window.CONFIG.googleMaps && window.CONFIG.googleMaps.apiKey) {
@@ -27,133 +31,127 @@
         document.addEventListener('DOMContentLoaded', loadGoogleMapsWhenReady);
     </script>
 
-    <link rel="stylesheet" href="/shared/css/styles.css">
+    <!-- Design System Bauhaus + estilos de página -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/pre-quote.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
 </head>
-<body>
-    <div class="app-container prequote-app">
-        <header class="app-header">
-            <a href="/quotation" class="nav-btn" aria-label="Volver a Cotización">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div class="header-logo">We Ötzi</div>
-            <button id="theme-toggle" class="nav-btn" aria-label="Cambiar Tema" onclick="toggleTheme()">
-                <i id="theme-icon" class="fa-solid fa-moon"></i>
-            </button>
+
+<body class="wo-app prequote-page">
+    <div class="app-container">
+        <!-- TopBar -->
+        <header class="wo-topbar prequote-topbar" role="banner">
+            <div class="wo-topbar-left">
+                <a href="/" class="wo-topbar-brand" aria-label="We Ötzi inicio">
+                    <span class="wo-marks" aria-hidden="true">
+                        <span class="wo-mark-square"></span>
+                        <span class="wo-mark-circle"></span>
+                        <span class="wo-mark-triangle"></span>
+                    </span>
+                    WE ÖTZI
+                </a>
+                <span class="prequote-topbar-tag wo-meta-s" aria-label="Pre cotizador para clientes">Pre cotizador · Cliente</span>
+            </div>
+
+            <div class="wo-topbar-right">
+                <a href="/quotation" class="wo-btn wo-btn--ghost wo-btn--s">Ir al cotizador →</a>
+            </div>
         </header>
 
         <main id="main-content" class="prequote-main">
-            <section class="step active" id="step-prequote">
-                <div class="prequote-shell">
+            <section id="step-prequote" class="prequote-shell">
 
-                    <header class="prequote-hero">
-                        <div class="prequote-hero__eyebrow" aria-hidden="true">
-                            <span class="prequote-eyebrow-tag">DOC · 001</span>
-                            <span class="prequote-eyebrow-rule"></span>
-                            <span class="prequote-eyebrow-tag">PRE&nbsp;COTIZACIÓN</span>
+                <header class="prequote-hero">
+                    <p class="wo-eyebrow prequote-kicker">Pre cotización · Doc 001</p>
+                    <h1 class="prequote-title">Estimá tu tatuaje.</h1>
+                    <p class="prequote-lede">
+                        Contanos los datos básicos y calculamos un rango aproximado
+                        <strong>basado en artistas reales</strong> compatibles con tu idea.
+                    </p>
+                    <ul class="prequote-facts" aria-label="Detalles del estimador">
+                        <li class="wo-tag wo-tag--soft">Toma ~60 segundos</li>
+                        <li class="wo-tag wo-tag--soft">Sin compromiso</li>
+                        <li class="wo-tag wo-tag--soft">Datos de artistas reales</li>
+                    </ul>
+                </header>
+
+                <form id="prequote-form" class="prequote-form" novalidate>
+
+                    <fieldset class="prequote-fieldset">
+                        <legend class="prequote-legend">
+                            <span class="prequote-legend-num" aria-hidden="true">01</span>
+                            <span class="prequote-legend-title">Tu idea</span>
+                        </legend>
+
+                        <div class="wo-field">
+                            <label for="prequote-idea" class="wo-label">Idea del tatuaje <span class="req">*</span></label>
+                            <textarea id="prequote-idea" class="wo-textarea" rows="4" placeholder="Ej: dragón japonés en blanco y negro, con detalle en olas…" required></textarea>
+                            <p class="wo-help">Describila lo mejor que puedas · cuanto más detalle, mejor el estimado.</p>
                         </div>
+                    </fieldset>
 
-                        <h1 class="prequote-title">
-                            <span class="prequote-title__line">Estima tu</span>
-                            <span class="prequote-title__line prequote-title__line--accent">
-                                tatuaje
-                                <span class="prequote-title__dot" aria-hidden="true"></span>
-                            </span>
-                            <span class="prequote-title__line prequote-title__line--mono">en 4 pasos.</span>
-                        </h1>
+                    <fieldset class="prequote-fieldset">
+                        <legend class="prequote-legend">
+                            <span class="prequote-legend-num" aria-hidden="true">02</span>
+                            <span class="prequote-legend-title">Estilo y tamaño</span>
+                        </legend>
 
-                        <p class="prequote-lede">
-                            Cuéntanos los datos básicos y calculamos un rango aproximado
-                            <strong>basado en artistas reales</strong> compatibles con tu idea.
-                        </p>
-
-                        <ul class="prequote-pills" aria-hidden="true">
-                            <li class="prequote-pill"><i class="fa-solid fa-bolt"></i> Toma ~60 segundos</li>
-                            <li class="prequote-pill prequote-pill--ghost"><i class="fa-solid fa-shield-halved"></i> Sin compromiso</li>
-                            <li class="prequote-pill prequote-pill--ghost"><i class="fa-solid fa-users"></i> Datos reales</li>
-                        </ul>
-                    </header>
-
-                    <form id="prequote-form" class="prequote-form" novalidate>
-
-                        <fieldset class="prequote-fieldset">
-                            <legend class="prequote-step">
-                                <span class="prequote-step__num">01</span>
-                                <span class="prequote-step__label">Tu idea</span>
-                            </legend>
-
-                            <div class="prequote-field prequote-field--full">
-                                <label for="prequote-idea" class="technical-label">Idea del tatuaje</label>
-                                <textarea id="prequote-idea" rows="4" placeholder="Ej: dragón japonés en blanco y negro, con detalle en olas..." required></textarea>
-                                <p class="prequote-hint">Descríbelo lo mejor que puedas — entre más detalle, mejor el estimado.</p>
+                        <div class="prequote-grid">
+                            <div class="wo-field">
+                                <label for="prequote-style" class="wo-label">Estilo <span class="req">*</span></label>
+                                <select id="prequote-style" class="wo-select" required><option value="">Seleccioná un estilo</option></select>
                             </div>
-                        </fieldset>
-
-                        <fieldset class="prequote-fieldset">
-                            <legend class="prequote-step">
-                                <span class="prequote-step__num">02</span>
-                                <span class="prequote-step__label">Estilo y tamaño</span>
-                            </legend>
-
-                            <div class="prequote-grid">
-                                <div class="prequote-field">
-                                    <label for="prequote-style" class="technical-label">Estilo</label>
-                                    <select id="prequote-style" required><option value="">Selecciona un estilo</option></select>
-                                </div>
-                                <div class="prequote-field">
-                                    <label for="prequote-size" class="technical-label">Tamaño</label>
-                                    <select id="prequote-size" required><option value="">Selecciona un tamaño</option></select>
-                                </div>
+                            <div class="wo-field">
+                                <label for="prequote-size" class="wo-label">Tamaño <span class="req">*</span></label>
+                                <select id="prequote-size" class="wo-select" required><option value="">Seleccioná un tamaño</option></select>
                             </div>
-                        </fieldset>
-
-                        <fieldset class="prequote-fieldset">
-                            <legend class="prequote-step">
-                                <span class="prequote-step__num">03</span>
-                                <span class="prequote-step__label">Ubicación en el cuerpo</span>
-                            </legend>
-
-                            <div class="prequote-grid">
-                                <div class="prequote-field">
-                                    <label for="prequote-body-zone" class="technical-label">Zona del cuerpo</label>
-                                    <select id="prequote-body-zone" required><option value="">Cargando zonas...</option></select>
-                                </div>
-                                <div class="prequote-field">
-                                    <span class="technical-label">Subzonas</span>
-                                    <div id="prequote-body-subzone" class="prequote-checkbox-grid prequote-checkbox-grid--empty" role="group" aria-label="Subzonas">
-                                        <p class="prequote-checkbox-empty">Selecciona una zona primero</p>
-                                    </div>
-                                    <p class="prequote-hint">Marca varias subzonas, o usa "Sin subzona específica" / "Zona entera".</p>
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="prequote-fieldset">
-                            <legend class="prequote-step">
-                                <span class="prequote-step__num">04</span>
-                                <span class="prequote-step__label">¿Dónde?</span>
-                            </legend>
-
-                            <div class="prequote-field prequote-field--full">
-                                <label for="prequote-city" class="technical-label">Ciudad</label>
-                                <input id="prequote-city" type="text" placeholder="Empieza a escribir tu ciudad..." autocomplete="off" required>
-                                <p class="prequote-hint">Selecciona una opción del autocompletado para incluir país.</p>
-                            </div>
-                        </fieldset>
-
-                        <p id="prequote-error" class="error-msg hidden"></p>
-
-                        <div class="prequote-submit-row">
-                            <button id="prequote-submit" type="submit" class="prequote-submit">
-                                <span class="prequote-submit__label">Calcular aproximado</span>
-                                <span class="prequote-submit__icon" aria-hidden="true">
-                                    <i class="fa-solid fa-calculator"></i>
-                                </span>
-                            </button>
-                            <p class="prequote-submit__note">Recibirás un rango y artistas sugeridos al instante.</p>
                         </div>
-                    </form>
-                </div>
+                    </fieldset>
+
+                    <fieldset class="prequote-fieldset">
+                        <legend class="prequote-legend">
+                            <span class="prequote-legend-num" aria-hidden="true">03</span>
+                            <span class="prequote-legend-title">Ubicación en el cuerpo</span>
+                        </legend>
+
+                        <div class="prequote-grid">
+                            <div class="wo-field">
+                                <label for="prequote-body-zone" class="wo-label">Zona del cuerpo <span class="req">*</span></label>
+                                <select id="prequote-body-zone" class="wo-select" required><option value="">Cargando zonas…</option></select>
+                            </div>
+                            <div class="wo-field">
+                                <span class="wo-label" id="prequote-subzone-label">Subzonas</span>
+                                <div id="prequote-body-subzone" class="prequote-checkbox-grid prequote-checkbox-grid--empty" role="group" aria-labelledby="prequote-subzone-label">
+                                    <p class="prequote-checkbox-empty">Seleccioná una zona primero</p>
+                                </div>
+                                <p class="wo-help">Marcá varias subzonas, o usá "Sin subzona específica" / "Zona entera".</p>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="prequote-fieldset">
+                        <legend class="prequote-legend">
+                            <span class="prequote-legend-num" aria-hidden="true">04</span>
+                            <span class="prequote-legend-title">Dónde estás</span>
+                        </legend>
+
+                        <div class="wo-field">
+                            <label for="prequote-city" class="wo-label">Ciudad <span class="req">*</span></label>
+                            <input id="prequote-city" class="wo-input" type="text" placeholder="Empezá a escribir tu ciudad…" autocomplete="off" required>
+                            <p class="wo-help">Seleccioná una opción del autocompletado para incluir el país.</p>
+                        </div>
+                    </fieldset>
+
+                    <p id="prequote-error" class="wo-alert wo-alert--error hidden" role="alert"></p>
+
+                    <div class="prequote-submit-row">
+                        <button id="prequote-submit" type="submit" class="wo-btn wo-btn--accent wo-btn--hard wo-btn--block">
+                            Calcular estimado
+                        </button>
+                        <p class="prequote-submit-note wo-meta-s">Recibís un rango y artistas sugeridos al instante</p>
+                    </div>
+                </form>
             </section>
 
             <section id="prequote-results" class="prequote-results hidden" aria-live="polite"></section>
@@ -162,9 +160,9 @@
         <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
     </div>
 
-    <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="loader"></div>
-        <p>Calculando estimado...</p>
+    <div id="loading-overlay" class="wo-overlay loading-overlay hidden" role="status">
+        <div class="wo-spinner"></div>
+        <p class="loading-msg">Calculando estimado…</p>
     </div>
 
     <script src="/shared/js/config-manager.js"></script>
@@ -180,17 +178,6 @@
     <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/quotation-shared.js"></script>
     <script src="/shared/js/pre-quote.js"></script>
-    <script>
-        function toggleTheme() {
-            var body = document.body;
-            var next = (body.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
-            body.setAttribute('data-theme', next);
-            localStorage.setItem('weotzi_theme', next);
-        }
-        (function () {
-            var saved = localStorage.getItem('weotzi_theme');
-            if (saved) document.body.setAttribute('data-theme', saved);
-        })();
-    </script>
 </body>
+
 </html>
