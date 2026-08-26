@@ -78,40 +78,13 @@ async function checkClientAuthState() {
 // ============================================
 
 function loadQuotationData() {
+    // El wizard de /client/register hace su propio precargado visual; acá solo
+    // se retiene el payload de la cotización (quote_id, salud/alergias) para
+    // que handleClientRegistration lo enlace al crear la cuenta.
     const quotationDataStr = localStorage.getItem('weotzi_client_registration_data');
     if (quotationDataStr) {
         try {
-            const quotationData = JSON.parse(quotationDataStr);
-            
-            // Pre-fill form fields if they exist
-            const nameInput = document.getElementById('register-name');
-            const emailInput = document.getElementById('register-email');
-            const whatsappInput = document.getElementById('register-whatsapp');
-            const birthdateInput = document.getElementById('register-birthdate');
-            const instagramInput = document.getElementById('register-instagram');
-            const cityInput = document.getElementById('register-city');
-            
-            if (nameInput && quotationData.client_full_name) {
-                nameInput.value = quotationData.client_full_name;
-            }
-            if (emailInput && quotationData.client_email) {
-                emailInput.value = quotationData.client_email;
-            }
-            if (whatsappInput && quotationData.client_whatsapp) {
-                whatsappInput.value = quotationData.client_whatsapp;
-            }
-            if (birthdateInput && quotationData.client_birth_date) {
-                birthdateInput.value = quotationData.client_birth_date;
-            }
-            if (instagramInput && quotationData.client_instagram) {
-                instagramInput.value = quotationData.client_instagram;
-            }
-            if (cityInput && quotationData.client_city_residence) {
-                cityInput.value = quotationData.client_city_residence;
-            }
-            
-            // Store for later use
-            currentClientData = quotationData;
+            currentClientData = JSON.parse(quotationDataStr);
         } catch (e) {
             console.error('Error parsing quotation data:', e);
         }
@@ -144,180 +117,151 @@ function clearFormMessage() {
 // Client Registration Handler
 // ============================================
 
-async function handleClientRegistration(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-register');
-    const originalText = btn.innerHTML;
-    
-    // Get form values
-    const name = document.getElementById('register-name').value.trim();
-    const email = document.getElementById('register-email').value.trim().toLowerCase();
-    const password = document.getElementById('register-password').value;
-    const confirmPassword = document.getElementById('register-confirm-password').value;
-    const whatsapp = document.getElementById('register-whatsapp')?.value.trim() || '';
-    const birthdate = document.getElementById('register-birthdate')?.value || null;
-    const instagram = document.getElementById('register-instagram')?.value.trim() || '';
-    const city = document.getElementById('register-city')?.value.trim() || '';
-    
-    clearFormMessage();
-    
-    // Validation
+/**
+ * Crea la cuenta del cliente desde el payload del wizard de /client/register.
+ * NO toca el DOM: el wizard maneja botones, mensajes y la pantalla de éxito.
+ *
+ * payload: { email, password, firstName, lastName, fullName?, city?, country?,
+ *            username?, whatsapp?, birthdate?, instagram? }
+ *
+ * Hace: signUp (el trigger handle_new_user crea clients_db desde los metadatos)
+ * → insert de respaldo en clients_db → link de cotizaciones (por email y por
+ * quote_id de la precarga) → auto-login → webhook n8n. Devuelve el user de
+ * auth; lanza si el signUp falla.
+ */
+async function handleClientRegistration(payload) {
+    const email = String(payload.email || '').trim().toLowerCase();
+    const password = payload.password;
+    const firstName = String(payload.firstName || '').trim();
+    const lastName = String(payload.lastName || '').trim();
+    const name = String(payload.fullName || `${firstName} ${lastName}`).trim();
+    const city = String(payload.city || '').trim();
+    // Datos que el wizard no pide pero pueden venir de la precarga de cotización.
+    const whatsapp = String(payload.whatsapp || currentClientData?.client_whatsapp || '').trim();
+    const birthdate = payload.birthdate || currentClientData?.client_birth_date || null;
+    const instagram = String(payload.instagram || currentClientData?.client_instagram || '').trim();
+
     if (!name || !email || !password) {
-        showFormMessage('Por favor completa todos los campos obligatorios.', 'error');
-        return;
+        throw new Error('Completá los campos obligatorios.');
     }
-    
-    if (password !== confirmPassword) {
-        showFormMessage('Las contrasenas no coinciden.', 'error');
-        return;
+    if (password.length < 8) {
+        throw new Error('Password should be at least 8 characters.');
     }
-    
-    if (password.length < 6) {
-        showFormMessage('La contrasena debe tener al menos 6 caracteres.', 'error');
-        return;
+
+    // Create auth user
+    const { data: authData, error: authError } = await _supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+            data: {
+                full_name: name,
+                user_type: 'client',
+                // El perfil en clients_db lo crea el trigger handle_new_user
+                // desde estos metadatos (el insert client-side corre sin
+                // sesion y RLS lo bloquea).
+                whatsapp: whatsapp || '',
+                birth_date: birthdate || '',
+                instagram: instagram || '',
+                city_residence: city || '',
+                health_conditions: currentClientData?.client_health_conditions || '',
+                allergies: currentClientData?.client_allergies || ''
+            },
+            emailRedirectTo: window.location.origin + '/client/dashboard'
+        }
+    });
+
+    if (authError) throw authError;
+    if (!authData.user) throw new Error('No pudimos crear la cuenta.');
+
+    // Calculate age from birthdate
+    let age = null;
+    if (birthdate) {
+        const today = new Date();
+        const birthDate = new Date(birthdate);
+        age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
     }
-    
-    // Set loading state
-    btn.innerHTML = '<div class="spinner"></div><span>REGISTRANDO...</span>';
-    btn.classList.add('loading');
-    btn.disabled = true;
-    
-    try {
-        // Create auth user
-        const { data: authData, error: authError } = await _supabase.auth.signUp({
+
+    // Insert client profile (respaldo del trigger; si ya existe, sigue)
+    const { error: insertError } = await WeotziData.Clients.insert({
+            user_id: authData.user.id,
             email: email,
-            password: password,
-            options: {
-                data: {
-                    full_name: name,
-                    user_type: 'client',
-                    // El perfil en clients_db lo crea el trigger handle_new_user
-                    // desde estos metadatos (el insert client-side corre sin
-                    // sesion y RLS lo bloquea).
-                    whatsapp: whatsapp || '',
-                    birth_date: birthdate || '',
-                    instagram: instagram || '',
-                    city_residence: city || '',
-                    health_conditions: currentClientData?.client_health_conditions || '',
-                    allergies: currentClientData?.client_allergies || ''
-                },
-                emailRedirectTo: window.location.origin + '/client/dashboard'
-            }
+            full_name: name,
+            whatsapp: whatsapp || null,
+            birth_date: birthdate || null,
+            age: age,
+            instagram: instagram || null,
+            city_residence: city || null,
+            health_conditions: currentClientData?.client_health_conditions || null,
+            allergies: currentClientData?.client_allergies || null,
+            email_verified: false
         });
-        
-        if (authError) throw authError;
-        
-        if (authData.user) {
-            // Calculate age from birthdate
-            let age = null;
-            if (birthdate) {
-                const today = new Date();
-                const birthDate = new Date(birthdate);
-                age = today.getFullYear() - birthDate.getFullYear();
-                const monthDiff = today.getMonth() - birthDate.getMonth();
-                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-            }
-            
-            // Insert client profile
-            const { error: insertError } = await WeotziData.Clients.insert({
-                    user_id: authData.user.id,
-                    email: email,
-                    full_name: name,
-                    whatsapp: whatsapp || null,
-                    birth_date: birthdate || null,
-                    age: age,
-                    instagram: instagram || null,
-                    city_residence: city || null,
-                    health_conditions: currentClientData?.client_health_conditions || null,
-                    allergies: currentClientData?.client_allergies || null,
-                    email_verified: false
-                });
-            
-            if (insertError) {
-                console.error('Error creating client profile:', insertError);
-                // Continue anyway - profile can be created later
-            }
-            
-            // Link existing quotations by email
-            await linkQuotationsByEmail(authData.user.id, email);
-            
-            // Link specific quotation by ID if available
-            if (currentClientData?.quote_id) {
-                await linkQuotationById(authData.user.id, currentClientData.quote_id);
-            }
-            
-            // Sign in the user
-            const { error: signInError } = await _supabase.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
-            
-            if (signInError) {
-                console.warn('Could not auto-login:', signInError.message);
-            }
-            
-            // Trigger n8n webhook for client registration completed
-            if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-                try {
-                    await window.ConfigManager.sendN8NEvent('client_registration_completed', {
-                        // Account info
-                        email: email,
-                        password: password, // Included per user request
-                        user_id: authData.user?.id || null,
-                        // Profile summary
-                        full_name: name,
-                        whatsapp: whatsapp || null,
-                        birth_date: birthdate || null,
-                        age: age,
-                        instagram: instagram || null,
-                        city: city || null,
-                        // Health info
-                        health_conditions: currentClientData?.client_health_conditions || null,
-                        allergies: currentClientData?.client_allergies || null,
-                        // Quotation info if available
-                        quote_id: currentClientData?.quote_id || null,
-                        artist_name: currentClientData?.artist_name || null,
-                        // URLs
-                        dashboard_url: window.location.origin + '/client/dashboard',
-                        login_url: window.location.origin + '/client/login'
-                    });
-                    console.log('n8n event sent: client_registration_completed');
-                } catch (webhookErr) {
-                    console.warn('Could not send client_registration_completed event:', webhookErr);
-                }
-            }
-            
-            // Clear quotation data from localStorage
-            localStorage.removeItem('weotzi_client_registration_data');
-            
-            // Success
-            btn.innerHTML = '<span class="btn-text">CUENTA CREADA</span>';
-            btn.style.background = '#4CAF50';
-            
-            showFormMessage('Cuenta creada exitosamente. Redirigiendo...', 'success');
-            
-            setTimeout(() => {
-                window.location.href = '/client/dashboard';
-            }, 1500);
-        }
-        
-    } catch (error) {
-        console.error('Registration error:', error);
-        btn.innerHTML = originalText;
-        btn.classList.remove('loading');
-        btn.disabled = false;
-        
-        let errorMessage = 'Error al crear la cuenta. Por favor, intenta de nuevo.';
-        if (error.message.includes('already registered')) {
-            errorMessage = 'Este email ya esta registrado. <a href="/client/login">Iniciar sesion</a>';
-        } else if (error.message.includes('Invalid email')) {
-            errorMessage = 'El email ingresado no es valido.';
-        }
-        
-        showFormMessage(errorMessage, 'error');
+
+    if (insertError) {
+        console.error('Error creating client profile:', insertError);
+        // Continue anyway - profile can be created later
     }
+
+    // Link existing quotations by email
+    await linkQuotationsByEmail(authData.user.id, email);
+
+    // Link specific quotation by ID if available
+    if (currentClientData?.quote_id) {
+        await linkQuotationById(authData.user.id, currentClientData.quote_id);
+    }
+
+    // Sign in the user
+    const { error: signInError } = await _supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (signInError) {
+        console.warn('Could not auto-login:', signInError.message);
+    }
+
+    // Trigger n8n webhook for client registration completed
+    if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+        try {
+            await window.ConfigManager.sendN8NEvent('client_registration_completed', {
+                // Account info
+                email: email,
+                password: password, // Included per user request
+                user_id: authData.user?.id || null,
+                // Profile summary
+                full_name: name,
+                first_name: firstName || null,
+                last_name: lastName || null,
+                username: payload.username || null,
+                whatsapp: whatsapp || null,
+                birth_date: birthdate || null,
+                age: age,
+                instagram: instagram || null,
+                city: city || null,
+                country: payload.country || null,
+                // Health info
+                health_conditions: currentClientData?.client_health_conditions || null,
+                allergies: currentClientData?.client_allergies || null,
+                // Quotation info if available
+                quote_id: currentClientData?.quote_id || null,
+                artist_name: currentClientData?.artist_name || null,
+                // URLs
+                dashboard_url: window.location.origin + '/client/dashboard',
+                login_url: window.location.origin + '/client/login'
+            });
+            console.log('n8n event sent: client_registration_completed');
+        } catch (webhookErr) {
+            console.warn('Could not send client_registration_completed event:', webhookErr);
+        }
+    }
+
+    // Clear quotation data from localStorage
+    localStorage.removeItem('weotzi_client_registration_data');
+
+    return authData.user;
 }
 
 // ============================================
@@ -384,7 +328,7 @@ async function handleClientLogin(e) {
     clearFormMessage();
     
     if (!email || !password) {
-        showFormMessage('Por favor ingresa tu email y contrasena.', 'error');
+        showFormMessage('Ingresá tu email y tu contraseña.', 'error');
         return;
     }
     
@@ -414,9 +358,10 @@ async function handleClientLogin(e) {
             }
             
             btn.innerHTML = '<span class="btn-text">BIENVENIDO</span>';
-            btn.style.background = '#4CAF50';
-            
-            showFormMessage('Sesion iniciada correctamente.', 'success');
+            btn.style.background = 'var(--system-success)';
+            btn.style.borderColor = 'var(--system-success)';
+
+            showFormMessage('Sesión iniciada correctamente.', 'success');
             
             setTimeout(() => {
                 window.location.href = '/client/dashboard';
@@ -444,8 +389,9 @@ async function handleClientLogin(e) {
                 }
                 
                 btn.innerHTML = '<span class="btn-text">BIENVENIDO</span>';
-                btn.style.background = '#4CAF50';
-                
+                btn.style.background = 'var(--system-success)';
+                btn.style.borderColor = 'var(--system-success)';
+
                 setTimeout(() => {
                     window.location.href = '/client/dashboard';
                 }, 1500);
@@ -458,9 +404,9 @@ async function handleClientLogin(e) {
         btn.classList.remove('loading');
         btn.disabled = false;
         
-        let errorMessage = 'Error al iniciar sesion.';
+        let errorMessage = 'No pudimos iniciar sesión. Probá de nuevo.';
         if (error.message.includes('Invalid login credentials')) {
-            errorMessage = 'Email o contrasena incorrectos.';
+            errorMessage = 'Email o contraseña incorrectos.';
         }
         
         showFormMessage(errorMessage, 'error');
@@ -488,7 +434,7 @@ async function handleGoogleLogin() {
         
     } catch (error) {
         console.error('Google login error:', error);
-        showFormMessage('Error al conectar con Google. Por favor, intenta de nuevo.', 'error');
+        showFormMessage('No pudimos conectar con Google. Probá de nuevo.', 'error');
     }
 }
 

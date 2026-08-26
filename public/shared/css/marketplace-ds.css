@@ -143,7 +143,9 @@
 
 /* Esquina superior de la card: badge Patrocinado + chip de estado apilados
    a la izquierda (sobre el gradiente superior) y corazón a la derecha */
-.mk-card-topfade{position:absolute;top:0;left:0;right:0;height:60px;background:linear-gradient(180deg,rgba(0,0,0,0.45),transparent);pointer-events:none}
+/* Protección superior: mismo gradiente permitido (--protection-bottom) volteado
+   con scaleY(-1) — regla DS 12: solo los 2 gradientes de protección, sin rgba sueltos */
+.mk-card-topfade{position:absolute;top:0;left:0;right:0;height:60px;background:var(--protection-bottom);transform:scaleY(-1);pointer-events:none}
 .mk-card-top{position:absolute;top:var(--space-3);left:var(--space-3);display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2)}
 .mk-card-status{display:inline-flex;align-items:center;gap:var(--space-3);
   font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--white)}

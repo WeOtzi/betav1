@@ -6,7 +6,7 @@
     <title>We Ötzi · Creá tu cuenta</title>
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
-    <link rel="stylesheet" href="/shared/css/client-auth-ds.css">
+    <link rel="stylesheet" href="/shared/css/client-register-ds.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -15,108 +15,131 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/account-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
 </head>
-<body class="wo-app ca-page">
-    <div class="ca-split">
-        <aside class="ca-hero" aria-hidden="true">
-            <div class="ca-hero-inner">
-                <span class="wo-marks ca-marks-lg">
+<body class="wo-app cw-page">
+
+    <!-- ================= Wizard (frames 391:539 · 414:1012 · 414:1141 · 415:1476) ================= -->
+    <div id="cw-shell">
+        <header class="cw-topbar">
+            <div class="cw-topbar-left">
+                <span class="wo-marks" aria-hidden="true">
                     <span class="wo-mark-square"></span>
                     <span class="wo-mark-circle"></span>
                     <span class="wo-mark-triangle"></span>
                 </span>
-                <p class="ca-hero-title">
-                    <span class="l1">Tu próximo</span><br>
-                    <span class="l2">proyecto</span><br>
-                    <span class="l3">está acá</span>
-                </p>
+                <span class="cw-topbar-label">Crear cuenta · Cliente</span>
             </div>
-            <span class="ca-hero-deco"></span>
-        </aside>
-
-        <main class="ca-form-col" id="register-content">
-            <div class="ca-form">
-                <a class="ca-brand" href="/inicio" aria-label="We Ötzi · inicio">
-                    <span class="wo-marks ca-marks-lg">
-                        <span class="wo-mark-square"></span>
-                        <span class="wo-mark-circle"></span>
-                        <span class="wo-mark-triangle"></span>
-                    </span>
-                    <span class="ca-wordmark">WE ÖTZI</span>
+            <div class="cw-topbar-right">
+                <span class="cw-progress-note"><span class="dot" aria-hidden="true"></span>Progreso guardado</span>
+                <span class="cw-step-count wo-mono-num">Paso <span id="cw-step-num">01</span> / 04</span>
+                <a class="cw-close" href="/inicio" aria-label="Salir del registro">
+                    <i data-wo-icon="x" aria-hidden="true"></i>
                 </a>
+            </div>
+        </header>
 
-                <div class="ca-head">
-                    <h1 class="ca-title">Creá tu cuenta</h1>
-                    <p class="ca-subtitle">Registrate para gestionar tus cotizaciones y proyectos.</p>
+        <div class="cw-progressbar" aria-hidden="true">
+            <span class="cw-seg is-done" data-seg="1"></span>
+            <span class="cw-seg" data-seg="2"></span>
+            <span class="cw-seg" data-seg="3"></span>
+            <span class="cw-seg" data-seg="4"></span>
+        </div>
+
+        <nav class="cw-tabs" aria-label="Pasos del registro">
+            <button type="button" class="cw-tab is-active" data-step="1"><span class="num">01</span> Crear cuenta</button>
+            <button type="button" class="cw-tab" data-step="2" disabled><span class="num">02</span> Sobre vos</button>
+            <button type="button" class="cw-tab" data-step="3" disabled><span class="num">03</span> Tus gustos</button>
+            <button type="button" class="cw-tab" data-step="4" disabled><span class="num">04</span> Qué buscás</button>
+        </nav>
+
+        <main class="cw-main" id="register-content">
+
+            <!-- ===== Paso 01 · Creá tu cuenta (391:539) ===== -->
+            <section class="cw-step" data-step="1">
+                <header class="cw-step-head">
+                    <span class="cw-step-ghost" aria-hidden="true">01</span>
+                    <div>
+                        <h1 class="cw-title">Creá tu cuenta</h1>
+                        <p class="cw-sub">Solo lo necesario para empezar. Tus gustos los vemos en un minuto.</p>
+                    </div>
+                </header>
+
+                <div id="cw-prefill-note" class="wo-alert wo-alert--info wo-hidden">
+                    Precargamos tus datos desde tu cotización. Podés cambiarlos si querés.
                 </div>
 
-                <div id="prefilled-notice" class="ca-notice" style="display: none;">
-                    <strong>Datos de tu cotización</strong>
-                    Pre-cargamos algunos campos con la información de tu cotización. Podés modificarlos si querés.
+                <p class="cw-account-note wo-hidden" id="cw-account-note">
+                    Tu cuenta ya está creada. Corregí el nombre de usuario para terminar tu perfil.
+                </p>
+
+                <div class="cw-s1-grid">
+                    <div class="cw-photo-col">
+                        <span class="wo-label" id="cw-photo-label">Foto de perfil</span>
+                        <button type="button" class="cw-photo-drop" id="cw-photo-drop" aria-labelledby="cw-photo-label">
+                            <img id="cw-photo-preview" class="wo-hidden" alt="Tu foto de perfil">
+                            <span class="cw-photo-empty" id="cw-photo-empty">
+                                <i data-wo-icon="image" aria-hidden="true"></i>
+                                <strong>Subí una foto</strong>
+                                <span class="browse">o elegí un archivo</span>
+                            </span>
+                        </button>
+                        <input type="file" id="cw-photo-input" accept="image/*" class="wo-hidden" tabindex="-1" aria-hidden="true">
+                        <span class="cw-photo-opt">Opcional</span>
+                    </div>
+
+                    <div class="cw-fields-col">
+                        <div class="cw-row-2">
+                            <div class="wo-field">
+                                <label class="wo-label" for="cw-first">Nombre <span class="req">*</span></label>
+                                <div class="cw-inputwrap">
+                                    <input type="text" id="cw-first" class="wo-input" placeholder="Tu nombre" autocomplete="given-name" required>
+                                </div>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cw-last">Apellido <span class="req">*</span></label>
+                                <div class="cw-inputwrap">
+                                    <input type="text" id="cw-last" class="wo-input" placeholder="Tu apellido" autocomplete="family-name" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="wo-field">
+                            <label class="wo-label" for="cw-email">Email <span class="req">*</span></label>
+                            <div class="cw-inputwrap cw-inputwrap--icon">
+                                <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                                <input type="email" id="cw-email" class="wo-input" placeholder="vos@email.com" autocomplete="email" required>
+                            </div>
+                        </div>
+
+                        <div class="cw-row-2">
+                            <div class="wo-field">
+                                <label class="wo-label" for="cw-username">Nombre de usuario <span class="req">*</span></label>
+                                <div class="cw-inputwrap cw-inputwrap--at">
+                                    <span class="at" aria-hidden="true">@</span>
+                                    <input type="text" id="cw-username" class="wo-input" placeholder="tuusuario" autocomplete="username" spellcheck="false" required>
+                                </div>
+                                <span class="wo-help">Así te van a encontrar</span>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cw-password">Contraseña <span class="req">*</span></label>
+                                <div class="cw-inputwrap cw-inputwrap--icon">
+                                    <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                                    <input type="password" id="cw-password" class="wo-input" placeholder="Tu contraseña" autocomplete="new-password" minlength="8" required>
+                                </div>
+                                <span class="wo-help">Mínimo 8 caracteres</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <form id="register-form" class="ca-fields" onsubmit="handleClientRegistration(event)">
-                    <div class="wo-field">
-                        <label class="wo-label" for="register-name">Nombre completo <span class="req">*</span></label>
-                        <input type="text" id="register-name" class="wo-input" placeholder="Tu nombre y apellido" required autocomplete="name">
-                    </div>
-
-                    <div class="wo-field">
-                        <label class="wo-label" for="register-email">Email <span class="req">*</span></label>
-                        <input type="email" id="register-email" class="wo-input" placeholder="vos@email.com" required autocomplete="email">
-                    </div>
-
-                    <div class="ca-row">
-                        <div class="wo-field">
-                            <label class="wo-label" for="register-password">Contraseña <span class="req">*</span></label>
-                            <input type="password" id="register-password" class="wo-input" placeholder="Mín. 6 caracteres" required autocomplete="new-password" minlength="6">
-                        </div>
-                        <div class="wo-field">
-                            <label class="wo-label" for="register-confirm-password">Confirmar <span class="req">*</span></label>
-                            <input type="password" id="register-confirm-password" class="wo-input" placeholder="Repetí tu contraseña" required autocomplete="new-password">
-                        </div>
-                    </div>
-
-                    <div class="ca-row">
-                        <div class="wo-field">
-                            <label class="wo-label" for="register-whatsapp">WhatsApp <span class="ca-opt">(opcional)</span></label>
-                            <input type="tel" id="register-whatsapp" class="wo-input" placeholder="+54 11 1234 5678" autocomplete="tel">
-                        </div>
-                        <div class="wo-field">
-                            <label class="wo-label" for="register-birthdate">Fecha de nacimiento <span class="ca-opt">(opcional)</span></label>
-                            <input type="date" id="register-birthdate" class="wo-input" autocomplete="bday">
-                        </div>
-                    </div>
-
-                    <div class="ca-row">
-                        <div class="wo-field">
-                            <label class="wo-label" for="register-instagram">Instagram <span class="ca-opt">(opcional)</span></label>
-                            <input type="text" id="register-instagram" class="wo-input" placeholder="@tu_usuario" autocomplete="off">
-                        </div>
-                        <div class="wo-field">
-                            <label class="wo-label" for="register-city">Ciudad <span class="ca-opt">(opcional)</span></label>
-                            <input type="text" id="register-city" class="wo-input" placeholder="Tu ciudad" autocomplete="address-level2">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="btn-register">
-                        <span class="btn-text">Registrarme</span>
-                        <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
-                    </button>
-                </form>
-
-                <div id="form-message" class="form-message"></div>
-
-                <div class="ca-divider" aria-hidden="true">O continuá con</div>
-
-                <div class="ca-oauth">
-                    <span class="wo-badge wo-badge--accent wo-badge--s">Recomendado</span>
-                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--block wo-btn--hard" onclick="handleGoogleLogin()">
-                        <svg class="ca-google-g" viewBox="0 0 24 24" aria-hidden="true">
+                <div class="cw-alt">
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" onclick="handleGoogleLogin()">
+                        <svg class="cw-google-g" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path>
                             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path>
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path>
@@ -124,25 +147,846 @@
                         </svg>
                         Registrate con Google
                     </button>
+                    <p class="cw-alt-link">¿Ya tenés cuenta? <a href="/client/login">Ingresá</a></p>
+                </div>
+            </section>
+
+            <!-- ===== Paso 02 · Contanos un poco sobre vos (414:1012) ===== -->
+            <section class="cw-step" data-step="2" hidden>
+                <header class="cw-step-head">
+                    <span class="cw-step-ghost" aria-hidden="true">02</span>
+                    <div>
+                        <h1 class="cw-title">Contanos un poco sobre vos</h1>
+                        <p class="cw-sub">Con esto podemos mostrarte artistas cerca y hablarte en tu idioma. Todo es opcional.</p>
+                    </div>
+                </header>
+
+                <div class="cw-sechead">
+                    <i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i>
+                    <span>Dónde estás</span>
+                </div>
+                <div class="cw-row-2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="cw-country">País</label>
+                        <select id="cw-country" class="wo-select" autocomplete="country-name">
+                            <option value="">Elegí tu país</option>
+                            <option>Argentina</option>
+                            <option>Bolivia</option>
+                            <option>Brasil</option>
+                            <option>Chile</option>
+                            <option>Colombia</option>
+                            <option>Costa Rica</option>
+                            <option>Cuba</option>
+                            <option>Ecuador</option>
+                            <option>El Salvador</option>
+                            <option>España</option>
+                            <option>Estados Unidos</option>
+                            <option>Guatemala</option>
+                            <option>Honduras</option>
+                            <option>México</option>
+                            <option>Nicaragua</option>
+                            <option>Panamá</option>
+                            <option>Paraguay</option>
+                            <option>Perú</option>
+                            <option>Portugal</option>
+                            <option>Puerto Rico</option>
+                            <option>República Dominicana</option>
+                            <option>Uruguay</option>
+                            <option>Venezuela</option>
+                            <option>Otro</option>
+                        </select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="cw-city">Ciudad</label>
+                        <div class="cw-inputwrap">
+                            <input type="text" id="cw-city" class="wo-input" placeholder="Tu ciudad" autocomplete="address-level2">
+                        </div>
+                    </div>
                 </div>
 
-                <div class="ca-links">
-                    <p>¿Ya tenés cuenta? <a href="/client/login">Ingresá</a></p>
-                    <p>¿Sos artista? <a href="/registerclosedbeta">Registrate acá</a></p>
+                <div class="cw-sechead"><span>Cómo querés que te avisemos</span></div>
+                <ul class="cw-notif">
+                    <li>
+                        <div>
+                            <p class="cw-notif-title">Email</p>
+                            <p class="cw-notif-desc">Respuestas de artistas y novedades de tus cotizaciones.</p>
+                        </div>
+                        <label class="wo-toggle" aria-label="Avisos por email">
+                            <input type="checkbox" id="cw-notif-email" checked>
+                            <span class="knob"></span>
+                        </label>
+                    </li>
+                    <li class="is-disabled">
+                        <div>
+                            <p class="cw-notif-title">Notificaciones push <span class="wo-tag wo-tag--soft">Próximamente</span></p>
+                            <p class="cw-notif-desc">Avisos en tiempo real cuando alguien te responde.</p>
+                        </div>
+                        <label class="wo-toggle" aria-label="Notificaciones push (próximamente)">
+                            <input type="checkbox" id="cw-notif-push" disabled>
+                            <span class="knob"></span>
+                        </label>
+                    </li>
+                    <li>
+                        <div>
+                            <p class="cw-notif-title">WhatsApp</p>
+                            <p class="cw-notif-desc">Solo para confirmaciones de sesión.</p>
+                        </div>
+                        <label class="wo-toggle" aria-label="Avisos por WhatsApp">
+                            <input type="checkbox" id="cw-notif-whatsapp">
+                            <span class="knob"></span>
+                        </label>
+                    </li>
+                    <li>
+                        <div>
+                            <p class="cw-notif-title">Descubrimiento semanal</p>
+                            <p class="cw-notif-desc">Artistas y estilos nuevos según tus gustos.</p>
+                        </div>
+                        <label class="wo-toggle" aria-label="Descubrimiento semanal">
+                            <input type="checkbox" id="cw-notif-discovery">
+                            <span class="knob"></span>
+                        </label>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- ===== Paso 03 · ¿Qué tipo de tatuajes te gustan? (414:1141) ===== -->
+            <section class="cw-step" data-step="3" hidden>
+                <header class="cw-step-head">
+                    <span class="cw-step-ghost" aria-hidden="true">03</span>
+                    <div>
+                        <h1 class="cw-title">¿Qué tipo de tatuajes te gustan?</h1>
+                        <p class="cw-sub">Tus gustos en general — no hace falta pensar en un tatuaje puntual todavía. Elegí todos los que te representen.</p>
+                    </div>
+                </header>
+
+                <div class="cw-sechead cw-sechead--split">
+                    <span>Estilos</span>
+                    <span class="count wo-mono-num" id="cw-style-count">0 estilos</span>
                 </div>
+                <div class="cw-styles" id="cw-styles" role="group" aria-label="Estilos de tatuaje"></div>
+            </section>
+
+            <!-- ===== Paso 04 · ¿Qué te trae a We Ötzi? (415:1476) ===== -->
+            <section class="cw-step" data-step="4" hidden>
+                <header class="cw-step-head">
+                    <span class="cw-step-ghost" aria-hidden="true">04</span>
+                    <div>
+                        <h1 class="cw-title">¿Qué te trae a We Ötzi?</h1>
+                        <p class="cw-sub">Elegí lo que más te represente hoy. Podés cambiarlo cuando quieras.</p>
+                    </div>
+                </header>
+
+                <div class="cw-intents" role="radiogroup" aria-label="Qué te trae a We Ötzi">
+                    <button type="button" class="cw-intent" data-intent="find_artist" role="radio" aria-checked="false">
+                        <span class="cw-style-check" aria-hidden="true"></span>
+                        <span class="cw-intent-icon"><i data-wo-icon="search" aria-hidden="true"></i></span>
+                        <span class="cw-intent-title">Encontrar un artista</span>
+                        <p class="cw-intent-desc">Quiero descubrir tatuadores que encajen conmigo.</p>
+                    </button>
+                    <button type="button" class="cw-intent" data-intent="book_tattoo" role="radio" aria-checked="false">
+                        <span class="cw-style-check" aria-hidden="true"></span>
+                        <span class="cw-intent-icon"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
+                        <span class="cw-intent-title">Agendar un tatuaje</span>
+                        <p class="cw-intent-desc">Ya sé lo que quiero y estoy para avanzar.</p>
+                    </button>
+                    <button type="button" class="cw-intent" data-intent="explore" role="radio" aria-checked="false">
+                        <span class="cw-style-check" aria-hidden="true"></span>
+                        <span class="cw-intent-icon"><i data-wo-icon="send" aria-hidden="true"></i></span>
+                        <span class="cw-intent-title">Explorar</span>
+                        <p class="cw-intent-desc">Quiero descubrir estilos e inspirarme.</p>
+                    </button>
+                    <button type="button" class="cw-intent" data-intent="not_sure" role="radio" aria-checked="false">
+                        <span class="cw-style-check" aria-hidden="true"></span>
+                        <span class="cw-intent-icon"><i data-wo-icon="help-circle" aria-hidden="true"></i></span>
+                        <span class="cw-intent-title">Todavía no lo tengo claro</span>
+                        <p class="cw-intent-desc">Vengo a mirar y decido más adelante.</p>
+                    </button>
+                </div>
+
+                <div class="cw-sechead"><span>¿Ya tenés un artista en mente?</span></div>
+                <div class="cw-artist-choice">
+                    <button type="button" class="cw-intent" id="cw-artist-yes" role="radio" aria-checked="false">
+                        <span class="cw-style-check" aria-hidden="true"></span>
+                        <span class="cw-intent-title">Sí, ya tengo uno</span>
+                        <p class="cw-intent-desc">Buscalo y guardalo en tu perfil.</p>
+                    </button>
+                    <button type="button" class="cw-intent" id="cw-artist-no" role="radio" aria-checked="false">
+                        <span class="cw-style-check" aria-hidden="true"></span>
+                        <span class="cw-intent-title">Todavía no</span>
+                        <p class="cw-intent-desc">Te vamos a recomendar artistas según tus gustos.</p>
+                    </button>
+                </div>
+
+                <div class="cw-artist-search wo-hidden" id="cw-artist-search">
+                    <label class="wo-label" for="cw-artist-q">Buscar artista</label>
+                    <div class="cw-inputwrap cw-inputwrap--icon">
+                        <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
+                        <input type="text" id="cw-artist-q" class="wo-input" placeholder="Nombre, estudio o ciudad" autocomplete="off" spellcheck="false">
+                    </div>
+                    <ul class="cw-artist-results" id="cw-artist-results"></ul>
+                </div>
+            </section>
+
+            <div id="cw-message" class="cw-message" role="alert"></div>
+            <div id="form-message" class="form-message" role="alert"></div>
+        </main>
+
+        <footer class="cw-footer">
+            <button type="button" class="cw-back" id="cw-back" hidden>
+                <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i>
+                Atrás
+            </button>
+            <div class="cw-footer-right">
+                <span class="cw-footer-note wo-hidden" id="cw-footer-note">Podés editar todo después</span>
+                <button type="button" class="wo-btn wo-btn--hard" id="cw-next">
+                    <span class="btn-text">Continuar</span>
+                    <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                </button>
             </div>
+        </footer>
+    </div>
+
+    <!-- ================= Éxito (415:1677) ================= -->
+    <div id="cw-success" class="wo-hidden">
+        <header class="cw-success-topbar">
+            <span class="wo-marks" aria-hidden="true">
+                <span class="wo-mark-square"></span>
+                <span class="wo-mark-circle"></span>
+                <span class="wo-mark-triangle"></span>
+            </span>
+            <span class="cw-wordmark">WE ÖTZI</span>
+        </header>
+        <main class="cw-success-main">
+            <span class="wo-marks" aria-hidden="true">
+                <span class="wo-mark-square"></span>
+                <span class="wo-mark-circle"></span>
+                <span class="wo-mark-triangle"></span>
+            </span>
+            <h1 class="cw-success-title" id="cw-success-title">Tu perfil está listo.</h1>
+            <p class="cw-success-sub">Ya podés administrar tus próximas citas, recibir cotizaciones y descubrir artistas. Todo en un mismo lugar.</p>
+            <a class="wo-btn wo-btn--hard" href="/client/dashboard">
+                Ir a tu panel
+                <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+            </a>
         </main>
     </div>
 
     <script src="/shared/js/client-auth.js"></script>
     <script>
-        // Muestra el aviso de datos pre-cargados si vienen de una cotización
-        document.addEventListener('DOMContentLoaded', () => {
-            const quotationData = localStorage.getItem('weotzi_client_registration_data');
-            if (quotationData) {
-                document.getElementById('prefilled-notice').style.display = 'block';
+    // =========================================================================
+    // Controlador del wizard de registro de cliente (módulo de página).
+    // La cuenta se crea RECIÉN en "Crear mi cuenta" (paso 04) vía
+    // handleClientRegistration(payload) de client-auth.js. El borrador vive en
+    // localStorage (sin contraseña ni foto). Datos SIEMPRE via WeotziData.*.
+    // =========================================================================
+    (function () {
+        'use strict';
+
+        var DRAFT_KEY = 'weotzi_client_register_draft';
+        var TOTAL_STEPS = 4;
+        var FALLBACK_STYLES = ['Fine Line', 'Blackwork', 'Realismo', 'Microrealismo',
+            'Tradicional', 'Neo Traditional', 'Japonés', 'Minimalista',
+            'Geométrico', 'Lettering', 'Color', 'Otro'];
+
+        var state = {
+            step: 1,
+            maxStep: 1,
+            firstName: '', lastName: '', email: '', username: '',
+            country: '', city: '',
+            notifEmail: true, notifWhatsapp: false, notifDiscovery: false,
+            styles: [], intent: '', artistChoice: '',
+            artistUserId: null, artistLabel: ''
+        };
+        var password = '';        // solo en memoria: nunca se guarda en el borrador
+        var photoFile = null;     // File en memoria: se sube post-signup
+        var accountUserId = null; // seteado cuando el signUp ya corrió
+        var artistsCache = null;
+        var stylesCatalog = null;
+        var busy = false;
+        var saveTimer = null;
+
+        function $(id) { return document.getElementById(id); }
+
+        function showMsg(html, type) {
+            var el = $('cw-message');
+            el.innerHTML = html;
+            el.className = 'cw-message ' + (type || 'info');
+        }
+        function clearMsg() {
+            var el = $('cw-message');
+            el.innerHTML = '';
+            el.className = 'cw-message';
+        }
+
+        // ---------------- Borrador ----------------
+        function saveDraft() {
+            try {
+                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                    v: 1,
+                    step: state.step,
+                    maxStep: state.maxStep,
+                    firstName: state.firstName, lastName: state.lastName,
+                    email: state.email, username: state.username,
+                    country: state.country, city: state.city,
+                    notifEmail: state.notifEmail, notifWhatsapp: state.notifWhatsapp,
+                    notifDiscovery: state.notifDiscovery,
+                    styles: state.styles, intent: state.intent,
+                    artistChoice: state.artistChoice,
+                    artistUserId: state.artistUserId, artistLabel: state.artistLabel
+                }));
+            } catch (e) { /* almacenamiento no disponible: seguimos sin borrador */ }
+        }
+        function scheduleSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveDraft, 300);
+        }
+        function restoreDraft() {
+            try {
+                var raw = localStorage.getItem(DRAFT_KEY);
+                if (!raw) return;
+                var d = JSON.parse(raw);
+                if (!d || d.v !== 1) return;
+                ['firstName', 'lastName', 'email', 'username', 'country', 'city',
+                 'intent', 'artistChoice', 'artistUserId', 'artistLabel'].forEach(function (k) {
+                    if (d[k] !== undefined && d[k] !== null) state[k] = d[k];
+                });
+                ['notifEmail', 'notifWhatsapp', 'notifDiscovery'].forEach(function (k) {
+                    if (typeof d[k] === 'boolean') state[k] = d[k];
+                });
+                if (Array.isArray(d.styles)) state.styles = d.styles;
+                if (d.maxStep >= 1 && d.maxStep <= TOTAL_STEPS) state.maxStep = d.maxStep;
+                if (d.step >= 1 && d.step <= TOTAL_STEPS) state.step = d.step;
+            } catch (e) { /* borrador corrupto: se ignora */ }
+        }
+
+        // Precargado desde el flujo de cotización (sobrevive del formulario viejo).
+        function applyQuotationPrefill() {
+            try {
+                var raw = localStorage.getItem('weotzi_client_registration_data');
+                if (!raw) return;
+                var q = JSON.parse(raw);
+                if (q.client_full_name && !state.firstName && !state.lastName) {
+                    var parts = String(q.client_full_name).trim().split(/\s+/);
+                    state.firstName = parts.shift() || '';
+                    state.lastName = parts.join(' ');
+                }
+                if (q.client_email && !state.email) state.email = q.client_email;
+                if (q.client_city_residence && !state.city) state.city = q.client_city_residence;
+                $('cw-prefill-note').classList.remove('wo-hidden');
+            } catch (e) { /* sin precarga */ }
+        }
+
+        // ---------------- Render de shell ----------------
+        function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+        function renderShell() {
+            $('cw-step-num').textContent = pad2(state.step);
+            document.querySelectorAll('.cw-seg').forEach(function (seg) {
+                seg.classList.toggle('is-done', Number(seg.dataset.seg) <= state.step);
+            });
+            document.querySelectorAll('.cw-tab').forEach(function (tab) {
+                var n = Number(tab.dataset.step);
+                tab.classList.toggle('is-active', n === state.step);
+                tab.classList.toggle('is-done', n < state.step);
+                tab.disabled = n > state.maxStep;
+                if (n === state.step) tab.setAttribute('aria-current', 'step');
+                else tab.removeAttribute('aria-current');
+            });
+            document.querySelectorAll('.cw-step').forEach(function (sec) {
+                sec.hidden = Number(sec.dataset.step) !== state.step;
+            });
+            $('cw-back').hidden = state.step === 1;
+            var isLast = state.step === TOTAL_STEPS;
+            $('cw-footer-note').classList.toggle('wo-hidden', !isLast);
+            $('cw-next').querySelector('.btn-text').textContent = isLast ? 'Crear mi cuenta' : 'Continuar';
+        }
+
+        function go(n) {
+            if (busy) return;
+            state.step = Math.min(Math.max(n, 1), TOTAL_STEPS);
+            state.maxStep = Math.max(state.maxStep, state.step);
+            clearMsg();
+            if (state.step === 3) renderStyles();
+            renderShell();
+            saveDraft();
+            window.scrollTo(0, 0);
+        }
+
+        // ---------------- Campos <-> estado ----------------
+        function markValue(input) {
+            input.classList.toggle('has-value', input.value.trim().length > 0);
+        }
+        function bindField(id, key, transform) {
+            var el = $(id);
+            el.value = state[key] || '';
+            markValue(el);
+            el.addEventListener('input', function () {
+                if (transform) el.value = transform(el.value);
+                state[key] = el.value.trim();
+                el.classList.remove('is-invalid');
+                markValue(el);
+                scheduleSave();
+            });
+        }
+        function bindToggle(id, key) {
+            var el = $(id);
+            el.checked = !!state[key];
+            el.addEventListener('change', function () {
+                state[key] = el.checked;
+                scheduleSave();
+            });
+        }
+
+        // ---------------- Validación paso 01 ----------------
+        function invalid(id, message) {
+            $(id).classList.add('is-invalid');
+            showMsg(message, 'error');
+            $(id).focus();
+            return false;
+        }
+        function validateStep1() {
+            if (!state.firstName) return invalid('cw-first', 'Contanos tu nombre.');
+            if (!state.lastName) return invalid('cw-last', 'Contanos tu apellido.');
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email)) {
+                return invalid('cw-email', 'El email ingresado no es válido.');
             }
+            if (!/^[a-z0-9._]{3,20}$/.test(state.username)) {
+                return invalid('cw-username', 'El nombre de usuario lleva de 3 a 20 caracteres: letras minúsculas, números, punto o guion bajo.');
+            }
+            if (!accountUserId && password.length < 8) {
+                return invalid('cw-password', 'La contraseña tiene que tener al menos 8 caracteres.');
+            }
+            return true;
+        }
+        function validateStep(n) {
+            if (n === 1) return validateStep1();
+            return true; // pasos 02-04: todo opcional
+        }
+
+        // ---------------- Foto de perfil ----------------
+        function bindPhoto() {
+            var drop = $('cw-photo-drop');
+            var input = $('cw-photo-input');
+            drop.addEventListener('click', function () { input.click(); });
+            input.addEventListener('change', function () {
+                if (input.files && input.files[0]) setPhoto(input.files[0]);
+            });
+            drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('dragover'); });
+            drop.addEventListener('dragleave', function () { drop.classList.remove('dragover'); });
+            drop.addEventListener('drop', function (e) {
+                e.preventDefault();
+                drop.classList.remove('dragover');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) setPhoto(e.dataTransfer.files[0]);
+            });
+        }
+        function setPhoto(file) {
+            if (!/^image\//.test(file.type)) {
+                showMsg('La foto tiene que ser una imagen.', 'error');
+                return;
+            }
+            photoFile = file;
+            var reader = new FileReader();
+            reader.onload = function () {
+                var img = $('cw-photo-preview');
+                img.src = reader.result;
+                img.classList.remove('wo-hidden');
+                $('cw-photo-empty').classList.add('wo-hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ---------------- Paso 03 · estilos ----------------
+        function loadStylesCatalog() {
+            if (stylesCatalog) return Promise.resolve(stylesCatalog);
+            var fromDb = (window.ConfigManager && typeof ConfigManager.loadTattooStylesFromDB === 'function')
+                ? ConfigManager.loadTattooStylesFromDB()
+                : Promise.resolve([]);
+            return fromDb.then(function (tree) {
+                var names = (tree || []).map(function (s) { return s.name; }).filter(Boolean);
+                if (names.length >= 4) {
+                    names = names.slice(0, 15);
+                    if (names.indexOf('Otro') === -1) names.push('Otro');
+                    stylesCatalog = names;
+                } else {
+                    stylesCatalog = FALLBACK_STYLES.slice();
+                }
+                return stylesCatalog;
+            }).catch(function () {
+                stylesCatalog = FALLBACK_STYLES.slice();
+                return stylesCatalog;
+            });
+        }
+        function updateStyleCount() {
+            var n = state.styles.length;
+            $('cw-style-count').textContent = n + (n === 1 ? ' estilo' : ' estilos');
+        }
+        function renderStyles() {
+            var grid = $('cw-styles');
+            if (grid.childElementCount > 0) { updateStyleCount(); return; }
+            loadStylesCatalog().then(function (names) {
+                grid.innerHTML = '';
+                names.forEach(function (name, i) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'cw-style';
+                    btn.setAttribute('aria-pressed', 'false');
+                    var shape = (i % 2 === 1) ? ' cw-style-mark--circle' : '';
+                    var color = (Math.floor(i / 2) % 2 === 0) ? ' cw-style-mark--blue' : ' cw-style-mark--red';
+                    btn.innerHTML =
+                        '<span class="cw-style-check" aria-hidden="true"></span>' +
+                        '<span class="cw-style-mark' + shape + color + '" aria-hidden="true"></span>' +
+                        '<span class="cw-style-name"></span>';
+                    btn.querySelector('.cw-style-name').textContent = name;
+                    if (state.styles.indexOf(name) !== -1) {
+                        btn.classList.add('is-selected');
+                        btn.setAttribute('aria-pressed', 'true');
+                    }
+                    btn.addEventListener('click', function () {
+                        var idx = state.styles.indexOf(name);
+                        if (idx === -1) state.styles.push(name);
+                        else state.styles.splice(idx, 1);
+                        var on = idx === -1;
+                        btn.classList.toggle('is-selected', on);
+                        btn.setAttribute('aria-pressed', String(on));
+                        updateStyleCount();
+                        scheduleSave();
+                    });
+                    grid.appendChild(btn);
+                });
+                updateStyleCount();
+                if (window.WoIcons) WoIcons.hydrate(grid);
+            });
+        }
+
+        // ---------------- Paso 04 · intención + artista ----------------
+        function bindIntents() {
+            var cards = document.querySelectorAll('.cw-intent[data-intent]');
+            cards.forEach(function (card) {
+                if (card.dataset.intent === state.intent) {
+                    card.classList.add('is-selected');
+                    card.setAttribute('aria-checked', 'true');
+                }
+                card.addEventListener('click', function () {
+                    var same = state.intent === card.dataset.intent;
+                    state.intent = same ? '' : card.dataset.intent;
+                    cards.forEach(function (c) {
+                        var on = c.dataset.intent === state.intent;
+                        c.classList.toggle('is-selected', on);
+                        c.setAttribute('aria-checked', String(on));
+                    });
+                    scheduleSave();
+                });
+            });
+        }
+        function setArtistChoice(choice) {
+            state.artistChoice = choice;
+            var yes = $('cw-artist-yes');
+            var no = $('cw-artist-no');
+            yes.classList.toggle('is-selected', choice === 'yes');
+            yes.setAttribute('aria-checked', String(choice === 'yes'));
+            no.classList.toggle('is-selected', choice === 'no');
+            no.setAttribute('aria-checked', String(choice === 'no'));
+            $('cw-artist-search').classList.toggle('wo-hidden', choice !== 'yes');
+            if (choice !== 'yes') {
+                state.artistUserId = null;
+                state.artistLabel = '';
+                $('cw-artist-results').innerHTML = '';
+                $('cw-artist-q').value = '';
+            } else {
+                loadArtists();
+            }
+            scheduleSave();
+        }
+        function bindArtistChoice() {
+            $('cw-artist-yes').addEventListener('click', function () { setArtistChoice('yes'); });
+            $('cw-artist-no').addEventListener('click', function () { setArtistChoice('no'); });
+            if (state.artistChoice) setArtistChoice(state.artistChoice);
+
+            var searchTimer = null;
+            $('cw-artist-q').addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(renderArtistResults, 200);
+            });
+        }
+        function loadArtists() {
+            if (artistsCache) return Promise.resolve(artistsCache);
+            return WeotziData.Artists
+                .listPublic('user_id, username, name, profile_picture, city, country, styles_array')
+                .then(function (res) {
+                    artistsCache = res.data || [];
+                    return artistsCache;
+                })
+                .catch(function () { artistsCache = []; return artistsCache; });
+        }
+        function initials(name) {
+            return String(name || '').trim().split(/\s+/).slice(0, 2)
+                .map(function (w) { return w.charAt(0); }).join('') || '?';
+        }
+        function renderArtistResults() {
+            var q = $('cw-artist-q').value.trim().toLowerCase();
+            var list = $('cw-artist-results');
+            list.innerHTML = '';
+            if (q.length < 2) return;
+            loadArtists().then(function (artists) {
+                var hits = artists.filter(function (a) {
+                    return ['name', 'username', 'city', 'country'].some(function (k) {
+                        return a[k] && String(a[k]).toLowerCase().indexOf(q) !== -1;
+                    });
+                }).slice(0, 6);
+                if (hits.length === 0) {
+                    var li = document.createElement('li');
+                    li.className = 'cw-artist-empty';
+                    li.textContent = 'No encontramos artistas con ese nombre. Podés seguir sin elegir uno.';
+                    list.appendChild(li);
+                    return;
+                }
+                var palette = ['cw-artist-avatar--red', 'cw-artist-avatar--yellow', 'cw-artist-avatar--blue'];
+                hits.forEach(function (a, i) {
+                    var li = document.createElement('li');
+                    var row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'cw-artist-row';
+                    if (a.user_id === state.artistUserId) row.classList.add('is-selected');
+                    var style = Array.isArray(a.styles_array) && a.styles_array.length ? a.styles_array[0] : (a.country || '');
+                    var meta = [a.city, style].filter(Boolean).join(' · ');
+                    var avatar = document.createElement('span');
+                    avatar.className = 'cw-artist-avatar ' + palette[i % palette.length];
+                    if (a.profile_picture) {
+                        var img = document.createElement('img');
+                        img.src = a.profile_picture;
+                        img.alt = '';
+                        avatar.className = 'cw-artist-avatar';
+                        avatar.appendChild(img);
+                    } else {
+                        avatar.textContent = initials(a.name || a.username);
+                    }
+                    var info = document.createElement('span');
+                    var nm = document.createElement('span');
+                    nm.className = 'cw-artist-name';
+                    nm.textContent = a.name || ('@' + (a.username || ''));
+                    var mt = document.createElement('span');
+                    mt.className = 'cw-artist-meta';
+                    mt.style.display = 'block';
+                    mt.textContent = meta;
+                    info.appendChild(nm);
+                    info.appendChild(mt);
+                    var check = document.createElement('span');
+                    check.className = 'cw-artist-checked';
+                    check.innerHTML = '<i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>';
+                    row.appendChild(avatar);
+                    row.appendChild(info);
+                    row.appendChild(check);
+                    row.addEventListener('click', function () {
+                        var same = state.artistUserId === a.user_id;
+                        state.artistUserId = same ? null : a.user_id;
+                        state.artistLabel = same ? '' : (a.name || a.username || '');
+                        list.querySelectorAll('.cw-artist-row').forEach(function (r) { r.classList.remove('is-selected'); });
+                        if (!same) row.classList.add('is-selected');
+                        scheduleSave();
+                    });
+                    li.appendChild(row);
+                    list.appendChild(li);
+                });
+                if (window.WoIcons) WoIcons.hydrate(list);
+            });
+        }
+
+        // ---------------- Submit final ----------------
+        function setBusy(label) {
+            busy = true;
+            var next = $('cw-next');
+            next.disabled = true;
+            next.innerHTML = '<span class="cw-spinner" aria-hidden="true"></span><span class="btn-text">' + label + '</span>';
+        }
+        function setIdle() {
+            busy = false;
+            var next = $('cw-next');
+            next.disabled = false;
+            next.innerHTML = '<span class="btn-text">' +
+                (state.step === TOTAL_STEPS ? 'Crear mi cuenta' : 'Continuar') +
+                '</span><i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>';
+            if (window.WoIcons) WoIcons.hydrate(next);
+        }
+        function isUsernameTaken(err) {
+            if (!err) return false;
+            var text = String(err.message || err.details || '');
+            return err.code === '23505' || /duplicate key|client_profiles_username/i.test(text);
+        }
+        function mapAuthError(err) {
+            var m = String((err && err.message) || '');
+            if (m.indexOf('already registered') !== -1) {
+                return 'Este email ya está registrado. <a href="/client/login">Ingresá</a>';
+            }
+            if (m.indexOf('Invalid email') !== -1) return 'El email ingresado no es válido.';
+            if (m.indexOf('Password should be') !== -1) return 'La contraseña tiene que tener al menos 8 caracteres.';
+            return 'No pudimos crear la cuenta. Probá de nuevo.';
+        }
+
+        async function uploadPhoto(uid) {
+            if (!photoFile) return null;
+            try {
+                var ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
+                var path = uid + '/' + Date.now() + '.' + ext;
+                var up = await window._supabase.storage.from('profile-pictures')
+                    .upload(path, photoFile, { cacheControl: '3600', upsert: true });
+                if (up.error) throw up.error;
+                var pub = window._supabase.storage.from('profile-pictures').getPublicUrl(path);
+                return (pub.data && pub.data.publicUrl) || null;
+            } catch (e) {
+                console.warn('No se pudo subir la foto de perfil:', e);
+                return null;
+            }
+        }
+
+        async function finalizeProfile(uid) {
+            var photoUrl = await uploadPhoto(uid);
+
+            // Preferencias de aviso (user_preferences.notification_prefs).
+            try {
+                await WeotziData.Prefs.saveSection(uid, 'notification_prefs', {
+                    email_updates: state.notifEmail,
+                    push: false, // sin backend de push (Omitidos v1)
+                    whatsapp_session_confirmations: state.notifWhatsapp,
+                    weekly_discovery: state.notifDiscovery
+                });
+            } catch (e) { console.warn('No se pudieron guardar las preferencias de aviso:', e); }
+
+            // Patch de clients_db (foto y ciudad, best-effort).
+            try {
+                var patch = {};
+                if (photoUrl) patch.profile_picture = photoUrl;
+                if (state.city) patch.city_residence = state.city;
+                if (Object.keys(patch).length) await WeotziData.Clients.updateByUserId(uid, patch);
+            } catch (e) { console.warn('No se pudo actualizar clients_db:', e); }
+
+            // client_profiles: acá viaja el username — el UNIQUE decide la unicidad.
+            var res = await WeotziData.ClientProfiles.upsert({
+                client_user_id: uid,
+                username: state.username || null,
+                first_name: state.firstName || null,
+                last_name: state.lastName || null,
+                country: state.country || null,
+                photo_url: photoUrl,
+                favorite_styles: state.styles,
+                signup_intent: state.intent || null,
+                preferred_artist_user_id: state.artistUserId || null
+            });
+            if (res.error) throw res.error;
+        }
+
+        function lockAccountFields() {
+            $('cw-email').disabled = true;
+            $('cw-password').disabled = true;
+            $('cw-account-note').classList.remove('wo-hidden');
+        }
+
+        function showSuccess() {
+            var name = state.firstName || state.username || '';
+            $('cw-success-title').textContent = name
+                ? 'Tu perfil está listo, ' + name + '.'
+                : 'Tu perfil está listo.';
+            $('cw-shell').classList.add('wo-hidden');
+            $('cw-shell').style.display = 'none';
+            $('cw-success').classList.remove('wo-hidden');
+            try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* sin storage */ }
+        }
+
+        async function submitFinal() {
+            clearMsg();
+            if (!accountUserId && password.length < 8) {
+                showMsg('Escribí tu contraseña en el paso 01 para crear la cuenta.', 'error');
+                go(1);
+                return;
+            }
+            if (!accountUserId) {
+                setBusy('Creando tu cuenta...');
+                try {
+                    var user = await handleClientRegistration({
+                        email: state.email,
+                        password: password,
+                        firstName: state.firstName,
+                        lastName: state.lastName,
+                        city: state.city,
+                        country: state.country,
+                        username: state.username
+                    });
+                    accountUserId = user && user.id;
+                } catch (err) {
+                    console.error('Registro:', err);
+                    setIdle();
+                    showMsg(mapAuthError(err), 'error');
+                    return;
+                }
+            }
+            setBusy('Guardando tu perfil...');
+            try {
+                await finalizeProfile(accountUserId);
+            } catch (err) {
+                setIdle();
+                if (isUsernameTaken(err)) {
+                    // La cuenta ya existe: solo se reintenta el perfil tras corregir.
+                    lockAccountFields();
+                    go(1);
+                    showMsg('Ese nombre de usuario ya está en uso. Elegí otro y volvé a intentar.', 'error');
+                    return;
+                }
+                // Cualquier otro fallo del perfil no bloquea la cuenta ya creada.
+                console.warn('Perfil incompleto (se puede completar después):', err);
+            }
+            setIdle();
+            showSuccess();
+        }
+
+        // ---------------- Init ----------------
+        document.addEventListener('DOMContentLoaded', function () {
+            restoreDraft();
+            applyQuotationPrefill();
+
+            bindField('cw-first', 'firstName');
+            bindField('cw-last', 'lastName');
+            bindField('cw-email', 'email', function (v) { return v.toLowerCase(); });
+            bindField('cw-username', 'username', function (v) {
+                return v.toLowerCase().replace(/^@+/, '');
+            });
+            var pw = $('cw-password');
+            pw.addEventListener('input', function () {
+                password = pw.value;
+                pw.classList.remove('is-invalid');
+                markValue(pw);
+            });
+            bindField('cw-city', 'city');
+            var country = $('cw-country');
+            country.value = state.country || '';
+            country.addEventListener('change', function () {
+                state.country = country.value;
+                scheduleSave();
+            });
+            bindToggle('cw-notif-email', 'notifEmail');
+            bindToggle('cw-notif-whatsapp', 'notifWhatsapp');
+            bindToggle('cw-notif-discovery', 'notifDiscovery');
+
+            bindPhoto();
+            bindIntents();
+            bindArtistChoice();
+
+            document.querySelectorAll('.cw-tab').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    var n = Number(tab.dataset.step);
+                    if (n <= state.maxStep && n !== state.step) go(n);
+                });
+            });
+            $('cw-back').addEventListener('click', function () { go(state.step - 1); });
+            $('cw-next').addEventListener('click', function () {
+                if (busy) return;
+                if (!validateStep(state.step)) return;
+                if (state.step < TOTAL_STEPS) go(state.step + 1);
+                else submitFinal();
+            });
+
+            renderShell();
+            if (state.step === 3) renderStyles();
         });
+    })();
     </script>
 </body>
 </html>

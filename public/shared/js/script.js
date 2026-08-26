@@ -140,7 +140,7 @@ const QUOTATION_SCREENS = [
         id: 'artist', title: 'Confirmá tu artista', steps: ['artist-confirm'],
         skipIf: () => !formData.artist_data
     },
-    { id: 'idea', num: '01', title: '¿Qué querés tatuarte?', steps: ['description'], initialReference: true },
+    { id: 'idea', num: '01', title: '¿Qué querés tatuarte?', steps: ['description'], ideaMode: true, initialReference: true },
     { id: 'style', num: '02', title: '¿Qué estilo estás buscando?', subtitle: 'Podés elegir uno o varios estilos.', steps: ['style'] },
     { id: 'body', num: '03', title: '¿Dónde querés llevarlo?', steps: ['body-part'] },
     { id: 'size', num: '04', title: '¿Qué tamaño imaginás?', steps: ['size'] },
@@ -199,11 +199,29 @@ const FIELD_PLACEHOLDERS = {
 // Se aplican como override de presentación; el valor guardado sigue siendo texto.
 const FIGMA_COLOR_OPTIONS = ['Black & Grey', 'Color', 'No estoy seguro'];
 
+// `ind` es la clase del rectángulo punteado que crece con el tamaño (Figma 04).
 const FIGMA_SIZE_OPTIONS = [
-    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm' },
-    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm' },
-    { label: 'Grande', value: 'grande', subtitle: '15–25 cm' },
-    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm' }
+    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm', ind: 's' },
+    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm', ind: 'm' },
+    { label: 'Grande', value: 'grande', subtitle: '15–25 cm', ind: 'l' },
+    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm', ind: 'xl' }
+];
+
+// Figma 01: los dos modos de entrada de la idea (286:9421 / 419:2321). Con
+// "Ya tengo una idea" se muestra el bloque REFERENCIA INICIAL; con "Quiero
+// explorar opciones" desaparece. Se guarda en quotation_intake_extras.idea_mode.
+const IDEA_MODE_OPTIONS = [
+    { value: 'idea', label: 'Ya tengo una idea', icon: 'check-circle' },
+    { value: 'explorar', label: 'Quiero explorar opciones', icon: 'search' }
+];
+
+// Figma 06: NIVEL DE PERSONALIZACIÓN, entre COLOR y FECHA (318:21077). No es
+// pregunta de quotation_flow_config: persiste en
+// quotation_intake_extras.personalization_level.
+const PERSONALIZATION_OPTIONS = [
+    { value: 'tal_cual', label: 'Quiero esta idea tal cual' },
+    { value: 'interpretacion', label: 'Abierto a interpretación del artista' },
+    { value: 'propuesta', label: 'Quiero que el artista me proponga algo' }
 ];
 
 // Chips de fecha del Figma. `flexible` marca client_flexible_dates.
@@ -770,13 +788,32 @@ function renderCurrentStep() {
     screen.questions.forEach((q) => {
         const block = buildQuestionBlock(q, screen);
         if (block) blocks.appendChild(block);
+        // Figma 06 (318:21077): NIVEL DE PERSONALIZACIÓN va entre COLOR y
+        // FECHA. No sale de quotation_flow_config (persiste en el satélite
+        // quotation_intake_extras), por eso se inyecta acá y no en `steps`.
+        if (screen.id === 'details' && q.step === 'color') {
+            blocks.appendChild(buildPersonalizationBlock());
+        }
     });
 
+    // Figma 01 (286:9421 / 419:2321): toggle "Ya tengo una idea" / "Quiero
+    // explorar opciones" debajo de la textarea.
+    if (screen.ideaMode) {
+        const modeBlock = document.createElement('div');
+        modeBlock.className = 'q-block';
+        modeBlock.id = 'block-idea-mode';
+        modeBlock.innerHTML = renderIdeaModeToggle();
+        blocks.appendChild(modeBlock);
+    }
+
     // Figma 01: la referencia inicial vive dentro de la pantalla de la idea y
-    // usa el mismo pipeline de subida que la pantalla 05.
+    // usa el mismo pipeline de subida que la pantalla 05. Solo se muestra en
+    // modo "Ya tengo una idea"; en "Quiero explorar opciones" desaparece.
     if (screen.initialReference) {
         const refBlock = document.createElement('div');
         refBlock.className = 'q-block';
+        refBlock.id = 'block-initial-reference';
+        if (screen.ideaMode && getIdeaMode() !== 'idea') refBlock.classList.add('hidden');
         refBlock.innerHTML =
             '<p class="q-block-label">Referencia inicial (opcional)</p>' +
             renderDropzoneHtml();
@@ -1189,7 +1226,8 @@ function renderWideOptions(q, options) {
         </div>`;
 }
 
-// Figma 04: 4 tamaños con rango + enlace "No estoy seguro".
+// Figma 04: 4 tamaños con indicador visual de escala (rectángulo punteado que
+// crece), nombre y rango centrados + enlace "No estoy seguro".
 function renderSizeCards(q) {
     const unsure = formData[q.field] === 'No Estoy Seguro';
     return `
@@ -1198,6 +1236,7 @@ function renderSizeCards(q) {
                 const selected = formData[q.field] === toTitleCase(opt.value);
                 return `<button type="button" class="q-size-card ${selected ? 'is-selected' : ''}"
                     data-value="${opt.value}" onclick="handleOptionSelect('${q.field}', '${opt.value}')">
+                    <span class="q-size-indicator q-size-indicator--${opt.ind}" aria-hidden="true"></span>
                     <span class="q-size-name">${opt.label}</span>
                     <span class="q-size-range">${opt.subtitle}</span>
                 </button>`;
@@ -1249,6 +1288,77 @@ function renderDropzoneHtml() {
         </div>
         <div id="preview-container" class="q-ref-grid"></div>`;
 }
+
+// ---------- Modo de idea (Figma 01) ----------
+// Sin elección explícita se asume "idea": es el estado por defecto del mock y
+// replica el comportamiento previo (referencia inicial visible).
+function getIdeaMode() {
+    return formData.tattoo_idea_mode === 'explorar' ? 'explorar' : 'idea';
+}
+
+function renderIdeaModeToggle() {
+    const current = getIdeaMode();
+    return `
+        <div class="q-mode-toggle" role="group" aria-label="¿Cómo venís con la idea?">
+            ${IDEA_MODE_OPTIONS.map((opt) => {
+                const selected = current === opt.value;
+                return `<button type="button" class="q-mode-card ${selected ? 'is-selected' : ''}"
+                    data-idea-mode="${opt.value}" aria-pressed="${selected}"
+                    onclick="selectIdeaMode('${opt.value}')">
+                    <i data-wo-icon="${opt.icon}" class="wo-icon-18" aria-hidden="true"></i>
+                    <span class="q-mode-label">${escapeQuotationHtml(opt.label)}</span>
+                </button>`;
+            }).join('')}
+        </div>`;
+}
+
+function selectIdeaMode(mode) {
+    formData.tattoo_idea_mode = mode === 'explorar' ? 'explorar' : 'idea';
+
+    document.querySelectorAll('[data-idea-mode]').forEach((el) => {
+        const active = el.dataset.ideaMode === formData.tattoo_idea_mode;
+        el.classList.toggle('is-selected', active);
+        el.setAttribute('aria-pressed', String(active));
+    });
+
+    const refBlock = document.getElementById('block-initial-reference');
+    if (refBlock) refBlock.classList.toggle('hidden', formData.tattoo_idea_mode !== 'idea');
+
+    persistAnswer();
+}
+window.selectIdeaMode = selectIdeaMode;
+
+// ---------- Nivel de personalización (Figma 06) ----------
+function buildPersonalizationBlock() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'q-block';
+    wrapper.id = 'block-personalization';
+    wrapper.innerHTML =
+        '<p class="q-block-label">Nivel de personalización</p>' +
+        `<div class="q-wide-options q-wide-options--triple">
+            ${PERSONALIZATION_OPTIONS.map((opt) => {
+                const selected = formData.tattoo_personalization_level === opt.value;
+                return `<button type="button" class="q-wide-option ${selected ? 'is-selected' : ''}"
+                    data-personalization="${opt.value}" aria-pressed="${selected}"
+                    onclick="selectPersonalizationLevel('${opt.value}')">
+                    <span>${escapeQuotationHtml(opt.label)}</span>
+                    <i data-wo-icon="check" class="wo-icon-18 q-option-check" aria-hidden="true"></i>
+                </button>`;
+            }).join('')}
+        </div>`;
+    return wrapper;
+}
+
+function selectPersonalizationLevel(value) {
+    formData.tattoo_personalization_level = value;
+    document.querySelectorAll('[data-personalization]').forEach((el) => {
+        const active = el.dataset.personalization === value;
+        el.classList.toggle('is-selected', active);
+        el.setAttribute('aria-pressed', String(active));
+    });
+    persistAnswer();
+}
+window.selectPersonalizationLevel = selectPersonalizationLevel;
 
 // ---------- Moneda del presupuesto ----------
 function getBudgetCurrency() {
@@ -1362,13 +1472,22 @@ function renderInlineCalendar() {
     const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const cells = [];
-    for (let i = 0; i < offset; i++) cells.push('<span class="q-cal-day is-empty"></span>');
+    // Figma 06: los días de los meses adyacentes se muestran atenuados y
+    // deshabilitados (29/30 del mes anterior, 1/2 del siguiente).
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    for (let i = 0; i < offset; i++) {
+        cells.push(`<span class="q-cal-day is-adjacent" aria-hidden="true">${prevMonthDays - offset + 1 + i}</span>`);
+    }
     for (let day = 1; day <= daysInMonth; day++) {
         const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const selected = formData._preferred_date_iso === iso;
         const past = iso < todayIso;
         cells.push(`<button type="button" class="q-cal-day ${selected ? 'is-selected' : ''} ${past ? 'is-past' : ''}"
             ${past ? 'disabled' : ''} onclick="pickCalendarDay('${iso}')">${day}</button>`);
+    }
+    const trailing = (7 - ((offset + daysInMonth) % 7)) % 7;
+    for (let day = 1; day <= trailing; day++) {
+        cells.push(`<span class="q-cal-day is-adjacent" aria-hidden="true">${day}</span>`);
     }
 
     host.innerHTML = `
@@ -1483,6 +1602,13 @@ function collectScreenValues(screen) {
     for (const q of screen.questions) {
         if (!isQuestionVisible(q)) continue;
         readQuestionValue(q);
+
+        // Figma 06: NIVEL DE PERSONALIZACIÓN es un bloque inyectado entre
+        // COLOR y FECHA (sin pregunta propia en la config); se valida acá para
+        // respetar el orden visual de la pantalla.
+        if (screen.id === 'details' && q.step === 'date' && !formData.tattoo_personalization_level) {
+            return { ok: false, message: 'Elegí un nivel de personalización.', el: document.getElementById('block-personalization') };
+        }
 
         // En pantallas de una sola pregunta el titular ES la consigna.
         const label = FIELD_LABELS[q.step] || (screen.questions.length === 1 ? screen.title : q.title) || '';
@@ -1742,6 +1868,9 @@ async function autoSaveQuotation() {
         const payload = preparePayload();
 
         await WeotziData.Quotations.upsert(payload);
+        // Satélite del rediseño (quotation_intake_extras): después del padre,
+        // para que el UPDATE del upsert pase la RLS del borrador in_progress.
+        await upsertIntakeExtras();
     } catch (error) {
         console.error('Auto-save error:', error);
     } finally {
@@ -1750,6 +1879,29 @@ async function autoSaveQuotation() {
             _autoSavePending = false;
             autoSaveQuotation();
         }
+    }
+}
+
+// Payload del satélite quotation_intake_extras (mismo quote_id que el padre).
+// Las notas se recortan al largo real de uploadedFiles para mantener el
+// alineamiento nota ↔ referencia.
+function prepareIntakeExtrasPayload() {
+    const notes = Array.isArray(formData.reference_notes) ? formData.reference_notes : [];
+    return {
+        quote_id: formData.quote_id,
+        idea_mode: getIdeaMode(),
+        personalization_level: formData.tattoo_personalization_level || null,
+        reference_notes: uploadedFiles.map((_, i) => String(notes[i] || ''))
+    };
+}
+
+async function upsertIntakeExtras() {
+    if (!formData.quote_id) return;
+    if (!window.WeotziData || !WeotziData.IntakeExtras) return;
+    try {
+        await WeotziData.IntakeExtras.upsert(prepareIntakeExtrasPayload());
+    } catch (err) {
+        console.warn('No se pudieron guardar los extras del intake:', err);
     }
 }
 
@@ -2214,7 +2366,47 @@ function flattenBodyZones() {
 function setupBodySelector() {
     renderBodyZones();
     updateBodySidePanel();
+    updateBodySilhouette();
 }
+
+// Aside "Silueta corporal de referencia" (fragmento Figma 318:19919): el SVG
+// del maniquí vive en el template del HTML; cada segmento lleva en data-sil la
+// lista de keys reales de body_parts (zona raíz + subzonas) que representa y,
+// si aplica, data-sil-side. Acá solo se pinta el estado activo en azul.
+function updateBodySilhouette() {
+    const host = document.getElementById('body-silhouette');
+    if (!host) return;
+
+    const selection = selectedBodyParts[0] || null;
+    // Zona raíz elegida (id === zone) → se pinta toda la zona; subzona elegida
+    // → solo el segmento de esa subzona (los segmentos llevan la key raíz
+    // ADEMÁS de las de sus subzonas).
+    let tokens = [];
+    if (selection) {
+        const isRoot = String(selection.id) === String(selection.zone);
+        tokens = (isRoot ? [selection.zone] : [selection.id])
+            .filter(Boolean).map((t) => String(t).toLowerCase());
+    }
+    const side = selection && selection.side ? selection.side : null;
+
+    host.querySelectorAll('.q-sil-seg').forEach((seg) => {
+        const segTokens = (seg.dataset.sil || '').toLowerCase().split(/\s+/).filter(Boolean);
+        const matches = tokens.some((t) => segTokens.includes(t));
+        const segSide = seg.dataset.silSide || null;
+        const sideOk = !segSide || !side || segSide === side;
+        seg.classList.toggle('is-active', !!(matches && sideOk));
+    });
+}
+
+// En mobile el aside se colapsa detrás de un enlace toggle.
+function toggleBodySilhouette() {
+    const aside = document.getElementById('body-silhouette');
+    const btn = document.querySelector('.q-body-aside-toggle');
+    if (!aside) return;
+    const open = aside.classList.toggle('is-open');
+    if (btn) btn.setAttribute('aria-expanded', String(open));
+}
+window.toggleBodySilhouette = toggleBodySilhouette;
 
 function renderBodyZones() {
     const grid = document.getElementById('body-zones-grid');
@@ -2262,6 +2454,7 @@ function selectBodyZone(key) {
 
     renderBodyZones();
     updateBodySidePanel();
+    updateBodySilhouette();
     commitBodySelection();
 }
 
@@ -2271,6 +2464,7 @@ function handleSideChosen(side) {
     selectedBodyParts[0].sideLabel = side === 'left' ? 'Izquierdo' : 'Derecho';
     currentBodySide = side;
     updateBodySidePanel();
+    updateBodySilhouette();
     commitBodySelection();
 }
 
@@ -2328,6 +2522,7 @@ function removeBodyPart() {
     currentBodySide = null;
     renderBodyZones();
     updateBodySidePanel();
+    updateBodySilhouette();
     commitBodySelection();
 }
 
@@ -2521,18 +2716,41 @@ async function handleFiles(files) {
 
     uploadedFiles = [...uploadedFiles, ...processedFiles];
     formData.reference_images_count = uploadedFiles.length;
+    syncReferenceNotesLength();
     renderPreviews();
 }
 
+// Notas por referencia (Figma 05): array de strings alineado por índice con
+// uploadedFiles; persiste en quotation_intake_extras.reference_notes.
+function syncReferenceNotesLength() {
+    const notes = Array.isArray(formData.reference_notes) ? formData.reference_notes : [];
+    formData.reference_notes = uploadedFiles.map((_, i) => notes[i] || '');
+}
+
+function setReferenceNote(index, value) {
+    syncReferenceNotesLength();
+    if (index >= 0 && index < formData.reference_notes.length) {
+        formData.reference_notes[index] = value;
+    }
+}
+
 // Figma 05: cada referencia es un tile con botón de borrado arriba a la
-// derecha; la última celda es "AÑADIR REFERENCIA" (borde punteado).
+// derecha + input de nota debajo ("Agregá una nota…"); la última celda es
+// "AÑADIR REFERENCIA" (borde punteado).
 function renderPreviews() {
     const cont = document.getElementById('preview-container');
     if (!cont) return;
     cont.innerHTML = '';
 
+    // Con dropzone (pantalla 01) el tile no lleva nota: la nota es de la
+    // grilla de referencias de la pantalla 05.
+    const withNotes = !document.getElementById('drop-zone');
+
     uploadedFiles.forEach((file, index) => {
         const url = URL.createObjectURL(file);
+        const cell = document.createElement('div');
+        cell.className = 'q-ref-cell';
+
         const tile = document.createElement('div');
         tile.className = 'q-ref-tile';
         tile.style.backgroundImage = `url(${url})`;
@@ -2548,7 +2766,22 @@ function renderPreviews() {
         };
 
         tile.appendChild(removeBtn);
-        cont.appendChild(tile);
+        cell.appendChild(tile);
+
+        if (withNotes) {
+            const note = document.createElement('input');
+            note.type = 'text';
+            note.className = 'q-ref-note';
+            note.placeholder = 'Agregá una nota…';
+            note.maxLength = 200;
+            note.value = (Array.isArray(formData.reference_notes) && formData.reference_notes[index]) || '';
+            note.setAttribute('aria-label', `Nota para la referencia ${index + 1}`);
+            note.addEventListener('input', () => setReferenceNote(index, note.value.trim()));
+            note.addEventListener('change', () => persistAnswer());
+            cell.appendChild(note);
+        }
+
+        cont.appendChild(cell);
     });
 
     // Tile "AÑADIR REFERENCIA" (solo en la pantalla 05, donde no hay dropzone).
@@ -2567,6 +2800,7 @@ function renderPreviews() {
 
 function removeUploadedFile(index) {
     uploadedFiles.splice(index, 1);
+    if (Array.isArray(formData.reference_notes)) formData.reference_notes.splice(index, 1);
     formData.reference_images_count = uploadedFiles.length;
     renderPreviews();
     persistAnswer();
@@ -2575,6 +2809,7 @@ function removeUploadedFile(index) {
 function skipReferences() {
     uploadedFiles = [];
     formData.reference_images_count = 0;
+    formData.reference_notes = [];
     nextStep();
 }
 
@@ -2970,8 +3205,10 @@ function generateSummary() {
     const referencesCount = uploadedFiles.length || formData.reference_images_count || 0;
     const referencesText = referencesCount === 1 ? '1 imagen' : `${referencesCount} imágenes`;
 
+    // Figma 08: 3 columnas estrictas — IDEA | ESTILO | UBICACIÓN / TAMAÑO |
+    // REFERENCIAS | PRESUPUESTO / FECHA. Ninguna celda se estira.
     const rows = [
-        { label: 'Idea', value: formData.tattoo_idea_description || '-', wide: true },
+        { label: 'Idea', value: formData.tattoo_idea_description || '-' },
         { label: 'Estilo', value: stylesText },
         { label: 'Ubicación', value: location },
         { label: 'Tamaño', value: size },
@@ -2981,7 +3218,7 @@ function generateSummary() {
     ];
 
     cont.innerHTML = rows.map((row) => `
-        <div class="q-summary-item ${row.wide ? 'q-summary-item--wide' : ''}">
+        <div class="q-summary-item">
             <span class="q-summary-k">${escapeQuotationHtml(row.label)}</span>
             <span class="q-summary-v">${escapeQuotationHtml(row.value)}</span>
         </div>`).join('');
@@ -3095,10 +3332,15 @@ async function submitQuotation() {
         const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
 
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
+            // Extras del intake ANTES del upsert final: mientras la fila padre
+            // sigue in_progress en la DB, la RLS del satélite permite el
+            // update del borrador anónimo.
+            await upsertIntakeExtras();
+
             const payload = preparePayload();
             // Add created_at for the final submission if it doesn't exist (though upsert handles it)
             payload.created_at = new Date().toISOString();
-            
+
             // Add reference images URL if available
             if (formData.tattoo_references) {
                 payload.tattoo_references = formData.tattoo_references;
@@ -3173,9 +3415,14 @@ async function submitQuotation() {
                     tattoo_style: formData.tattoo_style || null,
                     tattoo_color_type: formData.tattoo_color_type || null,
                     
+                    // Tattoo details - Intake extras (rediseño 2026)
+                    tattoo_idea_mode: getIdeaMode(),
+                    tattoo_personalization_level: formData.tattoo_personalization_level || null,
+
                     // Tattoo details - References
                     tattoo_references: formData.tattoo_references || null,
                     reference_images_count: formData.reference_images_count || 0,
+                    reference_notes: Array.isArray(formData.reference_notes) ? formData.reference_notes : [],
                     
                     // Tattoo details - Experience
                     tattoo_is_first_tattoo: formData.tattoo_is_first_tattoo ?? null,
@@ -3649,23 +3896,18 @@ async function handleQuotationLogin(e) {
     }
 }
 
-async function handleQuotationPasswordRecovery(e) {
+// El endpoint viejo de ClientAuth.resetPassword está roto (401): el flujo
+// canónico de recuperación es la pantalla compartida /recover. El borrador se
+// guarda antes de salir (también lo cubre el listener de beforeunload).
+function handleQuotationPasswordRecovery(e) {
     if (e) e.preventDefault();
-    const email = document.getElementById('q-login-email')?.value.trim().toLowerCase();
+    const email = document.getElementById('q-login-email')?.value.trim().toLowerCase() || '';
 
-    if (!email) {
-        _showLoginMessage('Ingresá tu email para recuperar tu contraseña.', 'info');
-        return;
-    }
+    saveDraftToLocalStorage();
 
-    _showLoginMessage('Procesando...', 'info');
-
-    try {
-        await window.ClientAuth.resetPassword(email);
-        _showLoginMessage('Te enviamos un email con tu contraseña temporal.', 'success');
-    } catch (error) {
-        _showLoginMessage(error.message || 'Error al procesar la solicitud.', 'error');
-    }
+    const params = new URLSearchParams({ from: 'client' });
+    if (email) params.set('email', email);
+    window.location.href = '/recover?' + params.toString();
 }
 
 // Close modal on Escape key and overlay click

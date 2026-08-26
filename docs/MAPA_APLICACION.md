@@ -92,6 +92,11 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/client/register` | Cliente | `public/client/register/index.html` | Registro de cuenta cliente. |
 | `/client/login` | Cliente | `public/client/login/index.html` | Login de cliente. |
 | `/client/dashboard` | Cliente | `public/client/dashboard/index.html` | Panel cliente: cotizaciones, perfil, chat y solicitudes de job board. |
+| `/client/requests` | Cliente | `public/client/requests/index.html` | Solicitudes del job board del cliente: estados, postulaciones recibidas, comparación y negociación (rediseño 2026). |
+| `/client/chats` | Cliente | `public/client/chats/index.html` | Chats del cliente con sus artistas sobre `chat_threads` (rediseño 2026). |
+| `/client/profile` | Cliente | `public/client/profile/index.html` | Centro de cuenta del cliente: perfil, seguridad, notificaciones, configuración (rediseño 2026; conserva el modo perfil público). |
+| `/bienvenida` | Público | `public/bienvenida/index.html` | Selección de rol post-registro: cliente o tatuador (rediseño 2026). |
+| `/recover` | Público | `public/recover/index.html` | Recuperación de contraseña única (cliente/artista/beta) con OTP de Supabase (rediseño 2026). |
 | `/job-board/request` | Cliente | `public/job-board/request/index.html` | Publicar solicitud abierta de tatuaje. |
 | `/job-board` | Artista | `public/job-board/index.html` | Feed de solicitudes publicas para que artistas postulen. |
 | `/register-artist` | Artista | `public/register-artist/index.html` | Registro completo de artista, ubicacion, estilos, galeria e importacion de Instagram. |
@@ -100,6 +105,11 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/artist/profile` | Artista/publico | `public/artist/profile/index.html` | Perfil publico del artista por username/user id. |
 | `/artist/profile/gallery` | Artista/publico | `public/artist/profile/gallery/index.html` | Galeria publica categorizada del artista. |
 | `/artist/invitations` | Artista | `public/artist/invitations/index.html` | Invitaciones y membresias pendientes/activas con estudios. |
+| `/artist/applications` | Artista | `public/artist/applications/index.html` | Postulaciones del artista unificadas (job board + spots) con detalle y contraofertas (rediseño 2026). |
+| `/artist/inbox` | Artista | `public/artist/inbox/index.html` | Inbox unificado del artista: hilos de cotización (`chat_threads`) + hilo de soporte (rediseño 2026). |
+| `/artist/travel` | Artista | `public/artist/travel/index.html` | Giras del artista: viajes, estudios vinculados, checklist, documentos, cronología (rediseño 2026; tablas `artist_trips` y satélites). |
+| `/artist/account` | Artista | `public/artist/account/index.html` | Centro de la cuenta del artista: 9 secciones con sidebar (rediseño 2026). |
+| `/travel/share` | Público | `public/travel/share/index.html` | Itinerario de gira compartido por slug (`?slug=`, RLS pública de viajes compartidos). |
 | `/my-quotations` | Artista/admin operativo | `public/my-quotations/index.html` | Gestion de cotizaciones asignadas, drawer, notas, sesiones, chat y estados. |
 | `/my-quotations/statistics` | Artista/admin operativo | `public/my-quotations/statistics/index.html` | Estadisticas de cotizaciones. |
 | `/calendar` | Artista/admin operativo | `public/calendar/index.html` | Calendario de sesiones/cotizaciones con FullCalendar. |

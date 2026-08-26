@@ -80,7 +80,7 @@
         },
     };
 
-    // ===================== client_public_profiles =====================
+    // ===================== client_public_profiles / client_profiles =========
     const ClientProfiles = {
         // Vista del perfil publico del cliente; devuelve el builder con select ya
         // aplicado para que el caller encadene el filtro (eq user_id vs
@@ -88,6 +88,24 @@
         // client-profile.js:40.
         select(columns = '*') {
             return from('client_public_profiles').select(columns);
+        },
+
+        // --- tabla client_profiles (satelite del wizard de /client/register,
+        //     migracion 20260825160000_reaudit_satellites.sql; RLS owner) ---
+        // OJO: distinta de la vista client_public_profiles del metodo select().
+
+        // Perfil del wizard por auth user. .maybeSingle().
+        getByUserId(clientUserId, columns = '*') {
+            return from('client_profiles').select(columns).eq('client_user_id', clientUserId).maybeSingle();
+        },
+
+        // Upsert del perfil del wizard (username UNIQUE: un duplicado devuelve
+        // error 23505 en { error } — el caller decide como mostrarlo).
+        upsert(row) {
+            return from('client_profiles')
+                .upsert(row, { onConflict: 'client_user_id' })
+                .select()
+                .maybeSingle();
         },
     };
 

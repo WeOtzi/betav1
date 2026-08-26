@@ -54,45 +54,45 @@ cloud vivo**, que tiene frames nuevos (prefijos de node-id ≥ `344:` aprox.).
 | Landing tatuador | 5:2809 | `/landing-tatuador` | hecha-v1 | |
 | Crear cuenta (beta cerrada) | 22:1106 | `/registerclosedbeta` | hecha-v1 | Split: póster oscuro "TU PRÓXIMO PROYECTO ESTA ACÁ" + form "Crea tu cuenta". Confirmado por captura ("ACCESO ANTICIPADO · BETA CERRADA"). |
 | Ingreso artista | 24:1261 | `/artist/login` | hecha-v1 | Split: póster "ACCEDÉ A TU PANEL" + form. |
-| Registro artista (wizard) | 72:12357, 72:12438, 72:12519 (+variante 105:4935 debajo), 72:12639, 72:12764 (+variante 422:2873 debajo), 72:12865, 72:12993, 72:13161, 114:9006 | `/register-artist` | hecha-v1 | Acordeón de 7 grupos ya implementado; `422:2873` es posterior al snapshot → re-auditar. |
+| Registro artista (wizard) | 72:12357, 72:12438, 72:12519 (+variante 105:4935 debajo), 72:12639, 72:12764 (+variante 422:2873 debajo), 72:12865, 72:12993, 72:13161, 114:9006 | `/register-artist` | hecha (re-auditada 26 ago) | Corregida contra las variantes nuevas: modalidad "Ambos", typeahead de estudios, address picker condicional. |
 | Loaders post-auth | 239:2514, 243:2917 (duplicado exacto), 415:1733 (variante cliente) | componente compartido `public/shared/js/wo-postauth-loader.js` | hecha | Resuelto en discovery: se llamaban "Registro"/"Container" pero son pantallas de carga ("Organizando tu agenda…" artista / "Explorando artistas…" cliente). No son páginas. |
-| Recuperar contraseña | 243:2530, 243:2600, 243:2669, 243:2778 | `/recover` (única, cliente+artista) | pendiente | 4 pasos: pedir acceso → verificar código → nueva contraseña → éxito. |
-| INICIO (selección de rol) | 238:2335 (= 205:666 en pág. clientes) | `/bienvenida` (post-registro) | pendiente | "¿Cómo querés usar We Ötzi?" — cards Cliente/Artista. |
+| Recuperar contraseña | 243:2530, 243:2600, 243:2669, 243:2778 | `/recover` (única, cliente+artista) | hecha (26 ago) | 4 pasos: pedir acceso → verificar código → nueva contraseña → éxito. |
+| INICIO (selección de rol) | 238:2335 (= 205:666 en pág. clientes) | `/bienvenida` (post-registro) | hecha (26 ago) | "¿Cómo querés usar We Ötzi?" — cards Cliente/Artista. |
 | Dashboard artista | 24:1424 | `/artist/dashboard` | hecha-v1 | |
 | Notificaciones (panel) | 167:24120, 167:23251 | panel en `/artist/dashboard` | hecha-v1 | Implementado en commit `0c67a5c`; re-auditar ambos estados. |
-| Centro de la cuenta | 156:10014, 156:10807, 156:11993, 156:12247, 158:13029, 158:13480, 161:14150, 161:14507, 162:15088 | `/artist/account` (nueva) | pendiente | Sidebar de 9 secciones: Mi Perfil, Portafolio, Cobros y facturación, Disponibilidad, Notificaciones, Seguridad y Privacidad, Integraciones, Verificación, Configuración. Hoy repartido entre dashboard y `profile/details`. |
-| Perfil público artista | 237:2096, 344:1184 | `/artist/profile` | hecha-v1 | `344:1184` (5.020px) es la versión larga nueva → auditar contra esa. También 344:302 y 354:539 en pág. clientes (misma pantalla). |
+| Centro de la cuenta | 156:10014, 156:10807, 156:11993, 156:12247, 158:13029, 158:13480, 161:14150, 161:14507, 162:15088 | `/artist/account` (nueva) | hecha (26 ago) | Sidebar de 9 secciones: Mi Perfil, Portafolio, Cobros y facturación, Disponibilidad, Notificaciones, Seguridad y Privacidad, Integraciones, Verificación, Configuración. Hoy repartido entre dashboard y `profile/details`. |
+| Perfil público artista | 237:2096, 344:1184 | `/artist/profile` | hecha (re-auditada 26 ago) | Auditada y corregida contra `344:1184` (CTA dual, manifiesto de bio, detalles geométricos). |
 | Cotizaciones | 33:5758, 99:908 | `/my-quotations` | hecha-v1 | |
 | Cotización — detalle | 62:11137 | drawer/detalle en `/my-quotations` | hecha-v1 | |
 | Job board artista | 28:1856, 104:2707, 105:4079 | `/job-board` | hecha-v1 | |
-| Postulaciones del artista | 105:4480, 132:15483 (reemplaza 111:7059), 133:16259 (detalle JB), 111:7694 (Spots), 132:15871 (detalle Spot) | `/artist/applications` (nueva, dedicada) | pendiente | Job board y Spots separados, cada uno con su detalle. |
+| Postulaciones del artista | 105:4480, 132:15483 (reemplaza 111:7059), 133:16259 (detalle JB), 111:7694 (Spots), 132:15871 (detalle Spot) | `/artist/applications` (nueva, dedicada) | hecha (26 ago) | Job board y Spots separados, cada uno con su detalle. |
 | Spots | 28:3877, 109:5448, 112:8505 | `/studio-spots` | hecha-v1 | |
 | Invitaciones | 42:6903, 120:9027 | `/artist/invitations` | hecha-v1 | |
 | Aside (drawer invitaciones) | 120:10117, 120:10391, 120:10676 | — | obviar | Fragmentos de 380px; solo spec del drawer. |
 | Calendario | 52:8311, 52:9043, 52:9286, 153:4421, 153:5224, 153:5493, 153:6155, 153:6807, 153:7430, 153:8075, 153:8735, 153:9373 | `/calendar` | hecha-v1 | 12 estados (vistas + modales); re-auditar cubriendo todos. |
 | Estadísticas | 122:12196 | `/my-quotations/statistics` | hecha-v1 | |
-| Travel | 68:11882, 419:2487, 131:14426, 132:14729, 173:24897, 173:25982, 173:26741, 173:27503, 173:28256 | `/artist/travel` (nueva) | pendiente | Decisión 25 ago: se hace backend (modelo de giras) y se cablea. `419:2487` es posterior al snapshot. |
-| INBOX | 144:1250 | `/artist/inbox` (nueva) | pendiente | Chat unificado del artista. Decisión 25 ago: backend + cableado. |
+| Travel | 68:11882, 419:2487, 131:14426, 132:14729, 173:24897, 173:25982, 173:26741, 173:27503, 173:28256 | `/artist/travel` (nueva) | hecha (26 ago) | Backend aplicado y cableado; incluye página pública `/travel/share?slug=…`. |
+| INBOX | 144:1250 | `/artist/inbox` (nueva) | hecha (26 ago) | Sobre `chat_threads` + hilo fijo de Soporte; filtros sin backend quedan "próximamente". |
 
 ## Flujo clientes (page `205:302`)
 
 | Grupo (pantalla) | Node-ids (en orden de flujo) | Destino web | Estado | Notas |
 | --- | --- | --- | --- | --- |
 | Landing clientes | 205:303 | `/inicio` | hecha-v1 | Canónica. |
-| Crear cuenta cliente | 205:632, 391:539, 414:1012 (reemplaza 413:728), 414:1141, 415:1476, 415:1677 (éxito "Tu perfil está listo") | `/client/register` | hecha-v1 (base) | Casi toda la fila es posterior al snapshot (estados de verificación/éxito). Resuelto: "Body" 415:1677 es la pantalla de éxito del registro; "Container" 415:1733 es un loader (ver fila Loaders). |
+| Crear cuenta cliente | 205:632, 391:539, 414:1012 (reemplaza 413:728), 414:1141, 415:1476, 415:1677 (éxito "Tu perfil está listo") | `/client/register` | hecha (re-auditada 26 ago) | Reconstruida como wizard fullscreen de 4 pasos + éxito "Tu perfil está listo" según los frames nuevos; datos nuevos en `client_profiles` y `user_preferences`. |
 | Ingreso cliente | 205:649 | `/client/login` | hecha-v1 | |
-| INICIO (selección de rol) | 205:666 | `/bienvenida` (= 238:2335) | pendiente | Mismo frame que en pág. artistas. |
+| INICIO (selección de rol) | 205:666 | `/bienvenida` (= 238:2335) | hecha (26 ago) | Mismo frame que en pág. artistas. |
 | Dashboard cliente | 251:4793 | `/client/dashboard` | hecha-v1 | |
-| Marketplace | 277:6587 | `/marketplace` | hecha-v1 | (El frame se llama "MARKEPLACE", sic.) |
-| Job board cliente | 295:14727, 286:8577, 286:13942, 286:14417, 299:16500, 307:18253, 307:18543 | `/job-board/request` (rediseño) + `/client/requests` (nueva, dedicada) | pendiente | 7 estados: publicar solicitud, listado, postulaciones recibidas. |
-| Postulaciones — detalle | 307:17015 | vista cliente de postulaciones | pendiente | |
+| Marketplace | 277:6587 | `/marketplace` | hecha (re-auditada 26 ago) | Corregida contra el canon 286:11953: destacados, favoritos (`client_favorites`), "Artistas para vos", drawer de filtros. |
+| Job board cliente | 295:14727, 286:8577, 286:13942, 286:14417, 299:16500, 307:18253, 307:18543 | `/job-board/request` (rediseño) + `/client/requests` (nueva, dedicada) | hecha (26 ago) | Wizard con paso de inspiración IA + vista dedicada con todos los estados y negociación. |
+| Postulaciones — detalle | 307:17015 | integrada en `/client/requests` | hecha (26 ago) | |
 | image-slot | 295:15537 | — | obviar | Slot de imagen suelto. |
-| Formulario cotización | 286:9421 (+419:2321 debajo), 318:19519, 318:20160, 318:20430, 318:20842, 318:21077, 318:21865 | `/quotation` | hecha-v1 | La serie `318:*`/`419:*` es posterior al snapshot → re-auditar el wizard completo paso a paso. |
+| Formulario cotización | 286:9421 (+419:2321 debajo), 318:19519, 318:20160, 318:20430, 318:20842, 318:21077, 318:21865 | `/quotation` | hecha (re-auditada 26 ago) | Corregida contra la serie `318:*`/`419:*`: toggle de modo de idea, silueta corporal (aside 318:19919), nivel de personalización, notas por referencia — persisten en `quotation_intake_extras`. |
 | Container (aside cotización) | 318:19919 | — | obviar | Fragmento de 376px. |
 | Tarjeta estudios | 415:2108 | componente card de estudio (marketplace) | obviar | Spec de componente, no pantalla. |
 | Tattoglobe | 286:10265 | `/explore/globe` | pendiente | Rediseño del globo 3D; relacionado con `docs/plans/2026-06-11-globo-3d-redesign.md`. |
-| Chats | 286:11109, 333:1540 | `/client/chats` (nueva, dedicada) | pendiente | 2 estados (vacío + conversación activa). Sobre `chat_messages` + vista `chat_threads`. |
-| Centro de cuenta cliente | — sin frame propio | `/client/profile` (rediseño derivado del patrón centro de cuenta) | pendiente | Resuelto en discovery: 286:11953 es en realidad el explore "Descubrí artistas" (pasa a referencia de re-auditoría de `/marketplace`–`/explore`) y 307:17498 es el perfil público de artista (referencia de `/artist/profile`). |
+| Chats | 286:11109, 333:1540 | `/client/chats` (nueva, dedicada) | hecha (26 ago) | Sobre `chat_messages` + vista `chat_threads`, con realtime arreglado. |
+| Centro de cuenta cliente | — sin frame propio | `/client/profile` (rediseño derivado del patrón centro de cuenta) | hecha (26 ago) | Resuelto en discovery: 286:11953 es en realidad el explore "Descubrí artistas" (pasa a referencia de re-auditoría de `/marketplace`–`/explore`) y 307:17498 es el perfil público de artista (referencia de `/artist/profile`). |
 | VerticalBorder | 332:1104 | — | obviar | Fragmento. |
 | Perfil público (vista cliente) | 344:302, 354:539 | `/artist/profile` | hecha-v1 | Misma pantalla que en flujo artistas; auditar una sola vez. |
 

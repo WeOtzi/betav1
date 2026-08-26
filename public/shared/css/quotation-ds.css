@@ -276,7 +276,50 @@
   box-shadow: var(--q-shadow-sel);
 }
 
-/* ---------- Tamaño (Figma 04) ---------- */
+/* NIVEL DE PERSONALIZACIÓN (Figma 06): 3 opciones anchas; la seleccionada
+   muestra el check a la derecha. */
+.q-wide-options--triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.q-wide-option .q-option-check { display: none; margin-left: var(--space-3); flex: none; }
+.q-wide-option.is-selected .q-option-check { display: inline-flex; }
+
+/* ---------- Modo de idea (Figma 01: 286:9421 / 419:2321) ---------- */
+.q-mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.q-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: 96px;
+  padding: var(--space-5) var(--space-6);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-strong);
+  border-radius: var(--radius-none);
+  font-family: var(--font-body);
+  font-size: var(--body-m-size);
+  font-weight: var(--weight-bold);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--duration-press), box-shadow var(--duration-press), background var(--duration-press);
+}
+
+.q-mode-card:hover { transform: translate(-2px, -2px); box-shadow: var(--q-shadow-sel); }
+.q-mode-card:active { transform: none; box-shadow: none; }
+
+.q-mode-card.is-selected {
+  background: var(--blue-300);
+  border-color: var(--blue-300);
+  color: var(--white);
+  box-shadow: var(--q-shadow-sel);
+}
+
+/* ---------- Tamaño (Figma 04: indicador de escala + nombre centrados) ---------- */
 .q-size-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -286,14 +329,15 @@
 .q-size-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  min-height: 132px;
+  min-height: 200px;
   padding: var(--space-6) var(--space-5);
   background: var(--surface-card);
   border: var(--border-hairline) solid var(--border-strong);
   border-radius: var(--radius-none);
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   transition: transform var(--duration-press), box-shadow var(--duration-press);
 }
@@ -306,11 +350,23 @@
   box-shadow: var(--q-shadow-sel);
 }
 
+/* Rectángulo punteado que crece con el tamaño (Figma 04). */
+.q-size-indicator {
+  display: block;
+  background: var(--sand-150);
+  border: var(--border-hairline) dashed var(--border-muted);
+  margin-bottom: var(--space-4);
+}
+
+.q-size-indicator--s { width: 24px; height: 16px; }
+.q-size-indicator--m { width: 40px; height: 28px; }
+.q-size-indicator--l { width: 64px; height: 44px; }
+.q-size-indicator--xl { width: 96px; height: 64px; }
+
 .q-size-name {
   font-family: var(--font-display);
   font-size: 20px;
   color: var(--ink);
-  margin-top: auto;
 }
 
 .q-size-range {
@@ -321,8 +377,7 @@
   color: var(--text-muted);
 }
 
-.q-size-card.is-selected .q-size-name,
-.q-size-card.is-selected .q-size-range { color: var(--blue-300); }
+.q-size-card.is-selected .q-size-name { color: var(--blue-300); }
 
 .q-inline-link {
   display: inline-block;
@@ -439,6 +494,7 @@
 
 .q-cal-day:hover { background: var(--surface-input-hover); }
 .q-cal-day.is-empty { pointer-events: none; }
+.q-cal-day.is-adjacent { color: var(--text-faint); pointer-events: none; }
 .q-cal-day.is-past { color: var(--text-faint); cursor: not-allowed; }
 .q-cal-day.is-past:hover { background: transparent; }
 .q-cal-day.is-selected { background: var(--blue-300); color: var(--white); }
@@ -483,7 +539,51 @@
 
 .q-budget-tier.is-active .q-budget-label { color: var(--blue-300); }
 
-/* ---------- Selector de zona (Figma 03) ---------- */
+/* ---------- Selector de zona (Figma 03: aside silueta + grilla) ---------- */
+/* Layout del frame 318:20160: columna izquierda de 376px (aside 318:19919)
+   + grilla de zonas en 3 columnas a la derecha. */
+.q-body-layout {
+  display: grid;
+  grid-template-columns: 376px minmax(0, 1fr);
+  gap: var(--space-10);
+  align-items: start;
+}
+
+.q-body-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  background: var(--surface-stage);
+  padding: var(--space-8) var(--space-6);
+}
+
+.q-body-aside .q-sil { width: 100%; max-width: 280px; height: auto; display: block; }
+
+.q-sil-seg {
+  fill: var(--neutral-100);
+  stroke: var(--sand-350);
+  stroke-width: 2;
+  transition: fill var(--duration-press);
+}
+
+.q-sil-seg.is-active { fill: var(--blue-300); stroke: var(--blue-300); }
+
+.q-body-aside-caption {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--meta-s-track);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-on-dark);
+  margin: 0;
+}
+
+/* Toggle del aside: solo existe colapsado en pantallas chicas. */
+.q-body-aside-toggle { display: none; margin: 0 0 var(--space-6); }
+
+.q-body-layout .q-zone-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
 .q-zone-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -551,10 +651,10 @@
   margin: 0 0 var(--space-5);
 }
 
-/* ---------- Estilos de tatuaje (Figma 02) ---------- */
+/* ---------- Estilos de tatuaje (Figma 02: 5 cards de ~178px por fila) ---------- */
 .styles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
   gap: var(--space-6);
 }
 
@@ -657,6 +757,8 @@
   margin-top: var(--space-6);
 }
 
+.q-ref-cell { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+
 .q-ref-tile {
   position: relative;
   height: 155px;
@@ -664,6 +766,23 @@
   background-position: center;
   border: var(--border-hairline) solid var(--border-strong);
 }
+
+/* Nota por referencia (Figma 05): input de solo borde inferior. */
+.q-ref-note {
+  width: 100%;
+  padding: var(--space-2) 0;
+  background: transparent;
+  border: 0;
+  border-bottom: var(--border-hairline) solid var(--border-muted);
+  border-radius: var(--radius-none);
+  font-family: var(--font-body);
+  font-size: var(--body-s-size);
+  color: var(--ink);
+}
+
+.q-ref-note::placeholder { color: var(--text-faint); }
+.q-ref-note:hover { border-bottom-color: var(--border-strong); }
+.q-ref-note:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
 .q-ref-remove {
   position: absolute;
@@ -710,8 +829,9 @@
   gap: var(--space-8) var(--space-7);
 }
 
+/* Figma 08: 3 columnas estrictas, sin celdas anchas — IDEA | ESTILO |
+   UBICACIÓN / TAMAÑO | REFERENCIAS | PRESUPUESTO / FECHA. */
 .q-summary-item { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.q-summary-item--wide { grid-column: 1 / -1; }
 
 .q-summary-k {
   font-family: var(--font-mono);
@@ -1182,6 +1302,13 @@
   .q-screen { padding: var(--space-10) 0 var(--space-12); }
   .q-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .q-budget-bars { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* El aside de la silueta se colapsa detrás del toggle. */
+  .q-body-layout { grid-template-columns: 1fr; }
+  .q-body-layout .q-zone-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .q-body-aside-toggle { display: inline-block; }
+  .q-body-aside { display: none; max-width: 376px; width: 100%; }
+  .q-body-aside.is-open { display: flex; margin-bottom: var(--space-6); }
 }
 
 @media (max-width: 768px) {
@@ -1197,7 +1324,10 @@
   .q-footbar #continue-btn { flex: 1; max-width: 240px; }
 
   .q-wide-options,
-  .q-wide-options--pair { grid-template-columns: 1fr; }
+  .q-wide-options--pair,
+  .q-wide-options--triple { grid-template-columns: 1fr; }
+
+  .q-mode-toggle { grid-template-columns: 1fr; gap: var(--space-4); }
 
   .q-calendar { width: 100%; }
 
@@ -1218,6 +1348,7 @@
 
   .q-size-grid,
   .q-zone-grid,
+  .q-body-layout .q-zone-grid,
   .styles-grid,
   .q-ref-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 

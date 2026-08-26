@@ -347,6 +347,29 @@
         },
     };
 
+    // ============ quotation_intake_extras (key = text quote_id) ============
+    // Campos nuevos del wizard rediseñado 2026 (modo de idea, nivel de
+    // personalización, notas por referencia). Satélite 1:1 de quotations_db
+    // (migración 20260825160000): insert abierto + borrador anónimo mientras la
+    // cotización padre sigue in_progress, después solo partes y soporte.
+    const IntakeExtras = {
+        async getByQuoteId(quoteId) {
+            const { data } = await run('intakeExtras.getByQuoteId', (c) =>
+                c.from('quotation_intake_extras').select('*').eq('quote_id', quoteId).maybeSingle()
+            );
+            return data || null;
+        },
+        // Upsert por quote_id. Llamar DESPUÉS del upsert del padre (autosave) o
+        // ANTES de pasarlo a pending (submit): la RLS de UPDATE exige que el
+        // padre exista y siga in_progress para el borrador anónimo.
+        async upsert(payload) {
+            const { data } = await run('intakeExtras.upsert', (c) =>
+                c.from('quotation_intake_extras').upsert([payload], { onConflict: 'quote_id' })
+            );
+            return data || [];
+        },
+    };
+
     // ===================== realtime =====================
     const Realtime = {
         // Suscribe a INSERT de chat_messages de una cotizacion. Devuelve el canal.
@@ -422,6 +445,7 @@
     D.Sessions = Sessions;
     D.Attachments = Attachments;
     D.Chat = Chat;
+    D.IntakeExtras = IntakeExtras;
     D.Realtime = Realtime;
     D.Api = Api;
 })();

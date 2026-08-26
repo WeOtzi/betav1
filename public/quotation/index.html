@@ -156,11 +156,40 @@
                 </div>
             </template>
 
-            <!-- TEMPLATE: BODY SELECTOR (Figma 03: grilla plana + panel de lado) -->
+            <!-- TEMPLATE: BODY SELECTOR (Figma 03: aside silueta 318:19919 + grilla + panel de lado) -->
             <template id="tmpl-body-selector">
                 <div class="q-body-selector">
-                    <div id="body-zones-grid" class="q-zone-grid">
-                        <!-- Zonas inyectadas por JS desde body_parts (Supabase) -->
+                    <button type="button" class="q-inline-link q-body-aside-toggle" aria-controls="body-silhouette" aria-expanded="false" onclick="toggleBodySilhouette()">Silueta de referencia</button>
+
+                    <div class="q-body-layout">
+                        <aside class="q-body-aside" id="body-silhouette">
+                            <!-- Maniquí por segmentos: cada path lleva en data-sil las keys
+                                 reales de body_parts (zona raíz + subzonas) que representa.
+                                 script.js pinta el segmento activo en azul. -->
+                            <svg class="q-sil" viewBox="0 0 374 660" role="img" aria-label="Silueta corporal con la zona elegida resaltada" xmlns="http://www.w3.org/2000/svg">
+                                <ellipse class="q-sil-seg" data-sil="cabeza rostro oreja" cx="187" cy="78" rx="36" ry="40"/>
+                                <rect class="q-sil-seg" data-sil="cabeza cuello cuello_frente cuello_lat nuca" x="173" y="116" width="28" height="26" rx="10"/>
+                                <rect class="q-sil-seg" data-sil="torso pecho clavicula costillas espalda espalda_alta omoplato columna" x="133" y="140" width="108" height="112" rx="30"/>
+                                <rect class="q-sil-seg" data-sil="torso abdomen pelvis espalda espalda_baja gluteo" x="143" y="256" width="88" height="88" rx="24"/>
+                                <rect class="q-sil-seg" data-sil="brazo hombro brazo_superior codo" data-sil-side="left" x="99" y="152" width="30" height="96" rx="15" transform="rotate(10 114 200)"/>
+                                <rect class="q-sil-seg" data-sil="brazo hombro brazo_superior codo" data-sil-side="right" x="245" y="152" width="30" height="96" rx="15" transform="rotate(-10 260 200)"/>
+                                <rect class="q-sil-seg" data-sil="brazo antebrazo muneca" data-sil-side="left" x="86" y="250" width="26" height="92" rx="13" transform="rotate(6 99 296)"/>
+                                <rect class="q-sil-seg" data-sil="brazo antebrazo muneca" data-sil-side="right" x="262" y="250" width="26" height="92" rx="13" transform="rotate(-6 275 296)"/>
+                                <ellipse class="q-sil-seg" data-sil="brazo mano dedos" data-sil-side="left" cx="92" cy="364" rx="16" ry="22"/>
+                                <ellipse class="q-sil-seg" data-sil="brazo mano dedos" data-sil-side="right" cx="282" cy="364" rx="16" ry="22"/>
+                                <rect class="q-sil-seg" data-sil="pierna muslo" data-sil-side="left" x="146" y="348" width="36" height="124" rx="18"/>
+                                <rect class="q-sil-seg" data-sil="pierna muslo" data-sil-side="right" x="192" y="348" width="36" height="124" rx="18"/>
+                                <rect class="q-sil-seg" data-sil="pierna rodilla pantorrilla tobillo" data-sil-side="left" x="150" y="476" width="30" height="120" rx="15"/>
+                                <rect class="q-sil-seg" data-sil="pierna rodilla pantorrilla tobillo" data-sil-side="right" x="194" y="476" width="30" height="120" rx="15"/>
+                                <ellipse class="q-sil-seg" data-sil="pierna pie" data-sil-side="left" cx="163" cy="612" rx="19" ry="15"/>
+                                <ellipse class="q-sil-seg" data-sil="pierna pie" data-sil-side="right" cx="211" cy="612" rx="19" ry="15"/>
+                            </svg>
+                            <p class="q-body-aside-caption">Silueta corporal de referencia</p>
+                        </aside>
+
+                        <div id="body-zones-grid" class="q-zone-grid">
+                            <!-- Zonas inyectadas por JS desde body_parts (Supabase) -->
+                        </div>
                     </div>
 
                     <div id="body-side-panel" class="q-side-panel hidden">
@@ -211,7 +240,7 @@
                         <div class="q-final-actions">
                             <button class="wo-btn wo-btn--hard btn-primary" onclick="submitQuotation()" id="submit-btn">
                                 <span class="btn-text-content">Solicitar cotización</span>
-                                <i data-wo-icon="send" class="wo-icon-18"></i>
+                                <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
                             </button>
                             <button class="wo-btn wo-btn--ghost btn-secondary" onclick="editQuotationFromSummary()">
                                 <i data-wo-icon="edit-2" class="wo-icon-18"></i> Editar
