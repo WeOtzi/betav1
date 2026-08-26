@@ -261,8 +261,21 @@
     // ===================== Init =====================
     document.addEventListener('DOMContentLoaded', init);
 
+    // ConfigManager carga app-config.json async: al DOMContentLoaded el cliente
+    // puede no existir todavia. Reintento corto antes de rendirme.
+    async function resolveClient() {
+        for (let i = 0; i < 20; i++) {
+            const c = (window.WeotziData && window.WeotziData.getClient())
+                || (window.ConfigManager && typeof window.ConfigManager.getSupabaseClient === 'function'
+                    && window.ConfigManager.getSupabaseClient());
+            if (c) return c;
+            await new Promise((r) => setTimeout(r, 150));
+        }
+        return null;
+    }
+
     async function init() {
-        const client = window.WeotziData && window.WeotziData.getClient();
+        const client = await resolveClient();
         if (!client) {
             root.innerHTML = emptyBlock('alert-triangle', 'No pudimos cargar tus solicitudes', 'Recargá la página en unos segundos.');
             return;
