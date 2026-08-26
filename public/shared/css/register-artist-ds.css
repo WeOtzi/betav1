@@ -435,12 +435,12 @@ body.register-page{
 .style-option.is-extra{display:none}
 .styles-grid.is-expanded .style-option.is-extra{display:inline-flex}
 .style-option.is-extra.selected{display:inline-flex}
-/* Chip "ver más estilos" — azul, texto blanco */
+/* Chip "ver más estilos" — azul, texto blanco; cierra la misma fila
+   de chips como último item del grid (Figma 72-12519) */
 .ra-more-styles{
     background:var(--blue-300);
     border-color:var(--blue-300);
     color:var(--white);
-    margin-bottom:var(--space-3);
 }
 .ra-more-styles:hover{background:var(--blue-500);border-color:var(--blue-500)}
 .ra-more-styles[hidden]{display:none}
@@ -452,10 +452,11 @@ body.register-page{
 }
 .ra-field[data-link-field][hidden]{display:none}
 
-/* ---------- Modalidad de trabajo ---------- */
+/* ---------- Modalidad de trabajo ----------
+   3 tarjetas: Un estudio / Independiente / Ambos (Figma 72-12764 y 422-2873) */
 .work-type-options{
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr 1fr 1fr;
     gap:var(--space-5);
     margin-bottom:var(--space-6);
 }
@@ -488,7 +489,12 @@ body.register-page{
     line-height:1.15;
     color:var(--text-heading);
 }
-.work-type-option.selected{background:var(--action-primary);border-color:var(--action-primary)}
+/* Tarjeta seleccionada: ink + sombra dura de estado (Figma 422-2873) */
+.work-type-option.selected{
+    background:var(--action-primary);
+    border-color:var(--action-primary);
+    box-shadow:var(--shadow-hard-sm);
+}
 .work-type-option.selected .work-type-kicker{color:var(--text-on-dark)}
 .work-type-option.selected .work-type-label{color:var(--white)}
 
@@ -509,16 +515,59 @@ body.register-page{
     max-height:240px;
     overflow:auto;
 }
+/* Abierto lleva sombra dura junto con el input (combo del Figma 422-2873) */
 .studio-suggestions.is-open,
-.studio-suggestions.visible{display:block}
+.studio-suggestions.visible{display:block;box-shadow:var(--shadow-hard-sm)}
 .studio-suggestion-item{
     padding:var(--space-3) var(--space-4);
-    font-size:var(--body-s-size);
     cursor:pointer;
     border-bottom:var(--border-hairline) solid var(--border-subtle);
 }
+.studio-suggestion-item:last-child{border-bottom:0}
 .studio-suggestion-item:hover,
 .studio-suggestion-item.is-active{background:var(--surface-input-hover)}
+/* Ítem del typeahead: cuadrado rojo + nombre mono caps, dirección debajo
+   en sans muted (Figma 422-2873) */
+.studio-suggestion-name{
+    display:flex;
+    align-items:center;
+    gap:var(--space-3);
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-heading);
+}
+.studio-suggestion-name::before{
+    content:"";
+    flex:none;
+    width:10px;
+    height:10px;
+    background:var(--red-300);
+}
+.studio-suggestion-address{
+    display:block;
+    margin-top:var(--space-1);
+    padding-left:calc(10px + var(--space-3));
+    font-family:var(--font-body);
+    font-size:var(--body-s-size);
+    line-height:1.4;
+    color:var(--text-muted);
+}
+/* Fila "Crear": cuadrado amarillo con plus */
+.studio-suggestion-new .studio-suggestion-name::before{
+    content:"+";
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:14px;
+    height:14px;
+    background:var(--yellow-300);
+    color:var(--text-heading);
+    font-size:12px;
+    font-weight:var(--weight-bold);
+    line-height:1;
+}
 .studio-address-preview{margin-top:var(--space-2)}
 .address-details{margin-top:var(--space-3);font-size:var(--body-s-size);color:var(--text-muted)}
 .address-details summary{cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase}
@@ -635,12 +684,23 @@ body.register-page{
 /* ---------- Acciones ---------- */
 .ra-actions{
     display:flex;
+    flex-wrap:wrap;
     justify-content:flex-end;
     align-items:center;
     gap:var(--space-4);
     margin-top:var(--space-8);
 }
 .ra-actions--split{justify-content:space-between}
+/* Helper del gate junto al CONTINUAR deshabilitado (Figma 422-2873) */
+.ra-gate-hint{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    text-align:right;
+    color:var(--text-muted);
+}
+.ra-gate-hint[hidden]{display:none}
 .ra-continue{
     display:inline-flex;
     align-items:center;
@@ -837,6 +897,7 @@ a.ra-continue:hover{color:var(--white);text-decoration:none}
     .address-picker-wrapper,
     .custom-style-wrapper{max-width:none}
     .ra-actions{margin-top:var(--space-6)}
+    .ra-gate-hint{width:100%;text-align:left}
     .ra-continue{width:100%;min-height:var(--control-h-lg)}
     .ra-actions--split{flex-direction:column;align-items:stretch}
     .ra-ghost{width:100%}

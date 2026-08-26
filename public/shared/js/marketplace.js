@@ -71,6 +71,17 @@ let browseMode = 'artists'; // 'artists' | 'studios'
 let artistAgenda = {};   // user_id -> { available, booked, guestNow, travelling }
 let artistRatings = {};  // user_id -> { average_rating, review_count }
 
+// Favoritos (client_favorites via WeotziData.Favorites). Decisión v1: sin
+// sesión los corazones persisten en localStorage y se migran a la tabla al
+// loguear (merge silencioso en loadFavorites) — no se fuerza el login.
+let favoriteIds = new Set();   // artist user_ids marcados
+let favoritesOnly = false;     // atajo corazón del hero: filtra solo favoritos
+let sessionUserId = null;      // uid del cliente logueado (null = anónimo)
+const FAV_STORAGE_KEY = 'weotzi_mk_favorites';
+// Señales de búsqueda para "Artistas para vos" (client-side, sin backend).
+const SIGNALS_STORAGE_KEY = 'weotzi_mk_signals';
+let featuredIds = [];          // user_ids mostrados en "Artistas destacados"
+
 let currentFilters = {
     search: '',
     style: null,
@@ -143,8 +154,8 @@ const AVAILABILITY_OPTIONS = [
 ];
 
 const TRAVEL_OPTIONS = [
-    { value: 'guest', label: 'Guest artist ahora' },
-    { value: 'travelling', label: 'Viaja próximamente' }
+    { value: 'guest', label: 'Artista invitado' },
+    { value: 'travelling', label: 'De viaje pronto' }
 ];
 
 const PRICE_OPTIONS = [
@@ -167,7 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     showLoading();
     try {
         await waitForConfigManager();
-        applySessionTopbar();
+        await applySessionTopbar();
+        await loadFavorites();
 
         allArtists = await fetchArtists() || [];
         console.log('✅ Marketplace loaded with', allArtists.length, 'artists');
@@ -198,6 +210,7 @@ async function applySessionTopbar() {
 
         const { data: { session } } = await client.auth.getSession();
         if (!session) return;
+        sessionUserId = session.user.id;
 
         const nav = document.getElementById('mk-nav');
         const right = document.getElementById('mk-topbar-right');
@@ -339,15 +352,106 @@ async function loadArtistRatings() {
     }
 }
 
+// ============ FAVORITOS ============
+// Logueado: client_favorites via WeotziData.Favorites (RLS owner). Anónimo:
+// localStorage; al volver con sesión, loadFavorites migra lo local a la tabla
+// y limpia la copia local (merge silencioso, sin CTA de login).
+function readLocalFavorites() {
+    try {
+        const raw = localStorage.getItem(FAV_STORAGE_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list.filter(Boolean) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function writeLocalFavorites(ids) {
+    try {
+        localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify([...ids]));
+    } catch (e) { /* storage lleno o bloqueado: el corazón vive solo en memoria */ }
+}
+
+async function loadFavorites() {
+    if (!sessionUserId || !window.WeotziData || !window.WeotziData.Favorites) {
+        favoriteIds = new Set(readLocalFavorites());
+        return;
+    }
+    try {
+        // Merge de favoritos anónimos guardados antes de loguear.
+        const pending = readLocalFavorites();
+        for (const artistId of pending) {
+            await WeotziData.Favorites.add(sessionUserId, artistId);
+        }
+        if (pending.length) {
+            try { localStorage.removeItem(FAV_STORAGE_KEY); } catch (e) { /* noop */ }
+        }
+        const rows = await WeotziData.Favorites.listByClient(sessionUserId);
+        favoriteIds = new Set(rows.map(r => r.artist_user_id));
+    } catch (err) {
+        console.error('Error loading favorites:', err);
+        favoriteIds = new Set(readLocalFavorites());
+    }
+}
+
+// Toggle optimista: la UI cambia ya; si el backend falla, se revierte.
+async function toggleFavorite(artistUserId) {
+    if (!artistUserId) return;
+    const wasFavorite = favoriteIds.has(artistUserId);
+    if (wasFavorite) favoriteIds.delete(artistUserId);
+    else favoriteIds.add(artistUserId);
+    syncHeartButtons(artistUserId);
+
+    if (sessionUserId && window.WeotziData && window.WeotziData.Favorites) {
+        try {
+            await WeotziData.Favorites.toggle(sessionUserId, artistUserId, wasFavorite);
+        } catch (err) {
+            console.error('Error toggling favorite:', err);
+            if (wasFavorite) favoriteIds.add(artistUserId);
+            else favoriteIds.delete(artistUserId);
+            syncHeartButtons(artistUserId);
+            return;
+        }
+    } else {
+        writeLocalFavorites(favoriteIds);
+    }
+
+    // Con el filtro de favoritos activo, quitar un corazón saca la card.
+    if (favoritesOnly) applyFilters();
+}
+
+// Sincroniza todos los corazones de un artista (grid + destacados + para vos).
+function syncHeartButtons(artistUserId) {
+    const isFav = favoriteIds.has(artistUserId);
+    document.querySelectorAll(`.mk-card-fav[data-fav-artist="${CSS.escape(artistUserId)}"]`).forEach(btn => {
+        btn.classList.toggle('is-fav', isFav);
+        btn.setAttribute('aria-pressed', String(isFav));
+        btn.setAttribute('aria-label', isFav ? 'Quitar de favoritos' : 'Guardar en favoritos');
+    });
+}
+
+// Atajo corazón del hero (Figma 286:11980): filtra solo favoritos.
+function toggleFavoritesOnly() {
+    favoritesOnly = !favoritesOnly;
+    const btn = document.getElementById('mk-fav-toggle');
+    if (btn) {
+        btn.classList.toggle('is-active', favoritesOnly);
+        btn.setAttribute('aria-pressed', String(favoritesOnly));
+    }
+    applyFilters();
+}
+
 // Estado único de la card. Precedencia: guest activo > agenda cerrada >
 // viaje próximo > disponible. Sin datos de agenda no se dibuja chip.
+// Labels en español (criterio del manifiesto), alineados con
+// AVAILABILITY_OPTIONS / TRAVEL_OPTIONS.
 function getArtistStatus(artist) {
     const entry = artistAgenda[artist.user_id];
     if (!entry) return null;
-    if (entry.guestNow) return { key: 'guest', label: 'Guest artist' };
-    if (entry.booked && !entry.available) return { key: 'booked', label: 'Fully booked' };
-    if (entry.travelling) return { key: 'travelling', label: 'Travelling soon' };
-    if (entry.available) return { key: 'available', label: 'Available' };
+    if (entry.guestNow) return { key: 'guest', label: 'Artista invitado' };
+    if (entry.booked && !entry.available) return { key: 'booked', label: 'Agenda cerrada' };
+    if (entry.travelling) return { key: 'travelling', label: 'De viaje pronto' };
+    if (entry.available) return { key: 'available', label: 'Disponible' };
     return null;
 }
 
@@ -390,8 +494,15 @@ async function setBrowseMode(mode) {
     document.getElementById('mode-studios')?.classList.toggle('is-active', mode === 'studios');
 
     const filtersRow = document.getElementById('mk-filters');
-    // Los 6 filtros describen atributos de artista: no aplican al listado de estudios.
+    // Los 6 filtros describen atributos de artista: no aplican al listado de
+    // estudios. Idem los atajos del hero (favoritos + drawer de filtros).
     if (filtersRow) filtersRow.hidden = mode === 'studios';
+    const heroActions = document.getElementById('mk-hero-actions');
+    if (heroActions) heroActions.hidden = mode === 'studios';
+    if (mode === 'studios') {
+        const drawer = document.getElementById('mk-filter-drawer');
+        if (drawer && !drawer.hidden) toggleAllFilters();
+    }
 
     if (mode === 'studios') {
         showLoading();
@@ -465,6 +576,15 @@ function initFilterMenus() {
     renderFilterMenu('travel', TRAVEL_OPTIONS.map(o => ({ ...o, count: agendaCounts[o.value] })));
     renderFilterMenu('studio', studioOptions);
 
+    // Drawer "Todos los filtros": mismas opciones, en selects del DS.
+    populateDrawerSelect('style', styleOptions);
+    populateDrawerSelect('location', locationOptions);
+    populateDrawerSelect('priceRange', PRICE_OPTIONS);
+    populateDrawerSelect('availability', AVAILABILITY_OPTIONS);
+    populateDrawerSelect('travel', TRAVEL_OPTIONS);
+    populateDrawerSelect('studio', studioOptions);
+    bindFilterDrawer();
+
     const filtersRow = document.getElementById('mk-filters');
     if (filtersRow && !filtersRow.dataset.woBound) {
         filtersRow.dataset.woBound = '1';
@@ -507,6 +627,52 @@ function renderFilterMenu(key, options) {
     menu.innerHTML = clearRow + rows;
 }
 
+// ============ DRAWER "TODOS LOS FILTROS" (Figma 286:12041 + 286:11985) ============
+// Mismo patrón que el drawer de /explore: toggle + panel con los filtros
+// expandidos. Lo abren tanto el chip de la fila como el botón Filtros del hero.
+function populateDrawerSelect(key, options) {
+    const select = document.querySelector(`select[data-drawer-key="${key}"]`);
+    if (!select) return;
+    const placeholder = select.querySelector('option[value=""]');
+    select.innerHTML = '';
+    if (placeholder) select.appendChild(placeholder);
+    options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.count == null ? o.label : `${o.label} (${o.count})`;
+        select.appendChild(opt);
+    });
+    select.value = currentFilters[key] || '';
+}
+
+function bindFilterDrawer() {
+    const drawer = document.getElementById('mk-filter-drawer');
+    if (!drawer || drawer.dataset.woBound) return;
+    drawer.dataset.woBound = '1';
+    drawer.addEventListener('change', (e) => {
+        const select = e.target.closest('select[data-drawer-key]');
+        if (!select) return;
+        selectFilterOption(select.dataset.drawerKey, select.value);
+    });
+}
+
+function toggleAllFilters() {
+    const drawer = document.getElementById('mk-filter-drawer');
+    if (!drawer) return;
+    const open = drawer.hidden;
+    drawer.hidden = !open;
+    ['mk-filters-open', 'mk-allfilters-btn'].forEach(id => {
+        document.getElementById(id)?.setAttribute('aria-expanded', String(open));
+    });
+    if (open) closeAllFilterMenus();
+}
+
+function syncDrawerSelects() {
+    document.querySelectorAll('select[data-drawer-key]').forEach(select => {
+        select.value = currentFilters[select.dataset.drawerKey] || '';
+    });
+}
+
 function closeAllFilterMenus() {
     document.querySelectorAll('.mk-filter-menu').forEach(m => { m.hidden = true; });
     document.querySelectorAll('.mk-filter-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
@@ -530,6 +696,7 @@ function selectFilterOption(key, value) {
 }
 
 function syncFilterButtons() {
+    syncDrawerSelects();
     Object.keys(FILTER_TITLES).forEach(key => {
         const wrap = document.querySelector(`.mk-filter[data-filter-key="${key}"]`);
         const label = document.getElementById(`mk-filter-label-${key}`);
@@ -564,15 +731,75 @@ function syncFilterButtons() {
 // ============ UI RENDERING ============
 
 // Delegación de click de las cards (el destino viaja en data-card-href).
-function bindGridNavigation() {
-    const grid = document.getElementById('marketplace-grid');
+// El corazón intercepta antes de navegar. Se aplica a los tres grids
+// (principal, destacados y para vos).
+function bindCardsContainer(id) {
+    const grid = document.getElementById(id);
     if (!grid || grid.dataset.woBound) return;
     grid.dataset.woBound = '1';
     grid.addEventListener('click', (e) => {
+        const fav = e.target.closest('.mk-card-fav');
+        if (fav) {
+            e.stopPropagation();
+            toggleFavorite(fav.dataset.favArtist);
+            return;
+        }
         const card = e.target.closest('.mk-card[data-card-href]');
         if (!card) return;
         window.location.href = card.dataset.cardHref;
     });
+}
+
+function bindGridNavigation() {
+    bindCardsContainer('marketplace-grid');
+    bindCardsContainer('mk-featured-grid');
+    bindCardsContainer('mk-foryou-grid');
+}
+
+// Card de artista compartida por el grid, "Artistas destacados" y
+// "Artistas para vos". opts.sponsored agrega el badge "Patrocinado".
+function artistCardHtml(artist, opts = {}) {
+    const styles = parseStyles(artist.styles_array);
+    const profilePic = artist.profile_picture;
+    const city = artistCity(artist);
+    const mainStyle = styles.length > 0 ? styles[0] : '';
+    const metaLine = [city, mainStyle].filter(Boolean).join(' · ');
+    const status = getArtistStatus(artist);
+    const summary = artistRatings[artist.user_id];
+    const name = escapeHtml(toTitleCase(artist.name));
+    const userId = escapeHtml(artist.user_id || '');
+    const isFav = favoriteIds.has(artist.user_id);
+
+    return `
+        <article class="wo-card wo-card--media wo-card--hover mk-card" data-card-href="${escapeHtml(`/artist/profile?artist=${encodeURIComponent(artist.username || '')}`)}">
+            <div class="mk-card-media">
+                <i data-wo-icon="image" class="mk-media-ph" aria-hidden="true"></i>
+                ${profilePic ? `<img src="${escapeHtml(profilePic)}" alt="${name}" loading="lazy" onerror="this.remove();">` : ''}
+                <span class="mk-card-topfade" aria-hidden="true"></span>
+                <div class="mk-card-top">
+                    ${opts.sponsored ? `<span class="mk-card-sponsored"><i data-wo-icon="award" aria-hidden="true"></i>Patrocinado</span>` : ''}
+                    ${status ? `<span class="mk-card-status mk-card-status--${status.key}">${escapeHtml(status.label)}</span>` : ''}
+                </div>
+                ${userId ? `
+                <button type="button" class="mk-card-fav${isFav ? ' is-fav' : ''}" data-fav-artist="${userId}"
+                        aria-pressed="${isFav}" aria-label="${isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}">
+                    <i data-wo-icon="heart" aria-hidden="true"></i>
+                </button>` : ''}
+                <div class="mk-card-overlay">
+                    <span class="mk-card-avatar" aria-hidden="true">${getInitials(artist.name)}</span>
+                    <div class="mk-card-id">
+                        <h3 class="mk-card-name">${name}</h3>
+                    </div>
+                </div>
+                <div class="mk-card-metarow">
+                    <p class="mk-card-meta">${escapeHtml(metaLine)}</p>
+                    ${summary && summary.average_rating
+                        ? `<span class="mk-card-rating"><i data-wo-icon="star"></i>${Number(summary.average_rating).toFixed(1)}</span>`
+                        : ''}
+                </div>
+            </div>
+        </article>
+    `;
 }
 
 function renderArtists(artists) {
@@ -593,39 +820,137 @@ function renderArtists(artists) {
     if (countEl) countEl.textContent = `${artists.length} artistas encontrados`;
     bindGridNavigation();
 
-    grid.innerHTML = artists.map(artist => {
-        const styles = parseStyles(artist.styles_array);
-        const profilePic = artist.profile_picture;
-        const city = artistCity(artist);
-        const mainStyle = styles.length > 0 ? styles[0] : '';
-        const metaLine = [city, mainStyle].filter(Boolean).join(' · ');
-        const status = getArtistStatus(artist);
-        const summary = artistRatings[artist.user_id];
-        const name = escapeHtml(toTitleCase(artist.name));
+    grid.innerHTML = artists.map(artist => artistCardHtml(artist)).join('');
+}
 
-        return `
-            <article class="wo-card wo-card--media wo-card--hover mk-card" data-card-href="${escapeHtml(`/artist/profile?artist=${encodeURIComponent(artist.username || '')}`)}">
-                <div class="mk-card-media">
-                    <i data-wo-icon="image" class="mk-media-ph" aria-hidden="true"></i>
-                    ${profilePic ? `<img src="${escapeHtml(profilePic)}" alt="${name}" loading="lazy" onerror="this.remove();">` : ''}
-                    <span class="mk-card-topfade" aria-hidden="true"></span>
-                    ${status ? `<span class="mk-card-status mk-card-status--${status.key}">${escapeHtml(status.label)}</span>` : ''}
-                    <div class="mk-card-overlay">
-                        <span class="mk-card-avatar" aria-hidden="true">${getInitials(artist.name)}</span>
-                        <div class="mk-card-id">
-                            <h3 class="mk-card-name">${name}</h3>
-                        </div>
-                    </div>
-                    <div class="mk-card-metarow">
-                        <p class="mk-card-meta">${escapeHtml(metaLine)}</p>
-                        ${summary && summary.average_rating
-                            ? `<span class="mk-card-rating"><i data-wo-icon="star"></i>${Number(summary.average_rating).toFixed(1)}</span>`
-                            : ''}
-                    </div>
-                </div>
-            </article>
-        `;
-    }).join('');
+// ¿Hay algún filtro, búsqueda o atajo de favoritos activo?
+function hasActiveFilters() {
+    return !!(currentFilters.search || currentFilters.style || currentFilters.location ||
+        currentFilters.city || currentFilters.country || currentFilters.priceRange ||
+        currentFilters.availability || currentFilters.travel || currentFilters.studio ||
+        favoritesOnly);
+}
+
+// ============ ARTISTAS DESTACADOS (Figma 286:12580) ============
+// v1 sin campo de curaduría en artists_db: top 4 por rating real de
+// public_review_summary (ya cargado en artistRatings). Solo visible en modo
+// artistas y sin filtros/búsqueda activos, como en el mock.
+function renderFeatured() {
+    const section = document.getElementById('mk-featured');
+    const grid = document.getElementById('mk-featured-grid');
+    featuredIds = [];
+    if (!section || !grid) return;
+
+    if (browseMode !== 'artists' || hasActiveFilters()) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    const top = allArtists
+        .filter(a => artistRatings[a.user_id] && artistRatings[a.user_id].average_rating)
+        .sort((a, b) => {
+            const ra = artistRatings[a.user_id], rb = artistRatings[b.user_id];
+            return (rb.average_rating - ra.average_rating) || ((rb.review_count || 0) - (ra.review_count || 0));
+        })
+        .slice(0, 4);
+
+    if (!top.length) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    featuredIds = top.map(a => a.user_id);
+    grid.innerHTML = top.map(artist => artistCardHtml(artist, { sponsored: true })).join('');
+    section.classList.remove('hidden');
+    bindGridNavigation();
+}
+
+function scrollFeaturedIntoView() {
+    document.getElementById('mk-featured-grid')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ============ ARTISTAS PARA VOS (Figma 286:12794) ============
+// Personalización client-side: rankea por coincidencia con los estilos y
+// ciudades buscados/filtrados recientemente (localStorage). Sin señal, la
+// sección no se muestra. Solo en modo artistas sin filtros activos.
+function readSearchSignals() {
+    try {
+        const raw = localStorage.getItem(SIGNALS_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return {
+            styles: Array.isArray(parsed?.styles) ? parsed.styles : [],
+            cities: Array.isArray(parsed?.cities) ? parsed.cities : []
+        };
+    } catch (e) {
+        return { styles: [], cities: [] };
+    }
+}
+
+function recordSearchSignals() {
+    const style = currentFilters.style;
+    const city = currentFilters.city || currentFilters.location;
+    if (!style && !city) return;
+    try {
+        const signals = readSearchSignals();
+        const push = (list, value) => {
+            const key = normalizeKey(value);
+            const next = [value, ...list.filter(v => normalizeKey(v) !== key)];
+            return next.slice(0, 8); // últimas 8 señales por tipo
+        };
+        if (style) signals.styles = push(signals.styles, style);
+        if (city) signals.cities = push(signals.cities, city);
+        localStorage.setItem(SIGNALS_STORAGE_KEY, JSON.stringify(signals));
+    } catch (e) { /* sin storage no hay personalización, nada que romper */ }
+}
+
+function renderForYou() {
+    const section = document.getElementById('mk-foryou');
+    const grid = document.getElementById('mk-foryou-grid');
+    if (!section || !grid) return;
+
+    if (browseMode !== 'artists' || hasActiveFilters()) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    const signals = readSearchSignals();
+    if (!signals.styles.length && !signals.cities.length) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    const styleKeys = signals.styles.map(normalizeKey);
+    const cityKeys = signals.cities.map(normalizeKey);
+    const scored = allArtists
+        .filter(a => !featuredIds.includes(a.user_id))
+        .map(artist => {
+            const artistStyles = parseStyles(artist.styles_array).map(normalizeKey);
+            const city = normalizeKey(artistCity(artist));
+            let score = 0;
+            styleKeys.forEach((key, idx) => {
+                if (artistStyles.some(s => s.includes(key) || key.includes(s))) {
+                    score += 2 + (styleKeys.length - idx) * 0.1; // más peso a lo reciente
+                }
+            });
+            cityKeys.forEach((key, idx) => {
+                if (city && (city.includes(key) || key.includes(city))) {
+                    score += 2 + (cityKeys.length - idx) * 0.1;
+                }
+            });
+            return { artist, score };
+        })
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4);
+
+    if (!scored.length) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    grid.innerHTML = scored.map(item => artistCardHtml(item.artist)).join('');
+    section.classList.remove('hidden');
+    bindGridNavigation();
 }
 
 function renderStudios(studios) {
@@ -680,6 +1005,7 @@ function updateActiveFiltersUI() {
     if (!container || !list) return;
 
     const activeFilters = [];
+    if (favoritesOnly && browseMode === 'artists') activeFilters.push({ type: 'favorites', label: 'Solo favoritos' });
     if (currentFilters.search) activeFilters.push({ type: 'search', label: `"${currentFilters.search}"` });
     if (currentFilters.style) activeFilters.push({ type: 'style', label: `Estilo: ${currentFilters.style}` });
     if (currentFilters.location) activeFilters.push({ type: 'location', label: `Ubicación: ${currentFilters.location}` });
@@ -729,11 +1055,14 @@ function applyFilters() {
                 .some(v => String(v || '').toLowerCase().includes(query));
         });
         renderStudios(filteredStudios);
+        renderFeatured();
+        renderForYou();
         updateActiveFiltersUI();
         return;
     }
 
     filteredArtists = allArtists.filter(artist => {
+        if (favoritesOnly && !favoriteIds.has(artist.user_id)) return false;
         if (currentFilters.search) {
             const query = currentFilters.search.toLowerCase();
             const name = (artist.name || '').toLowerCase();
@@ -775,8 +1104,11 @@ function applyFilters() {
         return true;
     });
 
+    recordSearchSignals();
     sortArtists();
     renderArtists(filteredArtists);
+    renderFeatured();
+    renderForYou();
     updateActiveFiltersUI();
 }
 
@@ -875,6 +1207,10 @@ function selectSuggestion(type, label, username) {
 
 // ============ EVENT HANDLERS ============
 function removeFilter(type) {
+    if (type === 'favorites') {
+        if (favoritesOnly) toggleFavoritesOnly();
+        return;
+    }
     currentFilters[type] = null;
     if (type === 'search') currentFilters.search = '';
     if (type === 'location') currentFilters.city = null;
@@ -882,6 +1218,14 @@ function removeFilter(type) {
 }
 
 function clearAllFilters() {
+    if (favoritesOnly) {
+        favoritesOnly = false;
+        const favBtn = document.getElementById('mk-fav-toggle');
+        if (favBtn) {
+            favBtn.classList.remove('is-active');
+            favBtn.setAttribute('aria-pressed', 'false');
+        }
+    }
     currentFilters = {
         search: '',
         style: null,
@@ -914,6 +1258,10 @@ function viewArtistProfile(username) {
 
 // ============ EXPORT GLOBALS ============
 window.toggleFilterMenu = toggleFilterMenu;
+window.toggleAllFilters = toggleAllFilters;
+window.toggleFavoritesOnly = toggleFavoritesOnly;
+window.toggleFavorite = toggleFavorite;
+window.scrollFeaturedIntoView = scrollFeaturedIntoView;
 window.selectFilterOption = selectFilterOption;
 window.setBrowseMode = setBrowseMode;
 window.removeFilter = removeFilter;

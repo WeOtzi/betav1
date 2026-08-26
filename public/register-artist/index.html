@@ -228,9 +228,11 @@
                     <h2 class="ra-title">¿Qué estilos trabajás?</h2>
                     <p class="ra-hint">Elegí todos los que representen tu trabajo.</p>
                     <div class="styles-grid" id="styles-grid">
-                        <!-- Chips generados desde tattoo_styles por register.js -->
+                        <!-- Chips generados desde tattoo_styles por register.js.
+                             "Ver más estilos" cierra la misma fila de chips (Figma 72-12519):
+                             register.js lo preserva al re-renderizar el grid. -->
+                        <button type="button" class="ra-more-styles" id="styles-more-btn" aria-expanded="false" aria-controls="styles-grid">Ver más estilos</button>
                     </div>
-                    <button type="button" class="ra-more-styles" id="styles-more-btn" aria-expanded="false" aria-controls="styles-grid">Ver más estilos</button>
                     <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
                         <label class="ra-label" for="custom_style">Tu estilo</label>
                         <div class="ra-inline-add">
@@ -380,12 +382,16 @@
                             <span class="work-type-kicker">Trabajo</span>
                             <span class="work-type-label">Independiente</span>
                         </button>
+                        <button type="button" class="work-type-option" data-type="both">
+                            <span class="work-type-kicker">Trabajo en</span>
+                            <span class="work-type-label">Ambos</span>
+                        </button>
                     </div>
 
                     <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
-                        <label class="ra-label" for="studio_name">Nombre del estudio</label>
+                        <label class="ra-label" for="studio_name">Nombre del estudio donde trabajás</label>
                         <div class="studio-autocomplete-wrapper">
-                            <input type="text" id="studio_name" class="form-input" placeholder="Nombre del estudio" autocomplete="off">
+                            <input type="text" id="studio_name" class="form-input ra-input--hard" placeholder="Nombre del estudio" autocomplete="off">
                             <div class="studio-suggestions" id="studio-suggestions"></div>
                         </div>
                         <p class="ra-hint studio-address-preview" id="studio-address-preview" hidden>
@@ -407,6 +413,7 @@
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
+                        <span class="ra-gate-hint" id="trabajo-gate-hint" hidden>Elegí tu estudio o creá uno nuevo</span>
                         <button type="button" class="ra-continue" data-continue="trabajo" disabled>Continuar <span aria-hidden="true">→</span></button>
                     </div>
                 </div>

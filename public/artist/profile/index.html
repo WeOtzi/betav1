@@ -124,8 +124,10 @@
 
                     <div class="hero-styles" id="display-styles">-</div>
 
+                    <!-- CTA dual del funnel (Figma 344:1323/344:1326): reservar = wizard, cotizar = listado -->
                     <div class="hero-cta-row">
-                        <a class="wo-btn wo-btn--hard hero-cta-primary" id="quote-cta-top-btn" href="/quotations">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                        <a class="wo-btn wo-btn--hard hero-cta-primary" id="reserve-cta-top-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                        <a class="wo-btn wo-btn--ghost wo-btn--hard hero-cta-secondary" id="quote-cta-top-btn" href="/quotations">Solicitar cotización</a>
                     </div>
                 </div>
 
@@ -242,7 +244,8 @@
                 </div>
                 <div class="cta-actions">
                     <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
-                    <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="quote-cta-bottom-btn" href="/quotations">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                    <!-- Único botón accent de la vista (regla 8 del DS) -->
+                    <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="reserve-cta-bottom-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
                 </div>
             </div>
         </section>
@@ -292,7 +295,8 @@
                 <span class="actionbar-status" id="actionbar-status" hidden></span>
             </p>
             <div class="actionbar-actions">
-                <a class="wo-btn wo-btn--s actionbar-btn" id="quote-cta-bar-btn" href="/quotations">Cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                <a class="actionbar-quiet-link" id="quote-cta-bar-btn" href="/quotations">Solicitar cotización</a>
+                <a class="wo-btn wo-btn--s actionbar-btn" id="reserve-cta-bar-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
             </div>
         </div>
     </div>

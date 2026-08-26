@@ -22,8 +22,15 @@
 
 /* ---------- Hero ---------- */
 .mk-hero{display:flex;flex-direction:column;gap:var(--space-6)}
+.mk-hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-6)}
+.mk-hero-heading{display:flex;flex-direction:column;gap:var(--space-3);min-width:0}
 .mk-title{font-family:var(--font-display);font-size:clamp(var(--title-sm-size),5vw,var(--title-xl-size));line-height:1.05;letter-spacing:var(--h1-track);color:var(--ink);margin:0}
-.mk-sub{font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted);margin:calc(-1 * var(--space-3)) 0 0}
+.mk-sub{font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted);margin:0}
+/* Atajos del hero: corazón (solo favoritos) + botón Filtros (drawer) */
+.mk-hero-actions{display:flex;align-items:center;gap:var(--space-3);flex:none}
+.mk-hero-actions .wo-btn--s{min-height:var(--control-h-md)} /* misma altura que el iconbtn */
+.mk-fav-toggle.is-active{background:var(--neutral-500);color:var(--white)}
+.mk-fav-toggle.is-active svg{fill:currentColor}
 
 /* ---------- Búsqueda ---------- */
 .mk-search{position:relative}
@@ -61,6 +68,16 @@
 .mk-filter-opt:hover{background:var(--surface-input-hover)}
 .mk-filter-opt.is-selected{background:var(--neutral-500);color:var(--neutral-100)}
 .mk-filter-opt-count{font-family:var(--font-mono);font-size:var(--meta-s-size);color:inherit;opacity:var(--opacity-muted);flex:none}
+/* Separador + chip "Todos los filtros" al final de la fila (Figma 286:12041) */
+.mk-filters-sep{width:var(--border-hairline);align-self:stretch;background:var(--border-muted);flex:none}
+.mk-allfilters-btn [data-wo-icon]{width:14px;height:14px}
+.mk-allfilters-btn[aria-expanded="true"]{background:var(--neutral-500);color:var(--neutral-100)}
+
+/* ---------- Drawer "Todos los filtros" (patrón de /explore) ---------- */
+.mk-filter-drawer{background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong);padding:var(--space-6)}
+.mk-filter-drawer[hidden]{display:none}
+.mk-drawer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5)}
+.mk-drawer-actions{display:flex;justify-content:flex-end;margin-top:var(--space-5)}
 
 /* ---------- Filtros activos ---------- */
 .mk-active-filters{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);margin-top:var(--space-6);padding:var(--space-3) 0;border-top:var(--border-hairline) solid var(--border-subtle)}
@@ -85,6 +102,25 @@
 .mk-seg-btn.is-active:hover{background:var(--neutral-500)}
 .mk-seg-btn [data-wo-icon]{width:14px;height:14px}
 
+/* ---------- Artistas destacados (Figma 286:12580, panel neutro del 286) ---------- */
+.mk-featured{margin-top:var(--space-6);padding:var(--space-8);background:var(--surface-media);border:var(--border-hairline) solid var(--border-muted)}
+.mk-featured-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6)}
+.mk-featured-heading{display:flex;flex-direction:column;gap:var(--space-2);min-width:0}
+/* Eyebrow "■ Destacados / Patrocinados": el cuadrado va por CSS (regla DS 9:
+   glifos Unicode solo ★ ♡ ♥ → ← ·) */
+.mk-featured-eyebrow{display:inline-flex;align-items:center;gap:var(--space-2);margin:0;
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--blue-400)}
+.mk-featured-eyebrow::before{content:"";width:8px;height:8px;flex:none;background:var(--blue-400)}
+.mk-featured-eyebrow-alt{color:var(--blue-200)}
+.mk-featured-title{font-family:var(--font-display);font-size:var(--h2-size);line-height:var(--h2-lh);letter-spacing:var(--h2-track);color:var(--ink);margin:0}
+.mk-featured-sub{font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted);margin:0}
+.mk-featured-link{flex:none;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase}
+
+/* ---------- Artistas para vos (Figma 286:12794) ---------- */
+.mk-foryou{margin-top:var(--space-12)}
+.mk-foryou-title{font-family:var(--font-display);font-size:var(--h2-size);line-height:var(--h2-lh);letter-spacing:var(--h2-track);color:var(--ink);margin:0}
+.mk-foryou-sub{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-faint);margin:var(--space-2) 0 0}
+
 /* ---------- Grid de artistas ---------- */
 .mk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-5);margin-top:var(--space-6)}
 .mk-card{display:flex;flex-direction:column;cursor:pointer}
@@ -105,15 +141,28 @@
 /* La meta line vive dentro del gradiente: el overlay reserva su alto */
 .mk-card-overlay{padding-bottom:var(--space-10)}
 
-/* Chip de estado (arriba a la izquierda, sobre el gradiente superior) */
+/* Esquina superior de la card: badge Patrocinado + chip de estado apilados
+   a la izquierda (sobre el gradiente superior) y corazón a la derecha */
 .mk-card-topfade{position:absolute;top:0;left:0;right:0;height:60px;background:linear-gradient(180deg,rgba(0,0,0,0.45),transparent);pointer-events:none}
-.mk-card-status{position:absolute;top:var(--space-3);left:var(--space-3);display:inline-flex;align-items:center;gap:var(--space-3);
+.mk-card-top{position:absolute;top:var(--space-3);left:var(--space-3);display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2)}
+.mk-card-status{display:inline-flex;align-items:center;gap:var(--space-3);
   font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--white)}
 .mk-card-status::before{content:"";width:6px;height:6px;flex:none;border-radius:var(--radius-pill);background:currentColor}
 .mk-card-status--available::before{background:var(--system-success)}
 .mk-card-status--guest::before{background:var(--blue-400)}
 .mk-card-status--booked::before{background:var(--system-error)}
 .mk-card-status--travelling::before{background:var(--yellow-300)}
+/* Badge "Patrocinado" (cards destacadas, Figma 286:12580) */
+.mk-card-sponsored{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2);
+  background:var(--neutral-500);color:var(--white);
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase}
+.mk-card-sponsored [data-wo-icon]{width:12px;height:12px}
+/* Corazón de favoritos de la card */
+.mk-card-fav{position:absolute;top:var(--space-2);right:var(--space-2);z-index:1;display:inline-flex;align-items:center;justify-content:center;
+  width:var(--space-8);height:var(--space-8);padding:0;background:transparent;border:0;border-radius:var(--radius-none);
+  color:var(--white);cursor:pointer}
+.mk-card-fav [data-wo-icon]{width:18px;height:18px}
+.mk-card-fav.is-fav svg{fill:currentColor}
 
 /* ---------- Estado vacío ---------- */
 .mk-empty-icon{width:48px;height:48px;color:var(--text-faint)}
@@ -126,6 +175,9 @@
 @media (max-width:1024px){
   .mk-grid{grid-template-columns:repeat(3,1fr)}
 }
+@media (max-width:1024px){
+  .mk-drawer-grid{grid-template-columns:repeat(2,1fr)}
+}
 @media (max-width:768px){
   .mk-main{padding-top:var(--space-6)}
   .mk-grid{grid-template-columns:repeat(2,1fr);gap:var(--space-4)}
@@ -134,6 +186,11 @@
   .mk-clear-btn{margin-left:0}
   .mk-filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:var(--space-2);scrollbar-width:thin}
   .mk-filter{flex:none}
+  .mk-allfilters-btn{flex:none}
+  .mk-hero-top{flex-direction:column;align-items:flex-start;gap:var(--space-4)}
+  .mk-featured{padding:var(--space-5)}
+  .mk-featured-head{flex-direction:column;gap:var(--space-3)}
+  .mk-drawer-grid{grid-template-columns:1fr}
 }
 @media (max-width:480px){
   .mk-grid{grid-template-columns:1fr}

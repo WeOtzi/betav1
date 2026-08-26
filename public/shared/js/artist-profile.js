@@ -33,6 +33,8 @@ const GALLERY_PLACEHOLDER_SRC = '/shared/assets/placeholders/gallery-default.svg
 const PROFILE_MOBILE_MENU_BREAKPOINT = 768;
 const REVIEW_QUOTE_COUNT = 3;
 const GALLERY_ALL_FILTER = 'todos';
+// Tope de la primera oración de la bio para promoverla a titular-manifiesto.
+const BIO_MANIFESTO_MAX_CHARS = 110;
 
 const PROFILE_ERROR_CONTENT = {
     not_found: {
@@ -68,6 +70,8 @@ const PRESENCE_BADGES = {
 const SPECIALTY_COLORS = ['var(--red-300)', 'var(--blue-300)', 'var(--yellow-300)', 'var(--ink)'];
 const CITY_TONES = ['red', 'blue', 'ink'];
 const REVIEW_AVATAR_COLORS = ['var(--ink)', 'var(--red-300)', 'var(--blue-300)'];
+// Figma: triángulo de color rotando rojo → azul → amarillo por fila de residencia.
+const PRESENCE_TONES = ['red', 'blue', 'yellow'];
 
 const GALLERY_CATEGORY_LABELS = {
     realizados: 'Realizados',
@@ -439,13 +443,60 @@ function populateProfile() {
     renderCtaMonths();
     renderActionbar(artisticName);
     setQuoteLinks();
+    renderBio();
+}
 
-    const bioTextEl = document.getElementById('bio-text');
-    if (window.BioFormatting) {
-        window.BioFormatting.renderBioHtml(bioTextEl, artistData.bio_description);
-    } else {
-        bioTextEl.textContent = artistData.bio_description || 'Este artista todavía no agregó una descripción.';
+/**
+ * Banda azul (Figma 344:1375): el titular-manifiesto es la primera oración corta
+ * de `bio_description`; el resto queda como párrafo. Si la bio trae links
+ * (formato rico funcional) no se parte: se renderiza completa y sin manifiesto
+ * para no perder los enlaces.
+ */
+function splitBioManifesto(plainText) {
+    const text = String(plainText || '').trim();
+    if (!text) return { manifesto: '', rest: text };
+
+    const match = text.match(/^([^\n]+?[.!?…])(?:\s+|$)/);
+    const sentence = match ? match[1].trim() : '';
+    if (!sentence || sentence.length > BIO_MANIFESTO_MAX_CHARS) {
+        return { manifesto: '', rest: text };
     }
+    return { manifesto: sentence, rest: text.slice(match[0].length).trim() };
+}
+
+function renderBio() {
+    const manifestoEl = document.getElementById('bio-manifesto');
+    const bioTextEl = document.getElementById('bio-text');
+    if (!bioTextEl) return;
+
+    const bio = artistData?.bio_description || '';
+    const hasLinks = window.BioFormatting
+        ? /<a[\s>]/i.test(window.BioFormatting.sanitizeBioHtml(bio))
+        : false;
+    const plain = window.BioFormatting
+        ? window.BioFormatting.bioHtmlToPlainText(bio)
+        : String(bio).trim();
+    const { manifesto, rest } = hasLinks ? { manifesto: '', rest: plain } : splitBioManifesto(plain);
+
+    if (manifestoEl) {
+        manifestoEl.hidden = !manifesto;
+        manifestoEl.textContent = manifesto;
+    }
+
+    if (!manifesto) {
+        bioTextEl.hidden = false;
+        if (window.BioFormatting) {
+            window.BioFormatting.renderBioHtml(bioTextEl, bio);
+        } else {
+            bioTextEl.textContent = plain || bioTextEl.dataset.emptyMessage || '';
+        }
+        return;
+    }
+
+    bioTextEl.hidden = !rest;
+    bioTextEl.innerHTML = rest
+        ? rest.split(/\n{2,}/).map((para) => `<p>${escapeHtml(para).replace(/\n/g, '<br>')}</p>`).join('')
+        : '';
 }
 
 function setText(id, value) {
@@ -454,11 +505,23 @@ function setText(id, value) {
     el.textContent = value || '-';
 }
 
+/**
+ * CTA dual del funnel (Figma): "Reservar sesión →" abre el wizard de cotización
+ * (`/quotation`, misma ruta que el badge AGENDA ABIERTA de residencias) y
+ * "Solicitar cotización" lleva al listado (`/quotations`).
+ */
 function setQuoteLinks() {
     const quotationUrl = getQuotationUrl();
-    for (const id of ['quote-cta-top-btn', 'quote-cta-bottom-btn', 'quote-cta-bar-btn', 'profile-header-quote-link', 'profile-mobile-quote-link']) {
+    const reserveUrl = getQuotationFormUrl();
+
+    for (const id of ['quote-cta-top-btn', 'quote-cta-bar-btn', 'profile-header-quote-link', 'profile-mobile-quote-link']) {
         const el = document.getElementById(id);
         if (el) el.href = quotationUrl;
+    }
+
+    for (const id of ['reserve-cta-top-btn', 'reserve-cta-bottom-btn', 'reserve-cta-bar-btn']) {
+        const el = document.getElementById(id);
+        if (el) el.href = reserveUrl;
     }
 }
 
@@ -745,7 +808,7 @@ function renderPresence() {
     band.hidden = false;
     const quoteFormUrl = getQuotationFormUrl();
 
-    table.innerHTML = tattooLocations.map((location) => {
+    table.innerHTML = tattooLocations.map((location, index) => {
         const badge = resolvePresenceBadge(location);
         const dates = formatResidencyRange(location.start_date, location.end_date);
         const badgeHtml = badge.state === 'open'
@@ -755,7 +818,7 @@ function renderPresence() {
         return `
             <div class="presence-row">
                 <div class="presence-place">
-                    <i class="presence-pin" data-wo-icon="map-pin" aria-hidden="true"></i>
+                    <span class="presence-tri" data-tone="${PRESENCE_TONES[index % PRESENCE_TONES.length]}" aria-hidden="true"></span>
                     <div>
                         <p class="presence-city">${escapeHtml(location.city || location.studio_name || '-')}</p>
                         ${location.city && location.studio_name ? `<p class="presence-venue">${escapeHtml(location.studio_name)}</p>` : ''}

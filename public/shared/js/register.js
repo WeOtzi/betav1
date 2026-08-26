@@ -1174,6 +1174,10 @@ async function loadAndRenderStylesFromDB() {
     const grid = document.getElementById('styles-grid');
     if (!grid) return;
 
+    // "Ver más estilos" vive dentro del grid como último item de la fila
+    // (Figma 72-12519): se retiene la referencia para re-adjuntarlo al final.
+    const moreBtn = document.getElementById('styles-more-btn');
+
     grid.innerHTML = '<span class="styles-loading" style="opacity:0.5;font-size:0.85rem;">Cargando estilos...</span>';
 
     try {
@@ -1207,6 +1211,8 @@ async function loadAndRenderStylesFromDB() {
     otherBtn.id = 'style-other-btn';
     otherBtn.textContent = '+ Otro';
     grid.appendChild(otherBtn);
+
+    if (moreBtn) grid.appendChild(moreBtn);
 
     syncStylesMoreButton();
 }
@@ -1309,7 +1315,15 @@ function prefillFormInputs() {
                 studioNameInput.value = data.studio_name;
             }
             updateStudioAddressPreview(getDisplayAddress(data.address));
+            syncStudioHardState();
         }
+        // Borrador reanudado: el picker propio solo hace falta si el estudio se
+        // estaba creando (sin id) o el elegido no dejó dirección (Figma 422-2873).
+        studioAddressRequired = Boolean(
+            (data.work_type === 'studio' || data.work_type === 'both') &&
+            String(data.studio_name || '').trim() &&
+            (!data.studio_id || !getDisplayAddress(data.address))
+        );
         applyAddressPickerVisibility(data.work_type);
     }
 
@@ -1637,6 +1651,11 @@ function initStudioAutocomplete() {
         studioLocationsCache = [];
         renderStudioLocationSelect([]);
         updateStudioAddressPreview('');
+        // Al volver a tipear se descarta la selección: el picker de dirección
+        // se oculta hasta elegir o crear un estudio (Figma 422-2873).
+        studioAddressRequired = false;
+        applyAddressPickerVisibility(formState.data.work_type);
+        syncStudioHardState();
         persistRegistrationDraft();
 
         if (query.length < 2) {
@@ -1651,7 +1670,7 @@ function initStudioAutocomplete() {
         if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            const active = suggestionsEl.querySelector('.studio-suggestion-item.active');
+            const active = suggestionsEl.querySelector('.studio-suggestion-item.is-active');
             if (active) active.click();
             else hideSuggestions();
         }
@@ -1695,28 +1714,31 @@ function renderSuggestions(query) {
     const suggestionsEl = document.getElementById('studio-suggestions');
     if (!suggestionsEl) return;
 
+    // Fila "Crear" del Figma 422-2873: cuadrado amarillo con plus (::before)
+    // + CREAR "query" en mono caps.
+    const createRow = `
+        <div class="studio-suggestion-item studio-suggestion-new" data-action="create">
+            <span class="studio-suggestion-name">Crear "${escapeHtmlSummary(query)}"</span>
+        </div>`;
+
     if (studioSuggestionsCache.length === 0) {
-        suggestionsEl.innerHTML = `
-            <div class="studio-suggestion-item studio-suggestion-new" data-action="create">
-                Crear: "${query}"
-            </div>`;
+        suggestionsEl.innerHTML = createRow;
     } else {
         const exactMatch = studioSuggestionsCache.some(
             s => s.normalized_name === query.toUpperCase()
         );
+        // Ítem del Figma 422-2873: cuadrado rojo + nombre mono caps,
+        // dirección en subrenglón sans muted.
         let html = studioSuggestionsCache.map((s, idx) => {
             const address = getDisplayAddress(s);
             return `
             <div class="studio-suggestion-item" data-cache-index="${idx}" data-id="${escapeHtmlSummary(s.id)}" data-name="${escapeHtmlSummary(s.name)}">
-                ${escapeHtmlSummary(s.name)}${address ? `<small>${escapeHtmlSummary(address)}</small>` : ''}
+                <span class="studio-suggestion-name">${escapeHtmlSummary(s.name)}</span>${address ? `<span class="studio-suggestion-address">${escapeHtmlSummary(address)}</span>` : ''}
             </div>
         `}).join('');
 
         if (!exactMatch) {
-            html += `
-                <div class="studio-suggestion-item studio-suggestion-new" data-action="create">
-                    Crear: "${query}"
-                </div>`;
+            html += createRow;
         }
         suggestionsEl.innerHTML = html;
     }
@@ -1830,6 +1852,8 @@ async function selectStudioSuggestion(item) {
         formState.data.studio_location_label = '';
         renderStudioLocationSelect([]);
         updateStudioAddressPreview('');
+        // Estudio nuevo: necesita que el artista cargue la dirección.
+        studioAddressRequired = true;
     } else {
         const cached = studioSuggestionsCache[Number.parseInt(item.dataset.cacheIndex, 10)] || null;
         formState.data.studio_id = item.dataset.id;
@@ -1843,12 +1867,19 @@ async function selectStudioSuggestion(item) {
                 || locations[0];
             if (preferred) {
                 applyStudioLocation(preferred);
+                // La dirección sale del estudio elegido: sin picker propio
+                // (Figma 422-2873).
+                studioAddressRequired = false;
             } else {
                 updateStudioAddressPreview('');
                 syncAddressDetailsVisibility();
+                // Estudio existente sin dirección cargada: se pide igual.
+                studioAddressRequired = true;
             }
         }
     }
+    applyAddressPickerVisibility(formState.data.work_type);
+    syncStudioHardState();
     persistRegistrationDraft();
     hideSuggestions();
 }
@@ -1866,12 +1897,13 @@ function navigateSuggestions(direction) {
     if (!el) return;
     const items = Array.from(el.querySelectorAll('.studio-suggestion-item'));
     if (!items.length) return;
-    const activeIdx = items.findIndex(i => i.classList.contains('active'));
-    items.forEach(i => i.classList.remove('active'));
+    // La clase de resaltado es `is-active` (la que pinta register-artist-ds.css).
+    const activeIdx = items.findIndex(i => i.classList.contains('is-active'));
+    items.forEach(i => i.classList.remove('is-active'));
     let nextIdx = activeIdx + direction;
     if (nextIdx < 0) nextIdx = items.length - 1;
     if (nextIdx >= items.length) nextIdx = 0;
-    items[nextIdx].classList.add('active');
+    items[nextIdx].classList.add('is-active');
     items[nextIdx].scrollIntoView({ block: 'nearest' });
 }
 
@@ -1930,6 +1962,17 @@ async function persistSelectedStudioLocation(studioIdOverride) {
 
 let studioAutocompleteInitialized = false;
 let addressPickerInstance = null;
+// Modo estudio (Figma 422-2873): el picker de dirección propio solo aparece al
+// crear un estudio nuevo o cuando el elegido no tiene dirección cargada.
+let studioAddressRequired = false;
+
+// Sombra dura del input de estudio cuando tiene valor (mismo patrón que
+// TU DIRECCIÓN en 72-12764).
+function syncStudioHardState() {
+    const studioInput = document.getElementById('studio_name');
+    if (!studioInput) return;
+    studioInput.classList.toggle('has-value', Boolean(String(studioInput.value || '').trim()));
+}
 
 function ensureAddressPicker() {
     if (addressPickerInstance) return addressPickerInstance;
@@ -1968,10 +2011,17 @@ function applyAddressPickerVisibility(workType) {
     if (!wrapper) return;
 
     if (workType === 'studio' || workType === 'both') {
-        wrapper.style.display = 'block';
-        if (label) label.textContent = 'Tu dirección';
-        if (help)  help.textContent = 'Buscá la dirección del estudio y elegí una sugerencia para ubicarla con precisión.';
-        ensureAddressPicker();
+        // "Un estudio" (Figma 422-2873): la dirección viene del estudio elegido,
+        // así que el picker propio solo aparece al crear un estudio nuevo o si
+        // el elegido no tiene dirección. "Ambos" lo conserva siempre (dirección
+        // propia además del estudio).
+        const showPicker = workType === 'both' || studioAddressRequired;
+        wrapper.style.display = showPicker ? 'block' : 'none';
+        if (showPicker) {
+            if (label) label.textContent = 'Tu dirección';
+            if (help)  help.textContent = 'Buscá la dirección del estudio y elegí una sugerencia para ubicarla con precisión.';
+            ensureAddressPicker();
+        }
         syncAddressDetailsVisibility();
     } else if (workType === 'independent') {
         wrapper.style.display = 'block';
@@ -2058,6 +2108,8 @@ function selectWorkTypeOption(btn) {
             renderStudioLocationSelect([]);
             if (studioNameInput) studioNameInput.value = '';
             updateStudioAddressPreview('');
+            studioAddressRequired = false;
+            syncStudioHardState();
         }
     }
 
@@ -3128,8 +3180,23 @@ function refreshGroupGate() {
     document.querySelectorAll('.ra-continue[data-continue]').forEach((btn) => {
         btn.disabled = !isGroupReady(btn.dataset.continue);
     });
+    syncTrabajoGateHint();
 }
 window.raRefreshGroupGate = refreshGroupGate;
+
+// Helper del gate del grupo 05 (Figma 422-2873): "Elegí tu estudio o creá uno
+// nuevo" acompaña al CONTINUAR deshabilitado mientras falta resolver el
+// estudio. Se oculta al crear uno nuevo (ahí guía el picker de dirección).
+function syncTrabajoGateHint() {
+    const hint = document.getElementById('trabajo-gate-hint');
+    if (!hint) return;
+    const workType = formState.data.work_type;
+    const needsStudio = workType === 'studio' || workType === 'both';
+    const studioInput = document.getElementById('studio_name');
+    const studioName = String((studioInput ? studioInput.value : formState.data.studio_name) || '').trim();
+    const studioResolved = Boolean(studioName && (formState.data.studio_id || getDisplayAddress(formState.data.address)));
+    hint.hidden = !(needsStudio && !studioResolved && !studioAddressRequired);
+}
 
 // ---------- Novedades ----------
 // El esquema guarda un único boolean (`subscribed_newsletter`): los 4 temas
