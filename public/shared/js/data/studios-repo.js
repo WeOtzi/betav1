@@ -445,6 +445,21 @@
         decideApplication(applicationId, status) {
             return from('studio_spot_applications').update({ status, decided_at: new Date().toISOString() }).eq('id', applicationId);
         },
+
+        // Postulaciones ENVIADAS por el artista con spot/estudio/sede embebidos.
+        // Cubre /artist/applications (rediseño 2026). Si la RLS del spot no lo
+        // deja ver (p.ej. cerrado), el embed llega null: la UI degrada.
+        listApplicationsByArtist(artistUserId) {
+            return from('studio_spot_applications')
+                .select('id, status, message, portfolio_url, requested_dates, created_at, decided_at, studio_spots ( id, title, kind, description, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, start_date, end_date, weeks_minimum, weeks_maximum, status, cover_image, studios:studio_id ( id, name, slug, logo_image, cover_image, photo_feed_items ), location:location_id ( city, country, label ) )')
+                .eq('artist_user_id', artistUserId)
+                .order('created_at', { ascending: false });
+        },
+
+        // Retiro de una postulacion propia (status del enum legacy).
+        withdrawApplication(applicationId) {
+            return from('studio_spot_applications').update({ status: 'withdrawn', decided_at: new Date().toISOString() }).eq('id', applicationId);
+        },
     };
 
     // ===================== StudioOps (jobs, invoices, documents, inventory, suppliers, sponsors, vistas) =====================

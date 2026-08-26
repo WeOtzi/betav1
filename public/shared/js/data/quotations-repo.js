@@ -319,6 +319,22 @@
             );
             return count || 0;
         },
+        // Hilos de chat desde la vista chat_threads (security_invoker: RLS de
+        // quotations_db + chat_messages del usuario). Solo cotizaciones con
+        // cliente registrado y al menos un mensaje. Rediseño 2026:
+        // /artist/inbox y /client/chats.
+        async listThreadsForArtist(artistUserId) {
+            const { data } = await run('chat.listThreadsForArtist', (c) =>
+                c.from('chat_threads').select('*').eq('artist_id', artistUserId).order('last_message_at', { ascending: false })
+            );
+            return data || [];
+        },
+        async listThreadsForClient(clientUserId) {
+            const { data } = await run('chat.listThreadsForClient', (c) =>
+                c.from('chat_threads').select('*').eq('client_user_id', clientUserId).order('last_message_at', { ascending: false })
+            );
+            return data || [];
+        },
         // FIX (doc §4-F): batch en 1 query en vez de N. Devuelve { quoteId: count }.
         async countUnreadByQuotationIds(quoteIds, fromSenderType) {
             if (!quoteIds || !quoteIds.length) return {};
