@@ -1,0 +1,85 @@
+/* ============================================================================
+   We Ötzi · /bienvenida — selección de rol (Figma 238:2335 = 205:666)
+   Requiere ds/tokens.css + ds/components.css antes. Prefijo bnv-.
+   Reglas duras del DS: radius 0 (excepción: check circular 999px), sombra dura
+   solo en hover, tokens siempre, escala 4pt.
+   ========================================================================== */
+
+/* ---------- Topbar mínima de auth ---------- */
+.bnv-brand-name{text-transform:uppercase}
+
+/* ---------- Shell ---------- */
+.bnv-main{padding:var(--space-16) 0 var(--space-12)}
+.bnv-head{max-width:640px;margin:0 auto var(--space-12);text-align:center}
+.bnv-title{font-family:var(--font-display);font-size:var(--title-lg-size);line-height:var(--h1-lh);letter-spacing:var(--h2-track);color:var(--text-heading);margin:0 0 var(--space-5)}
+.bnv-sub{font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted);margin:0}
+
+/* ---------- Grid de cards ---------- */
+.bnv-cards{display:flex;justify-content:center;align-items:stretch;gap:var(--space-16);flex-wrap:wrap;border:0;margin:0;padding:0;min-width:0}
+
+/* ---------- Card seleccionable ---------- */
+.bnv-card{position:relative;display:flex;flex-direction:column;flex:0 1 478px;max-width:478px;width:100%;
+  background:var(--surface-card);border:var(--border-hairline) solid var(--border-subtle);border-radius:var(--radius-none);
+  transition:transform var(--duration-press),box-shadow var(--duration-press),border-color var(--duration-press),background var(--duration-press)}
+.bnv-card:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.bnv-card:active{transform:none;box-shadow:var(--shadow-none)}
+.bnv-card:has(.bnv-card-input:focus-visible){box-shadow:var(--shadow-focus)}
+
+.bnv-card.is-selected{border-color:var(--blue-400);outline:var(--border-hairline) solid var(--blue-400);background:var(--info-bg)}
+
+.bnv-card-label{display:flex;flex-direction:column;flex:1;cursor:pointer;min-width:0}
+
+/* Check circular de selección (excepción de radius permitida: dots/avatar) */
+.bnv-card-check{position:absolute;top:var(--space-4);right:var(--space-4);z-index:1;width:32px;height:32px;
+  border-radius:var(--radius-pill);background:var(--blue-400);color:var(--white);
+  display:none;align-items:center;justify-content:center}
+.bnv-card-check [data-wo-icon]{width:16px;height:16px;display:inline-flex}
+.bnv-card-check svg{width:100%;height:100%}
+.bnv-card.is-selected .bnv-card-check{display:inline-flex}
+
+/* Zona superior: placeholder editorial sobrio (fondo suave + ícono Feather grande) */
+.bnv-card-media{display:flex;align-items:center;justify-content:center;min-height:280px;
+  background:var(--surface-media);border-bottom:var(--border-hairline) solid var(--border-subtle);color:var(--text-faint)}
+.bnv-card-media [data-wo-icon]{width:48px;height:48px;display:inline-flex}
+.bnv-card-media svg{width:100%;height:100%}
+.bnv-card.is-selected .bnv-card-media{background:var(--blue-100);border-bottom-color:var(--blue-200);color:var(--blue-300)}
+
+/* Zona inferior */
+.bnv-card-body{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-4);padding:var(--space-8);flex:1}
+.bnv-card-title{font-family:var(--font-display);font-size:var(--title-sm-size);line-height:var(--h2-lh);letter-spacing:var(--h2-track);color:var(--text-heading)}
+.bnv-card-copy{font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+
+.bnv-features{display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-2)}
+.bnv-feature{display:flex;align-items:center;gap:var(--space-3);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.bnv-feature [data-wo-icon]{width:18px;height:18px;display:inline-flex;flex:none;color:var(--neutral-500)}
+.bnv-feature svg{width:100%;height:100%}
+
+/* Atajo de la card: selecciona y avanza en un click */
+.bnv-card-go{background:none;border:0;cursor:pointer;align-self:flex-start;text-align:left;
+  padding:0 var(--space-8) var(--space-8);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
+  color:var(--text-muted)}
+.bnv-card-go:hover{color:var(--neutral-500)}
+.bnv-card.is-selected .bnv-card-go{color:var(--text-link)}
+.bnv-card.is-selected .bnv-card-go:hover{color:var(--text-link-hover)}
+
+/* ---------- CTA global + nota ---------- */
+.bnv-actions{display:flex;flex-direction:column;align-items:center;gap:var(--space-6);margin-top:var(--space-12)}
+.bnv-continue{min-width:180px}
+.bnv-foot{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-faint);text-align:center;max-width:520px}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1023px){
+  .bnv-cards{gap:var(--space-8)}
+}
+@media (max-width:767px){
+  .bnv-main{padding:var(--space-8) 0}
+  .bnv-head{margin-bottom:var(--space-8)}
+  .bnv-title{font-size:var(--h2-size)}
+  .bnv-card{flex-basis:100%}
+  .bnv-card-media{min-height:176px}
+  .bnv-card-body{padding:var(--space-6)}
+  .bnv-card-go{padding:0 var(--space-6) var(--space-6)}
+  .bnv-actions{margin-top:var(--space-8)}
+  .bnv-continue{width:100%;max-width:478px}
+}

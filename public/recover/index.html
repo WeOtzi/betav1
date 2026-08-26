@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Recuperar contraseña</title>
+    <meta name="description" content="Recuperá el acceso a tu cuenta de We Ötzi: pedí un código por email, verificalo y creá una nueva contraseña.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/recover-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="wo-app rc-body">
+<a class="rc-skip-link" href="#recover-content">Saltar al contenido</a>
+
+<div class="rc-split">
+
+    <aside class="rc-poster" aria-hidden="true">
+        <div class="rc-poster-frame">
+            <span class="wo-marks">
+                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+            </span>
+            <p class="rc-poster-title">
+                <span class="line">Recuperá</span>
+                <span class="line"><span class="hl-blue">Tu</span> <span class="hl-yellow">acceso</span></span>
+            </p>
+        </div>
+    </aside>
+
+    <main class="rc-panel" id="recover-content" tabindex="-1">
+        <div class="rc-panel-inner">
+
+            <a class="rc-brand" href="/inicio" aria-label="We Ötzi — ir al inicio">
+                <span class="wo-marks">
+                    <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+                </span>
+                <span class="rc-brand-name">We Ötzi</span>
+            </a>
+
+            <ol class="rc-steps" id="rc-steps" aria-label="Pasos de recuperación">
+                <li class="rc-step is-active" data-step="1"><span class="box">1</span><span class="lbl">Email</span></li>
+                <li class="rc-step" data-step="2"><span class="box">2</span><span class="lbl">Código</span></li>
+                <li class="rc-step" data-step="3"><span class="box">3</span><span class="lbl">Contraseña</span></li>
+            </ol>
+
+            <!-- Paso 1 · Email -->
+            <section id="rc-view-email" class="rc-view" aria-labelledby="rc-email-title">
+                <h1 class="rc-title" id="rc-email-title">¿Olvidaste tu contraseña?</h1>
+                <p class="rc-copy">Ingresá tu email y, si existe una cuenta, te mandamos un código para restablecer tu contraseña.</p>
+
+                <form id="rc-email-form" class="rc-form" novalidate>
+                    <div class="wo-field">
+                        <label class="wo-label" for="rc-email">Email</label>
+                        <div class="rc-inputwrap">
+                            <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                            <input type="email" id="rc-email" class="wo-input" placeholder="vos@email.com" required autocomplete="email">
+                        </div>
+                        <p id="rc-email-error" class="wo-error-msg rc-error" role="alert" hidden></p>
+                    </div>
+                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="rc-email-submit" disabled>
+                        <span class="btn-text">Enviar código</span>
+                        <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                    </button>
+                </form>
+
+                <a class="rc-back" id="rc-back-login" href="/client/login">
+                    <i data-wo-icon="arrow-left" aria-hidden="true"></i>
+                    Volver al inicio de sesión
+                </a>
+            </section>
+
+            <!-- Paso 2 · Código -->
+            <section id="rc-view-code" class="rc-view" aria-labelledby="rc-code-title" hidden>
+                <h1 class="rc-title" id="rc-code-title">Verificá tu código</h1>
+                <p class="rc-copy">Si existe una cuenta con <strong id="rc-code-email"></strong>, te enviamos un código de 6 dígitos.</p>
+
+                <form id="rc-code-form" class="rc-form" novalidate>
+                    <div class="rc-otp" id="rc-otp" role="group" aria-label="Código de 6 dígitos">
+                        <input type="text" class="wo-input rc-otp-box" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="Dígito 1">
+                        <input type="text" class="wo-input rc-otp-box" inputmode="numeric" maxlength="1" aria-label="Dígito 2">
+                        <input type="text" class="wo-input rc-otp-box" inputmode="numeric" maxlength="1" aria-label="Dígito 3">
+                        <input type="text" class="wo-input rc-otp-box" inputmode="numeric" maxlength="1" aria-label="Dígito 4">
+                        <input type="text" class="wo-input rc-otp-box" inputmode="numeric" maxlength="1" aria-label="Dígito 5">
+                        <input type="text" class="wo-input rc-otp-box" inputmode="numeric" maxlength="1" aria-label="Dígito 6">
+                    </div>
+                    <p id="rc-code-error" class="wo-error-msg rc-error" role="alert" hidden></p>
+
+                    <p class="rc-resend">
+                        <span class="wo-meta rc-resend-wait" id="rc-resend-wait">Reenviar código en <span id="rc-resend-timer">1:00</span></span>
+                        <button type="button" class="wo-meta rc-resend-link" id="rc-resend-btn" hidden>Reenviar código</button>
+                    </p>
+
+                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="rc-code-submit" disabled>
+                        <span class="btn-text">Verificar</span>
+                        <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>
+                    </button>
+                </form>
+
+                <button type="button" class="rc-back" id="rc-back-to-email">
+                    <i data-wo-icon="arrow-left" aria-hidden="true"></i>
+                    Volver
+                </button>
+            </section>
+
+            <!-- Paso 3 · Nueva contraseña -->
+            <section id="rc-view-password" class="rc-view" aria-labelledby="rc-password-title" hidden>
+                <h1 class="rc-title" id="rc-password-title">Creá una nueva contraseña</h1>
+                <p class="rc-copy">Tiene que ser distinta a las que ya usaste.</p>
+
+                <form id="rc-password-form" class="rc-form" novalidate>
+                    <div class="wo-field">
+                        <label class="wo-label" for="rc-password">Nueva contraseña</label>
+                        <div class="rc-inputwrap rc-inputwrap--toggle">
+                            <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                            <input type="password" id="rc-password" class="wo-input" placeholder="••••••••" autocomplete="new-password">
+                            <button type="button" class="rc-eye" data-eye-for="rc-password" aria-label="Mostrar contraseña" aria-pressed="false">
+                                <i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="rc-strength" id="rc-strength">
+                        <div class="wo-progress"><span id="rc-strength-fill" style="width:0%"></span></div>
+                        <p class="wo-meta rc-strength-label" id="rc-strength-label">Débil (0%)</p>
+                    </div>
+
+                    <ul class="rc-reqs" id="rc-reqs">
+                        <li class="rc-req" data-req="length"><i data-wo-icon="check-circle" class="wo-icon-18" aria-hidden="true"></i>Mínimo 8 caracteres</li>
+                        <li class="rc-req" data-req="upper"><i data-wo-icon="check-circle" class="wo-icon-18" aria-hidden="true"></i>Una letra mayúscula</li>
+                        <li class="rc-req" data-req="number"><i data-wo-icon="check-circle" class="wo-icon-18" aria-hidden="true"></i>Un número</li>
+                        <li class="rc-req" data-req="symbol"><i data-wo-icon="check-circle" class="wo-icon-18" aria-hidden="true"></i>Un símbolo (!@#$...)</li>
+                    </ul>
+
+                    <div class="wo-field">
+                        <label class="wo-label" for="rc-password-confirm">Confirmar contraseña</label>
+                        <div class="rc-inputwrap rc-inputwrap--toggle">
+                            <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                            <input type="password" id="rc-password-confirm" class="wo-input" placeholder="••••••••" autocomplete="new-password">
+                            <button type="button" class="rc-eye" data-eye-for="rc-password-confirm" aria-label="Mostrar contraseña" aria-pressed="false">
+                                <i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <p id="rc-confirm-error" class="wo-error-msg rc-error" role="alert" hidden>Las contraseñas no coinciden.</p>
+                    </div>
+
+                    <p id="rc-password-error" class="wo-error-msg rc-error" role="alert" hidden></p>
+
+                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="rc-password-submit" disabled>
+                        <span class="btn-text">Actualizar contraseña</span>
+                        <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Paso 4 · Éxito -->
+            <section id="rc-view-success" class="rc-view rc-success" aria-labelledby="rc-success-title" hidden>
+                <div class="rc-success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
+                <h1 class="rc-title" id="rc-success-title">Contraseña actualizada</h1>
+                <p class="rc-copy">Ya podés usar tu cuenta con tu nueva contraseña.</p>
+                <button type="button" class="wo-btn wo-btn--block wo-btn--hard" id="rc-success-cta">
+                    <span class="btn-text">Ir a tu panel</span>
+                    <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                </button>
+            </section>
+
+        </div>
+    </main>
+
+</div>
+
+<script src="/shared/js/config-manager.js"></script>
+<script src="/shared/js/data/postgrest-client.js"></script>
+<script src="/shared/js/data/artists-repo.js"></script>
+<script src="/shared/js/wo-postauth-loader.js"></script>
+<script src="/shared/js/recover.js"></script>
+</body>
+
+</html>

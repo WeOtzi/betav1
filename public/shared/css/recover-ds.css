@@ -1,0 +1,142 @@
+/* ============================================================================
+   We Ötzi · Recuperar contraseña — /recover
+   Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
+   Frames Figma 243:2530 → 243:2600 → 243:2669 → 243:2778.
+   Layout: split 50/50 — póster oscuro "RECUPERÁ TU ACCESO" + card de pasos.
+   Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
+   Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
+   ========================================================================== */
+
+/* ---------- Base ---------- */
+.rc-body{margin:0;min-height:100vh}
+.rc-split [hidden]{display:none !important}
+
+.rc-skip-link{position:absolute;left:-9999px;top:0;z-index:100;background:var(--neutral-500);color:var(--white);padding:var(--space-3) var(--space-4);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;text-decoration:none}
+.rc-skip-link:focus{left:0}
+
+/* ---------- Split ---------- */
+.rc-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:100vh}
+
+/* ---------- Póster (panel oscuro) ---------- */
+.rc-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-12);background:var(--surface-inverse)}
+/* Triángulo rojo decorativo abajo-derecha (frame 243:2530) */
+.rc-poster::after{content:"";position:absolute;right:var(--space-16);bottom:var(--space-12);width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:78px solid var(--bauhaus-square)}
+.rc-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
+.rc-poster .wo-marks{gap:var(--space-2)}
+.rc-poster .wo-mark-square,
+.rc-poster .wo-mark-circle{width:20px;height:20px}
+.rc-poster .wo-mark-triangle{border-left-width:11px;border-right-width:11px;border-bottom-width:20px}
+.rc-poster-title{margin:0;font-family:var(--font-display);font-size:var(--display-size);line-height:0.96;letter-spacing:var(--display-track);text-transform:uppercase;color:var(--neutral-100)}
+.rc-poster-title .line{display:block}
+.rc-poster-title .hl-blue{color:var(--blue-400)}
+.rc-poster-title .hl-yellow{color:var(--yellow-300)}
+
+/* ---------- Panel (columna derecha) ---------- */
+.rc-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-8);background:var(--surface-page)}
+.rc-panel-inner{width:100%;max-width:424px;display:flex;flex-direction:column;gap:var(--space-6)}
+
+.rc-brand{display:inline-flex;align-items:center;gap:var(--space-3);align-self:flex-start;text-decoration:none;color:var(--text-heading)}
+.rc-brand:hover{text-decoration:none;color:var(--text-heading)}
+.rc-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+
+.rc-view{display:flex;flex-direction:column;gap:var(--space-5)}
+.rc-title{margin:0;font-family:var(--font-display);font-size:var(--h2-size);line-height:1.08;letter-spacing:var(--h2-track);color:var(--text-heading)}
+.rc-copy{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+.rc-copy strong{color:var(--neutral-500);font-weight:var(--weight-semibold)}
+
+/* ---------- Stepper (cajas 44px, labels mono) ---------- */
+.rc-steps{display:flex;align-items:flex-start;list-style:none;margin:0 0 var(--space-2);padding:0}
+.rc-step{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--space-2)}
+.rc-step .box{width:44px;height:44px;box-sizing:border-box;display:grid;place-content:center;background:var(--surface-card);border:var(--border-hairline) solid var(--border-muted);font-family:var(--font-mono);font-size:var(--body-m-size);font-weight:var(--weight-bold);color:var(--text-faint)}
+.rc-step .lbl{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-faint)}
+.rc-step + .rc-step::before{content:"";position:absolute;top:22px;left:calc(-50% + 30px);width:calc(100% - 60px);border-top:var(--border-strong-width) solid var(--border-subtle)}
+.rc-step.is-active .box{background:var(--yellow-300);border-color:var(--border-strong);color:var(--neutral-500)}
+.rc-step.is-active .lbl{color:var(--text-heading);font-weight:var(--weight-bold)}
+.rc-step.is-done .box{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--white)}
+.rc-step.is-done .box [data-wo-icon]{width:18px;height:18px}
+.rc-step.is-done + .rc-step::before{border-top-color:var(--neutral-500)}
+
+/* ---------- Formularios ---------- */
+.rc-form{display:flex;flex-direction:column;gap:var(--space-5)}
+.rc-inputwrap{position:relative}
+.rc-inputwrap > [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);color:var(--neutral-300);pointer-events:none}
+.rc-inputwrap .wo-input{padding-left:var(--space-12);border-color:var(--border-strong)}
+.rc-inputwrap .wo-input:focus{padding-left:calc(var(--space-12) - 1px)}
+.rc-inputwrap--toggle .wo-input{padding-right:var(--space-12)}
+
+/* Toggle mostrar/ocultar contraseña (feather eye / eye-off) */
+.rc-eye{position:absolute;right:var(--space-2);top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:var(--space-10);height:var(--space-10);padding:0;background:transparent;border:0;cursor:pointer;color:var(--neutral-300)}
+.rc-eye:hover{color:var(--neutral-500)}
+
+/* Spinner dentro de botones (estado cargando) */
+.wo-btn .wo-spinner{width:18px;height:18px;border-width:2px}
+
+/* ---------- OTP de 6 cajas ---------- */
+.rc-otp{display:flex;gap:var(--space-3)}
+.rc-otp-box{flex:1;min-width:0;max-width:58px;height:62px;min-height:62px;padding:0;text-align:center;font-family:var(--font-mono);font-size:var(--h3-size);font-weight:var(--weight-bold);color:var(--neutral-500);background:var(--surface-card);border:var(--border-hairline) solid var(--border-strong)}
+.rc-otp-box:focus{padding:0;border:var(--border-strong-width) solid var(--border-focus)}
+.rc-otp.is-error .rc-otp-box{border:var(--border-strong-width) solid var(--status-error-fg)}
+
+/* Reenvío con countdown */
+.rc-resend{margin:0;display:flex;justify-content:flex-start}
+.rc-resend-wait{color:var(--text-faint)}
+.rc-resend-link{background:transparent;border:0;padding:0;cursor:pointer;color:var(--neutral-500);text-decoration:underline}
+.rc-resend-link:hover{color:var(--black)}
+
+/* ---------- Fuerza de contraseña ---------- */
+.rc-strength{display:flex;flex-direction:column;gap:var(--space-2)}
+.rc-strength .wo-progress{height:6px}
+.rc-strength-label{margin:0;color:var(--text-faint)}
+.rc-strength.is-weak .wo-progress > span{background:var(--system-error)}
+.rc-strength.is-weak .rc-strength-label{color:var(--status-error-fg)}
+.rc-strength.is-mid .wo-progress > span{background:var(--system-warning)}
+.rc-strength.is-mid .rc-strength-label{color:var(--status-warning-fg)}
+.rc-strength.is-strong .wo-progress > span{background:var(--system-success)}
+.rc-strength.is-strong .rc-strength-label{color:var(--status-success-fg)}
+
+/* ---------- Checklist de requisitos ---------- */
+.rc-reqs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--space-2)}
+.rc-req{display:flex;align-items:center;gap:var(--space-2);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-faint)}
+.rc-req [data-wo-icon]{color:var(--neutral-300)}
+.rc-req.is-ok{color:var(--status-success-fg)}
+.rc-req.is-ok [data-wo-icon]{color:var(--system-success)}
+
+/* ---------- Mensajes ---------- */
+.rc-error{margin:0}
+
+/* ---------- Link de retorno ---------- */
+.rc-back{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);align-self:center;background:transparent;border:0;padding:var(--space-2);cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);text-decoration:none}
+.rc-back:hover{color:var(--neutral-500);text-decoration:none}
+.rc-back [data-wo-icon]{width:14px;height:14px}
+
+/* ---------- Éxito ---------- */
+.rc-success{align-items:center;text-align:center}
+.rc-success .rc-title{text-align:center}
+.rc-success-icon{width:72px;height:64px;margin-top:var(--space-2);background:var(--system-success);display:grid;place-content:center;color:var(--ink)}
+.rc-success-icon [data-wo-icon]{width:36px;height:36px}
+.rc-success .wo-btn{align-self:stretch}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1180px){
+  .rc-poster-title{font-size:var(--h1-size)}
+}
+@media (max-width:1024px){
+  .rc-split{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
+  .rc-poster{padding:var(--space-10) var(--space-8)}
+}
+@media (max-width:768px){
+  .rc-split{grid-template-columns:1fr}
+  .rc-poster{align-items:flex-start;justify-content:flex-start;padding:var(--space-8) var(--space-6)}
+  .rc-poster::after{display:none}
+  .rc-poster-frame{gap:var(--space-4)}
+  .rc-poster-title{font-size:var(--title-lg-size)}
+  .rc-panel{padding:var(--space-10) var(--space-5)}
+}
+@media (max-width:480px){
+  .rc-poster-title{font-size:var(--h2-size)}
+  .rc-panel{padding:var(--space-8) var(--space-4)}
+  .rc-step .box{width:36px;height:36px}
+  .rc-step + .rc-step::before{top:18px;left:calc(-50% + 26px);width:calc(100% - 52px)}
+  .rc-otp{gap:var(--space-2)}
+  .rc-otp-box{height:52px;min-height:52px;font-size:var(--body-l-size)}
+}

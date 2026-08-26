@@ -491,10 +491,15 @@ function generateTempPassword() {
     return password;
 }
 
-// Abre la vista de recuperación (compat: mismo nombre que usaba el link viejo).
+// La recuperación vive ahora en /recover (código OTP de Supabase Auth).
+// Este handler solo redirige, con el email prefilleado si ya lo tipearon;
+// la vista in-page (#recovery-view) y handleRecoverySubmit quedan muertas.
 function handleArtistPasswordRecovery(e) {
     if (e) e.preventDefault();
-    showRecoveryView();
+    const loginEmail = document.getElementById('login-email');
+    const email = loginEmail ? loginEmail.value.trim().toLowerCase() : '';
+    const qs = email ? '&email=' + encodeURIComponent(email) : '';
+    window.location.href = '/recover?from=artist' + qs;
 }
 
 async function handleRecoverySubmit(e) {

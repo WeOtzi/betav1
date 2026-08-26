@@ -854,62 +854,13 @@ function generateTempPassword() {
 
 async function handlePasswordRecovery(e) {
     e.preventDefault();
-    const emailInput = document.querySelector('.input-email');
-    const email = emailInput.value.trim().toLowerCase();
 
-    if (!email) {
-        showFormMessage('Ingresa tu email para recuperar tu contrasena.', 'info');
-        return;
-    }
-
-    showFormMessage('Procesando solicitud...', 'info');
-
-    try {
-        // Generate a temporary password
-        const tempPassword = generateTempPassword();
-        
-        // Call backend to reset password
-        const response = await fetch(appUrl('/api/auth/reset-temp-password'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email,
-                userType: 'artist',
-                tempPassword: tempPassword
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok || !result.success) {
-            if (response.status === 404) {
-                throw new Error('No encontramos una cuenta con ese email.');
-            }
-            throw new Error(result.error || 'Error al procesar la solicitud');
-        }
-        
-        // Trigger n8n webhook to send email with temp password
-        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-            try {
-                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
-                    email: email,
-                    temp_password: tempPassword,
-                    user_type: 'artist',
-                        login_url: window.location.origin + appUrl('/registerclosedbeta')
-                });
-                console.log('n8n event sent: password_reset_temp (artist)');
-            } catch (webhookErr) {
-                console.warn('Could not send password_reset_temp event:', webhookErr);
-            }
-        }
-
-        showFormMessage('Te hemos enviado un email con tu nueva contrasena temporal.', 'success');
-    } catch (error) {
-        console.error('Password recovery error:', error.message);
-        showFormMessage(error.message || 'Error al enviar el email de recuperacion.', 'error');
-    }
+    // La recuperación vive ahora en /recover (código OTP de Supabase Auth).
+    // Solo redirigimos, con el email prefilleado si ya lo tipearon en el modal.
+    const emailInput = document.getElementById('login-email') || document.querySelector('.input-email');
+    const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+    const qs = email ? '&email=' + encodeURIComponent(email) : '';
+    window.location.href = appUrl('/recover?from=artist' + qs);
 }
 
 // ============================================

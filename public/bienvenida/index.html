@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Bienvenida</title>
+    <meta name="description" content="Elegí cómo querés usar We Ötzi: como cliente para encontrar artistas y pedir cotizaciones, o como tatuador para gestionar tu carrera.">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/bienvenida-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app bnv-page">
+
+    <!-- Topbar mínima de auth: solo marca, sin nav (Figma 238:2335) -->
+    <header class="wo-topbar bnv-topbar">
+        <div class="wo-topbar-left">
+            <a class="wo-topbar-brand" href="/" aria-label="We Ötzi — inicio">
+                <span class="wo-marks" aria-hidden="true">
+                    <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+                </span>
+                <span class="bnv-brand-name">We Ötzi</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="bnv-main">
+        <div class="wo-container bnv-container">
+
+            <header class="bnv-head">
+                <h1 class="bnv-title" id="bnv-title">Bienvenido<br>¿Cómo querés usar We Ötzi?</h1>
+                <p class="bnv-sub">Elegí la experiencia que mejor se adapte a vos. Vas a poder cambiar esta opción más adelante desde tu perfil.</p>
+            </header>
+
+            <fieldset class="bnv-cards" aria-describedby="bnv-foot">
+                <legend class="wo-sr-only">Elegí tu rol en We Ötzi</legend>
+
+                <!-- Card CLIENTE -->
+                <div class="bnv-card" data-role="client" id="bnv-card-client">
+                    <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
+                    <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-client" value="client">
+                    <label class="bnv-card-label" for="bnv-role-client">
+                        <span class="bnv-card-media" aria-hidden="true"><i data-wo-icon="compass"></i></span>
+                        <span class="bnv-card-body">
+                            <span class="wo-tag wo-tag--soft">Cliente</span>
+                            <span class="bnv-card-title">Quiero tatuarme</span>
+                            <span class="bnv-card-copy">Encontrá artistas, explorá portafolios, pedí cotizaciones y agendá tu próxima sesión.</span>
+                            <span class="bnv-features" role="list">
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="search" aria-hidden="true"></i>Explorar artistas</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="grid" aria-hidden="true"></i>Comparar estilos</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="file-text" aria-hidden="true"></i>Solicitar cotizaciones</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="calendar" aria-hidden="true"></i>Reservar citas</span>
+                            </span>
+                        </span>
+                    </label>
+                    <button type="button" class="bnv-card-go" data-role="client">Continuar como cliente →</button>
+                </div>
+
+                <!-- Card ARTISTA -->
+                <div class="bnv-card" data-role="artist" id="bnv-card-artist">
+                    <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
+                    <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-artist" value="artist">
+                    <label class="bnv-card-label" for="bnv-role-artist">
+                        <span class="bnv-card-media" aria-hidden="true"><i data-wo-icon="pen-tool"></i></span>
+                        <span class="bnv-card-body">
+                            <span class="wo-tag wo-tag--soft">Artista</span>
+                            <span class="bnv-card-title">Soy tatuador</span>
+                            <span class="bnv-card-copy">Creá tu portafolio, recibí solicitudes, gestioná reservas y conseguí nuevos clientes.</span>
+                            <span class="bnv-features" role="list">
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="image" aria-hidden="true"></i>Publicar portafolio</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="inbox" aria-hidden="true"></i>Recibir solicitudes</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="calendar" aria-hidden="true"></i>Gestionar agenda</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="bar-chart-2" aria-hidden="true"></i>Ver estadísticas</span>
+                            </span>
+                        </span>
+                    </label>
+                    <button type="button" class="bnv-card-go" data-role="artist">Continuar como tatuador →</button>
+                </div>
+            </fieldset>
+
+            <div class="bnv-actions">
+                <button type="button" class="wo-btn wo-btn--hard bnv-continue" id="bnv-continue" disabled>Continuar →</button>
+                <p class="bnv-foot" id="bnv-foot">Vas a poder cambiar esta opción en cualquier momento desde la configuración de tu cuenta.</p>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/wo-postauth-loader.js"></script>
+    <script src="/shared/js/bienvenida.js"></script>
+</body>
+</html>
