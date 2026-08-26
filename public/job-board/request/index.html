@@ -4,32 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Publicá tu solicitud de tatuaje</title>
+    <title>We Ötzi · Publicá tu idea</title>
+    <meta name="description" content="Publicá tu idea de tatuaje en el Job Board de We Ötzi: contá los detalles, sumá referencias y recibí propuestas de tatuadores.">
 
-    <!-- Design system (Bauhaus) -->
+    <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
-    <link rel="stylesheet" href="/shared/css/job-board-request.css">
+    <link rel="stylesheet" href="/shared/css/job-board-request-ds.css">
     <script src="/shared/js/wo-icons.js" defer></script>
 
-    <!-- Supabase -->
+    <!-- Supabase + procesamiento de imágenes -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
-    <!-- Config & Logging -->
-    <script src="/shared/js/config-manager.js"></script>
-    <script src="/shared/js/data/postgrest-client.js"></script>
-    <script src="/shared/js/data/quotations-repo.js"></script>
-    <script src="/shared/js/data/artists-repo.js"></script>
-    <script src="/shared/js/data/studios-repo.js"></script>
-    <script src="/shared/js/data/clients-repo.js"></script>
-    <script src="/shared/js/email-client.js"></script>
-    <script src="/shared/js/currency-utils.js"></script>
-    <script src="/shared/js/support-loader.js" defer></script>
-    <script src="/shared/js/logging-loader.js"></script>
-
-    <!-- Google Maps Places API - loaded dynamically from config -->
+    <!-- Google Maps Places API - se carga dinámicamente desde config -->
     <script>
         // Define the callback that Google Maps API expects
         window.initGooglePlaces = function() {
@@ -53,49 +42,82 @@
     </script>
 </head>
 
-<body class="wo-app jbr-body">
+<body class="wo-app jbrq-body">
 
-    <!-- Main Container -->
-    <main class="jbr-shell">
+    <!-- Topbar de cliente -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
+                <a class="wo-topbar-item" href="/client/dashboard#mis-cotizaciones">Cotizaciones</a>
+                <a class="wo-topbar-item is-active" aria-current="page" href="/job-board/request">Job board</a>
+                <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
+                <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a class="jbrq-o-link" href="/client/dashboard" title="Tu panel" aria-label="Ir a tu panel"><span class="wo-o-tile" aria-hidden="true">Ö</span></a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono wo-hidden" id="jbrq-logout">Log out</button>
+        </div>
+    </header>
 
-        <!-- Header with Progress -->
-        <header class="jbr-header">
-            <a href="/" class="jbr-brand">← <span>WE ÖTZI</span></a>
-            <div class="jbr-progress">
-                <div class="wo-progress jbr-progress-track">
-                    <span id="jb-progress-fill"></span>
-                </div>
-                <span class="jbr-progress-label" id="jb-progress-label"></span>
+    <main class="jbrq-main">
+        <div class="wo-container">
+
+            <!-- Fila utilitaria: volver + estado de la publicación -->
+            <div class="jbrq-utility">
+                <a id="jbrq-back" class="wo-meta jbrq-back" href="/client/dashboard">← Volver al dashboard</a>
+                <span class="wo-tag wo-tag--archived jbrq-badge" id="jbrq-badge">Borrador</span>
             </div>
-        </header>
 
-        <!-- Back Button -->
-        <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-back" id="jb-btn-back" style="display: none;">← Volver</button>
+            <!-- Stepper del flujo (en esta página solo el paso 1 está activo) -->
+            <ol class="jbrq-stepper" id="jbrq-stepper" hidden aria-label="Etapas de tu publicación">
+                <li class="jbrq-step is-active" aria-current="step">
+                    <span class="jbrq-step-box">1</span>
+                    <span class="jbrq-step-label">Borrador</span>
+                </li>
+                <li class="jbrq-step-line" aria-hidden="true"></li>
+                <li class="jbrq-step">
+                    <span class="jbrq-step-box">2</span>
+                    <span class="jbrq-step-label">Publicada</span>
+                </li>
+                <li class="jbrq-step-line" aria-hidden="true"></li>
+                <li class="jbrq-step">
+                    <span class="jbrq-step-box">3</span>
+                    <span class="jbrq-step-label">Postulaciones</span>
+                </li>
+                <li class="jbrq-step-line" aria-hidden="true"></li>
+                <li class="jbrq-step">
+                    <span class="jbrq-step-box">4</span>
+                    <span class="jbrq-step-label">Selección</span>
+                </li>
+                <li class="jbrq-step-line" aria-hidden="true"></li>
+                <li class="jbrq-step">
+                    <span class="jbrq-step-box">5</span>
+                    <span class="jbrq-step-label">Reserva confirmada</span>
+                </li>
+            </ol>
 
-        <!-- Steps Container (rendered dynamically by JS) -->
-        <div id="steps-container" class="jbr-steps"></div>
-
-        <!-- Navigation Footer -->
-        <footer class="jbr-footer">
-            <div class="jbr-kbd-hint" id="jb-kbd-hint">
-                <span>Presioná</span>
-                <kbd>Enter</kbd>
-                <span>para continuar</span>
-            </div>
-            <button type="button" class="wo-btn wo-btn--hard jbr-next" id="jb-btn-next">Siguiente →</button>
-        </footer>
-
+            <!-- Vistas del wizard (inspiración · formulario · revisión · cuenta) -->
+            <div id="jbrq-view" class="jbrq-view" aria-live="polite"></div>
+        </div>
     </main>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="wo-overlay jbr-overlay hidden">
-        <div class="jbr-overlay-box">
+    <!-- Overlay de publicación -->
+    <div id="loading-overlay" class="wo-overlay wo-hidden">
+        <div class="jbrq-overlay-box">
             <div class="wo-spinner"></div>
-            <p class="wo-meta">Publicando tu solicitud…</p>
+            <p class="wo-meta">Publicando tu idea…</p>
         </div>
     </div>
 
-    <!-- Main Script -->
+    <!-- Datos y módulo de página -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/heic-converter.js"></script>
     <script src="/shared/js/job-board-request.js"></script>
 </body>

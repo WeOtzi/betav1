@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Chats</title>
+    <meta name="description" content="Tus conversaciones con artistas del tatuaje: cotizaciones, reservas y mensajes en un mismo lugar.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/client-chats-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app cch-page">
+
+    <!-- TopBar de cliente (misma nav que /client/dashboard, con Chats activo) -->
+    <header class="wo-topbar cch-topbar">
+        <div class="wo-topbar-left">
+            <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
+                <a class="wo-topbar-item" href="/client/dashboard">Cotizaciones</a>
+                <a class="wo-topbar-item" href="/client/dashboard">Job board</a>
+                <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
+                <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+                <a class="wo-topbar-item is-active" href="/client/chats" aria-current="page">Chats</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a class="wo-o-tile" href="/client/profile" title="Centro de cuenta" aria-label="Abrir centro de cuenta">Ö</a>
+            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" type="button" id="cch-logout">Log out</button>
+        </div>
+    </header>
+
+    <main class="cch-main">
+
+        <!-- Carga inicial -->
+        <div class="cch-loading" id="cch-loading" aria-hidden="true">
+            <div class="wo-skeleton"></div>
+            <div class="wo-skeleton"></div>
+            <div class="wo-skeleton"></div>
+        </div>
+
+        <!-- Estado vacío (ref 286:11109) -->
+        <section class="cch-empty wo-hidden" id="cch-empty">
+            <i data-wo-icon="message-circle" class="cch-empty-icon" aria-hidden="true"></i>
+            <h1 class="cch-empty-title">Tu recorrido en el tatuaje empieza con una conversación.</h1>
+            <p class="cch-empty-sub">Conectate con un artista y empezá a darle forma a tu próximo tatuaje.</p>
+            <a class="wo-btn" href="/marketplace">Explorar artistas <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+        </section>
+
+        <!-- Dos paneles (ref 333:1540) -->
+        <section class="cch-shell wo-hidden" id="cch-shell">
+
+            <!-- Lista de conversaciones -->
+            <aside class="cch-list" aria-label="Conversaciones">
+                <div class="cch-search">
+                    <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
+                    <input class="wo-input" type="text" id="cch-search-input" placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" autocomplete="off">
+                </div>
+                <nav class="cch-tabs" aria-label="Filtrar conversaciones">
+                    <button class="cch-tab is-active" type="button" data-tab="todos" aria-pressed="true">Todos</button>
+                    <button class="cch-tab" type="button" data-tab="sin-leer" aria-pressed="false">Sin leer</button>
+                    <button class="cch-tab" type="button" data-tab="cotizaciones" aria-pressed="false">Cotizaciones</button>
+                    <button class="cch-tab" type="button" data-tab="reservas" aria-pressed="false">Reservas</button>
+                </nav>
+                <div class="cch-rows" id="cch-rows"></div>
+                <div class="wo-empty wo-hidden" id="cch-list-empty">
+                    <i data-wo-icon="inbox" aria-hidden="true"></i>
+                    <span class="wo-empty-title">Sin resultados</span>
+                    <p id="cch-list-empty-copy">No hay conversaciones que coincidan con este filtro.</p>
+                </div>
+            </aside>
+
+            <!-- Hilo de conversación -->
+            <section class="cch-thread" aria-label="Conversación">
+                <div class="cch-thread-placeholder" id="cch-thread-placeholder">
+                    <i data-wo-icon="message-circle" aria-hidden="true"></i>
+                    <p>Elegí una conversación para ver los mensajes.</p>
+                </div>
+
+                <div class="cch-thread-body wo-hidden" id="cch-thread-body">
+                    <header class="cch-thread-head">
+                        <button class="wo-iconbtn wo-iconbtn--s cch-back" type="button" id="cch-back" aria-label="Volver a la lista">
+                            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i>
+                        </button>
+                        <span class="cch-avatar" id="cch-head-avatar" aria-hidden="true"></span>
+                        <div class="cch-head-main">
+                            <div class="cch-head-top">
+                                <h2 class="cch-head-name" id="cch-head-name"></h2>
+                                <span class="wo-tag wo-tag--highlight cch-tag-s wo-hidden" id="cch-head-turn">Esperando tu respuesta</span>
+                            </div>
+                            <p class="cch-head-sub" id="cch-head-sub"></p>
+                        </div>
+                        <div class="cch-head-actions">
+                            <a class="cch-head-link wo-hidden" id="cch-head-profile" href="/marketplace">Ver perfil</a>
+                            <button class="wo-iconbtn wo-iconbtn--s" type="button" id="cch-info-toggle" aria-label="Info del proyecto" aria-expanded="true">
+                                <i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </header>
+
+                    <div class="cch-banner" id="cch-banner">
+                        <div class="cch-banner-main">
+                            <p class="wo-eyebrow">Proyecto de tatuaje</p>
+                            <h3 class="cch-banner-title" id="cch-banner-title"></h3>
+                            <p class="cch-banner-meta wo-meta" id="cch-banner-meta"></p>
+                        </div>
+                        <span class="wo-tag cch-tag-s" id="cch-banner-status"></span>
+                    </div>
+
+                    <div class="cch-messages" id="cch-messages" aria-live="polite"></div>
+
+                    <p class="cch-composer-error wo-hidden" id="cch-composer-error">No pudimos enviar el mensaje. Probá de nuevo.</p>
+                    <form class="cch-composer" id="cch-composer">
+                        <input class="wo-input" type="text" id="cch-input" placeholder="Escribí un mensaje…" aria-label="Escribí un mensaje" autocomplete="off">
+                        <button class="wo-btn cch-send" type="submit" id="cch-send" disabled>
+                            <span class="cch-send-label">Enviar</span>
+                            <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/quotations-repo.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/client-chats.js"></script>
+</body>
+</html>

@@ -1,125 +1,304 @@
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cliente | We Otzi</title>
+    <title>We Ötzi · Centro de cuenta</title>
+    <meta name="description" content="Centro de cuenta del cliente: tus datos, seguridad, notificaciones y configuración de We Ötzi.">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/client-profile-ds.css">
+    <link rel="stylesheet" href="/shared/css/reviews.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app">
+
+    <!-- ================= Modo centro de cuenta (sin ?client=) ================= -->
+    <div id="cpa-account" hidden>
+
+        <header class="wo-topbar cpa-topbar">
+            <div class="wo-topbar-left">
+                <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
+                <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
+                    <a class="wo-topbar-item" href="/client/dashboard#mis-cotizaciones">Cotizaciones</a>
+                    <a class="wo-topbar-item" href="/client/dashboard">Job board</a>
+                    <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
+                    <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+                </nav>
+            </div>
+            <div class="wo-topbar-right">
+                <a class="cpa-tile" id="cpa-topbar-avatar" href="/client/profile" aria-current="page" title="Centro de cuenta">Ö</a>
+                <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" type="button" id="cpa-logout">Log out</button>
+            </div>
+        </header>
+
+        <div class="cpa-shell">
+            <aside class="cpa-sidebar" aria-label="Secciones de la cuenta">
+                <a class="cpa-side-item is-active" href="#perfil" data-section="perfil"><i data-wo-icon="user" aria-hidden="true"></i>Mi perfil</a>
+                <a class="cpa-side-item" href="#seguridad" data-section="seguridad"><i data-wo-icon="lock" aria-hidden="true"></i>Seguridad</a>
+                <a class="cpa-side-item" href="#notificaciones" data-section="notificaciones"><i data-wo-icon="bell" aria-hidden="true"></i>Notificaciones</a>
+                <a class="cpa-side-item" href="#configuracion" data-section="configuracion"><i data-wo-icon="settings" aria-hidden="true"></i>Configuración</a>
+            </aside>
+
+            <main class="cpa-content">
+
+                <!-- ---------- Mi perfil ---------- -->
+                <section data-panel="perfil" aria-labelledby="cpa-title-perfil">
+                    <header class="cpa-section-head">
+                        <h1 class="cpa-title" id="cpa-title-perfil">Mi perfil</h1>
+                        <p class="cpa-sub">Así te ven los artistas y estudios en We Ötzi.</p>
+                    </header>
+
+                    <form id="cpa-profile-form" novalidate>
+                        <div class="cpa-avatar-row">
+                            <div class="cpa-avatar" id="cpa-avatar-preview" aria-hidden="true">··</div>
+                            <div>
+                                <button type="button" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard" id="cpa-avatar-btn">Cambiar foto</button>
+                                <p class="wo-help">JPG o PNG · hasta 5 MB.</p>
+                                <input type="file" id="cpa-avatar-input" class="wo-hidden" accept="image/*" aria-label="Elegir foto de perfil">
+                            </div>
+                        </div>
+
+                        <div class="cpa-grid-2">
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-full-name">Nombre completo</label>
+                                <input class="wo-input" type="text" id="cpa-full-name" name="full_name" autocomplete="name" placeholder="Tu nombre completo">
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-username">Alias público</label>
+                                <div class="cpa-input-wrap">
+                                    <i data-wo-icon="user" aria-hidden="true"></i>
+                                    <input class="wo-input" type="text" id="cpa-username" name="public_username" autocomplete="off" placeholder="tu_alias">
+                                </div>
+                                <p class="wo-help">Con tu alias podés dejar reseñas verificadas y tener perfil público.</p>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-email">Email</label>
+                                <div class="cpa-input-wrap">
+                                    <i data-wo-icon="mail" aria-hidden="true"></i>
+                                    <input class="wo-input" type="email" id="cpa-email" name="email" disabled>
+                                </div>
+                                <p class="wo-help">Es el email con el que ingresás · para cambiarlo escribinos a soporte.</p>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-whatsapp">WhatsApp</label>
+                                <div class="cpa-input-wrap">
+                                    <i data-wo-icon="phone" aria-hidden="true"></i>
+                                    <input class="wo-input" type="tel" id="cpa-whatsapp" name="whatsapp" autocomplete="tel" placeholder="+54 9 11 1234 5678">
+                                </div>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-city">Ciudad</label>
+                                <div class="cpa-input-wrap">
+                                    <i data-wo-icon="map-pin" aria-hidden="true"></i>
+                                    <input class="wo-input" type="text" id="cpa-city" name="city_residence" autocomplete="address-level2" placeholder="Tu ciudad">
+                                </div>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-country">País</label>
+                                <input class="wo-input" type="text" id="cpa-country" name="country" autocomplete="country-name" placeholder="Tu país">
+                            </div>
+                        </div>
+
+                        <div class="cpa-actions">
+                            <button type="submit" class="wo-btn wo-btn--direct wo-btn--hard" id="cpa-profile-save">
+                                Guardar cambios
+                                <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
+                            <span class="cpa-status" id="cpa-profile-status" role="status" aria-live="polite"></span>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- ---------- Seguridad ---------- -->
+                <section data-panel="seguridad" aria-labelledby="cpa-title-seguridad" hidden>
+                    <header class="cpa-section-head">
+                        <h1 class="cpa-title" id="cpa-title-seguridad">Seguridad</h1>
+                        <p class="cpa-sub">Protegé el acceso a tu cuenta.</p>
+                    </header>
+
+                    <p class="wo-eyebrow cpa-eyebrow-gap">Contraseña</p>
+                    <form id="cpa-password-form" novalidate>
+                        <div class="cpa-grid-2">
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-pass-new">Nueva contraseña</label>
+                                <input class="wo-input" type="password" id="cpa-pass-new" autocomplete="new-password">
+                                <p class="wo-help">Mínimo 8 caracteres.</p>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="cpa-pass-repeat">Repetir contraseña</label>
+                                <input class="wo-input" type="password" id="cpa-pass-repeat" autocomplete="new-password">
+                            </div>
+                        </div>
+                        <div class="cpa-actions">
+                            <button type="submit" class="wo-btn wo-btn--ghost wo-btn--hard" id="cpa-password-save">Actualizar contraseña</button>
+                            <span class="cpa-status" id="cpa-password-status" role="status" aria-live="polite"></span>
+                        </div>
+                    </form>
+
+                    <div class="cpa-danger">
+                        <p class="cpa-danger-title">Eliminar cuenta</p>
+                        <p class="cpa-danger-copy">Esta acción es permanente: se eliminan tu perfil, tus cotizaciones y todo tu historial en We Ötzi. Por ahora la gestiona el equipo de soporte.</p>
+                        <a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard" href="mailto:clientes@weotzi.com?subject=Eliminar%20mi%20cuenta">Escribir a soporte →</a>
+                    </div>
+                </section>
+
+                <!-- ---------- Notificaciones ---------- -->
+                <section data-panel="notificaciones" aria-labelledby="cpa-title-notificaciones" hidden>
+                    <header class="cpa-section-head">
+                        <h1 class="cpa-title" id="cpa-title-notificaciones">Notificaciones</h1>
+                        <p class="cpa-sub">Elegí cómo y cuándo querés que te avisemos.</p>
+                    </header>
+
+                    <div class="cpa-matrix-head" aria-hidden="true">
+                        <span></span>
+                        <span class="wo-meta wo-muted cpa-matrix-col">Email</span>
+                        <span class="wo-meta wo-faint cpa-matrix-col">Push<span class="cpa-soon-note">Próximamente</span></span>
+                    </div>
+
+                    <div class="cpa-matrix-row">
+                        <div>
+                            <p class="cpa-row-title">Postulaciones</p>
+                            <p class="cpa-row-help">Cuando un artista se postula a una idea que publicaste en el job board.</p>
+                        </div>
+                        <label class="wo-toggle cpa-matrix-col">
+                            <input type="checkbox" data-notif="postulaciones" data-channel="email" checked aria-label="Postulaciones por email">
+                            <span class="knob"></span>
+                        </label>
+                        <label class="wo-toggle cpa-matrix-col cpa-soon">
+                            <input type="checkbox" disabled aria-label="Postulaciones por push · próximamente">
+                            <span class="knob"></span>
+                        </label>
+                    </div>
+
+                    <div class="cpa-matrix-row">
+                        <div>
+                            <p class="cpa-row-title">Mensajes</p>
+                            <p class="cpa-row-help">Cuando un artista te escribe por una cotización.</p>
+                        </div>
+                        <label class="wo-toggle cpa-matrix-col">
+                            <input type="checkbox" data-notif="mensajes" data-channel="email" checked aria-label="Mensajes por email">
+                            <span class="knob"></span>
+                        </label>
+                        <label class="wo-toggle cpa-matrix-col cpa-soon">
+                            <input type="checkbox" disabled aria-label="Mensajes por push · próximamente">
+                            <span class="knob"></span>
+                        </label>
+                    </div>
+
+                    <div class="cpa-matrix-row">
+                        <div>
+                            <p class="cpa-row-title">Cotizaciones</p>
+                            <p class="cpa-row-help">Cuando una cotización tuya cambia de estado.</p>
+                        </div>
+                        <label class="wo-toggle cpa-matrix-col">
+                            <input type="checkbox" data-notif="cotizaciones" data-channel="email" checked aria-label="Cotizaciones por email">
+                            <span class="knob"></span>
+                        </label>
+                        <label class="wo-toggle cpa-matrix-col cpa-soon">
+                            <input type="checkbox" disabled aria-label="Cotizaciones por push · próximamente">
+                            <span class="knob"></span>
+                        </label>
+                    </div>
+
+                    <div class="cpa-actions">
+                        <span class="cpa-status" id="cpa-notif-status" role="status" aria-live="polite"></span>
+                    </div>
+                </section>
+
+                <!-- ---------- Configuración ---------- -->
+                <section data-panel="configuracion" aria-labelledby="cpa-title-configuracion" hidden>
+                    <header class="cpa-section-head">
+                        <h1 class="cpa-title" id="cpa-title-configuracion">Configuración</h1>
+                        <p class="cpa-sub">Preferencias generales de la plataforma.</p>
+                    </header>
+
+                    <p class="wo-eyebrow cpa-eyebrow-gap">Región</p>
+                    <div class="cpa-grid-2">
+                        <div class="wo-field">
+                            <label class="wo-label" for="cpa-timezone">Zona horaria</label>
+                            <select class="wo-select" id="cpa-timezone">
+                                <option value="">Seleccioná tu zona horaria</option>
+                                <option value="America/Argentina/Buenos_Aires">Buenos Aires</option>
+                                <option value="America/Montevideo">Montevideo</option>
+                                <option value="America/Sao_Paulo">San Pablo</option>
+                                <option value="America/Santiago">Santiago de Chile</option>
+                                <option value="America/Asuncion">Asunción</option>
+                                <option value="America/La_Paz">La Paz</option>
+                                <option value="America/Lima">Lima</option>
+                                <option value="America/Bogota">Bogotá</option>
+                                <option value="America/Guayaquil">Quito · Guayaquil</option>
+                                <option value="America/Caracas">Caracas</option>
+                                <option value="America/Mexico_City">Ciudad de México</option>
+                                <option value="America/New_York">Nueva York</option>
+                                <option value="America/Los_Angeles">Los Ángeles</option>
+                                <option value="Europe/Madrid">Madrid</option>
+                                <option value="Europe/Lisbon">Lisboa</option>
+                                <option value="Europe/London">Londres</option>
+                                <option value="Europe/Berlin">Berlín</option>
+                                <option value="UTC">UTC</option>
+                            </select>
+                            <p class="wo-help">Se usa para mostrar horarios de citas y mensajes.</p>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="cpa-dateformat">Formato de fecha</label>
+                            <select class="wo-select" id="cpa-dateformat">
+                                <option value="">Seleccioná el formato</option>
+                                <option value="dd/mm/yyyy">31/12/2026 · día primero</option>
+                                <option value="mm/dd/yyyy">12/31/2026 · mes primero</option>
+                                <option value="yyyy-mm-dd">2026-12-31 · ISO</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="cpa-actions">
+                        <span class="cpa-status" id="cpa-settings-status" role="status" aria-live="polite"></span>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ================= Modo perfil público (?client=alias) ================= -->
+    <div id="cpa-public-root" hidden>
+        <header class="wo-topbar">
+            <div class="wo-topbar-left">
+                <a class="wo-topbar-brand" href="/inicio">WE ÖTZI</a>
+                <nav class="wo-topbar-nav" aria-label="Navegación pública">
+                    <a class="wo-topbar-item" href="/marketplace">Marketplace</a>
+                </nav>
+            </div>
+            <div class="wo-topbar-right">
+                <a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard" href="/client/login">Ingresá →</a>
+            </div>
+        </header>
+
+        <main class="cpa-public">
+            <p class="cpa-public-msg" id="cpa-public-msg">Cargando perfil…</p>
+            <section class="cpa-public-hero" id="cpa-public-hero" hidden>
+                <div class="cpa-public-avatar" id="cpa-public-avatar" aria-hidden="true"></div>
+                <div>
+                    <p class="wo-eyebrow">Perfil público de cliente</p>
+                    <h1 class="cpa-public-name" id="cpa-public-name">Cliente</h1>
+                    <p class="wo-meta wo-muted" id="cpa-public-meta"></p>
+                </div>
+            </section>
+            <section id="client-reviews"></section>
+        </main>
+    </div>
+
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
-    <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/reviews.css">
-    <style>
-        body {
-            margin: 0;
-            background: #F2F0E9;
-            color: #0A0A0A;
-            font-family: Inter, system-ui, sans-serif;
-        }
-        .client-public-shell {
-            width: min(1120px, calc(100% - 32px));
-            margin: 0 auto;
-            padding: 32px 0 56px;
-        }
-        .client-public-nav {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            align-items: center;
-            font-family: "Space Mono", monospace;
-            text-transform: uppercase;
-            font-size: 0.78rem;
-            margin-bottom: 28px;
-        }
-        .client-public-nav a {
-            color: inherit;
-            font-weight: 700;
-        }
-        .client-public-hero {
-            display: grid;
-            grid-template-columns: 120px minmax(0, 1fr);
-            gap: clamp(16px, 4vw, 32px);
-            align-items: center;
-            border: 2px solid currentColor;
-            background: #fff;
-            padding: clamp(18px, 4vw, 32px);
-            margin-bottom: 24px;
-        }
-        .client-public-hero[hidden],
-        .client-public-error[hidden] {
-            display: none;
-        }
-        .client-public-avatar {
-            width: 120px;
-            aspect-ratio: 1;
-            border: 2px solid currentColor;
-            border-radius: 50%;
-            background: #CDEBD8;
-            display: grid;
-            place-items: center;
-            overflow: hidden;
-            font-size: 2.4rem;
-            font-weight: 900;
-        }
-        .client-public-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .client-public-kicker {
-            margin: 0 0 8px;
-            font-family: "Space Mono", monospace;
-            text-transform: uppercase;
-            font-size: 0.76rem;
-        }
-        .client-public-name {
-            margin: 0;
-            font-size: clamp(2rem, 6vw, 4.2rem);
-            line-height: 0.95;
-            word-break: break-word;
-        }
-        .client-public-meta {
-            margin: 14px 0 0;
-            font-family: "Space Mono", monospace;
-            text-transform: uppercase;
-        }
-        .client-public-error {
-            border: 2px solid currentColor;
-            padding: 24px;
-            background: #fff;
-            font-family: "Space Mono", monospace;
-            text-transform: uppercase;
-        }
-        @media (max-width: 640px) {
-            .client-public-hero {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <main class="client-public-shell">
-        <nav class="client-public-nav" aria-label="Navegacion publica">
-            <a href="/marketplace">Marketplace</a>
-            <a href="/client/login">Acceder</a>
-        </nav>
-
-        <section class="client-public-hero" id="client-public-hero" hidden>
-            <div class="client-public-avatar" id="client-public-avatar"></div>
-            <div>
-                <p class="client-public-kicker">Perfil publico de cliente</p>
-                <h1 class="client-public-name" id="client-public-name">Cliente</h1>
-                <p class="client-public-meta" id="client-public-meta"></p>
-            </div>
-        </section>
-
-        <div class="client-public-error" id="client-public-error">Cargando perfil...</div>
-        <section id="client-reviews"></section>
-    </main>
-
+    <script src="/shared/js/data/account-repo.js"></script>
     <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/client-profile.js"></script>
 </body>

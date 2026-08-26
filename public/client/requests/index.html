@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Mis solicitudes</title>
+    <meta name="description" content="Seguí tus publicaciones del job board: postulaciones de artistas, comparación de propuestas y negociación hasta reservar tu sesión.">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/client-requests-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app crq-page">
+
+    <!-- TopBar de cliente (misma del dashboard, con Solicitudes activo) -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
+                <a class="wo-topbar-item" href="/client/dashboard">Cotizaciones</a>
+                <a class="wo-topbar-item is-active" href="/client/requests" aria-current="page">Solicitudes</a>
+                <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
+                <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a class="wo-o-tile" href="/client/dashboard" title="Tu cuenta" aria-label="Ir a tu cuenta">Ö</a>
+            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" type="button" id="crq-logout">Log out</button>
+        </div>
+    </header>
+
+    <main class="crq-main">
+        <div class="wo-container">
+            <div class="crq-notices" id="crq-notices" aria-live="polite"></div>
+            <div id="crq-root">
+                <div class="wo-skeleton crq-skeleton"></div>
+                <div class="wo-skeleton crq-skeleton"></div>
+                <div class="wo-skeleton crq-skeleton"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Barra sticky de comparación (Seleccioná hasta 3 para comparar) -->
+    <div class="crq-compare-bar wo-hidden" id="crq-compare-bar">
+        <div class="wo-container crq-compare-inner">
+            <span class="wo-meta" id="crq-compare-count">0 de 3 seleccionadas</span>
+            <div class="crq-compare-btns">
+                <button class="wo-btn wo-btn--ghost wo-btn--s" type="button" id="crq-compare-clear">Limpiar</button>
+                <button class="wo-btn wo-btn--accent wo-btn--s" type="button" id="crq-compare-open" disabled>Comparar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal · Comparación de postulaciones -->
+    <div class="wo-overlay wo-hidden" id="crq-modal-compare" role="dialog" aria-modal="true" aria-labelledby="crq-compare-title">
+        <div class="wo-modal crq-modal--wide">
+            <h2 class="wo-modal-title" id="crq-compare-title">Comparar propuestas</h2>
+            <div id="crq-compare-content"></div>
+            <div class="wo-modal-actions">
+                <button class="wo-btn wo-btn--ghost" type="button" data-close-modal="crq-modal-compare">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal · Cerrar publicación -->
+    <div class="wo-overlay wo-hidden" id="crq-modal-close" role="dialog" aria-modal="true" aria-labelledby="crq-close-title">
+        <div class="wo-modal">
+            <h2 class="wo-modal-title" id="crq-close-title">Cerrar publicación</h2>
+            <p>Los tatuadores dejan de ver tu idea y no vas a recibir más postulaciones. Las propuestas que ya recibiste se conservan.</p>
+            <div class="wo-modal-actions">
+                <button class="wo-btn wo-btn--ghost" type="button" data-close-modal="crq-modal-close">Cancelar</button>
+                <button class="wo-btn wo-btn--danger" type="button" id="crq-close-confirm">Cerrar publicación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal · Elegir artista / aceptar propuesta -->
+    <div class="wo-overlay wo-hidden" id="crq-modal-accept" role="dialog" aria-modal="true" aria-labelledby="crq-accept-title">
+        <div class="wo-modal">
+            <h2 class="wo-modal-title" id="crq-accept-title">Elegir a este artista</h2>
+            <div id="crq-accept-body"></div>
+            <div class="wo-modal-actions">
+                <button class="wo-btn wo-btn--ghost" type="button" data-close-modal="crq-modal-accept">Cancelar</button>
+                <button class="wo-btn wo-btn--direct" type="button" id="crq-accept-confirm">
+                    <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal · Rechazar postulación -->
+    <div class="wo-overlay wo-hidden" id="crq-modal-reject" role="dialog" aria-modal="true" aria-labelledby="crq-reject-title">
+        <div class="wo-modal">
+            <h2 class="wo-modal-title" id="crq-reject-title">Rechazar postulación</h2>
+            <p id="crq-reject-body">El artista va a dejar de ver tu solicitud entre sus postulaciones activas.</p>
+            <div class="wo-modal-actions">
+                <button class="wo-btn wo-btn--ghost" type="button" data-close-modal="crq-modal-reject">Cancelar</button>
+                <button class="wo-btn wo-btn--danger" type="button" id="crq-reject-confirm">Rechazar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal · Solicitar cambios (contraoferta del cliente) -->
+    <div class="wo-overlay wo-hidden" id="crq-modal-co" role="dialog" aria-modal="true" aria-labelledby="crq-co-title">
+        <div class="wo-modal">
+            <h2 class="wo-modal-title" id="crq-co-title">Solicitar cambios</h2>
+            <p class="wo-body-s wo-muted">Proponele al artista un ajuste de precio, fecha o condiciones. Reemplaza cualquier propuesta de cambios pendiente.</p>
+            <form class="crq-modal-form" id="crq-co-form">
+                <div class="wo-field">
+                    <label class="wo-label" for="crq-co-price">Precio propuesto</label>
+                    <input class="wo-input" type="number" id="crq-co-price" min="0" step="1" inputmode="numeric" placeholder="Ej: 400">
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="crq-co-date">Nueva fecha</label>
+                    <input class="wo-input" type="text" id="crq-co-date" placeholder="Ej: semana del 21 de octubre">
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="crq-co-note">Nota</label>
+                    <textarea class="wo-textarea" id="crq-co-note" rows="3" placeholder="Contale al artista qué querés ajustar"></textarea>
+                </div>
+                <div class="wo-modal-actions">
+                    <button class="wo-btn wo-btn--ghost" type="button" data-close-modal="crq-modal-co">Cancelar</button>
+                    <button class="wo-btn" type="submit" id="crq-co-submit">Enviar propuesta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/jobboard-repo.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/client-requests.js"></script>
+</body>
+</html>

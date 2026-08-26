@@ -1,36 +1,63 @@
 // ============================================
-// WE OTZI - JOB BOARD REQUEST FORM
-// 8-step wizard for publishing tattoo requests
+// WE ÖTZI · JOB BOARD — Publicá tu idea (cliente)
+// Rediseño Bauhaus 2026 (Figma 295:14727 · 286:8577 · 286:13942).
+// Vistas: inspiración (opcional) → formulario → revisión → publicar.
+// Cableado preservado del wizard legacy: draft en localStorage, auth-gate
+// inline, upload a job-board-references, INSERT a job_board_requests con las
+// mismas columnas, job_board_attachments y evento n8n job_board_request_created.
 // ============================================
 
 // === STATE ===
-let currentStep = 0;
-let historyStack = [];
+let view = 'inspiration';          // inspiration | form | review | auth
 let formData = {};
-let uploadedFiles = [];
+let uploadedFiles = [];            // File[] (máx. 3, en orden de slot)
 let bodyPartsData = [];
 let tattooStyles = [];
 let isSubmitting = false;
 let _supabase = null;
 
-// Step definitions
-const STEPS = [
-    { id: 'welcome', title: null },
-    { id: 'body-part', title: 'Zona del cuerpo', required: true },
-    { id: 'description', title: 'Contá tu idea', required: true },
-    { id: 'size', title: 'Tamaño aproximado', required: true },
-    { id: 'style', title: 'Estilo', required: false },
-    { id: 'color-refs', title: 'Color y referencias', required: false },
-    { id: 'preferences', title: 'Preferencias', required: false },
-    { id: 'account-gate', title: 'Publicá tu solicitud', required: true }
-];
+// Galería de inspiración
+let galleryItems = [];             // { url, style, artist }
+let gallerySelection = [];         // urls elegidas como referencia
+let galleryFilter = 'Todos';
+let gallerySearch = '';
+let galleryLoaded = false;
+
+// Calendario
+let calCursor = null;              // Date en el día 1 del mes visible
 
 const DRAFT_KEY = 'weotzi_job_board_draft';
-const MAX_FILES = 4;
+const MAX_FILES = 3;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 // Nota: convertIfHEIC corre antes de la validación, produciendo 'image/jpeg' para HEIC.
 // Los tipos heic/heif se incluyen por si llegan antes de conversión.
+
+// Zonas del cuerpo del mock (fallback si la config de Supabase no carga).
+// Los glifos son marcas geométricas Bauhaus (Feather no trae siluetas de cuerpo).
+const ZONE_ICONS = ['triangle', 'square', 'hexagon', 'octagon', 'circle'];
+const FALLBACK_ZONES = ['Brazo', 'Pierna', 'Torso', 'Espalda', 'Cabeza'];
+
+const SIDES = ['Izquierdo', 'Ambos', 'Derecho'];
+
+const SIZES = [
+    { value: 'pequeno', label: 'Pequeño (< 5 cm)' },
+    { value: 'mediano', label: 'Mediano (5 – 15 cm)' },
+    { value: 'grande', label: 'Grande (15 – 30 cm)' },
+    { value: 'muy_grande', label: 'Muy grande (> 30 cm)' }
+];
+
+const COLORS = [
+    { value: 'black_grey', label: 'Blanco y negro' },
+    { value: 'full_color', label: 'Color' }
+];
+
+const CURRENCIES = ['USD', 'EUR', 'ARS', 'MXN', 'COP', 'BRL'];
+
+// Chips de estilos del mock de inspiración (la galería filtra contra styles_array)
+const INSPIRATION_STYLES = ['Fine line', 'Blackwork', 'Realismo', 'Japonés', 'Tradicional', 'Color', 'Lettering', 'Ornamental', 'Minimalista'];
+
+const OPEN_INTERP_MARK = '[Interpretación abierta]';
 
 // ============================================
 // CONFIG MANAGER WAIT
@@ -53,25 +80,31 @@ async function waitForConfigManager(maxWait = 3000) {
 document.addEventListener('DOMContentLoaded', async () => {
     await waitForConfigManager();
     _supabase = window.ConfigManager?.getSupabaseClient();
+    setupSessionChrome();
     await loadConfig();
-    checkDraftResume();
-    renderCurrentStep();
-    setupKeyboardNav();
+
+    const draft = loadDraft();
+    if (draft && draft.formData && Object.keys(draft.formData).length > 0) {
+        renderResumePrompt();
+    } else {
+        view = 'inspiration';
+        renderView();
+    }
+    loadGallery();
 });
 
 async function loadConfig() {
-    // Load body parts from Supabase via ConfigManager
+    // Zonas del cuerpo desde Supabase vía ConfigManager (árbol jerárquico)
     if (window.ConfigManager && typeof window.ConfigManager.loadBodyPartsFromDB === 'function') {
         try {
             bodyPartsData = await window.ConfigManager.loadBodyPartsFromDB();
-            console.log('Body parts loaded:', bodyPartsData.length, 'zones');
         } catch (err) {
             console.error('Error loading body parts:', err);
             bodyPartsData = [];
         }
     }
 
-    // Load tattoo styles from Supabase
+    // Estilos de tatuaje desde Supabase
     if (_supabase) {
         try {
             const { data, error } = await WeotziData
@@ -88,20 +121,36 @@ async function loadConfig() {
     }
 }
 
+// Muestra LOG OUT solo si hay sesión activa.
+async function setupSessionChrome() {
+    const btn = document.getElementById('jbrq-logout');
+    if (!btn || !_supabase) return;
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) {
+            btn.classList.remove('wo-hidden');
+            btn.addEventListener('click', async () => {
+                try { await _supabase.auth.signOut(); } catch (e) { /* noop */ }
+                window.location.href = '/inicio';
+            });
+        }
+    } catch (e) { /* sin sesión */ }
+}
+
 // ============================================
-// DRAFT PERSISTENCE
+// DRAFT PERSISTENCE (mismo storage key y expiración que el wizard legacy)
 // ============================================
 
 function saveDraft() {
     try {
         const draft = {
             formData: formData,
-            currentStep: currentStep,
+            view: view,
             timestamp: Date.now()
         };
         localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch (e) {
-        // localStorage full or unavailable
+        // localStorage lleno o no disponible
     }
 }
 
@@ -110,7 +159,7 @@ function loadDraft() {
         const raw = localStorage.getItem(DRAFT_KEY);
         if (!raw) return null;
         const draft = JSON.parse(raw);
-        // Expire drafts older than 7 days
+        // Expira borradores de más de 7 días
         if (Date.now() - draft.timestamp > 7 * 24 * 60 * 60 * 1000) {
             clearDraft();
             return null;
@@ -125,24 +174,20 @@ function clearDraft() {
     localStorage.removeItem(DRAFT_KEY);
 }
 
-function checkDraftResume() {
-    const draft = loadDraft();
-    if (!draft || !draft.formData || Object.keys(draft.formData).length === 0) return;
-
-    const container = document.getElementById('steps-container');
+function renderResumePrompt() {
+    const container = document.getElementById('jbrq-view');
     if (!container) return;
+    const stepper = document.getElementById('jbrq-stepper');
+    if (stepper) stepper.hidden = true;
 
-    // Show resume prompt
     container.innerHTML = `
-        <div class="jbr-step is-active" data-step="draft-resume">
-            <div class="jbr-step-content jbr-center">
-                <span class="wo-eyebrow">Borrador guardado</span>
-                <h2 class="jbr-title">Tenés una solicitud en curso</h2>
-                <p class="jbr-subtitle">Guardamos lo que cargaste. ¿Querés seguir donde la dejaste?</p>
-                <div style="margin-top: var(--space-6); gap: var(--space-3); display: flex; justify-content: center; flex-wrap: wrap;">
-                    <button type="button" class="wo-btn wo-btn--hard" onclick="resumeDraft()">Continuar borrador →</button>
-                    <button type="button" class="wo-btn wo-btn--ghost" onclick="discardDraft()">Empezar de nuevo</button>
-                </div>
+        <div class="jbrq-resume">
+            <span class="wo-eyebrow">Borrador guardado</span>
+            <h1 class="wo-h2">Tenés una publicación en curso</h1>
+            <p class="jbrq-sub">Guardamos lo que cargaste. ¿Querés seguir donde la dejaste?</p>
+            <div class="jbrq-resume-actions">
+                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="resumeDraft()">Continuar borrador →</button>
+                <button type="button" class="wo-btn wo-btn--ghost" onclick="discardDraft()">Empezar de nuevo</button>
             </div>
         </div>
     `;
@@ -152,465 +197,768 @@ window.resumeDraft = function() {
     const draft = loadDraft();
     if (draft) {
         formData = draft.formData || {};
-        currentStep = draft.currentStep || 0;
-        historyStack = [];
+        view = (draft.view === 'review' || draft.view === 'inspiration') ? draft.view : 'form';
+        // Sin archivos persistidos (los File no sobreviven al draft), la revisión
+        // igual muestra el resto de los datos.
     }
-    renderCurrentStep();
+    renderView();
 };
 
 window.discardDraft = function() {
     clearDraft();
     formData = {};
-    currentStep = 0;
-    historyStack = [];
-    renderCurrentStep();
+    uploadedFiles = [];
+    gallerySelection = [];
+    view = 'inspiration';
+    renderView();
 };
 
 // ============================================
-// NAVIGATION
+// VIEW ORCHESTRATOR
 // ============================================
 
-function goToStep(index) {
-    if (index < 0 || index >= STEPS.length) return;
-    historyStack.push(currentStep);
-    currentStep = index;
-    renderCurrentStep();
+window.setView = function(next) {
+    view = next;
     saveDraft();
-}
+    renderView();
+};
 
-function goBack() {
-    if (historyStack.length > 0) {
-        currentStep = historyStack.pop();
-        renderCurrentStep();
-    }
-}
-
-function updateProgress() {
-    const fill = document.getElementById('jb-progress-fill');
-    const label = document.getElementById('jb-progress-label');
-    if (!fill) return;
-
-    const totalSteps = STEPS.length - 1;
-    const pad2 = (n) => String(n).padStart(2, '0');
-
-    if (currentStep === 0) {
-        fill.style.width = '0%';
-        if (label) label.textContent = '';
-    } else {
-        const pct = Math.round((currentStep / totalSteps) * 100);
-        fill.style.width = pct + '%';
-        if (label) label.textContent = `${pad2(currentStep)} / ${pad2(totalSteps)}`;
-    }
-}
-
-function updateNavButtons() {
-    const btnBack = document.getElementById('jb-btn-back');
-    const btnNext = document.getElementById('jb-btn-next');
-    const kbdHint = document.getElementById('jb-kbd-hint');
-
-    if (btnBack) {
-        btnBack.style.display = (currentStep === 0) ? 'none' : '';
-        btnBack.onclick = () => goBack();
-    }
-
-    if (btnNext) {
-        // Hide next on welcome (has its own CTA) and account-gate (has submit)
-        if (currentStep === 0 || currentStep === STEPS.length - 1) {
-            btnNext.style.display = 'none';
-        } else {
-            btnNext.style.display = '';
-            btnNext.textContent = 'Siguiente →';
-            btnNext.onclick = () => handleNext();
-        }
-    }
-
-    if (kbdHint) {
-        kbdHint.style.display = (currentStep === STEPS.length - 1) ? 'none' : '';
-    }
-}
-
-function handleNext() {
-    if (!validateCurrentStep()) return;
-    goToStep(currentStep + 1);
-}
-
-function setupKeyboardNav() {
-    document.addEventListener('keydown', (e) => {
-        // Do not intercept if typing in textarea or input
-        const tag = document.activeElement?.tagName;
-        if (tag === 'TEXTAREA' || tag === 'INPUT') {
-            if (e.key === 'Enter' && tag === 'INPUT' && !e.shiftKey) {
-                e.preventDefault();
-                handleNext();
-            }
-            return;
-        }
-
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (currentStep === 0) {
-                goToStep(1);
-            } else {
-                handleNext();
-            }
-        }
-
-        if (e.key === 'Escape') {
-            goBack();
-        }
-    });
-}
-
-// ============================================
-// RENDER ORCHESTRATOR
-// ============================================
-
-function renderCurrentStep() {
-    const container = document.getElementById('steps-container');
+function renderView() {
+    const container = document.getElementById('jbrq-view');
     if (!container) return;
+    const stepper = document.getElementById('jbrq-stepper');
+    const back = document.getElementById('jbrq-back');
+
+    if (view === 'inspiration') {
+        if (stepper) stepper.hidden = true;
+        if (back) { back.textContent = '← Volver al dashboard'; back.href = '/client/dashboard'; }
+    } else {
+        if (stepper) stepper.hidden = false;
+        if (back) { back.textContent = '← Volver a mis solicitudes'; back.href = '/client/requests'; }
+    }
 
     container.innerHTML = '';
+    const pane = document.createElement('div');
+    pane.className = 'jbrq-pane';
 
-    const step = STEPS[currentStep];
-    if (!step) return;
-
-    const stepEl = document.createElement('div');
-    stepEl.className = 'jbr-step is-active';
-    stepEl.dataset.step = step.id;
-
-    switch (step.id) {
-        case 'welcome':       renderWelcome(stepEl); break;
-        case 'body-part':     renderBodyPart(stepEl); break;
-        case 'description':   renderDescription(stepEl); break;
-        case 'size':          renderSize(stepEl); break;
-        case 'style':         renderStyle(stepEl); break;
-        case 'color-refs':    renderColorRefs(stepEl); break;
-        case 'preferences':   renderPreferences(stepEl); break;
-        case 'account-gate':  renderAccountGate(stepEl); break;
+    switch (view) {
+        case 'inspiration': renderInspiration(pane); break;
+        case 'form':        renderForm(pane); break;
+        case 'review':      renderReview(pane); break;
+        case 'auth':        renderAuth(pane); break;
     }
 
-    container.appendChild(stepEl);
-    updateProgress();
-    updateNavButtons();
-
-    // Scroll to top of container
-    container.scrollTop = 0;
+    container.appendChild(pane);
+    window.scrollTo({ top: 0 });
 }
 
 // ============================================
-// STEP 0 - WELCOME
+// TÍTULO DERIVADO DE LA PUBLICACIÓN
+// (sin columna nueva: se calcula en render — primeras ~6 palabras + estilo + zona)
 // ============================================
 
-function renderWelcome(el) {
-    el.innerHTML = `
-        <div class="jbr-step-content jbr-center">
-            <h1 class="jbr-hero-title">¿Qué tatuaje tenés en mente?</h1>
-            <p class="jbr-hero-subtitle">Contanos los detalles y dejá que los tatuadores te encuentren. Recibí propuestas, comparalas y elegí.</p>
-            <div class="jbr-features">
-                <div class="jbr-feature">
-                    <i data-wo-icon="edit-3"></i>
-                    <h3>Contá tu idea</h3>
-                    <p>Describí el tatuaje que querés en pocos pasos.</p>
-                </div>
-                <div class="jbr-feature">
-                    <i data-wo-icon="message-square"></i>
-                    <h3>Recibí propuestas</h3>
-                    <p>Los tatuadores interesados te mandan sus propuestas.</p>
-                </div>
-                <div class="jbr-feature">
-                    <i data-wo-icon="check-circle"></i>
-                    <h3>Elegí a tu artista</h3>
-                    <p>Compará portfolios y elegí al que más te guste.</p>
-                </div>
-            </div>
-            <button type="button" class="wo-btn wo-btn--accent wo-btn--hard wo-btn--block" style="max-width: 320px; margin: 0 auto;" onclick="goToStep(1)">Comenzar →</button>
-        </div>
-    `;
+function deriveRequestTitle(description, styles, bodyPart) {
+    const desc = String(description || '')
+        .replace(/\[interpretación abierta\]/gi, '')
+        .trim();
+    let words = desc.split(/\s+/).filter(Boolean).slice(0, 6).join(' ').replace(/[.,;:…]+$/, '');
+    if (words) words = words.charAt(0).toUpperCase() + words.slice(1);
+
+    const styleList = Array.isArray(styles) ? styles : (styles ? [String(styles)] : []);
+    const parts = [];
+    if (words) parts.push(words);
+    if (styleList.length > 0) parts.push(styleList[0]);
+    if (bodyPart) parts.push(bodyPart);
+    return parts.join(' · ');
 }
+window.deriveRequestTitle = deriveRequestTitle;
 
 // ============================================
-// STEP 1 - BODY PART
+// VISTA 0 · INSPIRACIÓN ("Construí tu idea")
 // ============================================
 
-function renderBodyPart(el) {
-    // bodyPartsData is a hierarchical tree: each item has { id, label, subparts: [...] }
-    // Top-level items are the parent zones
-    let zonesHtml = '';
-    bodyPartsData.forEach(zone => {
-        const zoneLabel = zone.label || zone.id;
-        const isSelected = formData.tattoo_body_part_parent === zoneLabel;
-        zonesHtml += `
-            <div class="wo-chip ${isSelected ? 'is-active' : ''}" data-zone="${zoneLabel}" data-zone-id="${zone.id}" onclick="selectBodyZone(this)">${zoneLabel}</div>
-        `;
-    });
-
+function renderInspiration(el) {
     el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">¿Dónde va el tatuaje?</h2>
-            <p class="jbr-subtitle">Elegí la zona del cuerpo.</p>
-            <span class="jbr-section-label">Parte del cuerpo</span>
-            <div class="jbr-options" id="jb-body-zones">
-                ${zonesHtml}
+        <header class="jbrq-head">
+            <h1 class="wo-h1 jbrq-title">Construí tu idea</h1>
+            <p class="jbrq-sub">Explorá referencias, descubrí estilos y guardá lo que te inspira antes de publicar tu proyecto.</p>
+        </header>
+
+        <section class="jbrq-ai" aria-label="Inspiración con IA">
+            <div class="jbrq-ai-copy">
+                <span class="wo-eyebrow jbrq-ai-eyebrow"><span class="jbrq-ai-mark" aria-hidden="true"></span>Inspiración con IA</span>
+                <h2 class="wo-h2 jbrq-ai-title">¿No sabés exactamente qué buscás?</h2>
+                <p>Contanos tu idea y dejá que We Ötzi encuentre referencias y estilos que puedan inspirarte.</p>
             </div>
-            <div id="jb-body-subparts" class="jbr-subparts"></div>
+            <div class="jbrq-ai-form">
+                <label class="wo-label" for="jbrq-ai-prompt">Quiero un tatuaje de…</label>
+                <textarea id="jbrq-ai-prompt" class="wo-textarea" rows="3" maxlength="400" placeholder="Ej: olas del mar, minimalista, delicado, para el antebrazo"></textarea>
+                <div class="jbrq-ai-actions">
+                    <span class="wo-error-msg wo-hidden" id="jbrq-ai-error">No pudimos generar la imagen. Probá de nuevo en un rato.</span>
+                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">Inspirarme con IA →</button>
+                </div>
+                <div class="jbrq-ai-result wo-hidden" id="jbrq-ai-result"></div>
+            </div>
+        </section>
+
+        <div class="jbrq-search">
+            <i data-wo-icon="search" class="wo-icon-18 jbrq-search-icon" aria-hidden="true"></i>
+            <input type="search" id="jbrq-gallery-search" class="wo-input" placeholder="Buscar estilos, ideas, tatuajes…" value="${escapeHtml(gallerySearch)}" aria-label="Buscar referencias">
         </div>
+
+        <div class="jbrq-filter-row">
+            <div class="jbrq-chips" id="jbrq-gallery-chips" role="group" aria-label="Filtrar por estilo"></div>
+            <button type="button" class="wo-btn wo-btn--ink wo-btn--hard jbrq-create-btn" id="jbrq-create-btn" onclick="goToForm()">Crear mi idea →</button>
+        </div>
+        <p class="wo-meta-s wo-muted jbrq-selcount wo-hidden" id="jbrq-selcount"></p>
+
+        <div class="jbrq-masonry" id="jbrq-gallery"></div>
     `;
 
-    // If there was a previous parent selection, render children
-    if (formData.tattoo_body_part_parent) {
-        renderBodySubParts(formData.tattoo_body_part_parent);
+    const search = el.querySelector('#jbrq-gallery-search');
+    if (search) {
+        search.addEventListener('input', () => {
+            gallerySearch = search.value.trim().toLowerCase();
+            renderGallery();
+        });
     }
+
+    renderGalleryChips();
+    renderGallery();
+    updateSelCount();
 }
 
-window.selectBodyZone = function(card) {
-    // Deselect all parent cards
-    document.querySelectorAll('#jb-body-zones .wo-chip').forEach(c => c.classList.remove('is-active'));
-    card.classList.add('is-active');
+function renderGalleryChips() {
+    const wrap = document.getElementById('jbrq-gallery-chips');
+    if (!wrap) return;
+    const chips = ['Todos'].concat(INSPIRATION_STYLES);
+    wrap.innerHTML = chips.map(name => `
+        <button type="button" class="wo-chip ${galleryFilter === name ? 'is-active' : ''}" data-style="${escapeHtml(name)}" onclick="setGalleryFilter(this)">${escapeHtml(name)}</button>
+    `).join('');
+}
 
-    const zoneName = card.dataset.zone;
-    formData.tattoo_body_part_parent = zoneName;
-    formData.tattoo_body_part = zoneName;
-    formData.tattoo_body_side = null;
-
-    renderBodySubParts(zoneName);
+window.setGalleryFilter = function(chip) {
+    galleryFilter = chip.dataset.style || 'Todos';
+    renderGalleryChips();
+    renderGallery();
 };
 
-function renderBodySubParts(parentName) {
-    const subContainer = document.getElementById('jb-body-subparts');
-    if (!subContainer) return;
+async function loadGallery() {
+    if (galleryLoaded) return;
+    try {
+        const { data, error } = await WeotziData.Artists
+            .listPublic('user_id, username, name, styles_array, gallery_images')
+            .limit(60);
+        if (error || !Array.isArray(data)) throw (error || new Error('sin datos'));
 
-    // Find parent zone in the tree by label
-    const parent = bodyPartsData.find(bp => (bp.label || bp.id) === parentName);
-    if (!parent) {
-        subContainer.innerHTML = '';
+        const items = [];
+        data.forEach(artist => {
+            const imgs = parseList(artist.gallery_images).filter(u => typeof u === 'string' && /^https?:/.test(u)).slice(0, 3);
+            const styles = parseList(artist.styles_array).filter(s => typeof s === 'string');
+            const style = styles[0] || '';
+            imgs.forEach(url => items.push({
+                url: url,
+                style: style,
+                styles: styles,
+                artist: artist.name || artist.username || ''
+            }));
+        });
+
+        // Intercala artistas para que la grilla no quede en bloques por perfil
+        items.sort((a, b) => (a.url.length % 7) - (b.url.length % 7));
+        galleryItems = items.slice(0, 36);
+        galleryLoaded = true;
+    } catch (e) {
+        console.warn('[Job Board] No se pudo cargar la galería de referencias:', e?.message || e);
+        galleryItems = [];
+        galleryLoaded = true;
+    }
+    renderGallery();
+}
+
+function galleryMatches(item) {
+    if (galleryFilter !== 'Todos') {
+        const wanted = galleryFilter.toLowerCase();
+        const inStyles = (item.styles || []).some(s => String(s).toLowerCase().includes(wanted));
+        if (!inStyles) return false;
+    }
+    if (gallerySearch) {
+        const haystack = ((item.styles || []).join(' ') + ' ' + item.artist).toLowerCase();
+        if (!haystack.includes(gallerySearch)) return false;
+    }
+    return true;
+}
+
+function renderGallery() {
+    const wrap = document.getElementById('jbrq-gallery');
+    if (!wrap) return;
+
+    if (!galleryLoaded) {
+        wrap.innerHTML = '<div class="jbrq-gallery-loading"><div class="wo-spinner"></div><span class="wo-meta-s wo-muted">Cargando referencias…</span></div>';
         return;
     }
 
-    // Children are in the subparts array of the tree node
-    const children = parent.subparts || [];
-    if (children.length === 0) {
-        subContainer.innerHTML = '';
+    const visible = galleryItems.filter(galleryMatches);
+    if (visible.length === 0) {
+        wrap.innerHTML = `
+            <div class="wo-empty jbrq-gallery-empty">
+                <i data-wo-icon="image" aria-hidden="true"></i>
+                <span class="wo-empty-title">Sin referencias para mostrar</span>
+                <p>Probá con otro estilo, pedile una imagen a la IA o creá tu idea directamente.</p>
+            </div>
+        `;
         return;
     }
 
-    let html = '<span class="jbr-section-label">Zona específica · opcional</span><div class="jbr-options">';
-    children.forEach(child => {
-        const childLabel = child.label || child.id;
-        const isSelected = formData.tattoo_body_side === childLabel;
-        html += `
-            <div class="wo-chip ${isSelected ? 'is-active' : ''}" data-subpart="${childLabel}" onclick="selectBodySubPart(this)">${childLabel}</div>
+    wrap.innerHTML = visible.map(item => {
+        const selected = gallerySelection.includes(item.url);
+        const styleLabel = item.style ? 'Tatuaje ' + item.style.toLowerCase() : 'Tatuaje';
+        return `
+            <button type="button" class="jbrq-ref ${selected ? 'is-selected' : ''}" data-url="${escapeHtml(item.url)}" onclick="toggleGalleryRef(this)" aria-pressed="${selected}">
+                <img src="${escapeHtml(item.url)}" alt="${escapeHtml(styleLabel)}" loading="lazy">
+                <span class="jbrq-ref-cap">
+                    <span class="jbrq-ref-style">${escapeHtml(styleLabel)}</span>
+                    ${item.artist ? `<span class="wo-meta-s wo-muted">${escapeHtml(item.artist)}</span>` : ''}
+                </span>
+                <span class="jbrq-ref-check" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>
+            </button>
         `;
-    });
-    html += '</div>';
-    subContainer.innerHTML = html;
+    }).join('');
 }
 
-window.selectBodySubPart = function(card) {
-    document.querySelectorAll('#jb-body-subparts .wo-chip').forEach(c => c.classList.remove('is-active'));
-    card.classList.add('is-active');
+window.toggleGalleryRef = function(card) {
+    const url = card.dataset.url;
+    if (!url) return;
+    const idx = gallerySelection.indexOf(url);
+    if (idx >= 0) {
+        gallerySelection.splice(idx, 1);
+    } else {
+        if (gallerySelection.length + uploadedFiles.length >= MAX_FILES) {
+            showFormNotice('Podés llevar hasta ' + MAX_FILES + ' referencias a tu publicación');
+            return;
+        }
+        gallerySelection.push(url);
+    }
+    card.classList.toggle('is-selected', idx < 0);
+    card.setAttribute('aria-pressed', String(idx < 0));
+    updateSelCount();
+};
 
-    const subpartName = card.dataset.subpart;
-    formData.tattoo_body_side = subpartName;
-    formData.tattoo_body_part = formData.tattoo_body_part_parent + ' - ' + subpartName;
+function updateSelCount() {
+    const el = document.getElementById('jbrq-selcount');
+    if (!el) return;
+    const n = gallerySelection.length;
+    if (n === 0) {
+        el.classList.add('wo-hidden');
+        return;
+    }
+    el.textContent = n + (n === 1 ? ' referencia seleccionada' : ' referencias seleccionadas') + ' · se suman como imágenes de tu publicación';
+    el.classList.remove('wo-hidden');
+}
+
+// Trae las referencias elegidas de la galería como archivos y pasa al formulario.
+window.goToForm = async function() {
+    const btn = document.getElementById('jbrq-create-btn');
+    const picks = gallerySelection.slice(0, Math.max(0, MAX_FILES - uploadedFiles.length));
+    if (picks.length > 0 && btn) {
+        btn.disabled = true;
+        btn.textContent = 'Preparando…';
+    }
+    for (const url of picks) {
+        try {
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            if (blob && blob.type.indexOf('image/') === 0 && blob.size <= MAX_FILE_SIZE) {
+                uploadedFiles.push(new File([blob], 'referencia-galeria.jpg', { type: blob.type }));
+            }
+        } catch (e) {
+            console.warn('[Job Board] No se pudo traer la referencia elegida:', e?.message || e);
+        }
+    }
+    gallerySelection = [];
+    setView('form');
+};
+
+// --- IA de inspiración (POST /api/gemini/generate-image) ---
+
+window.generateInspiration = async function() {
+    const promptEl = document.getElementById('jbrq-ai-prompt');
+    const btn = document.getElementById('jbrq-ai-btn');
+    const errEl = document.getElementById('jbrq-ai-error');
+    const resultEl = document.getElementById('jbrq-ai-result');
+    if (!promptEl || !btn) return;
+
+    const idea = promptEl.value.trim();
+    if (!idea) {
+        showFormNotice('Contanos primero qué te gustaría tatuarte');
+        return;
+    }
+
+    if (errEl) errEl.classList.add('wo-hidden');
+    btn.disabled = true;
+    btn.textContent = 'Generando…';
+
+    try {
+        const response = await fetch('/api/gemini/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: 'Referencia visual para un tatuaje: ' + idea + '. Ilustración de diseño de tatuaje sobre fondo claro, líneas definidas, alto contraste, sin texto.',
+                aspectRatio: '1:1',
+                imageSize: '1K',
+                temperature: 0.7
+            })
+        });
+        const data = await response.json();
+        if (!data.success || !data.image) throw new Error(data.error || 'Sin imagen');
+
+        if (resultEl) {
+            resultEl.innerHTML = `
+                <img src="${data.image}" alt="Referencia generada con IA" class="jbrq-ai-img">
+                <div class="jbrq-ai-result-actions">
+                    <p class="wo-meta-s wo-muted">Generada a partir de tu idea</p>
+                    <button type="button" class="wo-btn wo-btn--secondary wo-btn--s" onclick="useAiReference(this)">Usar como referencia</button>
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" onclick="generateInspiration()">Generar otra</button>
+                </div>
+            `;
+            resultEl.classList.remove('wo-hidden');
+        }
+    } catch (e) {
+        console.warn('[Job Board] Error generando inspiración:', e?.message || e);
+        if (errEl) errEl.classList.remove('wo-hidden');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Inspirarme con IA →';
+    }
+};
+
+window.useAiReference = async function(btnEl) {
+    const img = document.querySelector('#jbrq-ai-result .jbrq-ai-img');
+    if (!img || !img.src) return;
+    if (uploadedFiles.length + gallerySelection.length >= MAX_FILES) {
+        showFormNotice('Ya tenés ' + MAX_FILES + ' referencias elegidas');
+        return;
+    }
+    try {
+        const resp = await fetch(img.src);
+        const blob = await resp.blob();
+        uploadedFiles.push(new File([blob], 'inspiracion-ia.png', { type: blob.type || 'image/png' }));
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.textContent = 'Agregada a tu publicación';
+        }
+        showFormNotice('Referencia agregada · la vas a ver en el formulario');
+    } catch (e) {
+        showFormNotice('No pudimos guardar la imagen. Probá de nuevo.');
+    }
 };
 
 // ============================================
-// STEP 2 - DESCRIPTION
+// VISTA 1 · FORMULARIO ("¿Qué tatuaje tenés en mente?")
 // ============================================
 
-function renderDescription(el) {
+function zonesList() {
+    if (Array.isArray(bodyPartsData) && bodyPartsData.length > 0) {
+        return bodyPartsData.map((zone, i) => ({
+            label: zone.label || zone.id,
+            icon: ZONE_ICONS[i % ZONE_ICONS.length]
+        }));
+    }
+    return FALLBACK_ZONES.map((label, i) => ({ label: label, icon: ZONE_ICONS[i] }));
+}
+
+function styleChipsSource() {
+    if (Array.isArray(tattooStyles) && tattooStyles.length > 0) {
+        return tattooStyles.map(s => s.name).filter(Boolean);
+    }
+    return INSPIRATION_STYLES;
+}
+
+function selectedStylesArray() {
+    if (!formData.tattoo_style) return [];
+    if (Array.isArray(formData.tattoo_style)) return formData.tattoo_style;
+    try { return JSON.parse(formData.tattoo_style); } catch (e) { return [String(formData.tattoo_style)]; }
+}
+
+function renderForm(el) {
     const descVal = formData.tattoo_idea_description || '';
-    const isFirst = formData.is_first_tattoo || false;
-    const isCover = formData.is_cover_up || false;
+    const selectedStyles = selectedStylesArray();
+    const openInterp = formData.open_interpretation !== false; // default encendido (mock)
+
+    const zoneCards = zonesList().map(zone => {
+        const active = formData.tattoo_body_part === zone.label;
+        return `
+            <button type="button" class="jbrq-zone ${active ? 'is-active' : ''}" data-zone="${escapeHtml(zone.label)}" onclick="selectZone(this)" aria-pressed="${active}">
+                <span class="jbrq-zone-check" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>
+                <i data-wo-icon="${zone.icon}" aria-hidden="true"></i>
+                <span class="jbrq-zone-label">${escapeHtml(zone.label)}</span>
+            </button>
+        `;
+    }).join('');
+
+    const styleChips = styleChipsSource().map(name => {
+        const active = selectedStyles.includes(name);
+        return `<button type="button" class="wo-chip ${active ? 'is-active' : ''}" data-style="${escapeHtml(name)}" onclick="toggleStyle(this)" aria-pressed="${active}">${escapeHtml(name)}</button>`;
+    }).join('');
+
+    const sideChips = SIDES.map(side => {
+        const active = formData.tattoo_body_side === side;
+        return `<button type="button" class="wo-chip ${active ? 'is-active' : ''}" data-side="${escapeHtml(side)}" onclick="selectSide(this)" aria-pressed="${active}">${escapeHtml(side)}</button>`;
+    }).join('');
+
+    const colorRadios = COLORS.map(opt => `
+        <label class="wo-radio">
+            <input type="radio" name="jbrq-color" value="${opt.value}" ${formData.tattoo_color_type === opt.value ? 'checked' : ''} onchange="selectColor(this)">
+            <span>${opt.label}</span>
+        </label>
+    `).join('');
+
+    const sizeOptions = ['<option value="" disabled ' + (formData.tattoo_size ? '' : 'selected') + '>Elegí un tamaño</option>']
+        .concat(SIZES.map(s => `<option value="${s.value}" ${formData.tattoo_size === s.value ? 'selected' : ''}>${s.label}</option>`))
+        .join('');
+
+    const currencyOptions = CURRENCIES.map(c =>
+        `<option value="${c}" ${(formData.budget_currency || 'USD') === c ? 'selected' : ''}>${c}</option>`
+    ).join('');
 
     el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Contá tu idea</h2>
-            <p class="jbr-subtitle">Cuanto más detallada sea, mejor van a entender tu visión los tatuadores.</p>
-            <div class="wo-field jbr-textarea-wrap">
-                <label class="wo-label" for="jb-description">Descripción de la idea</label>
-                <textarea id="jb-description" class="wo-textarea" maxlength="1000" placeholder="Ej.: quiero un lobo aullando, estilo blackwork, en el antebrazo. Busco líneas gruesas y buen contraste…">${descVal}</textarea>
-                <div class="jbr-char-counter"><span id="jb-desc-count">${descVal.length}</span> / 1000</div>
+        <header class="jbrq-head">
+            <h1 class="wo-h1 jbrq-title">¿Qué tatuaje tenés en mente?</h1>
+            <p class="jbrq-sub">Contanos los detalles y dejá que los tatuadores te encuentren.</p>
+        </header>
+
+        <div class="jbrq-form">
+
+            <div class="wo-field">
+                <label class="wo-label" for="jbrq-description">Descripción de la idea</label>
+                <textarea id="jbrq-description" class="wo-textarea jbrq-desc" maxlength="1000" placeholder="Ej: quiero un lobo aullando, estilo blackwork, en el antebrazo. Busco líneas gruesas y buen contraste…">${escapeHtml(descVal)}</textarea>
+                <div class="jbrq-count"><span id="jbrq-desc-count">${descVal.length}</span> / 1000</div>
+                <div class="jbrq-checks">
+                    <label class="wo-check">
+                        <input type="checkbox" id="jbrq-first-tattoo" ${formData.is_first_tattoo ? 'checked' : ''}>
+                        <span>Es mi primer tatuaje</span>
+                    </label>
+                    <label class="wo-check">
+                        <input type="checkbox" id="jbrq-cover-up" ${formData.is_cover_up ? 'checked' : ''}>
+                        <span>Es un cover-up</span>
+                    </label>
+                </div>
             </div>
-            <div class="jbr-checks">
-                <label class="wo-check">
-                    <input type="checkbox" id="jb-first-tattoo" ${isFirst ? 'checked' : ''}>
-                    <span>Es mi primer tatuaje</span>
+
+            <div class="wo-field">
+                <span class="wo-label">Estilo</span>
+                <div class="jbrq-chiprow" id="jbrq-style-chips">${styleChips}</div>
+                <p class="wo-help">Podés elegir uno o varios · opcional</p>
+            </div>
+
+            <div class="wo-field jbrq-field-half">
+                <label class="wo-label" for="jbrq-size">Tamaño aproximado</label>
+                <select id="jbrq-size" class="wo-select">${sizeOptions}</select>
+            </div>
+
+            <div class="wo-field">
+                <span class="wo-label">Parte del cuerpo</span>
+                <div class="jbrq-zones" id="jbrq-zones">${zoneCards}</div>
+            </div>
+
+            <div class="wo-field">
+                <span class="wo-label">¿De qué lado?</span>
+                <div class="jbrq-chiprow" id="jbrq-side-chips">${sideChips}</div>
+            </div>
+
+            <div class="wo-field">
+                <span class="wo-label">Color</span>
+                <div class="jbrq-radios">${colorRadios}</div>
+            </div>
+
+            <div class="jbrq-row jbrq-row--budget">
+                <div class="wo-field">
+                    <label class="wo-label" for="jbrq-budget-min">Presupuesto mín.</label>
+                    <div class="jbrq-money">
+                        <span class="jbrq-money-prefix" aria-hidden="true">$</span>
+                        <input type="number" id="jbrq-budget-min" class="wo-input" min="0" inputmode="numeric" placeholder="300" value="${escapeHtml(formData.budget_min || '')}">
+                    </div>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="jbrq-budget-max">Presupuesto máx.</label>
+                    <div class="jbrq-money">
+                        <span class="jbrq-money-prefix" aria-hidden="true">$</span>
+                        <input type="number" id="jbrq-budget-max" class="wo-input" min="0" inputmode="numeric" placeholder="500" value="${escapeHtml(formData.budget_max || '')}">
+                    </div>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="jbrq-currency">Moneda</label>
+                    <select id="jbrq-currency" class="wo-select">${currencyOptions}</select>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="city-input">Ciudad</label>
+                    <div class="jbrq-city">
+                        <i data-wo-icon="map-pin" class="wo-icon-18 jbrq-city-icon" aria-hidden="true"></i>
+                        <input type="text" id="city-input" class="wo-input" placeholder="Tu ciudad" value="${escapeHtml(formData.client_city || '')}" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <div class="wo-field">
+                <span class="wo-label">Fecha aproximada</span>
+                <div class="jbrq-cal" id="jbrq-calendar"></div>
+                <label class="wo-check jbrq-flex-check">
+                    <input type="checkbox" id="jbrq-flexible-dates" ${formData.flexible_dates ? 'checked' : ''}>
+                    <span>Tengo fechas flexibles</span>
                 </label>
-                <label class="wo-check">
-                    <input type="checkbox" id="jb-cover-up" ${isCover ? 'checked' : ''}>
-                    <span>Es un cover-up</span>
+            </div>
+
+            <div class="wo-field">
+                <span class="wo-label">Imágenes de referencia</span>
+                <div class="jbrq-refs" id="jbrq-refs"></div>
+                <input type="file" id="jbrq-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple class="wo-hidden" onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="jbrq-toggle-row">
+                <div class="jbrq-toggle-copy">
+                    <p class="jbrq-toggle-title">Permitir que el artista proponga su propia interpretación</p>
+                    <p class="wo-help">El tatuador podrá sugerir cambios creativos manteniendo tu idea base.</p>
+                </div>
+                <label class="wo-toggle">
+                    <input type="checkbox" id="jbrq-open-interp" ${openInterp ? 'checked' : ''}>
+                    <span class="knob"></span>
                 </label>
+            </div>
+
+            <div class="jbrq-form-foot">
+                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="continueToReview()">Continuar →</button>
             </div>
         </div>
     `;
 
-    const textarea = document.getElementById('jb-description');
-    const counter = document.getElementById('jb-desc-count');
+    bindFormEvents();
+    renderCalendar();
+    renderRefSlots();
+}
+
+function bindFormEvents() {
+    const textarea = document.getElementById('jbrq-description');
+    const counter = document.getElementById('jbrq-desc-count');
     if (textarea) {
         textarea.addEventListener('input', () => {
             formData.tattoo_idea_description = textarea.value;
             if (counter) counter.textContent = textarea.value.length;
             textarea.classList.remove('wo-input--error');
         });
-        setTimeout(() => textarea.focus(), 100);
     }
 
-    const firstCb = document.getElementById('jb-first-tattoo');
-    if (firstCb) firstCb.addEventListener('change', () => { formData.is_first_tattoo = firstCb.checked; });
+    const firstCb = document.getElementById('jbrq-first-tattoo');
+    if (firstCb) firstCb.addEventListener('change', () => { formData.is_first_tattoo = firstCb.checked; saveDraft(); });
+    const coverCb = document.getElementById('jbrq-cover-up');
+    if (coverCb) coverCb.addEventListener('change', () => { formData.is_cover_up = coverCb.checked; saveDraft(); });
 
-    const coverCb = document.getElementById('jb-cover-up');
-    if (coverCb) coverCb.addEventListener('change', () => { formData.is_cover_up = coverCb.checked; });
+    const sizeEl = document.getElementById('jbrq-size');
+    if (sizeEl) sizeEl.addEventListener('change', () => { formData.tattoo_size = sizeEl.value; saveDraft(); });
+
+    const minEl = document.getElementById('jbrq-budget-min');
+    if (minEl) minEl.addEventListener('input', () => { formData.budget_min = minEl.value; });
+    const maxEl = document.getElementById('jbrq-budget-max');
+    if (maxEl) maxEl.addEventListener('input', () => { formData.budget_max = maxEl.value; });
+    const curEl = document.getElementById('jbrq-currency');
+    if (curEl) curEl.addEventListener('change', () => { formData.budget_currency = curEl.value; saveDraft(); });
+
+    const cityEl = document.getElementById('city-input');
+    if (cityEl) {
+        cityEl.addEventListener('input', () => { formData.client_city = cityEl.value; });
+
+        // Google Places Autocomplete si está disponible
+        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+            try {
+                const autocomplete = new google.maps.places.Autocomplete(cityEl, {
+                    types: ['(cities)'],
+                    fields: ['formatted_address', 'address_components']
+                });
+                autocomplete.addListener('place_changed', () => {
+                    const place = autocomplete.getPlace();
+                    if (place && place.formatted_address) {
+                        cityEl.value = place.formatted_address;
+                        formData.client_city = place.formatted_address;
+
+                        if (place.address_components) {
+                            const locality = place.address_components.find(c => c.types.includes('locality'));
+                            const country = place.address_components.find(c => c.types.includes('country'));
+                            formData.client_city_name = locality ? locality.long_name : '';
+                            formData.client_country = country ? country.long_name : '';
+                        }
+                    }
+                });
+            } catch (e) {
+                // Google Places no disponible: el input de texto alcanza
+            }
+        }
+    }
+
+    const flexEl = document.getElementById('jbrq-flexible-dates');
+    if (flexEl) flexEl.addEventListener('change', () => { formData.flexible_dates = flexEl.checked; saveDraft(); });
+
+    const interpEl = document.getElementById('jbrq-open-interp');
+    if (interpEl) interpEl.addEventListener('change', () => { formData.open_interpretation = interpEl.checked; saveDraft(); });
 }
 
-// ============================================
-// STEP 3 - SIZE
-// ============================================
-
-function renderSize(el) {
-    const sizes = [
-        { label: 'Pequeño', value: 'pequeno', subtitle: '< 5 cm' },
-        { label: 'Mediano', value: 'mediano', subtitle: '5 – 15 cm' },
-        { label: 'Grande', value: 'grande', subtitle: '15 – 30 cm' },
-        { label: 'Muy grande', value: 'muy_grande', subtitle: '> 30 cm' }
-    ];
-
-    let cardsHtml = '';
-    sizes.forEach(s => {
-        const isSelected = formData.tattoo_size === s.value;
-        cardsHtml += `
-            <div class="jbr-card ${isSelected ? 'is-active' : ''}" data-value="${s.value}" onclick="selectSize(this)">
-                <span class="jbr-card-label">${s.label}</span>
-                <span class="jbr-card-sub">${s.subtitle}</span>
-            </div>
-        `;
+window.selectZone = function(card) {
+    document.querySelectorAll('#jbrq-zones .jbrq-zone').forEach(c => {
+        c.classList.remove('is-active');
+        c.setAttribute('aria-pressed', 'false');
     });
-
-    el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Tamaño aproximado</h2>
-            <p class="jbr-subtitle">Elegí el tamaño estimado del tatuaje.</p>
-            <div class="jbr-cards">
-                ${cardsHtml}
-            </div>
-        </div>
-    `;
-}
-
-window.selectSize = function(card) {
-    document.querySelectorAll('.jbr-step[data-step="size"] .jbr-card').forEach(c => c.classList.remove('is-active'));
     card.classList.add('is-active');
-    formData.tattoo_size = card.dataset.value;
+    card.setAttribute('aria-pressed', 'true');
+    formData.tattoo_body_part = card.dataset.zone;
+    saveDraft();
 };
 
-// ============================================
-// STEP 4 - STYLE
-// ============================================
-
-function renderStyle(el) {
-    const selectedStyles = formData.tattoo_style ? (typeof formData.tattoo_style === 'string' ? JSON.parse(formData.tattoo_style) : formData.tattoo_style) : [];
-
-    let cardsHtml = '';
-    tattooStyles.forEach(style => {
-        const isSelected = selectedStyles.includes(style.name);
-        cardsHtml += `
-            <div class="wo-chip ${isSelected ? 'is-active' : ''}" data-style="${style.name}" onclick="toggleStyle(this)">${style.name}</div>
-        `;
+window.selectSide = function(chip) {
+    const value = chip.dataset.side;
+    const wasActive = formData.tattoo_body_side === value;
+    document.querySelectorAll('#jbrq-side-chips .wo-chip').forEach(c => {
+        c.classList.remove('is-active');
+        c.setAttribute('aria-pressed', 'false');
     });
+    if (wasActive) {
+        formData.tattoo_body_side = null;
+    } else {
+        chip.classList.add('is-active');
+        chip.setAttribute('aria-pressed', 'true');
+        formData.tattoo_body_side = value;
+    }
+    saveDraft();
+};
 
-    el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Estilo</h2>
-            <p class="jbr-subtitle">Podés elegir uno o varios estilos · opcional.</p>
-            <div class="jbr-options" id="jb-styles-grid">
-                ${cardsHtml}
-            </div>
-            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-skip" onclick="skipStep()">Saltar este paso →</button>
-        </div>
-    `;
-}
+window.toggleStyle = function(chip) {
+    chip.classList.toggle('is-active');
+    const styleName = chip.dataset.style;
+    let selected = selectedStylesArray().slice();
 
-window.toggleStyle = function(card) {
-    card.classList.toggle('is-active');
-    const styleName = card.dataset.style;
-
-    let selected = formData.tattoo_style ? (typeof formData.tattoo_style === 'string' ? JSON.parse(formData.tattoo_style) : [...formData.tattoo_style]) : [];
-
-    if (card.classList.contains('is-active')) {
+    if (chip.classList.contains('is-active')) {
         if (!selected.includes(styleName)) selected.push(styleName);
     } else {
         selected = selected.filter(s => s !== styleName);
     }
-
+    chip.setAttribute('aria-pressed', chip.classList.contains('is-active') ? 'true' : 'false');
     formData.tattoo_style = selected;
+    saveDraft();
 };
 
-window.skipStep = function() {
-    goToStep(currentStep + 1);
+window.selectColor = function(input) {
+    formData.tattoo_color_type = input.value;
+    saveDraft();
 };
 
-// ============================================
-// STEP 5 - COLOR + REFERENCES
-// ============================================
+// --- Calendario inline (fecha aproximada) ---
 
-function renderColorRefs(el) {
-    const colorOptions = [
-        { label: 'Blanco y negro', value: 'black_grey' },
-        { label: 'Color', value: 'full_color' },
-        { label: 'Sin preferencia', value: 'no_preference' }
-    ];
+function selectedDate() {
+    if (!formData.preferred_date || !/^\d{4}-\d{2}-\d{2}$/.test(formData.preferred_date)) return null;
+    const [y, m, d] = formData.preferred_date.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
 
-    let colorHtml = '';
-    colorOptions.forEach(opt => {
-        const isSelected = formData.tattoo_color_type === opt.value;
-        colorHtml += `
-            <label class="wo-radio">
-                <input type="radio" name="jb-color-type" value="${opt.value}" ${isSelected ? 'checked' : ''} onchange="selectColor(this)">
-                <span>${opt.label}</span>
-            </label>
+function renderCalendar() {
+    const wrap = document.getElementById('jbrq-calendar');
+    if (!wrap) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!calCursor) {
+        const sel = selectedDate();
+        const base = sel && sel >= today ? sel : today;
+        calCursor = new Date(base.getFullYear(), base.getMonth(), 1);
+    }
+
+    const year = calCursor.getFullYear();
+    const month = calCursor.getMonth();
+    const monthName = calCursor.toLocaleDateString('es-AR', { month: 'long' });
+    const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1) + ' ' + year;
+    const canGoPrev = new Date(year, month, 1) > new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Lunes como primer día de la semana
+    const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+    const gridStart = new Date(year, month, 1 - firstDow);
+    const sel = selectedDate();
+
+    let cells = '';
+    for (let i = 0; i < 42; i++) {
+        const day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+        const iso = day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0');
+        const isOut = day.getMonth() !== month;
+        const isPast = day < today;
+        const isSelected = sel && day.getTime() === sel.getTime();
+        cells += `
+            <button type="button" class="jbrq-cal-day ${isOut ? 'is-out' : ''} ${isSelected ? 'is-selected' : ''}"
+                data-date="${iso}" ${isPast ? 'disabled' : ''} onclick="pickDate(this)"
+                aria-label="${iso}" ${isSelected ? 'aria-current="date"' : ''}>${day.getDate()}</button>
         `;
-    });
+    }
 
-    // Render previews for already uploaded files
-    let previewsHtml = '';
-    uploadedFiles.forEach((file, idx) => {
-        previewsHtml += `
-            <div class="jbr-preview" data-index="${idx}">
-                <img src="${URL.createObjectURL(file)}" alt="ref-${idx}">
-                <button type="button" class="jbr-preview-remove" onclick="removeFile(${idx})" title="Eliminar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
-            </div>
-        `;
-    });
-
-    el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Color y referencias</h2>
-            <p class="jbr-subtitle">Contanos cómo lo imaginás.</p>
-            <span class="jbr-section-label">Color</span>
-            <div class="jbr-radios">
-                ${colorHtml}
-            </div>
-            <span class="jbr-section-label">Imágenes de referencia · opcional</span>
-            <div class="wo-dropzone jbr-dropzone" id="jb-upload-area" onclick="triggerFileInput()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-                <i data-wo-icon="upload"></i>
-                <p class="jbr-dropzone-title">Arrastrá o hacé click</p>
-                <p class="jbr-dropzone-help">JPG, PNG o WebP · máx. ${MAX_FILES} imágenes · 5MB cada una</p>
-            </div>
-            <input type="file" id="jb-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple style="display:none" onchange="handleFileSelect(event)">
-            <div class="jbr-previews" id="jb-file-previews">
-                ${previewsHtml}
-            </div>
-            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-skip" onclick="skipStep()">Saltar este paso →</button>
+    wrap.innerHTML = `
+        <div class="jbrq-cal-head">
+            <button type="button" class="jbrq-cal-nav" onclick="calShift(-1)" ${canGoPrev ? '' : 'disabled'} aria-label="Mes anterior"><i data-wo-icon="chevron-left" class="wo-icon-18"></i></button>
+            <span class="jbrq-cal-title">${monthLabel}</span>
+            <button type="button" class="jbrq-cal-nav" onclick="calShift(1)" aria-label="Mes siguiente"><i data-wo-icon="chevron-right" class="wo-icon-18"></i></button>
+        </div>
+        <div class="jbrq-cal-grid">
+            ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="jbrq-cal-dow" aria-hidden="true">${d}</span>`).join('')}
+            ${cells}
         </div>
     `;
 }
 
-window.selectColor = function(input) {
-    formData.tattoo_color_type = input.value;
+window.calShift = function(delta) {
+    if (!calCursor) return;
+    calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + delta, 1);
+    renderCalendar();
 };
 
+window.pickDate = function(btn) {
+    const iso = btn.dataset.date;
+    if (!iso) return;
+    formData.preferred_date = (formData.preferred_date === iso) ? '' : iso;
+    saveDraft();
+    renderCalendar();
+};
+
+// --- Dropzones de referencia (3 slots) ---
+
+function renderRefSlots() {
+    const wrap = document.getElementById('jbrq-refs');
+    if (!wrap) return;
+
+    let html = '';
+    for (let i = 0; i < MAX_FILES; i++) {
+        const file = uploadedFiles[i];
+        if (file) {
+            html += `
+                <div class="jbrq-refslot has-image">
+                    <img src="${URL.createObjectURL(file)}" alt="Referencia ${i + 1}">
+                    <button type="button" class="jbrq-ref-remove" onclick="removeFile(${i})" title="Quitar referencia" aria-label="Quitar referencia ${i + 1}"><i data-wo-icon="x" class="wo-icon-18"></i></button>
+                </div>
+            `;
+        } else if (i === uploadedFiles.length) {
+            html += `
+                <div class="wo-dropzone jbrq-refslot jbrq-refslot--drop" id="jbrq-dropzone" onclick="triggerFileInput()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" role="button" tabindex="0" aria-label="Subir imagen de referencia">
+                    <i data-wo-icon="arrow-up" aria-hidden="true"></i>
+                    <p class="jbrq-drop-title">Arrastrá o hacé click</p>
+                    <p class="jbrq-drop-help">PNG, JPG o WebP · máx. 5 MB</p>
+                </div>
+            `;
+        } else {
+            html += `
+                <button type="button" class="jbrq-refslot is-placeholder" onclick="triggerFileInput()">
+                    <i data-wo-icon="image" aria-hidden="true"></i>
+                    <span class="wo-meta-s">Referencia ${i + 1}</span>
+                </button>
+            `;
+        }
+    }
+    wrap.innerHTML = html;
+}
+
 window.triggerFileInput = function() {
-    document.getElementById('jb-file-input')?.click();
+    document.getElementById('jbrq-file-input')?.click();
 };
 
 window.handleFileSelect = function(e) {
@@ -622,19 +970,19 @@ window.handleFileSelect = function(e) {
 window.handleDragOver = function(e) {
     e.preventDefault();
     e.stopPropagation();
-    document.getElementById('jb-upload-area')?.classList.add('dragover');
+    document.getElementById('jbrq-dropzone')?.classList.add('dragover');
 };
 
 window.handleDragLeave = function(e) {
     e.preventDefault();
     e.stopPropagation();
-    document.getElementById('jb-upload-area')?.classList.remove('dragover');
+    document.getElementById('jbrq-dropzone')?.classList.remove('dragover');
 };
 
 window.handleDrop = function(e) {
     e.preventDefault();
     e.stopPropagation();
-    document.getElementById('jb-upload-area')?.classList.remove('dragover');
+    document.getElementById('jbrq-dropzone')?.classList.remove('dragover');
     const files = Array.from(e.dataTransfer?.files || []);
     addFiles(files);
 };
@@ -642,7 +990,7 @@ window.handleDrop = function(e) {
 async function addFiles(files) {
     const remaining = MAX_FILES - uploadedFiles.length;
     if (remaining <= 0) {
-        showFormNotice('Máximo ' + MAX_FILES + ' imágenes permitidas');
+        showFormNotice('Máximo ' + MAX_FILES + ' imágenes de referencia');
         return;
     }
 
@@ -658,192 +1006,250 @@ async function addFiles(files) {
             continue;
         }
         if (compressed.size > MAX_FILE_SIZE) {
-            showFormNotice('El archivo ' + file.name + ' supera los 5MB tras compresión');
+            showFormNotice('El archivo ' + file.name + ' supera los 5 MB tras compresión');
             continue;
         }
 
         uploadedFiles.push(compressed);
     }
 
-    renderFilePreviews();
+    renderRefSlots();
 }
 
 window.removeFile = function(index) {
     uploadedFiles.splice(index, 1);
-    renderFilePreviews();
+    renderRefSlots();
 };
 
-function renderFilePreviews() {
-    const container = document.getElementById('jb-file-previews');
-    if (!container) return;
+// --- Validación y paso a revisión ---
 
-    container.innerHTML = '';
-    uploadedFiles.forEach((file, idx) => {
-        const div = document.createElement('div');
-        div.className = 'jbr-preview';
-        div.dataset.index = idx;
-        div.innerHTML = `
-            <img src="${URL.createObjectURL(file)}" alt="ref-${idx}">
-            <button type="button" class="jbr-preview-remove" onclick="removeFile(${idx})" title="Eliminar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
-        `;
-        container.appendChild(div);
-    });
-}
-
-// ============================================
-// STEP 6 - PREFERENCES
-// ============================================
-
-function renderPreferences(el) {
-    const budgetMin = formData.budget_min || '';
-    const budgetMax = formData.budget_max || '';
-    const budgetCurrency = formData.budget_currency || 'USD';
-    const cityVal = formData.client_city || '';
-    const prefDate = formData.preferred_date || '';
-    const flexDates = formData.flexible_dates || false;
-    const travelWilling = formData.travel_willing || false;
-
-    el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Preferencias</h2>
-            <p class="jbr-subtitle">Todo esto es opcional, pero ayuda a que te lleguen mejores propuestas.</p>
-
-            <div class="jbr-form">
-                <div class="wo-field">
-                    <label class="wo-label">Presupuesto estimado</label>
-                    <div class="jbr-budget-row">
-                        <input type="number" id="jb-budget-min" class="wo-input" placeholder="Mín." value="${budgetMin}" min="0">
-                        <span class="jbr-budget-sep">–</span>
-                        <input type="number" id="jb-budget-max" class="wo-input" placeholder="Máx." value="${budgetMax}" min="0">
-                        <select id="jb-budget-currency" class="wo-select">
-                            ${['USD', 'EUR', 'ARS', 'MXN', 'COP', 'BRL'].map(c => `<option value="${c}" ${budgetCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="wo-field">
-                    <label class="wo-label" for="city-input">Ciudad</label>
-                    <input type="text" id="city-input" class="wo-input" placeholder="Tu ciudad" value="${cityVal}" autocomplete="off">
-                </div>
-
-                <div class="wo-field">
-                    <label class="wo-label" for="jb-pref-date">Fecha aproximada</label>
-                    <input type="month" id="jb-pref-date" class="wo-input" value="${prefDate}">
-                </div>
-
-                <div class="jbr-checks">
-                    <label class="wo-check">
-                        <input type="checkbox" id="jb-flexible-dates" ${flexDates ? 'checked' : ''}>
-                        <span>Fechas flexibles</span>
-                    </label>
-                    <label class="wo-check">
-                        <input type="checkbox" id="jb-travel-willing" ${travelWilling ? 'checked' : ''}>
-                        <span>Puedo viajar</span>
-                    </label>
-                </div>
-            </div>
-
-            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbr-skip" onclick="skipStep()">Saltar este paso →</button>
-        </div>
-    `;
-
-    // Bind inputs
-    const budgetMinEl = document.getElementById('jb-budget-min');
-    const budgetMaxEl = document.getElementById('jb-budget-max');
-    const currencyEl = document.getElementById('jb-budget-currency');
+function syncFormFields() {
+    const textarea = document.getElementById('jbrq-description');
+    if (textarea) formData.tattoo_idea_description = textarea.value;
+    const firstCb = document.getElementById('jbrq-first-tattoo');
+    if (firstCb) formData.is_first_tattoo = firstCb.checked;
+    const coverCb = document.getElementById('jbrq-cover-up');
+    if (coverCb) formData.is_cover_up = coverCb.checked;
+    const sizeEl = document.getElementById('jbrq-size');
+    if (sizeEl && sizeEl.value) formData.tattoo_size = sizeEl.value;
+    const minEl = document.getElementById('jbrq-budget-min');
+    if (minEl) formData.budget_min = minEl.value;
+    const maxEl = document.getElementById('jbrq-budget-max');
+    if (maxEl) formData.budget_max = maxEl.value;
+    const curEl = document.getElementById('jbrq-currency');
+    if (curEl) formData.budget_currency = curEl.value;
     const cityEl = document.getElementById('city-input');
-    const dateEl = document.getElementById('jb-pref-date');
-    const flexEl = document.getElementById('jb-flexible-dates');
-    const travelEl = document.getElementById('jb-travel-willing');
-
-    if (budgetMinEl) budgetMinEl.addEventListener('input', () => { formData.budget_min = budgetMinEl.value; });
-    if (budgetMaxEl) budgetMaxEl.addEventListener('input', () => { formData.budget_max = budgetMaxEl.value; });
-    if (currencyEl) currencyEl.addEventListener('change', () => { formData.budget_currency = currencyEl.value; });
-    if (cityEl) cityEl.addEventListener('input', () => { formData.client_city = cityEl.value; });
-    if (dateEl) dateEl.addEventListener('change', () => { formData.preferred_date = dateEl.value; });
-    if (flexEl) flexEl.addEventListener('change', () => { formData.flexible_dates = flexEl.checked; });
-    if (travelEl) travelEl.addEventListener('change', () => { formData.travel_willing = travelEl.checked; });
-
-    // Google Places Autocomplete if available
-    if (cityEl && typeof google !== 'undefined' && google.maps && google.maps.places) {
-        try {
-            const autocomplete = new google.maps.places.Autocomplete(cityEl, {
-                types: ['(cities)'],
-                fields: ['formatted_address', 'address_components']
-            });
-            autocomplete.addListener('place_changed', () => {
-                const place = autocomplete.getPlace();
-                if (place && place.formatted_address) {
-                    cityEl.value = place.formatted_address;
-                    formData.client_city = place.formatted_address;
-
-                    if (place.address_components) {
-                        const locality = place.address_components.find(c => c.types.includes('locality'));
-                        const country = place.address_components.find(c => c.types.includes('country'));
-                        formData.client_city_name = locality ? locality.long_name : '';
-                        formData.client_country = country ? country.long_name : '';
-                    }
-                }
-            });
-        } catch (e) {
-            // Google Places not available - degrade gracefully
-        }
-    }
+    if (cityEl) formData.client_city = cityEl.value;
+    const flexEl = document.getElementById('jbrq-flexible-dates');
+    if (flexEl) formData.flexible_dates = flexEl.checked;
+    const interpEl = document.getElementById('jbrq-open-interp');
+    if (interpEl) formData.open_interpretation = interpEl.checked;
 }
 
-// ============================================
-// STEP 7 - ACCOUNT GATE
-// ============================================
+window.continueToReview = function() {
+    syncFormFields();
 
-async function renderAccountGate(el) {
-    el.innerHTML = '<div class="jbr-step-content jbr-center" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-4);padding-top:var(--space-12);"><div class="wo-spinner"></div><p class="wo-meta">Verificando sesión…</p></div>';
-
-    if (!_supabase) {
-        renderAuthContainer(el);
+    if (!formData.tattoo_idea_description || formData.tattoo_idea_description.trim().length < 10) {
+        const textarea = document.getElementById('jbrq-description');
+        if (textarea) {
+            textarea.classList.add('wo-input--error');
+            textarea.focus();
+        }
+        showFormNotice('La descripción tiene que tener al menos 10 caracteres');
+        return;
+    }
+    if (!formData.tattoo_body_part) {
+        showFormNotice('Elegí una parte del cuerpo');
+        document.getElementById('jbrq-zones')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+    if (!formData.tattoo_size) {
+        showFormNotice('Elegí un tamaño aproximado');
+        document.getElementById('jbrq-size')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+    const min = parseFloat(formData.budget_min);
+    const max = parseFloat(formData.budget_max);
+    if (!isNaN(min) && !isNaN(max) && min > max) {
+        showFormNotice('El presupuesto mínimo no puede superar al máximo');
+        document.getElementById('jbrq-budget-min')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
 
-    try {
-        const { data: { session } } = await _supabase.auth.getSession();
+    setView('review');
+};
 
-        if (session) {
-            // Check if client profile exists
-            const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
+// ============================================
+// VISTA 2 · REVISIÓN ("Revisá tu publicación")
+// ============================================
 
-            if (client) {
-                formData._user_id = session.user.id;
-                formData._client_email = client.email || session.user.email;
-                formData._client_name = client.full_name || '';
-                renderSummaryAndSubmit(el, session, client);
-            } else {
-                // User is logged in but not a client - maybe an artist
-                // Create a client profile entry
-                formData._user_id = session.user.id;
-                formData._client_email = session.user.email;
-                formData._client_name = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
-                renderSummaryAndSubmit(el, session, null);
-            }
-        } else {
-            renderAuthContainer(el);
-        }
-    } catch (err) {
-        console.error('Error checking session:', err);
-        renderAuthContainer(el);
-    }
+function formatNumber(value) {
+    const n = parseFloat(value);
+    if (isNaN(n)) return null;
+    return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n);
 }
 
-function renderAuthContainer(el) {
-    el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Publicá tu solicitud</h2>
-            <p class="jbr-subtitle">Necesitás una cuenta para publicarla y recibir propuestas.</p>
+function formatStyleDisplay() {
+    const styles = selectedStylesArray();
+    if (styles.length === 0) return 'Sin preferencia';
+    return styles.join(', ');
+}
 
-            <div class="wo-tabs jbr-auth-tabs">
+function formatColorDisplay() {
+    const map = {
+        'full_color': 'Color',
+        'black_grey': 'Blanco y negro',
+        'no_preference': 'Sin preferencia'
+    };
+    return map[formData.tattoo_color_type] || 'Sin preferencia';
+}
+
+function formatSizeDisplay() {
+    const found = SIZES.find(s => s.value === formData.tattoo_size);
+    return found ? found.label : '–';
+}
+
+function formatBudgetDisplay() {
+    const min = formatNumber(formData.budget_min);
+    const max = formatNumber(formData.budget_max);
+    const currency = formData.budget_currency || 'USD';
+    if (min && max) return `$${min} – $${max} ${currency}`;
+    if (min) return `Desde $${min} ${currency}`;
+    if (max) return `Hasta $${max} ${currency}`;
+    return '';
+}
+
+function formatDateDisplay() {
+    const sel = selectedDate();
+    if (!sel) return formData.flexible_dates ? 'A coordinar · fechas flexibles' : '';
+    const long = sel.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return formData.flexible_dates ? long + ' · fechas flexibles' : long;
+}
+
+function renderReview(el) {
+    const title = deriveRequestTitle(formData.tattoo_idea_description, selectedStylesArray(), formData.tattoo_body_part);
+    const zone = [formData.tattoo_body_part, formData.tattoo_body_side ? 'lado ' + String(formData.tattoo_body_side).toLowerCase() : null]
+        .filter(Boolean).join(' · ');
+    const openInterp = formData.open_interpretation !== false;
+
+    const refsHtml = uploadedFiles.length > 0
+        ? `<div class="jbrq-preview-refs">${uploadedFiles.map((file, i) =>
+            `<img src="${URL.createObjectURL(file)}" alt="Referencia ${i + 1}">`).join('')}</div>`
+        : '';
+
+    const cell = (label, value, extraClass) => `
+        <div class="jbrq-cell">
+            <dt>${label}</dt>
+            <dd class="${extraClass || ''}">${value}</dd>
+        </div>
+    `;
+
+    el.innerHTML = `
+        <header class="jbrq-head">
+            <h1 class="wo-h1 jbrq-title">Revisá tu publicación</h1>
+            <p class="jbrq-sub">Así la van a ver los tatuadores en el Job Board.</p>
+        </header>
+
+        <article class="wo-card wo-card--flat jbrq-preview">
+            <span class="wo-eyebrow">Tu idea</span>
+            ${title ? `<h2 class="wo-h3 jbrq-preview-title">${escapeHtml(title)}</h2>` : ''}
+            <p class="jbrq-preview-desc">${escapeHtml(formData.tattoo_idea_description || '–')}</p>
+            ${refsHtml}
+            <hr class="wo-divider">
+            <dl class="jbrq-preview-grid">
+                ${cell('Estilo', escapeHtml(formatStyleDisplay()))}
+                ${cell('Zona del cuerpo', escapeHtml(zone || '–'))}
+                ${cell('Tamaño', escapeHtml(formatSizeDisplay()))}
+                ${cell('Color', escapeHtml(formatColorDisplay()))}
+                ${cell('Presupuesto', escapeHtml(formatBudgetDisplay() || 'A conversar'))}
+                ${cell('Ciudad', escapeHtml(formData.client_city || '–'))}
+                ${cell('Fecha', escapeHtml(formatDateDisplay() || 'A definir'))}
+                ${cell('Interpretación', openInterp ? 'Abierta al artista' : 'Fiel a tu idea', openInterp ? 'is-success' : '')}
+                ${formData.is_first_tattoo ? cell('Primer tatuaje', 'Sí') : ''}
+                ${formData.is_cover_up ? cell('Cover-up', 'Sí') : ''}
+            </dl>
+        </article>
+
+        <div class="jbrq-review-actions">
+            <p class="wo-meta-s wo-muted jbrq-logged-as" id="jbrq-logged-as"></p>
+            <div class="jbrq-review-btns">
+                <button type="button" class="wo-btn wo-btn--secondary" onclick="setView('form')"><i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Editar</button>
+                <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-btn-publish" onclick="startPublish()">Publicar idea →</button>
+            </div>
+        </div>
+    `;
+
+    fillLoggedAs();
+}
+
+async function fillLoggedAs() {
+    const label = document.getElementById('jbrq-logged-as');
+    if (!label || !_supabase) return;
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) {
+            label.textContent = 'Para publicarla vas a crear tu cuenta en el paso siguiente';
+            return;
+        }
+        const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
+        const name = client?.full_name || session.user.user_metadata?.full_name || session.user.email;
+        label.textContent = 'Publicás como ' + name;
+    } catch (e) { /* silencioso */ }
+}
+
+// ============================================
+// PUBLICAR (gate de cuenta + submit)
+// ============================================
+
+window.startPublish = async function() {
+    if (!_supabase) {
+        showFormNotice('Servicio no disponible. Recargá la página.');
+        return;
+    }
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) {
+            setView('auth');
+            return;
+        }
+
+        const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
+        if (client) {
+            formData._user_id = session.user.id;
+            formData._client_email = client.email || session.user.email;
+            formData._client_name = client.full_name || '';
+        } else {
+            // Sesión sin perfil de cliente (p. ej. artista probando el flujo)
+            formData._user_id = session.user.id;
+            formData._client_email = session.user.email;
+            formData._client_name = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+        }
+        submitRequest();
+    } catch (err) {
+        console.error('Error checking session:', err);
+        setView('auth');
+    }
+};
+
+// ============================================
+// VISTA 3 · CUENTA (auth-gate inline)
+// ============================================
+
+function renderAuth(el) {
+    el.innerHTML = `
+        <div class="jbrq-auth">
+            <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbrq-auth-back" onclick="setView('review')">← Volver a la revisión</button>
+            <header class="jbrq-head">
+                <h1 class="wo-h2 jbrq-title">Publicá tu idea</h1>
+                <p class="jbrq-sub">Necesitás una cuenta para publicarla y recibir propuestas.</p>
+            </header>
+
+            <div class="wo-tabs jbrq-auth-tabs">
                 <button type="button" class="wo-tab is-active" data-tab="register" onclick="switchAuthTab('register')">Crear cuenta</button>
                 <button type="button" class="wo-tab" data-tab="login" onclick="switchAuthTab('login')">Iniciar sesión</button>
             </div>
 
-            <div id="jb-auth-register" class="jbr-auth-panel is-active">
+            <div id="jb-auth-register" class="jbrq-auth-panel is-active">
                 <div class="wo-field">
                     <label class="wo-label" for="jb-reg-name">Nombre completo</label>
                     <input type="text" id="jb-reg-name" class="wo-input" placeholder="Tu nombre" autocomplete="name">
@@ -860,11 +1266,11 @@ function renderAuthContainer(el) {
                     <label class="wo-label" for="jb-reg-confirm">Confirmar contraseña</label>
                     <input type="password" id="jb-reg-confirm" class="wo-input" placeholder="Repetí tu contraseña" autocomplete="new-password">
                 </div>
-                <div id="jb-reg-message" class="jbr-msg"></div>
-                <button type="button" class="wo-btn wo-btn--hard wo-btn--block" id="jb-btn-register" onclick="handleJBRegister()">Crear cuenta y publicar</button>
+                <div id="jb-reg-message" class="jbrq-msg" role="status"></div>
+                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard wo-btn--block" id="jb-btn-register" onclick="handleJBRegister()">Crear cuenta y publicar</button>
             </div>
 
-            <div id="jb-auth-login" class="jbr-auth-panel">
+            <div id="jb-auth-login" class="jbrq-auth-panel">
                 <div class="wo-field">
                     <label class="wo-label" for="jb-login-email">Email</label>
                     <input type="email" id="jb-login-email" class="wo-input" placeholder="tu@email.com" autocomplete="email">
@@ -873,23 +1279,23 @@ function renderAuthContainer(el) {
                     <label class="wo-label" for="jb-login-password">Contraseña</label>
                     <input type="password" id="jb-login-password" class="wo-input" placeholder="Tu contraseña" autocomplete="current-password">
                 </div>
-                <div id="jb-login-message" class="jbr-msg"></div>
-                <button type="button" class="wo-btn wo-btn--hard wo-btn--block" id="jb-btn-login" onclick="handleJBLogin()">Iniciar sesión y publicar</button>
+                <div id="jb-login-message" class="jbrq-msg" role="status"></div>
+                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard wo-btn--block" id="jb-btn-login" onclick="handleJBLogin()">Iniciar sesión y publicar</button>
             </div>
         </div>
     `;
 }
 
 window.switchAuthTab = function(tab) {
-    document.querySelectorAll('.jbr-auth-tabs .wo-tab').forEach(t => t.classList.remove('is-active'));
-    document.querySelector(`.jbr-auth-tabs .wo-tab[data-tab="${tab}"]`)?.classList.add('is-active');
+    document.querySelectorAll('.jbrq-auth-tabs .wo-tab').forEach(t => t.classList.remove('is-active'));
+    document.querySelector(`.jbrq-auth-tabs .wo-tab[data-tab="${tab}"]`)?.classList.add('is-active');
 
     document.getElementById('jb-auth-register').classList.toggle('is-active', tab === 'register');
     document.getElementById('jb-auth-login').classList.toggle('is-active', tab === 'login');
 };
 
 // ============================================
-// AUTH HANDLERS
+// AUTH HANDLERS (cableado legacy preservado)
 // ============================================
 
 window.handleJBRegister = async function() {
@@ -905,7 +1311,7 @@ window.handleJBRegister = async function() {
     const password = document.getElementById('jb-reg-password')?.value;
     const confirm = document.getElementById('jb-reg-confirm')?.value;
 
-    if (msgEl) { msgEl.textContent = ''; msgEl.className = 'jbr-msg'; }
+    if (msgEl) { msgEl.textContent = ''; msgEl.className = 'jbrq-msg'; }
 
     if (!name || !email || !password) {
         showAuthMessage('jb-reg-message', 'Completá todos los campos obligatorios.', 'error');
@@ -980,12 +1386,13 @@ window.handleJBRegister = async function() {
             formData._client_email = email;
             formData._client_name = name;
 
-            showAuthMessage('jb-reg-message', 'Cuenta creada.', 'success');
+            showAuthMessage('jb-reg-message', 'Cuenta creada. Publicando tu idea…', 'success');
 
-            // Re-render as logged-in user with summary
             setTimeout(() => {
-                renderAccountGate(document.querySelector('.jbr-step[data-step="account-gate"]'));
-            }, 800);
+                view = 'review';
+                renderView();
+                submitRequest();
+            }, 700);
         }
 
     } catch (error) {
@@ -1044,12 +1451,13 @@ window.handleJBLogin = async function() {
         formData._client_email = client?.email || email;
         formData._client_name = client?.full_name || data.user.user_metadata?.full_name || '';
 
-        showAuthMessage('jb-login-message', 'Sesión iniciada.', 'success');
+        showAuthMessage('jb-login-message', 'Sesión iniciada. Publicando tu idea…', 'success');
 
-        // Re-render as logged-in user
         setTimeout(() => {
-            renderAccountGate(document.querySelector('.jbr-step[data-step="account-gate"]'));
-        }, 800);
+            view = 'review';
+            renderView();
+            submitRequest();
+        }, 700);
 
     } catch (error) {
         console.error('Login error:', error);
@@ -1068,107 +1476,11 @@ function showAuthMessage(elementId, message, type) {
     const el = document.getElementById(elementId);
     if (!el) return;
     el.textContent = message;
-    el.className = 'jbr-msg jbr-msg--' + type;
+    el.className = 'jbrq-msg jbrq-msg--' + type;
 }
 
 // ============================================
-// SUMMARY CARD + SUBMIT
-// ============================================
-
-function renderSummaryAndSubmit(el, session, client) {
-    const styleDisplay = formatStyleDisplay();
-    const colorDisplay = formatColorDisplay();
-    const sizeDisplay = formatSizeDisplay();
-    const budgetDisplay = formatBudgetDisplay();
-
-    const summaryItem = (label, value) => `
-        <div class="jbr-summary-item">
-            <dt>${label}</dt>
-            <dd>${value}</dd>
-        </div>
-    `;
-
-    let refsHtml = '';
-    if (uploadedFiles.length > 0) {
-        refsHtml = '<div class="jbr-summary-refs">' + uploadedFiles.map((file, idx) =>
-            `<img src="${URL.createObjectURL(file)}" alt="Referencia ${idx + 1}">`
-        ).join('') + '</div>';
-    }
-
-    el.innerHTML = `
-        <div class="jbr-step-content">
-            <h2 class="jbr-title">Revisá tu publicación</h2>
-            <p class="jbr-subtitle">Así la van a ver los tatuadores en el Job Board.</p>
-
-            <div class="jbr-summary">
-                <span class="jbr-summary-eyebrow">Tu idea</span>
-                <p class="jbr-summary-desc">${escapeHtml(formData.tattoo_idea_description || '–')}</p>
-                ${refsHtml}
-                <dl class="jbr-summary-grid">
-                    ${summaryItem('Zona del cuerpo', escapeHtml(formData.tattoo_body_part || '–'))}
-                    ${summaryItem('Tamaño', sizeDisplay)}
-                    ${summaryItem('Estilo', escapeHtml(styleDisplay))}
-                    ${summaryItem('Color', colorDisplay)}
-                    ${summaryItem('Referencias', uploadedFiles.length > 0 ? uploadedFiles.length + (uploadedFiles.length === 1 ? ' imagen' : ' imágenes') : 'Ninguna')}
-                    ${budgetDisplay ? summaryItem('Presupuesto', budgetDisplay) : ''}
-                    ${formData.client_city ? summaryItem('Ciudad', escapeHtml(formData.client_city)) : ''}
-                    ${formData.preferred_date ? summaryItem('Fecha', `${formData.preferred_date}${formData.flexible_dates ? ' · flexible' : ''}`) : ''}
-                    ${formData.is_first_tattoo ? summaryItem('Primer tatuaje', 'Sí') : ''}
-                    ${formData.is_cover_up ? summaryItem('Cover-up', 'Sí') : ''}
-                    ${formData.travel_willing ? summaryItem('Viaje', 'Puedo viajar') : ''}
-                </dl>
-            </div>
-
-            <div class="jbr-submit-row">
-                <p class="jbr-logged-as">Publicás como <strong>${escapeHtml(formData._client_name || formData._client_email)}</strong></p>
-                <div class="jbr-submit-actions">
-                    <button type="button" class="wo-btn wo-btn--ghost" onclick="goBack()">← Editar</button>
-                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jb-btn-submit" onclick="submitRequest()">Publicar solicitud →</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function formatStyleDisplay() {
-    const styles = formData.tattoo_style;
-    if (!styles || (Array.isArray(styles) && styles.length === 0)) return 'Sin preferencia';
-    if (Array.isArray(styles)) return styles.join(', ');
-    return styles;
-}
-
-function formatColorDisplay() {
-    const map = {
-        'full_color': 'Color',
-        'black_grey': 'Blanco y negro',
-        'no_preference': 'Sin preferencia'
-    };
-    return map[formData.tattoo_color_type] || 'Sin preferencia';
-}
-
-function formatSizeDisplay() {
-    const map = {
-        'pequeno': 'Pequeño (< 5 cm)',
-        'mediano': 'Mediano (5 – 15 cm)',
-        'grande': 'Grande (15 – 30 cm)',
-        'muy_grande': 'Muy grande (> 30 cm)'
-    };
-    return map[formData.tattoo_size] || '–';
-}
-
-function formatBudgetDisplay() {
-    if (!formData.budget_min && !formData.budget_max) return '';
-    const currency = formData.budget_currency || 'USD';
-    if (formData.budget_min && formData.budget_max) {
-        return `$${formData.budget_min} – $${formData.budget_max} ${currency}`;
-    }
-    if (formData.budget_min) return `Desde $${formData.budget_min} ${currency}`;
-    if (formData.budget_max) return `Hasta $${formData.budget_max} ${currency}`;
-    return '';
-}
-
-// ============================================
-// SUBMIT REQUEST
+// SUBMIT REQUEST (cableado legacy preservado)
 // ============================================
 
 window.submitRequest = async function() {
@@ -1179,17 +1491,23 @@ window.submitRequest = async function() {
     }
     isSubmitting = true;
 
-    const btn = document.getElementById('jb-btn-submit');
+    const btn = document.getElementById('jbrq-btn-publish');
     const overlay = document.getElementById('loading-overlay');
 
     if (btn) {
         btn.disabled = true;
         btn.textContent = 'Publicando…';
     }
-    if (overlay) overlay.classList.remove('hidden');
+    if (overlay) overlay.classList.remove('wo-hidden');
 
     try {
         const tempId = crypto.randomUUID ? crypto.randomUUID() : generateTempId();
+
+        // Sin columna para "interpretación abierta": va como línea final de la descripción
+        const baseDescription = (formData.tattoo_idea_description || '').trim();
+        const finalDescription = formData.open_interpretation !== false
+            ? baseDescription + '\n\n' + OPEN_INTERP_MARK
+            : baseDescription;
 
         // 1. Upload reference images to Supabase Storage
         const attachmentPaths = [];
@@ -1214,8 +1532,9 @@ window.submitRequest = async function() {
 
         // 2. Build the styles value
         let stylesValue = null;
-        if (formData.tattoo_style && Array.isArray(formData.tattoo_style) && formData.tattoo_style.length > 0) {
-            stylesValue = JSON.stringify(formData.tattoo_style);
+        const stylesArray = selectedStylesArray();
+        if (stylesArray.length > 0) {
+            stylesValue = JSON.stringify(stylesArray);
         }
 
         // 3. Insert into job_board_requests
@@ -1223,7 +1542,7 @@ window.submitRequest = async function() {
             client_user_id: formData._user_id,
             tattoo_body_part: formData.tattoo_body_part || null,
             tattoo_body_side: formData.tattoo_body_side || null,
-            tattoo_idea_description: formData.tattoo_idea_description || null,
+            tattoo_idea_description: finalDescription || null,
             tattoo_size: formData.tattoo_size || null,
             tattoo_style: stylesValue,
             tattoo_color_type: formData.tattoo_color_type || null,
@@ -1284,9 +1603,9 @@ window.submitRequest = async function() {
                     client_email: formData._client_email,
                     client_name: formData._client_name,
                     tattoo_body_part: formData.tattoo_body_part,
-                    tattoo_idea_description: formData.tattoo_idea_description,
+                    tattoo_idea_description: finalDescription,
                     tattoo_size: formData.tattoo_size,
-                    tattoo_style: formData.tattoo_style,
+                    tattoo_style: stylesArray,
                     tattoo_color_type: formData.tattoo_color_type,
                     is_first_tattoo: !!formData.is_first_tattoo,
                     is_cover_up: !!formData.is_cover_up,
@@ -1298,7 +1617,7 @@ window.submitRequest = async function() {
                     flexible_dates: formData.flexible_dates || false,
                     travel_willing: formData.travel_willing || false,
                     reference_images_count: attachmentPaths.length,
-                    dashboard_url: window.location.origin + '/client/dashboard?tab=solicitudes'
+                    dashboard_url: window.location.origin + '/client/requests?id=' + insertedRequest.id
                 });
                 console.log('n8n event sent: job_board_request_created');
             } catch (webhookErr) {
@@ -1309,25 +1628,25 @@ window.submitRequest = async function() {
         // 6. Clear draft
         clearDraft();
 
-        // 7. Redirect to client dashboard
-        if (overlay) overlay.classList.add('hidden');
-        if (btn) btn.textContent = 'Solicitud publicada';
+        // 7. Redirect al seguimiento de la solicitud
+        if (overlay) overlay.classList.add('wo-hidden');
+        if (btn) btn.textContent = 'Idea publicada';
 
         console.log('Job board request submitted successfully:', insertedRequest.id);
 
         setTimeout(() => {
-            window.location.href = '/client/dashboard?tab=solicitudes';
-        }, 1500);
+            window.location.href = '/client/requests?id=' + insertedRequest.id;
+        }, 1200);
 
     } catch (error) {
         console.error('Error submitting request:', error);
         isSubmitting = false;
-        if (overlay) overlay.classList.add('hidden');
+        if (overlay) overlay.classList.add('wo-hidden');
         if (btn) {
             btn.disabled = false;
-            btn.textContent = 'Publicar solicitud →';
+            btn.textContent = 'Publicar idea →';
         }
-        showFormNotice('No pudimos publicar la solicitud. Probá de nuevo.');
+        showFormNotice('No pudimos publicar tu idea. Probá de nuevo.');
     }
 };
 
@@ -1336,134 +1655,43 @@ function generateTempId() {
 }
 
 // ============================================
-// VALIDATION
-// ============================================
-
-function validateCurrentStep() {
-    const step = STEPS[currentStep];
-    if (!step) return true;
-
-    switch (step.id) {
-        case 'welcome':
-            return true;
-
-        case 'body-part':
-            if (!formData.tattoo_body_part) {
-                shakeElement('#jb-body-zones');
-                showFormNotice('Elegí una zona del cuerpo');
-                return false;
-            }
-            return true;
-
-        case 'description':
-            // Sync current textarea value before validating
-            syncDescriptionField();
-            if (!formData.tattoo_idea_description || formData.tattoo_idea_description.trim().length < 10) {
-                showFormNotice('La descripción tiene que tener al menos 10 caracteres');
-                const textarea = document.getElementById('jb-description');
-                if (textarea) textarea.classList.add('wo-input--error');
-                return false;
-            }
-            return true;
-
-        case 'size':
-            if (!formData.tattoo_size) {
-                shakeElement('.jbr-step[data-step="size"] .jbr-cards');
-                showFormNotice('Elegí un tamaño');
-                return false;
-            }
-            return true;
-
-        case 'style':
-            // Optional - always valid
-            return true;
-
-        case 'color-refs':
-            // Optional - always valid
-            return true;
-
-        case 'preferences':
-            // Sync all preferences fields before proceeding
-            syncPreferencesFields();
-            return true;
-
-        case 'account-gate':
-            return true;
-
-        default:
-            return true;
-    }
-}
-
-function syncDescriptionField() {
-    const textarea = document.getElementById('jb-description');
-    if (textarea) {
-        formData.tattoo_idea_description = textarea.value;
-    }
-    const firstCb = document.getElementById('jb-first-tattoo');
-    if (firstCb) formData.is_first_tattoo = firstCb.checked;
-    const coverCb = document.getElementById('jb-cover-up');
-    if (coverCb) formData.is_cover_up = coverCb.checked;
-}
-
-function syncPreferencesFields() {
-    const fields = {
-        'jb-budget-min': 'budget_min',
-        'jb-budget-max': 'budget_max',
-        'jb-budget-currency': 'budget_currency',
-        'city-input': 'client_city',
-        'jb-pref-date': 'preferred_date'
-    };
-
-    Object.entries(fields).forEach(([elId, key]) => {
-        const el = document.getElementById(elId);
-        if (el) formData[key] = el.value;
-    });
-
-    const flexEl = document.getElementById('jb-flexible-dates');
-    if (flexEl) formData.flexible_dates = flexEl.checked;
-    const travelEl = document.getElementById('jb-travel-willing');
-    if (travelEl) formData.travel_willing = travelEl.checked;
-}
-
-// ============================================
 // UI HELPERS
 // ============================================
 
-function shakeElement(selector) {
-    const el = document.querySelector(selector);
-    if (!el) return;
-    el.style.animation = 'jbr-shake 0.5s ease';
-    setTimeout(() => { el.style.animation = ''; }, 500);
+function parseList(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        const raw = value.trim();
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+            return raw.split(',').map(s => s.trim()).filter(Boolean);
+        }
+    }
+    return [];
 }
 
 function showFormNotice(message) {
-    // Use a simple toast-like notice
-    let notice = document.getElementById('jb-notice');
+    let notice = document.getElementById('jbrq-notice');
     if (!notice) {
         notice = document.createElement('div');
-        notice.id = 'jb-notice';
-        notice.className = 'jbr-notice';
+        notice.id = 'jbrq-notice';
+        notice.className = 'jbrq-notice';
         document.body.appendChild(notice);
     }
     notice.textContent = message;
     notice.classList.add('is-visible');
-    setTimeout(() => {
+    clearTimeout(notice._timer);
+    notice._timer = setTimeout(() => {
         notice.classList.remove('is-visible');
     }, 3000);
 }
 
 function escapeHtml(text) {
-    if (!text) return '';
+    if (text === null || text === undefined) return '';
     const div = document.createElement('div');
-    div.appendChild(document.createTextNode(text));
+    div.appendChild(document.createTextNode(String(text)));
     return div.innerHTML;
 }
-
-// ============================================
-// EXPORT GLOBALS (onclick handlers in HTML)
-// ============================================
-
-window.goToStep = goToStep;
-window.goBack = goBack;
-window.handleNext = handleNext;

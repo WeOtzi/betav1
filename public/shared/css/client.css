@@ -302,3 +302,8 @@
   .client-footer-inner{grid-template-columns:1fr;gap:var(--space-6)}
   .client-feed-row{gap:var(--space-3)}
 }
+
+/* Rediseno 2026: el tab Solicitudes del dashboard es ahora un <a> a
+   /client/requests; el generico `.wo-app a` lo pintaria azul. */
+a.tab-btn { color: var(--neutral-400); text-decoration: none; }
+a.tab-btn:hover { text-decoration: none; }

@@ -1,0 +1,125 @@
+/* ============================================================================
+   We Ötzi · Centro de cuenta del cliente (/client/profile)
+   Piel DS Bauhaus. Patrón sidebar + secciones derivado del centro de cuenta
+   del artista (Figma 156:10014…162:15088) aplicado a la entidad cliente.
+   Requiere tokens.css + components.css antes. Prefijo de página: cpa-.
+   ========================================================================== */
+
+[hidden]{display:none!important}
+
+/* ---------- Topbar ---------- */
+.cpa-topbar{position:sticky;top:0;z-index:100}
+.cpa-tile{display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;padding:0;flex:none;overflow:hidden;
+  background:var(--yellow-300);color:var(--neutral-500);
+  font-family:var(--font-display);font-size:16px;text-transform:uppercase;
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);
+  text-decoration:none;
+  transition:transform var(--duration-press),box-shadow var(--duration-press)}
+.wo-app a.cpa-tile:hover{color:var(--neutral-500);text-decoration:none;transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.wo-app a.cpa-tile:active{transform:none;box-shadow:none}
+.cpa-tile img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---------- Shell: sidebar + contenido ---------- */
+.cpa-shell{display:grid;grid-template-columns:256px minmax(0,1fr);min-height:calc(100vh - 64px)}
+
+.cpa-sidebar{border-right:var(--border-hairline) solid var(--border-subtle);
+  padding:var(--space-8) var(--space-4);display:flex;flex-direction:column;gap:var(--space-1)}
+.cpa-side-item{display:flex;align-items:center;gap:var(--space-3);
+  padding:var(--space-3) var(--space-4);
+  font-family:var(--font-body);font-size:var(--body-s-size);font-weight:var(--weight-medium);
+  color:var(--text-body);text-decoration:none;
+  border-left:var(--border-rule-width) solid transparent;border-radius:var(--radius-none)}
+.cpa-side-item [data-wo-icon]{width:18px;height:18px}
+.wo-app a.cpa-side-item:hover{background:var(--neutral-200);color:var(--text-body);text-decoration:none}
+.wo-app a.cpa-side-item.is-active{background:var(--blue-100);border-left-color:var(--blue-400);
+  color:var(--blue-300);font-weight:var(--weight-semibold)}
+
+.cpa-content{padding:var(--space-10) var(--space-12) var(--space-16);max-width:920px;box-sizing:border-box}
+
+/* ---------- Encabezado de sección ---------- */
+.cpa-section-head{margin-bottom:var(--space-8)}
+.cpa-title{font-family:var(--font-display);font-size:var(--title-lg-size);line-height:var(--h1-lh);
+  letter-spacing:var(--h1-track);color:var(--text-heading);margin:0}
+.cpa-sub{margin:var(--space-2) 0 0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted)}
+
+/* ---------- Formularios ---------- */
+.cpa-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5) var(--space-6)}
+.cpa-span-2{grid-column:1/-1}
+.cpa-eyebrow-gap{margin:var(--space-8) 0 var(--space-4)}
+
+/* Input con ícono a la izquierda */
+.cpa-input-wrap{position:relative}
+.cpa-input-wrap [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);
+  width:18px;height:18px;color:var(--text-faint);pointer-events:none}
+.cpa-input-wrap .wo-input{padding-left:var(--space-10)}
+.cpa-input-wrap .wo-input:focus{padding-left:calc(var(--space-10) - 1px)}
+
+/* Avatar del cliente */
+.cpa-avatar-row{display:flex;align-items:center;gap:var(--space-5);margin-bottom:var(--space-8)}
+.cpa-avatar{width:96px;height:96px;flex:none;overflow:hidden;
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-pill);
+  background:var(--surface-media);display:grid;place-items:center;
+  font-family:var(--font-display);font-size:28px;color:var(--text-heading)}
+.cpa-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* Acciones + feedback de guardado */
+.cpa-actions{margin-top:var(--space-8);display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap}
+.cpa-status{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);
+  text-transform:uppercase;color:var(--text-muted)}
+.cpa-status.is-error{color:var(--status-error-fg)}
+
+/* ---------- Matriz de notificaciones ---------- */
+.cpa-matrix-head{display:grid;grid-template-columns:minmax(0,1fr) 96px 96px;gap:var(--space-4);
+  align-items:end;padding-bottom:var(--space-3);
+  border-bottom:var(--border-strong-width) solid var(--border-strong)}
+.cpa-matrix-row{display:grid;grid-template-columns:minmax(0,1fr) 96px 96px;gap:var(--space-4);
+  align-items:center;padding:var(--space-4) 0;
+  border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.cpa-matrix-col{text-align:center;justify-self:center}
+.cpa-soon-note{display:block;margin-top:var(--space-1);font-family:var(--font-mono);
+  font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;
+  color:var(--text-faint)}
+.cpa-soon .knob{opacity:var(--opacity-disabled)}
+.cpa-soon input{cursor:not-allowed}
+
+.cpa-row-title{margin:0;font-size:var(--body-m-size);font-weight:var(--weight-semibold);color:var(--text-body)}
+.cpa-row-help{margin:var(--space-1) 0 0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+
+/* ---------- Zona de peligro (Seguridad) ---------- */
+.cpa-danger{border:var(--border-hairline) solid var(--system-error);padding:var(--space-6);
+  margin-top:var(--space-12)}
+.cpa-danger-title{margin:0 0 var(--space-2);font-size:var(--body-m-size);font-weight:var(--weight-bold);
+  color:var(--text-danger)}
+.cpa-danger-copy{margin:0 0 var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh);
+  color:var(--text-body)}
+
+/* ---------- Modo perfil público (?client=alias) ---------- */
+.cpa-public{max-width:960px;margin:0 auto;padding:var(--space-12) var(--space-6) var(--space-16);box-sizing:border-box}
+.cpa-public-msg{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);
+  text-transform:uppercase;color:var(--text-muted);margin:0 0 var(--space-6)}
+.cpa-public-hero{display:grid;grid-template-columns:120px minmax(0,1fr);gap:var(--space-8);align-items:center;
+  border:var(--border-strong-width) solid var(--border-strong);background:var(--surface-card);
+  padding:var(--space-8);margin-bottom:var(--space-10)}
+.cpa-public-avatar{width:120px;height:120px;flex:none;overflow:hidden;
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-pill);
+  background:var(--surface-media);display:grid;place-items:center;
+  font-family:var(--font-display);font-size:36px;color:var(--text-heading)}
+.cpa-public-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.cpa-public-name{font-family:var(--font-display);font-size:var(--title-xl-size);line-height:var(--h1-lh);
+  letter-spacing:var(--h1-track);color:var(--text-heading);margin:var(--space-2) 0;word-break:break-word}
+
+/* ---------- Responsive ---------- */
+@media (max-width:900px){
+  .cpa-shell{grid-template-columns:1fr;min-height:0}
+  .cpa-sidebar{flex-direction:row;overflow-x:auto;gap:var(--space-2);
+    border-right:0;border-bottom:var(--border-hairline) solid var(--border-subtle);
+    padding:var(--space-2) var(--space-4)}
+  .cpa-side-item{border-left:0;border-bottom:var(--border-rule-width) solid transparent;white-space:nowrap;flex:none}
+  .wo-app a.cpa-side-item.is-active{border-bottom-color:var(--blue-400)}
+  .cpa-content{padding:var(--space-8) var(--space-4) var(--space-12);max-width:100%}
+  .cpa-grid-2{grid-template-columns:1fr}
+  .cpa-matrix-head,.cpa-matrix-row{grid-template-columns:minmax(0,1fr) 64px 64px;gap:var(--space-2)}
+  .cpa-public{padding:var(--space-8) var(--space-4) var(--space-12)}
+  .cpa-public-hero{grid-template-columns:1fr;justify-items:start}
+}
