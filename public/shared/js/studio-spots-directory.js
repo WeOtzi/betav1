@@ -806,7 +806,7 @@
             </div>
 
             <div class="sps-sent-actions">
-                <a href="/my-quotations?tab=applications" class="wo-btn wo-btn--direct wo-btn--hard">
+                <a href="/artist/applications?tab=spots" class="wo-btn wo-btn--direct wo-btn--hard">
                     Ver mis postulaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                 </a>
                 <button type="button" class="wo-btn wo-btn--secondary wo-btn--hard" id="spot-keep-browsing">Seguir explorando spots</button>

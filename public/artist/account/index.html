@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Mi cuenta</title>
+    <meta name="description" content="Centro de la cuenta del artista: perfil, portafolio, cobros, disponibilidad, notificaciones, seguridad, integraciones, verificación y configuración.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/artist-account-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app">
+
+    <!-- ==================== Topbar de artista (sin item activo: la sección
+         activa es la cuenta, representada por el tile Ö) ==================== -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a class="wo-topbar-item" href="/my-quotations">Cotizaciones</a>
+                <a class="wo-topbar-item" href="/job-board">Job board</a>
+                <a class="wo-topbar-item" href="/studio-spots">Spots</a>
+                <a class="wo-topbar-item" href="/calendar">Calendario</a>
+                <a class="wo-topbar-item" href="/my-quotations/statistics">Estadísticas</a>
+                <a class="wo-topbar-item" href="/artist/travel">Travel</a>
+                <a class="wo-topbar-item" href="/artist/inbox">Inbox</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a href="/artist/account" class="aac-otile-link" aria-current="page" aria-label="Tu cuenta">
+                <span class="wo-o-tile" aria-hidden="true">Ö</span>
+            </a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" id="aac-logout">Log out</button>
+        </div>
+    </header>
+
+    <div class="aac-shell">
+
+        <!-- ==================== Sidebar de 9 secciones ==================== -->
+        <nav class="wo-sidebar aac-sidebar" aria-label="Secciones de la cuenta">
+            <a class="wo-sidebar-item is-active" href="#perfil" data-aac-nav="perfil"><i data-wo-icon="user" aria-hidden="true"></i>Mi perfil</a>
+            <a class="wo-sidebar-item" href="#portafolio" data-aac-nav="portafolio"><i data-wo-icon="image" aria-hidden="true"></i>Portafolio</a>
+            <a class="wo-sidebar-item" href="#cobros" data-aac-nav="cobros"><i data-wo-icon="dollar-sign" aria-hidden="true"></i>Cobros y facturación</a>
+            <a class="wo-sidebar-item" href="#disponibilidad" data-aac-nav="disponibilidad"><i data-wo-icon="calendar" aria-hidden="true"></i>Disponibilidad</a>
+            <a class="wo-sidebar-item" href="#notificaciones" data-aac-nav="notificaciones"><i data-wo-icon="bell" aria-hidden="true"></i>Notificaciones</a>
+            <a class="wo-sidebar-item" href="#seguridad" data-aac-nav="seguridad"><i data-wo-icon="lock" aria-hidden="true"></i>Seguridad y privacidad</a>
+            <a class="wo-sidebar-item" href="#integraciones" data-aac-nav="integraciones"><i data-wo-icon="link-2" aria-hidden="true"></i>Integraciones</a>
+            <a class="wo-sidebar-item" href="#verificacion" data-aac-nav="verificacion"><i data-wo-icon="check-circle" aria-hidden="true"></i>Verificación</a>
+            <a class="wo-sidebar-item" href="#configuracion" data-aac-nav="configuracion"><i data-wo-icon="settings" aria-hidden="true"></i>Configuración</a>
+        </nav>
+
+        <main class="aac-content" id="aac-content">
+
+            <!-- ==================== 1 · Mi perfil (156:10014) ==================== -->
+            <section class="aac-section" id="aac-perfil">
+                <h1 class="aac-title">Mi perfil</h1>
+                <p class="aac-sub">Así te van a ver los clientes y estudios en We Ötzi.</p>
+
+                <div class="aac-banner">
+                    <label class="wo-dropzone aac-drop aac-banner-drop" id="aac-banner-drop">
+                        <i data-wo-icon="image" aria-hidden="true"></i>
+                        <span class="aac-drop-title">Banner de perfil (opcional)</span>
+                        <span class="aac-drop-hint">o buscá archivos</span>
+                        <input type="file" id="aac-banner-input" accept="image/*">
+                    </label>
+                    <label class="wo-dropzone aac-drop aac-photo-drop" id="aac-photo-drop">
+                        <span class="aac-drop-title">Foto</span>
+                        <span class="aac-drop-hint">o buscá archivos</span>
+                        <input type="file" id="aac-photo-input" accept="image/*">
+                    </label>
+                </div>
+
+                <div class="aac-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-name">Nombre artístico</label>
+                        <input class="wo-input" id="aac-name" type="text" autocomplete="off">
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-fullname">Nombre completo</label>
+                        <input class="wo-input" id="aac-fullname" type="text" autocomplete="name">
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-username">Nombre de usuario</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="user" aria-hidden="true"></i>
+                            <input class="wo-input" id="aac-username" type="text" autocomplete="off" spellcheck="false">
+                        </div>
+                        <p class="wo-error-msg" id="aac-username-error" hidden></p>
+                    </div>
+                    <div class="wo-field">
+                        <span class="wo-label" id="aac-langs-label">Idiomas</span>
+                        <div class="aac-chips" id="aac-langs" role="group" aria-labelledby="aac-langs-label"></div>
+                    </div>
+                    <div class="wo-field aac-field-full">
+                        <label class="wo-label" for="aac-bio">Biografía</label>
+                        <textarea class="wo-textarea" id="aac-bio" rows="4"></textarea>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-city">Ciudad</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="map-pin" aria-hidden="true"></i>
+                            <input class="wo-input" id="aac-city" type="text" autocomplete="address-level2">
+                        </div>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-country">País</label>
+                        <input class="wo-input" id="aac-country" type="text" autocomplete="country-name">
+                    </div>
+                </div>
+
+                <span class="wo-eyebrow aac-eyebrow">Redes sociales</span>
+                <div class="aac-grid2">
+                    <div class="wo-field aac-field-full">
+                        <label class="wo-label" for="aac-instagram">Instagram</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="instagram" aria-hidden="true"></i>
+                            <input class="wo-input" id="aac-instagram" type="text" placeholder="@usuario" spellcheck="false">
+                        </div>
+                    </div>
+                    <div class="wo-field aac-field-full">
+                        <label class="wo-label" for="aac-tiktok">TikTok</label>
+                        <input class="wo-input" id="aac-tiktok" type="text" placeholder="@usuario" spellcheck="false">
+                    </div>
+                    <div class="wo-field aac-field-full">
+                        <label class="wo-label" for="aac-website">Sitio web</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="external-link" aria-hidden="true"></i>
+                            <input class="wo-input" id="aac-website" type="text" placeholder="tusitio.com" spellcheck="false">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="aac-actions">
+                    <button type="button" class="wo-btn wo-btn--direct" id="aac-profile-save">Guardar cambios <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></button>
+                </div>
+            </section>
+
+            <!-- ==================== 2 · Portafolio (156:10807) ==================== -->
+            <section class="aac-section" id="aac-portafolio" hidden>
+                <h1 class="aac-title">Portafolio</h1>
+                <p class="aac-sub">Los trabajos que se muestran en tu perfil público.</p>
+
+                <div class="aac-works" id="aac-works"></div>
+
+                <div class="aac-actions">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-works-add"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i> Agregar trabajo</button>
+                    <input type="file" id="aac-works-input" accept="image/*" multiple hidden>
+                </div>
+            </section>
+
+            <!-- ==================== 3 · Cobros y facturación (156:11993) ==================== -->
+            <section class="aac-section" id="aac-cobros" hidden>
+                <h1 class="aac-title">Cobros y facturación</h1>
+                <p class="aac-sub">Tu actividad financiera dentro de We Ötzi.</p>
+
+                <div class="wo-statstrip aac-statstrip">
+                    <div class="wo-stat aac-stat-ink">
+                        <span class="wo-stat-label">Ingresos del mes</span>
+                        <span class="wo-stat-value" id="aac-stat-month">—</span>
+                    </div>
+                    <div class="wo-stat">
+                        <span class="wo-stat-label">Ingresos totales</span>
+                        <span class="wo-stat-value" id="aac-stat-total">—</span>
+                    </div>
+                    <div class="wo-stat">
+                        <span class="wo-stat-label">Cotizaciones completadas</span>
+                        <span class="wo-stat-value" id="aac-stat-count">—</span>
+                    </div>
+                </div>
+
+                <span class="wo-eyebrow aac-eyebrow">Movimientos</span>
+                <div class="aac-moves">
+                    <div class="wo-empty">
+                        <i data-wo-icon="inbox" aria-hidden="true"></i>
+                        <span class="wo-empty-title">Sin movimientos todavía</span>
+                        <p>Cuando cobres a través de We Ötzi vas a ver el detalle acá.</p>
+                    </div>
+                </div>
+
+                <span class="wo-eyebrow aac-eyebrow">Datos fiscales</span>
+                <div class="aac-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-legal-name">Razón social / nombre fiscal</label>
+                        <input class="wo-input" id="aac-legal-name" type="text" autocomplete="off">
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-tax-id">CUIT / identificación fiscal</label>
+                        <input class="wo-input" id="aac-tax-id" type="text" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+                <div class="aac-actions">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-billing-save">Guardar datos fiscales</button>
+                </div>
+
+                <div class="aac-methods-head">
+                    <div>
+                        <h2 class="aac-h2">Métodos de pago</h2>
+                        <p class="aac-sub" style="margin-bottom:0">Dónde recibís los pagos de tus clientes y estudios.</p>
+                    </div>
+                    <button type="button" class="wo-btn wo-btn--ghost" disabled><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i> Agregar método</button>
+                </div>
+                <div class="wo-card wo-card--flat aac-soon-card" style="margin-top:var(--space-6)">
+                    <div class="aac-row" style="border-bottom:0;padding:0">
+                        <span class="aac-row-tile"><i data-wo-icon="credit-card" aria-hidden="true"></i></span>
+                        <div class="aac-row-main">
+                            <div class="aac-row-title">Métodos de pago · próximamente</div>
+                            <div class="aac-row-sub">Los métodos de pago se van a gestionar con cada proveedor. Nunca te vamos a pedir el número de tu tarjeta acá.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 4 · Disponibilidad (156:12247) ==================== -->
+            <section class="aac-section" id="aac-disponibilidad" hidden>
+                <h1 class="aac-title">Disponibilidad</h1>
+                <p class="aac-sub">Definí cuándo estás disponible para tomar clientes.</p>
+
+                <span class="wo-eyebrow aac-eyebrow" style="margin-top:0">Días laborales</span>
+                <div id="aac-days"></div>
+
+                <div class="aac-grid2" style="margin-top:var(--space-6)">
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-vac-from">Vacaciones — desde</label>
+                        <input class="wo-input" id="aac-vac-from" type="date">
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-vac-to">Vacaciones — hasta</label>
+                        <input class="wo-input" id="aac-vac-to" type="date">
+                    </div>
+                </div>
+
+                <span class="wo-eyebrow aac-eyebrow">Sincronización externa</span>
+                <div class="aac-row is-soon">
+                    <span class="aac-row-tile"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
+                    <div class="aac-row-main"><div class="aac-row-title">Google Calendar</div></div>
+                    <div class="aac-row-side"><span class="aac-state aac-state--soon">Próximamente</span></div>
+                </div>
+                <div class="aac-row is-soon">
+                    <span class="aac-row-tile"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
+                    <div class="aac-row-main"><div class="aac-row-title">Apple Calendar</div></div>
+                    <div class="aac-row-side"><span class="aac-state aac-state--soon">Próximamente</span></div>
+                </div>
+            </section>
+
+            <!-- ==================== 5 · Notificaciones (158:13029) ==================== -->
+            <section class="aac-section" id="aac-notificaciones" hidden>
+                <h1 class="aac-title">Notificaciones</h1>
+                <p class="aac-sub">Elegí cómo y cuándo querés que te avisemos.</p>
+
+                <div class="aac-matrix-head">
+                    <span></span>
+                    <span class="aac-matrix-col">Email</span>
+                    <span class="aac-matrix-col aac-matrix-col--soon">Push</span>
+                </div>
+                <div id="aac-notif-rows"></div>
+                <p class="aac-footnote">Las notificaciones push llegan próximamente.</p>
+            </section>
+
+            <!-- ==================== 6 · Seguridad y Privacidad (158:13480) ==================== -->
+            <section class="aac-section" id="aac-seguridad" hidden>
+                <h1 class="aac-title">Seguridad</h1>
+                <p class="aac-sub">Protegé el acceso a tu cuenta.</p>
+
+                <span class="wo-eyebrow aac-eyebrow" style="margin-top:0">Contraseña</span>
+                <div class="aac-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-pass-current">Contraseña actual</label>
+                        <input class="wo-input" id="aac-pass-current" type="password" autocomplete="current-password">
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-pass-new">Nueva contraseña</label>
+                        <input class="wo-input" id="aac-pass-new" type="password" autocomplete="new-password">
+                        <p class="wo-help">Mínimo 8 caracteres.</p>
+                    </div>
+                </div>
+                <p class="wo-error-msg" id="aac-pass-error" hidden></p>
+                <div class="aac-actions" style="margin-top:var(--space-4)">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-pass-save">Actualizar contraseña</button>
+                </div>
+
+                <div class="aac-togglerow is-soon">
+                    <div class="aac-togglerow-main">
+                        <div class="aac-row-title">Autenticación en dos pasos · próximamente</div>
+                        <div class="aac-row-sub">Vamos a pedir un código extra cada vez que inicies sesión desde un dispositivo nuevo.</div>
+                    </div>
+                    <label class="wo-toggle"><input type="checkbox" disabled><span class="knob"></span></label>
+                </div>
+
+                <span class="wo-eyebrow aac-eyebrow">Sesión</span>
+                <div class="aac-row">
+                    <div class="aac-row-main">
+                        <div class="aac-row-title" id="aac-device-title">Este navegador</div>
+                        <div class="aac-row-sub wo-meta" id="aac-device-sub">Activo ahora</div>
+                    </div>
+                    <div class="aac-row-side"><span class="aac-badge aac-badge--info">Este dispositivo</span></div>
+                </div>
+                <p class="aac-footnote">Por ahora solo mostramos la sesión de este dispositivo.</p>
+                <div class="aac-actions" style="margin-top:var(--space-4)">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-close-others">Cerrar las demás sesiones</button>
+                </div>
+
+                <div class="aac-danger">
+                    <p class="aac-danger-title">Eliminar cuenta</p>
+                    <p>Esta acción es permanente. Se elimina tu perfil, portafolio y todo tu historial en We Ötzi.</p>
+                    <a class="wo-btn wo-btn--ghost" href="mailto:artistas@weotzi.com?subject=Quiero%20eliminar%20mi%20cuenta">Solicitar eliminación</a>
+                </div>
+
+                <div class="aac-block-gap">
+                    <h1 class="aac-title">Privacidad</h1>
+                    <p class="aac-sub">Controlá qué información es pública en tu perfil.</p>
+                    <div id="aac-privacy-rows"></div>
+                </div>
+            </section>
+
+            <!-- ==================== 7 · Integraciones (161:14150) ==================== -->
+            <section class="aac-section" id="aac-integraciones" hidden>
+                <h1 class="aac-title">Integraciones</h1>
+                <p class="aac-sub">Conectá We Ötzi con otras herramientas que ya usás.</p>
+
+                <div class="aac-row is-soon">
+                    <span class="aac-row-tile"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
+                    <div class="aac-row-main">
+                        <div class="aac-row-title">Google Calendar</div>
+                        <div class="aac-row-sub">Sincronizá tu disponibilidad automáticamente.</div>
+                    </div>
+                    <div class="aac-row-side"><span class="aac-state aac-state--soon">Próximamente</span></div>
+                </div>
+                <div class="aac-row">
+                    <span class="aac-row-tile"><i data-wo-icon="instagram" aria-hidden="true"></i></span>
+                    <div class="aac-row-main">
+                        <div class="aac-row-title">Instagram</div>
+                        <div class="aac-row-sub" id="aac-ig-sub">Importá publicaciones a tu portafolio. <a href="/artist/dashboard">Gestioná la importación desde tu dashboard →</a></div>
+                    </div>
+                    <div class="aac-row-side"><span class="aac-state" id="aac-ig-state">Sin conectar</span></div>
+                </div>
+                <div class="aac-row is-soon">
+                    <span class="aac-row-tile"><i data-wo-icon="dollar-sign" aria-hidden="true"></i></span>
+                    <div class="aac-row-main">
+                        <div class="aac-row-title">Stripe</div>
+                        <div class="aac-row-sub">Procesá pagos internacionales de clientes.</div>
+                    </div>
+                    <div class="aac-row-side"><span class="aac-state aac-state--soon">Próximamente</span></div>
+                </div>
+                <div class="aac-row is-soon">
+                    <span class="aac-row-tile"><i data-wo-icon="message-circle" aria-hidden="true"></i></span>
+                    <div class="aac-row-main">
+                        <div class="aac-row-title">WhatsApp Business</div>
+                        <div class="aac-row-sub">Recibí notificaciones de mensajes por WhatsApp.</div>
+                    </div>
+                    <div class="aac-row-side"><span class="aac-state aac-state--soon">Próximamente</span></div>
+                </div>
+            </section>
+
+            <!-- ==================== 8 · Verificación (161:14507) ==================== -->
+            <section class="aac-section" id="aac-verificacion" hidden>
+                <h1 class="aac-title">Verificación</h1>
+                <p class="aac-sub">Un perfil verificado genera más confianza y prioridad en el Job board.</p>
+
+                <div id="aac-verif-alert"></div>
+
+                <span class="wo-eyebrow aac-eyebrow">Documentos</span>
+                <div id="aac-docs"></div>
+                <p class="aac-footnote" id="aac-docs-note" hidden>La carga de documentos se habilita próximamente.</p>
+            </section>
+
+            <!-- ==================== 9 · Configuración (162:15088) ==================== -->
+            <section class="aac-section" id="aac-configuracion" hidden>
+                <h1 class="aac-title">Configuración</h1>
+                <p class="aac-sub">Preferencias generales de la plataforma.</p>
+
+                <span class="wo-eyebrow aac-eyebrow" style="margin-top:0">Región</span>
+                <div class="aac-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-currency">Moneda preferida</label>
+                        <select class="wo-select" id="aac-currency"></select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-timezone">Zona horaria</label>
+                        <select class="wo-select" id="aac-timezone"></select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-dateformat">Formato de fecha</label>
+                        <select class="wo-select" id="aac-dateformat">
+                            <option value="DD/MM/AAAA">DD/MM/AAAA</option>
+                            <option value="MM/DD/AAAA">MM/DD/AAAA</option>
+                            <option value="AAAA-MM-DD">AAAA-MM-DD</option>
+                        </select>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-timeformat">Formato de hora</label>
+                        <select class="wo-select" id="aac-timeformat">
+                            <option value="24h">24 horas</option>
+                            <option value="12h">12 horas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <span class="wo-eyebrow aac-eyebrow">Plataforma</span>
+                <div class="aac-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="aac-language">Idioma de la plataforma</label>
+                        <select class="wo-select" id="aac-language">
+                            <option value="es">Español</option>
+                            <option value="en" disabled>English · próximamente</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="aac-footnote">Los cambios se guardan automáticamente.</p>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Toast de feedback -->
+    <div class="wo-alert wo-alert--success aac-toast" id="aac-toast" role="status" aria-live="polite">
+        <i data-wo-icon="check-circle" aria-hidden="true"></i>
+        <span id="aac-toast-text">Cambios guardados</span>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/data/quotations-repo.js"></script>
+    <script src="/shared/js/data/account-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/artist-account.js"></script>
+</body>
+</html>

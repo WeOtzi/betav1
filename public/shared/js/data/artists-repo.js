@@ -42,6 +42,14 @@
         'verification_state, ms_profile_complete, ms_first_quote_received, ' +
         'ms_first_quote_completed, ms_whatsapp_shared, ms_profile_shared, profile_completeness';
 
+    // Proyeccion del centro de la cuenta (/artist/account): perfil editable,
+    // redes, galeria, vacaciones, verificacion y preferencias de moneda.
+    const ACCOUNT_SELECT =
+        'id, user_id, username, name, email, city, country, ubicacion, languages, ' +
+        'bio_description, instagram, portafolio, profile_picture, gallery_images, ' +
+        'gallery_feed_items, vacation_start, vacation_end, verification_state, ' +
+        'preferred_display_currency, session_price_currency';
+
     // Proyeccion del perfil del artista para auth/onboarding (ARTIST_PROFILE_SELECT,
     // sin password). Usada por main.js, artist-login.js.
     const PROFILE_SELECT =
@@ -88,6 +96,12 @@
         // Cubre dashboard.js:693. columns FIJAS (DASHBOARD_SELECT). .maybeSingle().
         getDashboardByUserId(userId) {
             return from('artists_db').select(DASHBOARD_SELECT).eq('user_id', userId).maybeSingle();
+        },
+
+        // Registro del centro de la cuenta (/artist/account). columns FIJAS
+        // (ACCOUNT_SELECT). .maybeSingle(). Cubre artist-account.js.
+        getAccountByUserId(userId) {
+            return from('artists_db').select(ACCOUNT_SELECT).eq('user_id', userId).maybeSingle();
         },
 
         // Perfil del artista para auth/onboarding (ARTIST_PROFILE_SELECT, sin

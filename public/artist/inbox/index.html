@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WE ÖTZI | Inbox</title>
+    <meta name="description" content="Inbox del artista: mensajes de clientes por cotización y chat con el equipo de soporte, en un solo lugar.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/artist-inbox-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app ai-page">
+
+    <!-- TopBar canónica de artista · INBOX activo -->
+    <header class="wo-topbar ai-topbar">
+        <div class="wo-topbar-left">
+            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
+                <a href="/job-board" class="wo-topbar-item">Job board</a>
+                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
+                <a href="/calendar" class="wo-topbar-item">Calendario</a>
+                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
+                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
+                <a href="/artist/inbox" class="wo-topbar-item is-active" aria-current="page">Inbox<span class="ai-navcount" id="ai-nav-unread" hidden>0</span></a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <button class="wo-btn wo-btn--ghost wo-btn--s ai-menu-toggle" id="ai-menu-toggle" type="button" aria-expanded="false" aria-controls="ai-mobile-menu">Menú</button>
+            <a href="/artist/account" class="wo-o-tile" aria-label="Centro de la cuenta">Ö</a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono wo-btn--s" id="ai-logout">Log out</button>
+        </div>
+    </header>
+    <nav class="ai-mobile-menu" id="ai-mobile-menu" aria-label="Navegación móvil de artista" hidden>
+        <a href="/my-quotations">Cotizaciones</a>
+        <a href="/job-board">Job board</a>
+        <a href="/studio-spots">Spots</a>
+        <a href="/calendar">Calendario</a>
+        <a href="/my-quotations/statistics">Estadísticas</a>
+        <a href="/artist/travel">Travel</a>
+        <a href="/artist/inbox" class="is-active">Inbox</a>
+        <a href="/artist/account">Cuenta</a>
+    </nav>
+
+    <main class="ai-shell" id="ai-shell">
+
+        <!-- Zona 1 · Sidebar de filtros -->
+        <aside class="ai-side" aria-label="Filtros del inbox">
+            <h1 class="ai-side-title">Mensajes</h1>
+
+            <div class="ai-search">
+                <i data-wo-icon="search" class="wo-icon-18 ai-search-ic" aria-hidden="true"></i>
+                <input type="search" id="ai-search" class="wo-input ai-search-input" placeholder="Buscar conversación…" aria-label="Buscar conversación" autocomplete="off">
+            </div>
+
+            <nav class="ai-side-list" aria-label="Categorías">
+                <button type="button" class="wo-sidebar-item ai-side-item is-active" data-filter="all">Todos<span class="ai-side-count wo-mono-num" id="ai-count-all">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="quotes">Cotizaciones<span class="ai-side-count wo-mono-num" id="ai-count-quotes">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="support">Soporte<span class="ai-side-count wo-mono-num" id="ai-count-support">1</span></button>
+                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Spots<span class="ai-side-soon">Próximamente</span></span>
+                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Invitaciones<span class="ai-side-soon">Próximamente</span></span>
+                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Estudios<span class="ai-side-soon">Próximamente</span></span>
+                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Viajes<span class="ai-side-soon">Próximamente</span></span>
+                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Archivados<span class="ai-side-soon">Próximamente</span></span>
+                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Favoritas<span class="ai-side-soon">Próximamente</span></span>
+            </nav>
+
+            <div class="ai-summary" aria-label="Resumen">
+                <p class="wo-eyebrow ai-summary-cap">RESUMEN</p>
+                <div class="ai-summary-row"><span>Sin leer</span><span class="wo-mono-num ai-sum-n is-waiting" id="ai-sum-unread">0</span></div>
+                <div class="ai-summary-row"><span>Respondidas</span><span class="wo-mono-num ai-sum-n" id="ai-sum-replied">0</span></div>
+                <div class="ai-summary-row"><span>Esperando respuesta</span><span class="wo-mono-num ai-sum-n is-waiting" id="ai-sum-waiting">0</span></div>
+            </div>
+        </aside>
+
+        <!-- Zona 2 · Lista de conversaciones -->
+        <section class="ai-listcol" aria-label="Conversaciones">
+            <header class="ai-list-head">
+                <span class="wo-meta" id="ai-list-cap">TODAS · 0</span>
+            </header>
+            <div class="ai-list" id="ai-list" role="list">
+                <div class="ai-list-loading" id="ai-list-loading">
+                    <span class="wo-spinner" aria-hidden="true"></span>
+                    <span class="wo-meta-s">Cargando conversaciones</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Zona 3 · Hilo -->
+        <section class="ai-threadcol" id="ai-threadcol" aria-label="Conversación">
+            <div class="wo-empty ai-thread-placeholder" id="ai-thread-placeholder">
+                <i data-wo-icon="message-circle" aria-hidden="true"></i>
+                <span class="wo-empty-title">Elegí una conversación</span>
+                <p>Acá vas a ver tus mensajes con clientes y con el equipo de soporte.</p>
+            </div>
+
+            <div class="ai-thread" id="ai-thread" hidden>
+                <header class="ai-thread-head" id="ai-thread-head"></header>
+                <div class="ai-messages" id="ai-messages" aria-live="polite"></div>
+                <div class="ai-support-empty" id="ai-support-empty" hidden>
+                    <div class="wo-empty">
+                        <i data-wo-icon="life-buoy" aria-hidden="true"></i>
+                        <span class="wo-empty-title">Todavía no hablaste con soporte</span>
+                        <p>Si necesitás ayuda con tu cuenta o tus cotizaciones, escribinos.</p>
+                        <button type="button" class="wo-btn" id="ai-support-cta" hidden>Abrir chat de soporte</button>
+                    </div>
+                </div>
+                <form class="ai-composer" id="ai-composer" autocomplete="off">
+                    <input type="text" id="ai-input" class="wo-input ai-composer-input" placeholder="Escribí un mensaje…" aria-label="Mensaje" maxlength="2000">
+                    <button type="submit" class="wo-btn ai-send" id="ai-send" disabled><i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>Enviar</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Zona 4 · Panel de contexto -->
+        <aside class="ai-context" id="ai-context" aria-label="Contexto de la conversación" hidden></aside>
+
+    </main>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/quotations-repo.js"></script>
+    <script src="/shared/js/data/support-client-repo.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/artist-inbox.js"></script>
+</body>
+</html>

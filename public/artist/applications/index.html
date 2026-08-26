@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Mis postulaciones</title>
+    <meta name="description" content="Seguimiento de todas las propuestas que enviaste como artista: solicitudes del Job Board y spots de estudios, con su estado y negociación.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/artist-applications-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app artist-applications-page">
+
+    <!-- Topbar canónica de artista (página satélite: sin item activo) -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
+                <a href="/job-board" class="wo-topbar-item">Job board</a>
+                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
+                <a href="/calendar" class="wo-topbar-item">Calendario</a>
+                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
+                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
+                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <button class="wo-btn wo-btn--ghost wo-btn--s apx-menu-toggle" id="apx-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="apx-mobile-menu">
+                Menú
+            </button>
+            <a href="/artist/account" class="apx-auth" aria-label="Centro de la cuenta">
+                <span class="wo-o-tile apx-o-tile" aria-hidden="true">Ö</span>
+            </a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono apx-logout" id="apx-logout">Log out</button>
+        </div>
+    </header>
+    <nav class="apx-mobile-menu" id="apx-mobile-menu" aria-label="Navegación móvil de artista" hidden>
+        <a href="/my-quotations">Cotizaciones</a>
+        <a href="/job-board">Job board</a>
+        <a href="/studio-spots">Spots</a>
+        <a href="/calendar">Calendario</a>
+        <a href="/my-quotations/statistics">Estadísticas</a>
+        <a href="/artist/travel">Travel</a>
+        <a href="/artist/inbox">Inbox</a>
+        <a href="/artist/account">Centro de la cuenta</a>
+    </nav>
+
+    <main class="wo-container apx-shell">
+
+        <!-- ================= Vista 1 · Listado ================= -->
+        <div id="apx-list-view">
+            <a id="apx-list-back" class="apx-back" href="/job-board">
+                <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i>
+                <span id="apx-list-back-label">Volver al job board</span>
+            </a>
+
+            <header class="apx-header">
+                <span class="wo-eyebrow">Mis oportunidades</span>
+                <h1 class="wo-h1 apx-title">Mis postulaciones</h1>
+                <p class="wo-body-l wo-muted apx-sub">Seguimiento de todas las propuestas que enviaste, tanto a solicitudes del Job Board como a Spots.</p>
+            </header>
+
+            <div class="wo-tabs apx-tabs" role="tablist" aria-label="Origen de la postulación">
+                <button type="button" class="wo-tab is-active" id="apx-tab-todas" data-tab="todas" role="tab" aria-selected="true">Todas <span class="apx-tabcount" data-count="todas">0</span></button>
+                <button type="button" class="wo-tab" id="apx-tab-jobboard" data-tab="jobboard" role="tab" aria-selected="false">Job board <span class="apx-tabcount" data-count="jobboard">0</span></button>
+                <button type="button" class="wo-tab" id="apx-tab-spots" data-tab="spots" role="tab" aria-selected="false">Spots <span class="apx-tabcount" data-count="spots">0</span></button>
+            </div>
+
+            <div class="apx-searchrow">
+                <label class="apx-search" for="apx-search-input">
+                    <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
+                    <input type="search" id="apx-search-input" class="wo-input" placeholder="Buscar por proyecto, estudio o ciudad..." autocomplete="off">
+                </label>
+                <span class="wo-meta wo-faint apx-count" id="apx-result-count" aria-live="polite"></span>
+            </div>
+
+            <div class="apx-chips" id="apx-chips" role="group" aria-label="Filtrar por estado"></div>
+
+            <hr class="wo-divider wo-divider--strong apx-listrule">
+
+            <div id="apx-rows" class="apx-rows" aria-live="polite">
+                <div class="apx-skeleton-row"><span class="wo-skeleton apx-skel-media"></span><span class="wo-skeleton apx-skel-line"></span></div>
+                <div class="apx-skeleton-row"><span class="wo-skeleton apx-skel-media"></span><span class="wo-skeleton apx-skel-line"></span></div>
+                <div class="apx-skeleton-row"><span class="wo-skeleton apx-skel-media"></span><span class="wo-skeleton apx-skel-line"></span></div>
+            </div>
+
+            <div id="apx-empty" class="wo-empty" hidden></div>
+            <div id="apx-error" class="wo-alert wo-alert--error" hidden></div>
+        </div>
+
+        <!-- ================= Vista 2 · Detalle (Job Board o Spot) ================= -->
+        <div id="apx-detail-view" class="apx-detail" hidden></div>
+
+    </main>
+
+    <!-- Modales (confirmar retiro / responder contraoferta / condiciones acordadas) -->
+    <div id="apx-modal-root"></div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/jobboard-repo.js"></script>
+    <script src="/shared/js/data/studios-repo.js"></script>
+    <script src="/shared/js/artist-applications.js"></script>
+</body>
+</html>

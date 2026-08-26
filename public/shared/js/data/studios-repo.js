@@ -90,6 +90,18 @@
                 .limit(limit);
         },
 
+        // Busqueda simple del directorio para "Vincular un estudio" de Travel
+        // (/artist/travel, frame 173:26741). ilike sobre name (case-insensitive,
+        // sin normalizar) con ciudad/pais para la fila de resultado. Devuelve el
+        // builder sin resolver (estilo { data, error } del repo).
+        searchDirectory(query, { limit = 8, columns = 'id, name, city, country' } = {}) {
+            return from('studios')
+                .select(columns)
+                .ilike('name', `%${query}%`)
+                .order('name')
+                .limit(limit);
+        },
+
         // id del estudio por nombre normalizado (paso de busqueda del find-or-create).
         // single=false -> .maybeSingle() (primer intento); single=true -> .single()
         // (reintento tras colision 23505). Cubre dashboard.js:2469/2482,

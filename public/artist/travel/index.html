@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Travel</title>
+    <meta name="description" content="Giras y viajes del artista: planificá guest spots, convenciones y estudios invitados, y compartí tu itinerario.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/artist-travel-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app">
+
+    <!-- ============================ TOPBAR ARTISTA ============================ -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
+                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
+                <a href="/job-board" class="wo-topbar-item">Job board</a>
+                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
+                <a href="/calendar" class="wo-topbar-item">Calendario</a>
+                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
+                <a href="/artist/travel" class="wo-topbar-item is-active" aria-current="page">Travel</a>
+                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <button class="wo-btn wo-btn--ghost wo-btn--s tvl-menu-toggle" id="tv-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="tv-mobile-menu">Menú</button>
+            <a href="/artist/account" class="wo-o-tile" aria-label="Centro de la cuenta">Ö</a>
+            <button type="button" class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" id="tv-logout">Log out</button>
+        </div>
+    </header>
+    <nav class="tvl-mobile-menu" id="tv-mobile-menu" aria-label="Navegación móvil de artista" hidden>
+        <a href="/my-quotations">Cotizaciones</a>
+        <a href="/job-board">Job board</a>
+        <a href="/studio-spots">Spots</a>
+        <a href="/calendar">Calendario</a>
+        <a href="/my-quotations/statistics">Estadísticas</a>
+        <a href="/artist/travel" class="is-active">Travel</a>
+        <a href="/artist/inbox">Inbox</a>
+    </nav>
+
+    <main id="tv-main">
+
+        <!-- ============================ VISTA 1 · DASHBOARD ============================ -->
+        <div id="tv-view-dashboard">
+
+            <!-- Hero strip inverso: próximo destino + stats -->
+            <section class="tvl-hero" id="tv-hero" aria-label="Próximo destino" hidden>
+                <div class="tvl-hero-inner">
+                    <div class="tvl-hero-left">
+                        <p class="wo-eyebrow tvl-hero-eyebrow">Próximo destino</p>
+                        <p class="tvl-hero-city" id="tv-hero-city">—</p>
+                        <p class="wo-meta tvl-hero-meta" id="tv-hero-meta">—</p>
+                    </div>
+                    <div class="tvl-hero-stats">
+                        <div class="tvl-hero-stat">
+                            <span class="tvl-hero-stat-v" id="tv-stat-days">—</span>
+                            <span class="wo-meta-s tvl-hero-stat-l">Días restantes</span>
+                        </div>
+                        <div class="tvl-hero-stat">
+                            <span class="tvl-hero-stat-v" id="tv-stat-stay">—</span>
+                            <span class="wo-meta-s tvl-hero-stat-l">Días de estadía</span>
+                        </div>
+                        <div class="tvl-hero-stat">
+                            <span class="tvl-hero-stat-v" id="tv-stat-studios">—</span>
+                            <span class="wo-meta-s tvl-hero-stat-l">Estudios donde tatuarás</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="wo-container tvl-shell">
+
+                <!-- Encabezado -->
+                <p class="wo-eyebrow tvl-eyebrow">Travel · actividad internacional</p>
+                <h1 class="wo-h1 tvl-headline" id="tv-headline">Tu próxima gira empieza acá.</h1>
+
+                <!-- Tabs región + CTA crear -->
+                <div class="tvl-tabsrow">
+                    <div class="wo-tabs tvl-tabs" id="tv-region-tabs" role="tablist" aria-label="Filtrar por región"></div>
+                    <button type="button" class="wo-btn wo-btn--accent wo-btn--hard tvl-create" id="tv-btn-create">
+                        <i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>Crear viaje
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div class="tvl-filters">
+                    <select class="wo-select tvl-select" id="tv-f-year" aria-label="Filtrar por año"></select>
+                    <select class="wo-select tvl-select" id="tv-f-status" aria-label="Filtrar por estado">
+                        <option value="all">Todos los estados</option>
+                        <option value="planificado">Planificado</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="finalizado">Finalizado</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                    <select class="wo-select tvl-select" id="tv-f-type" aria-label="Filtrar por tipo">
+                        <option value="all">Todos los tipos</option>
+                        <option value="guest_spot">Guest spot</option>
+                        <option value="convencion">Convención</option>
+                        <option value="estudio_invitado">Estudio invitado</option>
+                    </select>
+                    <span class="tvl-vsep" aria-hidden="true"></span>
+                    <div class="tvl-chips" id="tv-origin-chips" role="group" aria-label="Filtrar por origen">
+                        <button type="button" class="wo-chip is-active" data-origin="all" aria-pressed="true">Todos los orígenes</button>
+                        <button type="button" class="wo-chip" data-origin="automatico" aria-pressed="false">Solo automáticos</button>
+                        <button type="button" class="wo-chip" data-origin="manual" aria-pressed="false">Solo manuales</button>
+                    </div>
+                </div>
+                <p class="wo-meta tvl-counters" id="tv-counters"></p>
+
+                <!-- Globo + agenda resumida -->
+                <div class="tvl-globegrid">
+                    <div class="tvl-globe" id="tv-globe" aria-hidden="true"></div>
+                    <aside class="tvl-agenda" aria-label="Agenda resumida">
+                        <p class="wo-eyebrow tvl-agenda-cap">Agenda resumida</p>
+                        <div id="tv-agenda-list"></div>
+                    </aside>
+                </div>
+
+                <!-- Cronología -->
+                <section class="tvl-section" aria-label="Cronología de viajes">
+                    <header class="tvl-sechead">
+                        <h2 class="wo-h2">Cronología de viajes</h2>
+                        <button type="button" class="tvl-sort" id="tv-sort-toggle">
+                            <i data-wo-icon="chevron-down" class="wo-icon-18" aria-hidden="true"></i>
+                            <span id="tv-sort-label">Más antiguos primero</span>
+                        </button>
+                    </header>
+                    <div class="tvl-tl" id="tv-timeline"></div>
+                </section>
+
+                <!-- Tattoo Passport -->
+                <section class="tvl-section" aria-label="Tattoo passport">
+                    <header class="tvl-sechead">
+                        <h2 class="wo-h2">Tattoo passport</h2>
+                        <span class="wo-meta tvl-passport-count" id="tv-passport-count">0 stamps</span>
+                    </header>
+                    <div class="tvl-passport" id="tv-passport-grid"></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ============================ VISTA 2 · ÉXITO ============================ -->
+        <div id="tv-view-success" class="tvs" hidden>
+            <div class="tvs-col">
+                <div class="tvs-check" aria-hidden="true"><i data-wo-icon="check"></i></div>
+                <p class="wo-eyebrow tvs-eyebrow">Travel / viaje agregado</p>
+                <h1 class="wo-h1 tvs-title">Viaje agregado a tu itinerario</h1>
+                <p class="tvs-body" id="tv-s-body">Tu viaje ya forma parte de Travel. Vas a poder editarlo o completarlo más adelante.</p>
+
+                <div class="tvs-card">
+                    <div class="tvs-card-head">
+                        <span class="wo-meta">Resumen del viaje</span>
+                        <span class="wo-meta" id="tv-s-status">Planificado</span>
+                    </div>
+                    <div class="tvs-row">
+                        <span class="wo-meta tvs-row-l">Ciudad y país</span>
+                        <span class="tvs-row-v" id="tv-s-citycountry">—</span>
+                    </div>
+                    <div class="tvs-row">
+                        <span class="wo-meta tvs-row-l">Fechas</span>
+                        <span class="tvs-row-v" id="tv-s-dates">—</span>
+                    </div>
+                    <div class="tvs-row">
+                        <span class="wo-meta tvs-row-l">Tipo de viaje</span>
+                        <span class="wo-tag" id="tv-s-type">—</span>
+                    </div>
+                    <div class="tvs-row">
+                        <span class="wo-meta tvs-row-l">Origen</span>
+                        <span class="tvs-row-v tvs-row-v--mono"><i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Creado manualmente</span>
+                    </div>
+                </div>
+
+                <div class="wo-alert wo-alert--info tvs-alert">
+                    <i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i>
+                    <span>Podrás vincular este viaje a un estudio o Spot cuando tengas una oportunidad confirmada.</span>
+                </div>
+
+                <div class="tvs-actions">
+                    <button type="button" class="wo-btn wo-btn--direct" id="tv-s-goto">Ver mi itinerario →</button>
+                    <button type="button" class="wo-btn wo-btn--ghost" id="tv-s-another"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>Agregar otro viaje</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================ VISTA 3 · DETALLE ============================ -->
+        <div id="tv-view-detail" hidden>
+            <div class="wo-container tvd-shell" id="tv-detail-root"></div>
+        </div>
+    </main>
+
+    <!-- ============================ FOOTER BANDA INK ============================ -->
+    <footer class="tvl-footer">
+        <div class="wo-container tvl-footer-inner">
+            <span class="tvl-footer-brand">WE ÖTZI</span>
+            <span class="wo-meta-s tvl-footer-meta">© 2026 We Ötzi · Todos los derechos reservados</span>
+        </div>
+    </footer>
+
+    <!-- ============================ MODAL · CREAR VIAJE ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-create" hidden>
+        <div class="tvm" role="dialog" aria-modal="true" aria-labelledby="tvm-create-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-create-title">Crear viaje</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-create" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <form class="tvm-body" id="tv-create-form">
+                <div class="tvm-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvc-city">Ciudad</label>
+                        <input type="text" class="wo-input" id="tvc-city" placeholder="Ej: Lisboa" required>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvc-country">País</label>
+                        <input type="text" class="wo-input" id="tvc-country" placeholder="Ej: Portugal" required>
+                    </div>
+                </div>
+                <div class="tvm-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvc-start">Fecha de inicio</label>
+                        <input type="date" class="wo-input" id="tvc-start" required>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvc-end">Fecha de regreso</label>
+                        <input type="date" class="wo-input" id="tvc-end" required>
+                    </div>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tvc-type">Motivo del viaje</label>
+                    <select class="wo-select" id="tvc-type">
+                        <option value="guest_spot">Guest spot</option>
+                        <option value="convencion">Convención</option>
+                        <option value="estudio_invitado">Estudio invitado</option>
+                    </select>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tvc-studio">Estudio (opcional)</label>
+                    <input type="text" class="wo-input" id="tvc-studio" placeholder="Nombre del estudio, si ya lo tenés">
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tvc-notes">Notas personales</label>
+                    <textarea class="wo-textarea" id="tvc-notes" placeholder="Ej: coordinar vuelo con Marta antes del 1/8"></textarea>
+                </div>
+                <p class="wo-error-msg" id="tvc-error" hidden></p>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-create">Cancelar</button>
+                    <button type="submit" class="wo-btn wo-btn--direct" id="tvc-submit">Crear viaje →</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================ MODAL · EDITAR VIAJE ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-edit" hidden>
+        <div class="tvm tvm--wide" role="dialog" aria-modal="true" aria-labelledby="tvm-edit-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-edit-title">Editar viaje</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-edit" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <form class="tvm-body" id="tv-edit-form">
+                <div class="tvm-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="tve-city">Ciudad</label>
+                        <input type="text" class="wo-input" id="tve-city" required>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="tve-country">País</label>
+                        <input type="text" class="wo-input" id="tve-country" required>
+                    </div>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tve-type">Tipo de viaje</label>
+                    <select class="wo-select" id="tve-type">
+                        <option value="guest_spot">Guest spot</option>
+                        <option value="convencion">Convención</option>
+                        <option value="estudio_invitado">Estudio invitado</option>
+                    </select>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tve-notes">Notas</label>
+                    <textarea class="wo-textarea" id="tve-notes"></textarea>
+                </div>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-edit">Cancelar</button>
+                    <button type="submit" class="wo-btn wo-btn--direct">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================ MODAL · CAMBIAR FECHAS ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-dates" hidden>
+        <div class="tvm" role="dialog" aria-modal="true" aria-labelledby="tvm-dates-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-dates-title">Cambiar fechas</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-dates" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <form class="tvm-body" id="tv-dates-form">
+                <p class="tvm-intro">Actualizá las fechas de inicio y regreso de este viaje.</p>
+                <div class="tvm-grid2">
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvf-start">Fecha de inicio</label>
+                        <input type="date" class="wo-input" id="tvf-start" required>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvf-end">Fecha de regreso</label>
+                        <input type="date" class="wo-input" id="tvf-end" required>
+                    </div>
+                </div>
+                <p class="wo-error-msg" id="tvf-error" hidden></p>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-dates">Cancelar</button>
+                    <button type="submit" class="wo-btn wo-btn--direct">Guardar fechas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================ MODAL · VINCULAR UN ESTUDIO ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-link" hidden>
+        <div class="tvm tvm--wide" role="dialog" aria-modal="true" aria-labelledby="tvm-link-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-link-title">Vincular un estudio</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-link" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <div class="tvm-body">
+                <div class="tvm-search">
+                    <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
+                    <input type="text" class="wo-input tvm-search-input" id="tvl-search" placeholder="Buscá por nombre del estudio..." autocomplete="off">
+                </div>
+                <div class="tvm-results" id="tvl-results">
+                    <div class="wo-empty tvm-empty">
+                        <i data-wo-icon="search" aria-hidden="true"></i>
+                        <span class="wo-empty-title">Buscá un estudio para comenzar</span>
+                        <p>Escribí el nombre del estudio para encontrarlo en el directorio de We Ötzi.</p>
+                    </div>
+                </div>
+                <hr class="wo-divider">
+                <label class="wo-check tvm-external-check">
+                    <input type="checkbox" id="tvl-external">
+                    <span>El estudio no está en We Ötzi</span>
+                </label>
+                <div class="tvm-grid2 tvm-external-fields" id="tvl-external-fields" hidden>
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvl-ext-name">Nombre del estudio</label>
+                        <input type="text" class="wo-input" id="tvl-ext-name" placeholder="Ej: Zorro Rojo Tattoo">
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="tvl-ext-city">Ciudad (opcional)</label>
+                        <input type="text" class="wo-input" id="tvl-ext-city" placeholder="Ej: Barcelona">
+                    </div>
+                </div>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-link">Cancelar</button>
+                    <button type="button" class="wo-btn wo-btn--direct" id="tvl-submit" disabled>Solicitar vinculación</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================ MODAL · COMPARTIR ITINERARIO ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-share" hidden>
+        <div class="tvm tvm--wide" role="dialog" aria-modal="true" aria-labelledby="tvm-share-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-share-title">Compartir itinerario</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-share" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <div class="tvm-body">
+                <p class="tvm-intro">Cualquier persona con este enlace podrá ver el itinerario de este viaje en modo lectura.</p>
+                <div class="tvm-sharerow">
+                    <input type="text" class="wo-input" id="tvs-url" readonly>
+                    <button type="button" class="wo-btn wo-btn--ghost" id="tvs-copy"><i data-wo-icon="copy" class="wo-icon-18" aria-hidden="true"></i><span id="tvs-copy-label">Copiar</span></button>
+                </div>
+                <p class="wo-eyebrow tvm-cap">Enviar por</p>
+                <div class="tvm-sendrow">
+                    <a class="wo-btn wo-btn--ghost" id="tvs-email" href="#" target="_blank" rel="noopener"><i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>Email</a>
+                    <a class="wo-btn wo-btn--ghost" id="tvs-wa" href="#" target="_blank" rel="noopener"><i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>WhatsApp</a>
+                </div>
+                <hr class="wo-divider">
+                <div class="tvm-togglerow">
+                    <label class="wo-toggle">
+                        <input type="checkbox" id="tvs-enabled">
+                        <span class="knob"></span>
+                    </label>
+                    <span class="wo-meta" id="tvs-enabled-label">Enlace activo</span>
+                </div>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-share">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================ MODAL · CANCELAR VIAJE ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-cancel" hidden>
+        <div class="tvm tvm--narrow" role="dialog" aria-modal="true" aria-labelledby="tvm-cancel-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-cancel-title">Cancelar viaje</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-cancel" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <div class="tvm-body">
+                <div class="tvm-warnrow">
+                    <i data-wo-icon="alert-triangle" aria-hidden="true"></i>
+                    <div>
+                        <p class="tvm-warntitle">¿Estás seguro que querés cancelar este viaje?</p>
+                        <p class="tvm-warnbody">Esta acción se puede revertir más adelante desde el itinerario.</p>
+                    </div>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tv-cancel-reason">Motivo (opcional)</label>
+                    <textarea class="wo-textarea tvm-reason" id="tv-cancel-reason" placeholder="Ej: el estudio cerró la agenda de esas fechas"></textarea>
+                </div>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-cancel">Volver</button>
+                    <button type="button" class="wo-btn wo-btn--danger" id="tv-cancel-confirm">Cancelar viaje</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================ MODAL · ADJUNTAR ARCHIVO ============================ -->
+    <div class="wo-overlay tvm-overlay" id="tv-modal-doc" hidden>
+        <div class="tvm" role="dialog" aria-modal="true" aria-labelledby="tvm-doc-title">
+            <div class="tvm-head">
+                <h2 class="tvm-title" id="tvm-doc-title">Adjuntar archivo</h2>
+                <button type="button" class="tvm-x" data-close="tv-modal-doc" aria-label="Cerrar"><i data-wo-icon="x"></i></button>
+            </div>
+            <form class="tvm-body" id="tv-doc-form">
+                <div class="wo-field">
+                    <label class="wo-label" for="tvdoc-cat">Categoría</label>
+                    <select class="wo-select" id="tvdoc-cat">
+                        <option value="pasaje">Pasaje</option>
+                        <option value="reserva_hotel">Reserva de hotel</option>
+                        <option value="contrato">Contrato</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="tvdoc-file">Archivo</label>
+                    <input type="file" class="wo-input tvm-file" id="tvdoc-file" required>
+                    <p class="wo-help">PDF o imagen · queda guardado de forma privada en este viaje.</p>
+                </div>
+                <p class="wo-error-msg" id="tvdoc-error" hidden></p>
+                <div class="tvm-foot">
+                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-doc">Cancelar</button>
+                    <button type="submit" class="wo-btn wo-btn--direct" id="tvdoc-submit">Guardar archivo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================ SCRIPTS ============================ -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/travel-repo.js"></script>
+    <script src="/shared/js/data/studios-repo.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/artist-travel.js"></script>
+</body>
+</html>
