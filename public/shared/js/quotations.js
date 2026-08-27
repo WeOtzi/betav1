@@ -145,6 +145,7 @@ async function initializeAdmin() {
 
         // Initialize UI
         renderHeroEyebrow();
+        setupManualQuoteLink();
         setupToolbarListeners();
         setupCurrencySelect();
 
@@ -309,6 +310,23 @@ function displayCurrencyPreference() {
     return 'local';
 }
 
+// "+ Cotización manual": abre el wizard /quotation con el propio artista
+// preseleccionado (la misma URL que usa el perfil público), para cargar a
+// mano la cotización de un cliente y que caiga en este panel.
+function setupManualQuoteLink() {
+    const btn = document.getElementById('manual-quote-btn');
+    if (!btn || !artistData?.username) return;
+    btn.setAttribute('href', appUrl(`/quotation?artist=${encodeURIComponent(artistData.username)}`));
+}
+
+// Nombres cortos en español para el select "Mostrar en" (Figma 33:5758 muestra
+// "Pesos (ARS)"); la tabla currencies del catálogo no siempre trae name.
+const CURRENCY_DISPLAY_NAMES = {
+    ARS: 'Pesos', USD: 'Dólares', EUR: 'Euros', BRL: 'Reales',
+    MXN: 'Pesos mexicanos', CLP: 'Pesos chilenos', COP: 'Pesos colombianos',
+    UYU: 'Pesos uruguayos', PEN: 'Soles', GBP: 'Libras',
+};
+
 function setupCurrencySelect() {
     const select = document.getElementById('currency-select');
     if (!select) return;
@@ -328,7 +346,11 @@ function setupCurrencySelect() {
             if (!currency || !currency.code) return;
             const opt = document.createElement('option');
             opt.value = currency.code;
-            opt.textContent = currency.name ? `${currency.name} (${currency.code})` : currency.code;
+            const code = String(currency.code).toUpperCase();
+            const pretty = (currency.name && String(currency.name).toUpperCase() !== code)
+                ? currency.name
+                : CURRENCY_DISPLAY_NAMES[code];
+            opt.textContent = pretty ? `${pretty} (${code})` : code;
             select.appendChild(opt);
         });
         select.value = current;

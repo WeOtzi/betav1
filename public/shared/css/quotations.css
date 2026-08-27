@@ -321,10 +321,8 @@ body.wo-app {
     background-position: right var(--space-3) center;
     border: var(--border-hairline) solid var(--border-strong);
     border-radius: var(--radius-none);
-    font-family: var(--font-mono);
-    font-size: var(--meta-m-size);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-family: var(--font-body);
+    font-size: var(--body-s-size);
     color: var(--neutral-500);
     cursor: pointer;
 }
@@ -2286,3 +2284,11 @@ body.wo-app {
 /* Acceso al archivo (salio de la topbar segun el mock): link mono junto al contador */
 .legend-archive { font-family: var(--font-mono); font-size: var(--meta-s-size); letter-spacing: var(--meta-s-track); text-transform: uppercase; color: var(--neutral-400); text-decoration: none; margin-left: var(--space-4); }
 .legend-archive:hover { color: var(--neutral-500); text-decoration: underline; }
+
+/* Los <a> del hero y el link de archivadas heredaban el azul de .wo-app a */
+.wo-app a.q-hero-btn { color: var(--neutral-500); }
+.wo-app a.q-hero-btn:hover { color: var(--neutral-500); text-decoration: none; }
+.wo-app a.q-hero-btn--ink { color: var(--action-primary-fg); }
+.wo-app a.q-hero-btn--ink:hover { color: var(--action-primary-fg); }
+.wo-app a.legend-archive { color: var(--neutral-400); }
+.wo-app a.legend-archive:hover { color: var(--neutral-500); }
