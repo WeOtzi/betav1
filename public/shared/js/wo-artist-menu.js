@@ -286,7 +286,8 @@
 
     function renderDrop() {
         var a = state.artist || {};
-        var display = String(a.username || a.name || 'Tu cuenta').replace(/^@/, '');
+        var mail = (state.user && state.user.email) || '';
+        var display = String(a.username || a.name || (mail ? mail.split('@')[0] : 'Tu cuenta')).replace(/^@/, '');
         var initials = display.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'Ö';
         var pic = a.profile_picture || '';
         var total = unreadTotal();
@@ -296,7 +297,7 @@
             '<div class="wo-oam-head">'
             + '<span class="wo-oam-avatar">' + (pic ? '<img src="' + esc(pic) + '" alt="">' : esc(initials)) + '</span>'
             + '<span><span class="wo-oam-user">' + esc(display) + '</span>'
-            + '<span class="wo-oam-mail">' + esc(state.user.email || '') + '</span></span>'
+            + '<span class="wo-oam-mail">' + esc(mail) + '</span></span>'
             + '</div>'
             + '<p class="wo-oam-cap">Actividad reciente</p>'
             + '<div role="menu" aria-label="Actividad reciente">'
@@ -421,29 +422,10 @@
         return null;
     }
 
-    async function init() {
-        var tile = document.querySelector('.wo-o-tile');
-        if (!tile) return;
-        var client = await resolveClient();
-        if (!client) return;
-
-        var session = null;
-        try { session = (await client.auth.getSession()).data.session; } catch (e) { return; }
-        if (!session) return;
-        state.user = session.user;
-
-        var A = window.WeotziData && window.WeotziData.Artists;
-        try {
-            if (A && typeof A.getByUserIdSingle === 'function') {
-                var r1 = await A.getByUserIdSingle(state.user.id);
-                state.artist = r1 && r1.data;
-            } else if (A && typeof A.getByUserId === 'function') {
-                var r2 = await A.getByUserId(state.user.id, 'user_id, username, name, profile_picture');
-                state.artist = r2 && r2.data;
-            }
-        } catch (e) { /* sin perfil */ }
-        if (!state.artist) return; // no es artista: el tile conserva su comportamiento
-
+    // Monta la UI y los listeners SIN esperar a la red: el click en el tile
+    // abre el dropdown desde el primer momento (antes esperaba sesión+perfil y,
+    // si eso tardaba o fallaba, el tile seguía navegando a /artist/account).
+    function mountUi(tile) {
         ensureStyles();
 
         // El trigger es el tile o su ancestro clickeable (en algunas topbars el
@@ -476,12 +458,14 @@
 
         els.trigger.setAttribute('aria-haspopup', 'true');
         els.trigger.setAttribute('aria-expanded', 'false');
+        // El listener va en captura para ganarle a cualquier handler de la
+        // página montado sobre el mismo tile.
         els.trigger.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             if (state.panelOpen) { setPanel(false); return; }
             setDrop(!state.open);
-        });
+        }, true);
         document.addEventListener('click', function (e) {
             if (state.open && !els.drop.contains(e.target) && !els.trigger.contains(e.target)) setDrop(false);
         });
@@ -492,10 +476,58 @@
         });
         els.scrim.addEventListener('click', function () { setPanel(false); });
         window.addEventListener('resize', function () { if (state.open) positionDrop(); });
+    }
 
-        renderAll();
-        await loadAll();
-        renderAll();
+    function unmountUi() {
+        try {
+            var host = els.trigger && els.trigger.closest('.wo-oam-host');
+            if (host && host.parentNode) {
+                host.parentNode.insertBefore(els.trigger, host);
+                host.parentNode.removeChild(host);
+            }
+            [els.drop, els.panel, els.scrim].forEach(function (n) {
+                if (n && n.parentNode) n.parentNode.removeChild(n);
+            });
+        } catch (e) { /* nada que limpiar */ }
+    }
+
+    function safeRender() {
+        try { renderAll(); } catch (e) { console.warn('[wo-menu] render:', e && e.message); }
+    }
+
+    async function init() {
+        var tile = document.querySelector('.wo-o-tile');
+        if (!tile) return;
+
+        mountUi(tile);
+        safeRender();
+
+        var client = await resolveClient();
+        if (!client) { console.warn('[wo-menu] sin cliente Supabase'); unmountUi(); return; }
+
+        var session = null;
+        try { session = (await client.auth.getSession()).data.session; }
+        catch (e) { console.warn('[wo-menu] sesión:', e && e.message); }
+        if (!session) { unmountUi(); return; } // sin sesión el tile vuelve a ser link
+        state.user = session.user;
+        safeRender();
+
+        // La identidad es "mejor esfuerzo": si el perfil no resuelve, el menú
+        // igual funciona con el email de la sesión.
+        var A = window.WeotziData && window.WeotziData.Artists;
+        try {
+            if (A && typeof A.getByUserIdSingle === 'function') {
+                var r1 = await A.getByUserIdSingle(state.user.id, 'user_id, username, name, profile_picture');
+                state.artist = (r1 && r1.data) || null;
+            } else if (A && typeof A.getByUserId === 'function') {
+                var r2 = await A.getByUserId(state.user.id, 'user_id, username, name, profile_picture');
+                state.artist = (r2 && r2.data) || null;
+            }
+        } catch (e) { console.warn('[wo-menu] perfil:', e && e.message); }
+        safeRender();
+
+        try { await loadAll(); } catch (e) { console.warn('[wo-menu] datos:', e && e.message); }
+        safeRender();
     }
 
     if (document.readyState === 'loading') {
