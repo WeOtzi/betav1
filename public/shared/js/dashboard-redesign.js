@@ -330,9 +330,6 @@
         lastQuotes = quotes;
         renderDesigns(quotes);
         renderIncome(quotes);
-        notifCounts.solic = pending;
-        applyNotifCounts();
-        loadNotifMessages(quotes);
         return { pending: pending, approved: approved, rejected: rejected };
       })
       .catch(function (e) {
@@ -660,112 +657,9 @@
     try { new MutationObserver(enhanceIgTrigger).observe(mount, { childList: true }); } catch (e) { /* opcional */ }
   }
 
-  /* ===================================================================== *
-   *  PANEL DE NOTIFICACIONES — dropdown del tile Ö (Figma 167:24120)       *
-   *  Contadores 100% reales: mensajes no leídos (chat_messages, sender     *
-   *  'client'), invitaciones pendientes (studio_artist_memberships) y      *
-   *  solicitudes pendientes (quotations_db, reutiliza loadCotizaciones).   *
-   *  "Notificaciones" es la fila agregadora = suma de las tres; el badge   *
-   *  del tile Ö muestra ese mismo total. La fila "Actualizaciones de la    *
-   *  plataforma" del Figma se omite: no existe backend que la alimente.    *
-   * ===================================================================== */
-  var notifCounts = { msgs: null, inv: null, solic: null };
-  var notifWired = false;
-
-  function setNotifRow(key, n) {
-    var count = Number(n) || 0;
-    var num = $('wod-notif-n-' + key);
-    if (num) num.textContent = count > 99 ? '99+' : String(count);
-    var row = $('wod-notif-row-' + key);
-    if (row) row.classList.toggle('has-count', count > 0);
-  }
-
-  function applyNotifCounts() {
-    setNotifRow('msgs', notifCounts.msgs);
-    setNotifRow('inv', notifCounts.inv);
-    setNotifRow('solic', notifCounts.solic);
-    var total = (notifCounts.msgs || 0) + (notifCounts.inv || 0) + (notifCounts.solic || 0);
-    setNotifRow('total', total);
-    var tileBadge = $('wod-notif-count');
-    if (tileBadge) {
-      tileBadge.textContent = total > 99 ? '99+' : String(total);
-      tileBadge.hidden = total <= 0;
-    }
-  }
-
-  // Mensajes de clientes sin leer sobre las cotizaciones ya cargadas
-  // (mismo batch query que usa client-dashboard.js, con sender invertido).
-  function loadNotifMessages(quotes) {
-    var ids = (quotes || []).map(function (q) { return q.quote_id; }).filter(Boolean);
-    if (!ids.length) { notifCounts.msgs = 0; applyNotifCounts(); return; }
-    withLiveTimeout(WeotziData.Chat.countUnreadByQuotationIds(ids, 'client'), 'mensajes sin leer')
-      .then(function (counts) {
-        var total = 0;
-        Object.keys(counts || {}).forEach(function (k) { total += counts[k] || 0; });
-        notifCounts.msgs = total;
-        applyNotifCounts();
-      })
-      .catch(function (e) { console.warn('[redesign] mensajes sin leer', e); });
-  }
-
-  // Invitaciones de estudios pendientes de aceptar (como artist-invitations.js).
-  function loadNotifInvitations() {
-    var repo = window.WeotziData && window.WeotziData.StudioMemberships;
-    if (!repo || typeof repo.listPendingForArtist !== 'function' || !user) return;
-    withLiveTimeout(Promise.resolve(repo.listPendingForArtist(user.id)), 'invitaciones')
-      .then(function (res) {
-        if (res && res.error) throw res.error;
-        notifCounts.inv = ((res && res.data) || []).length;
-        applyNotifCounts();
-      })
-      .catch(function (e) { console.warn('[redesign] invitaciones', e); });
-  }
-
-  // Cabecera del panel (avatar + username + email) y link al perfil público.
-  function renderNotifIdentity() {
-    var rawUsername = artist ? String(artist.username || '').replace(/^@/, '').trim() : '';
-    var display = rawUsername || (artist && artist.name) || '';
-    var u = $('wod-notif-user'); if (u && display) u.textContent = display;
-    var email = (user && user.email) || '';
-    var m = $('wod-notif-mail'); if (m && email) m.textContent = email;
-    var av = $('wod-notif-avatar');
-    if (av) {
-      var pic = artist && (artist.profile_picture || artist.avatar_url);
-      if (pic) {
-        av.innerHTML = '<img src="' + esc(pic) + '" alt="">';
-      } else if (display) {
-        av.textContent = display.slice(0, 2).toUpperCase();
-      }
-    }
-    var pub = $('wod-notif-public');
-    if (pub && artist && artist.username) {
-      pub.href = '/artist/profile?artist=' + encodeURIComponent(artist.username);
-    }
-  }
-
-  // Abrir/cerrar: click en el tile, click afuera y Escape (devuelve el foco).
-  function wireNotifPanel() {
-    if (notifWired) return;
-    notifWired = true;
-    var btn = $('wod-notif-toggle'), panel = $('wod-notif-panel');
-    if (!btn || !panel) return;
-    function setOpen(open) {
-      panel.hidden = !open;
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-    btn.addEventListener('click', function () { setOpen(panel.hidden); });
-    document.addEventListener('click', function (e) {
-      if (panel.hidden) return;
-      if (btn.contains(e.target) || panel.contains(e.target)) return;
-      setOpen(false);
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !panel.hidden) {
-        setOpen(false);
-        try { btn.focus(); } catch (err) { /* sin foco */ }
-      }
-    });
-  }
+  /* El dropdown del tile Ö y el panel de notificaciones viven ahora en el
+   * componente compartido /shared/js/wo-artist-menu.js (Figma 167:24120 y
+   * 167:23251), disponible en todas las páginas del artista. */
 
   /* ---------- degradación de estados "Cargando…" ------------------------ */
   function clearStaleLoadingStates() {
@@ -787,16 +681,13 @@
     watchGalleryCount();
     watchIgTrigger();
     watchStylesWord();
-    wireNotifPanel();
 
     if (!sb || !user) { console.warn('[redesign] missing supabase/user; aborting live layer'); return; }
 
     renderProfileCard();
-    renderNotifIdentity();
     setTimeout(clearStaleLoadingStates, LIVE_QUERY_TIMEOUT_MS + 500);
     loadAgenda();
     loadCotizaciones();
-    loadNotifInvitations();
   }
 
   var booted = false;
@@ -820,16 +711,14 @@
   document.addEventListener('weotzi:currencies-loaded', function () { renderIncome(lastQuotes); });
   document.addEventListener('weotzi:currency-changed', function () { renderIncome(lastQuotes); });
 
-  // El hero (fecha/saludo) y el panel Ö no dependen de datos: apenas el DOM.
+  // El hero (fecha/saludo) no depende de datos: apenas el DOM.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
-      wireNotifPanel();
       watchIgTrigger();
       watchStylesWord();
       if (!booted) renderHero();
     });
   } else {
-    wireNotifPanel();
     watchIgTrigger();
     watchStylesWord();
     if (!booted) renderHero();
