@@ -411,7 +411,7 @@ function withUrlParams(url, params) {
     return query ? `${path}?${query}` : path;
 }
 
-async function createOrResumeArtistDraft({ email = '', source = 'email' } = {}) {
+async function createOrResumeArtistDraft({ email = '', source = 'email', extraData = null } = {}) {
     const response = await fetch(appUrl('/api/register/artist-draft'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,7 +419,7 @@ async function createOrResumeArtistDraft({ email = '', source = 'email' } = {}) 
             email,
             source,
             step: email ? 3 : 1,
-            data: { email, registration_source: source }
+            data: { email, registration_source: source, ...(extraData || {}) }
         })
     });
     const payload = await readJsonResponse(response);
@@ -506,10 +506,25 @@ async function handleRegistration(e) {
     const originalText = btn.innerHTML;
     const emailInput = document.querySelector('.input-email');
     const email = emailInput.value.trim().toLowerCase();
+    // Campos del Figma 22-1106: nombre y estilo obligatorios, ciudad opcional.
+    // Todo viaja al borrador para que el wizard los precargue.
+    const fullName = String(document.getElementById('beta-fullname')?.value || '').trim();
+    const city = String(document.getElementById('beta-city')?.value || '').trim();
+    const style = String(document.getElementById('beta-style')?.value || '').trim();
 
     clearFormMessage();
 
     if (!email) return;
+    if (!fullName) {
+        showFormMessage('Contanos tu nombre completo.', 'error');
+        document.getElementById('beta-fullname')?.focus();
+        return;
+    }
+    if (!style) {
+        showFormMessage('Seleccioná tu estilo principal.', 'error');
+        document.getElementById('beta-style')?.focus();
+        return;
+    }
 
     // Switch to validation state
     btn.innerHTML = 'VALIDANDO...';
@@ -524,7 +539,15 @@ async function handleRegistration(e) {
         };
 
         btn.innerHTML = 'GUARDANDO...';
-        const draftPayload = await createOrResumeArtistDraft({ email, source: 'email' });
+        const draftPayload = await createOrResumeArtistDraft({
+            email,
+            source: 'email',
+            extraData: {
+                full_name: fullName,
+                ...(city ? { city } : {}),
+                ...(style ? { styles: [style] } : {})
+            }
+        });
         const artistProgress = getArtistRegistrationProgress(draftPayload.artist);
         const targetUrl = buildDraftWizardUrl(
             getArtistResumeUrl(authUrls.registerArtist, artistProgress),
@@ -835,6 +858,54 @@ function handleInstagramQuickStart() {
             window.location.href = appUrl('/register-artist/?source=instagram');
         });
 }
+
+// ============================================
+// Formulario beta (Figma 22-1106)
+// ============================================
+
+// "Continuá con EMAIL" = el formulario de la página: lleva el foco al inicio.
+function focusBetaForm() {
+    const first = document.getElementById('beta-fullname') || document.querySelector('.input-email');
+    if (first) {
+        first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        first.focus({ preventScroll: true });
+    }
+}
+
+// El botón está en el diseño; el login con Facebook todavía no existe.
+function handleFacebookComingSoon() {
+    showFormMessage('El registro con Facebook llega pronto. Mientras tanto usá email o Instagram.', 'info');
+}
+
+// ESTILO: catálogo real de tattoo_styles (roots) con fallback fijo del mock.
+const BETA_STYLE_FALLBACK = [
+    'Fine line', 'Blackwork', 'Realismo', 'Tradicional', 'Neotradicional',
+    'Japonés', 'Geométrico', 'Acuarela', 'Lettering', 'Dotwork', 'Tribal', 'Otro'
+];
+
+async function populateBetaStyleSelect() {
+    const select = document.getElementById('beta-style');
+    if (!select) return;
+    let styles = BETA_STYLE_FALLBACK;
+    try {
+        if (window.ConfigManager && typeof window.ConfigManager.loadTattooStylesFromDB === 'function') {
+            const fromDb = await window.ConfigManager.loadTattooStylesFromDB();
+            const names = (Array.isArray(fromDb) ? fromDb : [])
+                .map((s) => (typeof s === 'string' ? s : (s && (s.name || s.label))))
+                .filter(Boolean);
+            if (names.length >= 5) styles = names;
+        }
+    } catch (err) {
+        console.warn('[beta] catálogo de estilos no disponible, uso el fijo:', err && err.message);
+    }
+    styles.forEach((name) => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+}
+document.addEventListener('DOMContentLoaded', populateBetaStyleSelect);
 
 // ============================================
 // Password Recovery Handler

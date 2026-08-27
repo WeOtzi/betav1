@@ -52,7 +52,7 @@ cloud vivo**, que tiene frames nuevos (prefijos de node-id ≥ `344:` aprox.).
 | "flujo" (diagrama) | 167:24554 | — | obviar | Diagrama general del flujo (11.687px de ancho), no es pantalla. |
 | Landing clientes | 2:1744 | `/inicio` | hecha-v1 | Duplicada; la canónica es 205:303 (página clientes). |
 | Landing tatuador | 5:2809 | `/landing-tatuador` | hecha-v1 | |
-| Crear cuenta (beta cerrada) | 22:1106 | `/registerclosedbeta` | hecha-v1 | Split: póster oscuro "TU PRÓXIMO PROYECTO ESTA ACÁ" + form "Crea tu cuenta". Confirmado por captura ("ACCESO ANTICIPADO · BETA CERRADA"). |
+| Crear cuenta (beta cerrada) | 22:1106 | `/registerclosedbeta` | hecha (fidelidad exacta 27 ago) | Split completo del frame: póster con eyebrow/manifiesto/triángulo, campos nombre+email+ciudad+estilo (fluyen al borrador del wizard), banda de términos, botonera Instagram·Email·Facebook con Recomendado. |
 | Ingreso artista | 24:1261 | `/artist/login` | hecha-v1 | Split: póster "ACCEDÉ A TU PANEL" + form. |
 | Registro artista (wizard) | 72:12357, 72:12438, 72:12519 (+variante 105:4935 debajo), 72:12639, 72:12764 (+variante 422:2873 debajo), 72:12865, 72:12993, 72:13161, 114:9006 | `/register-artist` | hecha (re-auditada 26 ago) | Corregida contra las variantes nuevas: modalidad "Ambos", typeahead de estudios, address picker condicional. |
 | Loaders post-auth | 239:2514, 243:2917 (duplicado exacto), 415:1733 (variante cliente) | componente compartido `public/shared/js/wo-postauth-loader.js` | hecha | Resuelto en discovery: se llamaban "Registro"/"Container" pero son pantallas de carga ("Organizando tu agenda…" artista / "Explorando artistas…" cliente). No son páginas. |

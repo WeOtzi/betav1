@@ -30,19 +30,21 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 /* ---------- Split ---------- */
 .wo-auth-split{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 
-/* ---------- Póster (panel ink) ---------- */
-.wo-auth-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-12);background:var(--surface-inverse)}
-/* Triángulo rojo decorativo (Figma: abajo a la derecha) */
+/* ---------- Póster (panel ink) — Figma 22-1106: eyebrow arriba, titular al
+   centro, manifiesto abajo a la izquierda y triángulo rojo abajo a la derecha */
+.wo-auth-poster{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:var(--space-12);background:var(--surface-inverse)}
 .wo-auth-poster::after{content:"";position:absolute;right:var(--space-16);bottom:var(--space-12);width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:76px solid var(--bauhaus-square)}
-.wo-auth-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
+.wo-auth-poster-top{display:flex;align-items:center;gap:var(--space-8)}
 .wo-auth-poster .wo-marks{gap:var(--space-2)}
 .wo-auth-poster .wo-mark-square,
 .wo-auth-poster .wo-mark-circle{width:20px;height:20px}
 .wo-auth-poster .wo-mark-triangle{border-left-width:11px;border-right-width:11px;border-bottom-width:20px}
-.wo-auth-poster-title{margin:0;font-family:var(--font-display);font-size:var(--display-size);line-height:0.96;letter-spacing:var(--display-track);text-transform:uppercase;color:var(--neutral-100)}
+.wo-auth-poster-eyebrow{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-300)}
+.wo-auth-poster-title{margin:0;align-self:flex-start;padding-left:var(--space-8);font-family:var(--font-display);font-size:var(--display-size);line-height:0.96;letter-spacing:var(--display-track);text-transform:uppercase;color:var(--neutral-100)}
 .wo-auth-poster-title .line{display:block}
 .wo-auth-poster-title .hl-blue{color:var(--blue-400)}
 .wo-auth-poster-title .hl-yellow{color:var(--yellow-300)}
+.wo-auth-poster-manifesto{margin:0;max-width:300px;font-family:var(--font-mono);font-size:var(--meta-m-size);line-height:1.7;letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-300)}
 
 /* ---------- Panel (registro) ---------- */
 .wo-auth-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-8);background:var(--surface-page)}
@@ -59,7 +61,16 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 
 /* ---------- Formulario ---------- */
 .wo-auth-form{display:flex;flex-direction:column;gap:var(--space-5)}
-.wo-auth-form .wo-input{border-color:var(--border-strong)}
+/* Campos minimalistas del Figma 22-1106: sin caja, solo hairline inferior
+   sobre el crema; el focus ring del DS se conserva. */
+.wo-auth-form .wo-input,
+.wo-auth-form .wo-select{background:transparent;border:0;border-bottom:var(--border-hairline) solid var(--border-subtle);padding-left:var(--space-2);padding-right:var(--space-2)}
+.wo-auth-form .wo-input:focus,
+.wo-auth-form .wo-select:focus{border-bottom-color:var(--border-strong)}
+.wo-auth-form .wo-select:invalid{color:var(--text-faint)}
+.wo-auth-form .wo-select option{color:var(--text-body)}
+.wo-auth-fieldrow{display:grid;grid-template-columns:1.2fr 1fr;gap:var(--space-5)}
+.wo-label .req{color:var(--neutral-500)}
 
 /* Banda arena de términos (Figma: checkbox sobre fondo arena) */
 .wo-beta-terms{background:var(--neutral-200);padding:var(--space-3) var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--neutral-500)}
@@ -83,12 +94,12 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 .wo-auth-or::before,
 .wo-auth-or::after{content:"";flex:1;border-top:var(--border-hairline) solid var(--border-subtle)}
 
-/* ---------- Social (solo Google) ---------- */
-.wo-auth-social{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2)}
-.wo-auth-social .wo-btn{width:100%}
-.wo-auth-reco{gap:var(--space-1)}
+/* ---------- Social (Figma 22-1106: Instagram recomendado · Email · Facebook) ---------- */
+.wo-auth-social{display:flex;flex-direction:column;align-items:flex-start;gap:0}
+.wo-auth-reco{gap:var(--space-1);position:relative;z-index:1;margin-bottom:calc(var(--space-1) * -1)}
 .wo-auth-reco [data-wo-icon]{width:12px;height:12px}
-.wo-auth-google-g{width:18px;height:18px;flex:none}
+.wo-auth-social-row{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);width:100%}
+.wo-auth-social-row .wo-btn{width:100%;padding-left:var(--space-2);padding-right:var(--space-2);white-space:nowrap}
 
 /* ---------- "¿Ya tenés cuenta? Ingresá" (link rojo mono) ---------- */
 .wo-beta-haveaccount{margin:0;text-align:center;color:var(--text-faint)}
@@ -116,6 +127,11 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 @media (max-width:768px){
   .wo-beta-burger{display:inline-flex}
   .wo-auth-panel{padding:var(--space-8) var(--space-5)}
+}
+@media (max-width:640px){
+  .wo-auth-fieldrow{grid-template-columns:1fr}
+  .wo-auth-social-row{grid-template-columns:1fr}
+  .wo-auth-social-row .wo-btn{justify-content:center}
 }
 @media (max-width:480px){
   .wo-auth-panel{padding:var(--space-8) var(--space-4)}
