@@ -591,7 +591,6 @@ function renderQuoteCard(quote, index) {
 
     return `
         <article class="q-card" data-quote-id="${escapeHtml(quote.id)}" style="--q-card-delay:${index * 0.04}s">
-            <span class="q-card-rail" aria-hidden="true"></span>
             <div class="q-card-prio">
                 <span class="q-prio-mark q-prio-mark--${priority.tone}" aria-hidden="true"></span>
                 <span class="q-prio-label">${escapeHtml(priority.label)}</span>
@@ -610,7 +609,7 @@ function renderQuoteCard(quote, index) {
                 <span class="q-card-price">${escapeHtml(formatQuoteAmount(quote))}</span>
                 <button type="button" class="q-card-cta" onclick="inspectQuote('${escapeHtml(quote.id)}')">
                     Ver detalle
-                    <i data-wo-icon="arrow-up-right" aria-hidden="true"></i>
+                    <i data-wo-icon="arrow-right" aria-hidden="true"></i>
                 </button>
             </div>
         </article>`;

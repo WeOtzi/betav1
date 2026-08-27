@@ -62,7 +62,7 @@ cloud vivo**, que tiene frames nuevos (prefijos de node-id ≥ `344:` aprox.).
 | Notificaciones (panel) | 167:24120, 167:23251 | panel en `/artist/dashboard` | hecha-v1 | Implementado en commit `0c67a5c`; re-auditar ambos estados. |
 | Centro de la cuenta | 156:10014, 156:10807, 156:11993, 156:12247, 158:13029, 158:13480, 161:14150, 161:14507, 162:15088 | `/artist/account` (nueva) | hecha (26 ago) | Sidebar de 9 secciones: Mi Perfil, Portafolio, Cobros y facturación, Disponibilidad, Notificaciones, Seguridad y Privacidad, Integraciones, Verificación, Configuración. Hoy repartido entre dashboard y `profile/details`. |
 | Perfil público artista | 237:2096, 344:1184 | `/artist/profile` | hecha (re-auditada 26 ago) | Auditada y corregida contra `344:1184` (CTA dual, manifiesto de bio, detalles geométricos). |
-| Cotizaciones | 33:5758, 99:908 | `/my-quotations` | hecha-v1 | |
+| Cotizaciones | 33:5758, 99:908 | `/my-quotations` | hecha (re-auditada 27 ago) | Topbar canónica unificada en todas las páginas del panel (my-quotations, statistics, archive, calendar, profile/details); riel decorativo de filas eliminado, formas de prioridad ■●▲, flecha del CTA y widget flotante de moneda retirado (el control vive en el "Mostrar en" del hero). Archivo salió de la topbar (link junto al contador). |
 | Cotización — detalle | 62:11137 | drawer/detalle en `/my-quotations` | hecha-v1 | |
 | Job board artista | 28:1856, 104:2707, 105:4079 | `/job-board` | hecha-v1 | |
 | Postulaciones del artista | 105:4480, 132:15483 (reemplaza 111:7059), 133:16259 (detalle JB), 111:7694 (Spots), 132:15871 (detalle Spot) | `/artist/applications` (nueva, dedicada) | hecha (26 ago) | Job board y Spots separados, cada uno con su detalle. |

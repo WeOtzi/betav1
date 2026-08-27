@@ -482,8 +482,8 @@ body.wo-app {
 .legend-dot--rejected { background: var(--red-300); }
 .legend-dot--expired { background: var(--neutral-300); }
 .legend-dot--high { background: var(--red-300); }
-.legend-dot--medium { background: var(--yellow-300); }
-.legend-dot--low { background: transparent; border: var(--border-hairline) solid var(--border-muted); }
+.legend-dot--medium { background: var(--yellow-300); border-radius: 999px; }
+.legend-dot--low { width: 0; height: 0; background: transparent; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid var(--blue-400); }
 
 /* ============================================================================
    Lista de cotizaciones · tarjetas agrupadas por período
@@ -519,7 +519,7 @@ body.wo-app {
 
 .q-card {
     display: grid;
-    grid-template-columns: 28px 84px minmax(0, 1fr) 176px;
+    grid-template-columns: 84px minmax(0, 1fr) 176px;
     column-gap: var(--space-6);
     align-items: start;
     padding: var(--space-6) 0;
@@ -533,13 +533,6 @@ body.wo-app {
 .q-card.is-in { opacity: 1; transform: translateY(0); }
 .q-card:hover { background: var(--neutral-100); }
 
-.q-card-rail {
-    width: 28px;
-    height: 116px;
-    border: var(--border-hairline) solid var(--border-muted);
-    box-sizing: border-box;
-}
-
 .q-card-prio {
     display: flex;
     flex-direction: column;
@@ -550,8 +543,8 @@ body.wo-app {
 
 .q-prio-mark { width: 24px; height: 24px; flex: none; }
 .q-prio-mark--high { background: var(--red-300); }
-.q-prio-mark--medium { background: var(--yellow-300); }
-.q-prio-mark--low { background: transparent; border: var(--border-hairline) solid var(--border-muted); box-sizing: border-box; }
+.q-prio-mark--medium { background: var(--yellow-300); border-radius: 999px; }
+.q-prio-mark--low { width: 0; height: 0; background: transparent; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 16px solid var(--blue-400); }
 
 .q-prio-label {
     font-family: var(--font-mono);
@@ -2182,8 +2175,7 @@ body.wo-app {
     .detail-drawer { width: 410px; }
 
     .q-hero-aside { flex-basis: 100%; padding-left: 0; border-left: 0; }
-    .q-card { grid-template-columns: 20px 72px minmax(0, 1fr) 160px; column-gap: var(--space-4); }
-    .q-card-rail { width: 20px; height: 96px; }
+    .q-card { grid-template-columns: 72px minmax(0, 1fr) 160px; column-gap: var(--space-4); }
     .q-card-name { font-size: var(--h3-size); }
     .q-card-price { font-size: 20px; }
     .legend-groups { gap: var(--space-5); }
@@ -2213,7 +2205,6 @@ body.wo-app {
         padding: var(--space-5) 0;
     }
 
-    .q-card-rail { display: none; }
     .q-card-prio { grid-column: 1; grid-row: 1; align-items: flex-start; padding-top: 0; }
     .q-card-body { grid-column: 2; grid-row: 1; }
     .q-card-side {
@@ -2283,3 +2274,15 @@ body.wo-app {
     .q-group-head { gap: var(--space-1); }
     .legend-groups { gap: var(--space-4); }
 }
+
+/* Topbar canonica (Figma 33:5758): brand y nav en ink — el generico .wo-app a
+   los pintaba de azul en las paginas del panel. */
+.wo-topbar a.wo-topbar-brand { color: var(--text-heading); }
+.wo-topbar a.wo-topbar-brand:hover { color: var(--text-heading); text-decoration: none; }
+.wo-topbar a.wo-topbar-item { color: var(--neutral-400); }
+.wo-topbar a.wo-topbar-item:hover { color: var(--neutral-500); text-decoration: none; }
+.wo-topbar a.wo-topbar-item.is-active { color: var(--neutral-500); }
+
+/* Acceso al archivo (salio de la topbar segun el mock): link mono junto al contador */
+.legend-archive { font-family: var(--font-mono); font-size: var(--meta-s-size); letter-spacing: var(--meta-s-track); text-transform: uppercase; color: var(--neutral-400); text-decoration: none; margin-left: var(--space-4); }
+.legend-archive:hover { color: var(--neutral-500); text-decoration: underline; }

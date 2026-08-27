@@ -314,17 +314,7 @@
         + '.weotzi-currency-widget select:focus-visible {'
         + '  outline: 2px solid var(--wo-currency-accent); outline-offset: 3px;'
         + '}'
-        + '.weotzi-currency-widget--floating {'
-        + '  position: fixed; bottom: 18px; left: 18px; z-index: 9000;'
-        + '  background: var(--wo-currency-bg); padding: 9px 10px 9px 12px;'
-        + '  border: 1.5px solid var(--wo-currency-fg); border-radius: 999px;'
-        + '  box-shadow: 5px 5px 0 var(--wo-currency-fg); backdrop-filter: blur(8px);'
-        + '}'
-        + '.weotzi-currency-widget--floating:hover {'
-        + '  box-shadow: 6px 6px 0 var(--wo-currency-fg);'
-        + '}'
         + '@media (max-width: 640px) {'
-        + '  .weotzi-currency-widget--floating { bottom: 12px; left: 12px; padding: 8px 9px 8px 10px; }'
         + '  .weotzi-currency-widget label { display: none; }'
         + '  .weotzi-currency-widget::before { width: 8px; height: 8px; }'
         + '}';
@@ -398,34 +388,24 @@
         return wrap;
     }
 
+    // El control flotante se eliminó (26 ago 2026): la preferencia de moneda
+    // vive en los selects "Mostrar en" de cada página (p.ej. /my-quotations,
+    // Figma 33:5758) y en /artist/account → Configuración. mount() ahora solo
+    // renderiza dentro de un contenedor explícito.
     function mount(target, opts) {
         opts = opts || {};
-        var node = _buildWidget(opts);
+        opts.floating = false;
         if (target && typeof target === 'string') target = document.querySelector(target);
-        if (target && target.appendChild) {
-            target.appendChild(node);
-        } else {
-            opts.floating = true;
-            node = _buildWidget(opts);
-            document.body.appendChild(node);
-        }
+        if (!target || !target.appendChild) return null;
+        var node = _buildWidget(opts);
+        target.appendChild(node);
         return node;
     }
 
     function _autoMount() {
-        // Skip on auth/landing pages where prices are not shown.
-        var skipPaths = [/\/quotation(\/|$)/, /\/registerclosedbeta/, /\/register-artist/,
-                         /\/client\/(login|register)/, /\/artist\/login/, /\/support\/login/, /\/tutorial/];
-        var path = window.location.pathname;
-        if (skipPaths.some(function (re) { return re.test(path); })) return;
-
-        // If the page declares its own mount target, use it; otherwise float bottom-right.
+        // Solo si la página declara su propio punto de montaje.
         var explicit = document.querySelector('[data-weotzi-currency-mount]');
-        if (explicit) {
-            mount(explicit, { floating: false });
-        } else {
-            mount(null, { floating: true });
-        }
+        if (explicit) mount(explicit, { floating: false });
     }
 
     var api = {
