@@ -931,3 +931,13 @@ a.ra-continue:hover{color:var(--white);text-decoration:none}
     .ra-title{font-size:21px}
     .newsletter-topic{padding:var(--space-4)}
 }
+
+/* ---------- Disponibilidad en vivo (email / nombre artistico / instagram) ----------
+   Avisos de duplicado en el paso + chips de sugerencias de nombre libre. */
+.ra-unique-msg{margin:var(--space-2) 0 0;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--system-error)}
+.ra-unique-msg--warn{color:var(--text-muted)}
+.ra-unique-msg a{color:inherit;text-decoration:underline}
+.ra-username-suggestions{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-2)}
+.ra-suggestion-chip{border:1px solid var(--border-strong);background:var(--surface-card);padding:var(--space-1) var(--space-3);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-heading);cursor:pointer;border-radius:0;transition:transform .12s ease,box-shadow .12s ease}
+.ra-suggestion-chip:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.ra-suggestion-chip:active{transform:translate(0,0);box-shadow:none}

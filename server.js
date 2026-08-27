@@ -4870,6 +4870,15 @@ function isDifferentDraft(row, draftId) {
     return !draftId || String(row.registration_draft_id || '') !== draftId;
 }
 
+// Solo las cuentas REALES bloquean un registro: filas finalizadas (user_id o
+// pending_validation). Un borrador incompleto del autosave (abandonado o con
+// draft-id perdido) nunca reserva email/username/instagram — antes si lo
+// hacia y el propio borrador del usuario le "duplicaba" sus datos al
+// reintentar tras un conflicto.
+function isBlockingRegistrationRow(row, draftId) {
+    return isDifferentDraft(row, draftId) && isFinalizedArtist(row);
+}
+
 async function getRegistrationConflicts({ email, username, instagram, draftId, allowUserId }) {
     const conflicts = new Set();
 
@@ -4882,7 +4891,7 @@ async function getRegistrationConflicts({ email, username, instagram, draftId, a
         const emailRows = await listArtistRowsByFilter(
             `email=ilike.${encodeURIComponent(email)}`
         );
-        if (emailRows.some(row => isDifferentDraft(row, draftId))) {
+        if (emailRows.some(row => isBlockingRegistrationRow(row, draftId))) {
             conflicts.add('email');
         }
     }
@@ -4891,7 +4900,7 @@ async function getRegistrationConflicts({ email, username, instagram, draftId, a
         const usernameRows = await listArtistRowsByFilter(
             `username=ilike.${encodeURIComponent(username)}`
         );
-        if (usernameRows.some(row => isDifferentDraft(row, draftId))) {
+        if (usernameRows.some(row => isBlockingRegistrationRow(row, draftId))) {
             conflicts.add('username');
         }
     }
@@ -4904,7 +4913,7 @@ async function getRegistrationConflicts({ email, username, instagram, draftId, a
         const instagramAtRows = instagramRows.length
             ? []
             : await listArtistRowsByFilter(`instagram=ilike.${encodeURIComponent('@' + cleanInstagram)}`);
-        if ([...instagramRows, ...instagramAtRows].some(row => isDifferentDraft(row, draftId))) {
+        if ([...instagramRows, ...instagramAtRows].some(row => isBlockingRegistrationRow(row, draftId))) {
             conflicts.add('instagram');
         }
     }
@@ -5198,6 +5207,36 @@ async function createArtistAuthUser({ email, password, fullName, username, draft
     return body.user || body;
 }
 
+// Un reintento del finalize adopta el usuario de Auth que creo el intento
+// anterior de ESTE borrador; la contrasena mas reciente gana.
+async function updateArtistAuthUserPassword(userId, password) {
+    const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
+    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+        method: 'PUT',
+        headers: getAdminHeaders(serviceRoleKey),
+        body: JSON.stringify({ password })
+    });
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.msg || body.message || `Auth update failed (${response.status})`);
+    }
+}
+
+// Rollback del finalize: si algo falla DESPUES de crear el usuario de Auth,
+// se borra para no dejar una cuenta a medias (que convertia el email en
+// "duplicado" en el siguiente intento).
+async function deleteArtistAuthUser(userId) {
+    const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
+    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: getAdminHeaders(serviceRoleKey)
+    });
+    if (!response.ok && response.status !== 404) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.msg || body.message || `Auth delete failed (${response.status})`);
+    }
+}
+
 function requestAbsoluteUrl(req, pathName) {
     const basePath = req.weotziBasePath || '';
     return `${req.protocol}://${req.get('host')}${basePath}${pathName}`;
@@ -5344,25 +5383,47 @@ app.post('/api/register/artist-finalize', async (req, res) => {
 
         const username = artistRegistration.formatArtistUsername(formData.artistic_name, email);
         const instagram = String(formData.instagram_handle || '').trim().replace(/^@/, '');
-        const conflicts = await getRegistrationConflicts({ email, username, instagram, draftId });
-        if (conflicts.length > 0) {
-            return res.status(409).json({ success: false, error: 'Datos ya registrados', conflicts });
+
+        // ¿Un intento anterior de ESTE borrador ya creo el usuario de Auth y
+        // fallo despues? Se adopta en vez de chocar con "email ya registrado".
+        const priorAuthUsers = await listAuthUsersByEmail(email);
+        const ownAuthUser = priorAuthUsers.find(
+            (u) => u && u.user_metadata && u.user_metadata.registration_draft_id === draftId
+        ) || null;
+
+        const conflicts = await getRegistrationConflicts({
+            email, username, instagram, draftId,
+            allowUserId: ownAuthUser ? ownAuthUser.id : undefined
+        });
+        // Instagram duplicado NO bloquea (decision 26 ago): se registra igual y
+        // el Instagram queda para validar despues. Solo email/username frenan.
+        const blocking = conflicts.filter((c) => c !== 'instagram');
+        if (blocking.length > 0) {
+            return res.status(409).json({ success: false, error: 'Datos ya registrados', conflicts: blocking });
         }
 
         const { studioId, estudiosValue, studioName } = await resolveRegistrationStudio(formData);
         const fullName = artistRegistration.capitalizeWords(formData.full_name);
-        const authUser = await createArtistAuthUser({
-            email,
-            password,
-            fullName,
-            username,
-            draftId,
-            source
-        });
+        let authUser = ownAuthUser;
+        let createdAuthUserId = null;
+        if (authUser) {
+            await updateArtistAuthUserPassword(authUser.id, password);
+        } else {
+            authUser = await createArtistAuthUser({
+                email,
+                password,
+                fullName,
+                username,
+                draftId,
+                source
+            });
+            createdAuthUserId = authUser && authUser.id ? authUser.id : null;
+        }
         if (!authUser || !authUser.id) {
             throw new Error('Auth create returned no user id');
         }
 
+        try {
         const finalPatch = artistRegistration.buildArtistRegistrationPayload(formData, {
             draftId,
             userId: authUser.id,
@@ -5397,6 +5458,15 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             login_url: requestAbsoluteUrl(req, '/registerclosedbeta'),
             profile_url: username ? requestAbsoluteUrl(req, `/artist/profile?artist=${encodeURIComponent(username)}`) : null
         });
+        } catch (postCreateError) {
+            // Rollback: nunca dejar una cuenta de Auth a medias.
+            if (createdAuthUserId) {
+                await deleteArtistAuthUser(createdAuthUserId).catch((rollbackErr) =>
+                    console.error('[register finalize] rollback del auth user fallo:', rollbackErr.message)
+                );
+            }
+            throw postCreateError;
+        }
     } catch (error) {
         console.error('[register finalize] failed:', error.message);
         const already = /already|exists|duplicate|registered/i.test(error.message);
@@ -5432,10 +5502,15 @@ app.post('/api/register/check-uniqueness', async (req, res) => {
 
     try {
         const conflicts = await getRegistrationConflicts({ email, username, instagram, draftId });
+        // Instagram duplicado no bloquea el registro: viaja como warning para
+        // que el wizard avise que se validara despues.
+        const blocking = conflicts.filter((c) => c !== 'instagram');
+        const warnings = conflicts.includes('instagram') ? ['instagram'] : [];
         return res.json({
             success: true,
-            available: conflicts.length === 0,
-            conflicts
+            available: blocking.length === 0,
+            conflicts: blocking,
+            warnings
         });
     } catch (err) {
         console.error('[uniqueness check] failed:', err.message);

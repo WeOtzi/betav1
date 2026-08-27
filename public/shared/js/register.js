@@ -3148,6 +3148,7 @@ function isGroupReady(groupId) {
             const emailInput = document.getElementById('email');
             const email = String((emailInput ? emailInput.value : data.email) || '').trim();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+            if (uniquenessState.email.state === 'taken' && uniquenessState.email.value === email.toLowerCase()) return false;
             if (!formState.preAuthMode) return true;
             const pw = String(document.getElementById('signup_password')?.value || '');
             const pw2 = String(document.getElementById('signup_password_confirm')?.value || '');
@@ -3198,6 +3199,214 @@ function syncTrabajoGateHint() {
     hint.hidden = !(needsStudio && !studioResolved && !studioAddressRequired);
 }
 
+// ---------- Disponibilidad en vivo (email / nombre artístico / instagram) ----------
+// Chequea /api/register/check-uniqueness al salir de cada campo para avisar
+// EN EL PASO, no recién al final del acordeón. El estado alimenta el gate
+// (isGroupReady/validateGroup); window.__weotziUsernameAvailability —que el
+// gate ya leía— ahora sí se escribe desde acá. Instagram duplicado NO
+// bloquea: solo advierte que se validará después.
+const uniquenessState = {
+    email: { value: '', state: 'unknown' },
+    username: { value: '', state: 'unknown' },
+    instagram: { value: '', state: 'unknown' }
+};
+const uniquenessSeq = { email: 0, username: 0, instagram: 0 };
+
+async function requestUniqueness(payload) {
+    const res = await fetch(apiUrl('/api/register/check-uniqueness'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft_id: registrationDraftId, ...payload })
+    });
+    const data = await readJsonResponse(res);
+    if (!res.ok || !data.success) throw new Error(data.error || 'check failed');
+    return data;
+}
+
+function uniquenessFieldInput(kind) {
+    const ids = { email: 'email', username: 'artistic_name', instagram: 'instagram_handle' };
+    return document.getElementById(ids[kind]);
+}
+
+function ensureUniqueMsgEl(kind) {
+    const input = uniquenessFieldInput(kind);
+    if (!input) return null;
+    const id = `${kind}-unique-msg`;
+    let el = document.getElementById(id);
+    if (!el) {
+        el = document.createElement('p');
+        el.id = id;
+        el.className = 'ra-unique-msg';
+        el.hidden = true;
+        const anchor = input.closest('.password-input-row') || input;
+        anchor.insertAdjacentElement('afterend', el);
+    }
+    return el;
+}
+
+function ensureSuggestionsEl() {
+    const msg = ensureUniqueMsgEl('username');
+    if (!msg) return null;
+    let el = document.getElementById('username-suggestions');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'username-suggestions';
+        el.className = 'ra-username-suggestions';
+        el.hidden = true;
+        msg.insertAdjacentElement('afterend', el);
+    }
+    return el;
+}
+
+function renderUniqueState(kind) {
+    const input = uniquenessFieldInput(kind);
+    const msg = ensureUniqueMsgEl(kind);
+    if (!input || !msg) return;
+    const { state } = uniquenessState[kind];
+    const taken = state === 'taken';
+    msg.classList.toggle('ra-unique-msg--warn', kind === 'instagram');
+    if (kind !== 'instagram') input.classList.toggle('error', taken);
+    if (!taken) {
+        msg.hidden = true;
+        msg.textContent = '';
+        if (kind === 'username') { const s = document.getElementById('username-suggestions'); if (s) s.hidden = true; }
+        return;
+    }
+    if (kind === 'email') {
+        msg.innerHTML = 'Ya existe una cuenta con este email. '
+            + `<a href="${appUrl('/artist/login')}">Iniciá sesión</a> para continuar.`;
+    } else if (kind === 'username') {
+        msg.textContent = 'Ese nombre artístico ya está en uso. Probá una opción libre:';
+    } else {
+        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Podés registrarte igual: lo vamos a validar después.';
+    }
+    msg.hidden = false;
+}
+
+// Sugerencias de nombre artístico libres, verificadas contra el server.
+async function renderUsernameSuggestions(baseName) {
+    const box = ensureSuggestionsEl();
+    if (!box) return;
+    box.hidden = true;
+    box.innerHTML = '';
+    const name = String(baseName || '').trim();
+    if (!name) return;
+    const twoDigits = String(10 + Math.floor(Math.random() * 90));
+    const candidates = [`${name} ink`, `${name} tattoo`, `${name} ${twoDigits}`];
+    const seen = new Set([formatUsername(name)]);
+    const available = [];
+    for (const candidate of candidates) {
+        const slug = formatUsername(candidate);
+        if (!slug || seen.has(slug)) continue;
+        seen.add(slug);
+        try {
+            const data = await requestUniqueness({ username: slug });
+            if (data.available) available.push({ candidate, slug });
+        } catch (_) { /* red caída: sin sugerencia */ }
+        if (available.length >= 3) break;
+    }
+    if (!available.length) return;
+    available.forEach(({ candidate, slug }) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ra-suggestion-chip';
+        chip.textContent = `@${slug}`;
+        chip.addEventListener('click', () => {
+            const input = uniquenessFieldInput('username');
+            if (input) input.value = candidate;
+            formState.data.artistic_name = candidate;
+            persistRegistrationDraft();
+            checkFieldUniqueness('username');
+        });
+        box.appendChild(chip);
+    });
+    box.hidden = false;
+}
+
+async function checkFieldUniqueness(kind) {
+    const input = uniquenessFieldInput(kind);
+    if (!input) return;
+    let value = String(input.value || '').trim();
+    let payload = null;
+    if (kind === 'email') {
+        value = value.toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) { setUniquenessState(kind, value, 'unknown'); return; }
+        payload = { email: value };
+    } else if (kind === 'username') {
+        const slug = formatUsername(value);
+        if (!slug || normalizeArtistHandle(value).length < 3) { setUniquenessState(kind, '', 'unknown'); return; }
+        value = slug;
+        payload = { username: slug };
+    } else {
+        value = value.replace(/^@/, '').toLowerCase();
+        if (!value) { setUniquenessState(kind, '', 'unknown'); return; }
+        payload = { instagram: value };
+    }
+
+    const seq = ++uniquenessSeq[kind];
+    setUniquenessState(kind, value, 'checking');
+    try {
+        const data = await requestUniqueness(payload);
+        if (seq !== uniquenessSeq[kind]) return; // llegó tarde: hay un chequeo más nuevo
+        const taken = kind === 'instagram'
+            ? Boolean(data.warnings && data.warnings.includes('instagram'))
+            : Boolean(data.conflicts && data.conflicts.includes(kind));
+        setUniquenessState(kind, value, taken ? 'taken' : 'available');
+        if (kind === 'username' && taken) renderUsernameSuggestions(uniquenessFieldInput('username').value);
+    } catch (_) {
+        if (seq !== uniquenessSeq[kind]) return;
+        setUniquenessState(kind, value, 'unknown'); // sin red no se bloquea; el server re-chequea al final
+    }
+}
+
+function setUniquenessState(kind, value, state) {
+    uniquenessState[kind] = { value, state };
+    if (kind === 'username') {
+        window.__weotziUsernameAvailability = state === 'unknown' ? null : { username: value, state };
+    }
+    if (state !== 'checking') renderUniqueState(kind);
+    refreshGroupGate();
+}
+
+// Marca los conflictos que reporta el server al finalizar y abre el grupo
+// del primero para corregirlo ahí mismo.
+function markUniquenessConflicts(conflicts, { email, username }) {
+    (conflicts || []).forEach((kind) => {
+        if (kind === 'email') setUniquenessState('email', String(email || '').toLowerCase(), 'taken');
+        if (kind === 'username') {
+            setUniquenessState('username', username, 'taken');
+            renderUsernameSuggestions(formState.data.artistic_name);
+        }
+    });
+    const firstGroup = conflicts.includes('username') ? 'quien' : 'acceso';
+    editGroup(firstGroup);
+    const input = uniquenessFieldInput(conflicts.includes('username') ? 'username' : 'email');
+    if (input) setTimeout(() => input.focus(), 150);
+}
+
+let usernameCheckTimer = null;
+function wireLiveUniqueness() {
+    const emailInput = uniquenessFieldInput('email');
+    const nameInput = uniquenessFieldInput('username');
+    const igInput = uniquenessFieldInput('instagram');
+    if (emailInput) {
+        emailInput.addEventListener('blur', () => checkFieldUniqueness('email'));
+        emailInput.addEventListener('input', () => setUniquenessState('email', '', 'unknown'));
+    }
+    if (nameInput) {
+        nameInput.addEventListener('blur', () => checkFieldUniqueness('username'));
+        nameInput.addEventListener('input', () => {
+            setUniquenessState('username', '', 'unknown');
+            clearTimeout(usernameCheckTimer);
+            usernameCheckTimer = setTimeout(() => checkFieldUniqueness('username'), 700);
+        });
+    }
+    if (igInput) {
+        igInput.addEventListener('blur', () => checkFieldUniqueness('instagram'));
+        igInput.addEventListener('input', () => setUniquenessState('instagram', '', 'unknown'));
+    }
+}
+
 // ---------- Novedades ----------
 // El esquema guarda un único boolean (`subscribed_newsletter`): los 4 temas
 // del Figma se agregan en esa preferencia. Arranca en null (sin default) y
@@ -3246,6 +3455,9 @@ function setupGroupUI() {
     document.addEventListener('input', refreshGroupGate);
     document.addEventListener('change', refreshGroupGate);
     document.addEventListener('click', () => { refreshGroupGate(); });
+
+    // Avisos de duplicados en el paso (email / nombre artístico / instagram).
+    wireLiveUniqueness();
 
     // "Ver más estilos" — el resto de los chips del grupo 03.
     const moreStylesBtn = document.getElementById('styles-more-btn');
@@ -3571,6 +3783,7 @@ function validateStep(step) {
                 if (liveAvailability?.username === username && liveAvailability.state === 'taken') {
                     isValid = false;
                     errorElement = artisticName;
+                    errorMessage = 'Ese nombre artístico ya está en uso. Probá una de las sugerencias.';
                 }
             }
             break;
@@ -3589,6 +3802,13 @@ function validateStep(step) {
             if (!email.value.trim() || !emailRegex.test(email.value)) {
                 isValid = false;
                 errorElement = email;
+                break;
+            }
+            if (uniquenessState.email.state === 'taken'
+                && uniquenessState.email.value === email.value.trim().toLowerCase()) {
+                isValid = false;
+                errorElement = email;
+                errorMessage = 'Ya existe una cuenta con este email. Iniciá sesión para continuar.';
                 break;
             }
             // Pre-auth registration: validate password fields now; the server
@@ -3865,16 +4085,21 @@ async function finalizePreAuthRegistration(username) {
         })
     });
     const checkData = await readJsonResponse(checkRes);
-    if (checkRes.ok && checkData.success && !checkData.available) {
-        const labels = {
-            email: 'el email',
-            username: 'el nombre artistico (username)',
-            instagram: 'el usuario de Instagram'
-        };
-        const conflicting = (checkData.conflicts || []).map(c => labels[c] || c).join(' y ');
-        const error = new Error('Ya existe una cuenta con ' + conflicting + '. Elegi valores distintos o inicia sesion con esa cuenta.');
-        error.code = 'REGISTRATION_CONFLICT';
-        throw error;
+    if (checkRes.ok && checkData.success) {
+        // Instagram duplicado no bloquea: solo deja el aviso en su campo.
+        if (Array.isArray(checkData.warnings) && checkData.warnings.includes('instagram')) {
+            const igValue = String(formState.data.instagram_handle || '').replace(/^@/, '').toLowerCase();
+            setUniquenessState('instagram', igValue, 'taken');
+        }
+        const conflicts = checkData.conflicts || [];
+        if (conflicts.length > 0) {
+            markUniquenessConflicts(conflicts, { email, username });
+            const labels = { email: 'el email', username: 'el nombre artístico' };
+            const conflicting = conflicts.map(c => labels[c] || c).join(' y ');
+            const error = new Error('Ya existe una cuenta con ' + conflicting + '. Corregilo en el paso marcado o iniciá sesión.');
+            error.code = 'REGISTRATION_CONFLICT';
+            throw error;
+        }
     }
 
     const finalizeRes = await fetch(apiUrl('/api/register/artist-finalize'), {
@@ -3890,8 +4115,20 @@ async function finalizePreAuthRegistration(username) {
     });
     const finalizeData = await readJsonResponse(finalizeRes);
     if (!finalizeRes.ok || !finalizeData.success) {
+        const conflicts = finalizeData.conflicts || [];
+        if (conflicts.length > 0) {
+            // El server detectó el duplicado (carrera o chequeo previo caído):
+            // mismo tratamiento que el chequeo local.
+            markUniquenessConflicts(conflicts, { email, username });
+            const labels = { email: 'el email', username: 'el nombre artístico' };
+            const error = new Error('Ya existe una cuenta con '
+                + conflicts.map(c => labels[c] || c).join(' y ')
+                + '. Corregilo en el paso marcado o iniciá sesión.');
+            error.code = 'REGISTRATION_CONFLICT';
+            throw error;
+        }
         const error = new Error(finalizeData.error || 'No se pudo finalizar el registro.');
-        error.conflicts = finalizeData.conflicts || [];
+        error.conflicts = conflicts;
         throw error;
     }
     return finalizeData;
@@ -4070,8 +4307,13 @@ async function submitForm() {
             console.error('Error finalizing pre-auth registration:', error);
             btnNext.disabled = false;
             btnNext.innerHTML = `Continuar`;
+            if (error.code === 'REGISTRATION_CONFLICT') {
+                // El campo en conflicto ya quedó marcado y su grupo abierto
+                // (markUniquenessConflicts): sin alert ni vuelta al resumen.
+                return;
+            }
             goToStep('summary');
-            alert(error.message || 'No se pudo finalizar el registro. Intenta de nuevo.');
+            alert(error.message || 'No se pudo finalizar el registro. Intentá de nuevo.');
             return;
         }
     }
