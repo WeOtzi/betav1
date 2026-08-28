@@ -78,6 +78,10 @@
         var s = document.createElement('style');
         s.id = 'wo-artist-menu-styles';
         s.textContent = [
+            /* El atributo hidden es del user-agent: cualquier `display` de autor
+               (p.ej. el flex del panel) le gana y el elemento queda visible con
+               hidden=true. Esta regla lo cierra para los 3 overlays. */
+            '.wo-oam-drop[hidden],.wo-oam-panel[hidden],.wo-oam-scrim[hidden]{display:none !important}',
             /* badge del tile */
             '.wo-oam-host{position:relative;display:inline-flex}',
             '.wo-oam-badge{position:absolute;top:-8px;right:-10px;min-width:18px;padding:2px 5px;background:var(--red-300);color:var(--white);font-family:var(--font-mono);font-size:10px;line-height:1.3;text-align:center;font-weight:700}',

@@ -293,3 +293,15 @@ a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
   .wo-agenda-row{grid-template-columns:72px 1fr auto}
   .wo-statstrip{grid-auto-flow:row;grid-template-columns:1fr 1fr}
 }
+
+/* ============================================================
+   Guarda global de [hidden]
+   ------------------------------------------------------------
+   `hidden` aplica display:none desde la hoja del user-agent, y
+   CUALQUIER `display` de autor (flex/grid/block) le gana: el
+   elemento queda visible aunque el JS lo crea cerrado. Panels,
+   drawers y overlays del DS dependen de este atributo, así que
+   la regla lo cierra de raíz. Para mostrar según estado usar
+   `:not([hidden])` (patrón ya usado en los menús mobile).
+   ============================================================ */
+[hidden] { display: none !important; }
