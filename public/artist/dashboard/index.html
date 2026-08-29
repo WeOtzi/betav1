@@ -40,6 +40,7 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/account-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -99,44 +100,6 @@
             <a href="/artist/profile/details">PERFIL</a>
         </nav>
     </header>
-
-    <!-- ===================== ONBOARDING / VERIFICATION BANNER ===================== -->
-    <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">
-        <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">
-            <div class="banner-top-row">
-                <div class="banner-notice-switch" role="tablist" aria-label="Avisos del dashboard">
-                    <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">Inicio</button>
-                    <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">Verificación</button>
-                </div>
-                <div class="banner-actions">
-                    <button class="banner-nav-btn" id="banner-prev-btn" type="button" aria-label="Aviso anterior">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-                    </button>
-                    <button class="banner-nav-btn" id="banner-next-btn" type="button" aria-label="Siguiente aviso">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                    </button>
-                    <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button" aria-expanded="false" aria-controls="banner-expanded-content">
-                        <span id="banner-toggle-label">Ver tareas</span>
-                        <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div class="banner-summary" id="banner-summary">
-                <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE ÖTZI</p>
-                <p class="banner-summary-meta" id="banner-summary-meta">0/4 TAREAS</p>
-                <p class="banner-summary-note" id="banner-summary-note">Un perfil sólido te ayuda a destacarte y atraer mejores oportunidades.</p>
-                <div class="banner-progress-track"><div class="banner-progress-fill" id="banner-progress-fill"></div></div>
-            </div>
-            <div class="banner-expanded-content" id="banner-expanded-content" hidden>
-                <section class="banner-panel banner-panel-onboarding" id="banner-panel-onboarding">
-                    <ul class="banner-checklist" id="banner-onboarding-checklist"></ul>
-                </section>
-                <section class="banner-panel banner-panel-verification" id="banner-panel-verification" hidden>
-                    <ul class="banner-checklist" id="banner-verification-checklist"></ul>
-                </section>
-            </div>
-        </div>
-    </div>
 
     <!-- ============================ HERO / SALUDO ============================ -->
     <section class="wo-dash-hero" id="wod-hero">
@@ -234,7 +197,10 @@
                         <span class="wo-badge wo-badge--s wo-badge--outline embajador-badge" id="embajador-badge" style="display:none;">EMBAJADOR</span>
                     </div>
                     <p class="wo-dash-profile-meta wo-meta"><span id="stat-price">—</span> / SESIÓN · <span id="stat-styles">—</span> <span id="wod-styles-word">ESTILOS</span> · <span id="stat-experience">—</span> AÑOS</p>
-                    <a class="wo-dash-profile-edit" href="/artist/account">Editar perfil →</a>
+                    <p class="wo-dash-profile-links">
+                        <a class="wo-dash-profile-edit" href="/artist/account">Editar perfil →</a>
+                        <a class="wo-dash-profile-edit" id="wod-profile-public" href="/artist/profile">Ver perfil público →</a>
+                    </p>
                 </section>
 
                 <hr class="wo-divider">
@@ -248,14 +214,25 @@
                             <p class="wo-dash-income-sub" id="wod-income-week">—</p>
                             <p class="wo-meta-s wo-dash-income-lbl">SEMANA</p>
                         </div>
+                        <div class="wo-dash-income-cell">
+                            <p class="wo-dash-income-sub is-pending" id="wod-income-due">—</p>
+                            <p class="wo-meta-s wo-dash-income-lbl">SALDO PEND.</p>
+                        </div>
                     </div>
+                </section>
+                <!-- Recordatorios · user_preferences.app_settings.reminders -->
+                <section class="wo-dash-reminders" id="wod-reminders" aria-label="Recordatorios" hidden>
+                    <p class="wo-eyebrow">RECORDATORIOS</p>
+                    <ul class="wo-dash-reminder-list" id="wod-reminder-list"></ul>
                 </section>
 
                 <!-- Acciones rápidas -->
                 <section class="wo-dash-quick" aria-label="Acciones rápidas">
                     <p class="wo-eyebrow">ACCIONES RÁPIDAS</p>
                     <div class="wo-dash-quick-list">
+                        <a class="wo-btn wo-btn--ink wo-btn--hard wo-btn--block" id="wod-new-client" href="/quotation"><i data-wo-icon="plus" class="wo-icon-18"></i>NUEVO CLIENTE</a>
                         <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/calendar"><i data-wo-icon="calendar" class="wo-icon-18"></i>NUEVA CITA</a>
+                        <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="wod-register-payment" href="/my-quotations"><i data-wo-icon="dollar-sign" class="wo-icon-18"></i>REGISTRAR PAGO</a>
                     </div>
                 </section>
             </aside>
@@ -361,6 +338,47 @@
          page. Do not surface this block visually.
          ============================================================ -->
     <div class="wod-hook-hidden" aria-hidden="true">
+        <!-- Banner de onboarding/verificacion: fuera del flujo visible (el Figma
+             24:1424 no lo tiene). Se conserva aca porque dashboard.js cablea sus
+             ids sin guardas; moverlo evita null-crashes. -->
+        <!-- ===================== ONBOARDING / VERIFICATION BANNER ===================== -->    
+        <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">    
+            <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">    
+                <div class="banner-top-row">    
+                    <div class="banner-notice-switch" role="tablist" aria-label="Avisos del dashboard">    
+                        <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">Inicio</button>    
+                        <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">Verificación</button>    
+                    </div>    
+                    <div class="banner-actions">    
+                        <button class="banner-nav-btn" id="banner-prev-btn" type="button" aria-label="Aviso anterior">    
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>    
+                        </button>    
+                        <button class="banner-nav-btn" id="banner-next-btn" type="button" aria-label="Siguiente aviso">    
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>    
+                        </button>    
+                        <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button" aria-expanded="false" aria-controls="banner-expanded-content">    
+                            <span id="banner-toggle-label">Ver tareas</span>    
+                            <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>    
+                        </button>    
+                    </div>    
+                </div>    
+                <div class="banner-summary" id="banner-summary">    
+                    <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE ÖTZI</p>    
+                    <p class="banner-summary-meta" id="banner-summary-meta">0/4 TAREAS</p>    
+                    <p class="banner-summary-note" id="banner-summary-note">Un perfil sólido te ayuda a destacarte y atraer mejores oportunidades.</p>    
+                    <div class="banner-progress-track"><div class="banner-progress-fill" id="banner-progress-fill"></div></div>    
+                </div>    
+                <div class="banner-expanded-content" id="banner-expanded-content" hidden>    
+                    <section class="banner-panel banner-panel-onboarding" id="banner-panel-onboarding">    
+                        <ul class="banner-checklist" id="banner-onboarding-checklist"></ul>    
+                    </section>    
+                    <section class="banner-panel banner-panel-verification" id="banner-panel-verification" hidden>    
+                        <ul class="banner-checklist" id="banner-verification-checklist"></ul>    
+                    </section>    
+                </div>    
+            </div>    
+        </div>
+
         <!-- Controles de cuenta que el frame del Figma no dibuja en el rail.
              Siguen acá SOLO como hooks: dashboard.js los cablea por id y los
              modales (QR / contraseña / verificación) siguen operativos. La UI

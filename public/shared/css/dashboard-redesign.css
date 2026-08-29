@@ -3104,3 +3104,43 @@ body.wod-profile-details-page .wod-footer {
 @media (max-width: 480px) {
   .wo-dash-notif-panel { top: 56px; }
 }
+
+/* ============================================================
+   Rail · piezas del Figma 24:1424 que faltaban
+   ============================================================ */
+
+/* Editar perfil → / Ver perfil público → en una fila (mock: separados) */
+.wo-dash-profile-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-6);
+  margin: 0;
+}
+.wo-dash-profile-links .wo-dash-profile-edit { margin-top: var(--space-5); }
+
+/* Saldo pendiente en rojo, como el mock ($650) */
+.wo-dash-income-sub.is-pending { color: var(--system-error); }
+
+/* Recordatorios */
+.wo-dash-reminders[hidden] { display: none !important; }
+.wo-dash-reminders { margin-bottom: var(--space-8); }
+.wo-dash-reminders .wo-eyebrow { display: block; margin: 0 0 var(--space-4); color: var(--text-faint); }
+.wo-dash-reminder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.wo-dash-reminder {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+  font-size: var(--body-m-size);
+  line-height: 1.45;
+  color: var(--ink);
+}
+.wo-dash-reminder-ic { display: inline-flex; align-items: center; justify-content: center; color: var(--ink); }
+.wo-dash-reminder-ic svg { width: 18px; height: 18px; }
+.wo-dash-reminder.is-done .wo-dash-reminder-tx { color: var(--text-faint); text-decoration: line-through; }
+
+/* El primario del rail es ink: la regla de arriba pinta todos los <a> del
+   bloque con el color ghost, así que se excepciona. */
+.wo-app .wo-dash-quick-list a.wo-btn--ink,
+.wo-app .wo-dash-quick-list a.wo-btn--ink:hover { color: var(--action-primary-fg); }

@@ -87,12 +87,20 @@
     return fileId ? 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w600' : '';
   }
   // Formatea un monto con la moneda del artista (WeOtziCurrency si está listo).
+  // Figma 24:1424 y regla 10 del DS: simbolo adelante y numeros europeos
+  // (4.820). Intl con locale es-AR devuelve "4820 US$", que no es el formato
+  // del sistema, asi que se arma a mano con el simbolo de la moneda.
   function money(amount, code) {
+    var n = Math.round(Number(amount) || 0).toLocaleString('es-AR');
+    var symbol = String.fromCharCode(36);
     var c = window.WeOtziCurrency;
-    if (c && typeof c.format === 'function') {
-      try { return c.format(amount, code, { decimals: 0 }); } catch (e) { /* sigue */ }
-    }
-    return (code || '') + ' ' + Math.round(amount).toLocaleString('es-AR');
+    try {
+      if (c && typeof c.get === 'function') {
+        var meta = c.get(code);
+        if (meta && meta.symbol) symbol = meta.symbol;
+      }
+    } catch (e) { /* simbolo por defecto */ }
+    return symbol + n;
   }
 
   /* ===================================================================== *
@@ -192,7 +200,10 @@
     var s = String(status || '').toLowerCase();
     if (s === 'confirmed' || s === 'scheduled') return { cls: 'is-ok', txt: 'CONFIRMADO' };
     if (s === 'completed') return { cls: 'is-ok', txt: 'COMPLETADO' };
-    if (s === 'pending' || s === 'tentative' || s === 'pending_confirmation') return { cls: 'is-warn', txt: 'POR CONFIRMAR' };
+    // 'rescheduled' y 'no_show' son estados reales de quotation_sessions: sin
+    // esto caian al fallback y se mostraban crudos en ingles.
+    if (s === 'pending' || s === 'tentative' || s === 'pending_confirmation' || s === 'rescheduled') return { cls: 'is-warn', txt: 'POR CONFIRMAR' };
+    if (s === 'no_show') return { cls: 'is-warn', txt: 'NO ASISTIO' };
     return { cls: 'is-warn', txt: (status || 'POR CONFIRMAR').toString().toUpperCase() };
   }
   // Duración real de la sesión: 3H / 1.5H → 90M. Sin dato, sin chip.
@@ -247,12 +258,17 @@
             (isNaN(d) ? '' : ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'][d.getDay()] + ' ' + pad2(d.getDate()));
           var st = sessionState(s.status);
           var dur = durationLabel(s.duration_hours);
+          // El Figma muestra una linea corta: si la sesion tiene nota propia
+          // esa es la descripcion; si no, se arma con sesion/estilo/zona.
           var detailParts = [];
-          detailParts.push(s.session_number ? 'Sesión ' + s.session_number : 'Sesión');
-          var style = styleList(q.tattoo_style)[0];
-          if (style) detailParts.push(style);
-          if (q.tattoo_body_part) detailParts.push(q.tattoo_body_part);
-          if (s.notes) detailParts.push(s.notes);
+          if (s.notes) {
+            detailParts.push(s.notes);
+          } else {
+            detailParts.push(s.session_number ? 'Sesion ' + s.session_number : 'Sesion');
+            var style = styleList(q.tattoo_style)[0];
+            if (style) detailParts.push(style);
+            if (q.tattoo_body_part) detailParts.push(q.tattoo_body_part);
+          }
           return '<div class="wo-dash-agendarow">' +
             '<div class="wo-dash-agendatime">' +
               '<span class="wo-dash-agendahour">' + esc(hour) + '</span>' +
@@ -454,6 +470,8 @@
    *  "SALDO PEND." del Figma se omite: no existe ledger de pagos.           *
    * ===================================================================== */
   var lastQuotes = null;
+  // Estados con trabajo comprometido y cobro pendiente.
+  var PENDING_PAYMENT_STATUSES = ['client_approved', 'in_progress', 'artist_completed'];
   function renderIncome(quotes) {
     var sec = $('wod-income');
     if (!sec || !quotes) return;
@@ -489,6 +507,22 @@
     if (cap) cap.textContent = 'INGRESOS · ' + MONTHS_ES[now.getMonth()];
     var t = $('wod-income-total'); if (t) t.textContent = money(month, target);
     var w = $('wod-income-week'); if (w) w.textContent = money(week, target);
+    // Saldo pendiente: trabajo cerrado con precio pactado y todavia sin cobrar.
+    var due = 0;
+    quotes.forEach(function (q) {
+      if (PENDING_PAYMENT_STATUSES.indexOf(q.quote_status) === -1) return;
+      var rawDue = parseFloat(q.final_budget_amount || q.artist_budget_amount);
+      if (!isFinite(rawDue) || rawDue <= 0) return;
+      var fromDue = String(q.final_budget_currency || q.artist_budget_currency || target).toUpperCase();
+      var valDue = rawDue;
+      if (fromDue !== target) {
+        var cDue = cur && typeof cur.convert === 'function' ? cur.convert(rawDue, fromDue, target) : null;
+        if (cDue === null || !isFinite(cDue)) return;
+        valDue = cDue;
+      }
+      due += valDue;
+    });
+    var d = $('wod-income-due'); if (d) d.textContent = money(due, target);
     sec.hidden = false;
   }
 
@@ -672,6 +706,55 @@
   /* ===================================================================== *
    *  BOOTSTRAP                                                             *
    * ===================================================================== */
+  /* ===================================================================== *
+   *  RECORDATORIOS + LINKS DEL RAIL (Figma 24:1424)                        *
+   *  Los recordatorios viven en user_preferences.app_settings.reminders    *
+   *  (tabla ya existente, sin migracion nueva): [{ text, type, done }].    *
+   * ===================================================================== */
+  var REMINDER_ICONS = {
+    stock: 'package', sketch: 'edit-3', message: 'message-circle',
+    payment: 'dollar-sign', session: 'calendar', travel: 'map-pin'
+  };
+
+  function renderReminders(list) {
+    var sec = $('wod-reminders'), ul = $('wod-reminder-list');
+    if (!sec || !ul) return;
+    var items = (list || []).filter(function (r) { return r && r.text; }).slice(0, 6);
+    if (!items.length) { sec.hidden = true; return; }
+    ul.innerHTML = items.map(function (r) {
+      var icon = REMINDER_ICONS[r.type] || 'circle';
+      return '<li class="wo-dash-reminder' + (r.done ? ' is-done' : '') + '">'
+        + '<span class="wo-dash-reminder-ic"><i data-wo-icon="' + icon + '"></i></span>'
+        + '<span class="wo-dash-reminder-tx">' + esc(r.text) + '</span></li>';
+    }).join('');
+    sec.hidden = false;
+    if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') {
+      try { window.WoIcons.hydrate(ul); } catch (e) { /* iconos opcionales */ }
+    }
+  }
+
+  function loadReminders() {
+    var P = window.WeotziData && window.WeotziData.Prefs;
+    if (!P || typeof P.get !== 'function' || !user) return;
+    withLiveTimeout(P.get(user.id), 'recordatorios')
+      .then(function (row) {
+        var app = (row && row.app_settings) || {};
+        renderReminders(app.reminders || []);
+      })
+      .catch(function (e) { console.warn('[redesign] recordatorios', e); });
+  }
+
+  // Links del rail que dependen del username: perfil publico y alta manual de
+  // cliente (abre el cotizador con el artista ya seleccionado).
+  function wireRailLinks() {
+    var username = artist && String(artist.username || '').replace(/^@/, '').trim();
+    if (!username) return;
+    var pub = $('wod-profile-public');
+    if (pub) pub.href = '/artist/profile?artist=' + encodeURIComponent(username);
+    var nc = $('wod-new-client');
+    if (nc) nc.href = '/quotation?artist=' + encodeURIComponent(username);
+  }
+
   function boot(detail) {
     sb = detail.supabase || window._supabase;
     user = detail.currentUser;
@@ -685,6 +768,8 @@
     if (!sb || !user) { console.warn('[redesign] missing supabase/user; aborting live layer'); return; }
 
     renderProfileCard();
+    wireRailLinks();
+    loadReminders();
     setTimeout(clearStaleLoadingStates, LIVE_QUERY_TIMEOUT_MS + 500);
     loadAgenda();
     loadCotizaciones();
