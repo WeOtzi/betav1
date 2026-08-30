@@ -24,15 +24,15 @@
 
     const LANGS = ['Español', 'Inglés', 'Portugués', 'Francés', 'Italiano', 'Alemán'];
 
-    // Evento → default del canal email (ref 158:13029).
+    // Evento → defaults Email / Push / SMS (ref 158:13029).
     const NOTIF_EVENTS = [
-        ['mensajes', 'Mensajes', true],
-        ['cotizaciones', 'Cotizaciones', true],
-        ['invitaciones', 'Invitaciones', true],
-        ['spots', 'Spots', true],
-        ['job_board', 'Job board', false],
-        ['calendario', 'Calendario', true],
-        ['promociones', 'Promociones', false]
+        ['mensajes', 'Mensajes', true, true, false],
+        ['cotizaciones', 'Cotizaciones', true, true, true],
+        ['invitaciones', 'Invitaciones', true, true, false],
+        ['spots', 'Spots', true, false, false],
+        ['job_board', 'Job board', false, true, false],
+        ['calendario', 'Calendario', true, true, false],
+        ['promociones', 'Promociones', false, false, false]
     ];
 
     const PRIVACY_ROWS = [
@@ -63,6 +63,21 @@
 
     const MIN_WORK_SLOTS = 8;
 
+    const INTEGRATIONS = {
+        google_calendar: { label: 'Google Calendar', scopes: ['calendar.readonly'] },
+        apple_calendar: { label: 'Apple Calendar', scopes: ['calendar.readonly'] },
+        instagram: { label: 'Instagram', scopes: ['portfolio.import'] },
+        stripe: { label: 'Stripe', scopes: ['payments.read'] },
+        whatsapp_business: { label: 'WhatsApp Business', scopes: ['messages.notify'] }
+    };
+
+    const DEFAULT_APP_SETTINGS = {
+        timezone: 'America/Argentina/Buenos_Aires', date_format: 'DD/MM/AAAA', time_format: '24h',
+        language: 'es', theme: 'system', density: 'comfortable', text_size: 'medium', animations: true,
+        start_page: 'dashboard', confirm_logout: true, reduce_motion: false, high_contrast: false,
+        interface_scale: '100', display_name: 'artistic', page_size: '25', default_sort: 'recent'
+    };
+
     let user = null;
     let artist = null;
     let prefs = null;          // fila de user_preferences (o null)
@@ -71,6 +86,14 @@
     let notifMatrix = {};      // {evento: {email, push}}
     let verifAvailable = false;
     let verifDocs = [];
+    let paymentMethods = [];
+    let financialEntries = [];
+    let integrations = [];
+    let integrationsAvailable = false;
+    let currentSessionId = null;
+    let accountSessions = [];
+    let verifiedMfaFactors = [];
+    let pendingMfaFactor = null;
     let toastTimer = null;
 
     const $ = (id) => document.getElementById(id);
@@ -84,6 +107,7 @@
             const session = data?.session || null;
             if (!session) { window.location.href = '/artist/login'; return; }
             user = session.user;
+            currentSessionId = parseJwt(session.access_token)?.session_id || null;
         } catch (err) {
             console.error('[account] sesión:', err);
             window.location.href = '/artist/login';
@@ -102,15 +126,16 @@
         renderWorks();
         setupWorks();
         setupBilling();
-        loadIncome();
+        loadFinancials();
         setupAvailability();
         renderNotifMatrix();
         setupSecurity();
         renderPrivacy();
-        fillIntegrations();
+        loadIntegrations();
         renderVerification();
         loadVerifDocs();
         setupSettings();
+        setupDialogs();
 
         applyHash();
         window.addEventListener('hashchange', applyHash);
@@ -121,9 +146,60 @@
     // ============================================
 
     function wireChrome() {
+        const menuToggle = $('aac-mobile-menu-toggle');
+        const mobileMenu = $('aac-mobile-menu');
+        const closeMobileMenu = () => {
+            if (!menuToggle || !mobileMenu) return;
+            mobileMenu.hidden = true;
+            menuToggle.setAttribute('aria-expanded', 'false');
+        };
+
+        closeMobileMenu();
+        menuToggle?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const open = menuToggle.getAttribute('aria-expanded') !== 'true';
+            mobileMenu.hidden = !open;
+            menuToggle.setAttribute('aria-expanded', String(open));
+        });
+        mobileMenu?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMobileMenu));
+        document.addEventListener('click', (event) => {
+            if (!mobileMenu || mobileMenu.hidden) return;
+            if (mobileMenu.contains(event.target) || menuToggle?.contains(event.target)) return;
+            closeMobileMenu();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || mobileMenu?.hidden) return;
+            closeMobileMenu();
+            menuToggle?.focus();
+        });
+        window.matchMedia('(min-width: 48.0625rem)').addEventListener?.('change', (event) => {
+            if (event.matches) closeMobileMenu();
+        });
+
         $('aac-logout')?.addEventListener('click', async () => {
+            if (appSettings().confirm_logout && !window.confirm('¿Querés cerrar tu sesión?')) return;
             try { await _supabase.auth.signOut(); } catch (err) { console.warn('[account] logout:', err); }
             window.location.href = '/artist/login';
+        });
+    }
+
+    function setupDialogs() {
+        document.querySelectorAll('[data-dialog-close]').forEach((button) => {
+            button.addEventListener('click', () => $(button.dataset.dialogClose)?.close());
+        });
+        document.querySelectorAll('dialog.aac-dialog').forEach((dialog) => {
+            dialog.addEventListener('click', (event) => {
+                if (event.target === dialog) dialog.close();
+            });
+        });
+        $('aac-mfa-dialog')?.addEventListener('close', async () => {
+            const abandonedFactor = pendingMfaFactor;
+            pendingMfaFactor = null;
+            $('aac-mfa-enrollment').replaceChildren();
+            $('aac-mfa-code').value = '';
+            if (!abandonedFactor?.id || !_supabase.auth.mfa?.unenroll) return;
+            const { error } = await _supabase.auth.mfa.unenroll({ factorId: abandonedFactor.id });
+            if (error) console.warn('[account] limpiar factor MFA incompleto:', error);
         });
     }
 
@@ -134,9 +210,13 @@
             const sec = $('aac-' + s);
             if (sec) sec.hidden = s !== active;
         });
+        let activeNav = null;
         document.querySelectorAll('[data-aac-nav]').forEach((item) => {
-            item.classList.toggle('is-active', item.getAttribute('data-aac-nav') === active);
+            const isActive = item.getAttribute('data-aac-nav') === active;
+            item.classList.toggle('is-active', isActive);
+            if (isActive) activeNav = item;
         });
+        activeNav?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         window.scrollTo({ top: 0 });
     }
 
@@ -183,6 +263,51 @@
         if (error) throw error;
         const { data } = _supabase.storage.from(bucket).getPublicUrl(path);
         return data?.publicUrl || null;
+    }
+
+    async function removeFromStorage(bucket, path) {
+        const { error } = await _supabase.storage.from(bucket).remove([path]);
+        if (error) throw error;
+    }
+
+    async function queueVerificationCleanup(path) {
+        if (!path) return;
+        const saved = appSettings().verification_cleanup_paths;
+        const paths = [...new Set([...(Array.isArray(saved) ? saved : []), path])].slice(-20);
+        await savePrefs('app_settings', { verification_cleanup_paths: paths });
+    }
+
+    async function removeOrQueueVerificationPath(path) {
+        if (!path) return true;
+        try {
+            await removeFromStorage('artist-verification', path);
+            return true;
+        } catch (error) {
+            console.warn('[account] limpieza documental pendiente:', error);
+            await queueVerificationCleanup(path).catch((queueError) =>
+                console.warn('[account] no se pudo registrar la limpieza pendiente:', queueError)
+            );
+            return false;
+        }
+    }
+
+    async function retryVerificationCleanup() {
+        const saved = appSettings().verification_cleanup_paths;
+        if (!Array.isArray(saved) || !saved.length) return;
+        const referenced = new Set(verifDocs.map((doc) => doc.storage_path).filter(Boolean));
+        const remaining = [];
+        for (const path of saved) {
+            if (referenced.has(path)) continue;
+            try {
+                await removeFromStorage('artist-verification', path);
+            } catch (error) {
+                console.warn('[account] reintento de limpieza documental:', error);
+                remaining.push(path);
+            }
+        }
+        if (remaining.length !== saved.length) {
+            await savePrefs('app_settings', { verification_cleanup_paths: remaining }).catch(() => null);
+        }
     }
 
     function fileExt(file) {
@@ -488,12 +613,61 @@
         return symbol + Math.round(amount).toLocaleString('es-AR');
     }
 
-    // Mismo criterio que el dashboard: final_budget_amount de cotizaciones
-    // completadas, convertido a la moneda del artista (sin ledger de pagos).
-    async function loadIncome() {
+    function formatShortDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
+            .format(date).replace('.', '');
+    }
+
+    function renderLedger() {
+        const wrap = $('aac-ledger');
+        const visible = financialEntries.filter((entry) => !entry.metadata_json?.summary_only);
+        if (!visible.length) {
+            wrap.innerHTML = '<div class="wo-empty"><i data-wo-icon="inbox" aria-hidden="true"></i><span class="wo-empty-title">Sin movimientos todavía</span><p>Cuando cobres a través de We Ötzi vas a ver el detalle acá.</p></div>';
+            return;
+        }
+        wrap.innerHTML = visible.map((entry) => {
+            const amount = Number(entry.amount) || 0;
+            return `<div class="aac-ledger-row">
+                <strong>${esc(entry.title)}</strong>
+                <span class="aac-ledger-date">${esc(formatShortDate(entry.occurred_at))}</span>
+                <span class="aac-ledger-amount ${amount >= 0 ? 'is-positive' : 'is-negative'}">${amount >= 0 ? '+' : '−'} ${esc(fmtMoney(Math.abs(amount), entry.currency))}</span>
+            </div>`;
+        }).join('');
+    }
+
+    async function loadFinancials() {
         try {
             const cur = window.WeOtziCurrency;
             if (cur && typeof cur.init === 'function') await cur.init().catch(() => null);
+
+            const available = D.FinancialLedger && await D.FinancialLedger.isAvailable();
+            if (available) {
+                financialEntries = await D.FinancialLedger.list(user.id, 50);
+                const target = String(artist.preferred_display_currency || artist.session_price_currency || 'USD').toUpperCase();
+                const monthStart = new Date();
+                monthStart.setDate(1);
+                monthStart.setHours(0, 0, 0, 0);
+                let month = 0;
+                let availableBalance = 0;
+                let nextPayout = null;
+                financialEntries.forEach((entry) => {
+                    const amount = Number(entry.amount) || 0;
+                    const when = new Date(entry.occurred_at);
+                    const sameCurrency = String(entry.currency || target).toUpperCase() === target;
+                    if (!sameCurrency) return;
+                    if (entry.status === 'completed') availableBalance += amount;
+                    if (entry.entry_type === 'income' && entry.status === 'completed' && !Number.isNaN(when.getTime()) && when >= monthStart) month += Math.max(0, amount);
+                    if (entry.entry_type === 'payout' && entry.status === 'pending' && (!nextPayout || when < new Date(nextPayout.occurred_at))) nextPayout = entry;
+                });
+                if (nextPayout) availableBalance = Math.abs(Number(nextPayout.amount) || availableBalance);
+                $('aac-stat-balance').textContent = fmtMoney(Math.max(0, availableBalance), target);
+                $('aac-stat-month').textContent = fmtMoney(month, target);
+                $('aac-stat-next').textContent = nextPayout ? formatShortDate(nextPayout.occurred_at).replace(/\s+\d{4}$/, '') : '—';
+                renderLedger();
+                return;
+            }
 
             const quotes = await D.Quotations.listForArtist(user.id, {
                 select: 'quote_status, final_budget_amount, final_budget_currency, client_completed_at, artist_completed_at, updated_at, created_at'
@@ -504,10 +678,9 @@
             monthStart.setDate(1);
             monthStart.setHours(0, 0, 0, 0);
 
-            let month = 0, total = 0, count = 0;
+            let month = 0, total = 0;
             (quotes || []).forEach((q) => {
                 if (q.quote_status !== 'completed') return;
-                count++;
                 const raw = parseFloat(q.final_budget_amount);
                 if (!isFinite(raw) || raw <= 0) return;
                 const from = String(q.final_budget_currency || target).toUpperCase();
@@ -522,14 +695,18 @@
                 if (!isNaN(when) && when >= monthStart) month += value;
             });
 
+            $('aac-stat-balance').textContent = fmtMoney(total, target);
             $('aac-stat-month').textContent = fmtMoney(month, target);
-            $('aac-stat-total').textContent = fmtMoney(total, target);
-            $('aac-stat-count').textContent = String(count);
+            $('aac-stat-next').textContent = '—';
+            financialEntries = [];
+            renderLedger();
         } catch (err) {
             console.error('[account] ingresos:', err);
+            $('aac-stat-balance').textContent = '—';
             $('aac-stat-month').textContent = '—';
-            $('aac-stat-total').textContent = '—';
-            $('aac-stat-count').textContent = '—';
+            $('aac-stat-next').textContent = '—';
+            financialEntries = [];
+            renderLedger();
         }
     }
 
@@ -559,6 +736,118 @@
                 btn.disabled = false;
             }
         });
+
+        const methodsAvailable = D.PaymentMethods && await D.PaymentMethods.isAvailable();
+        if (!methodsAvailable) {
+            $('aac-method-add').disabled = true;
+            $('aac-methods').innerHTML = '<div class="wo-alert wo-alert--warning">Aplicá la migración del Centro de Cuenta para gestionar métodos tokenizados.</div>';
+            return;
+        }
+        await reloadPaymentMethods();
+        $('aac-method-add').addEventListener('click', () => openPaymentDialog());
+        $('aac-method-form').addEventListener('submit', savePaymentMethod);
+    }
+
+    function paymentProviderLabel(provider) {
+        return ({ stripe: 'Visa', mercado_pago: 'MP', paypal: 'PP', wise: 'Wise', bank_transfer: 'Banco' })[provider] || provider;
+    }
+
+    async function reloadPaymentMethods() {
+        paymentMethods = await D.PaymentMethods.list(user.id);
+        renderPaymentMethods();
+    }
+
+    function renderPaymentMethods() {
+        const wrap = $('aac-methods');
+        if (!paymentMethods.length) {
+            wrap.innerHTML = '<div class="wo-empty"><i data-wo-icon="credit-card" aria-hidden="true"></i><span class="wo-empty-title">Sin métodos de pago</span><p>Agregá una referencia tokenizada emitida por tu proveedor.</p></div>';
+            return;
+        }
+        wrap.innerHTML = paymentMethods.map((method) => `
+            <div class="aac-method">
+                <span class="aac-method-logo">${esc(paymentProviderLabel(method.provider))}</span>
+                <div class="aac-row-main">
+                    <div class="aac-row-title">${esc(method.display_name)} ${method.is_default ? '<span class="aac-badge aac-badge--success">Predeterminado</span>' : ''}</div>
+                    <div class="aac-row-sub">${esc(method.account_hint || (method.last_four ? `•••• ${method.last_four}` : 'Referencia protegida por el proveedor'))}</div>
+                </div>
+                <div class="aac-method-actions">
+                    ${method.is_default ? '' : `<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-method-default="${method.id}">Predeterminar</button>`}
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-method-edit="${method.id}">Editar</button>
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-method-delete="${method.id}">Eliminar</button>
+                </div>
+            </div>`).join('');
+
+        wrap.querySelectorAll('[data-method-edit]').forEach((button) => button.addEventListener('click', () => {
+            openPaymentDialog(paymentMethods.find((method) => method.id === button.dataset.methodEdit));
+        }));
+        wrap.querySelectorAll('[data-method-default]').forEach((button) => button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+                await D.PaymentMethods.setDefault(user.id, button.dataset.methodDefault);
+                await reloadPaymentMethods();
+                toast('Método predeterminado actualizado');
+            } catch (error) {
+                console.error('[account] predeterminar método:', error);
+                toast('No pudimos actualizar el método', false);
+            } finally { button.disabled = false; }
+        }));
+        wrap.querySelectorAll('[data-method-delete]').forEach((button) => button.addEventListener('click', async () => {
+            if (!window.confirm('¿Querés eliminar este método tokenizado?')) return;
+            button.disabled = true;
+            try {
+                await D.PaymentMethods.remove(user.id, button.dataset.methodDelete);
+                await reloadPaymentMethods();
+                toast('Método eliminado');
+            } catch (error) {
+                console.error('[account] eliminar método:', error);
+                toast('No pudimos eliminar el método', false);
+            } finally { button.disabled = false; }
+        }));
+    }
+
+    function openPaymentDialog(method = null) {
+        $('aac-method-id').value = method?.id || '';
+        $('aac-method-provider').value = method?.provider || 'stripe';
+        $('aac-method-name').value = method?.display_name || '';
+        $('aac-method-reference').value = method?.provider_reference || '';
+        $('aac-method-last4').value = method?.last_four || '';
+        $('aac-method-hint').value = method?.account_hint || '';
+        $('aac-method-default').checked = !!method?.is_default;
+        $('aac-method-dialog-title').textContent = method ? 'Editar método' : 'Agregar método';
+        $('aac-method-dialog').showModal();
+    }
+
+    async function savePaymentMethod(event) {
+        event.preventDefault();
+        const provider = $('aac-method-provider').value;
+        const lastFour = $('aac-method-last4').value.trim();
+        if (lastFour && !/^[0-9A-Za-z]{4}$/.test(lastFour)) {
+            toast('Ingresá exactamente los últimos 4 caracteres', false);
+            return;
+        }
+        const submit = event.submitter;
+        if (submit) submit.disabled = true;
+        try {
+            const saved = await D.PaymentMethods.save(user.id, {
+                id: $('aac-method-id').value || null,
+                provider,
+                methodType: provider === 'stripe' ? 'card_token' : ['wise', 'bank_transfer'].includes(provider) ? 'bank_account_token' : 'wallet',
+                providerReference: $('aac-method-reference').value.trim(),
+                displayName: $('aac-method-name').value.trim(),
+                brand: provider === 'stripe' ? 'Tarjeta' : null,
+                lastFour: lastFour || null,
+                accountHint: $('aac-method-hint').value.trim() || null,
+                isDefault: false,
+                metadata: { entered_via: 'account_center' }
+            });
+            if ($('aac-method-default').checked) await D.PaymentMethods.setDefault(user.id, saved.id);
+            $('aac-method-dialog').close();
+            await reloadPaymentMethods();
+            toast('Método guardado de forma segura');
+        } catch (error) {
+            console.error('[account] guardar método:', error);
+            toast('No pudimos guardar el método tokenizado', false);
+        } finally { if (submit) submit.disabled = false; }
     }
 
     // ============================================
@@ -649,16 +938,17 @@
     }
 
     // ============================================
-    // 5 · Notificaciones (Email funcional · Push próximamente · sin SMS)
+    // 5 · Notificaciones (Email / Push / SMS persistentes)
     // ============================================
 
     function renderNotifMatrix() {
         const saved = (prefs && prefs.notification_prefs) || {};
         notifMatrix = {};
-        NOTIF_EVENTS.forEach(([key, , emailDefault]) => {
+        NOTIF_EVENTS.forEach(([key, , emailDefault, pushDefault, smsDefault]) => {
             notifMatrix[key] = {
                 email: typeof saved[key]?.email === 'boolean' ? saved[key].email : emailDefault,
-                push: !!saved[key]?.push
+                push: typeof saved[key]?.push === 'boolean' ? saved[key].push : pushDefault,
+                sms: typeof saved[key]?.sms === 'boolean' ? saved[key].sms : smsDefault
             };
         });
 
@@ -667,21 +957,27 @@
                 <span class="aac-matrix-label">${label}</span>
                 <span class="aac-matrix-cell">
                     <label class="wo-toggle">
-                        <input type="checkbox" data-notif="${key}" ${notifMatrix[key].email ? 'checked' : ''} aria-label="Avisos de ${label.toLowerCase()} por email">
+                        <input type="checkbox" data-notif-event="${key}" data-notif-channel="email" ${notifMatrix[key].email ? 'checked' : ''} aria-label="Avisos de ${label.toLowerCase()} por email">
                         <span class="knob"></span>
                     </label>
                 </span>
-                <span class="aac-matrix-cell is-soon">
+                <span class="aac-matrix-cell">
                     <label class="wo-toggle">
-                        <input type="checkbox" disabled aria-label="Avisos de ${label.toLowerCase()} por push · próximamente">
+                        <input type="checkbox" data-notif-event="${key}" data-notif-channel="push" ${notifMatrix[key].push ? 'checked' : ''} aria-label="Avisos de ${label.toLowerCase()} por push">
+                        <span class="knob"></span>
+                    </label>
+                </span>
+                <span class="aac-matrix-cell">
+                    <label class="wo-toggle">
+                        <input type="checkbox" data-notif-event="${key}" data-notif-channel="sms" ${notifMatrix[key].sms ? 'checked' : ''} aria-label="Avisos de ${label.toLowerCase()} por SMS">
                         <span class="knob"></span>
                     </label>
                 </span>
             </div>`).join('');
 
-        $('aac-notif-rows').querySelectorAll('[data-notif]').forEach((input) => {
+        $('aac-notif-rows').querySelectorAll('[data-notif-event]').forEach((input) => {
             input.addEventListener('change', async () => {
-                notifMatrix[input.dataset.notif].email = input.checked;
+                notifMatrix[input.dataset.notifEvent][input.dataset.notifChannel] = input.checked;
                 try {
                     await savePrefs('notification_prefs', notifMatrix);
                     toast('Preferencia guardada');
@@ -697,6 +993,15 @@
     // 6 · Seguridad y privacidad
     // ============================================
 
+    function parseJwt(token) {
+        try {
+            const payload = String(token || '').split('.')[1];
+            if (!payload) return null;
+            const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+            return JSON.parse(decodeURIComponent(atob(normalized).split('').map((ch) => `%${('00' + ch.charCodeAt(0).toString(16)).slice(-2)}`).join('')));
+        } catch { return null; }
+    }
+
     function describeDevice() {
         const ua = navigator.userAgent || '';
         const browser = /Edg\//.test(ua) ? 'Edge'
@@ -708,13 +1013,19 @@
             : /Android/.test(ua) ? 'Android'
             : /iPhone|iPad/.test(ua) ? 'iOS'
             : /Linux/.test(ua) ? 'Linux' : '';
-        return os ? `${os} — ${browser}` : browser;
+        return { browser, operatingSystem: os, deviceName: os ? `${os} — ${browser}` : browser };
     }
 
-    function setupSecurity() {
-        $('aac-device-title').textContent = describeDevice();
-        $('aac-device-sub').textContent = 'Sesión actual · Activa ahora';
+    async function hashUserAgent() {
+        try {
+            if (!window.crypto?.subtle) return null;
+            const bytes = new TextEncoder().encode(navigator.userAgent || '');
+            const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+            return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+        } catch { return null; }
+    }
 
+    async function setupSecurity() {
         $('aac-pass-save').addEventListener('click', async () => {
             const errEl = $('aac-pass-error');
             errEl.hidden = true;
@@ -738,12 +1049,13 @@
             const btn = $('aac-pass-save');
             btn.disabled = true;
             try {
-                const { error: signErr } = await _supabase.auth.signInWithPassword({ email: user.email, password: current });
+                const { data: signData, error: signErr } = await _supabase.auth.signInWithPassword({ email: user.email, password: current });
                 if (signErr) {
                     errEl.textContent = 'La contraseña actual no es correcta.';
                     errEl.hidden = false;
                     return;
                 }
+                currentSessionId = parseJwt(signData?.session?.access_token)?.session_id || currentSessionId;
                 const { error: updErr } = await _supabase.auth.updateUser({ password: next });
                 if (updErr) throw updErr;
                 $('aac-pass-current').value = '';
@@ -764,6 +1076,8 @@
             try {
                 const { error } = await _supabase.auth.signOut({ scope: 'others' });
                 if (error) throw error;
+                if (currentSessionId && D.AccountSessions) await D.AccountSessions.revokeOthers(user.id, currentSessionId).catch(() => null);
+                await loadAccountSessions();
                 toast('Cerramos la sesión en tus otros dispositivos');
             } catch (err) {
                 console.error('[account] cerrar sesiones:', err);
@@ -772,6 +1086,167 @@
                 btn.disabled = false;
             }
         });
+
+        $('aac-mfa-action').addEventListener('click', handleMfaAction);
+        $('aac-mfa-form').addEventListener('submit', verifyMfaEnrollment);
+        $('aac-delete-request').addEventListener('click', () => $('aac-delete-dialog').showModal());
+        $('aac-delete-form').addEventListener('submit', requestAccountDeletion);
+
+        await Promise.all([loadAccountSessions(), loadMfaState(), loadDeletionRequests()]);
+    }
+
+    async function loadAccountSessions() {
+        const wrap = $('aac-sessions');
+        const available = D.AccountSessions && await D.AccountSessions.isAvailable();
+        if (!available || !currentSessionId) {
+            wrap.innerHTML = `<div class="aac-row"><div class="aac-row-main"><div class="aac-row-title">${esc(describeDevice().deviceName)}</div><div class="aac-row-sub">Sesión actual · Activa ahora</div></div><span class="aac-badge aac-badge--info">Este dispositivo</span></div>`;
+            return;
+        }
+        const device = describeDevice();
+        device.userAgentHash = await hashUserAgent();
+        await D.AccountSessions.touch(user.id, currentSessionId, device).catch((error) => console.warn('[account] registrar sesión:', error));
+        accountSessions = await D.AccountSessions.list(user.id).catch(() => []);
+        renderAccountSessions();
+    }
+
+    function renderAccountSessions() {
+        const wrap = $('aac-sessions');
+        if (!accountSessions.length) {
+            wrap.innerHTML = `<div class="aac-row"><div class="aac-row-main"><div class="aac-row-title">${esc(describeDevice().deviceName)}</div><div class="aac-row-sub">Sesión actual · Activa ahora</div></div><span class="aac-badge aac-badge--info">Este dispositivo</span></div>`;
+            return;
+        }
+        wrap.innerHTML = accountSessions.map((session) => {
+            const current = session.auth_session_id === currentSessionId;
+            const seen = current ? 'Activa ahora' : `Última actividad ${formatShortDate(session.last_seen_at)}`;
+            return `<div class="aac-row">
+                <div class="aac-row-main">
+                    <div class="aac-row-title">${esc(session.device_name)}</div>
+                    <div class="aac-session-meta"><span>${esc([session.city, session.country].filter(Boolean).join(', '))}</span><span>${esc(seen)}</span></div>
+                </div>
+                <div class="aac-row-side">${current
+                    ? '<span class="aac-badge aac-badge--info">Este dispositivo</span>'
+                    : `<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-session-revoke="${session.auth_session_id}">Cerrar sesión</button>`}
+                </div>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('[data-session-revoke]').forEach((button) => button.addEventListener('click', async () => {
+            if (!window.confirm('Por seguridad, Supabase cerrará todas las demás sesiones. ¿Continuar?')) return;
+            button.disabled = true;
+            try {
+                const { error } = await _supabase.auth.signOut({ scope: 'others' });
+                if (error) throw error;
+                await D.AccountSessions.revokeOthers(user.id, currentSessionId);
+                await loadAccountSessions();
+                toast('Sesiones remotas cerradas');
+            } catch (error) {
+                console.error('[account] revocar sesión:', error);
+                toast('No pudimos cerrar la sesión remota', false);
+            } finally { button.disabled = false; }
+        }));
+    }
+
+    async function loadMfaState() {
+        const status = $('aac-mfa-status');
+        try {
+            if (!_supabase.auth.mfa?.listFactors) throw new Error('MFA no disponible en esta versión');
+            const { data, error } = await _supabase.auth.mfa.listFactors();
+            if (error) throw error;
+            verifiedMfaFactors = (data?.all || data?.totp || []).filter((factor) => factor.status === 'verified');
+            if (verifiedMfaFactors.length) {
+                status.textContent = 'Autenticación en dos pasos activa mediante una app TOTP.';
+                $('aac-mfa-action').textContent = 'Desactivar';
+            } else {
+                status.textContent = 'Podés activarla con cualquier app autenticadora compatible con TOTP.';
+                $('aac-mfa-action').textContent = 'Configurar';
+            }
+        } catch (error) {
+            console.warn('[account] MFA:', error);
+            status.textContent = 'MFA no está habilitado por el proveedor de autenticación en este entorno.';
+            $('aac-mfa-action').disabled = true;
+        }
+    }
+
+    async function handleMfaAction() {
+        const button = $('aac-mfa-action');
+        button.disabled = true;
+        try {
+            if (verifiedMfaFactors.length) {
+                if (!window.confirm('¿Querés desactivar la autenticación en dos pasos?')) return;
+                const { error } = await _supabase.auth.mfa.unenroll({ factorId: verifiedMfaFactors[0].id });
+                if (error) throw error;
+                await loadMfaState();
+                toast('Autenticación en dos pasos desactivada');
+                return;
+            }
+            const { data, error } = await _supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'We Ötzi · Centro de Cuenta' });
+            if (error) throw error;
+            pendingMfaFactor = data;
+            const qr = data?.totp?.qr_code;
+            const secret = data?.totp?.secret;
+            $('aac-mfa-enrollment').innerHTML = `${qr ? `<img class="aac-mfa-qr" src="${esc(qr)}" alt="Código QR para configurar TOTP">` : ''}<p>Escaneá el QR con tu app autenticadora.${secret ? ` Si no podés, ingresá esta clave: <code>${esc(secret)}</code>.` : ''}</p>`;
+            $('aac-mfa-code').value = '';
+            $('aac-mfa-dialog').showModal();
+        } catch (error) {
+            console.error('[account] configurar MFA:', error);
+            toast('No pudimos configurar la autenticación en dos pasos', false);
+        } finally { button.disabled = false; }
+    }
+
+    async function verifyMfaEnrollment(event) {
+        event.preventDefault();
+        const code = $('aac-mfa-code').value.trim();
+        if (!pendingMfaFactor?.id || !/^\d{6}$/.test(code)) {
+            toast('Ingresá el código de 6 dígitos', false);
+            return;
+        }
+        const submit = event.submitter;
+        if (submit) submit.disabled = true;
+        try {
+            const { error } = await _supabase.auth.mfa.challengeAndVerify({ factorId: pendingMfaFactor.id, code });
+            if (error) throw error;
+            pendingMfaFactor = null;
+            $('aac-mfa-dialog').close();
+            await loadMfaState();
+            toast('Autenticación en dos pasos activada');
+        } catch (error) {
+            console.error('[account] verificar MFA:', error);
+            toast('El código no es válido o venció', false);
+        } finally { if (submit) submit.disabled = false; }
+    }
+
+    async function loadDeletionRequests() {
+        const status = $('aac-delete-status');
+        const available = D.AccountDeletionRequests && await D.AccountDeletionRequests.isAvailable();
+        if (!available) {
+            status.textContent = 'La solicitud auditable requiere la migración del Centro de Cuenta.';
+            $('aac-delete-request').disabled = true;
+            return;
+        }
+        const rows = await D.AccountDeletionRequests.list(user.id).catch(() => []);
+        const open = rows.find((row) => ['requested', 'in_review', 'approved'].includes(row.status));
+        if (open) {
+            status.textContent = `Solicitud ${open.status === 'requested' ? 'recibida' : 'en revisión'} · ${formatShortDate(open.requested_at)}`;
+            $('aac-delete-request').disabled = true;
+        } else {
+            status.textContent = 'La solicitud queda registrada para revisión de soporte.';
+            $('aac-delete-request').disabled = false;
+        }
+    }
+
+    async function requestAccountDeletion(event) {
+        event.preventDefault();
+        if (!$('aac-delete-confirm').checked) return;
+        const submit = event.submitter;
+        if (submit) submit.disabled = true;
+        try {
+            await D.AccountDeletionRequests.request(user.id, $('aac-delete-reason').value);
+            $('aac-delete-dialog').close();
+            await loadDeletionRequests();
+            toast('Solicitud de eliminación registrada');
+        } catch (error) {
+            console.error('[account] solicitud de eliminación:', error);
+            toast('No pudimos registrar la solicitud', false);
+        } finally { if (submit) submit.disabled = false; }
     }
 
     function renderPrivacy() {
@@ -808,16 +1283,76 @@
     // 7 · Integraciones
     // ============================================
 
+    async function loadIntegrations() {
+        const available = D.AccountIntegrations && await D.AccountIntegrations.isAvailable();
+        integrationsAvailable = !!available;
+        if (available) integrations = await D.AccountIntegrations.list(user.id).catch(() => []);
+        else integrations = [];
+        renderIntegrations(available);
+        document.querySelectorAll('[data-integration-action]').forEach((button) => {
+            button.addEventListener('click', () => handleIntegrationAction(button.dataset.integrationAction, available));
+        });
+    }
+
     function fillIntegrations() {
+        renderIntegrations(integrationsAvailable);
+    }
+
+    function renderIntegrations(available = true) {
         const handle = (artist.instagram || '').trim();
-        const state = $('aac-ig-state');
         const sub = $('aac-ig-sub');
-        if (handle) {
-            state.textContent = 'Conectado';
-            sub.innerHTML = `${esc(handle.startsWith('@') ? handle : '@' + handle)} · <a href="/artist/dashboard">Gestioná la importación desde tu dashboard →</a>`;
-        } else {
-            state.textContent = 'Sin conectar';
-            sub.innerHTML = 'Importá publicaciones a tu portafolio. <a href="/artist/dashboard">Gestioná la importación desde tu dashboard →</a>';
+        if (sub) sub.innerHTML = handle
+            ? `${esc(handle.startsWith('@') ? handle : '@' + handle)} · <a href="/artist/dashboard">Gestioná la importación desde tu dashboard →</a>`
+            : 'Importá publicaciones a tu portafolio. <a href="/artist/dashboard">Gestioná la importación desde tu dashboard →</a>';
+
+        document.querySelectorAll('[data-integration-row]').forEach((row) => {
+            const provider = row.dataset.integrationRow;
+            const connection = integrations.find((item) => item.provider === provider);
+            const action = row.querySelector('[data-integration-action]');
+            if (!action) return;
+            const status = connection?.status || (provider === 'instagram' && handle ? 'connected' : 'disconnected');
+            action.textContent = status === 'connected' ? 'Conectado' : status === 'pending' ? 'Pendiente' : 'Conectar';
+            action.classList.toggle('is-connected', status === 'connected');
+            action.disabled = !available;
+            action.title = !available ? 'Requiere la migración del Centro de Cuenta' : (connection?.account_label || '');
+        });
+    }
+
+    async function handleIntegrationAction(provider, available) {
+        if (!available) {
+            toast('Aplicá la migración del Centro de Cuenta', false);
+            return;
+        }
+        const meta = INTEGRATIONS[provider];
+        if (!meta) return;
+        const current = integrations.find((item) => item.provider === provider);
+        try {
+            if (current?.status === 'connected') {
+                if (!window.confirm(`¿Querés desconectar ${meta.label}?`)) return;
+                await D.AccountIntegrations.save(user.id, provider, { status: 'disconnected' });
+                toast(`${meta.label} desconectado`);
+            } else {
+                const authorizeUrl = window.CONFIG?.integrations?.[provider]?.authorizeUrl;
+                if (authorizeUrl) {
+                    const returnTo = `${window.location.origin}/artist/account#integraciones`;
+                    window.location.href = `${authorizeUrl}${authorizeUrl.includes('?') ? '&' : '?'}return_to=${encodeURIComponent(returnTo)}`;
+                    return;
+                }
+                const label = window.prompt(`Ingresá el alias público de ${meta.label}. La conexión quedará pendiente hasta completar OAuth con el proveedor.`);
+                if (label === null) return;
+                await D.AccountIntegrations.save(user.id, provider, {
+                    status: 'pending',
+                    accountLabel: label.trim() || null,
+                    scopes: meta.scopes,
+                    metadata: { authorization_required: true }
+                });
+                toast(`Autorización de ${meta.label} pendiente`);
+            }
+            integrations = await D.AccountIntegrations.list(user.id);
+            renderIntegrations(true);
+        } catch (error) {
+            console.error('[account] integración:', error);
+            toast('No pudimos actualizar la integración', false);
         }
     }
 
@@ -875,7 +1410,10 @@
     async function loadVerifDocs() {
         try {
             verifAvailable = await D.VerificationDocs.isAvailable();
-            if (verifAvailable) verifDocs = await D.VerificationDocs.list(user.id);
+            if (verifAvailable) {
+                verifDocs = await D.VerificationDocs.list(user.id);
+                await retryVerificationCleanup();
+            }
         } catch (err) {
             console.warn('[account] documentos:', err);
             verifAvailable = false;
@@ -898,7 +1436,8 @@
         wrap.innerHTML = DOC_TYPES.map(([type, label]) => {
             const doc = verifDocs.find((d) => d.doc_type === type) || null;
             const status = doc ? String(doc.status || 'pendiente').toLowerCase() : '';
-            const deletable = doc && !status.includes('verific') && !status.includes('aprob');
+            const immutable = status.includes('verific') || status.includes('aprob');
+            const deletable = doc && !immutable;
             return `
             <div class="aac-row${verifAvailable ? '' : ' is-soon'}">
                 <span class="aac-row-tile"><i data-wo-icon="file-text" aria-hidden="true"></i></span>
@@ -908,7 +1447,8 @@
                 </div>
                 <div class="aac-row-side">
                     ${docBadge(doc)}
-                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-doc-upload="${type}" ${verifAvailable ? '' : 'disabled'}>${doc ? 'Reemplazar' : 'Subir'}</button>
+                    ${doc ? `<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-doc-view="${esc(doc.id)}">Ver</button>` : ''}
+                    ${immutable ? '' : `<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-doc-upload="${type}" ${verifAvailable ? '' : 'disabled'}>${doc ? 'Reemplazar' : 'Subir'}</button>`}
                     ${deletable ? `<button type="button" class="wo-iconbtn wo-iconbtn--s" data-doc-del="${esc(doc.id)}" aria-label="Eliminar documento"><i data-wo-icon="trash-2"></i></button>` : ''}
                     <input type="file" data-doc-input="${type}" accept="image/*,.pdf" hidden>
                 </div>
@@ -926,21 +1466,49 @@
                 const type = input.dataset.docInput;
                 input.value = '';
                 if (!file) return;
+                const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+                if (!allowed.includes(file.type) || file.size > 10 * 1024 * 1024) {
+                    toast('Usá PDF, JPG, PNG o WebP de hasta 10 MB', false);
+                    return;
+                }
+                let path = null;
                 try {
-                    const path = `${user.id}/${type}-${Date.now()}.${fileExt(file)}`;
+                    path = `${user.id}/${type}-${Date.now()}.${fileExt(file)}`;
                     await uploadTo('artist-verification', path, file);
-                    await D.VerificationDocs.add({
+                    const result = await D.VerificationDocs.replace({
                         artistUserId: user.id,
                         docType: type,
                         fileName: file.name,
                         storagePath: path
                     });
+                    const oldPath = result?.previous?.storage_path;
+                    let cleanupComplete = true;
+                    if (oldPath && oldPath !== path) {
+                        cleanupComplete = await removeOrQueueVerificationPath(oldPath);
+                    }
                     verifDocs = await D.VerificationDocs.list(user.id);
                     renderDocs();
-                    toast('Documento subido');
+                    toast(result?.previous
+                        ? (cleanupComplete ? 'Documento reemplazado' : 'Documento reemplazado; limpieza anterior pendiente')
+                        : 'Documento subido', cleanupComplete);
                 } catch (err) {
                     console.error('[account] subir documento:', err);
+                    if (path) await removeOrQueueVerificationPath(path);
                     toast('No pudimos subir el documento', false);
+                }
+            });
+        });
+        wrap.querySelectorAll('[data-doc-view]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const doc = verifDocs.find((item) => item.id === btn.dataset.docView);
+                if (!doc?.storage_path) return;
+                try {
+                    const { data, error } = await _supabase.storage.from('artist-verification').createSignedUrl(doc.storage_path, 60);
+                    if (error) throw error;
+                    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+                } catch (error) {
+                    console.error('[account] abrir documento:', error);
+                    toast('No pudimos abrir el documento', false);
                 }
             });
         });
@@ -948,12 +1516,16 @@
             btn.addEventListener('click', async () => {
                 if (!window.confirm('¿Querés eliminar este documento?')) return;
                 try {
+                    const doc = verifDocs.find((item) => item.id === btn.dataset.docDel);
                     await D.VerificationDocs.delete(btn.dataset.docDel);
+                    const cleanupComplete = await removeOrQueueVerificationPath(doc?.storage_path);
                     verifDocs = await D.VerificationDocs.list(user.id);
                     renderDocs();
-                    toast('Documento eliminado');
+                    toast(cleanupComplete ? 'Documento eliminado' : 'Documento eliminado; limpieza del archivo pendiente', cleanupComplete);
                 } catch (err) {
                     console.error('[account] eliminar documento:', err);
+                    verifDocs = await D.VerificationDocs.list(user.id).catch(() => verifDocs);
+                    renderDocs();
                     toast('No pudimos eliminar el documento', false);
                 }
             });
@@ -982,11 +1554,26 @@
         const tzSel = $('aac-timezone');
         tzSel.innerHTML = tzList.map((tz) => `<option value="${esc(tz)}">${esc(tz.replace(/_/g, ' '))}</option>`).join('');
 
-        const s = appSettings();
+        let s = { ...DEFAULT_APP_SETTINGS, ...appSettings() };
+        $('aac-setting-country').value = s.country || artist.country || '';
+        $('aac-setting-city').value = s.city || artist.city || '';
         tzSel.value = s.timezone && tzList.includes(s.timezone) ? s.timezone : detectedTz;
-        $('aac-dateformat').value = s.date_format || 'DD/MM/AAAA';
-        $('aac-timeformat').value = s.time_format || '24h';
-        $('aac-language').value = s.language || 'es';
+        $('aac-dateformat').value = s.date_format;
+        $('aac-timeformat').value = s.time_format;
+        $('aac-language').value = s.language;
+        $('aac-text-size').value = s.text_size;
+        $('aac-animations').checked = s.animations !== false;
+        $('aac-start-page').value = s.start_page;
+        $('aac-confirm-logout').checked = s.confirm_logout !== false;
+        $('aac-reduce-motion').checked = !!s.reduce_motion;
+        $('aac-high-contrast').checked = !!s.high_contrast;
+        $('aac-interface-scale').value = String(s.interface_scale);
+        $('aac-page-size').value = String(s.page_size);
+        $('aac-default-sort').value = s.default_sort;
+        setSegmentState('theme', s.theme);
+        setSegmentState('density', s.density);
+        setSegmentState('display_name', s.display_name);
+        applyAppearanceSettings(s);
 
         currencySel.addEventListener('change', async () => {
             try {
@@ -999,7 +1586,11 @@
         });
 
         const saveSetting = (patch) => savePrefs('app_settings', patch)
-            .then(() => toast('Preferencia guardada'))
+            .then(() => {
+                s = { ...s, ...patch };
+                applyAppearanceSettings(s);
+                toast('Preferencia guardada');
+            })
             .catch((err) => {
                 console.error('[account] configuración:', err);
                 toast('No pudimos guardar la preferencia', false);
@@ -1008,5 +1599,67 @@
         $('aac-dateformat').addEventListener('change', () => saveSetting({ date_format: $('aac-dateformat').value }));
         $('aac-timeformat').addEventListener('change', () => saveSetting({ time_format: $('aac-timeformat').value }));
         $('aac-language').addEventListener('change', () => saveSetting({ language: $('aac-language').value }));
+        $('aac-text-size').addEventListener('change', () => saveSetting({ text_size: $('aac-text-size').value }));
+        $('aac-animations').addEventListener('change', () => saveSetting({ animations: $('aac-animations').checked }));
+        $('aac-start-page').addEventListener('change', () => saveSetting({ start_page: $('aac-start-page').value }));
+        $('aac-confirm-logout').addEventListener('change', () => saveSetting({ confirm_logout: $('aac-confirm-logout').checked }));
+        $('aac-reduce-motion').addEventListener('change', () => saveSetting({ reduce_motion: $('aac-reduce-motion').checked }));
+        $('aac-high-contrast').addEventListener('change', () => saveSetting({ high_contrast: $('aac-high-contrast').checked }));
+        $('aac-interface-scale').addEventListener('change', () => saveSetting({ interface_scale: $('aac-interface-scale').value }));
+        $('aac-page-size').addEventListener('change', () => saveSetting({ page_size: $('aac-page-size').value }));
+        $('aac-default-sort').addEventListener('change', () => saveSetting({ default_sort: $('aac-default-sort').value }));
+
+        document.querySelectorAll('[data-setting][data-value]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setSegmentState(button.dataset.setting, button.dataset.value);
+                saveSetting({ [button.dataset.setting]: button.dataset.value });
+            });
+        });
+
+        const saveRegion = debounce(async () => {
+            const country = $('aac-setting-country').value.trim();
+            const city = $('aac-setting-city').value.trim();
+            try {
+                await updateArtist({ country: country || null, city: city || null });
+                await saveSetting({ country, city });
+                $('aac-country').value = country;
+                $('aac-city').value = city;
+            } catch (error) {
+                console.error('[account] región:', error);
+                toast('No pudimos guardar la región', false);
+            }
+        }, 600);
+        $('aac-setting-country').addEventListener('input', saveRegion);
+        $('aac-setting-city').addEventListener('input', saveRegion);
+
+        $('aac-reset-settings').addEventListener('click', async () => {
+            if (!window.confirm('¿Querés restablecer las preferencias de la aplicación?')) return;
+            try {
+                await savePrefs('app_settings', DEFAULT_APP_SETTINGS);
+                window.location.reload();
+            } catch (error) {
+                console.error('[account] restablecer configuración:', error);
+                toast('No pudimos restablecer las preferencias', false);
+            }
+        });
+    }
+
+    function setSegmentState(setting, value) {
+        document.querySelectorAll(`[data-setting="${setting}"]`).forEach((button) => {
+            const active = button.dataset.value === String(value);
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+    }
+
+    function applyAppearanceSettings(settings) {
+        const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+        const resolvedTheme = settings.theme === 'system' ? (systemDark ? 'dark' : 'light') : settings.theme;
+        document.body.dataset.aacTheme = resolvedTheme || 'light';
+        document.body.dataset.aacDensity = settings.density || 'comfortable';
+        document.body.dataset.aacTextSize = settings.text_size || 'medium';
+        document.body.classList.toggle('aac-no-animations', settings.animations === false || !!settings.reduce_motion);
+        document.body.classList.toggle('aac-high-contrast', !!settings.high_contrast);
+        document.documentElement.style.fontSize = `${Math.max(90, Math.min(125, Number(settings.interface_scale) || 100))}%`;
     }
 })();

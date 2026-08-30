@@ -1,6 +1,6 @@
 # We Ötzi · Design System (Bauhaus Edition) — capa CSS del producto
 
-Fuente de verdad: proyecto "We Ötzi Design System" en claude.ai/design (`fe3404ee-…`).
+Fuente de verdad: Figma [“Design System We Otzi”](https://www.figma.com/design/jLxPQyG2rxrq5bvfQgNcBd/Design-System-We-Otzi), archivo `jLxPQyG2rxrq5bvfQgNcBd`.
 Esta carpeta es la traducción vanilla-CSS de ese sistema para las páginas de `public/`.
 
 ## Cómo incluirlo en una página
@@ -8,10 +8,26 @@ Esta carpeta es la traducción vanilla-CSS de ese sistema para las páginas de `
 ```html
 <link rel="stylesheet" href="/shared/css/ds/tokens.css">
 <link rel="stylesheet" href="/shared/css/ds/components.css">
+<link rel="stylesheet" href="/shared/css/ds/site-components.css">
+<link rel="stylesheet" href="/shared/css/ds/molecules.css">
+<link rel="stylesheet" href="/shared/css/ds/organisms.css">
 <script src="/shared/js/wo-icons.js" defer></script>
+<script src="/shared/js/ds/site-components.js" defer></script>
+<script src="/shared/js/ds/organisms.js" defer></script>
+<script src="/shared/js/ds/molecules.js" defer></script>
 ```
 
 `<body class="wo-app">` activa los resets (fondo crema, selección amarilla, focus ring).
+
+Las capas CSS se cargan de menor a mayor composición: tokens y primitivas, 21 tableros
+del UI Kit, 28 moléculas y 17 organismos. En JavaScript, `organisms.js` debe preceder a
+`molecules.js` porque las moléculas reutilizan su fixture compartido. El catálogo vive en
+`/componentes/`; los ejemplos agrupados y el dashboard completo están en
+`/componentes/compuestos/`.
+
+Los tableros de documentación reproducen las medidas, textos y fondos de sus frames de
+Figma. Por eso sus wrappers pueden usar valores literales o el gradiente del lienzo original;
+esas excepciones visuales no cambian las reglas de los componentes de producto.
 
 ## Reglas duras (del manual — no negociables)
 

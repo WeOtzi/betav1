@@ -130,11 +130,10 @@ test('server admin verification accepts only the hardcoded superadmin email', as
     }
 });
 
-test('superadmin maintenance script hardcodes the protected account and password', () => {
+test('superadmin maintenance script hardcodes the protected account identity', () => {
     const source = fs.readFileSync(ensureSuperadminPath, 'utf8');
 
     assert.match(source, /SUPERADMIN_EMAIL\s*=\s*'isai@weotzi\.com'/);
-    assert.match(source, /SUPERADMIN_PASSWORD\s*=\s*'Soporte2026\.!'/);
     assert.match(source, /SUPERADMIN_SUPPORT_ROLE\s*=\s*'admin'/);
 });
 
@@ -146,6 +145,7 @@ test('superadmin maintenance keeps the account in support users and out of artis
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role';
     process.env.SUPABASE_ANON_KEY = 'anon-key';
+    process.env.SUPERADMIN_PASSWORD = 'test-only-explicit-password';
 
     const calls = [];
     let artistCleanupCompleted = false;
@@ -456,4 +456,48 @@ test('server exposes authenticated admin APIs for backoffice database and suppor
             `${route} must verify the superadmin caller`
         );
     }
+});
+
+test('backoffice database catalog includes every artist account, travel and opportunity table', () => {
+    const source = fs.readFileSync(serverPath, 'utf8');
+    const start = source.indexOf('const ADMIN_DATABASE_TABLES = [');
+    const end = source.indexOf('const ADMIN_DATABASE_TABLE_NAMES', start);
+    assert.notEqual(start, -1, 'ADMIN_DATABASE_TABLES should exist');
+    assert.notEqual(end, -1, 'ADMIN_DATABASE_TABLE_NAMES should follow the catalog');
+    const catalog = source.slice(start, end);
+
+    const requiredTables = [
+        'user_preferences',
+        'artist_billing_profiles',
+        'artist_payment_methods',
+        'artist_financial_entries',
+        'artist_account_sessions',
+        'artist_integration_connections',
+        'artist_account_deletion_requests',
+        'artist_verification_documents',
+        'artist_calendar_events',
+        'artist_trips',
+        'trip_studio_links',
+        'trip_checklist_items',
+        'trip_documents',
+        'trip_events',
+        'trip_studio_link_audit',
+        'job_board_counter_offers',
+        'job_board_request_stats',
+        'artist_saved_job_requests',
+        'studio_spot_counter_offers',
+        'studio_membership_invitation_details',
+        'studio_invitation_change_requests',
+        'user_notification_reads',
+        'inbox_threads',
+        'inbox_thread_participants',
+        'inbox_messages',
+        'inbox_thread_activity',
+        'chat_threads'
+    ];
+
+    for (const table of requiredTables) {
+        assert.ok(catalog.includes(`name: '${table}'`), `${table} must be manageable from /backoffice`);
+    }
+    assert.match(catalog, /name:\s*'chat_threads'[\s\S]*kind:\s*'view'/);
 });

@@ -26,6 +26,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-3">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
@@ -46,6 +47,7 @@
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js?v=20260515-dashboard"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
     <!-- Google Maps Places API (legacy profile-form location autocomplete) -->
     <script>
         window.initDashboardGooglePlaces = function() {};
@@ -66,40 +68,20 @@
 
 <body class="wo-app artist-dashboard-page wod-body">
 
-    <!-- ============================ TOPBAR ============================ -->
-    <header class="wo-topbar wo-dash-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a class="wo-topbar-item" href="/my-quotations">COTIZACIONES<span class="wo-dash-navcount" id="wod-nav-msg-badge" hidden>0</span></a>
-                <a class="wo-topbar-item" href="/job-board">JOB BOARD</a>
-                <a class="wo-topbar-item" href="/studio-spots">SPOTS</a>
-                <a class="wo-topbar-item" href="/calendar">CALENDARIO</a>
-                <a class="wo-topbar-item" href="/my-quotations/statistics">ESTADÍSTICAS</a>
-                <a class="wo-topbar-item" href="/artist/travel">TRAVEL</a>
-                <a class="wo-topbar-item" href="/artist/inbox">INBOX</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-dash-burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú">
-                <i data-wo-icon="menu"></i>
-            </button>
-            <a class="wo-o-tile" href="/artist/account" aria-label="Notificaciones y cuenta">Ö</a>
-            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono wo-dash-logout" type="button" onclick="handleLogout()" aria-label="Cerrar sesión">LOG OUT</button>
-        </div>
-        <nav class="wo-dash-mobilemenu" id="dashboard-mobile-menu" hidden aria-label="Navegación móvil">
-            <a href="/my-quotations">COTIZACIONES</a>
-            <a href="/job-board">JOB BOARD</a>
-            <a href="/studio-spots">SPOTS</a>
-            <a href="/artist/invitations">INVITACIONES</a>
-            <a href="/calendar">CALENDARIO</a>
-            <a href="/my-quotations/statistics">ESTADÍSTICAS</a>
-            <a href="/artist/travel">TRAVEL</a>
-            <a href="/artist/inbox">INBOX</a>
-            <a href="/artist/visitors/">VISITANTES</a>
-            <a href="/artist/profile/details">PERFIL</a>
-        </nav>
-    </header>
+    <!-- ============================ TOPBAR COMPARTIDA ============================ -->
+    <weotzi-product-nav
+        active="quotations"
+        menu-toggle-id="dashboard-mobile-menu-toggle"
+        menu-id="dashboard-mobile-menu"
+        menu-class="wo-dash-mobilemenu"
+        profile-label="Notificaciones y cuenta"
+        logout-handler="handleLogout"
+        logout-class="wo-dash-logout"
+        badge-item="quotations"
+        badge-id="wod-nav-msg-badge"
+        badge-class="wo-dash-navcount"
+        dashboard-extras>
+    </weotzi-product-nav>
 
     <!-- ============================ HERO / SALUDO ============================ -->
     <section class="wo-dash-hero" id="wod-hero">
@@ -244,6 +226,7 @@
     <section class="wo-dash-gallery block-gallery-admin" aria-label="Galería de trabajos">
         <div class="wo-container">
             <div class="wo-dash-gallery-frame">
+                <p class="wo-meta wo-dash-gallery-preview">VISTA PREVIA</p>
                 <header class="wo-dash-gallery-head">
                     <h2 class="wo-dash-gallery-title">Galería de trabajos <span class="wo-dash-gallery-count" id="wod-gallery-count">— 0</span></h2>
                     <div class="wo-dash-gallery-tools">
@@ -270,19 +253,17 @@
                             <span class="gallery-upload-counter wo-meta-s" id="gallery-upload-counter">0 / 0</span>
                         </div>
                     </div>
+                    <section class="wo-dash-cta" aria-label="Subí tu trabajo">
+                        <div class="wo-dash-cta-inner">
+                            <i data-wo-icon="pen-tool" class="wo-dash-cta-icon"></i>
+                            <h2 class="wo-dash-cta-title">Mostrá tu mejor trabajo</h2>
+                            <p class="wo-dash-cta-copy">Un portfolio con fotos de calidad genera más cotizaciones.</p>
+                            <label class="wo-btn wo-btn--accent wo-btn--hard wo-dash-cta-btn" for="gallery-input" id="profile-gallery-upload-btn"><i data-wo-icon="plus" class="wo-icon-18"></i>SUBIR FOTOS/VIDEOS</label>
+                            <input type="file" id="gallery-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
+                        </div>
+                    </section>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <!-- ============================ CTA · SUBIR TRABAJO ============================ -->
-    <section class="wo-dash-cta" aria-label="Subí tu trabajo">
-        <div class="wo-container wo-dash-cta-inner">
-            <i data-wo-icon="pen-tool" class="wo-dash-cta-icon"></i>
-            <h2 class="wo-dash-cta-title">Mostrá tu mejor trabajo</h2>
-            <p class="wo-dash-cta-copy">Un portfolio con fotos de calidad genera más cotizaciones.</p>
-            <label class="wo-btn wo-btn--accent wo-btn--hard wo-dash-cta-btn" for="gallery-input" id="profile-gallery-upload-btn"><i data-wo-icon="plus" class="wo-icon-18"></i>SUBIR FOTOS/VIDEOS</label>
-            <input type="file" id="gallery-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
         </div>
     </section>
 

@@ -1,0 +1,16 @@
+export const figmaAssets = {
+  statusRight: '/assets/figma/status-right.svg',
+  safariAa: '/assets/figma/safari-aa.svg',
+  safariLock: '/assets/figma/safari-lock.svg',
+  safariRefresh: '/assets/figma/safari-refresh.svg',
+  navHome: '/assets/figma/nav-home.svg',
+  navHomeActive: '/assets/figma/nav-home-active.svg',
+  navBusiness: '/assets/figma/nav-business.svg',
+  navBusinessActive: '/assets/figma/nav-business-active.svg',
+  navProfile: '/assets/figma/nav-profile.svg',
+  wizardBackCircle: '/assets/figma/wizard-flash-back-circle.svg',
+  wizardBackArrow: '/assets/figma/wizard-flash-back-arrow.svg',
+  wizardNextCircle: '/assets/figma/wizard-flash-next-circle.svg',
+  wizardNextArrow: '/assets/figma/wizard-flash-next-arrow.svg',
+  wizardDot: '/assets/figma/wizard-flash-dot.svg',
+} as const;

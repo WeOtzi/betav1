@@ -1,6 +1,6 @@
 /* ============================================================================
    We Ötzi · Design System (Bauhaus Edition) — TOKENS
-   Fuente: proyecto "We Ötzi Design System" (claude.ai/design fe3404ee).
+   Fuente: Figma "Design System We Otzi" (jLxPQyG2rxrq5bvfQgNcBd).
    Este archivo es la única fuente de verdad de color/tipografía/espaciado.
    Regla: ningún hex suelto en CSS de páginas — siempre var(--token).
    ========================================================================== */
@@ -20,6 +20,10 @@
   --system-success:#1E9F74; --system-warning:#EEBB2D; --system-error:#E42121;
   /* Tinta y papel */
   --ink:#001125; --white:#FCFCFC; --black:#000000;
+  /* Literales del archivo Figma que no pertenecen a las rampas normalizadas. */
+  --figma-panel-ink:#1A1A1A; --figma-direct:#0057B8; --figma-highlight:#FFCC00;
+  --figma-destructive:#E63B2E; --figma-ecru:#F5F0E8; --figma-white:#FFFFFF;
+  --figma-board-gold:#FFCB66; --figma-sand:#F2EDE3; --figma-sand-border:#D8D0BF;
   /* Primitivas Bauhaus del isotipo */
   --bauhaus-square:#E42121; --bauhaus-circle:#F2B519; --bauhaus-triangle:#0055FF;
   /* Superficies oscuras y reglas */

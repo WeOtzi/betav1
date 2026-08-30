@@ -29,7 +29,9 @@
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
     <link rel="stylesheet" href="/shared/css/account-center-ds.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -63,38 +65,17 @@
 
 <body class="wo-app artist-dashboard-page woac">
 
-    <!-- TOPBAR (DS) -->
-    <header class="wo-topbar woac-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">
-                <span class="wo-marks"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>
-                WE&nbsp;ÖTZI
-            </a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a class="wo-topbar-item" href="/my-quotations">Cotizaciones</a>
-                <a class="wo-topbar-item" href="/job-board">Job board</a>
-                <a class="wo-topbar-item" href="/studio-spots">Spots</a>
-                <a class="wo-topbar-item" href="/calendar">Calendario</a>
-                <a class="wo-topbar-item" href="/my-quotations/statistics">Estadísticas</a>
-                <a class="wo-topbar-item" href="/artist/travel">Travel</a>
-                <a class="wo-topbar-item" href="/artist/inbox">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <a class="wo-o-tile" href="/artist/dashboard" aria-label="Ir al dashboard">Ö</a>
-            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono woac-logout" type="button" onclick="handleLogout()">Log out</button>
-            <button class="wo-iconbtn wo-iconbtn--s woac-burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menú"><i data-wo-icon="menu" class="wo-icon-18"></i></button>
-        </div>
-        <nav class="woac-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegación móvil" hidden>
-            <a href="/my-quotations">Cotizaciones</a>
-            <a href="/job-board">Job board</a>
-            <a href="/studio-spots">Spots</a>
-            <a href="/artist/invitations">Invitaciones</a>
-            <a href="/calendar">Calendario</a>
-            <a href="/my-quotations/statistics">Estadísticas</a>
-            <a href="/artist/dashboard">Dashboard</a>
-        </nav>
-    </header>
+    <weotzi-product-nav
+        active="account"
+        dashboard-extras
+        menu-toggle-id="dashboard-mobile-menu-toggle"
+        menu-id="dashboard-mobile-menu"
+        menu-class="woac-mobile-menu"
+        profile-current
+        profile-label="Centro de la cuenta"
+        logout-class="woac-logout"
+        logout-handler="handleLogout">
+    </weotzi-product-nav>
 
     <!-- SHELL: sidebar de secciones + panels -->
     <div class="woac-shell">

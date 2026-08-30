@@ -23,7 +23,10 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+    <link rel="stylesheet" href="/shared/css/ds/site-components.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -35,6 +38,7 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/jobboard-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -45,40 +49,20 @@
 </head>
 <body class="wo-app">
 
-    <!-- TopBar de artista -->
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item is-active" aria-current="page">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-btn wo-btn--ghost wo-btn--s jbf-menu-toggle" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu">
-                Menú
-            </button>
-            <a href="#" id="auth-nav-btn" class="jbf-auth">
-                <span class="wo-o-tile jbf-o-tile" aria-hidden="true">Ö</span>
-                <span id="auth-nav-label" class="wo-sr-only">Ingresá</span>
-            </a>
-            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono jbf-logout hidden" id="auth-logout">Log out</button>
-        </div>
-    </header>
-    <nav class="jbf-mobile-menu" id="dashboard-mobile-menu" aria-label="Navegación móvil de artista" hidden>
-        <a href="/my-quotations">Cotizaciones</a>
-        <a href="/job-board" class="is-active">Job board</a>
-        <a href="/studio-spots">Spots</a>
-        <a href="/calendar">Calendario</a>
-        <a href="/my-quotations/statistics">Estadísticas</a>
-        <a href="/artist/travel">Travel</a>
-        <a href="/artist/inbox">Inbox</a>
-    </nav>
+    <!-- TopBar compartida de artista -->
+    <weotzi-product-nav
+        active="job-board"
+        menu-toggle-id="dashboard-mobile-menu-toggle"
+        menu-id="dashboard-mobile-menu"
+        menu-class="jbf-mobile-menu"
+        profile-href="#"
+        profile-id="auth-nav-btn"
+        profile-class="jbf-auth jbf-o-tile"
+        profile-label-id="auth-nav-label"
+        profile-label="Ingresá"
+        logout-id="auth-logout"
+        logout-class="jbf-logout hidden">
+    </weotzi-product-nav>
 
     <!-- Main: sidebar de filtros + feed -->
     <main id="marketplace-content" class="jbf-shell">
@@ -111,6 +95,10 @@
                         <button type="button" class="jbf-quick-item" data-quick="newest">
                             <i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i>
                             <span>Recién publicados</span>
+                        </button>
+                        <button type="button" class="jbf-quick-item" data-quick="saved">
+                            <i data-wo-icon="heart" class="wo-icon-18" aria-hidden="true"></i>
+                            <span>Guardados</span>
                         </button>
                     </div>
                 </div>
@@ -166,6 +154,9 @@
                     <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
                     <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
                 </header>
+
+                <!-- Oportunidad patrocinada (solo si el backend expone una activa) -->
+                <div id="job-board-featured"></div>
 
                 <!-- Rieles curados inyectados por job-board-feed.js -->
                 <div id="job-board-rails" class="jbf-rails"></div>

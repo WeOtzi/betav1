@@ -1,0 +1,164 @@
+[
+ {
+  "id": "1-1",
+  "at": 0.3,
+  "dur": 1.8,
+  "prompt": "very soft airy descending tone, subtle slow-motion falling droplet whoosh, warm, extremely gentle and minimal, high-end product film"
+ },
+ {
+  "id": "1-2",
+  "at": 2.4,
+  "dur": 0.6,
+  "prompt": "single soft liquid ink drop landing on smooth surface, deep muted round plop, warm and intimate, no splash, minimal and precise"
+ },
+ {
+  "id": "1-3",
+  "at": 3.1,
+  "dur": 1.4,
+  "prompt": "smooth calligraphy pen stroke glide, silky ink line being drawn across paper in one confident motion, soft friction, elegant, quiet finish"
+ },
+ {
+  "id": "2-1",
+  "at": 2.4,
+  "dur": 0.9,
+  "prompt": "smooth liquid ink morph whoosh resolving into a soft rounded pin-drop thump, warm, tactile, minimal, premium app UI sound"
+ },
+ {
+  "id": "2-2",
+  "at": 3.9,
+  "dur": 1,
+  "prompt": "two gentle staggered UI slide-in ticks, soft felt-like taps, warm, discreet, minimal interface sound"
+ },
+ {
+  "id": "2-3",
+  "at": 5.6,
+  "dur": 0.4,
+  "prompt": "single soft warm UI confirmation tick, rounded and glowing, very discreet, minimal"
+ },
+ {
+  "id": "3-1",
+  "at": 0.3,
+  "dur": 0.4,
+  "prompt": "single soft UI tick, warm, rounded, minimal, like a premium app opening a profile card, very short and discreet"
+ },
+ {
+  "id": "3-2",
+  "at": 1.6,
+  "dur": 0.7,
+  "prompt": "gentle smooth card swipe whoosh, soft paper-slide texture, airy and quiet, premium interface gallery advancing, subtle"
+ },
+ {
+  "id": "3-3",
+  "at": 3.2,
+  "dur": 2,
+  "prompt": "soft low cinematic thump melting into a faint distant tattoo machine buzz, warm, muffled, intimate studio ambience, very quiet and understated"
+ },
+ {
+  "id": "4-1",
+  "at": 1.8,
+  "dur": 0.8,
+  "prompt": "soft UI card fold and slide, gentle paper-like swish with a single muted tick at the end, warm, minimal, discreet"
+ },
+ {
+  "id": "4-2",
+  "at": 4.6,
+  "dur": 0.5,
+  "prompt": "single soft message-sent pop, warm rounded bubble tone, subtle and minimal UI sound"
+ },
+ {
+  "id": "4-3",
+  "at": 7.2,
+  "dur": 1,
+  "prompt": "gentle confirmation chime, one warm soft marimba-like note with a short low thud of something settling into place, minimal and premium"
+ },
+ {
+  "id": "5-1",
+  "at": 1.6,
+  "dur": 0.4,
+  "prompt": "single soft UI tick, warm and rounded, minimal digital confirmation blip, very short, premium app interaction sound"
+ },
+ {
+  "id": "5-2",
+  "at": 4.3,
+  "dur": 0.7,
+  "prompt": "leather suitcase latch clicking shut, crisp tactile brass click with a soft leather thump, close-miked, dry, minimal"
+ },
+ {
+  "id": "5-3",
+  "at": 6.2,
+  "dur": 1.6,
+  "prompt": "smooth glass door opening slowly, soft handle click then gentle low air movement and quiet room tone swelling, warm, subtle, minimal"
+ },
+ {
+  "id": "6-1",
+  "at": 2,
+  "dur": 1.4,
+  "prompt": "smooth soft interface expansion whoosh, airy fabric-like unfold, warm, minimal, premium UI sound, gentle rise and release"
+ },
+ {
+  "id": "6-2",
+  "at": 3.6,
+  "dur": 0.9,
+  "prompt": "quick gentle cascade of three soft UI card placement taps, rounded, warm, discreet, evenly spaced, minimal product interface sounds"
+ },
+ {
+  "id": "6-3",
+  "at": 6.2,
+  "dur": 0.4,
+  "prompt": "single soft warm UI confirmation tick, low and round, very subtle, minimal"
+ },
+ {
+  "id": "7-1",
+  "at": 0.8,
+  "dur": 1,
+  "prompt": "delicate soft fabric rustle, cotton sleeve shifting close to microphone, intimate, warm, very quiet and minimal"
+ },
+ {
+  "id": "7-2",
+  "at": 4.7,
+  "dur": 0.6,
+  "prompt": "soft minimal UI card appear sound, gentle warm airy pop with a faint smooth slide, subtle and premium, low volume"
+ },
+ {
+  "id": "7-3",
+  "at": 5.5,
+  "dur": 0.9,
+  "prompt": "single soft verification chime, one warm rounded bell-like UI tone with a tiny tick, clean, reassuring, minimal"
+ },
+ {
+  "id": "8-1",
+  "at": 2.5,
+  "dur": 1.4,
+  "prompt": "soft airy whoosh of smooth panels gliding together, warm, rounded, minimal, premium UI motion sound, no harshness"
+ },
+ {
+  "id": "8-2",
+  "at": 4.8,
+  "dur": 0.4,
+  "prompt": "single soft magnetic snap click, precise UI dock-into-place sound, warm and minimal, satisfying and subtle"
+ },
+ {
+  "id": "8-3",
+  "at": 5.4,
+  "dur": 1.5,
+  "prompt": "gentle warm low harmonic settle tone, soft resonant hum fading out, calm resolution, minimal and clean"
+ },
+ {
+  "id": "9-1",
+  "at": 0.2,
+  "dur": 0.8,
+  "prompt": "single soft liquid blip, a droplet of ink dividing in slow motion, round and warm, intimate close-mic, minimal and clean, no reverb tail"
+ },
+ {
+  "id": "9-2",
+  "at": 1.5,
+  "dur": 0.5,
+  "prompt": "two gentle soft ticks in quick succession, like felt-tipped dots locking into place, warm, tiny, precise, minimal UI sound"
+ },
+ {
+  "id": "9-3",
+  "at": 2.1,
+  "dur": 0.8,
+  "prompt": "soft deep sub-bass pulse, warm cinematic resolve for a logo reveal, short, restrained, rounded attack, smooth decay"
+ }
+]

@@ -27,6 +27,7 @@
   var user = null;        // currentUser (auth user; .id == artist_id)
   var artist = null;      // fila artists_db
   var todaySessions = null; // null = aún sin datos; number cuando carga agenda
+  var supplementalActivity = [];
   var LIVE_QUERY_TIMEOUT_MS = 8000;
 
   /* ---------- helpers ---------------------------------------------------- */
@@ -57,6 +58,14 @@
       return t.split(/[,;|]/).map(function (x) { return x.trim(); }).filter(Boolean);
     }
     return [];
+  }
+  function dashboardConfig() {
+    var config = artist && artist.dashboard_config;
+    if (!config) return {};
+    if (typeof config === 'string') {
+      try { config = JSON.parse(config); } catch (e) { return {}; }
+    }
+    return config && typeof config === 'object' ? config : {};
   }
   function withLiveTimeout(promise, label) {
     var timer = null;
@@ -219,7 +228,7 @@
   // no degradar la agenda entera por un campo opcional.
   function fetchAgendaRows(nowIso) {
     var cols = 'id, session_date, session_number, status, notes, duration_hours, quotation_id, ' +
-      'quotations_db(client_full_name, tattoo_style, tattoo_body_part)';
+      'quotations_db(quote_id, client_full_name, tattoo_style, tattoo_body_part)';
     return WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 30, select: cols })
       .catch(function (e) {
         console.warn('[redesign] agenda sin duration_hours', e);
@@ -231,11 +240,20 @@
     return withLiveTimeout(fetchAgendaRows(nowIso), 'agenda')
       .then(function (rows) {
         rows = (rows || []).filter(function (s) { return String(s.status || '').toLowerCase() !== 'cancelled'; });
+        var agendaIds = dashboardConfig().dashboard_demo_quote_ids;
+        if (Array.isArray(agendaIds) && agendaIds.length) {
+          var allowedAgenda = {};
+          agendaIds.forEach(function (id) { allowedAgenda[String(id)] = true; });
+          rows = rows.filter(function (s) {
+            return allowedAgenda[String((s.quotations_db || {}).quote_id)];
+          });
+        }
         var now = new Date();
-        todaySessions = rows.filter(function (s) {
+        var todayRows = rows.filter(function (s) {
           var d = new Date(s.session_date);
           return !isNaN(d) && sameLocalDay(d, now);
-        }).length;
+        });
+        todaySessions = todayRows.length;
         renderHero();
 
         // El Figma define un único título para el bloque; las filas ya llevan
@@ -248,7 +266,10 @@
           box.innerHTML = '<div class="wod-empty">Sin turnos próximos · <a href="/calendar">abrir calendario →</a></div>';
           return 0;
         }
-        box.innerHTML = rows.slice(0, 5).map(function (s) {
+        // "Agenda del día" muestra sólo hoy cuando hay turnos hoy; si la agenda
+        // está libre, mantiene el próximo turno como orientación útil.
+        var displayRows = todayRows.length ? todayRows : rows.slice(0, 1);
+        box.innerHTML = displayRows.slice(0, 4).map(function (s) {
           var q = s.quotations_db || {};
           var who = q.client_full_name || 'Cliente';
           var d = new Date(s.session_date);
@@ -309,10 +330,26 @@
     if (s === 'client_rejected') return { icon: 'x-circle', txt: name + ' rechazó tu cotización', when: when };
     return null;
   }
+  var ACTIVITY_ICONS = {
+    confirmation: 'check-circle', payment: 'dollar-sign', quote: 'mail', review: 'star',
+    session: 'calendar', message: 'message-circle'
+  };
+  function supplementalActivityEvent(item) {
+    if (!item || !item.text) return null;
+    return {
+      icon: ACTIVITY_ICONS[item.type] || item.icon || 'circle',
+      txt: item.text,
+      when: item.created_at || item.when || new Date().toISOString()
+    };
+  }
   function renderActivity(quotes) {
     var sec = $('wod-activity-section'), list = $('wod-activity-list');
     if (!sec || !list) return;
-    var events = quotes.map(activityEvent).filter(Boolean);
+    var demoActivityOnly = Boolean(dashboardConfig().dashboard_demo_marker && supplementalActivity.length);
+    var events = demoActivityOnly
+      ? supplementalActivity.map(supplementalActivityEvent).filter(Boolean)
+      : (quotes || []).map(activityEvent).filter(Boolean)
+          .concat((supplementalActivity || []).map(supplementalActivityEvent).filter(Boolean));
     events.sort(function (a, b) { return new Date(b.when || 0) - new Date(a.when || 0); });
     events = events.slice(0, 4);
     if (!events.length) { sec.hidden = true; return; }
@@ -330,6 +367,12 @@
     return withLiveTimeout(WeotziData.Quotations.listForArtist(user.id, { limit: 60 }), 'cotizaciones')
       .then(function (rows) {
         var quotes = (rows || []).filter(function (q) { return !q.is_archived; });
+        var demoIds = dashboardConfig().dashboard_demo_quote_ids;
+        if (Array.isArray(demoIds) && demoIds.length) {
+          var visible = {};
+          demoIds.forEach(function (id) { visible[String(id)] = true; });
+          quotes = quotes.filter(function (q) { return visible[String(q.quote_id)]; });
+        }
         var count = function (fn) { return quotes.filter(fn).length; };
         var pending = count(function (q) { return q.quote_status === 'pending'; });
         var approved = count(function (q) { return q.quote_status === 'client_approved' || q.quote_status === 'completed'; });
@@ -374,12 +417,18 @@
     artist_completed: 'LISTA PARA CLIENTE'
   };
   function designTitle(q) {
+    if (q.project_description) return String(q.project_description).trim();
     var parts = [];
     var style = styleList(q.tattoo_style)[0];
     if (style) parts.push(String(style).trim());
     if (q.tattoo_body_part) parts.push(String(q.tattoo_body_part).trim());
     if (parts.length) return parts.join(' · ');
     return q.quote_id ? 'Cotización ' + q.quote_id : 'Cotización';
+  }
+  function designClient(name) {
+    var parts = String(name || 'Cliente').trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts[0] || 'Cliente';
+    return parts[0] + ' ' + parts[parts.length - 1].charAt(0).toUpperCase() + '.';
   }
   function designCard(q, sessions, thumb) {
     var now = new Date();
@@ -388,14 +437,21 @@
     var declared = parseInt(q.final_sessions || q.tattoo_estimated_sessions, 10);
     var total = Math.max(isFinite(declared) ? declared : 0, live.length);
     var pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
+    var configuredProgress = dashboardConfig().dashboard_design_progress || {};
+    var progressOverride = Number(configuredProgress[q.quote_id]);
+    if (isFinite(progressOverride)) pct = Math.max(0, Math.min(100, progressOverride));
 
     var next = live
       .map(function (s) { return new Date(s.session_date); })
       .filter(function (d) { return !isNaN(d) && d >= now; })
       .sort(function (a, b) { return a - b; })[0];
 
-    var stage = DESIGN_STAGES[q.quote_status] || String(q.quote_status || '').toUpperCase();
+    var stage = q.current_step
+      ? String(q.current_step).toUpperCase()
+      : (DESIGN_STAGES[q.quote_status] || String(q.quote_status || '').toUpperCase());
     var ready = q.quote_status === 'artist_completed';
+    var deadline = q.client_preferred_date ? new Date(q.client_preferred_date + 'T12:00:00') : null;
+    if (!deadline || isNaN(deadline)) deadline = next;
 
     var media = thumb
       ? '<img src="' + esc(thumb) + '" alt="" loading="lazy">'
@@ -404,13 +460,13 @@
     return '<article class="wo-dash-design">' +
       '<div class="wo-dash-design-media">' + media + '</div>' +
       '<h3 class="wo-dash-design-title">' + esc(designTitle(q)) + '</h3>' +
-      '<p class="wo-dash-design-client">' + esc(q.client_full_name || 'Cliente') + '</p>' +
+      '<p class="wo-dash-design-client">' + esc(designClient(q.client_full_name)) + '</p>' +
       (pct === null ? '' :
         '<div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (ready ? ' is-ready' : '') +
         '" style="width:' + pct + '%"></div></div>') +
       '<div class="wo-dash-design-foot">' +
         '<span>' + esc(stage) + '</span>' +
-        (next ? '<span>PRÓXIMA ' + esc(dayMonth(next)) + '</span>' : '') +
+        (deadline ? '<span>LÍMITE ' + esc(dayMonth(deadline)) + '</span>' : '') +
       '</div>' +
     '</article>';
   }
@@ -423,6 +479,13 @@
     inWork.sort(function (a, b) {
       return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
     });
+    var preferredDesigns = dashboardConfig().dashboard_demo_design_quote_ids;
+    if (Array.isArray(preferredDesigns) && preferredDesigns.length) {
+      var order = {};
+      preferredDesigns.forEach(function (id, index) { order[String(id)] = index; });
+      inWork = inWork.filter(function (q) { return order[String(q.quote_id)] != null; });
+      inWork.sort(function (a, b) { return order[String(a.quote_id)] - order[String(b.quote_id)]; });
+    }
     inWork = inWork.slice(0, 3);
     if (!inWork.length) { sec.hidden = true; return; }
 
@@ -469,7 +532,7 @@
    *  filas cerradas antes de esa migración.                                 *
    *  "SALDO PEND." del Figma se omite: no existe ledger de pagos.           *
    * ===================================================================== */
-  var lastQuotes = null;
+  var lastQuotes = [];
   // Estados con trabajo comprometido y cobro pendiente.
   var PENDING_PAYMENT_STATUSES = ['client_approved', 'in_progress', 'artist_completed'];
   function renderIncome(quotes) {
@@ -740,6 +803,8 @@
       .then(function (row) {
         var app = (row && row.app_settings) || {};
         renderReminders(app.reminders || []);
+        supplementalActivity = app.dashboard_activity || [];
+        renderActivity(lastQuotes);
       })
       .catch(function (e) { console.warn('[redesign] recordatorios', e); });
   }
@@ -759,6 +824,10 @@
     sb = detail.supabase || window._supabase;
     user = detail.currentUser;
     artist = detail.artistData || null;
+
+    if (dashboardConfig().dashboard_demo_marker) {
+      document.body.classList.add('wod-figma-demo');
+    }
 
     renderHero();
     watchGalleryCount();

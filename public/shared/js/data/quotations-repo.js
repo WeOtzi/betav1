@@ -347,6 +347,28 @@
         },
     };
 
+    // ========== quotation_status_history (key = int quotation_id) ==========
+    const StatusHistory = {
+        async listForQuotation(quotationId) {
+            const { data } = await run('statusHistory.listForQuotation', (c) =>
+                c.from('quotation_status_history')
+                    .select('id, quotation_id, quote_id, old_status, new_status, changed_at, changed_by, notes')
+                    .eq('quotation_id', quotationId)
+                    .order('changed_at', { ascending: true })
+            );
+            return data || [];
+        },
+        async listByQuoteId(quoteId) {
+            const { data } = await run('statusHistory.listByQuoteId', (c) =>
+                c.from('quotation_status_history')
+                    .select('id, quotation_id, quote_id, old_status, new_status, changed_at, changed_by, notes')
+                    .eq('quote_id', quoteId)
+                    .order('changed_at', { ascending: true })
+            );
+            return data || [];
+        },
+    };
+
     // ============ quotation_intake_extras (key = text quote_id) ============
     // Campos nuevos del wizard rediseñado 2026 (modo de idea, nivel de
     // personalización, notas por referencia). Satélite 1:1 de quotations_db
@@ -445,6 +467,7 @@
     D.Sessions = Sessions;
     D.Attachments = Attachments;
     D.Chat = Chat;
+    D.StatusHistory = StatusHistory;
     D.IntakeExtras = IntakeExtras;
     D.Realtime = Realtime;
     D.Api = Api;

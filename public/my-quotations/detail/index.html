@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WE ÖTZI | Detalle de cotización</title>
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+    <link rel="stylesheet" href="/shared/css/quotation-detail-figma.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/quotations-repo.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
+</head>
+<body class="wo-app quotation-detail-page">
+    <weotzi-product-nav
+        active="quotations"
+        menu-toggle-id="admin-mobile-menu-toggle"
+        menu-id="admin-mobile-menu"
+        menu-class="admin-mobile-menu"
+        profile-label="Tu perfil"
+        logout-id="quotation-detail-logout">
+    </weotzi-product-nav>
+
+    <div class="qd-commandbar" id="quotation-commandbar" aria-label="Acciones de la cotización">
+        <div class="qd-commandbar-context">
+            <a class="qd-back" href="/my-quotations"><span aria-hidden="true">←</span> Volver al listado</a>
+            <span class="qd-command-divider" aria-hidden="true"></span>
+            <span class="qd-reference" id="qd-reference">COT-…</span>
+            <span class="qd-status qd-status--pending" id="qd-status">Pendiente</span>
+        </div>
+        <div class="qd-commandbar-actions">
+            <button class="qd-action qd-action--primary" id="qd-accept" type="button"><span aria-hidden="true">✓</span> Aceptar</button>
+            <button class="qd-action" id="qd-reject" type="button"><span aria-hidden="true">×</span> Rechazar</button>
+            <button class="qd-action" id="qd-schedule" type="button"><span aria-hidden="true">□</span> Agendar</button>
+            <button class="qd-action qd-action--quiet" id="qd-contact" type="button"><span aria-hidden="true">○</span> Contactar cliente</button>
+        </div>
+    </div>
+
+    <main class="qd-main" id="quotation-detail-root" aria-live="polite">
+        <div class="qd-loading">
+            <span class="qd-loading-mark" aria-hidden="true"></span>
+            <p>Cargando expediente…</p>
+        </div>
+    </main>
+
+    <div class="qd-toast" id="qd-toast" role="status" hidden></div>
+
+    <script src="/shared/js/admin-mobile-menu.js"></script>
+    <script src="/shared/js/quotation-detail-figma.js"></script>
+</body>
+</html>

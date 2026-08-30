@@ -663,6 +663,7 @@ body.wo-app {
     font-weight: var(--weight-bold);
     letter-spacing: var(--button-s-track);
     text-transform: uppercase;
+    text-decoration: none;
     cursor: pointer;
     white-space: nowrap;
     transition: transform var(--duration-press) var(--ease-standard), box-shadow var(--duration-press) var(--ease-standard), background var(--duration-press) var(--ease-standard);

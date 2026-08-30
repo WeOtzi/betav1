@@ -13,47 +13,28 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+    <link rel="stylesheet" href="/shared/css/ds/site-components.css">
     <link rel="stylesheet" href="/shared/css/artist-applications-ds.css">
+    <link rel="stylesheet" href="/shared/css/opportunity-applications-figma.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="wo-app artist-applications-page">
 
-    <!-- Topbar canónica de artista (página satélite: sin item activo) -->
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-btn wo-btn--ghost wo-btn--s apx-menu-toggle" id="apx-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="apx-mobile-menu">
-                Menú
-            </button>
-            <a href="/artist/account" class="apx-auth" aria-label="Centro de la cuenta">
-                <span class="wo-o-tile apx-o-tile" aria-hidden="true">Ö</span>
-            </a>
-            <button type="button" class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono apx-logout" id="apx-logout">Log out</button>
-        </div>
-    </header>
-    <nav class="apx-mobile-menu" id="apx-mobile-menu" aria-label="Navegación móvil de artista" hidden>
-        <a href="/my-quotations">Cotizaciones</a>
-        <a href="/job-board">Job board</a>
-        <a href="/studio-spots">Spots</a>
-        <a href="/calendar">Calendario</a>
-        <a href="/my-quotations/statistics">Estadísticas</a>
-        <a href="/artist/travel">Travel</a>
-        <a href="/artist/inbox">Inbox</a>
-        <a href="/artist/account">Centro de la cuenta</a>
-    </nav>
+    <!-- Topbar compartida de artista; Cotizaciones agrupa las postulaciones -->
+    <weotzi-product-nav
+        active="quotations"
+        menu-toggle-id="apx-mobile-menu-toggle"
+        menu-id="apx-mobile-menu"
+        menu-class="apx-mobile-menu"
+        profile-class="apx-auth apx-o-tile"
+        profile-label="Centro de la cuenta"
+        logout-id="apx-logout"
+        logout-class="apx-logout">
+    </weotzi-product-nav>
 
     <main class="wo-container apx-shell">
 
@@ -79,7 +60,7 @@
             <div class="apx-searchrow">
                 <label class="apx-search" for="apx-search-input">
                     <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
-                    <input type="search" id="apx-search-input" class="wo-input" placeholder="Buscar por proyecto, estudio o ciudad..." autocomplete="off">
+                    <input type="search" id="apx-search-input" class="wo-input" placeholder="Buscar por proyecto, estudio o cliente..." autocomplete="off">
                 </label>
                 <span class="wo-meta wo-faint apx-count" id="apx-result-count" aria-live="polite"></span>
             </div>
@@ -111,6 +92,7 @@
     <script src="/shared/js/data/jobboard-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/artist-applications.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>

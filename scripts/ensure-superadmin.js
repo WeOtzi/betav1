@@ -3,7 +3,6 @@
 require('dotenv').config();
 
 const SUPERADMIN_EMAIL = 'isai@weotzi.com';
-const SUPERADMIN_PASSWORD = 'Soporte2026.!';
 const SUPERADMIN_NAME = 'Soporte Superadmin';
 const SUPERADMIN_SUPPORT_ROLE = 'admin';
 
@@ -11,12 +10,13 @@ function getConfig() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const anonKey = process.env.SUPABASE_ANON_KEY;
+    const superadminPassword = process.env.SUPERADMIN_PASSWORD || null;
 
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
         throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required');
     }
 
-    return { supabaseUrl, serviceRoleKey, anonKey };
+    return { supabaseUrl, serviceRoleKey, anonKey, superadminPassword };
 }
 
 async function parseResponse(res) {
@@ -61,10 +61,9 @@ function buildSuperadminArtistCleanupFilter(userId) {
     ].join(',');
 }
 
-function superadminPayload(extra = {}) {
-    return {
+function superadminPayload(password, extra = {}) {
+    const payload = {
         email: SUPERADMIN_EMAIL,
-        password: SUPERADMIN_PASSWORD,
         email_confirm: true,
         user_metadata: {
             full_name: SUPERADMIN_NAME,
@@ -74,8 +73,10 @@ function superadminPayload(extra = {}) {
         app_metadata: {
             role: 'superadmin'
         },
-        ...extra
+        ...extra,
     };
+    if (password) payload.password = password;
+    return payload;
 }
 
 function normalizeAuthUser(response) {
@@ -150,18 +151,21 @@ async function ensureSuperadminAuth(config) {
             {
                 method: 'PUT',
                 headers,
-                body: JSON.stringify(superadminPayload({ ban_duration: 'none' }))
+                body: JSON.stringify(superadminPayload(config.superadminPassword, { ban_duration: 'none' }))
             }
         );
         action = 'updated';
     } else {
+        if (!config.superadminPassword) {
+            throw new Error('SUPERADMIN_PASSWORD is required to create the superadmin account');
+        }
         user = await request(
             'create superadmin',
             `${config.supabaseUrl}/auth/v1/admin/users`,
             {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(superadminPayload())
+                body: JSON.stringify(superadminPayload(config.superadminPassword))
             }
         );
         action = 'created';
@@ -176,6 +180,7 @@ async function ensureSuperadminAuth(config) {
 }
 
 async function verifySuperadminPassword(config) {
+    if (!config.superadminPassword) return null;
     return request(
         'verify superadmin password',
         `${config.supabaseUrl}/auth/v1/token?grant_type=password`,
@@ -184,7 +189,7 @@ async function verifySuperadminPassword(config) {
             headers: { apikey: config.anonKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 email: SUPERADMIN_EMAIL,
-                password: SUPERADMIN_PASSWORD
+                password: config.superadminPassword
             })
         }
     );
@@ -207,7 +212,7 @@ async function ensureSuperadmin() {
         email: finalAuth.user.email,
         role: finalAuth.user.app_metadata && finalAuth.user.app_metadata.role,
         emailConfirmed: Boolean(finalAuth.user.email_confirmed_at || finalAuth.user.confirmed_at),
-        verifiedLogin: Boolean(login && login.access_token),
+        verifiedLogin: login ? Boolean(login.access_token) : null,
         artistRowsRemoved,
         supportUserEnsured
     };

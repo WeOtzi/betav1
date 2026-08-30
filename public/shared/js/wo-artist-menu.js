@@ -12,8 +12,9 @@
  *   - recordatorios      → quotation_sessions próximas (48 h)
  *   - postulaciones spots→ studio_spot_applications decididas (7 días)
  *   - actualizaciones    → /shared/platform-updates.json (editable por deploy)
- * Estado de lectura: el chat usa su is_read real; el resto marca visto en
- * localStorage (wo_notif_seen_v1). Sin sesión de artista el tile conserva su
+ * Estado de lectura: el chat usa su is_read real; el resto persiste recibos en
+ * user_notification_reads y conserva localStorage como respaldo offline. Sin
+ * sesión de artista el tile conserva su
  * comportamiento original (link). Carga: DESPUÉS de config-manager,
  * postgrest-client y los data/*-repo.js de la página (defer).
  */
@@ -27,6 +28,7 @@
         artist: null,
         threads: [],
         feed: [],
+        seen: null,
         counts: { msgs: 0, inv: 0, solic: 0, updates: 0 },
         open: false,
         panelOpen: false,
@@ -40,12 +42,50 @@
         });
     }
     function loadSeen() {
-        try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); }
-        catch (e) { return new Set(); }
+        if (state.seen) return state.seen;
+        try { state.seen = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); }
+        catch (e) { state.seen = new Set(); }
+        return state.seen;
     }
     function saveSeen(set) {
+        state.seen = set;
         try { localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(set).slice(-300))); }
         catch (e) { /* almacenamiento bloqueado */ }
+    }
+    async function loadRemoteSeen(D, uid) {
+        var client = D && typeof D.getClient === 'function' ? D.getClient() : null;
+        if (!client) return loadSeen();
+        try {
+            var result = await client.from('user_notification_reads')
+                .select('notification_key')
+                .eq('user_id', uid)
+                .order('read_at', { ascending: false })
+                .limit(500);
+            if (result.error) throw result.error;
+            var seen = loadSeen();
+            (result.data || []).forEach(function (row) { if (row.notification_key) seen.add(row.notification_key); });
+            saveSeen(seen);
+            return seen;
+        } catch (e) {
+            // The local fallback keeps the menu usable during deploys/offline.
+            console.warn('[wo-menu] lecturas remotas:', e && e.message);
+            return loadSeen();
+        }
+    }
+    function persistSeen(keys) {
+        var clean = Array.from(new Set((keys || []).filter(Boolean))).slice(0, 300);
+        if (!clean.length || !state.user) return Promise.resolve();
+        var D = window.WeotziData;
+        var client = D && typeof D.getClient === 'function' ? D.getClient() : null;
+        if (!client) return Promise.resolve();
+        var now = new Date().toISOString();
+        var rows = clean.map(function (key) {
+            return { user_id: state.user.id, notification_key: String(key).slice(0, 240), read_at: now };
+        });
+        return client.from('user_notification_reads')
+            .upsert(rows, { onConflict: 'user_id,notification_key' })
+            .then(function (result) { if (result.error) throw result.error; })
+            .catch(function (e) { console.warn('[wo-menu] guardar lecturas:', e && e.message); });
     }
     function relTime(iso) {
         var t = new Date(iso).getTime();
@@ -146,7 +186,10 @@
     async function loadAll() {
         var D = window.WeotziData;
         var uid = state.user.id;
-        var seen = loadSeen();
+        state.feed = [];
+        state.threads = [];
+        state.counts = { msgs: 0, inv: 0, solic: 0, updates: 0 };
+        var seen = await loadRemoteSeen(D, uid);
         var jobs = [];
 
         if (D && D.Chat && typeof D.Chat.listThreadsForArtist === 'function') {
@@ -255,13 +298,13 @@
             return r.ok ? r.json() : [];
         }).then(function (updates) {
             var items = (Array.isArray(updates) ? updates : []).slice(0, 5);
-            var unseen = items.filter(function (u) { return !loadSeen().has('upd:' + u.id); });
+            var unseen = items.filter(function (u) { return !seen.has('upd:' + u.id); });
             state.counts.updates = unseen.length;
             pushFeed(items.map(function (u) {
                 return {
                     key: 'upd:' + u.id, type: 'update', icon: 'zap',
                     title: u.title || 'Actualización de la plataforma',
-                    desc: u.body || '', ts: u.date, unread: !loadSeen().has('upd:' + u.id), href: null,
+                    desc: u.body || '', ts: u.date, unread: !seen.has('upd:' + u.id), href: null,
                 };
             }));
         }).catch(function () { /* sin archivo de updates */ }));
@@ -355,6 +398,7 @@
                 var it = state.feed[Number(btn.dataset.i)];
                 if (!it) return;
                 var seen = loadSeen(); seen.add(it.key); saveSeen(seen);
+                persistSeen([it.key]);
                 it.unread = false;
                 if (it.href) { window.location.href = it.href; return; }
                 renderAll();
@@ -382,6 +426,7 @@
         var seen = loadSeen();
         state.feed.forEach(function (it) { seen.add(it.key); it.unread = false; });
         saveSeen(seen);
+        persistSeen(state.feed.map(function (it) { return it.key; }));
         // El chat tiene lectura real: marcarlo también en la base.
         var D = window.WeotziData;
         if (D && D.Chat && typeof D.Chat.markRead === 'function') {
@@ -416,6 +461,9 @@
 
     /* ------------------------------ init ------------------------------ */
     async function resolveClient() {
+        if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') {
+            try { await window.ConfigManager.ready(); } catch (e) { /* sigue con reintentos */ }
+        }
         for (var i = 0; i < 20; i++) {
             var c = (window.WeotziData && window.WeotziData.getClient && window.WeotziData.getClient())
                 || (window.ConfigManager && typeof window.ConfigManager.getSupabaseClient === 'function'
@@ -532,6 +580,18 @@
 
         try { await loadAll(); } catch (e) { console.warn('[wo-menu] datos:', e && e.message); }
         safeRender();
+
+        // Keep counters and decisions fresh without requiring a page reload.
+        var refreshing = false;
+        async function refresh() {
+            if (refreshing || document.hidden) return;
+            refreshing = true;
+            try { await loadAll(); safeRender(); }
+            catch (e) { console.warn('[wo-menu] refrescar:', e && e.message); }
+            finally { refreshing = false; }
+        }
+        window.setInterval(refresh, 60000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
     }
 
     if (document.readyState === 'loading') {

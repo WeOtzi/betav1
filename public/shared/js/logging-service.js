@@ -154,6 +154,9 @@ const LoggingService = (function() {
 
     async function captureUserIdentifiers() {
         try {
+            if (window.ConfigManager?.ready) {
+                await window.ConfigManager.ready();
+            }
             // Try to get Supabase client from ConfigManager
             const supabase = window.ConfigManager?.getSupabaseClient() || window._supabase;
             
@@ -728,7 +731,11 @@ const LoggingService = (function() {
             });
 
             // Try to use a beacon endpoint if available
-            navigator.sendBeacon('/api/session-log', payload);
+            // A raw string is sent as text/plain, which Express' JSON parser
+            // intentionally ignores. Preserve sendBeacon reliability while
+            // declaring the payload type so the endpoint receives req.body.
+            const beaconBody = new Blob([payload], { type: 'application/json' });
+            navigator.sendBeacon('/api/session-log', beaconBody);
         } catch (err) {
             // Silent fail on unload
         }

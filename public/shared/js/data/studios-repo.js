@@ -262,7 +262,8 @@
         INVITE_COLS:
             'id, role, status, location_id, invited_at, started_at, ended_at, revenue_split_pct, notes, ' +
             'studios:studio_id ( id, slug, name, tagline, bio, cover_image, logo_image, photo_feed_items, instagram, website, primary_location_id ), ' +
-            'location:location_id ( id, label, city, country, formatted_address )',
+            'location:location_id ( id, label, city, country, formatted_address ), ' +
+            'invitation_details:studio_membership_invitation_details ( is_featured, styles, response_due_at, proposed_start_date, duration_label, benefits, studio_provides, artist_expectations, requirements, acceptance_steps, contact_name, contact_email, contact_title, message )',
 
         // Invitaciones pendientes de un artista, con estudio y sede embebidos.
         // Cubre artist-invitations.js (renderPending).
@@ -270,7 +271,7 @@
             return from('studio_artist_memberships')
                 .select(StudioMemberships.INVITE_COLS)
                 .eq('artist_user_id', artistUserId)
-                .eq('status', 'pending_acceptance')
+                .in('status', ['pending_invite', 'pending_acceptance'])
                 .order('invited_at', { ascending: false });
         },
 
@@ -314,9 +315,7 @@
         // Finaliza una membership (status 'ended' + ended_at). Cubre
         // studio-dashboard.js:936 y artist-invitations.js:111 (el artista sale).
         endMembership(membershipId) {
-            return from('studio_artist_memberships')
-                .update({ status: 'ended', ended_at: new Date().toISOString() })
-                .eq('id', membershipId);
+            return client().rpc('end_studio_membership', { p_membership_id: membershipId });
         },
 
         // Reactiva una membership finalizada (status 'active', ended_at null).
@@ -335,14 +334,21 @@
         // {status:'active', started_at} ; 'reject' -> {status:'rejected', ended_at}.
         // Doble filtro id + artist_user_id. Cubre artist-invitations.js:123.
         respondToInvitation(membershipId, artistUserId, action) {
-            const now = new Date().toISOString();
-            const patch = action === 'accept'
-                ? { status: 'active', started_at: now }
-                : { status: 'rejected', ended_at: now };
-            return from('studio_artist_memberships')
-                .update(patch)
-                .eq('id', membershipId)
-                .eq('artist_user_id', artistUserId);
+            void artistUserId; // ownership is verified server-side from auth.uid()
+            return client().rpc('respond_to_studio_invitation', {
+                p_membership_id: membershipId,
+                p_action: action,
+            });
+        },
+
+        // Solicita cambios sobre una invitacion pendiente. El RPC valida
+        // ownership, estado y longitud, y conserva un historial auditable.
+        requestChanges(membershipId, artistUserId, message) {
+            void artistUserId;
+            return client().rpc('request_studio_invitation_changes', {
+                p_membership_id: membershipId,
+                p_message: message,
+            });
         },
     };
 
@@ -365,8 +371,9 @@
         // detalle del spot (ref Figma 06).
         listOpenWithStudioAndLocation() {
             return from('studio_spots')
-                .select('id, title, kind, description, styles_wanted, language_requirements, experience_min_years, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, start_date, end_date, weeks_minimum, weeks_maximum, application_count, max_applications, expires_at, cover_image, studios:studio_id ( id, slug, name, tagline, bio, cover_image, logo_image, photo_feed_items, instagram, website, primary_location_id ), location:location_id ( id, label, city, country, formatted_address, latitude, longitude )')
+                .select('id, title, kind, description, styles_wanted, language_requirements, experience_min_years, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, stipend_frequency, start_date, end_date, weeks_minimum, weeks_maximum, application_count, max_applications, expires_at, cover_image, is_featured, featured_rank, directory_rank, studio_includes, artist_expectations, minimum_requirements, contact_name, contact_title, response_sla_label, attachments:studio_spot_attachments ( id, file_name, file_url, mime_type, sort_order ), studios:studio_id ( id, slug, name, tagline, bio, cover_image, logo_image, photo_feed_items, instagram, website, primary_location_id ), location:location_id ( id, label, city, country, formatted_address, latitude, longitude )')
                 .eq('status', 'open')
+                .order('directory_rank', { ascending: true, nullsFirst: false })
                 .order('created_at', { ascending: false });
         },
 
@@ -463,9 +470,38 @@
         // deja ver (p.ej. cerrado), el embed llega null: la UI degrada.
         listApplicationsByArtist(artistUserId) {
             return from('studio_spot_applications')
-                .select('id, status, message, portfolio_url, requested_dates, created_at, decided_at, studio_spots ( id, title, kind, description, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, start_date, end_date, weeks_minimum, weeks_maximum, status, cover_image, studios:studio_id ( id, name, slug, logo_image, cover_image, photo_feed_items ), location:location_id ( city, country, label ) )')
+                .select('id, status, message, portfolio_url, requested_dates, created_at, decided_at, studio_spots ( id, title, kind, description, styles_wanted, includes_housing, revenue_split_pct, stipend_amount, stipend_currency, stipend_frequency, start_date, end_date, weeks_minimum, weeks_maximum, status, cover_image, studio_includes, artist_expectations, minimum_requirements, contact_name, contact_title, response_sla_label, attachments:studio_spot_attachments ( id, file_name, file_url, mime_type, sort_order ), studios:studio_id ( id, name, slug, logo_image, cover_image, photo_feed_items ), location:location_id ( city, country, label ) )')
                 .eq('artist_user_id', artistUserId)
                 .order('created_at', { ascending: false });
+        },
+
+        // Historial de negociación de una postulación a un Spot.
+        listCounterOffers(applicationId) {
+            return from('studio_spot_counter_offers')
+                .select('id, application_id, author_role, split_pct, proposed_start_date, proposed_end_date, note, status, created_at, decided_at')
+                .eq('application_id', applicationId)
+                .order('created_at', { ascending: false });
+        },
+
+        createCounterOffer({ applicationId, authorRole, revenueSplitPct = null, startDate = null, endDate = null, note = null }) {
+            return client().rpc('create_studio_spot_counter_offer', {
+                p_application_id: applicationId,
+                p_author_role: authorRole,
+                p_split_pct: revenueSplitPct,
+                p_proposed_start_date: startDate,
+                p_proposed_end_date: endDate,
+                p_note: note,
+            });
+        },
+
+        decideCounterOffer(counterOfferId, status) {
+            const action = status === 'accepted' || status === 'accept' ? 'accept'
+                : status === 'rejected' || status === 'reject' ? 'reject' : null;
+            if (!action) throw new Error('StudioSpots.decideCounterOffer: status inválido');
+            return client().rpc('respond_to_studio_spot_counter_offer', {
+                p_offer_id: counterOfferId,
+                p_action: action,
+            });
         },
 
         // Retiro de una postulacion propia (status del enum legacy).

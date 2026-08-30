@@ -92,6 +92,39 @@ function getStyleNames(styleJson) {
     });
 }
 
+function asArray(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return parseStyles(value).filter(Boolean);
+}
+
+function requestDisplayTitle(request) {
+    if (!request) return 'Solicitud';
+    return request.display_title || request.title || request.tattoo_idea_title ||
+        request.tattoo_idea_description || request.request_code || 'Solicitud';
+}
+
+function requestDisplayCode(request) {
+    return request?.display_code || request?.request_code || '';
+}
+
+function requestFeedRank(request) {
+    const rank = Number(request?.feed_rank);
+    return Number.isFinite(rank) && rank > 0 ? rank : Number.POSITIVE_INFINITY;
+}
+
+function initialsFor(value, fallback = 'WO') {
+    const parts = String(value || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+    return parts.length ? parts.map(part => part.charAt(0).toUpperCase()).join('') : fallback;
+}
+
+function unwrapData(result) {
+    if (result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'data')) {
+        if (result.error) throw result.error;
+        return result.data;
+    }
+    return result;
+}
+
 function toTitleCase(str) {
     if (!str || typeof str !== 'string') return '';
     return str.split(' ')
@@ -138,6 +171,10 @@ let currentFilters = {
 };
 let selectedRequest = null;
 let searchDebounceTimer = null;
+let featuredOpportunity = null;
+let savedRequestIds = new Set();
+let requestClientProfiles = new Map();
+let artistPublicStats = { averageRating: null, reviewCount: 0, workCount: null };
 
 // Acordeón de estilos del sidebar: 4 categorías, la primera abierta (ref Figma 40).
 const STYLE_GROUPS = [
@@ -259,11 +296,27 @@ function setupCollapseFilters() {
     const shell = document.getElementById('marketplace-content');
     if (!btn || !shell) return;
 
-    btn.addEventListener('click', () => {
-        const collapsed = shell.classList.toggle('is-filters-collapsed');
+    const desktopFilters = window.matchMedia('(min-width: 64.0625rem)');
+    let userToggled = false;
+
+    const setCollapsed = (collapsed) => {
+        shell.classList.toggle('is-filters-collapsed', collapsed);
         btn.setAttribute('aria-expanded', String(!collapsed));
         btn.setAttribute('aria-label', collapsed ? 'Abrir panel de filtros' : 'Colapsar panel de filtros');
-        btn.innerHTML = `<i data-wo-icon="${collapsed ? 'chevron-right' : 'chevron-left'}" class="wo-icon-18" aria-hidden="true"></i>`;
+        btn.innerHTML = `<i data-wo-icon="${collapsed ? 'chevron-down' : (desktopFilters.matches ? 'chevron-left' : 'chevron-up')}" class="wo-icon-18" aria-hidden="true"></i>`;
+    };
+
+    // En tablet y móvil el panel empieza compacto para no desplazar el contenido
+    // principal. En escritorio conserva el sidebar abierto del diseño de Figma.
+    setCollapsed(!desktopFilters.matches);
+
+    btn.addEventListener('click', () => {
+        userToggled = true;
+        setCollapsed(!shell.classList.contains('is-filters-collapsed'));
+    });
+
+    desktopFilters.addEventListener('change', (event) => {
+        if (!userToggled) setCollapsed(!event.matches);
     });
 }
 
@@ -299,8 +352,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Fetch open requests
+        // Solicitudes, editorial destacada, guardados y preview público del artista.
         await fetchRequests();
+        await Promise.all([
+            fetchFeaturedOpportunity(),
+            loadSavedRequests(),
+            loadArtistPublicStats()
+        ]);
         console.log('Job Board loaded with', allRequests.length, 'open requests');
 
         if (allRequests.length > 0) {
@@ -419,6 +477,7 @@ async function fetchRequests() {
             .select('*, job_board_attachments(id, file_url, file_name, sort_order)')
             .eq('status', 'open')
             .eq('is_public', true)
+            .order('feed_rank', { ascending: true, nullsFirst: false })
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -431,9 +490,181 @@ async function fetchRequests() {
             _parsedStyles: getStyleNames(r.tattoo_style)
         }));
 
+        await loadClientProfilesForRequests(allRequests);
+
     } catch (err) {
         console.error('Error fetching job board requests:', err);
         allRequests = [];
+    }
+}
+
+async function fetchFeaturedOpportunity() {
+    featuredOpportunity = null;
+    try {
+        const api = window.WeotziData?.JobBoard?.Featured;
+        if (api && typeof api.getActive === 'function') {
+            featuredOpportunity = unwrapData(await api.getActive()) || null;
+        }
+    } catch (err) {
+        // La editorial es opcional: el feed orgánico debe seguir disponible.
+        console.warn('Featured Job Board opportunity unavailable:', err);
+    }
+
+    if (!featuredOpportunity) {
+        const request = allRequests.find(row => row.is_featured || row.is_sponsored);
+        if (request) {
+            const sponsorName = request.sponsor_name || request.client_display_name || 'Oportunidad destacada';
+            featuredOpportunity = {
+                ...request,
+                request_id: request.id,
+                opportunity_code: request.request_code,
+                studio_name: sponsorName,
+                studio_initials: initialsFor(sponsorName),
+                slots_count: request.featured_slots_count,
+                title: requestDisplayTitle(request),
+                description: request.sponsor_description || request.tattoo_idea_description,
+                city: request.client_city,
+                country: request.client_country,
+                budget_min: request.client_budget_min,
+                budget_max: request.client_budget_max,
+                budget_currency: request.client_budget_currency,
+                tags: asArray(request.featured_tags),
+                image_url: request.featured_image_url || request.job_board_attachments?.[0]?.file_url || null,
+                published_label: 'Publicado hoy',
+                cta_label: 'Postularme'
+            };
+        }
+    }
+}
+
+function savedStorageKey() {
+    return `weotzi.job-board.saved.${currentUser?.id || 'guest'}`;
+}
+
+function readSavedFallback() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(savedStorageKey()) || '[]'));
+    } catch (err) {
+        return new Set();
+    }
+}
+
+function writeSavedFallback() {
+    try { localStorage.setItem(savedStorageKey(), JSON.stringify([...savedRequestIds])); }
+    catch (err) { /* almacenamiento privado/no disponible: el estado de la sesión se conserva */ }
+}
+
+async function loadSavedRequests() {
+    savedRequestIds = readSavedFallback();
+    if (!isArtist || !artistData?.user_id) return;
+    const api = window.WeotziData?.JobBoard?.SavedRequests;
+    if (!api || typeof api.listForArtist !== 'function') return;
+    try {
+        const rows = unwrapData(await api.listForArtist(artistData.user_id)) || [];
+        savedRequestIds = new Set(rows.map(row => row.request_id || row.id).filter(Boolean));
+        writeSavedFallback();
+    } catch (err) {
+        console.warn('Saved Job Board requests unavailable:', err);
+    }
+}
+
+async function toggleSavedRequest(requestId, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    if (!requestId) return;
+    if (!currentUser || !isArtist) {
+        showLoginModal();
+        return;
+    }
+
+    const nextSaved = !savedRequestIds.has(requestId);
+    if (nextSaved) savedRequestIds.add(requestId);
+    else savedRequestIds.delete(requestId);
+    writeSavedFallback();
+    applyFilters();
+
+    const api = window.WeotziData?.JobBoard?.SavedRequests;
+    if (!api || typeof api.toggle !== 'function') return;
+    try {
+        await api.toggle(requestId, artistData.user_id, nextSaved);
+    } catch (err) {
+        if (nextSaved) savedRequestIds.delete(requestId);
+        else savedRequestIds.add(requestId);
+        writeSavedFallback();
+        applyFilters();
+        showToast('No pudimos actualizar tus guardados.', 'error');
+    }
+}
+
+async function loadClientProfilesForRequests(requests) {
+    requestClientProfiles = new Map();
+    (requests || []).forEach(request => {
+        if (!request.client_user_id || !request.client_display_name) return;
+        requestClientProfiles.set(request.client_user_id, {
+            user_id: request.client_user_id,
+            public_username: request.client_display_name,
+            profile_picture: request.client_avatar_url || null
+        });
+    });
+
+    const ids = [...new Set((requests || []).map(request => request.client_user_id).filter(Boolean))];
+    if (!ids.length || !_supabase) return;
+    try {
+        const [profilesResult, ratingsResult] = await Promise.all([
+            WeotziData.from('client_public_profiles')
+                .select('user_id, public_username, profile_picture, city_residence, country, created_at')
+                .in('user_id', ids),
+            WeotziData.from('public_review_summary')
+                .select('reviewee_user_id, average_rating, review_count')
+                .eq('reviewee_type', 'client')
+                .in('reviewee_user_id', ids)
+        ]);
+        const ratings = new Map((ratingsResult.data || []).map(row => [row.reviewee_user_id, row]));
+        (profilesResult.data || []).forEach(profile => {
+            requestClientProfiles.set(profile.user_id, { ...profile, review: ratings.get(profile.user_id) || null });
+        });
+    } catch (err) {
+        console.warn('Client public profiles unavailable:', err);
+    }
+}
+
+function clientProfileFor(request) {
+    const embedded = Array.isArray(request?.client_public_profiles)
+        ? request.client_public_profiles[0]
+        : request?.client_public_profiles;
+    const stored = requestClientProfiles.get(request?.client_user_id);
+    return embedded || stored || {
+        public_username: request?.client_display_name || 'Cliente',
+        profile_picture: request?.client_avatar_url || null,
+        created_at: null,
+        review: null
+    };
+}
+
+async function loadArtistPublicStats() {
+    artistPublicStats = { averageRating: null, reviewCount: 0, workCount: null };
+    if (!isArtist || !artistData?.user_id || !_supabase) return;
+    try {
+        const [ratingResult, workResult] = await Promise.all([
+            WeotziData.from('public_review_summary')
+                .select('average_rating, review_count')
+                .eq('reviewee_type', 'artist')
+                .eq('reviewee_user_id', artistData.user_id)
+                .maybeSingle(),
+            WeotziData.from('quotations_db')
+                .select('*', { count: 'exact', head: true })
+                .eq('artist_id', artistData.user_id)
+                .eq('quote_status', 'completed')
+        ]);
+        artistPublicStats = {
+            averageRating: ratingResult.data?.average_rating != null ? Number(ratingResult.data.average_rating) : null,
+            reviewCount: Number(ratingResult.data?.review_count || 0),
+            workCount: Number.isFinite(Number(workResult.count)) ? Number(workResult.count) : null
+        };
+    } catch (err) {
+        console.warn('Artist public preview stats unavailable:', err);
     }
 }
 
@@ -642,7 +873,7 @@ function applyFilters() {
             const reqCity = (request.client_city || '').toLowerCase();
             const bodyPart = (request.tattoo_body_part || '').toLowerCase();
             const styles = (request._parsedStyles || []).map(s => s.toLowerCase());
-            const code = (request.request_code || '').toLowerCase();
+            const code = `${requestDisplayCode(request)} ${request.request_code || ''}`.toLowerCase();
 
             const matchSearch =
                 description.includes(query) ||
@@ -669,6 +900,8 @@ function applyFilters() {
         if (currentFilters.quick === 'near' && city) {
             if ((request.client_city || '').trim().toLowerCase() !== city) return false;
         }
+
+        if (currentFilters.quick === 'saved' && !savedRequestIds.has(request.id)) return false;
 
         // Size filter
         if (currentFilters.size) {
@@ -714,7 +947,11 @@ function sortRequests() {
             break;
         case 'newest':
         default:
-            filteredRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            filteredRequests.sort((a, b) => {
+                const dateOrder = new Date(b.created_at) - new Date(a.created_at);
+                if (currentFilters.quick === 'newest') return dateOrder;
+                return requestFeedRank(a) - requestFeedRank(b) || dateOrder;
+            });
             break;
     }
 }
@@ -767,19 +1004,28 @@ function clearAllFilters() {
 
 function hasActiveRefinement() {
     return Boolean(currentFilters.search || currentFilters.style || currentFilters.city ||
-        currentFilters.size || currentFilters.budget || currentFilters.quick === 'near');
+        currentFilters.size || currentFilters.budget ||
+        currentFilters.quick === 'near' || currentFilters.quick === 'saved');
 }
 
 // Rieles derivados de datos reales: el primero cruza los estilos del artista con
 // las solicitudes abiertas; los siguientes son los estilos con más solicitudes.
 function buildRails() {
+    const featuredId = featuredOpportunity?.request_id || featuredOpportunity?.id || null;
+    const organicRequests = featuredId
+        ? filteredRequests.filter(request => request.id !== featuredId)
+        : filteredRequests;
     const mine = artistStyles().map(s => s.toLowerCase());
     const matchesArtist = (r) => mine.length > 0 &&
         (r._parsedStyles || []).some(s => mine.includes(s.toLowerCase()));
 
-    const recommended = mine.length > 0
-        ? filteredRequests.filter(matchesArtist)
-        : filteredRequests;
+    const curatedRecommended = organicRequests.filter(request => {
+        const rank = requestFeedRank(request);
+        return rank >= 1 && rank <= 5;
+    });
+    const recommended = curatedRecommended.length > 0
+        ? curatedRecommended
+        : (mine.length > 0 ? organicRequests.filter(matchesArtist) : organicRequests);
 
     const rails = [];
     if (recommended.length > 0) {
@@ -792,21 +1038,34 @@ function buildRails() {
     }
 
     // Estilos con más solicitudes abiertas dentro del set filtrado.
+    const curatedOrganic = organicRequests.filter(request => Number.isFinite(requestFeedRank(request)));
+    const countsSource = curatedOrganic.length > 0 ? curatedOrganic : organicRequests;
     const counts = new Map();
-    filteredRequests.forEach(r => {
+    countsSource.forEach(r => {
         (r._parsedStyles || []).forEach(raw => {
             const label = TOP_STYLES.find(s => s.toLowerCase() === String(raw).toLowerCase());
             if (!label) return;
-            counts.set(label, (counts.get(label) || 0) + 1);
+            const current = counts.get(label) || { count: 0, firstRank: Number.POSITIVE_INFINITY };
+            counts.set(label, {
+                count: current.count + 1,
+                firstRank: Math.min(current.firstRank, requestFeedRank(r))
+            });
         });
     });
 
     const ranked = [...counts.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .sort((a, b) =>
+            b[1].count - a[1].count ||
+            a[1].firstRank - b[1].firstRank ||
+            a[0].localeCompare(b[0])
+        )
         .slice(0, 2);
 
     ranked.forEach(([label]) => {
-        const items = filteredRequests.filter(r =>
+        // Si existe una curaduria persistente, los rieles editoriales solo
+        // consumen ese conjunto. Las solicitudes abiertas sin feed_rank siguen
+        // disponibles mediante busqueda, filtros y el fallback no curado.
+        const items = countsSource.filter(r =>
             (r._parsedStyles || []).some(s => s.toLowerCase() === label.toLowerCase())
         );
         if (items.length === 0) return;
@@ -818,12 +1077,12 @@ function buildRails() {
         });
     });
 
-    if (rails.length === 0 && filteredRequests.length > 0) {
+    if (rails.length === 0 && organicRequests.length > 0) {
         rails.push({
             title: 'Solicitudes abiertas',
             style: null,
-            items: filteredRequests.slice(0, RAIL_CARD_COUNT),
-            total: filteredRequests.length
+            items: organicRequests.slice(0, RAIL_CARD_COUNT),
+            total: organicRequests.length
         });
     }
 
@@ -834,6 +1093,8 @@ function renderFeed() {
     const railsEl = document.getElementById('job-board-rails');
     const emptyState = document.getElementById('empty-state');
     if (!railsEl) return;
+
+    renderFeaturedOpportunity();
 
     if (filteredRequests.length === 0) {
         railsEl.innerHTML = '';
@@ -874,6 +1135,61 @@ function renderFeed() {
     `).join('');
 }
 
+function renderFeaturedOpportunity() {
+    const mount = document.getElementById('job-board-featured');
+    if (!mount) return;
+    if (!featuredOpportunity || hasActiveRefinement()) {
+        mount.innerHTML = '';
+        return;
+    }
+
+    const opportunity = featuredOpportunity;
+    const request = allRequests.find(row => row.id === (opportunity.request_id || opportunity.id));
+    const tags = asArray(opportunity.tags || opportunity.featured_tags).slice(0, 3);
+    const city = opportunity.city || request?.client_city || '';
+    const title = opportunity.title || requestDisplayTitle(request || opportunity);
+    const description = opportunity.description || opportunity.sponsor_description || request?.tattoo_idea_description || '';
+    const studioName = opportunity.studio_name || opportunity.sponsor_name || 'Oportunidad destacada';
+    const initials = opportunity.studio_initials || initialsFor(studioName);
+    const slots = Number(opportunity.slots_count || opportunity.featured_slots_count || 0);
+    const budget = formatBudgetRange(
+        opportunity.budget_min ?? request?.client_budget_min,
+        opportunity.budget_max ?? request?.client_budget_max,
+        opportunity.budget_currency || request?.client_budget_currency
+    );
+    const targetId = opportunity.request_id || request?.id || opportunity.id;
+    const image = opportunity.image_url || opportunity.featured_image_url || null;
+
+    mount.innerHTML = `
+        <section class="jbf-sponsor" aria-label="Oportunidad patrocinada">
+            <div class="jbf-sponsor-media ${image ? '' : 'is-placeholder'}">
+                ${image ? `<img src="${escapeHtml(image)}" alt="Trabajo destacado de ${escapeHtml(studioName)}" loading="eager">` : '<i data-wo-icon="image" aria-hidden="true"></i><span>Foto del estudio o del trabajo destacado</span><small>o browse files</small>'}
+                <span class="jbf-sponsor-code">Sponsor</span>
+                <span class="jbf-sponsor-featured">Sponsor destacado</span>
+            </div>
+            <div class="jbf-sponsor-body">
+                <div class="jbf-sponsor-kicker-row">
+                    <span class="jbf-sponsor-kicker"><i data-wo-icon="award" aria-hidden="true"></i> Oportunidad patrocinada</span>
+                    <span class="jbf-sponsor-published">${escapeHtml(opportunity.published_label || 'Publicado hoy')}</span>
+                </div>
+                <div class="jbf-sponsor-studio">
+                    <span class="jbf-sponsor-avatar">${escapeHtml(initials)}</span>
+                    <strong>${escapeHtml(studioName)}</strong>
+                    ${slots ? `<span class="jbf-sponsor-slots">${slots} cupo${slots === 1 ? '' : 's'}</span>` : ''}
+                </div>
+                <h2>${escapeHtml(title)}</h2>
+                <p>${escapeHtml(description)}</p>
+                <div class="jbf-sponsor-facts">
+                    ${city ? `<span><i data-wo-icon="map-pin" aria-hidden="true"></i>${escapeHtml(city)}</span>` : ''}
+                    <strong class="wo-mono-num">${budget}</strong>
+                </div>
+                ${tags.length ? `<div class="jbf-sponsor-tags">${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+                ${targetId ? `<button type="button" class="jbf-sponsor-cta" onclick="handleApply('${escapeHtml(targetId)}')">${escapeHtml(opportunity.cta_label || 'Postularme')} <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>` : ''}
+            </div>
+        </section>
+    `;
+}
+
 function showAllOf(style) {
     currentFilters.style = style || null;
     if (!style) currentFilters.quick = null;
@@ -901,15 +1217,24 @@ function renderRequestCard(request) {
     const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
 
     const appCount = request.application_count || 0;
-    const code = request.request_code || '';
-    const description = truncate(request.tattoo_idea_description || '', 120);
+    const code = requestDisplayCode(request);
+    const feedRank = requestFeedRank(request);
+    const feedClass = Number.isFinite(feedRank) ? ` jbf-card--feed-${feedRank}` : '';
+    const description = truncate(requestDisplayTitle(request), 120);
+    const saved = savedRequestIds.has(request.id);
+    const cornerKinds = ['red', 'yellow', 'blue'];
+    const cornerSeed = String(code || request.id || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const corner = cornerKinds[cornerSeed % cornerKinds.length];
 
     return `
-        <article class="jbf-card" onclick="viewRequest('${request.id}')">
+        <article class="jbf-card jbf-card--corner-${corner}${feedClass}" onclick="viewRequest('${request.id}')">
             <div class="jbf-card-media ${!thumbnail ? 'no-image' : ''}">
                 ${thumbnail ? `<img src="${thumbnail}" alt="Referencia del tatuaje" loading="lazy" onerror="this.parentElement.classList.add('no-image'); this.remove();">` : ''}
                 <span class="jbf-card-code">${escapeHtml(code)}</span>
                 ${isNewRequest(request.created_at) ? '<span class="jbf-card-new">Nuevo</span>' : ''}
+                <button type="button" class="jbf-card-save${saved ? ' is-saved' : ''}" aria-pressed="${saved}" aria-label="${saved ? 'Quitar de guardados' : 'Guardar solicitud'}" onclick="toggleSavedRequest('${request.id}', event)">
+                    <i data-wo-icon="heart" aria-hidden="true"></i>
+                </button>
             </div>
             <div class="jbf-card-body">
                 <h3 class="jbf-card-title">${escapeHtml(description)}</h3>
@@ -919,7 +1244,7 @@ function renderRequestCard(request) {
                     ${bodyPart ? `<span>${escapeHtml(bodyPart)}</span>` : ''}
                 </div>
                 <div class="jbf-card-foot">
-                    <div>
+                    <div class="jbf-card-pricebox">
                         <span class="jbf-card-price">${budgetRange}</span>
                         <span class="jbf-card-apps">${appCount} postulaci${appCount !== 1 ? 'ones' : 'ón'}</span>
                     </div>
@@ -982,6 +1307,7 @@ function showView(name) {
     if (sidebar) sidebar.classList.toggle('hidden', name !== 'feed');
     const shell = document.getElementById('marketplace-content');
     if (shell) shell.classList.toggle('is-single-column', name !== 'feed');
+    document.body.classList.toggle('jbf-is-sent', name === 'sent');
     window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
@@ -1045,6 +1371,46 @@ function sizeLabelFor(request) {
     return key ? SIZE_LABELS[key] : toTitleCase(raw.replace(/_/g, ' '));
 }
 
+function referenceSlotsHtml(attachments, count = 4) {
+    const sorted = [...(attachments || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    return Array.from({ length: count }, (_, index) => {
+        const attachment = sorted[index];
+        if (!attachment) {
+            return `<div class="jbf-ref jbf-ref--placeholder"><i data-wo-icon="image" aria-hidden="true"></i><span>Referencia ${index + 1}</span><small>or <u>browse files</u></small><button type="button" aria-label="Ampliar referencia ${index + 1}" disabled><i data-wo-icon="zoom-in" aria-hidden="true"></i></button></div>`;
+        }
+        return `<a class="jbf-ref" href="${escapeHtml(attachment.file_url)}" target="_blank" rel="noopener">
+            <img src="${escapeHtml(attachment.file_url)}" alt="${escapeHtml(attachment.file_name || 'Referencia del cliente')}" loading="lazy">
+            <span class="jbf-ref-zoom"><i data-wo-icon="zoom-in" aria-hidden="true"></i></span>
+        </a>`;
+    }).join('');
+}
+
+function clientCardHtml(request) {
+    const profile = clientProfileFor(request);
+    const name = profile.public_username || request.client_display_name || 'Cliente';
+    const avatar = profile.profile_picture || request.client_avatar_url || null;
+    const review = profile.review || null;
+    const created = profile.created_at ? new Date(profile.created_at) : null;
+    const since = created && !isNaN(created)
+        ? created.getFullYear()
+        : null;
+    const rating = review?.average_rating != null
+        ? Number(review.average_rating).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : null;
+    return `
+        <div class="jbf-client-card">
+            <div class="jbf-client-id">
+                <span class="jbf-client-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initialsFor(name, 'CL'))}</span>
+                <div>
+                    <strong>${escapeHtml(name)}</strong>
+                    <span>${rating ? `☆ ${escapeHtml(rating)} · ` : ''}${since ? `Cliente desde ${escapeHtml(since)}` : 'Cliente verificado'}</span>
+                </div>
+            </div>
+            <p><i data-wo-icon="lock" aria-hidden="true"></i> Los datos de contacto se habilitan cuando el cliente acepta tu propuesta.</p>
+        </div>
+    `;
+}
+
 function artistPreviewHtml() {
     if (!isArtist || !artistData) return '';
     const name = artistData.username || artistData.name || '';
@@ -1061,17 +1427,19 @@ function artistPreviewHtml() {
                 <span class="wo-avatar wo-avatar--s">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initial)}</span>
                 <div>
                     <span class="jbf-preview-name">${escapeHtml(name)}</span>
-                    ${city ? `<span class="jbf-preview-city wo-meta-s">${escapeHtml(city)}</span>` : ''}
+                    <span class="jbf-preview-city wo-meta-s">${artistPublicStats.averageRating != null ? `★ ${artistPublicStats.averageRating.toFixed(1)}` : 'Perfil verificado'}${artistPublicStats.workCount != null ? ` · ${artistPublicStats.workCount} trabajos` : ''}${city ? ` · ${escapeHtml(city)}` : ''}</span>
                 </div>
             </div>
             ${styles.length ? `<div class="jbf-card-tags">${styles.map(s => `<span class="jbf-tag">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
-            ${gallery.length ? `<div class="jbf-preview-shots">${gallery.map(u => `<img src="${escapeHtml(u)}" alt="" loading="lazy">`).join('')}</div>` : ''}
+            <div class="jbf-preview-shots">${Array.from({ length: 3 }, (_, index) => gallery[index]
+                ? `<img src="${escapeHtml(gallery[index])}" alt="Trabajo del portfolio" loading="lazy">`
+                : '<span class="jbf-preview-shot-placeholder"><i data-wo-icon="image" aria-hidden="true"></i></span>').join('')}</div>
         </div>
     `;
 }
 
 function buildDetailMain(request) {
-    const code = request.request_code || '';
+    const code = requestDisplayCode(request);
     const styles = (request._parsedStyles || []).join(' · ');
     const appCount = request.application_count || 0;
     const daysLeft = getDaysLeft(request.expires_at);
@@ -1085,8 +1453,9 @@ function buildDetailMain(request) {
 
     const deadlineBand = daysLeft === null ? '' : `
         <div class="jbf-deadline">
-            <strong>${daysLeft === 0 ? 'Último día para enviar tu propuesta' : `Quedan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} para enviar tu propuesta`}</strong>
-            ${request.expires_at ? `<span>El cliente cierra la recepción de propuestas el ${escapeHtml(formatDayMonth(request.expires_at))}.</span>` : ''}
+            <i data-wo-icon="alert-triangle" aria-hidden="true"></i>
+            <div><strong>${daysLeft === 0 ? 'Último día para enviar tu propuesta' : `Quedan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} para enviar tu propuesta`}</strong>
+            ${request.expires_at ? `<span>El cliente cierra la recepción de propuestas el ${escapeHtml(formatDayMonth(request.expires_at))}.</span>` : ''}</div>
         </div>
     `;
 
@@ -1100,7 +1469,7 @@ function buildDetailMain(request) {
         </button>
 
         <span class="wo-eyebrow">Job board / Solicitud</span>
-        <h1 class="jbf-detail-title">${escapeHtml(request.tattoo_idea_description || 'Solicitud')}</h1>
+        <h1 class="jbf-detail-title">${escapeHtml(requestDisplayTitle(request))}</h1>
 
         <div class="jbf-detail-chips">
             <span class="jbf-chip-code">${escapeHtml(code)}</span>
@@ -1110,16 +1479,8 @@ function buildDetailMain(request) {
 
         ${deadlineBand}
 
-        ${attachments.length ? `
-            <span class="jbf-sum-label">Referencias del cliente</span>
-            <div class="jbf-refs">
-                ${attachments.map(att => `
-                    <a class="jbf-ref" href="${escapeHtml(att.file_url)}" target="_blank" rel="noopener">
-                        <img src="${escapeHtml(att.file_url)}" alt="${escapeHtml(att.file_name || 'Referencia del cliente')}" loading="lazy">
-                    </a>
-                `).join('')}
-            </div>
-        ` : ''}
+        <span class="jbf-sum-label">Referencias del cliente</span>
+        <div class="jbf-refs">${referenceSlotsHtml(attachments)}</div>
 
         <span class="jbf-sum-label">La idea del tatuaje</span>
         <p class="jbf-sum-text">${escapeHtml(request.tattoo_idea_description || 'Sin descripción')}</p>
@@ -1138,14 +1499,10 @@ function buildDetailMain(request) {
                 <span class="jbf-detail-key">Tamaño aproximado</span>
                 <span class="jbf-detail-val">${escapeHtml(sizeLabelFor(request))}</span>
             </div>
-            ${reqs.length ? `
-                <div class="jbf-detail-cell">
-                    <span class="jbf-detail-key">Requisitos específicos</span>
-                    <ul class="jbf-req-list">
-                        ${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
-                    </ul>
-                </div>
-            ` : ''}
+            <div class="jbf-detail-cell">
+                <span class="jbf-detail-key">Requisitos específicos</span>
+                ${reqs.length ? `<ul class="jbf-req-list">${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : '<span class="jbf-detail-val">A definir con el cliente</span>'}
+            </div>
         </div>
 
         <div class="jbf-detail-cols">
@@ -1167,7 +1524,7 @@ function buildDetailMain(request) {
         </div>
 
         <span class="jbf-sum-label">Sobre el cliente</span>
-        <p class="jbf-client-note">Datos de contacto disponibles cuando el cliente acepte tu propuesta</p>
+        ${clientCardHtml(request)}
 
         <div class="jbf-apps-bar">
             ${appCount} artista${appCount !== 1 ? 's' : ''} ya ${appCount !== 1 ? 'enviaron' : 'envió'} una propuesta para este tatuaje
@@ -1203,6 +1560,17 @@ function buildProposalAside(request) {
                     <span class="jbf-money-sign" aria-hidden="true">$</span>
                     <input type="number" id="app-price" name="estimated_price" class="wo-input" min="1" step="any" required placeholder="Ej: 450">
                 </div>
+            </div>
+            <div class="wo-field">
+                <label class="wo-label" for="app-duration">Tiempo estimado <span class="req">*</span></label>
+                <select id="app-duration" name="estimated_duration" class="wo-select" required>
+                    <option value="">Seleccioná una opción</option>
+                    <option value="1_day">1 día</option>
+                    <option value="2_3_days">2–3 días</option>
+                    <option value="1_week">1 semana</option>
+                    <option value="2_weeks">2 semanas</option>
+                    <option value="custom">A coordinar</option>
+                </select>
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-sessions">Cantidad de sesiones <span class="req">*</span></label>
@@ -1319,6 +1687,7 @@ async function submitApplication(e) {
     try {
         const message = document.getElementById('app-message')?.value?.trim();
         const rawPrice = document.getElementById('app-price')?.value?.trim();
+        const estimatedDuration = document.getElementById('app-duration')?.value?.trim();
         const rawSessions = document.getElementById('app-sessions')?.value?.trim();
         const availabilityNote = document.getElementById('app-availability')?.value?.trim() || null;
 
@@ -1342,6 +1711,12 @@ async function submitApplication(e) {
             return;
         }
 
+        if (!estimatedDuration) {
+            showToast('Elegí el tiempo estimado.', 'error');
+            resetSubmitButton();
+            return;
+        }
+
         const { data: application, error: insertError } = await WeotziData
             .from('job_board_applications')
             .insert([{
@@ -1349,6 +1724,7 @@ async function submitApplication(e) {
                 artist_id: artistData.user_id,
                 message: message,
                 estimated_price: estimatedPrice,
+                estimated_duration: estimatedDuration,
                 estimated_sessions: estimatedSessions,
                 availability_note: availabilityNote,
                 status: 'pending'
@@ -1374,6 +1750,7 @@ async function submitApplication(e) {
                     artist_name: artistData.name,
                     message: message,
                     estimated_price: estimatedPrice,
+                    estimated_duration: estimatedDuration,
                     estimated_sessions: estimatedSessions,
                     timestamp: new Date().toISOString()
                 });
@@ -1412,6 +1789,9 @@ function resetSubmitButton() {
 function renderProposalSent(request, proposal) {
     const view = document.getElementById('jbf-sent-view');
     if (!view) return;
+    const clientProfile = clientProfileFor(request);
+    const clientName = clientProfile.public_username || request.client_display_name || 'Cliente';
+    const clientAvatar = clientProfile.profile_picture || request.client_avatar_url || null;
 
     view.innerHTML = `
         <div class="jbf-sent-tile" aria-hidden="true">
@@ -1419,7 +1799,7 @@ function renderProposalSent(request, proposal) {
         </div>
         <span class="wo-eyebrow">Job board / Propuesta enviada</span>
         <h1 class="jbf-sent-title">Propuesta enviada</h1>
-        <p class="jbf-sent-sub">Le avisamos al cliente que estás interesado en su proyecto. Te va a llegar una notificación apenas responda.</p>
+        <p class="jbf-sent-sub">Le avisamos a ${escapeHtml(clientName)} que estás interesado en su proyecto. Te va a llegar una notificación apenas responda.</p>
 
         <div class="jbf-summary">
             <div class="jbf-summary-head">
@@ -1429,15 +1809,15 @@ function renderProposalSent(request, proposal) {
             <div class="jbf-summary-body">
                 <div class="jbf-summary-row">
                     <span class="jbf-summary-key">Proyecto</span>
-                    <span class="jbf-summary-val">${escapeHtml(request.tattoo_idea_description || '')}</span>
+                    <span class="jbf-summary-val">${escapeHtml(requestDisplayTitle(request))}</span>
                 </div>
                 <div class="jbf-summary-row">
-                    <span class="jbf-summary-key">Solicitud</span>
-                    <span class="jbf-summary-val wo-mono-num">${escapeHtml(request.request_code || '')}</span>
+                    <span class="jbf-summary-key">Cliente</span>
+                    <span class="jbf-summary-client"><span class="jbf-summary-avatar">${clientAvatar ? `<img src="${escapeHtml(clientAvatar)}" alt="">` : escapeHtml(initialsFor(clientName, 'CL'))}</span><strong>${escapeHtml(clientName)}</strong></span>
                 </div>
                 <div class="jbf-summary-row">
                     <span class="jbf-summary-key">Precio propuesto</span>
-                    <span class="jbf-summary-val wo-mono-num">$${formatMoney(proposal.price)} ${escapeHtml(proposal.currency)}</span>
+                    <span class="jbf-summary-val wo-mono-num">$${formatMoney(proposal.price)}${proposal.currency && String(proposal.currency).toUpperCase() !== 'USD' ? ` ${escapeHtml(proposal.currency)}` : ''}</span>
                 </div>
                 <div class="jbf-summary-row">
                     <span class="jbf-summary-key">Fecha de envío</span>
@@ -1447,7 +1827,7 @@ function renderProposalSent(request, proposal) {
         </div>
 
         <div class="jbf-sent-actions">
-            <a href="/my-quotations?tab=applications" class="wo-btn wo-btn--direct wo-btn--hard">
+            <a href="/artist/applications?tab=jobboard" class="wo-btn wo-btn--direct wo-btn--hard">
                 Ver mis postulaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
             </a>
             <button type="button" class="wo-btn wo-btn--secondary wo-btn--hard" onclick="backToFeed()">Seguir explorando solicitudes</button>

@@ -20,9 +20,12 @@
 
     const KIND_LABELS = { resident: 'Residencia', itinerant: 'Itinerante', guest_spot: 'Guest spot' };
     const RIBBON_SLOTS = 4;
-    const MOSAIC_SLOTS = 6;
+    const MOSAIC_SLOTS = 9;
     const MOBILE_MENU_BREAKPOINT = 768;
     const DAY_MS = 24 * 60 * 60 * 1000;
+    const FIGMA_SPOT_FALLBACK_IMAGES = {
+        'bang-bang-nyc': '/shared/assets/figma/opportunities/spots-studio-01.png'
+    };
     const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
     const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
         'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -158,6 +161,13 @@
 
     function durationText(s) {
         if (s.weeks_minimum) {
+            if (Number(s.weeks_minimum) >= 8) {
+                const minMonths = Math.max(1, Math.round(Number(s.weeks_minimum) / 4));
+                const maxMonths = s.weeks_maximum ? Math.max(minMonths, Math.round(Number(s.weeks_maximum) / 4)) : minMonths;
+                return maxMonths !== minMonths
+                    ? `${minMonths} a ${maxMonths} meses`
+                    : `${minMonths} mes${minMonths === 1 ? '' : 'es'}`;
+            }
             return s.weeks_maximum && s.weeks_maximum !== s.weeks_minimum
                 ? `${s.weeks_minimum} a ${s.weeks_maximum} semanas`
                 : `${s.weeks_minimum} semana${s.weeks_minimum === 1 ? '' : 's'}`;
@@ -213,15 +223,61 @@
         return s.description || studio.tagline || studio.bio || '';
     }
 
+    function spotMediaOf(s) {
+        const studio = s.studios || {};
+        const attachments = normalizeList(s.attachments || s.studio_spot_attachments)
+            .slice()
+            .sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0));
+        const fallback = FIGMA_SPOT_FALLBACK_IMAGES[studio.slug] || '';
+        return [...new Set([
+            s.cover_image,
+            ...attachments.map(item => (item && typeof item === 'object' ? (item.file_url || item.url) : item)),
+            fallback
+        ].filter(u => typeof u === 'string' && u))];
+    }
+
     function photosOf(s) {
         const studio = s.studios || {};
         const feed = Array.isArray(studio.photo_feed_items) ? studio.photo_feed_items : [];
         const urls = [
-            s.cover_image,
+            ...spotMediaOf(s),
             ...feed.map(p => (p && typeof p === 'object' ? p.url : p)),
             studio.cover_image
         ].filter(u => typeof u === 'string' && u);
         return [...new Set(urls)].slice(0, 4);
+    }
+
+    function isFeatured(s) {
+        return s?.is_featured === true || s?.is_featured === 'true';
+    }
+
+    function featuredRank(s) {
+        const rank = Number(s?.featured_rank);
+        return Number.isFinite(rank) && rank > 0 ? rank : Number.MAX_SAFE_INTEGER;
+    }
+
+    function partitionSpotsForLayout(source) {
+        const featured = source
+            .filter(isFeatured)
+            .slice()
+            .sort((a, b) => featuredRank(a) - featuredRank(b));
+        const hero = featured.find(s => featuredRank(s) === 1) || featured[0] || source[0] || null;
+        const secondaryFeatured = featured.filter(s => !hero || s.id !== hero.id);
+        const organic = source.filter(s => (!hero || s.id !== hero.id) && !isFeatured(s));
+        const mosaic = organic.slice(0, 4).map(spot => ({ spot, layout: 'organic' }));
+
+        if (secondaryFeatured[0]) {
+            mosaic.push({ spot: secondaryFeatured[0], layout: 'promoted' });
+        }
+
+        organic.slice(4).forEach(spot => {
+            if (mosaic.length < MOSAIC_SLOTS) mosaic.push({ spot, layout: 'organic' });
+        });
+        secondaryFeatured.slice(1).forEach(spot => {
+            if (mosaic.length < MOSAIC_SLOTS) mosaic.push({ spot, layout: 'featured' });
+        });
+
+        return { hero, mosaic };
     }
 
     // ============================================
@@ -286,9 +342,9 @@
         }
         emptyEl.classList.add('hidden');
 
-        const [feature, ...rest] = spots;
-        featureEl.innerHTML = renderFeature(feature);
-        mosaicEl.innerHTML = rest.slice(0, MOSAIC_SLOTS).map((s, i) => renderTile(s, i)).join('');
+        const layout = partitionSpotsForLayout(spots);
+        featureEl.innerHTML = layout.hero ? renderFeature(layout.hero) : '';
+        mosaicEl.innerHTML = layout.mosaic.map((entry, i) => renderTile(entry.spot, i, entry.layout)).join('');
         ribbonEl.innerHTML = renderRibbon();
 
         document.querySelectorAll('[data-spot-open]').forEach(el => {
@@ -300,18 +356,23 @@
         });
     }
 
-    // Franja destacada de ancho completo: el spot publicado más recientemente.
+    // Franja destacada persistente: rank 1. Si todavía no existe curaduría en
+    // datos, se conserva un fallback al primer spot para no dejar el directorio
+    // sin apertura editorial.
     function renderFeature(s) {
-        const cover = photosOf(s)[0] || '';
+        const cover = spotMediaOf(s)[0] || '';
         const city = cityOf(s);
         const eyebrow = [KIND_LABELS[s.kind] || s.kind, city].filter(Boolean).join(' · ');
         const desc = descriptionOf(s);
 
         return `
-            <article class="sps-feature">
-                <div class="sps-feature-media" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''} aria-hidden="true"></div>
+            <article class="sps-feature" data-spot-layout="hero">
+                <div class="sps-feature-media${cover ? ' has-image' : ''}" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
+                    ${isFeatured(s) ? '<span class="sps-sponsored-badge">☆ Patrocinado</span>' : ''}
+                    ${cover ? '' : mediaPlaceholder('Foto del estudio')}
+                </div>
                 <div class="sps-feature-body">
-                    <span class="sps-feature-eyebrow">${escapeHtml(eyebrow)}</span>
+                    <span class="sps-feature-eyebrow">${markHtml(s.kind)} ${escapeHtml(eyebrow)}</span>
                     <h2 class="sps-feature-title">${escapeHtml(spotName(s))}</h2>
                     ${metaLine(s) ? `<span class="sps-feature-meta">${escapeHtml(metaLine(s))}</span>` : ''}
                     ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
@@ -328,23 +389,30 @@
     }
 
     // Mosaico bento: 2 tiles grandes (blanco / arena) + 4 compactos.
-    function renderTile(s, index) {
+    function renderTile(s, index, layout) {
+        if (layout === 'promoted') return renderPromotedTile(s);
+
         const close = daysToClose(s);
         const urgent = close !== null && close <= 2;
         const large = index < 2;
+        const featuredBadge = isFeatured(s) ? '<span class="sps-sponsored-badge">☆ Patrocinado</span>' : '';
         const city = cityOf(s);
         const eyebrow = [KIND_LABELS[s.kind] || s.kind, city].filter(Boolean).join(' · ');
+        const cover = large ? (spotMediaOf(s)[0] || '') : '';
 
         let variant = large ? (index === 0 ? 'sps-tile--paper' : 'sps-tile--sand') : 'sps-tile--paper';
         if (!large) {
             if (urgent) variant = 'sps-tile--urgent';
             else if (index % 2 === 1) variant = 'sps-tile--cream';
         }
+        if (cover) variant += ' sps-tile--image';
 
         if (large) {
             const desc = descriptionOf(s);
             return `
-                <article class="sps-tile sps-tile--large ${variant}" data-spot-open="${escapeAttr(s.id)}">
+                <article class="sps-tile sps-tile--large ${variant}" data-spot-open="${escapeAttr(s.id)}"
+                    data-spot-layout="large" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
+                    ${featuredBadge}
                     <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
                     <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                     ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
@@ -358,12 +426,48 @@
         }
 
         return `
-            <article class="sps-tile ${variant}" data-spot-open="${escapeAttr(s.id)}">
+            <article class="sps-tile ${variant}" data-spot-open="${escapeAttr(s.id)}" data-spot-layout="${layout === 'featured' ? 'featured' : 'compact'}">
+                ${featuredBadge}
                 ${urgent ? '<span class="sps-tile-urgency">Última oportunidad</span>' : ''}
                 <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(city || KIND_LABELS[s.kind] || '')}</span></span>
                 <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                 ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
             </article>
+        `;
+    }
+
+    function renderPromotedTile(s) {
+        const cover = spotMediaOf(s)[0] || '';
+        const desc = descriptionOf(s);
+        const city = cityOf(s);
+        const eyebrow = [KIND_LABELS[s.kind] || s.kind, city].filter(Boolean).join(' · ');
+
+        return `
+            <article class="sps-tile sps-tile--promoted" data-spot-open="${escapeAttr(s.id)}" data-spot-layout="promoted">
+                <span class="sps-sponsored-badge">☆ Patrocinado</span>
+                <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
+                <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
+                ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
+                ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
+                <div class="sps-promoted-media${cover ? ' has-image' : ''}" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
+                    ${cover ? '' : mediaPlaceholder('Foto del estudio')}
+                </div>
+                ${desc ? `<p class="sps-tile-desc">${escapeHtml(truncate(desc, 170))}</p>` : ''}
+                <span class="wo-btn wo-btn--direct sps-tile-cta">
+                    Postularme <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                </span>
+                <span class="sps-promoted-details">Ver detalles</span>
+            </article>
+        `;
+    }
+
+    function mediaPlaceholder(label) {
+        return `
+            <span class="sps-media-placeholder" aria-hidden="true">
+                <i data-wo-icon="image" class="wo-icon-24"></i>
+                <strong>${escapeHtml(label)}</strong>
+                <small>or <u>browse files</u></small>
+            </span>
         `;
     }
 
@@ -388,18 +492,28 @@
     // ============================================
 
     function includesList(s) {
+        const editorial = normalizeList(s.studio_includes);
+        if (editorial.length) return editorial;
         const items = [];
-        // Solo hechos reales del spot; el Figma tiene una lista editorial libre que
-        // no existe como columna (ver informe: requiere backend nuevo).
         if (s.includes_housing) items.push('Alojamiento incluido durante el spot');
         if (s.stipend_amount) items.push(`Stipend de ${formatMoney(s.stipend_amount)} ${s.stipend_currency || ''}`.trim());
         return items;
     }
 
+    function expectationsList(s) {
+        const editorial = normalizeList(s.artist_expectations);
+        if (editorial.length) return editorial;
+        const items = [];
+        if ((s.styles_wanted || []).length) items.push(`Portfolio con foco en ${s.styles_wanted.join(' o ')}`);
+        if (s.weeks_minimum) items.push(`Disponibilidad mínima de ${s.weeks_minimum} semana${s.weeks_minimum === 1 ? '' : 's'}`);
+        return items;
+    }
+
     function requirementsList(s) {
+        const editorial = normalizeList(s.minimum_requirements);
+        if (editorial.length) return editorial;
         const items = [];
         if (s.experience_min_years) items.push(`Mínimo ${s.experience_min_years} año${s.experience_min_years === 1 ? '' : 's'} de experiencia profesional`);
-        if ((s.styles_wanted || []).length) items.push(`Portfolio con foco en ${s.styles_wanted.join(', ')}`);
         if ((s.language_requirements || []).length) items.push(`Idiomas: ${s.language_requirements.join(' · ')}`);
         return items;
     }
@@ -416,12 +530,28 @@
 
     function detailCells(s) {
         const cells = [];
-        if (s.start_date) cells.push(['Fechas disponibles', formatDateRange(s.start_date, s.end_date)]);
+        if (s.availability_summary || s.start_date) cells.push(['Fechas disponibles', s.availability_summary || formatDateRange(s.start_date, s.end_date)]);
         if (durationText(s)) cells.push(['Duración', durationText(s)]);
         if (s.revenue_split_pct != null) cells.push(['Split / comisión', `${Number(s.revenue_split_pct).toFixed(0)}% para el artista`]);
-        if (s.stipend_amount) cells.push(['Stipend', `${formatMoney(s.stipend_amount)} ${s.stipend_currency || ''}`.trim()]);
-        if (s.max_applications) cells.push(['Postulaciones', `${s.application_count || 0} de ${s.max_applications}`]);
+        if (s.stipend_amount) cells.push(['Stipend', `${formatMoney(s.stipend_amount)} ${s.stipend_currency || ''}${stipendFrequencySuffix(s)}`.trim()]);
         return cells;
+    }
+
+    function stipendFrequencySuffix(s) {
+        const labels = {
+            monthly: ' mensuales',
+            weekly: ' semanales',
+            daily: ' por día',
+            one_time: ' total'
+        };
+        return labels[s.stipend_frequency] || (s.stipend_frequency ? ` ${s.stipend_frequency}` : '');
+    }
+
+    function renderPhotoSlot(url, index) {
+        if (url) {
+            return `<span class="sps-gallery-item has-image" style="background-image:url('${cssEscape(url)}')" role="img" aria-label="Foto ${index} del estudio"></span>`;
+        }
+        return `<span class="sps-gallery-item">${mediaPlaceholder(`Foto ${index}`)}</span>`;
     }
 
     function buildDetailMain(s) {
@@ -431,51 +561,56 @@
         const desc = descriptionOf(s);
 
         return `
-            <button type="button" class="sps-back" id="spot-back">
-                <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver a spots
-            </button>
+            <div class="sps-detail-hero">
+                <button type="button" class="sps-back" id="spot-back">
+                    <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver a spots
+                </button>
 
-            ${cityCountryOf(s) ? `
-                <span class="sps-detail-place">
-                    <i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(cityCountryOf(s))}
-                </span>
-            ` : ''}
-            <h1 class="sps-detail-title">${escapeHtml(spotName(s))}</h1>
+                ${cityCountryOf(s) ? `
+                    <span class="sps-detail-place">
+                        <i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(cityCountryOf(s))}
+                    </span>
+                ` : ''}
+                <h1 class="sps-detail-title">${escapeHtml(spotName(s))}</h1>
 
-            ${photos.length ? `
                 <div class="sps-gallery">
-                    ${photos.map(u => `<span class="sps-gallery-item" style="background-image:url('${cssEscape(u)}')" role="img" aria-label="Foto del estudio"></span>`).join('')}
+                    ${Array.from({ length: 4 }, (_, index) => renderPhotoSlot(photos[index], index + 1)).join('')}
                 </div>
-            ` : ''}
-
-            ${desc ? `<p class="sps-detail-desc">${escapeHtml(desc)}</p>` : ''}
-
-            <div class="sps-links" id="spot-links">
-                ${studio.instagram ? `<a href="https://instagram.com/${encodeURIComponent(String(studio.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i> @${escapeHtml(String(studio.instagram).replace(/^@/, ''))}</a>` : ''}
-                ${studio.website ? `<a href="${escapeAttr(studio.website)}" target="_blank" rel="noopener"><i data-wo-icon="globe" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(String(studio.website).replace(/^https?:\/\//, ''))}</a>` : ''}
-                <span id="spot-roster" hidden></span>
             </div>
 
-            <div class="sps-detail-chips">
-                ${styleChips(s, 6)}
-                <span class="sps-kind-badge">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>
-            </div>
+            <div class="sps-detail-content">
+                ${desc ? `<p class="sps-detail-desc">${escapeHtml(desc)}</p>` : ''}
 
-            ${cells.length ? `
-                <span class="sps-label">Detalles de la oportunidad</span>
-                <div class="sps-meta-grid">
-                    ${cells.map(([k, v]) => `
-                        <div class="sps-meta-row">
-                            <span class="sps-meta-key">${escapeHtml(k)}</span>
-                            <span class="sps-meta-val">${escapeHtml(v)}</span>
-                        </div>
-                    `).join('')}
+                <div class="sps-links" id="spot-links">
+                    ${studio.instagram ? `<a href="https://instagram.com/${encodeURIComponent(String(studio.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i> @${escapeHtml(String(studio.instagram).replace(/^@/, ''))}</a>` : ''}
+                    ${studio.website ? `<a href="${escapeAttr(studio.website)}" target="_blank" rel="noopener"><i data-wo-icon="globe" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(String(studio.website).replace(/^https?:\/\//, ''))}</a>` : ''}
+                    <span id="spot-roster" hidden></span>
                 </div>
-            ` : ''}
 
-            <div class="sps-bullet-cols">
-                ${bulletList('Qué incluye el estudio', includesList(s))}
-                ${bulletList('Requisitos mínimos', requirementsList(s))}
+                <div class="sps-detail-chips">
+                    ${styleChips(s, 6)}
+                </div>
+
+                ${cells.length ? `
+                    <div class="sps-opportunity-head">
+                        <span class="sps-kind-badge">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>
+                        <span>Detalles de la oportunidad</span>
+                    </div>
+                    <div class="sps-meta-grid">
+                        ${cells.map(([k, v]) => `
+                            <div class="sps-meta-row">
+                                <span class="sps-meta-key">${escapeHtml(k)}</span>
+                                <span class="sps-meta-val">${escapeHtml(v)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+
+                <div class="sps-bullet-cols">
+                    ${bulletList('Qué incluye el estudio', includesList(s))}
+                    ${bulletList('Qué espera del artista', expectationsList(s))}
+                    ${bulletList('Requisitos mínimos', requirementsList(s))}
+                </div>
             </div>
         `;
     }
@@ -487,6 +622,12 @@
         const city = artist.city || String(artist.ubicacion || '').split(',')[0].trim();
         const styles = normalizeList(artist.styles_array).slice(0, 3);
         const shots = normalizeList(artist.gallery_images).filter(u => typeof u === 'string').slice(0, 3);
+        const shotSlots = Array.from({ length: 3 }, (_, index) => {
+            const url = shots[index];
+            return url
+                ? `<span class="sps-preview-shot has-image"><img src="${escapeAttr(url)}" alt="Trabajo ${index + 1} del portfolio" loading="lazy"></span>`
+                : `<span class="sps-preview-shot">${mediaPlaceholder('Portfolio')}</span>`;
+        }).join('');
 
         return `
             <div class="sps-preview">
@@ -499,7 +640,7 @@
                     </div>
                 </div>
                 ${styles.length ? `<div class="sps-styles">${styles.map(st => `<span class="sps-tag">${escapeHtml(st)}</span>`).join('')}</div>` : ''}
-                ${shots.length ? `<div class="sps-preview-shots">${shots.map(u => `<img src="${escapeAttr(u)}" alt="" loading="lazy">`).join('')}</div>` : ''}
+                <div class="sps-preview-shots">${shotSlots}</div>
             </div>
         `;
     }

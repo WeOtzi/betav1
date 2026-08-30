@@ -38,7 +38,7 @@
         'years_experience, session_price, session_price_amount, session_price_currency, ' +
         'preferred_display_currency, portafolio, instagram, whatsapp_number, whatsapp_url, ' +
         'work_type, estudios, studio_id, birth_date, subscribed_newsletter, bio_description, ' +
-        'profile_picture, gallery_images, gallery_feed_items, embajador, nivel, ' +
+        'profile_picture, gallery_images, gallery_feed_items, dashboard_config, embajador, nivel, ' +
         'verification_state, ms_profile_complete, ms_first_quote_received, ' +
         'ms_first_quote_completed, ms_whatsapp_shared, ms_profile_shared, profile_completeness';
 
@@ -315,10 +315,18 @@
         // (today/week/month) para el mapa de visitantes. Cubre visitors-map.js:157.
         listVisitsByArtistSince(artistId, sinceIso, limit) {
             return from('artist_profile_visits')
-                .select('id, country, city, latitude, longitude, device_type, os, browser, created_at, ip_hash, device_fingerprint')
+                .select('id, event_kind, country, city, latitude, longitude, device_type, os, browser, created_at, ip_hash, device_fingerprint, visitor_user_id, visitor_display_name, visitor_type, visitor_city, visitor_interests, artwork_key, artwork_title, requested_quote')
                 .eq('artist_id', artistId)
                 .gte('created_at', sinceIso)
                 .order('created_at', { ascending: false })
+                .limit(limit);
+        },
+
+        listArtworkCounts(artistId, limit = 20) {
+            return from('artist_artwork_view_counts')
+                .select('artist_id, artwork_key, artwork_title, views_count, last_viewed_at')
+                .eq('artist_id', artistId)
+                .order('views_count', { ascending: false })
                 .limit(limit);
         },
 

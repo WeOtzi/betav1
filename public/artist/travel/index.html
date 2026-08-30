@@ -13,42 +13,24 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-travel-ds.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="wo-app">
 
-    <!-- ============================ TOPBAR ARTISTA ============================ -->
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item is-active" aria-current="page">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-btn wo-btn--ghost wo-btn--s tvl-menu-toggle" id="tv-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="tv-mobile-menu">Menú</button>
-            <a href="/artist/account" class="wo-o-tile" aria-label="Centro de la cuenta">Ö</a>
-            <button type="button" class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" id="tv-logout">Log out</button>
-        </div>
-    </header>
-    <nav class="tvl-mobile-menu" id="tv-mobile-menu" aria-label="Navegación móvil de artista" hidden>
-        <a href="/my-quotations">Cotizaciones</a>
-        <a href="/job-board">Job board</a>
-        <a href="/studio-spots">Spots</a>
-        <a href="/calendar">Calendario</a>
-        <a href="/my-quotations/statistics">Estadísticas</a>
-        <a href="/artist/travel" class="is-active">Travel</a>
-        <a href="/artist/inbox">Inbox</a>
-    </nav>
+    <!-- ============================ TOPBAR ARTISTA COMPARTIDA ============================ -->
+    <weotzi-product-nav
+        active="travel"
+        menu-toggle-id="tv-mobile-menu-toggle"
+        menu-id="tv-mobile-menu"
+        menu-class="tvl-mobile-menu"
+        profile-label="Centro de la cuenta"
+        logout-id="tv-logout">
+    </weotzi-product-nav>
 
     <main id="tv-main">
 
@@ -338,34 +320,39 @@
             <div class="tvm-body">
                 <div class="tvm-search">
                     <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
-                    <input type="text" class="wo-input tvm-search-input" id="tvl-search" placeholder="Buscá por nombre del estudio..." autocomplete="off">
+                    <input type="text" class="wo-input tvm-search-input" id="tvl-search" placeholder="Buscar por nombre del estudio…" autocomplete="off">
+                </div>
+                <div class="tvm-link-filters" aria-label="Filtros del directorio de estudios">
+                    <label class="wo-field">
+                        <span class="wo-label wo-sr-only">Ciudad</span>
+                        <select class="wo-select" id="tvl-city"><option value="">Ciudad</option></select>
+                    </label>
+                    <label class="wo-field">
+                        <span class="wo-label wo-sr-only">País</span>
+                        <select class="wo-select" id="tvl-country"><option value="">País</option></select>
+                    </label>
+                    <label class="wo-field">
+                        <span class="wo-label wo-sr-only">Especialidad</span>
+                        <select class="wo-select" id="tvl-specialty">
+                            <option value="">Especialidad</option>
+                            <option value="blackwork">Blackwork</option>
+                            <option value="fine line">Fine Line</option>
+                            <option value="realismo">Realismo</option>
+                            <option value="tradicional">Tradicional</option>
+                        </select>
+                    </label>
                 </div>
                 <div class="tvm-results" id="tvl-results">
                     <div class="wo-empty tvm-empty">
                         <i data-wo-icon="search" aria-hidden="true"></i>
                         <span class="wo-empty-title">Buscá un estudio para comenzar</span>
-                        <p>Escribí el nombre del estudio para encontrarlo en el directorio de We Ötzi.</p>
+                        <p>Escribí el nombre del estudio o utilizá los filtros para encontrar estudios por ciudad, país o especialidad.</p>
                     </div>
                 </div>
-                <hr class="wo-divider">
-                <label class="wo-check tvm-external-check">
-                    <input type="checkbox" id="tvl-external">
-                    <span>El estudio no está en We Ötzi</span>
-                </label>
-                <div class="tvm-grid2 tvm-external-fields" id="tvl-external-fields" hidden>
-                    <div class="wo-field">
-                        <label class="wo-label" for="tvl-ext-name">Nombre del estudio</label>
-                        <input type="text" class="wo-input" id="tvl-ext-name" placeholder="Ej: Zorro Rojo Tattoo">
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="tvl-ext-city">Ciudad (opcional)</label>
-                        <input type="text" class="wo-input" id="tvl-ext-city" placeholder="Ej: Barcelona">
-                    </div>
-                </div>
-                <div class="tvm-foot">
-                    <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-link">Cancelar</button>
-                    <button type="button" class="wo-btn wo-btn--direct" id="tvl-submit" disabled>Solicitar vinculación</button>
-                </div>
+            </div>
+            <div class="tvm-foot tvm-foot--bar">
+                <button type="button" class="wo-btn wo-btn--ghost" data-close="tv-modal-link">Cancelar</button>
+                <button type="button" class="wo-btn wo-btn--direct" id="tvl-submit" disabled>Solicitar vinculación</button>
             </div>
         </div>
     </div>

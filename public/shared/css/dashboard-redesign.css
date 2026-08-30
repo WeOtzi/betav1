@@ -2252,10 +2252,17 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-mobilemenu a:hover { background: var(--neutral-100); color: var(--neutral-500); text-decoration: none; }
 
 /* ---- Hero / saludo -------------------------------------------------------- */
-.wo-dash-hero { padding: var(--space-12) 0 var(--space-10); }
+.artist-dashboard-page { --rail-w: 330px; }
+.artist-dashboard-page > .wo-dash-hero .wo-container,
+.artist-dashboard-page > .wo-container {
+  max-width: 1376px;
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+}
+.wo-dash-hero { padding: var(--space-8) 0 var(--space-6); }
 /* Figma: mono 16px sobre --text-faint (no --text-muted 12px). */
 .wo-dash-hero-date {
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-3);
   font-size: 16px;
   letter-spacing: var(--meta-m-track);
   color: var(--text-faint);
@@ -2263,11 +2270,11 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-hero-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(38px, 5.2vw, 74px);
+  font-size: clamp(38px, 4.2vw, 60px);
   line-height: 1.02;
   letter-spacing: var(--h1-track);
   color: var(--ink);
-  max-width: 1080px;
+  max-width: none;
 }
 
 /* ---- Layout main + rail --------------------------------------------------- */
@@ -2276,16 +2283,16 @@ body.wod-profile-details-page .wod-footer {
   grid-template-columns: minmax(0, 1fr) var(--rail-w);
   gap: var(--space-16);
   align-items: start;
-  padding-bottom: var(--space-12);
+  padding-bottom: var(--space-6);
 }
 .wo-dash-main { min-width: 0; }
-.wo-dash-section { padding: var(--space-6) 0 var(--space-8); }
+.wo-dash-section { padding: var(--space-4) 0 var(--space-5); }
 .wo-dash-sechead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 .wo-dash-seclink {
@@ -2309,7 +2316,8 @@ body.wod-profile-details-page .wod-footer {
   gap: var(--space-10);
   align-items: start;
 }
-.wo-dash-row2 > .wo-dash-section { padding-top: var(--space-6); }
+.wo-dash-row2 > .wo-dash-section { padding-top: var(--space-4); }
+.wo-dash-main > .wo-divider { margin-top: var(--space-3); margin-bottom: var(--space-3); }
 
 /* ---- Agenda del día ------------------------------------------------------- */
 .wo-dash-agendarow {
@@ -2317,7 +2325,7 @@ body.wod-profile-details-page .wod-footer {
   grid-template-columns: 128px minmax(0, 1fr) auto;
   gap: var(--space-6);
   align-items: center;
-  padding: var(--space-6) 0;
+  padding: 14px 0;
   border-top: var(--border-hairline) solid var(--border-subtle);
 }
 .wo-dash-agendatime { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -2413,9 +2421,9 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-quotestats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding: var(--space-4) 0;
+  padding: var(--space-2) 0;
 }
-.wo-dash-quotestat { padding: var(--space-4) var(--space-8); border-left: var(--border-hairline) solid var(--border-subtle); }
+.wo-dash-quotestat { padding: var(--space-3) var(--space-6); border-left: var(--border-hairline) solid var(--border-subtle); }
 .wo-dash-quotestat:first-child { border-left: none; padding-left: 0; }
 .wo-dash-quotestat-v { font-family: var(--font-display); font-size: clamp(40px, 4vw, 58px); line-height: 1.05; color: var(--ink); }
 .wo-dash-quotestat-v.is-success { color: var(--system-success); }
@@ -2424,29 +2432,32 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-quotestat-l.is-pending { color: var(--yellow-500); }
 
 /* ---- Actividad reciente --------------------------------------------------- */
-.wo-dash-activity-title { margin-bottom: var(--space-5); }
+.wo-dash-activity-title { margin: 0; font-size: 26px; line-height: 1; }
+.wo-dash-col--activity .wo-dash-sechead { flex-wrap: nowrap; align-items: center; margin-bottom: 10px; }
 .wo-dash-activityrow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) 0;
+  gap: var(--space-3);
+  padding: 6px 0;
   color: var(--neutral-500);
 }
 .wo-dash-activityrow [data-wo-icon] { color: var(--neutral-500); }
-.wo-dash-activitytxt { font-size: 17px; }
+.wo-dash-activitytxt { font-size: 14px; line-height: 1.35; }
 .wo-dash-activitywhen {
   font-family: var(--font-mono);
   font-size: var(--meta-m-size);
   letter-spacing: var(--meta-m-track);
   text-transform: uppercase;
   color: var(--text-faint);
+  white-space: nowrap;
 }
 
 /* ---- Rail derecho --------------------------------------------------------- */
 /* La VerticalBorder del Figma es ink, no un hairline de arena. */
 .wo-dash-rail {
   border-left: var(--border-hairline) solid var(--ink);
-  padding: var(--space-2) 0 var(--space-8) var(--space-10);
+  padding: var(--space-2) 0 var(--space-8) var(--space-8);
   min-width: 0;
 }
 .wo-dash-rail .wo-marks { margin-bottom: var(--space-8); }
@@ -2535,14 +2546,19 @@ body.wod-profile-details-page .wod-footer {
 .wo-app .wo-dash-quick-list a.wo-btn:hover { color: var(--action-ghost-fg); text-decoration: none; }
 
 /* ---- Galería de trabajos -------------------------------------------------- */
-.wo-dash-gallery { padding: var(--space-8) 0 var(--space-10); }
-.wo-dash-gallery-frame { border: var(--border-hairline) solid var(--border-strong); }
+.wo-dash-gallery { padding: var(--space-6) 0 var(--space-8); }
+.wo-dash-gallery > .wo-container { max-width: 1440px; padding-left: 22px; padding-right: 22px; }
+.wo-dash-gallery-frame { border: none; }
+.wo-dash-gallery-preview {
+  margin: 0 0 var(--space-8) var(--space-8);
+  color: var(--text-faint);
+}
 .wo-dash-gallery-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: var(--space-6) var(--space-8);
+  padding: 0 var(--space-8) var(--space-6);
   background: var(--surface-page);
   flex-wrap: wrap;
 }
@@ -2607,6 +2623,7 @@ body.wod-profile-details-page .wod-footer {
   cursor: pointer;
 }
 .wo-dash-gallery-grid .gallery-item:first-child { grid-column: span 2; grid-row: span 2; }
+.wod-figma-demo .wo-dash-gallery-grid .gallery-item:nth-child(n + 6) { display: none; }
 .wo-dash-gallery-grid .gallery-item img,
 .wo-dash-gallery-grid .gallery-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .wo-dash-gallery-grid .gallery-item::after {
@@ -2813,7 +2830,11 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-gallery-cells .gallery-progress-fill { height: 100%; width: 0; background: var(--blue-400); transition: width var(--duration-fast) var(--ease-standard); }
 
 /* ---- CTA · subí tu trabajo ------------------------------------------------ */
-.wo-dash-cta { background: var(--surface-dark); padding: var(--space-16) 0; }
+.wo-dash-cta {
+  background: transparent;
+  padding: var(--space-12) var(--space-8) var(--space-16);
+  border-top: var(--border-hairline) solid var(--dark-rule);
+}
 .wo-dash-cta-inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-5); }
 .wo-dash-cta-icon { width: 40px; height: 40px; color: var(--white); }
 .wo-dash-cta-title {
@@ -2827,8 +2848,13 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-cta-btn { margin-top: var(--space-2); }
 
 /* ---- Footer --------------------------------------------------------------- */
-.wo-dash-footer { padding: var(--space-10) 0 var(--space-12); background: var(--surface-page); }
-.wo-dash-footer-frame { border: var(--border-hairline) solid var(--border-strong); padding: var(--space-12) var(--space-16) var(--space-8); }
+.wo-dash-footer {
+  padding: var(--space-8) 0 36px;
+  background: var(--surface-page);
+  border-top: var(--border-hairline) solid var(--ink);
+}
+.wo-dash-footer > .wo-container { max-width: 1376px; padding-left: var(--space-8); padding-right: var(--space-8); }
+.wo-dash-footer-frame { border: none; padding: var(--space-6) var(--space-6) 0; }
 .wo-dash-footer-cols {
   display: grid;
   grid-template-columns: 1.4fr 1fr 1fr 1fr;
@@ -2850,8 +2876,8 @@ body.wod-profile-details-page .wod-footer {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
-  margin-top: var(--space-12);
-  padding-top: var(--space-6);
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
   border-top: var(--border-hairline) solid var(--border-subtle);
   color: var(--text-faint);
   flex-wrap: wrap;
@@ -3114,10 +3140,10 @@ body.wod-profile-details-page .wod-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-6);
+  gap: var(--space-4);
   margin: 0;
 }
-.wo-dash-profile-links .wo-dash-profile-edit { margin-top: var(--space-5); }
+.wo-dash-profile-links .wo-dash-profile-edit { margin-top: var(--space-5); font-size: 16px; }
 
 /* Saldo pendiente en rojo, como el mock ($650) */
 .wo-dash-income-sub.is-pending { color: var(--system-error); }

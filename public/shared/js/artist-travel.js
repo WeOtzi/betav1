@@ -85,6 +85,7 @@
     const filters = { region: 'global', year: 'all', status: 'all', type: 'all', origin: 'all' };
     let sortAsc = true;
     let selectedStudio = null;   // modal vincular
+    let linkDirectoryRows = [];
     let searchTimer = null;
 
     // ---------- Utilidades ----------
@@ -702,10 +703,7 @@
                                         <span class="${LINK_TAG_CLASS[l.status]}">${esc(LINK_STATUS_LABELS[l.status])}</span>
                                     </div>
                                     ${l.status === 'esperando_confirmacion' ? `
-                                    <div class="tvd-linkactions">
-                                        <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-act="link-confirm" data-link="${l.id}">Marcar confirmada</button>
-                                        <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-act="link-reject" data-link="${l.id}">Marcar rechazada</button>
-                                    </div>` : ''}`).join('') : `
+                                    <p class="wo-help">El estudio propietario debe confirmar o rechazar esta solicitud.</p>` : ''}`).join('') : `
                                     <div class="tvd-info-v">${esc(t.studio_name_hint || '—')}</div>
                                     <p class="wo-help">Todavía sin vincular · usá &quot;Vincular un estudio&quot; en Acciones.</p>`}
                             </div>
@@ -880,23 +878,6 @@
                     await D.Travel.reactivate(t.id, status);
                     await D.Travel.addEvent({ tripId: t.id, eventType: 'nota', detail: 'Viaje reactivado' });
                     await refreshDetail();
-                } else if (act === 'link-confirm') {
-                    const linkId = btn.getAttribute('data-link');
-                    await D.Travel.updateStudioLinkStatus(linkId, 'confirmada');
-                    await D.Travel.update(t.id, { status: 'confirmado' });
-                    await D.Travel.addEvent({ tripId: t.id, eventType: 'estudio_confirmado' });
-                    const item = (t.trip_checklist_items || []).find((c) => c.label === 'Estudio confirmado' && !c.is_done);
-                    if (item) await D.Travel.setChecklistDone(item.id, true);
-                    await refreshDetail();
-                } else if (act === 'link-reject') {
-                    const linkId = btn.getAttribute('data-link');
-                    await D.Travel.updateStudioLinkStatus(linkId, 'rechazada');
-                    const others = (t.trip_studio_links || []).filter((l) => l.id !== linkId);
-                    if (!others.some((l) => l.status === 'confirmada')) {
-                        const status = others.some((l) => l.status === 'esperando_confirmacion') ? 'pendiente' : 'planificado';
-                        await D.Travel.update(t.id, { status });
-                    }
-                    await refreshDetail();
                 } else if (act === 'edit-field') {
                     const cell = btn.closest('[data-fieldcell]');
                     cell.querySelector('[data-view]').hidden = true;
@@ -1034,39 +1015,32 @@
     // ---------- Modal vincular un estudio ----------
     function resetLinkModal() {
         selectedStudio = null;
+        linkDirectoryRows = [];
         $('tvl-search').value = '';
-        $('tvl-external').checked = false;
-        $('tvl-external-fields').hidden = true;
-        $('tvl-ext-name').value = '';
-        $('tvl-ext-city').value = '';
-        $('tvl-results').innerHTML = `
-            <div class="wo-empty tvm-empty">
-                <i data-wo-icon="search" aria-hidden="true"></i>
-                <span class="wo-empty-title">Buscá un estudio para comenzar</span>
-                <p>Escribí el nombre del estudio para encontrarlo en el directorio de We Ötzi.</p>
-            </div>`;
+        $('tvl-city').innerHTML = '<option value="">Ciudad</option>';
+        $('tvl-country').innerHTML = '<option value="">País</option>';
+        $('tvl-specialty').value = '';
+        renderLinkPrompt();
         syncLinkSubmit();
+        loadLinkDirectory('', false);
     }
 
     function syncLinkSubmit() {
-        const external = $('tvl-external').checked;
-        const ok = external ? $('tvl-ext-name').value.trim().length > 0 : !!selectedStudio;
-        $('tvl-submit').disabled = !ok;
+        $('tvl-submit').disabled = !selectedStudio;
     }
 
     function wireLinkModal() {
         $('tvl-search').addEventListener('input', (e) => {
             const q = e.target.value.trim();
             clearTimeout(searchTimer);
-            if (q.length < 2) return;
-            searchTimer = setTimeout(async () => {
-                try {
-                    const { data } = await D.Studios.searchDirectory(q);
-                    renderLinkResults(data || []);
-                } catch (err) {
-                    console.error('[travel] búsqueda de estudios:', err);
-                }
-            }, 300);
+            searchTimer = setTimeout(() => loadLinkDirectory(q, q.length > 0), 250);
+        });
+        ['tvl-city', 'tvl-country', 'tvl-specialty'].forEach((id) => {
+            $(id).addEventListener('change', () => {
+                selectedStudio = null;
+                syncLinkSubmit();
+                renderFilteredLinkResults();
+            });
         });
 
         $('tvl-results').addEventListener('click', (e) => {
@@ -1078,32 +1052,15 @@
                 city: row.getAttribute('data-city') || null,
             };
             document.querySelectorAll('#tvl-results .tvm-result').forEach((r) => r.classList.toggle('is-selected', r === row));
-            $('tvl-external').checked = false;
-            $('tvl-external-fields').hidden = true;
             syncLinkSubmit();
         });
-
-        $('tvl-external').addEventListener('change', (e) => {
-            $('tvl-external-fields').hidden = !e.target.checked;
-            if (e.target.checked) {
-                selectedStudio = null;
-                document.querySelectorAll('#tvl-results .tvm-result').forEach((r) => r.classList.remove('is-selected'));
-            }
-            syncLinkSubmit();
-        });
-        $('tvl-ext-name').addEventListener('input', syncLinkSubmit);
 
         $('tvl-submit').addEventListener('click', async () => {
             const t = currentTrip;
-            const external = $('tvl-external').checked;
-            const payload = external
-                ? { tripId: t.id, studioId: null, studioName: $('tvl-ext-name').value.trim(), studioCity: $('tvl-ext-city').value.trim() || null }
-                : { tripId: t.id, studioId: selectedStudio.id, studioName: selectedStudio.name, studioCity: selectedStudio.city };
-            if (!payload.studioName) return;
+            if (!selectedStudio || !selectedStudio.id) return;
             $('tvl-submit').disabled = true;
             try {
-                await D.Travel.addStudioLink(payload);
-                if (t.status === 'planificado') await D.Travel.update(t.id, { status: 'pendiente' });
+                await D.Travel.requestStudioLink({ tripId: t.id, studioId: selectedStudio.id });
                 closeModal('tv-modal-link');
                 await refreshDetail();
             } catch (err) {
@@ -1113,6 +1070,64 @@
         });
     }
 
+    async function loadLinkDirectory(query, renderResults = true) {
+        try {
+            const { data } = await D.Studios.searchDirectory(query || '', {
+                limit: 40,
+                columns: 'id, name, city, country, tagline, bio, is_active',
+            });
+            linkDirectoryRows = (data || []).filter((studio) => studio.is_active !== false);
+            populateLinkFilter('tvl-city', 'Ciudad', linkDirectoryRows.map((s) => s.city));
+            populateLinkFilter('tvl-country', 'País', linkDirectoryRows.map((s) => s.country));
+            selectedStudio = null;
+            syncLinkSubmit();
+            if (renderResults) renderFilteredLinkResults();
+            else renderLinkPrompt();
+        } catch (err) {
+            console.error('[travel] búsqueda de estudios:', err);
+            linkDirectoryRows = [];
+            $('tvl-results').innerHTML = `
+                <div class="wo-empty tvm-empty">
+                    <i data-wo-icon="alert-circle" aria-hidden="true"></i>
+                    <span class="wo-empty-title">No pudimos cargar el directorio</span>
+                    <p>Reintentá la búsqueda en unos segundos.</p>
+                </div>`;
+        }
+    }
+
+    function renderLinkPrompt() {
+        $('tvl-results').innerHTML = `
+            <div class="wo-empty tvm-empty">
+                <i data-wo-icon="search" aria-hidden="true"></i>
+                <span class="wo-empty-title">Buscá un estudio para comenzar</span>
+                <p>Escribí el nombre del estudio o utilizá los filtros para encontrar estudios por ciudad, país o especialidad.</p>
+            </div>`;
+        refreshIcons();
+    }
+
+    function populateLinkFilter(id, allLabel, values) {
+        const select = $(id);
+        const current = select.value;
+        const options = [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'es'));
+        select.innerHTML = `<option value="">${esc(allLabel)}</option>` + options.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('');
+        select.value = options.includes(current) ? current : '';
+    }
+
+    function renderFilteredLinkResults() {
+        const city = $('tvl-city').value;
+        const country = $('tvl-country').value;
+        const specialty = $('tvl-specialty').value.toLowerCase();
+        const rows = linkDirectoryRows.filter((studio) => {
+            if (city && studio.city !== city) return false;
+            if (country && studio.country !== country) return false;
+            const specialties = [studio.tagline, studio.bio]
+                .filter(Boolean).join(' ').toLowerCase();
+            if (specialty && !specialties.includes(specialty)) return false;
+            return true;
+        });
+        renderLinkResults(rows);
+    }
+
     function renderLinkResults(rows) {
         const box = $('tvl-results');
         if (!rows.length) {
@@ -1120,7 +1135,7 @@
                 <div class="wo-empty tvm-empty">
                     <i data-wo-icon="search" aria-hidden="true"></i>
                     <span class="wo-empty-title">Sin resultados</span>
-                    <p>No encontramos estudios con ese nombre. Podés vincular uno fuera de We Ötzi más abajo.</p>
+                    <p>No encontramos estudios activos con esos filtros.</p>
                 </div>`;
             return;
         }

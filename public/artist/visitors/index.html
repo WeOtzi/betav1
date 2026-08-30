@@ -10,6 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/dashboard-redesign.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -38,42 +41,17 @@
     </script>
 </head>
 
-<body class="artist-dashboard-page wod-body wod-visitors-page">
+<body class="wo-app artist-dashboard-page wod-body wod-visitors-page">
 <div class="wod-stage">
 <div class="wod-frame">
 
-    <header class="wod-nav">
-        <div class="wod-nav__left">
-            <a href="/artist/dashboard" class="wod-nav__logo">
-                <span class="wod-nav__marks"><span class="sq"></span><span class="ci"></span><span class="tr"></span></span>
-                <span>WE&nbsp;OTZI</span>
-            </a>
-            <span class="wod-nav__tag"><span class="dot"></span><span>ANALITICAS · VISITANTES</span></span>
-        </div>
-        <button class="wod-nav__burger" id="dashboard-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="dashboard-mobile-menu" aria-label="Menu">
-            <span></span><span></span><span></span>
-        </button>
-        <div class="wod-nav__right">
-            <nav class="wod-nav__links" aria-label="Navegacion principal de artista">
-                <a href="/artist/dashboard">DASHBOARD</a>
-                <a href="/my-quotations">COTIZACIONES</a>
-                <a href="/job-board">JOB BOARD</a>
-                <a href="/my-quotations/statistics" data-overflow>ESTADISTICAS</a>
-                <a href="/artist/profile/details" data-overflow>PERFIL</a>
-            </nav>
-            <button class="wod-nav__more" id="wod-nav-more" type="button" aria-expanded="false">+ MAS</button>
-            <button class="wod-login-btn" onclick="handleVisitorsLogout()" aria-label="Cerrar sesion">LOG OUT</button>
-            <a class="wod-nav__msg" href="/my-quotations" aria-label="Cotizaciones">MSG</a>
-            <button class="wod-otzi-mark" onclick="toggleTheme()" aria-label="Cambiar modo">O</button>
-        </div>
-        <div class="wod-nav__overflow" id="dashboard-mobile-menu" aria-label="Navegacion movil">
-            <a href="/artist/dashboard">DASHBOARD</a>
-            <a href="/my-quotations">COTIZACIONES</a>
-            <a href="/job-board">JOB BOARD</a>
-            <a href="/my-quotations/statistics">ESTADISTICAS</a>
-            <a href="/artist/profile/details">PERFIL</a>
-        </div>
-    </header>
+    <weotzi-product-nav
+        active="visitors"
+        dashboard-extras
+        menu-toggle-id="dashboard-mobile-menu-toggle"
+        menu-id="dashboard-mobile-menu"
+        logout-handler="handleVisitorsLogout">
+    </weotzi-product-nav>
 
     <main class="wod-visitors-main">
         <section class="wod-visitors-hero" aria-label="Vista dedicada de analiticas">
@@ -167,15 +145,15 @@
     }
     (function () {
         function wireNav() {
-            var more = document.getElementById('wod-nav-more');
             var burger = document.getElementById('dashboard-mobile-menu-toggle');
             var menu = document.getElementById('dashboard-mobile-menu');
             function toggle(btn) {
                 if (!menu) return;
-                var open = menu.classList.toggle('is-open');
+                var open = menu.hidden;
+                menu.hidden = !open;
+                menu.classList.toggle('is-open', open);
                 if (btn) { btn.classList.toggle('is-open', open); btn.setAttribute('aria-expanded', String(open)); }
             }
-            if (more) more.addEventListener('click', function () { toggle(more); });
             if (burger) burger.addEventListener('click', function () { toggle(burger); });
         }
         async function bootVisitorsPage() {

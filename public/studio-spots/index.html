@@ -9,47 +9,30 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/studio-spots-ds.css">
+    <link rel="stylesheet" href="/shared/css/studio-spots-figma.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="wo-app">
 
-    <!-- TopBar de artista -->
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item is-active" aria-current="page">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-btn wo-btn--ghost wo-btn--s sps-menu-toggle" id="spots-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="spots-mobile-menu">
-                Menú
-            </button>
-            <a href="/artist/dashboard" id="auth-nav-btn" class="sps-auth">
-                <span class="wo-o-tile sps-o-tile" aria-hidden="true">Ö</span>
-                <span id="auth-nav-label" class="wo-sr-only">Ingresá</span>
-            </a>
-            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono sps-logout hidden" id="auth-logout">Log out</button>
-        </div>
-    </header>
-    <nav class="sps-mobile-menu" id="spots-mobile-menu" aria-label="Navegación móvil de artista" hidden>
-        <a href="/my-quotations">Cotizaciones</a>
-        <a href="/job-board">Job board</a>
-        <a href="/studio-spots" class="is-active">Spots</a>
-        <a href="/calendar">Calendario</a>
-        <a href="/my-quotations/statistics">Estadísticas</a>
-        <a href="/artist/travel">Travel</a>
-        <a href="/artist/inbox">Inbox</a>
-    </nav>
+    <!-- TopBar compartida de artista -->
+    <weotzi-product-nav
+        active="spots"
+        menu-toggle-id="spots-mobile-menu-toggle"
+        menu-id="spots-mobile-menu"
+        menu-class="sps-mobile-menu"
+        profile-href="/artist/dashboard"
+        profile-id="auth-nav-btn"
+        profile-class="sps-auth sps-o-tile"
+        profile-label-id="auth-nav-label"
+        profile-label="Ingresá"
+        logout-id="auth-logout"
+        logout-class="sps-logout hidden">
+    </weotzi-product-nav>
 
     <main class="sps-shell" id="spots-main">
 

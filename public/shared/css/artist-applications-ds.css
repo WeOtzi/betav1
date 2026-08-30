@@ -123,9 +123,14 @@ body.wo-app { margin: 0; }
 /* ---------- Chips de estado ---------- */
 .apx-chips {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: var(--space-3);
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: var(--space-1);
 }
+.apx-chips .wo-chip { flex: none; }
 .apx-chips .wo-chip[disabled] {
     cursor: default;
     transform: none;
@@ -236,7 +241,7 @@ body.wo-app { margin: 0; }
     justify-self: end;
     min-width: 220px;
 }
-.apx-row-actions .wo-btn { justify-content: center; background: var(--white); }
+.apx-row-actions .wo-btn { min-width: 0; justify-content: center; background: var(--white); }
 .apx-row-actions .wo-btn:hover { background: var(--neutral-100); }
 
 /* Skeleton de carga */
@@ -612,4 +617,23 @@ body.wo-app { margin: 0; }
     .apx-datacell { padding-right: 0; }
     .apx-gallery { grid-template-columns: repeat(2, 1fr); }
     .apx-detail-title { font-size: var(--title-sm-size); }
+}
+
+/* ---------- Guardas responsive para contenido dinámico ---------- */
+:is(.apx-title, .apx-row-title, .apx-detail-title, .apx-track-row strong) {
+    overflow-wrap: anywhere;
+}
+.apx-tabs,
+.apx-rows,
+.apx-detail,
+.apx-detail-main { min-width: 0; max-width: 100%; }
+.apx-row-sub,
+.apx-row-loc { flex-wrap: wrap; }
+.apx-proposal-foot,
+.apx-track-row { flex-wrap: wrap; }
+.apx-proposal-foot > *,
+.apx-track-row > * { min-width: 0; }
+
+@media (min-width: 48.0625rem) {
+    .apx-chips { flex-wrap: wrap; overflow-x: visible; padding-bottom: 0; }
 }

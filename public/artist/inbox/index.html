@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WE ÖTZI | Inbox</title>
-    <meta name="description" content="Inbox del artista: mensajes de clientes por cotización y chat con el equipo de soporte, en un solo lugar.">
+    <meta name="description" content="Inbox del artista: clientes, cotizaciones, soporte, invitaciones, Spots, Job Board, estudios y viajes en un solo lugar.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,43 +13,27 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-inbox-ds.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="wo-app ai-page">
 
-    <!-- TopBar canónica de artista · INBOX activo -->
-    <header class="wo-topbar ai-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item is-active" aria-current="page">Inbox<span class="ai-navcount" id="ai-nav-unread" hidden>0</span></a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-btn wo-btn--ghost wo-btn--s ai-menu-toggle" id="ai-menu-toggle" type="button" aria-expanded="false" aria-controls="ai-mobile-menu">Menú</button>
-            <a href="/artist/account" class="wo-o-tile" aria-label="Centro de la cuenta">Ö</a>
-            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono wo-btn--s" id="ai-logout">Log out</button>
-        </div>
-    </header>
-    <nav class="ai-mobile-menu" id="ai-mobile-menu" aria-label="Navegación móvil de artista" hidden>
-        <a href="/my-quotations">Cotizaciones</a>
-        <a href="/job-board">Job board</a>
-        <a href="/studio-spots">Spots</a>
-        <a href="/calendar">Calendario</a>
-        <a href="/my-quotations/statistics">Estadísticas</a>
-        <a href="/artist/travel">Travel</a>
-        <a href="/artist/inbox" class="is-active">Inbox</a>
-        <a href="/artist/account">Cuenta</a>
-    </nav>
+    <!-- TopBar canónica compartida de artista · INBOX activo -->
+    <weotzi-product-nav
+        active="inbox"
+        menu-toggle-id="ai-menu-toggle"
+        menu-id="ai-mobile-menu"
+        menu-class="ai-mobile-menu"
+        profile-label="Centro de la cuenta"
+        logout-id="ai-logout"
+        badge-item="inbox"
+        badge-id="ai-nav-unread"
+        badge-class="ai-navcount">
+    </weotzi-product-nav>
 
     <main class="ai-shell" id="ai-shell">
 
@@ -64,14 +48,16 @@
 
             <nav class="ai-side-list" aria-label="Categorías">
                 <button type="button" class="wo-sidebar-item ai-side-item is-active" data-filter="all">Todos<span class="ai-side-count wo-mono-num" id="ai-count-all">0</span></button>
-                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="quotes">Cotizaciones<span class="ai-side-count wo-mono-num" id="ai-count-quotes">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="clients">Clientes<span class="ai-side-count wo-mono-num" id="ai-count-clients">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="quotations">Cotizaciones<span class="ai-side-count wo-mono-num" id="ai-count-quotations">0</span></button>
                 <button type="button" class="wo-sidebar-item ai-side-item" data-filter="support">Soporte<span class="ai-side-count wo-mono-num" id="ai-count-support">1</span></button>
-                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Spots<span class="ai-side-soon">Próximamente</span></span>
-                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Invitaciones<span class="ai-side-soon">Próximamente</span></span>
-                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Estudios<span class="ai-side-soon">Próximamente</span></span>
-                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Viajes<span class="ai-side-soon">Próximamente</span></span>
-                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Archivados<span class="ai-side-soon">Próximamente</span></span>
-                <span class="wo-sidebar-item ai-side-item is-dim" aria-disabled="true">Favoritas<span class="ai-side-soon">Próximamente</span></span>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="invitations">Invitaciones<span class="ai-side-count wo-mono-num" id="ai-count-invitations">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="spots">Spots<span class="ai-side-count wo-mono-num" id="ai-count-spots">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="job_board">Job Board<span class="ai-side-count wo-mono-num" id="ai-count-job-board">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="studios">Estudios<span class="ai-side-count wo-mono-num" id="ai-count-studios">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="trips">Viajes<span class="ai-side-count wo-mono-num" id="ai-count-trips">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="archived">Archivados<span class="ai-side-count wo-mono-num" id="ai-count-archived">0</span></button>
+                <button type="button" class="wo-sidebar-item ai-side-item" data-filter="favorites">Favoritas<span class="ai-side-count wo-mono-num" id="ai-count-favorites">0</span></button>
             </nav>
 
             <div class="ai-summary" aria-label="Resumen">
@@ -100,7 +86,7 @@
             <div class="wo-empty ai-thread-placeholder" id="ai-thread-placeholder">
                 <i data-wo-icon="message-circle" aria-hidden="true"></i>
                 <span class="wo-empty-title">Elegí una conversación</span>
-                <p>Acá vas a ver tus mensajes con clientes y con el equipo de soporte.</p>
+                <p>Acá vas a ver tus mensajes con clientes, estudios y el equipo de soporte.</p>
             </div>
 
             <div class="ai-thread" id="ai-thread" hidden>
@@ -115,7 +101,16 @@
                     </div>
                 </div>
                 <form class="ai-composer" id="ai-composer" autocomplete="off">
-                    <input type="text" id="ai-input" class="wo-input ai-composer-input" placeholder="Escribí un mensaje…" aria-label="Mensaje" maxlength="2000">
+                    <input type="file" id="ai-file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain" hidden>
+                    <div class="ai-composer-tools" aria-label="Adjuntos">
+                        <button type="button" class="wo-iconbtn ai-attach" id="ai-attach" aria-label="Adjuntar archivo" title="Adjuntar archivo"><i data-wo-icon="paperclip" class="wo-icon-18" aria-hidden="true"></i></button>
+                        <button type="button" class="wo-iconbtn ai-attach" id="ai-image" aria-label="Adjuntar imagen" title="Adjuntar imagen"><i data-wo-icon="image" class="wo-icon-18" aria-hidden="true"></i></button>
+                        <button type="button" class="wo-iconbtn ai-attach" id="ai-emoji" aria-label="Agregar emoji" title="Agregar emoji"><i data-wo-icon="smile" class="wo-icon-18" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="ai-composer-stack">
+                        <div class="ai-attachment-preview" id="ai-attachment-preview" hidden></div>
+                        <input type="text" id="ai-input" class="wo-input ai-composer-input" placeholder="Escribí un mensaje…" aria-label="Mensaje" maxlength="2000">
+                    </div>
                     <button type="submit" class="wo-btn ai-send" id="ai-send" disabled><i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>Enviar</button>
                 </form>
             </div>
@@ -132,6 +127,7 @@
     <script src="/shared/js/data/support-client-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
+    <script src="/shared/js/data/inbox-repo.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/artist-inbox.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>

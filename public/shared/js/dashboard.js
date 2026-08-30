@@ -54,11 +54,10 @@ const BANNER_NOTICE_VERIFICATION = 'verification';
 const BANNER_ROTATION_INTERVAL_MS = 7000;
 const DASHBOARD_ARTIST_QUERY_TIMEOUT_MS = 8000;
 const DASHBOARD_AUTH_BOOTSTRAP_TIMEOUT_MS = 8000;
+const DASHBOARD_CONFIG_READY_TIMEOUT_MS = 6000;
 const DASHBOARD_SUPABASE_FALLBACK = {
     url: 'https://flbgmlvfiejfttlawnfu.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmbGJn' +
-        'bWx2ZmllamZ0dGxhd25mdSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ1OTEyNTg5LCJleHAiOjIwNjE0ODg1ODl9.' +
-        'AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888'
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888'
 };
 // (Las ~50 columnas del dashboard viven en WeotziData.Artists.DASHBOARD_SELECT;
 // el fallback raw-REST de abajo las reusa de ahi para no duplicar la constante.)
@@ -430,6 +429,16 @@ function createDashboardSupabaseClient(session = null) {
     const { url, anonKey } = getDashboardSupabaseConfig();
     if (!url || !anonKey) return null;
 
+    const sharedClient = window.ConfigManager && typeof window.ConfigManager.getSupabaseClient === 'function'
+        ? window.ConfigManager.getSupabaseClient()
+        : window._supabase;
+    if (sharedClient && sharedClient.supabaseUrl === url && sharedClient.supabaseKey === anonKey) {
+        _supabase = sharedClient;
+        _supabase.__dashboardSessionToken = session?.access_token || '';
+        window._supabase = _supabase;
+        return _supabase;
+    }
+
     const options = session?.access_token
         ? { global: { headers: { Authorization: `Bearer ${session.access_token}` } } }
         : undefined;
@@ -511,6 +520,17 @@ document.addEventListener('visibilitychange', () => {
 
 async function initializeDashboard() {
     try {
+        // ConfigManager is exposed before its async init completes. Waiting here
+        // prevents the stored-session fast path from creating a Supabase client
+        // with a stale or fallback key during DOMContentLoaded.
+        if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') {
+            await withDashboardTimeout(
+                window.ConfigManager.ready(),
+                DASHBOARD_CONFIG_READY_TIMEOUT_MS,
+                'Dashboard configuration'
+            );
+        }
+
         if (!window.ArtistAuth || typeof window.ArtistAuth.resolveArtistAuthState !== 'function') {
             throw new Error('ArtistAuth helper is not available.');
         }
@@ -1452,7 +1472,7 @@ function populateDashboard() {
     }
 
     // Identity Block
-    const artisticName = artistData.username ? artistData.username.replace(/\.wo$/, '') : 'Artista';
+    const artisticName = artistData.username ? String(artistData.username).toUpperCase() : 'ARTISTA';
     document.getElementById('artist-name').textContent = artisticName;
     document.getElementById('artist-username').textContent = '@' + (artistData.username || 'usuario.wo');
     const locationValue = artistData.ubicacion || 'Sin ubicacion';
@@ -3416,17 +3436,16 @@ async function handleGalleryUpload(e) {
 function renderGalleryAdmin() {
     const grid = document.getElementById('gallery-admin-grid');
     const emptyState = document.getElementById('gallery-empty');
+    if (!grid) return;
     const feedItems = normalizeDashboardGalleryFeedItems();
     syncDashboardGalleryFromFeed(feedItems);
 
     if (feedItems.length === 0) {
-        grid.innerHTML = '';
-        grid.appendChild(emptyState);
-        emptyState.style.display = 'flex';
+        grid.innerHTML = '<div class="gallery-empty wod-empty" id="gallery-empty">Aún no subiste archivos</div>';
         return;
     }
 
-    emptyState.style.display = 'none';
+    if (emptyState) emptyState.style.display = 'none';
     const filledSlots = feedItems.map((item, index) => {
         const url = item.url;
         const isVideo = isUrlVideo(url);

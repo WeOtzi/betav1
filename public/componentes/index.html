@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Catálogo trazable a Figma de 49 componentes y moléculas del Design System We Ötzi.">
+  <title>Componentes · Design System We Ötzi</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23001125'/%3E%3Cpath d='M16 5 27 26H5Z' fill='%23F2B519'/%3E%3C/svg%3E" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+  <link rel="stylesheet" href="/shared/css/ds/components.css">
+  <link rel="stylesheet" href="/shared/css/ds/site-components.css">
+  <link rel="stylesheet" href="/shared/css/ds/molecules.css">
+  <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+  <link rel="stylesheet" href="/componentes/componentes.css">
+  <script src="/shared/js/wo-icons.js" defer></script>
+  <script src="/shared/js/ds/site-components.js" defer></script>
+  <script src="/shared/js/ds/organisms.js" defer></script>
+  <script src="/shared/js/ds/molecules.js" defer></script>
+  <script src="/componentes/componentes.js" defer></script>
+</head>
+<body class="docs-page">
+  <a class="docs-skip" href="#contenido">Saltar al contenido</a>
+
+  <header class="docs-topbar">
+    <button class="docs-menu-button" type="button" aria-controls="docs-sidebar" aria-expanded="false" data-docs-menu>
+      <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+      <span class="sr-only">Abrir índice</span>
+    </button>
+    <a class="docs-brand" href="/componentes" aria-label="We Ötzi Design System, inicio">
+      <span class="docs-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>WE ÖTZI <small>DESIGN SYSTEM</small></span>
+    </a>
+    <nav class="docs-topnav" aria-label="Documentación">
+      <a href="/componentes" aria-current="page">Componentes</a>
+      <a href="/componentes/compuestos">Compuestos</a>
+      <a href="https://www.figma.com/design/jLxPQyG2rxrq5bvfQgNcBd/Design-System-We-Otzi?node-id=0-1" target="_blank" rel="noreferrer">Abrir Figma <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+
+  <div class="docs-overlay" data-docs-overlay hidden></div>
+  <aside class="docs-sidebar" id="docs-sidebar" aria-label="Índice de componentes">
+    <div class="docs-search">
+      <label for="component-search">Buscar componentes</label>
+      <div>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+        <input id="component-search" type="search" placeholder="Buscar…" autocomplete="off" data-catalog-search>
+        <kbd>/</kbd>
+      </div>
+    </div>
+    <nav class="docs-index" id="catalog-nav" aria-label="Familias del UI Kit y moléculas"></nav>
+    <div class="docs-sidebar-foot">
+      <span>Archivo fuente</span>
+      <strong>UI Kit + Atomic Design</strong>
+      <code>Figma · 0:1 · 11:782</code>
+    </div>
+  </aside>
+
+  <main class="docs-main" id="contenido">
+    <header class="docs-hero">
+      <div class="docs-breadcrumb"><span>Docs</span><b>/</b><span>Componentes</span></div>
+      <p class="docs-eyebrow">Design System · UI Kit 0:1 · Atomic Design 11:782</p>
+      <h1>Componentes</h1>
+      <p class="docs-lead">Inventario navegable de 49 referencias de We Ötzi: 21 familias del UI Kit y 28 moléculas de Atomic Design. Cada ficha enlaza su nodo de Figma, declara la medida natural y monta el componente compartido dentro de un viewport real.</p>
+      <div class="docs-hero-actions">
+        <a class="docs-button docs-button--primary" href="#tipografia">Explorar el UI Kit</a>
+        <a class="docs-button" href="/componentes/compuestos">Ver componentes compuestos <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="docs-source-note" role="note">
+        <strong>Cómo leer este catálogo</strong>
+        <p>“Nodo Figma” identifica la fuente visual; “medida natural” corresponde al frame original. Desktop, Tablet y Móvil cambian el ancho del <code>iframe</code> a 1440, 768 y 390 px respectivamente, por lo que se ejecutan los breakpoints reales del componente.</p>
+      </div>
+    </header>
+
+    <div class="docs-results-bar">
+      <p><strong data-result-count>49</strong> referencias del Design System</p>
+      <p class="docs-results-status" role="status" aria-live="polite" data-search-status></p>
+    </div>
+
+    <div id="component-catalog" class="docs-catalog" data-catalog="ui-kit"></div>
+
+    <section class="docs-unmapped" aria-labelledby="site-patterns-title">
+      <p class="docs-eyebrow">Patrones del sitio</p>
+      <h2 id="site-patterns-title">Piezas sin frame autónomo en 0:1</h2>
+      <p>El archivo 0:1 no contiene un frame aislado de footer. El sitio sí expone <code>&lt;weotzi-footer&gt;</code> como patrón reutilizable; se documenta como fuente del producto y no como réplica de un nodo inexistente.</p>
+      <a class="docs-button" href="/componentes/preview/?component=weotzi-footer">Abrir preview del footer <span aria-hidden="true">→</span></a>
+    </section>
+
+    <footer class="docs-footer">
+      <p>We Ötzi Design System</p>
+      <p>Referencias: <a href="https://www.figma.com/design/jLxPQyG2rxrq5bvfQgNcBd/Design-System-We-Otzi?node-id=0-1" target="_blank" rel="noreferrer">UI Kit 0:1</a> · <a href="https://www.figma.com/design/jLxPQyG2rxrq5bvfQgNcBd/Design-System-We-Otzi?node-id=11-782" target="_blank" rel="noreferrer">Moléculas 11:782</a> · <a href="/componentes/compuestos">Organismos 21:2753</a></p>
+    </footer>
+  </main>
+
+  <noscript><p class="docs-noscript">Este catálogo necesita JavaScript para montar los previews y mostrar el código.</p></noscript>
+</body>
+</html>

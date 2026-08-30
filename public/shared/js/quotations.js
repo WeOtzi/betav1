@@ -629,10 +629,10 @@ function renderQuoteCard(quote, index) {
             <div class="q-card-side">
                 <span class="q-status q-status--${status.tone}">${escapeHtml(status.label)}</span>
                 <span class="q-card-price">${escapeHtml(formatQuoteAmount(quote))}</span>
-                <button type="button" class="q-card-cta" onclick="inspectQuote('${escapeHtml(quote.id)}')">
+                <a class="q-card-cta" href="${escapeHtml(appUrl(`/my-quotations/detail?quote=${encodeURIComponent(quote.quote_id || quote.id)}`))}">
                     Ver detalle
                     <i data-wo-icon="arrow-right" aria-hidden="true"></i>
-                </button>
+                </a>
             </div>
         </article>`;
 }

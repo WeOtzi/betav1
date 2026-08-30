@@ -21,7 +21,9 @@ const ARTIST_PUBLIC_FIELDS_LEGACY = [
     'country',
     'gallery_images',
     'verification_state',
-    'languages'
+    'languages',
+    'instagram',
+    'portafolio'
 ].join(',');
 
 const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items`;
@@ -82,10 +84,16 @@ const GALLERY_CATEGORY_LABELS = {
 let artistData = null;
 let studioData = null;
 let tattooLocations = [];
+let publicProfilePreferences = {
+    privacy: { show_city: true, show_rating: true, show_socials: true, allow_search_indexing: false },
+    profile: {},
+    availability: {}
+};
 let galleryItems = [];
 let galleryFilter = GALLERY_ALL_FILTER;
 let currentLightboxIndex = 0;
 let reviewsWidgetMounted = false;
+let portfolioAnalyticsObserver = null;
 let errorSceneParallaxRaf = 0;
 let errorSceneMotionShapes = [];
 
@@ -290,19 +298,46 @@ async function loadArtistData(username) {
         }
 
         artistData = artist;
-        tattooLocations = await loadArtistTattooLocations(artist.user_id);
-        studioData = await loadArtistStudio(artist.studio_id);
+        [tattooLocations, studioData, publicProfilePreferences] = await Promise.all([
+            loadArtistTattooLocations(artist.user_id),
+            loadArtistStudio(artist.studio_id),
+            loadPublicProfilePreferences(artist.user_id)
+        ]);
 
         populateProfile();
         hideLoading();
         showContent();
         void renderArtistReviews();
 
-        // Track this profile visit (fire-and-forget, throttled client-side to 1h)
-        trackProfileVisit(artist.username).catch(() => { /* noop */ });
+        // Structured funnel telemetry (fire-and-forget, one event/hour).
+        trackProfileEvent('profile_view').catch(() => { /* noop */ });
+        setupPortfolioAnalytics();
     } catch (error) {
         console.error('Error loading artist data:', error);
         showError('technical', { requestedArtist: searchUsername });
+    }
+}
+
+async function loadPublicProfilePreferences(artistUserId) {
+    const fallback = {
+        privacy: { show_city: true, show_rating: true, show_socials: true, allow_search_indexing: false },
+        profile: {},
+        availability: {}
+    };
+    if (!artistUserId || !_supabase?.rpc) return fallback;
+    try {
+        const { data, error } = await _supabase.rpc('get_artist_public_profile_preferences', {
+            p_artist_user_id: artistUserId
+        });
+        if (error || !data || typeof data !== 'object') return fallback;
+        return {
+            privacy: { ...fallback.privacy, ...(data.privacy || {}) },
+            profile: data.profile && typeof data.profile === 'object' ? data.profile : {},
+            availability: data.availability && typeof data.availability === 'object' ? data.availability : {}
+        };
+    } catch (error) {
+        console.warn('Public profile preferences unavailable:', error);
+        return fallback;
     }
 }
 
@@ -311,19 +346,21 @@ async function loadArtistData(username) {
  * Throttled client-side: one ping per (visitor device × artist username) per hour
  * via localStorage. Server also dedupes by ip_hash to cover cross-device cases.
  */
-async function trackProfileVisit(username) {
+async function trackProfileEvent(eventKind, detail = {}) {
+    const username = artistData?.username;
     if (!username) return;
     try {
-        const key = `wo_pv_${String(username).toLowerCase()}`;
+        const suffix = eventKind === 'artwork_view' ? `_${String(detail.artworkKey || '')}` : '';
+        const key = `wo_pa_${String(username).toLowerCase()}_${eventKind}${suffix}`;
         const last = Number(localStorage.getItem(key) || 0);
         if (Date.now() - last < 60 * 60 * 1000) return; // 1h throttle
         localStorage.setItem(key, String(Date.now()));
 
-        let isAuthenticated = false;
+        let session = null;
         try {
             if (_supabase?.auth?.getSession) {
                 const { data } = await _supabase.auth.getSession();
-                isAuthenticated = !!data?.session;
+                session = data?.session || null;
             }
         } catch (_) { /* unauth — ignore */ }
 
@@ -331,19 +368,36 @@ async function trackProfileVisit(username) {
             || window.__deviceFingerprint
             || null;
 
-        await fetch('/api/artist/profile-visit', {
+        const headers = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        await fetch('/api/artist/profile-event', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
                 artist_username: username,
+                event_kind: eventKind,
+                artwork_key: detail.artworkKey || null,
+                artwork_title: detail.artworkTitle || null,
                 device_fingerprint: fp,
                 user_agent: navigator.userAgent,
-                is_authenticated: isAuthenticated,
                 referrer: document.referrer || null
             }),
             keepalive: true
         });
     } catch (_) { /* silent */ }
+}
+
+function setupPortfolioAnalytics() {
+    if (portfolioAnalyticsObserver) portfolioAnalyticsObserver.disconnect();
+    const gallery = document.getElementById('block-gallery');
+    if (!gallery || typeof IntersectionObserver !== 'function') return;
+    portfolioAnalyticsObserver = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.3)) return;
+        portfolioAnalyticsObserver.disconnect();
+        portfolioAnalyticsObserver = null;
+        trackProfileEvent('portfolio_view').catch(() => { /* noop */ });
+    }, { threshold: [0.3] });
+    portfolioAnalyticsObserver.observe(gallery);
 }
 
 async function loadArtistTattooLocations(artistUserId) {
@@ -403,7 +457,9 @@ async function loadArtistStudio(studioId) {
 function populateProfile() {
     if (!artistData) return;
 
-    const artisticName = artistData.username ? artistData.username.replace(/\.wo$/, '') : 'Artista';
+    const privacy = publicProfilePreferences.privacy || {};
+    const profileExtras = publicProfilePreferences.profile || {};
+    const artisticName = artistData.name || profileExtras.full_name || (artistData.username ? artistData.username.replace(/\.wo$/, '') : 'Artista');
     const styles = parseStylesArray(artistData.styles_array);
     const location = getLocationParts(artistData);
 
@@ -427,6 +483,21 @@ function populateProfile() {
     setText('display-city', location.city);
     setText('display-country', location.country);
 
+    const heroLocation = document.getElementById('hero-location');
+    if (heroLocation) heroLocation.hidden = privacy.show_city === false;
+    const robots = document.getElementById('profile-robots');
+    if (robots) robots.content = privacy.allow_search_indexing === true ? 'index,follow' : 'noindex,nofollow';
+
+    const heroBand = document.querySelector('.hero-band');
+    const bannerUrl = safePublicHttpUrl(profileExtras.banner_url);
+    if (heroBand) {
+        heroBand.classList.toggle('has-profile-banner', !!bannerUrl);
+        if (bannerUrl) heroBand.style.setProperty('--profile-banner-image', `url("${bannerUrl.replace(/"/g, '%22')}")`);
+        else heroBand.style.removeProperty('--profile-banner-image');
+    }
+
+    renderPublicSocials(privacy, profileExtras);
+
     const verifiedIcon = document.getElementById('artist-verified-icon');
     if (verifiedIcon) {
         verifiedIcon.hidden = artistData.verification_state !== 'Yes';
@@ -444,6 +515,44 @@ function populateProfile() {
     renderActionbar(artisticName);
     setQuoteLinks();
     renderBio();
+}
+
+function safePublicHttpUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+        const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function socialProfileUrl(provider, value) {
+    const handle = String(value || '').trim().replace(/^@+/, '');
+    if (!handle) return '';
+    if (provider === 'instagram') return `https://www.instagram.com/${encodeURIComponent(handle)}`;
+    if (provider === 'tiktok') return `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
+    return '';
+}
+
+function renderPublicSocials(privacy, profileExtras) {
+    const container = document.getElementById('hero-socials');
+    if (!container) return;
+    if (privacy.show_socials === false) {
+        container.hidden = true;
+        container.innerHTML = '';
+        return;
+    }
+    const links = [
+        ['Instagram', socialProfileUrl('instagram', artistData?.instagram)],
+        ['TikTok', socialProfileUrl('tiktok', profileExtras?.tiktok)],
+        ['Sitio web', safePublicHttpUrl(artistData?.portafolio)]
+    ].filter((entry) => entry[1]);
+    container.hidden = !links.length;
+    container.innerHTML = links.map(([label, url]) => `
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)} ↗</a>
+    `).join('');
 }
 
 /**
@@ -699,7 +808,9 @@ function normalizeGalleryItems() {
         const category = GALLERY_CATEGORY_LABELS[String(raw?.category || '').toLowerCase()]
             ? String(raw.category).toLowerCase()
             : 'realizados';
-        items.push({ url, category, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
+        const key = String(raw?.id || raw?.key || url.split('?')[0].split('/').pop() || `work-${items.length + 1}`);
+        const title = String(raw?.title || raw?.name || `${GALLERY_CATEGORY_LABELS[category]} ${items.length + 1}`);
+        items.push({ url, key, title, category, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
         seen.add(url);
     }
 
@@ -707,7 +818,10 @@ function normalizeGalleryItems() {
         for (const entry of parseJsonArray(artistData?.gallery_images)) {
             const url = typeof entry === 'string' ? entry.trim() : String(entry?.url || '').trim();
             if (!url || seen.has(url)) continue;
-            items.push({ url, category: 'realizados', kind: isUrlVideo(url) ? 'video' : 'image' });
+            const raw = typeof entry === 'object' && entry ? entry : {};
+            const key = String(raw.id || raw.key || url.split('?')[0].split('/').pop() || `work-${items.length + 1}`);
+            const title = String(raw.title || raw.name || `Trabajo ${items.length + 1}`);
+            items.push({ url, key, title, category: 'realizados', kind: isUrlVideo(url) ? 'video' : 'image' });
             seen.add(url);
         }
     }
@@ -842,6 +956,12 @@ function renderCities() {
     const list = document.getElementById('cities-list');
     if (!band || !list) return;
 
+    if (publicProfilePreferences.privacy?.show_city === false) {
+        band.hidden = true;
+        list.innerHTML = '';
+        return;
+    }
+
     const location = getLocationParts(artistData);
     const cities = [];
     const seen = new Set();
@@ -907,7 +1027,9 @@ function renderCtaMonths() {
 }
 
 function hasOpenAgenda() {
-    return tattooLocations.some((location) => location.agenda_status === 'open');
+    if (tattooLocations.some((location) => location.agenda_status === 'open')) return true;
+    const weekly = publicProfilePreferences.availability?.weekly;
+    return Array.isArray(weekly) && weekly.some((day) => day?.enabled === true);
 }
 
 function renderActionbar(artisticName) {
@@ -1005,8 +1127,9 @@ async function renderArtistReviews() {
         // Calificación del statstrip: misma fuente real que el panel.
         const ratingCell = document.getElementById('statcell-rating');
         if (ratingCell) {
-            ratingCell.hidden = !average;
-            if (average) setText('display-rating', average.toFixed(1));
+            const showRating = publicProfilePreferences.privacy?.show_rating !== false;
+            ratingCell.hidden = !average || !showRating;
+            if (average && showRating) setText('display-rating', average.toFixed(1));
             markLeadStatcell();
         }
 
@@ -1263,7 +1386,12 @@ function handleGalleryActivation(event) {
     const item = event.target.closest('[data-gallery-index]');
     if (!item) return;
     const index = Number(item.dataset.galleryIndex);
-    if (!Number.isInteger(index) || !getVisibleGalleryItems()[index]) return;
+    const selected = getVisibleGalleryItems()[index];
+    if (!Number.isInteger(index) || !selected) return;
+    trackProfileEvent('artwork_view', {
+        artworkKey: selected.key || `work-${index + 1}`,
+        artworkTitle: selected.title || `Trabajo ${index + 1}`
+    }).catch(() => { /* noop */ });
     openLightbox(index);
 }
 

@@ -1,992 +1,997 @@
-// ============================================
-// WE OTZI - Calendar View Logic
-// Connected to Supabase quotations_db
-// Uses shared-drawer.js for quote details
-// ============================================
+/*
+ * WE ÖTZI · Calendario profesional
+ * Figma: 52:8311 / 52:9043 / 52:9286 / 153:4421…9373
+ * Vistas propias (mes, semana, dia y agenda), CRUD real y proyecciones de
+ * quotation_sessions + artist_trips a traves de WeotziData.Calendar.
+ */
+(function () {
+    'use strict';
 
-// Supabase Configuration - Uses config-manager.js (provides window.CONFIG)
-const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
-const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
+    const TYPE_META = {
+        confirmed_session: { label: 'Turno confirmado', editorLabel: 'Turno con cliente' },
+        pending_request: { label: 'Solicitud pendiente', editorLabel: 'Solicitud pendiente' },
+        reservation: { label: 'Reserva', editorLabel: 'Reserva pendiente' },
+        blocked_day: { label: 'Día bloqueado', editorLabel: 'Día bloqueado' },
+        availability: { label: 'Disponibilidad', editorLabel: 'Disponibilidad' },
+        guest_spot: { label: 'Guest Spot', editorLabel: 'Guest Spot' },
+        convention: { label: 'Convención', editorLabel: 'Convención' },
+        reminder: { label: 'Recordatorio', editorLabel: 'Recordatorio' },
+        personal: { label: 'Evento personal', editorLabel: 'Evento personal' },
+    };
 
-function getAppBasePath() {
-    if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
-    const path = window.location?.pathname || '';
-    return path === '/beta' || path.startsWith('/beta/') ? '/beta' : '';
-}
+    const TYPE_ORDER = Object.keys(TYPE_META);
+    const MANUAL_TYPES = TYPE_ORDER.filter((type) => type !== 'pending_request');
+    const BLOCKING_TYPES = new Set([
+        'confirmed_session', 'reservation', 'blocked_day',
+        'guest_spot', 'convention', 'personal',
+    ]);
+    const WEEKDAYS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+    const MONTHS = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    ];
+    const HOUR_START = 9;
+    const HOUR_END = 21;
+    const DAY_MS = 24 * 60 * 60 * 1000;
 
-function appUrl(path) {
-    const normalized = String(path || '').startsWith('/') ? String(path || '') : '/' + String(path || '');
-    const basePath = getAppBasePath();
-    if (basePath && (normalized === basePath || normalized.startsWith(basePath + '/'))) {
-        return normalized;
+    const state = {
+        user: null,
+        artist: null,
+        events: [],
+        view: 'month',
+        currentDate: startOfDay(new Date()),
+        selectedDate: startOfDay(new Date()),
+        miniDate: startOfMonth(new Date()),
+        enabledTypes: new Set(TYPE_ORDER),
+        search: '',
+        selectedType: null,
+        editingEvent: null,
+        conflictTimer: null,
+        toastTimer: null,
+    };
+
+    const el = {};
+
+    function cacheElements() {
+        [
+            'calendar-page', 'calendar-editor', 'calendar-view', 'calendar-summary',
+            'calendar-legend', 'cal-period-label', 'calendar-search', 'upcoming-list',
+            'upcoming-summary', 'calendar-loading', 'calendar-toast', 'event-type-picker',
+            'calendar-event-form', 'event-form-empty', 'event-fields', 'event-form-error',
+            'save-event', 'delete-event', 'editor-heading', 'mini-title', 'mini-grid',
+            'summary-type', 'summary-date', 'summary-time', 'summary-duration',
+            'summary-location', 'calendar-conflict', 'calendar-conflict-list',
+        ].forEach((id) => { el[id] = document.getElementById(id); });
     }
-    return basePath + normalized;
-}
 
-function buildArtistLoginUrl(returnTo = '/calendar') {
-    const params = new URLSearchParams();
-    if (returnTo) params.set('returnTo', returnTo);
-    const query = params.toString();
-    return appUrl('/registerclosedbeta' + (query ? `?${query}` : ''));
-}
-
-// State - These are used by shared-drawer.js
-let currentUser = null;
-let artistData = null;
-let quotations = [];
-let allAttachments = [];
-let allTattooStyles = [];
-let allSessions = [];
-
-// Calendar instance
-let calendar = null;
-
-// Filter state
-let currentStatusFilter = 'all';
-
-// Google API Config - Loaded DYNAMICALLY from ConfigManager (SuperAdmin panel)
-// These are functions instead of constants to avoid race condition with async ConfigManager init
-function getGoogleClientId() {
-    return window.CONFIG?.googleCalendar?.clientId || window.ConfigManager?.getValue?.('googleCalendar.clientId') || '';
-}
-function getGoogleApiKey() {
-    return window.CONFIG?.googleCalendar?.apiKey || window.ConfigManager?.getValue?.('googleCalendar.apiKey') || '';
-}
-function getGoogleCalendarEnabled() {
-    return window.CONFIG?.googleCalendar?.enabled || window.ConfigManager?.getValue?.('googleCalendar.enabled') || false;
-}
-const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-
-let tokenClient;
-let gapiInited = false;
-let gisInited = false;
-
-// ============================================
-// INITIALIZATION
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    initializeCalendar();
-    restoreThemeAndZoom();
-    
-    // Initialize Google API if scripts are loaded
-    if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
-        gapiLoaded();
-        gisLoaded();
+    function getBasePath() {
+        if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+        const pathname = window.location.pathname || '';
+        return pathname === '/beta' || pathname.startsWith('/beta/') ? '/beta' : '';
     }
-});
 
-async function initializeCalendar() {
-    try {
-        // 1. Auth Check
-        const { data: { session }, error: authError } = await _supabase.auth.getSession();
-        
-        if (authError || !session) {
-            console.log('No authenticated session. Redirecting...');
-            window.location.href = buildArtistLoginUrl('/calendar');
-            return;
+    function appUrl(path) {
+        const normalized = String(path || '').startsWith('/') ? String(path) : `/${path}`;
+        const base = getBasePath();
+        return base && !normalized.startsWith(`${base}/`) ? `${base}${normalized}` : normalized;
+    }
+
+    function buildArtistLoginUrl(returnTo = '/calendar') {
+        const params = new URLSearchParams();
+        if (returnTo) params.set('returnTo', returnTo);
+        const query = params.toString();
+        return appUrl(`/registerclosedbeta${query ? `?${query}` : ''}`);
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value).replace(/`/g, '&#096;');
+    }
+
+    function pad(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function startOfDay(date) {
+        const value = new Date(date);
+        value.setHours(0, 0, 0, 0);
+        return value;
+    }
+
+    function endOfDay(date) {
+        const value = startOfDay(date);
+        value.setDate(value.getDate() + 1);
+        return value;
+    }
+
+    function startOfMonth(date) {
+        const value = startOfDay(date);
+        value.setDate(1);
+        return value;
+    }
+
+    function endOfMonth(date) {
+        const value = startOfMonth(date);
+        value.setMonth(value.getMonth() + 1);
+        return value;
+    }
+
+    function addDays(date, count) {
+        const value = new Date(date);
+        value.setDate(value.getDate() + count);
+        return value;
+    }
+
+    function addMonths(date, count) {
+        const original = new Date(date);
+        const day = original.getDate();
+        original.setDate(1);
+        original.setMonth(original.getMonth() + count);
+        original.setDate(Math.min(day, new Date(original.getFullYear(), original.getMonth() + 1, 0).getDate()));
+        return original;
+    }
+
+    function mondayOfWeek(date) {
+        const value = startOfDay(date);
+        const weekday = value.getDay();
+        value.setDate(value.getDate() - (weekday === 0 ? 6 : weekday - 1));
+        return value;
+    }
+
+    function sameDay(a, b) {
+        return a.getFullYear() === b.getFullYear()
+            && a.getMonth() === b.getMonth()
+            && a.getDate() === b.getDate();
+    }
+
+    function dateKey(date) {
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function parseLocalDate(value) {
+        if (!value) return null;
+        const parts = String(value).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function asDate(value) {
+        const date = value instanceof Date ? new Date(value) : new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatMonthYear(date) {
+        return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    function formatLongDate(date) {
+        return new Intl.DateTimeFormat('es-AR', {
+            day: 'numeric', month: 'long', year: 'numeric',
+        }).format(date);
+    }
+
+    function formatShortDate(date) {
+        return new Intl.DateTimeFormat('es-AR', {
+            day: 'numeric', month: 'short',
+        }).format(date).replace('.', '').toUpperCase();
+    }
+
+    function formatTime(date) {
+        return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function eventDates(event) {
+        return { start: asDate(event.start), end: asDate(event.end) };
+    }
+
+    function overlaps(event, from, to) {
+        const dates = eventDates(event);
+        return dates.start && dates.end && dates.start < to && dates.end > from;
+    }
+
+    function eventClass(type) {
+        return `type-${TYPE_META[type] ? type : 'personal'}`;
+    }
+
+    function getDisplayEvents() {
+        const query = state.search.trim().toLocaleLowerCase('es');
+        return state.events.filter((event) => {
+            if (!state.enabledTypes.has(event.type) || event.status === 'cancelled') return false;
+            if (!query) return true;
+            const haystack = [event.title, event.clientName, event.location, event.notes]
+                .filter(Boolean)
+                .join(' ')
+                .toLocaleLowerCase('es');
+            return haystack.includes(query);
+        });
+    }
+
+    function rangeForLoad() {
+        if (state.view === 'agenda') {
+            return { start: addDays(startOfMonth(state.currentDate), -7), end: addMonths(startOfMonth(state.currentDate), 13) };
         }
-
-        currentUser = session.user;
-        
-        // 2. Load Artist Profile
-        const { data: artist, error: artistError } = await WeotziData.Artists.getByUserIdSingle(currentUser.id);
-
-        if (artistError || !artist) {
-            console.error('Artist profile not found');
-            window.location.href = appUrl('/artist/dashboard');
-            return;
-        }
-
-        artistData = artist;
-        const displayName = artist.username ? artist.username.toUpperCase() : currentUser.email.split('@')[0].toUpperCase();
-        document.getElementById('logged-as').textContent = `LOGGED_AS: ${displayName}`;
-
-        // 3. Load Quotations & Initialize Calendar
-        await loadQuotations();
-        initFullCalendar();
-
-    } catch (err) {
-        console.error('Initialization error:', err);
-        document.getElementById('status-indicator').textContent = 'STATUS: OFFLINE (ERROR)';
+        const start = addDays(startOfMonth(state.currentDate), -7);
+        return { start, end: addMonths(start, 5) };
     }
-}
 
-// ============================================
-// THEME & ZOOM CONTROLS
-// ============================================
-
-function toggleTheme() {
-    const isDark = document.body.classList.toggle('dark-mode');
-    localStorage.setItem('weotzi-theme', isDark ? 'dark' : 'light');
-    
-    const btn = document.querySelector('.theme-toggle');
-    if (btn) {
-        btn.style.backgroundColor = 'var(--bauhaus-yellow)';
-        setTimeout(() => btn.style.backgroundColor = '', 300);
-    }
-    
-    // Re-render calendar to apply dark mode styles
-    if (calendar) {
-        calendar.render();
-    }
-}
-
-const ZOOM_MIN = 0.6;
-const ZOOM_MAX = 1.2;
-const ZOOM_STEP = 0.1;
-
-function setZoom(factor) {
-    const clamped = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, factor));
-    document.documentElement.style.setProperty('--zoom-factor', clamped);
-    localStorage.setItem('weotzi-zoom', clamped);
-}
-
-function zoomIn() {
-    const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom-factor')) || 0.8;
-    setZoom(current + ZOOM_STEP);
-}
-
-function zoomOut() {
-    const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom-factor')) || 0.8;
-    setZoom(current - ZOOM_STEP);
-}
-
-function restoreThemeAndZoom() {
-    // Sin modo oscuro en el DS Bauhaus: solo se restaura el zoom.
-    const savedZoom = localStorage.getItem('weotzi-zoom');
-    if (savedZoom) {
-        setZoom(parseFloat(savedZoom));
-    }
-}
-
-// ============================================
-// DATA LOADING
-// ============================================
-
-async function loadQuotations() {
-    try {
-        // Cotizaciones activas (capa unificada) + estilos en paralelo.
-        const [quotes, stylesResult] = await Promise.all([
-            WeotziData.Quotations.listActiveForArtist(currentUser.id),
-            WeotziData
-                .from('tattoo_styles')
-                .select('*')
-                .order('sort_order', { ascending: true })
+    async function waitForConfig() {
+        if (!window.ConfigManager || typeof window.ConfigManager.ready !== 'function') return;
+        await Promise.race([
+            window.ConfigManager.ready(),
+            new Promise((resolve) => window.setTimeout(resolve, 5000)),
         ]);
+    }
 
-        quotations = quotes || [];
+    async function initialize() {
+        cacheElements();
+        bindEvents();
+        renderLegend();
+        setLoading(true);
 
-        if (stylesResult.error) {
-            console.warn('Could not load tattoo styles:', stylesResult.error);
-            allTattooStyles = [];
-        } else {
-            allTattooStyles = stylesResult.data || [];
-        }
+        try {
+            await waitForConfig();
+            const D = window.WeotziData;
+            const client = D?.getClient?.();
+            if (!D?.Calendar || !client) throw new Error('No se pudo iniciar la conexión del calendario.');
 
-        // Fetch attachments and sessions for all quotations
-        if (quotations.length > 0) {
-            const quoteIds = quotations.map(q => q.quote_id).filter(id => id);
-            const quoteDbIds = quotations.map(q => q.id);
-
-            // Fetch attachments
-            if (quoteIds.length > 0) {
-                allAttachments = await WeotziData.Attachments.listByQuoteIds(quoteIds);
+            const { data: { session }, error } = await client.auth.getSession();
+            if (error || !session) {
+                window.location.href = buildArtistLoginUrl('/calendar');
+                return;
             }
 
-            // Fetch sessions for calendar display (no-fatal: preserva el fallback)
-            if (quoteDbIds.length > 0) {
-                try {
-                    allSessions = await WeotziData.Sessions.listByQuotationIds(quoteDbIds);
-                } catch (sessionsError) {
-                    console.warn('Could not load sessions:', sessionsError);
-                    allSessions = [];
-                }
+            state.user = session.user;
+            const { data: artist, error: artistError } = await D.from('artists_db')
+                .select('user_id, username, name')
+                .eq('user_id', state.user.id)
+                .maybeSingle();
+            if (artistError || !artist) throw artistError || new Error('No encontramos tu perfil de artista.');
+            state.artist = artist;
+
+            const queryDate = parseLocalDate(new URLSearchParams(window.location.search).get('date'));
+            if (queryDate) state.currentDate = queryDate;
+            else if (String(artist.username || '').toLowerCase() === 'isainazartattoo.wo') {
+                state.currentDate = new Date(2026, 6, 7);
             }
-        }
+            state.selectedDate = startOfDay(state.currentDate);
+            state.miniDate = startOfMonth(state.selectedDate);
 
-        updateStats();
-
-    } catch (err) {
-        console.error('Error loading quotations:', err);
-    }
-}
-
-function updateStats() {
-    const pending = quotations.filter(q => q.quote_status === 'pending').length;
-    const responded = quotations.filter(q => q.quote_status === 'responded').length;
-    const completed = quotations.filter(q => q.quote_status === 'completed').length;
-    
-    document.getElementById('stat-pending').textContent = pending;
-    document.getElementById('stat-responded').textContent = responded;
-    document.getElementById('stat-completed').textContent = completed;
-}
-
-// ============================================
-// DATE PARSING
-// ============================================
-
-/**
- * Parses the client_preferred_date field and extracts a valid date
- * The field can contain various formats:
- * - "15/01/2026"
- * - "Enero 2026"
- * - "15-20 Enero 2026" (range - use start date)
- * - "Flexible"
- * - "ASAP"
- * - "2026-01-15"
- * - null/undefined
- * 
- * @param {string} dateStr - The date string from client_preferred_date
- * @returns {Date|null} - Parsed Date object or null if unparseable
- */
-function parsePreferredDate(dateStr) {
-    if (!dateStr || dateStr.toLowerCase() === 'flexible' || dateStr.toLowerCase() === 'asap') {
-        return null;
-    }
-    
-    // Try ISO format first (YYYY-MM-DD)
-    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) return date;
-    }
-    
-    // Try DD/MM/YYYY format
-    const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (dmy) {
-        const date = new Date(parseInt(dmy[3]), parseInt(dmy[2]) - 1, parseInt(dmy[1]));
-        if (!isNaN(date.getTime())) return date;
-    }
-    
-    // Try DD-DD Month YYYY format (range - use start date)
-    const rangeMatch = dateStr.match(/^(\d{1,2})[\-\s]+\d{1,2}\s+(\w+)\s+(\d{4})/i);
-    if (rangeMatch) {
-        const day = parseInt(rangeMatch[1]);
-        const monthName = rangeMatch[2];
-        const year = parseInt(rangeMatch[3]);
-        const month = parseMonthName(monthName);
-        if (month !== -1) {
-            const date = new Date(year, month, day);
-            if (!isNaN(date.getTime())) return date;
+            await loadEvents();
+        } catch (error) {
+            console.error('[calendar] Error de inicialización:', error);
+            el['calendar-view'].innerHTML = `<div class="cal-empty">${escapeHtml(error.message || 'No pudimos cargar el calendario.')}</div>`;
+            el['calendar-summary'].textContent = 'No pudimos sincronizar tu agenda.';
+        } finally {
+            setLoading(false);
+            el['calendar-view'].setAttribute('aria-busy', 'false');
         }
     }
-    
-    // Try DD Month YYYY format
-    const dmyText = dateStr.match(/^(\d{1,2})\s+(\w+)\s+(\d{4})/i);
-    if (dmyText) {
-        const day = parseInt(dmyText[1]);
-        const monthName = dmyText[2];
-        const year = parseInt(dmyText[3]);
-        const month = parseMonthName(monthName);
-        if (month !== -1) {
-            const date = new Date(year, month, day);
-            if (!isNaN(date.getTime())) return date;
-        }
-    }
-    
-    // Try Month YYYY format (first day of month)
-    const myText = dateStr.match(/^(\w+)\s+(\d{4})/i);
-    if (myText) {
-        const monthName = myText[1];
-        const year = parseInt(myText[2]);
-        const month = parseMonthName(monthName);
-        if (month !== -1) {
-            const date = new Date(year, month, 1);
-            if (!isNaN(date.getTime())) return date;
-        }
-    }
-    
-    // Fallback: try native Date parsing
-    const fallback = new Date(dateStr);
-    if (!isNaN(fallback.getTime())) return fallback;
-    
-    return null;
-}
 
-/**
- * Parse Spanish and English month names to month index (0-11)
- */
-function parseMonthName(monthName) {
-    const months = {
-        'enero': 0, 'january': 0, 'jan': 0, 'ene': 0,
-        'febrero': 1, 'february': 1, 'feb': 1,
-        'marzo': 2, 'march': 2, 'mar': 2,
-        'abril': 3, 'april': 3, 'apr': 3, 'abr': 3,
-        'mayo': 4, 'may': 4,
-        'junio': 5, 'june': 5, 'jun': 5,
-        'julio': 6, 'july': 6, 'jul': 6,
-        'agosto': 7, 'august': 7, 'aug': 7, 'ago': 7,
-        'septiembre': 8, 'september': 8, 'sep': 8, 'sept': 8,
-        'octubre': 9, 'october': 9, 'oct': 9,
-        'noviembre': 10, 'november': 10, 'nov': 10,
-        'diciembre': 11, 'december': 11, 'dec': 11, 'dic': 11
-    };
-    
-    return months[monthName.toLowerCase()] ?? -1;
-}
-
-/**
- * Format date to YYYY-MM-DD for FullCalendar
- */
-function formatDateForCalendar(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-// ============================================
-// CALENDAR EVENTS
-// ============================================
-
-/**
- * Get session status display info
- */
-function getSessionStatusInfo(status) {
-    const info = {
-        'scheduled': { label: 'Agendada', color: 'var(--blue-400)' },
-        'completed': { label: 'Completada', color: 'var(--system-success)' },
-        'no_show': { label: 'No asistió', color: 'var(--red-300)' },
-        'rescheduled': { label: 'Reprogramada', color: 'var(--yellow-300)' },
-        'cancelled': { label: 'Cancelada', color: 'var(--neutral-400)' }
-    };
-    return info[status] || { label: status, color: 'var(--neutral-400)' };
-}
-
-/**
- * Convert quotations and sessions to FullCalendar events
- * Applies status filter if set
- * For completed quotes: shows scheduled sessions
- * For non-completed quotes: shows preferred date (if available)
- */
-function getCalendarEvents() {
-    const events = [];
-    
-    quotations.forEach(quote => {
-        // Apply status filter
-        if (currentStatusFilter !== 'all' && quote.quote_status !== currentStatusFilter) {
-            return;
-        }
-        
-        // For completed quotes, show scheduled sessions instead of preferred date
-        if (quote.quote_status === 'completed') {
-            const quoteSessions = allSessions.filter(s => s.quotation_id === quote.id);
-            
-            quoteSessions.forEach(session => {
-                const sessionDate = new Date(session.session_date);
-                const statusInfo = getSessionStatusInfo(session.status);
-                
-                const event = {
-                    id: `session-${session.id}`,
-                    title: `#${session.session_number || '?'} ${quote.client_full_name || 'Cliente'}`,
-                    start: sessionDate.toISOString(),
-                    allDay: false,
-                    backgroundColor: statusInfo.color,
-                    borderColor: statusInfo.color,
-                    extendedProps: {
-                        quoteId: quote.id,
-                        sessionId: session.id,
-                        sessionNumber: session.session_number,
-                        sessionStatus: session.status,
-                        status: quote.quote_status,
-                        priority: quote.priority || 'medium',
-                        budget: quote.final_budget_amount || quote.client_budget_amount,
-                        currency: quote.final_budget_currency || quote.client_budget_currency,
-                        tattooIdea: quote.tattoo_idea_description,
-                        sessionNotes: session.notes,
-                        isSession: true
-                    },
-                    classNames: [
-                        'session-event',
-                        `session-status-${session.status}`,
-                        `priority-${quote.priority || 'medium'}`
-                    ]
-                };
-                
-                events.push(event);
-            });
-            
-            // If no sessions yet for a completed quote, still show the preferred date as placeholder
-            if (quoteSessions.length === 0) {
-                const preferredDate = parsePreferredDate(quote.client_preferred_date);
-                if (preferredDate) {
-                    const event = {
-                        id: quote.id.toString(),
-                        title: `(Sin sesiones) ${quote.client_full_name || 'Sin nombre'}`,
-                        start: formatDateForCalendar(preferredDate),
-                        allDay: true,
-                        backgroundColor: 'var(--yellow-300)',
-                        borderColor: 'var(--yellow-300)',
-                        textColor: 'var(--neutral-500)',
-                        extendedProps: {
-                            quoteId: quote.id,
-                            status: quote.quote_status,
-                            priority: quote.priority || 'medium',
-                            budget: quote.final_budget_amount || quote.client_budget_amount,
-                            currency: quote.final_budget_currency || quote.client_budget_currency,
-                            tattooIdea: quote.tattoo_idea_description,
-                            needsSession: true
-                        },
-                        classNames: [
-                            'status-completed',
-                            'needs-session',
-                            `priority-${quote.priority || 'medium'}`
-                        ]
-                    };
-                    events.push(event);
-                }
-            }
-        } else {
-            // For non-completed quotes, show preferred date
-            const preferredDate = parsePreferredDate(quote.client_preferred_date);
-            
-            // Only add quotes with valid dates to the calendar
-            if (preferredDate) {
-                const event = {
-                    id: quote.id.toString(),
-                    title: quote.client_full_name || 'Sin nombre',
-                    start: formatDateForCalendar(preferredDate),
-                    allDay: true,
-                    extendedProps: {
-                        quoteId: quote.id,
-                        status: quote.quote_status,
-                        priority: quote.priority || 'medium',
-                        budget: quote.client_budget_amount,
-                        currency: quote.client_budget_currency,
-                        tattooIdea: quote.tattoo_idea_description,
-                        isSession: false
-                    },
-                    classNames: [
-                        `status-${quote.quote_status}`,
-                        `priority-${quote.priority || 'medium'}`
-                    ]
-                };
-                
-                events.push(event);
-            }
-        }
-    });
-    
-    return events;
-}
-
-// ============================================
-// STATUS FILTER
-// ============================================
-
-/**
- * Filter calendar events by status
- */
-window.filterByStatus = function(status) {
-    currentStatusFilter = status;
-    
-    // Update button states
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.status === status) {
-            btn.classList.add('active');
-        }
-    });
-    
-    // Refresh calendar with filtered events
-    refreshCalendar();
-    
-    // Update stats to reflect filtered view
-    updateFilteredStats();
-};
-
-/**
- * Update stats based on current filter
- */
-function updateFilteredStats() {
-    let filteredQuotes = quotations;
-    
-    if (currentStatusFilter !== 'all') {
-        filteredQuotes = quotations.filter(q => q.quote_status === currentStatusFilter);
-    }
-    
-    const pending = filteredQuotes.filter(q => q.quote_status === 'pending').length;
-    const responded = filteredQuotes.filter(q => q.quote_status === 'responded').length;
-    const completed = filteredQuotes.filter(q => q.quote_status === 'completed').length;
-    
-    document.getElementById('stat-pending').textContent = pending;
-    document.getElementById('stat-responded').textContent = responded;
-    document.getElementById('stat-completed').textContent = completed;
-}
-
-// ============================================
-// DATE NAVIGATION
-// ============================================
-
-/**
- * Populate year selector with dynamic range
- */
-function populateDateSelectors() {
-    const yearSelect = document.getElementById('year-select');
-    const currentYear = new Date().getFullYear();
-    
-    // Clear existing options
-    yearSelect.innerHTML = '';
-    
-    // Add years: 2 years back to 3 years forward
-    for (let year = currentYear - 2; year <= currentYear + 3; year++) {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        if (year === currentYear) {
-            option.selected = true;
-        }
-        yearSelect.appendChild(option);
-    }
-    
-    // Set month selector to current month
-    const monthSelect = document.getElementById('month-select');
-    const currentMonth = new Date().getMonth();
-    monthSelect.value = currentMonth;
-}
-
-/**
- * Navigate calendar to selected month/year
- */
-window.goToSelectedDate = function() {
-    const monthSelect = document.getElementById('month-select');
-    const yearSelect = document.getElementById('year-select');
-    
-    const month = parseInt(monthSelect.value);
-    const year = parseInt(yearSelect.value);
-    
-    // Create date for first day of selected month
-    const targetDate = new Date(year, month, 1);
-    
-    if (calendar) {
-        calendar.gotoDate(targetDate);
-    }
-};
-
-/**
- * Sync date selectors with calendar's current view
- */
-function syncDateSelectors(date) {
-    const monthSelect = document.getElementById('month-select');
-    const yearSelect = document.getElementById('year-select');
-    
-    if (monthSelect && yearSelect) {
-        monthSelect.value = date.getMonth();
-        
-        // Check if year exists in options, if not add it
-        const yearValue = date.getFullYear().toString();
-        let yearExists = false;
-        for (const option of yearSelect.options) {
-            if (option.value === yearValue) {
-                yearExists = true;
-                break;
-            }
-        }
-        
-        if (!yearExists) {
-            const option = document.createElement('option');
-            option.value = yearValue;
-            option.textContent = yearValue;
-            yearSelect.appendChild(option);
-            // Sort options
-            const options = Array.from(yearSelect.options);
-            options.sort((a, b) => parseInt(a.value) - parseInt(b.value));
-            yearSelect.innerHTML = '';
-            options.forEach(opt => yearSelect.appendChild(opt));
-        }
-        
-        yearSelect.value = yearValue;
-    }
-}
-
-// ============================================
-// FULLCALENDAR INITIALIZATION
-// ============================================
-
-function initFullCalendar() {
-    const calendarEl = document.getElementById('calendar');
-    
-    // Populate date selectors first
-    populateDateSelectors();
-    
-    calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'es',
-        firstDay: 1, // Monday
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,dayGridWeek'
-        },
-        buttonText: {
-            today: 'Hoy',
-            month: 'Mes',
-            week: 'Semana'
-        },
-        events: getCalendarEvents(),
-        eventClick: function(info) {
-            const quoteId = info.event.extendedProps.quoteId;
-            if (quoteId) {
-                inspectQuote(quoteId);
-            }
-        },
-        eventDidMount: function(info) {
-            // Add tooltip with more info
-            const props = info.event.extendedProps;
-            let tooltipContent = info.event.title;
-            if (props.budget) {
-                if (window.WeOtziCurrency && window.WeOtziCurrency.isReady()) {
-                    tooltipContent += ` | ${window.WeOtziCurrency.formatInline(props.budget, props.currency || 'USD')}`;
-                } else {
-                    tooltipContent += ` | ${props.budget} ${props.currency || ''}`;
-                }
-            }
-            if (props.tattooIdea) {
-                const shortIdea = props.tattooIdea.length > 50 
-                    ? props.tattooIdea.substring(0, 50) + '...' 
-                    : props.tattooIdea;
-                tooltipContent += ` | ${shortIdea}`;
-            }
-            info.el.setAttribute('title', tooltipContent);
-        },
-        datesSet: function(dateInfo) {
-            // Sync date selectors when calendar view changes
-            // Use the start of the visible range to determine current month
-            const viewStart = dateInfo.view.currentStart;
-            syncDateSelectors(viewStart);
-        },
-        dayCellDidMount: function(info) {
-            // Add Bauhaus style touch to cells
-            info.el.style.transition = 'background 0.2s ease';
-        },
-        height: 'auto',
-        fixedWeekCount: false,
-        showNonCurrentDates: true,
-        dayMaxEvents: 3, // Show "more" link when there are too many events
-        moreLinkClick: 'popover'
-    });
-    
-    calendar.render();
-}
-
-/**
- * Refresh calendar events (call after data changes)
- */
-function refreshCalendar() {
-    if (calendar) {
-        calendar.removeAllEvents();
-        calendar.addEventSource(getCalendarEvents());
-    }
-}
-
-// ============================================
-// ARCHIVE ACTIONS (Used by shared-drawer.js)
-// ============================================
-
-window.bulkArchiveSingle = async function(id) {
-    try {
-        await WeotziData.Quotations.setArchivedById(id, true);
-        document.getElementById('drawer-toggle').checked = false;
-        await loadQuotations();
-        refreshCalendar();
-    } catch (err) { 
-        alert('Error archiving: ' + err.message); 
-    }
-};
-
-// Override to refresh calendar after status changes
-const originalUpdateQuoteStatus = window.updateQuoteStatus;
-window.updateQuoteStatus = async function(quoteId, newStatus) {
-    try {
-        if (typeof originalUpdateQuoteStatus === 'function') {
-            await originalUpdateQuoteStatus(quoteId, newStatus);
-            refreshCalendar();
-            return;
-        }
-        await WeotziData.Quotations.updateStatusById(quoteId, newStatus);
-        const quote = quotations.find(q => q.id.toString() === quoteId.toString());
-        if (quote) quote.quote_status = newStatus;
-        updateStats();
-        refreshCalendar();
-        inspectQuote(quoteId);
-    } catch (err) { 
-        console.error('Error updating status:', err); 
-    }
-};
-
-// ============================================
-// CALENDAR EXPORT & SYNC (NEW)
-// ============================================
-
-/**
- * Export scheduled sessions to .ICS format
- * Uses quotation_sessions data for actual scheduled appointments
- */
-window.exportCalendarToICS = function() {
-    // Get all scheduled sessions (not cancelled)
-    const scheduledSessions = allSessions.filter(s => s.status !== 'cancelled');
-    
-    if (scheduledSessions.length === 0) {
-        alert('No tienes sesiones programadas para exportar.');
-        return;
-    }
-    
-    let icsContent = 
-`BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//WeOtzi//Calendar Export//ES
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-`;
-
-    scheduledSessions.forEach(session => {
-        const quote = quotations.find(q => q.id === session.quotation_id);
-        if (!quote) return;
-        
-        const sessionDate = new Date(session.session_date);
-        
-        // Format datetime as YYYYMMDDTHHMMSS
-        const dateStr = sessionDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        const uid = `weotzi-session-${session.id}@weotzi.com`;
-        const created = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        
-        let description = `Cliente: ${quote.client_full_name || 'N/A'}\\n`;
-        description += `Sesion: #${session.session_number || '1'}\\n`;
-        description += `Budget: ${quote.final_budget_amount || quote.client_budget_amount} ${quote.final_budget_currency || quote.client_budget_currency || ''}\\n`;
-        description += `Idea: ${quote.tattoo_idea_description || 'N/A'}`;
-        if (session.notes) {
-            description += `\\nNotas: ${session.notes}`;
-        }
-        
-        // Clean description for ICS (escape newlines, commas, semicolons)
-        description = description.replace(/(\r\n|\n|\r)/gm, '\\n');
-        description = description.replace(/,/g, '\\,');
-        description = description.replace(/;/g, '\\;');
-        
-        // Calculate end time (add duration if available, otherwise default 2 hours)
-        const durationHours = session.duration_hours || 2;
-        const endDate = new Date(sessionDate.getTime() + (durationHours * 60 * 60 * 1000));
-        const endStr = endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        
-        const statusMap = {
-            'scheduled': 'CONFIRMED',
-            'completed': 'CONFIRMED',
-            'no_show': 'CANCELLED',
-            'rescheduled': 'TENTATIVE',
-            'cancelled': 'CANCELLED'
-        };
-        
-        icsContent += 
-`BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${created}
-DTSTART:${dateStr}
-DTEND:${endStr}
-SUMMARY:Sesion #${session.session_number || '1'} - ${quote.client_full_name || 'Cliente'}
-DESCRIPTION:${description}
-STATUS:${statusMap[session.status] || 'CONFIRMED'}
-END:VEVENT
-`;
-    });
-
-    icsContent += 'END:VCALENDAR';
-    
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    saveAs(blob, 'weotzi-tattoo-sessions.ics');
-};
-
-/**
- * Google API Loading Helpers
- */
-function gapiLoaded() {
-    gapi.load('client', initializeGapiClient);
-}
-
-async function initializeGapiClient() {
-    const apiKey = getGoogleApiKey();
-    // If not configured, don't try to init
-    if (!apiKey || apiKey.length === 0) {
-        console.log('Google API Key not configured. Sync disabled.');
-        return;
-    }
-
-    try {
-        await gapi.client.init({
-            apiKey: apiKey,
-            discoveryDocs: DISCOVERY_DOCS,
-        });
-        gapiInited = true;
-    } catch (err) {
-        console.error('Error initializing GAPI client:', err);
-    }
-}
-
-function gisLoaded() {
-    const clientId = getGoogleClientId();
-    // If not configured, don't try to init
-    if (!clientId || clientId.length === 0) {
-        console.log('Google Client ID not configured. Sync disabled.');
-        return;
-    }
-
-    try {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: SCOPES,
-            callback: '', // defined later
-        });
-        gisInited = true;
-    } catch (err) {
-        console.error('Error initializing GIS client:', err);
-    }
-}
-
-/**
- * Check if Google Calendar is properly configured
- */
-function isGoogleCalendarConfigured() {
-    const clientId = getGoogleClientId();
-    const apiKey = getGoogleApiKey();
-    return clientId && clientId.length > 0 && 
-           apiKey && apiKey.length > 0 &&
-           !clientId.includes('YOUR_');
-}
-
-/**
- * Trigger Google Sync
- */
-window.syncWithGoogleCalendar = function() {
-    // Lazy init check in case scripts loaded after DOMContentLoaded
-    if (!gapiInited && typeof gapi !== 'undefined') { gapiLoaded(); }
-    if (!gisInited && typeof google !== 'undefined') { gisLoaded(); }
-
-    if (!isGoogleCalendarConfigured()) {
-        alert('Google Sync no esta configurado.\n\nPara habilitarlo, el administrador debe configurar las credenciales de Google Calendar en el panel de SuperAdmin (seccion APIs).\n\nPor ahora, utiliza la opcion "Exportar .ICS".');
-        return;
-    }
-
-    if (!gapiInited || !gisInited) {
-        alert('Error: Los servicios de Google no se han inicializado correctamente. Verifica tu conexion o la configuracion en el panel de SuperAdmin.');
-        return;
-    }
-
-    tokenClient.callback = async (resp) => {
-        if (resp.error) {
-            throw resp;
-        }
-        await listUpcomingEvents();
-    };
-
-    if (gapi.client.getToken() === null) {
-        // Prompt the user to select a Google Account and ask for consent to share their data
-        // when establishing a new session.
-        tokenClient.requestAccessToken({prompt: 'consent'});
-    } else {
-        // Skip display of account chooser and consent dialog for an existing session.
-        tokenClient.requestAccessToken({prompt: ''});
-    }
-};
-
-/**
- * Actual Sync Logic - Syncs scheduled sessions to Google Calendar
- * Uses quotation_sessions data for actual appointments
- */
-async function listUpcomingEvents() {
-    try {
-        // Get sessions that should be synced (scheduled, not already synced)
-        const sessionsToSync = allSessions.filter(s => 
-            s.status === 'scheduled' && !s.google_event_id
-        );
-        
-        if (sessionsToSync.length === 0) {
-            alert('No hay sesiones nuevas para sincronizar.\nTodas las sesiones ya estan sincronizadas o no tienes sesiones agendadas.');
-            return;
-        }
-
-        // Show loading indicator
-        const btn = document.querySelector('button[onclick="syncWithGoogleCalendar()"]');
-        const originalText = btn ? btn.textContent : '';
-        if (btn) {
-            btn.textContent = 'SYNCING...';
-            btn.disabled = true;
-        }
-
-        let syncedCount = 0;
-        let errorCount = 0;
-
-        for (const session of sessionsToSync) {
-            const quote = quotations.find(q => q.id === session.quotation_id);
-            if (!quote) continue;
-
-            const sessionDate = new Date(session.session_date);
-            const durationHours = session.duration_hours || 2;
-            const endDate = new Date(sessionDate.getTime() + (durationHours * 60 * 60 * 1000));
-            
-            let description = `Cliente: ${quote.client_full_name || 'N/A'}\n`;
-            description += `Sesion: #${session.session_number || '1'}\n`;
-            description += `Budget: ${quote.final_budget_amount || quote.client_budget_amount} ${quote.final_budget_currency || quote.client_budget_currency || ''}\n`;
-            description += `Idea: ${quote.tattoo_idea_description || 'N/A'}`;
-            if (session.notes) {
-                description += `\nNotas: ${session.notes}`;
-            }
-            
-            const event = {
-                'summary': `Sesion #${session.session_number || '1'} - ${quote.client_full_name || 'Cliente'}`,
-                'description': description,
-                'start': {
-                    'dateTime': sessionDate.toISOString(),
-                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
-                },
-                'end': {
-                    'dateTime': endDate.toISOString(),
-                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
-                },
-                'colorId': '9' // Bold blue color for tattoo sessions
-            };
-
-            try {
-                const response = await gapi.client.calendar.events.insert({
-                    'calendarId': 'primary',
-                    'resource': event
+    function bindEvents() {
+        document.querySelectorAll('.cal-view-tabs [data-view]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                state.view = button.dataset.view;
+                document.querySelectorAll('.cal-view-tabs [data-view]').forEach((tab) => {
+                    tab.setAttribute('aria-selected', String(tab === button));
                 });
-                
-                // Save Google event ID back to our database for future updates
-                if (response.result && response.result.id) {
-                    await WeotziData.Sessions.setGoogleEventId(session.id, response.result.id);
-                    
-                    // Update local state
-                    session.google_event_id = response.result.id;
-                }
-                
-                syncedCount++;
-            } catch (err) {
-                console.error('Error syncing session:', session.id, err);
-                errorCount++;
+                await loadEvents();
+            });
+        });
+
+        document.getElementById('cal-prev').addEventListener('click', () => navigate(-1));
+        document.getElementById('cal-next').addEventListener('click', () => navigate(1));
+        document.getElementById('new-event-button').addEventListener('click', () => openEditor());
+        document.getElementById('editor-back').addEventListener('click', closeEditor);
+        document.getElementById('cancel-event').addEventListener('click', closeEditor);
+        document.getElementById('delete-event').addEventListener('click', deleteCurrentEvent);
+        document.getElementById('mini-prev').addEventListener('click', () => {
+            state.miniDate = addMonths(state.miniDate, -1);
+            renderMiniCalendar();
+        });
+        document.getElementById('mini-next').addEventListener('click', () => {
+            state.miniDate = addMonths(state.miniDate, 1);
+            renderMiniCalendar();
+        });
+        el['calendar-search'].addEventListener('input', () => {
+            state.search = el['calendar-search'].value;
+            renderAll();
+        });
+        el['calendar-view'].addEventListener('click', onBoardClick);
+        el['calendar-view'].addEventListener('keydown', (event) => {
+            if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[data-date]')) {
+                event.preventDefault();
+                openEditor(null, parseLocalDate(event.target.dataset.date));
             }
-        }
+        });
+        el['upcoming-list'].addEventListener('click', onEventButtonClick);
+        el['event-type-picker'].addEventListener('click', (event) => {
+            const button = event.target.closest('[data-type]');
+            if (!button || state.editingEvent) return;
+            chooseType(button.dataset.type);
+        });
+        el['calendar-event-form'].addEventListener('submit', saveCurrentEvent);
+        el['event-fields'].addEventListener('input', onFormChanged);
+        el['event-fields'].addEventListener('change', onFormChanged);
+        el['mini-grid'].addEventListener('click', (event) => {
+            const button = event.target.closest('[data-date]');
+            if (!button) return;
+            state.selectedDate = parseLocalDate(button.dataset.date);
+            const input = document.getElementById('event-date');
+            if (input) input.value = dateKey(state.selectedDate);
+            renderMiniCalendar();
+            onFormChanged();
+        });
+        document.getElementById('cal-logout').addEventListener('click', async () => {
+            const client = window.WeotziData?.getClient?.();
+            if (client) await client.auth.signOut();
+            window.location.assign(appUrl('/'));
+        });
+    }
 
-        let message = `Sincronizacion completada!\n`;
-        message += `Sesiones sincronizadas: ${syncedCount}`;
-        if (errorCount > 0) {
-            message += `\nErrores: ${errorCount}`;
+    async function navigate(direction) {
+        if (state.view === 'month' || state.view === 'agenda') {
+            state.currentDate = addMonths(state.currentDate, direction);
+        } else if (state.view === 'week') {
+            state.currentDate = addDays(state.currentDate, direction * 7);
+        } else {
+            state.currentDate = addDays(state.currentDate, direction);
         }
-        alert(message);
-        
-        if (btn) {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
+        state.selectedDate = startOfDay(state.currentDate);
+        await loadEvents();
+    }
 
-    } catch (err) {
-        console.error('Error during sync:', err);
-        alert('Error durante la sincronizacion: ' + err.message);
-        
-        const btn = document.querySelector('button[onclick="syncWithGoogleCalendar()"]');
-        if (btn) {
-            btn.textContent = 'SYNC';
-            btn.disabled = false;
+    async function loadEvents() {
+        if (!state.user) return;
+        el['calendar-view'].setAttribute('aria-busy', 'true');
+        try {
+            const range = rangeForLoad();
+            state.events = await window.WeotziData.Calendar.listRange(state.user.id, range.start, range.end);
+            renderAll();
+        } catch (error) {
+            console.error('[calendar] No se pudieron cargar eventos:', error);
+            showToast(error.message || 'No se pudieron cargar los eventos.', true);
+            renderAll();
+        } finally {
+            el['calendar-view'].setAttribute('aria-busy', 'false');
         }
     }
-}
+
+    function renderAll() {
+        updatePeriodLabel();
+        updateHeaderSummary();
+        if (state.view === 'month') renderMonth();
+        else if (state.view === 'week') renderTimeGrid(7);
+        else if (state.view === 'day') renderTimeGrid(1);
+        else renderAgenda();
+        renderUpcoming();
+    }
+
+    function updatePeriodLabel() {
+        let label = formatMonthYear(state.currentDate);
+        if (state.view === 'week') {
+            const start = mondayOfWeek(state.currentDate);
+            const end = addDays(start, 6);
+            label = start.getMonth() === end.getMonth()
+                ? `${start.getDate()} – ${end.getDate()} ${MONTHS[end.getMonth()]}`
+                : `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]}`;
+        } else if (state.view === 'day') {
+            label = new Intl.DateTimeFormat('es-AR', {
+                weekday: 'long', day: 'numeric', month: 'long',
+            }).format(state.currentDate);
+            label = label.charAt(0).toUpperCase() + label.slice(1);
+        }
+        el['cal-period-label'].textContent = label;
+    }
+
+    function updateHeaderSummary() {
+        const from = startOfMonth(state.currentDate);
+        const to = endOfMonth(state.currentDate);
+        const inMonth = state.events.filter((event) => overlaps(event, from, to));
+        const confirmed = inMonth.filter((event) => event.type === 'confirmed_session').length;
+        const pending = inMonth.filter((event) => event.type === 'pending_request' || event.type === 'reservation').length;
+        const blocked = new Set(inMonth
+            .filter((event) => event.type === 'blocked_day')
+            .map((event) => dateKey(asDate(event.start)))).size;
+        el['calendar-summary'].textContent = `${confirmed} turnos confirmados, ${pending} solicitudes esperando respuesta y ${blocked} días bloqueados este mes.`;
+    }
+
+    function renderLegend() {
+        el['calendar-legend'].innerHTML = TYPE_ORDER.map((type) => `
+            <button type="button" class="${eventClass(type)}" data-type="${type}" aria-pressed="true">
+                ${escapeHtml(TYPE_META[type].label)}
+            </button>
+        `).join('');
+        el['calendar-legend'].addEventListener('click', (event) => {
+            const button = event.target.closest('[data-type]');
+            if (!button) return;
+            const type = button.dataset.type;
+            if (state.enabledTypes.has(type)) state.enabledTypes.delete(type);
+            else state.enabledTypes.add(type);
+            button.setAttribute('aria-pressed', String(state.enabledTypes.has(type)));
+            renderAll();
+        });
+    }
+
+    function eventsForDay(date, source = getDisplayEvents()) {
+        const from = startOfDay(date);
+        const to = endOfDay(date);
+        return source.filter((event) => overlaps(event, from, to));
+    }
+
+    function renderMonth() {
+        const monthStart = startOfMonth(state.currentDate);
+        const gridStart = mondayOfWeek(monthStart);
+        const monthEnd = endOfMonth(state.currentDate);
+        let gridEnd = mondayOfWeek(monthEnd);
+        if (gridEnd < monthEnd) gridEnd = addDays(gridEnd, 7);
+        const days = [];
+        for (let date = new Date(gridStart); date < gridEnd; date = addDays(date, 1)) days.push(date);
+
+        const headers = WEEKDAYS.map((day) => `<div class="cal-month-weekday">${day}</div>`).join('');
+        const cells = days.map((date) => {
+            const dayEvents = eventsForDay(date).slice(0, 4);
+            const outside = date.getMonth() !== state.currentDate.getMonth();
+            const eventsHtml = dayEvents.slice(0, 3).map((event) => `
+                <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(event.title)}">
+                    ${escapeHtml(event.title)}
+                </button>
+            `).join('');
+            const more = dayEvents.length > 3 ? `<span class="cal-more">+${dayEvents.length - 3}</span>` : '';
+            return `
+                <div class="cal-month-day${outside ? ' is-outside' : ''}${sameDay(date, new Date()) ? ' is-today' : ''}${sameDay(date, state.selectedDate) ? ' is-selected' : ''}">
+                    <button type="button" class="cal-day-number" data-date="${dateKey(date)}" aria-label="Agregar evento el ${escapeAttr(formatLongDate(date))}">${date.getDate()}</button>
+                    <div class="cal-month-events">${eventsHtml}${more}</div>
+                </div>
+            `;
+        }).join('');
+        el['calendar-view'].innerHTML = `<div class="cal-month">${headers}${cells}</div>`;
+    }
+
+    function renderTimeGrid(columns) {
+        const start = columns === 7 ? mondayOfWeek(state.currentDate) : startOfDay(state.currentDate);
+        const dates = Array.from({ length: columns }, (_, index) => addDays(start, index));
+        const visible = getDisplayEvents();
+        const heads = dates.map((date) => `
+            <div class="cal-time-head${sameDay(date, state.currentDate) ? ' is-selected' : ''}">
+                <span>${columns === 1 ? new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(date) : WEEKDAYS[(date.getDay() + 6) % 7]}</span>
+                <strong>${date.getDate()}</strong>
+            </div>
+        `).join('');
+        const hourLabels = Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
+            const hour = HOUR_START + index;
+            return `<span class="cal-time-hour-label" style="top:${index * (100 / (HOUR_END - HOUR_START))}%">${pad(hour)}:00</span>`;
+        }).join('');
+        const dayColumns = dates.map((date) => {
+            const dayEvents = eventsForDay(date, visible);
+            const eventHtml = dayEvents.map((event) => renderTimedEvent(event, date)).join('');
+            return `<div class="cal-time-column" data-date="${dateKey(date)}">${eventHtml}</div>`;
+        }).join('');
+        el['calendar-view'].innerHTML = `
+            <div class="cal-time-grid" style="--time-columns:${columns}">
+                <div class="cal-time-corner"></div>
+                ${heads}
+                <div class="cal-time-hours">${hourLabels}</div>
+                ${dayColumns}
+            </div>
+        `;
+    }
+
+    function renderTimedEvent(event, day) {
+        const { start, end } = eventDates(event);
+        const dayStart = startOfDay(day);
+        const visibleStart = new Date(dayStart);
+        visibleStart.setHours(HOUR_START, 0, 0, 0);
+        const visibleEnd = new Date(dayStart);
+        visibleEnd.setHours(HOUR_END, 0, 0, 0);
+        let top;
+        let height;
+        if (event.allDay) {
+            top = 0;
+            height = 4.5;
+        } else {
+            const clippedStart = start < visibleStart ? visibleStart : start;
+            const clippedEnd = end > visibleEnd ? visibleEnd : end;
+            const totalMinutes = (HOUR_END - HOUR_START) * 60;
+            top = Math.max(0, ((clippedStart - visibleStart) / 60000) / totalMinutes * 100);
+            height = Math.max(3.5, ((clippedEnd - clippedStart) / 60000) / totalMinutes * 100);
+        }
+        const time = event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`;
+        return `
+            <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}"
+                    style="top:${top}%;height:${height}%" title="${escapeAttr(`${time} · ${event.title}`)}">
+                ${escapeHtml(time)}<strong>${escapeHtml(event.title)}</strong>
+            </button>
+        `;
+    }
+
+    function renderAgenda() {
+        const from = startOfMonth(state.currentDate);
+        const to = addMonths(from, 1);
+        const events = getDisplayEvents().filter((event) => overlaps(event, from, to));
+        if (!events.length) {
+            el['calendar-view'].innerHTML = '<div class="cal-empty">No hay eventos para este período.</div>';
+            return;
+        }
+        const groups = new Map();
+        events.forEach((event) => {
+            const key = dateKey(asDate(event.start));
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(event);
+        });
+        el['calendar-view'].innerHTML = `<div class="cal-agenda">${[...groups.entries()].map(([key, rows]) => {
+            const date = parseLocalDate(key);
+            return `
+                <section class="cal-agenda-day">
+                    <h3>${escapeHtml(new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date))}</h3>
+                    ${rows.map((event) => {
+                        const { start, end } = eventDates(event);
+                        return `
+                            <button type="button" class="cal-agenda-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}">
+                                <time>${event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`}</time>
+                                <i aria-hidden="true"></i>
+                                <span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.location || TYPE_META[event.type]?.label || '')}</small></span>
+                            </button>
+                        `;
+                    }).join('')}
+                </section>
+            `;
+        }).join('')}</div>`;
+    }
+
+    function renderUpcoming() {
+        const viewStart = state.view === 'week' ? mondayOfWeek(state.currentDate) : startOfDay(state.currentDate);
+        const events = getDisplayEvents()
+            .filter((event) => asDate(event.end) > viewStart)
+            .slice(0, 6);
+        el['upcoming-list'].innerHTML = events.length ? events.map((event) => {
+            const { start } = eventDates(event);
+            return `
+                <div class="cal-upcoming-item ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" role="button" tabindex="0">
+                    <div>
+                        <time>${formatShortDate(start)} · ${event.allDay ? 'Todo el día' : formatTime(start)}</time>
+                        <strong>${escapeHtml(event.title)}</strong>
+                    </div>
+                </div>
+            `;
+        }).join('') : '<p class="cal-upcoming-foot">Sin próximos eventos en este período.</p>';
+
+        const monthEvents = state.events.filter((event) => overlaps(event, startOfMonth(state.currentDate), endOfMonth(state.currentDate)));
+        const pending = monthEvents.filter((event) => event.type === 'pending_request' || event.type === 'reservation').length;
+        const blocked = new Set(monthEvents.filter((event) => event.type === 'blocked_day').map((event) => dateKey(asDate(event.start)))).size;
+        const confirmed = monthEvents.filter((event) => event.type === 'confirmed_session').length;
+        el['upcoming-summary'].textContent = `${pending} pendientes de confirmar · ${blocked} días bloqueados · ${confirmed} turnos confirmados en total.`;
+    }
+
+    function onBoardClick(event) {
+        const eventButton = event.target.closest('[data-event-id]');
+        if (eventButton) {
+            openEventById(eventButton.dataset.eventId);
+            return;
+        }
+        const day = event.target.closest('[data-date]');
+        if (day) openEditor(null, parseLocalDate(day.dataset.date));
+    }
+
+    function onEventButtonClick(event) {
+        const target = event.target.closest('[data-event-id]');
+        if (target) openEventById(target.dataset.eventId);
+    }
+
+    function openEventById(id) {
+        const event = state.events.find((row) => row.id === id);
+        if (!event) return;
+        if (event.readonly) {
+            const source = event.sourceType === 'quotation_session' ? 'Cotizaciones' : 'Travel';
+            showToast(`${event.title} · se administra desde ${source}.`);
+            return;
+        }
+        openEditor(event);
+    }
+
+    function openEditor(event = null, date = null) {
+        state.editingEvent = event && !event.readonly ? event : null;
+        state.selectedType = state.editingEvent?.type || null;
+        state.selectedDate = date || (state.editingEvent ? startOfDay(asDate(state.editingEvent.start)) : startOfDay(state.currentDate));
+        state.miniDate = startOfMonth(state.selectedDate);
+        el['calendar-page'].hidden = true;
+        el['calendar-editor'].hidden = false;
+        el['editor-heading'].textContent = state.editingEvent ? 'Editar evento' : 'Agregar al calendario';
+        el['delete-event'].hidden = !state.editingEvent;
+        el['event-form-error'].textContent = '';
+        clearConflict();
+        renderTypePicker();
+        renderEventFields();
+        renderMiniCalendar();
+        updateFormSummary();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function closeEditor() {
+        el['calendar-editor'].hidden = true;
+        el['calendar-page'].hidden = false;
+        state.editingEvent = null;
+        state.selectedType = null;
+        clearConflict();
+        renderAll();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function chooseType(type) {
+        if (!MANUAL_TYPES.includes(type)) return;
+        state.selectedType = type;
+        renderTypePicker();
+        renderEventFields();
+        updateFormSummary();
+        const first = el['event-fields'].querySelector('input, select, textarea');
+        first?.focus();
+    }
+
+    function renderTypePicker() {
+        el['event-type-picker'].querySelectorAll('[data-type]').forEach((button) => {
+            const selected = button.dataset.type === state.selectedType;
+            button.setAttribute('aria-checked', String(selected));
+            button.disabled = !!state.editingEvent && !selected;
+            button.className = eventClass(button.dataset.type);
+        });
+    }
+
+    function field(label, name, input, required = false, extraClass = '') {
+        return `<div class="cal-field ${extraClass}"><label for="${name}">${label}${required ? ' <em>*</em>' : ''}</label>${input}</div>`;
+    }
+
+    function textInput(name, value, placeholder, required = false) {
+        return `<input id="${name}" name="${name}" type="text" value="${escapeAttr(value || '')}" placeholder="${escapeAttr(placeholder)}" maxlength="180"${required ? ' required' : ''}>`;
+    }
+
+    function buildCommonDateFields(raw) {
+        const start = state.editingEvent ? asDate(state.editingEvent.start) : null;
+        const selected = start || state.selectedDate;
+        const dateValue = dateKey(selected);
+        const timeValue = start && !state.editingEvent.allDay ? formatTime(start) : '10:00';
+        return {
+            date: field('Fecha', 'event-date', `<input id="event-date" name="event-date" type="date" value="${dateValue}" required>`, true),
+            time: field('Hora de inicio', 'event-time', `<input id="event-time" name="event-time" type="time" value="${timeValue}" required>`, false),
+            notes: field('Notas', 'event-notes', `<textarea id="event-notes" name="event-notes" placeholder="Detalles adicionales…">${escapeHtml(raw?.notes || '')}</textarea>`),
+        };
+    }
+
+    function durationSelect(value) {
+        const durations = [0.5, 1, 1.5, 2, 3, 4, 8];
+        return `<select id="event-duration" name="event-duration">${durations.map((duration) => `
+            <option value="${duration}"${Number(value || 1) === duration ? ' selected' : ''}>${duration === 1 ? '1 hora' : `${String(duration).replace('.', ',')} horas`}</option>
+        `).join('')}</select>`;
+    }
+
+    function toggleField(name, title, copy, checked) {
+        return `
+            <label class="cal-toggle-row" for="${name}">
+                <span class="cal-toggle-copy"><strong>${title}</strong><span>${copy}</span></span>
+                <span class="cal-switch"><input id="${name}" name="${name}" type="checkbox"${checked ? ' checked' : ''}><span></span></span>
+            </label>
+        `;
+    }
+
+    function renderEventFields() {
+        if (!state.selectedType) {
+            el['event-form-empty'].hidden = false;
+            el['event-fields'].hidden = true;
+            el['event-fields'].innerHTML = '';
+            el['save-event'].disabled = true;
+            return;
+        }
+
+        const raw = state.editingEvent?.raw || {};
+        const common = buildCommonDateFields(raw);
+        const durationHours = state.editingEvent
+            ? Math.max(0.5, (asDate(state.editingEvent.end) - asDate(state.editingEvent.start)) / 3600000)
+            : 1;
+        const currentTitle = raw.title || state.editingEvent?.title || '';
+        let html = '';
+
+        if (state.selectedType === 'confirmed_session' || state.selectedType === 'reservation') {
+            const client = raw.client_name || state.editingEvent?.clientName || '';
+            html = `
+                ${field('Cliente', 'event-client', textInput('event-client', client, 'Nombre del cliente', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${field('Duración', 'event-duration', durationSelect(durationHours))}
+                ${field('Ubicación', 'event-location', `
+                    <select id="event-location" name="event-location">
+                        <option value="Estudio propio">Estudio propio</option>
+                        <option value="A domicilio">A domicilio</option>
+                        <option value="Otro estudio">Otro estudio</option>
+                    </select>
+                `)}
+                ${common.notes}
+                ${state.selectedType === 'reservation' ? toggleField('event-confirmed', 'Reserva confirmada', 'La reserva ya está confirmada por el cliente', raw.status === 'scheduled') : ''}
+            `;
+        } else if (state.selectedType === 'availability') {
+            html = `
+                ${field('Título', 'event-title', textInput('event-title', currentTitle, 'Título del evento', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', raw.recurrence_rule === 'weekly')}
+                ${common.notes}
+            `;
+        } else if (state.selectedType === 'blocked_day') {
+            html = `
+                ${field('Motivo', 'event-title', textInput('event-title', currentTitle, 'Ej: Vacaciones, mantenimiento…', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', raw.all_day !== false)}
+                ${common.notes}
+            `;
+        } else if (state.selectedType === 'guest_spot') {
+            html = `
+                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
+                ${common.notes}
+            `;
+        } else if (state.selectedType === 'convention') {
+            html = `
+                ${field('Nombre del evento', 'event-title', textInput('event-title', currentTitle, 'Ej: Feria Tinta Buenos Aires', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', raw.all_day !== false)}
+                ${common.notes}
+            `;
+        } else if (state.selectedType === 'reminder') {
+            html = `
+                ${field('Título', 'event-title', textInput('event-title', currentTitle, 'Título del evento', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', raw.recurrence_rule === 'weekly')}
+                ${common.notes}
+            `;
+        } else {
+            html = `
+                ${field('Título', 'event-title', textInput('event-title', currentTitle, 'Título del evento', true), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
+                ${common.notes}
+            `;
+        }
+
+        el['event-fields'].innerHTML = `<div class="cal-fields">${html}</div>`;
+        el['event-fields'].hidden = false;
+        el['event-form-empty'].hidden = true;
+        el['save-event'].disabled = false;
+
+        const location = document.getElementById('event-location');
+        if (location && raw.location) location.value = raw.location;
+    }
+
+    function readFormPayload() {
+        if (!state.selectedType) return null;
+        const dateInput = document.getElementById('event-date');
+        const selectedDate = parseLocalDate(dateInput?.value);
+        if (!selectedDate) throw new Error('Elegí una fecha válida.');
+
+        const allDay = !!document.getElementById('event-all-day')?.checked;
+        const timeValue = document.getElementById('event-time')?.value || '10:00';
+        const [hours, minutes] = timeValue.split(':').map(Number);
+        const start = startOfDay(selectedDate);
+        if (!allDay) start.setHours(hours || 0, minutes || 0, 0, 0);
+        const duration = Number(document.getElementById('event-duration')?.value || 1);
+        const end = allDay ? endOfDay(start) : new Date(start.getTime() + duration * 3600000);
+        const client = document.getElementById('event-client')?.value.trim() || '';
+        const inputTitle = document.getElementById('event-title')?.value.trim() || '';
+        let title = inputTitle;
+        if (state.selectedType === 'confirmed_session') title = `Sesión — ${client}`;
+        if (state.selectedType === 'reservation') title = `${client} — reserva`;
+        if (state.selectedType === 'guest_spot') title = /^Guest en\s+/i.test(inputTitle) ? inputTitle : `Guest en ${inputTitle}`;
+        if (!title) throw new Error(state.selectedType === 'confirmed_session' || state.selectedType === 'reservation'
+            ? 'Ingresá el nombre del cliente.'
+            : 'Ingresá un título para el evento.');
+
+        return {
+            event_type: state.selectedType,
+            title,
+            client_name: client || null,
+            starts_at: start.toISOString(),
+            ends_at: end.toISOString(),
+            all_day: allDay,
+            location: document.getElementById('event-location')?.value || (state.selectedType === 'confirmed_session' || state.selectedType === 'reservation' ? 'Estudio propio' : null),
+            notes: document.getElementById('event-notes')?.value.trim() || null,
+            status: state.selectedType === 'reservation' && !document.getElementById('event-confirmed')?.checked ? 'pending' : 'scheduled',
+            recurrence_rule: document.getElementById('event-recurring')?.checked ? 'weekly' : 'none',
+            recurrence_until: null,
+        };
+    }
+
+    function onFormChanged() {
+        const dateInput = document.getElementById('event-date');
+        const date = parseLocalDate(dateInput?.value);
+        if (date) {
+            state.selectedDate = date;
+            if (date.getMonth() !== state.miniDate.getMonth() || date.getFullYear() !== state.miniDate.getFullYear()) {
+                state.miniDate = startOfMonth(date);
+            }
+            renderMiniCalendar();
+        }
+        const time = document.getElementById('event-time');
+        if (time) time.disabled = !!document.getElementById('event-all-day')?.checked;
+        updateFormSummary();
+        scheduleConflictCheck();
+    }
+
+    function updateFormSummary() {
+        el['summary-type'].textContent = state.selectedType ? TYPE_META[state.selectedType].editorLabel : 'Sin elegir';
+        el['summary-date'].textContent = state.selectedDate ? formatLongDate(state.selectedDate) : '—';
+        try {
+            const payload = readFormPayload();
+            const start = asDate(payload.starts_at);
+            const end = asDate(payload.ends_at);
+            el['summary-time'].textContent = payload.all_day ? 'Todo el día' : formatTime(start);
+            const minutes = Math.round((end - start) / 60000);
+            el['summary-duration'].textContent = payload.all_day ? '1 día' : minutes >= 60 ? `${minutes / 60} h` : `${minutes} min`;
+            el['summary-location'].textContent = payload.location || '—';
+        } catch (_error) {
+            el['summary-time'].textContent = document.getElementById('event-time')?.value || '—';
+            el['summary-duration'].textContent = document.getElementById('event-all-day')?.checked ? '1 día' : '1 hora';
+            el['summary-location'].textContent = document.getElementById('event-location')?.value || '—';
+        }
+    }
+
+    function renderMiniCalendar() {
+        el['mini-title'].textContent = formatMonthYear(state.miniDate);
+        const gridStart = mondayOfWeek(startOfMonth(state.miniDate));
+        const headers = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day) => `<span>${day}</span>`).join('');
+        const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+        const body = days.map((date) => {
+            const outside = date.getMonth() !== state.miniDate.getMonth();
+            const hasEvents = eventsForDay(date, state.events).length > 0;
+            return `
+                <button type="button" data-date="${dateKey(date)}" class="${outside ? 'is-outside ' : ''}${sameDay(date, state.selectedDate) ? 'is-selected ' : ''}${hasEvents ? 'has-events' : ''}">
+                    ${date.getDate()}
+                </button>
+            `;
+        }).join('');
+        el['mini-grid'].className = 'cal-mini-grid';
+        el['mini-grid'].innerHTML = headers + body;
+    }
+
+    function localProjectedConflicts(payload) {
+        if (!BLOCKING_TYPES.has(payload.event_type)) return [];
+        const start = asDate(payload.starts_at);
+        const end = asDate(payload.ends_at);
+        return state.events.filter((event) => {
+            if (!BLOCKING_TYPES.has(event.type)) return false;
+            if (state.editingEvent && event.baseId === state.editingEvent.baseId) return false;
+            return overlaps(event, start, end);
+        });
+    }
+
+    function scheduleConflictCheck() {
+        window.clearTimeout(state.conflictTimer);
+        state.conflictTimer = window.setTimeout(checkConflicts, 280);
+    }
+
+    async function checkConflicts() {
+        let payload;
+        try {
+            payload = readFormPayload();
+        } catch (_error) {
+            clearConflict();
+            return;
+        }
+        if (!BLOCKING_TYPES.has(payload.event_type)) {
+            clearConflict();
+            return;
+        }
+
+        const local = localProjectedConflicts(payload);
+        try {
+            const remote = await window.WeotziData.Calendar.checkConflicts(payload, state.editingEvent?.baseId || null);
+            const combined = new Map();
+            local.forEach((event) => combined.set(`${event.title}:${event.start}`, event));
+            remote.forEach((event) => combined.set(`${event.title}:${event.starts_at}`, {
+                title: event.title,
+                start: event.starts_at,
+            }));
+            renderConflicts([...combined.values()]);
+        } catch (error) {
+            console.warn('[calendar] Vista previa de solapamiento no disponible:', error);
+            renderConflicts(local);
+        }
+    }
+
+    function renderConflicts(conflicts) {
+        if (!conflicts.length) {
+            clearConflict();
+            return;
+        }
+        el['calendar-conflict'].hidden = false;
+        el['calendar-conflict-list'].innerHTML = conflicts.slice(0, 4).map((event) => {
+            const start = asDate(event.start || event.starts_at);
+            return `<p>${start ? formatTime(start) : ''} — ${escapeHtml(event.title)}</p>`;
+        }).join('');
+    }
+
+    function clearConflict() {
+        el['calendar-conflict'].hidden = true;
+        el['calendar-conflict-list'].innerHTML = '';
+    }
+
+    async function saveCurrentEvent(event) {
+        event.preventDefault();
+        el['event-form-error'].textContent = '';
+        let payload;
+        try {
+            payload = readFormPayload();
+            const form = el['calendar-event-form'];
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+        } catch (error) {
+            el['event-form-error'].textContent = error.message;
+            return;
+        }
+
+        el['save-event'].disabled = true;
+        el['save-event'].textContent = 'Guardando…';
+        try {
+            if (state.editingEvent) {
+                await window.WeotziData.Calendar.update(state.editingEvent.baseId, state.user.id, payload);
+                showToast('Evento actualizado.');
+            } else {
+                await window.WeotziData.Calendar.create(state.user.id, payload);
+                showToast('Evento guardado en tu calendario.');
+            }
+            state.currentDate = startOfDay(asDate(payload.starts_at));
+            closeEditor();
+            await loadEvents();
+        } catch (error) {
+            const overlap = error.code === '23P01' || /CALENDAR_OVERLAP|superpone/i.test(error.message || '');
+            el['event-form-error'].textContent = overlap
+                ? 'Ese horario se superpone con otro evento. Elegí otro horario o editá el evento existente.'
+                : (error.message || 'No pudimos guardar el evento.');
+        } finally {
+            el['save-event'].disabled = false;
+            el['save-event'].textContent = 'Guardar evento →';
+        }
+    }
+
+    async function deleteCurrentEvent() {
+        if (!state.editingEvent) return;
+        if (!window.confirm(`¿Eliminar “${state.editingEvent.title}”?`)) return;
+        el['delete-event'].disabled = true;
+        try {
+            await window.WeotziData.Calendar.remove(state.editingEvent.baseId, state.user.id);
+            showToast('Evento eliminado.');
+            closeEditor();
+            await loadEvents();
+        } catch (error) {
+            el['event-form-error'].textContent = error.message || 'No pudimos eliminar el evento.';
+        } finally {
+            el['delete-event'].disabled = false;
+        }
+    }
+
+    function setLoading(active) {
+        el['calendar-loading'].hidden = !active;
+    }
+
+    function showToast(message, isError = false) {
+        window.clearTimeout(state.toastTimer);
+        el['calendar-toast'].textContent = message;
+        el['calendar-toast'].style.background = isError ? 'var(--red-400)' : 'var(--ink)';
+        el['calendar-toast'].hidden = false;
+        state.toastTimer = window.setTimeout(() => { el['calendar-toast'].hidden = true; }, 4200);
+    }
+
+    window.WeotziCalendar = {
+        TYPE_META,
+        mondayOfWeek,
+        dateKey,
+        parseLocalDate,
+        overlaps,
+    };
+
+    document.addEventListener('DOMContentLoaded', initialize);
+})();

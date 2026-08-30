@@ -8,9 +8,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/site-components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/quotations.css">
     <link rel="stylesheet" href="/shared/css/statistics.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/site-components.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -28,36 +32,15 @@
     <script src="/shared/js/logging-loader.js"></script>
 </head>
 <body class="wo-app">
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación del panel">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item is-active" aria-current="page">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="admin-mobile-menu-toggle" id="admin-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="admin-mobile-menu">Menú</button>
-            <a href="/artist/account" class="wo-o-tile" aria-label="Tu perfil">Ö</a>
-            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" onclick="handleStatsLogout()" aria-label="Cerrar sesión">Log out</button>
-        </div>
-    </header>
-    <nav class="admin-mobile-menu" id="admin-mobile-menu" aria-label="Navegación móvil del panel" hidden>
-        <a href="/artist/dashboard" class="admin-mobile-menu-link">Dashboard</a>
-        <a href="/my-quotations" class="admin-mobile-menu-link">Cotizaciones</a>
-        <a href="/job-board" class="admin-mobile-menu-link">Job board</a>
-        <a href="/studio-spots" class="admin-mobile-menu-link">Spots</a>
-        <a href="/calendar" class="admin-mobile-menu-link">Calendario</a>
-        <a href="/my-quotations/statistics" class="admin-mobile-menu-link is-active">Estadísticas</a>
-        <a href="/artist/travel" class="admin-mobile-menu-link">Travel</a>
-        <a href="/artist/inbox" class="admin-mobile-menu-link">Inbox</a>
-        <a href="/archive" class="admin-mobile-menu-link">Archivo</a>
-    </nav>
+    <weotzi-product-nav
+        active="statistics"
+        menu-toggle-id="admin-mobile-menu-toggle"
+        menu-id="admin-mobile-menu"
+        menu-class="admin-mobile-menu"
+        archive-extra
+        profile-label="Tu perfil"
+        logout-handler="handleStatsLogout">
+    </weotzi-product-nav>
 
     <main class="qadmin-main">
         <section class="stats-hero">
@@ -79,9 +62,14 @@
             <!-- KPIs · últimos 30 días vs. los 30 anteriores -->
             <section class="kpi-row" aria-label="Métricas principales">
                 <div class="kpi-card kpi-card--accent">
-                    <span class="kpi-value" id="kpi-visits">—</span>
-                    <span class="kpi-trend" id="kpi-visits-trend"></span>
-                    <span class="kpi-title">Visitas al perfil</span>
+                    <span class="kpi-value" id="kpi-profile-views">—</span>
+                    <span class="kpi-trend" id="kpi-profile-views-trend"></span>
+                    <span class="kpi-title">Visualizaciones</span>
+                </div>
+                <div class="kpi-card kpi-card--portfolio">
+                    <span class="kpi-value" id="kpi-portfolio">—</span>
+                    <span class="kpi-trend" id="kpi-portfolio-trend"></span>
+                    <span class="kpi-title">Visitas al portfolio</span>
                 </div>
                 <div class="kpi-card kpi-card--direct">
                     <span class="kpi-value" id="kpi-requests">—</span>
@@ -150,6 +138,8 @@
                 <h2 class="stats-h2" id="performance-title">Rendimiento del perfil</h2>
                 <div class="perf-grid">
                     <div class="perf-col">
+                        <h3 class="perf-title">Trabajos más vistos</h3>
+                        <div class="ranked-work-list" id="works-list"></div>
                         <h3 class="perf-title">Estilos más buscados</h3>
                         <div class="bar-list" id="styles-list"></div>
                         <h3 class="perf-title">Clientes nuevos vs. recurrentes</h3>
@@ -161,6 +151,45 @@
                         <h3 class="perf-title">Horarios con más actividad</h3>
                         <div class="rank-list" id="hours-list"></div>
                     </div>
+                </div>
+            </section>
+
+            <section class="stats-section" aria-labelledby="activity-title">
+                <header class="stats-section-head">
+                    <h2 class="stats-h2" id="activity-title">Actividad reciente</h2>
+                    <span class="stats-section-note">Últimos movimientos del perfil y las cotizaciones</span>
+                </header>
+                <div class="stats-activity" id="stats-activity"></div>
+            </section>
+
+            <section class="stats-section" aria-labelledby="visitors-title">
+                <header class="stats-section-head stats-visitors-head">
+                    <div>
+                        <h2 class="stats-h2" id="visitors-title">Quiénes visitaron tu perfil</h2>
+                        <p class="stats-section-sub">Solo mostramos identidad cuando la persona inició sesión y permite un perfil público.</p>
+                    </div>
+                    <div class="stats-visitor-filters" role="group" aria-label="Filtrar visitantes">
+                        <button type="button" class="stats-tab is-active" data-visitor-filter="all" aria-pressed="true">Todos</button>
+                        <button type="button" class="stats-tab" data-visitor-filter="client" aria-pressed="false">Clientes</button>
+                        <button type="button" class="stats-tab" data-visitor-filter="studio" aria-pressed="false">Estudios</button>
+                        <button type="button" class="stats-tab" data-visitor-filter="requested" aria-pressed="false">Solicitaron</button>
+                    </div>
+                </header>
+                <div class="stats-table-wrap">
+                    <table class="stats-visitors-table">
+                        <thead>
+                            <tr>
+                                <th>Visitante</th>
+                                <th>Tipo</th>
+                                <th>Ciudad</th>
+                                <th>Intereses</th>
+                                <th>Última visita</th>
+                                <th>Visitas</th>
+                                <th>Solicitud</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-visitors-body"></tbody>
+                    </table>
                 </div>
             </section>
 

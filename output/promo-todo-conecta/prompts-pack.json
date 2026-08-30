@@ -1,0 +1,203 @@
+{
+ "notes": "Final unified pack. Key corrections: (1) wrote the missing motion_prompts for scenes 3, 7 and 9 (6s, 7s, 3s) with settled endings and no-text clauses; (2) unified the visual system — ivory chapter (1-4), obsidian chapter (5-6, 9), return-to-ivory human chapter (7-8); identical UI vocabulary everywhere (ivory rounded cards, greeked gray placeholder bars, obsidian type-bars, exactly one amber accent per screen); (3) removed palette drift — scene 8's frosted-glass cards became the standard ivory cards and the oak counter became pale ivory; scene 5's suitcase is now obsidian leather with a brass latch echoing the amber accent; (4) fixed SFX overlap in scene 1 (pen stroke moved after the drop landing) and trimmed scene 9's resolve pulse to fit the 3s scene; (5) reinforced the ink-drop motif bookends — scene 1 opens with the drop on ivory resolving into a line, scene 2 explicitly continues that same line, scene 9 splits the drop into the two Ö dots positioned upper-center on obsidian with the lower two-thirds left empty for the logo overlay in post.",
+ "scenes": [
+  {
+   "scene": 1,
+   "image_prompt": "Ultra-minimalist premium macro product photograph, 16:9 widescreen, 1920x1080. A single glossy drop of jet-black ink (obsidian #07080B) suspended in mid-air, frozen in extreme slow motion, centered slightly above the middle of the frame against a completely seamless warm ivory studio background (#F2EDE4) — an infinite cyclorama with no horizon line, no texture, no props. The droplet is a perfect teardrop with a subtle elongated tail above it, its surface like polished liquid glass: one crisp soft-box specular highlight on its upper-left curve, a faint warm reflection of the ivory environment wrapping its edge. Directly below the droplet, on the invisible ivory surface plane, a very soft diffuse shadow anticipates the landing point. Clean high-key studio lighting, soft gradient falloff toward the frame edges, gentle premium shadows, editorial Apple-advertisement restraint. Enormous negative space around the droplet, especially in the lower third and center, left deliberately empty for a title overlay added later in post. Color palette strictly limited to warm ivory #F2EDE4 and obsidian black #07080B; the amber accent #E8893B is deliberately NOT present in this opening frame. Absolutely no readable text, no letters, no numbers, no logos, no watermarks, no captions anywhere in the image; if any interface or graphic element ever appears, its lettering must be greeked as soft gray placeholder bars or blurred illegible glyph blocks. No film grain, no smoke, no fog, no lens flares, no clutter. Photorealistic macro-lens look, razor-sharp focus on the droplet, clean shallow depth, pristine and precise.",
+   "motion_prompt": "Extreme slow-motion macro shot, exactly 5 seconds, minimalist premium product film. From the start frame, the single glossy black ink droplet descends very slowly and gracefully through the warm ivory void, its teardrop tail stretching slightly as it falls; the soft shadow beneath it sharpens and darkens as the drop approaches the surface. Camera performs an almost imperceptible slow push-in, perfectly stable, no shake. Around the midpoint the droplet touches the invisible ivory surface — it does NOT splash chaotically: on contact it compresses for a beat, then the ink resolves and flows outward horizontally, drawing itself into one single perfect, thin, razor-clean obsidian line that extends smoothly left and right across the lower-center of the frame, like a confident pen stroke drawn in one motion. The line's ends taper elegantly and come to rest. Final second: all motion settles completely — a pristine ivory frame with one perfect horizontal obsidian line, calm and stable, generous empty space above it for a title overlay, held steady until the cut. Clean high-key studio lighting, soft shadows only. Slow, precise, confident motion throughout; no fast movement, no chaos, no secondary droplets flying. No text, no captions, no watermarks; any lettering stays abstract and unreadable. No film grain, no smoke, no fog, no lens flares.",
+   "sfx": [
+    {
+     "at_seconds": 0.3,
+     "prompt": "very soft airy descending tone, subtle slow-motion falling droplet whoosh, warm, extremely gentle and minimal, high-end product film",
+     "duration_seconds": 1.8
+    },
+    {
+     "at_seconds": 2.4,
+     "prompt": "single soft liquid ink drop landing on smooth surface, deep muted round plop, warm and intimate, no splash, minimal and precise",
+     "duration_seconds": 0.6
+    },
+    {
+     "at_seconds": 3.1,
+     "prompt": "smooth calligraphy pen stroke glide, silky ink line being drawn across paper in one confident motion, soft friction, elegant, quiet finish",
+     "duration_seconds": 1.4
+    }
+   ]
+  },
+  {
+   "scene": 2,
+   "image_prompt": "Minimalist premium product-film still, 16:9 widescreen, 1920x1080, direct continuation of the ink-line motif. A warm ivory background (#F2EDE4) fills the frame like seamless studio paper, lit with clean soft studio light and delicate soft shadows — Apple-ad-level restraint, premium editorial minimalism. A single elegant line of glossy obsidian-black ink (#07080B) sweeps across the frame from the lower left in one confident calligraphic stroke with a subtle liquid sheen; its leading tip curls upward near the upper-right third, beginning to coil into a loop — the first hint of a location-pin shape — with a tiny faint glow of warm amber (#E8893B) at the very tip. Beneath the ink line, an ultra-minimal map interface is just barely materializing at very low opacity: faint pale warm-gray abstract city blocks and thin street-like lines ghosted at about 10 percent visibility, softly emerging from the ivory surface, with rounded card corners and generous whitespace — an elegant, believable product UI, not a real city. Near the top edge, two ghosted rounded-rectangle filter chips are barely suggested, almost invisible, carrying only soft gray placeholder bars. Palette strictly limited to ivory #F2EDE4, obsidian black #07080B and one amber accent #E8893B — nothing else. Composition flows lower-left to upper-right, leaving generous clean negative space across the lower third for a post-production title overlay. Crisp product-render clarity, soft realistic shadows. No film grain, no smoke, no fog, no lens flares, no clutter, no logos, no watermarks. Absolutely NO readable text, letters, numbers or words anywhere in the image; all interface labels are greeked as soft gray placeholder bars or blurred illegible glyph blocks only.",
+   "motion_prompt": "Slow, precise, confident motion across exactly 7 seconds, minimalist premium product film. Seconds 0-2: the glossy obsidian ink line flows forward like living liquid, its curled tip coiling tighter while the faint ivory map beneath gradually gains opacity. Seconds 2-3.5: the coil resolves cleanly into a solid rounded location-pin silhouette that fills with warm amber (#E8893B) and settles onto the map surface with one tiny soft bounce; the remaining ink line thins and melts elegantly into the map's minimal dark street lines as the UI sharpens to full crispness — pale abstract city blocks, rounded corners, generous whitespace, soft shadows, all labels greeked as soft gray placeholder bars. Seconds 3.5-5.5: two or three rounded filter chips slide in smoothly from the top edge with gently staggered timing, each carrying only a blurred gray placeholder bar; the last chip highlights with the single amber accent. Throughout, the camera performs one slow subtle push-in with gentle parallax between the floating amber pin and the map surface below — never fast, UI stays razor sharp at all times, no motion smear on interface detail. Seconds 5.5-7: all motion eases out completely; final settled, stable composition — amber pin just above center-right casting a soft shadow, filter chip row resting along the top, lower third of frame clean and empty, held until the cut. Clean studio lighting; palette locked to ivory #F2EDE4, obsidian #07080B, amber #E8893B only. No film grain, no smoke, no lens flares. No text, no captions, no watermarks; interface lettering stays abstract and unreadable.",
+   "sfx": [
+    {
+     "at_seconds": 2.4,
+     "prompt": "smooth liquid ink morph whoosh resolving into a soft rounded pin-drop thump, warm, tactile, minimal, premium app UI sound",
+     "duration_seconds": 0.9
+    },
+    {
+     "at_seconds": 3.9,
+     "prompt": "two gentle staggered UI slide-in ticks, soft felt-like taps, warm, discreet, minimal interface sound",
+     "duration_seconds": 1
+    },
+    {
+     "at_seconds": 5.6,
+     "prompt": "single soft warm UI confirmation tick, rounded and glowing, very discreet, minimal",
+     "duration_seconds": 0.4
+    }
+   ]
+  },
+  {
+   "scene": 3,
+   "image_prompt": "Minimalist premium product UI still, 16:9 widescreen, 1920x1080, clean studio setting. A large elegant tattoo-artist profile screen floats centered on a warm ivory background (#F2EDE4), casting one soft diffused shadow. The interface is a believable, refined app profile page in the same design language as the rest of the film: rounded-corner ivory cards, generous whitespace, obsidian black (#07080B) type-bars, with ALL lettering greeked as soft gray placeholder bars and blurred illegible glyph blocks — absolutely no readable text, letters, numbers or logos anywhere. A circular artist avatar shows a dignified photoreal black-and-white portrait of a tattoo artist, face softly lit, authentic and composed — no clichés. Exactly one amber accent (#E8893B): a small rounded pill button and a tiny active-tab underline, both blank with no lettering. Below the header, an editorial gallery row like a museum exhibition: three large portrait-oriented cards showing real fine black-and-grey tattoo photography — detailed forearm pieces with fine linework and soft shading, elegant photographic lighting, museum-print quality — cards evenly spaced with wide ivory gutters, the third card partially cropped at the right frame edge implying more to come. Palette strictly limited to warm ivory #F2EDE4, obsidian black #07080B and the single amber accent #E8893B. Clean soft studio lighting, subtle premium editorial look, Apple-advertisement-level restraint, crisp edges. No film grain, no smoke, no lens flares, no clutter, no watermarks. Composition leaves calm negative space in the lower third for a title overlay added in post.",
+   "motion_prompt": "Exactly 6 seconds, slow, precise, confident premium product film. Seconds 0-2: the floating profile screen holds nearly still under a very gentle push-in; the editorial gallery row glides smoothly one step to the left like an exhibition wall advancing, a new black-and-grey tattoo card sliding in from the right with soft easing; the amber tab underline gives one subtle glow. UI stays razor sharp, no motion smear on interface detail. Seconds 2-4.5: the centered gallery photograph grows gently to fill the frame and comes alive as a photoreal match cut — the same black-and-grey artwork now seen in the real world: a close, intimate shot of a diverse, dignified tattoo artist's gloved hand steadily working fine linework on a client's forearm, warm ivory-toned studio wall behind, clean soft studio light, shallow depth of field, calm and precise craft — no clichés, no clutter. Seconds 4.5-6: the camera eases into complete stillness on this settled composition — the artist's hand at rest for a beat at the end of a line, the tattoo crisp in focus, generous negative space in the lower third — held stable until the cut. Palette locked to warm ivory #F2EDE4, obsidian black #07080B, and at most one faint amber (#E8893B) glow from a practical lamp edge. No text, no captions, no watermarks; any interface lettering stays abstract and unreadable, soft gray placeholder bars only. No film grain, no smoke, no fog, no lens flares.",
+   "sfx": [
+    {
+     "at_seconds": 0.3,
+     "prompt": "single soft UI tick, warm, rounded, minimal, like a premium app opening a profile card, very short and discreet",
+     "duration_seconds": 0.4
+    },
+    {
+     "at_seconds": 1.6,
+     "prompt": "gentle smooth card swipe whoosh, soft paper-slide texture, airy and quiet, premium interface gallery advancing, subtle",
+     "duration_seconds": 0.7
+    },
+    {
+     "at_seconds": 3.2,
+     "prompt": "soft low cinematic thump melting into a faint distant tattoo machine buzz, warm, muffled, intimate studio ambience, very quiet and understated",
+     "duration_seconds": 2
+    }
+   ]
+  },
+  {
+   "scene": 4,
+   "image_prompt": "Minimalist premium product UI still, 16:9 widescreen, 1920x1080, clean studio lighting. A vast warm ivory background (#F2EDE4), softly lit, completely uncluttered. Floating in the upper-center of the frame: one elegant app card with generously rounded corners and a soft diffused drop shadow, rendered as a real high-end mobile product interface in the film's unified design language. The card shows a striking real black-and-grey fine-line tattoo photograph filling its top two-thirds (moody monochrome skin-and-ink close-up, editorial photography quality). Below the photo, the card carries only abstract greeked interface elements: two or three soft gray placeholder bars of different lengths standing in for text, one thin obsidian black (#07080B) divider line, and a single small rounded pill button filled in warm amber (#E8893B) containing a short blurred gray bar instead of a label. At the right edge of the frame, barely peeking in and slightly out of focus, the edge of a second identical ivory card hints at more content. Absolutely no readable text, no letters, no numbers, no logos, no watermarks anywhere — all interface lettering is greeked as soft gray placeholder bars or blurred illegible glyph blocks. Palette strictly limited to warm ivory #F2EDE4, obsidian black #07080B, and one amber accent #E8893B. Apple-advertisement-level restraint: generous whitespace, precise alignment, soft realistic shadows, premium editorial product-render aesthetic. The lower third of the frame is kept empty and calm, pure ivory, reserved as negative space for post-production titles. No film grain, no smoke, no fog, no lens flares, no clutter.",
+   "motion_prompt": "Slow, precise, confident premium UI choreography in one continuous flow of exactly 9 seconds over a warm ivory studio background, camera performing an almost imperceptible slow push-in the whole time. Beat 1 (0-3s): the floating tattoo-photo card gently folds and slides — the photograph shrinks into a neat thumbnail in the top corner of the card as the card elongates into a quote-request form: soft gray placeholder bars settle into rows, the small amber pill button glides to the bottom and gives one subtle press-pulse. Beat 2 (3-6s): the form card compresses smoothly and rounds off into a chat bubble that drifts to the right side of the frame; a second, obsidian-dark bubble with blurred gray glyph bars slides in from the left as a reply, both bobbing once, gently, like a calm conversation. Beat 3 (6-9s): the last bubble detaches and floats downward as a minimal ivory calendar grid of rounded empty cells fades up beneath it; the bubble lands softly onto one cell, the cell fills warm amber (#E8893B) with a quiet radial glow and a single thin obsidian ring settles around it. Final second: everything comes to rest — calendar centered upper-frame, one amber date glowing, lower third clean and empty — a stable, settled composition held until the cut. All motion smooth, slow and physical with soft easing; the interface stays perfectly crisp with no motion smear. Palette locked to ivory #F2EDE4, obsidian #07080B, amber #E8893B. No text, no captions, no watermarks; interface lettering stays abstract and unreadable. No film grain, no smoke, no lens flares.",
+   "sfx": [
+    {
+     "at_seconds": 1.8,
+     "prompt": "soft UI card fold and slide, gentle paper-like swish with a single muted tick at the end, warm, minimal, discreet",
+     "duration_seconds": 0.8
+    },
+    {
+     "at_seconds": 4.6,
+     "prompt": "single soft message-sent pop, warm rounded bubble tone, subtle and minimal UI sound",
+     "duration_seconds": 0.5
+    },
+    {
+     "at_seconds": 7.2,
+     "prompt": "gentle confirmation chime, one warm soft marimba-like note with a short low thud of something settling into place, minimal and premium",
+     "duration_seconds": 1
+    }
+   ]
+  },
+  {
+   "scene": 5,
+   "image_prompt": "Premium minimalist product photography, 16:9 widescreen, 1920x1080, photoreal — the film's obsidian chapter begins. A single modern smartphone floats in the center of a deep, velvety obsidian black void background (#07080B), tilted at an elegant three-quarter angle as if mid-rotation, screen facing slightly toward camera. Clean studio lighting: one soft key light from upper left, a thin precise rim light tracing the phone's metal edge, a faint soft reflection of the phone on the dark surface below. The screen glows softly and shows a beautiful, believable job-board mobile app UI in the film's unified design language: warm ivory background (#F2EDE4), a vertical feed of clean rounded-corner cards with generous whitespace; each card contains a small square black-and-grey tattoo photograph thumbnail, several soft gray placeholder bars instead of text, and small blank pill-shaped tags. Exactly one card is active, marked with the single warm amber accent (#E8893B) — an amber pill tag and a thin amber left border. All other UI elements are ivory, soft gray and obsidian black only. Absolutely NO readable text anywhere: all interface lettering is greeked as soft gray placeholder bars and blurred illegible glyph blocks — no words, no numbers, no logos, no watermarks. Apple-advertisement-level restraint, precise, editorial, premium. Composition leaves clear empty black space in the lower third of the frame for a title overlay added in post. Palette strictly limited to obsidian black #07080B, warm ivory #F2EDE4, one amber accent #E8893B. No film grain, no smoke, no fog, no lens flares, no clutter.",
+   "motion_prompt": "Exactly 8 seconds, premium product film in three calm beats, obsidian black chapter, slow precise confident motion throughout. Beat 1 (0-4s): the floating smartphone rotates very slowly around its vertical axis, about 25 degrees, catching the rim light as it turns; on its screen the job-board feed scrolls gently upward one card at a time, then stops as the single amber-accented card slides into center screen and softly brightens — UI stays perfectly crisp with no motion smear. Beat 2 (4-6s): clean hard cut to a photoreal close-up on the same obsidian backdrop: an elegant obsidian-black leather suitcase lying on a low dark bench, warm soft light from the side; two hands press the lid down and the warm brass latch — echoing the amber accent — clicks shut, a small settling of the leather. Beat 3 (6-8s): clean hard cut to a tattoo studio's glass door opening slowly inward, seen straight on from the dark street; warm amber-toned (#E8893B) interior light spills out through the widening gap onto the dark floor; the camera pushes in very slightly and the shot settles fully stable on the open, glowing doorway as the end frame, lower third kept clean and dark for a title overlay. Consistent palette: obsidian black #07080B, warm ivory #F2EDE4 surfaces, one amber accent of warm light. No text, no captions, no watermarks; interface lettering stays abstract and unreadable. No film grain, no smoke, no fog, no lens flares.",
+   "sfx": [
+    {
+     "at_seconds": 1.6,
+     "prompt": "single soft UI tick, warm and rounded, minimal digital confirmation blip, very short, premium app interaction sound",
+     "duration_seconds": 0.4
+    },
+    {
+     "at_seconds": 4.3,
+     "prompt": "leather suitcase latch clicking shut, crisp tactile brass click with a soft leather thump, close-miked, dry, minimal",
+     "duration_seconds": 0.7
+    },
+    {
+     "at_seconds": 6.2,
+     "prompt": "smooth glass door opening slowly, soft handle click then gentle low air movement and quiet room tone swelling, warm, subtle, minimal",
+     "duration_seconds": 1.6
+    }
+   ]
+  },
+  {
+   "scene": 6,
+   "image_prompt": "Minimalist premium product photography, 16:9 widescreen, 1920x1080, continuing the obsidian chapter. A sleek modern smartphone floats perfectly upright, centered on a deep velvety obsidian black background (#07080B), lit by clean soft studio lighting with a subtle warm rim light on its edges and a faint soft reflection beneath it. The phone screen glows with an elegant tattoo-studio profile app interface in the film's unified design language, on a warm ivory background (#F2EDE4): at top a wide header card showing a moody black-and-grey photograph of a tattoo studio interior (leather chairs, framed art, warm lamps), below it a small round studio avatar, then a vertical stack of clean rounded-corner ivory cards — one location card with a tiny minimalist map thumbnail and a single amber (#E8893B) location pin, and a horizontal row of four circular artist roster avatars in dignified black-and-grey portrait photography, one avatar outlined with a thin amber ring as the active state. All interface text is greeked: soft gray placeholder bars and blurred illegible glyph blocks only — absolutely no readable text, no letters, no numbers, no words, no logos, no watermarks anywhere. Faint, barely-visible thin ivory hairline wireframe panels hover folded flat in the darkness on either side of the phone, hinting the interface is about to expand wider. Strict palette: ivory #F2EDE4, obsidian black #07080B, single amber accent #E8893B. Generous whitespace, rounded corners, Apple-ad-level restraint, premium editorial look, crisp UI detail, soft shadows. No film grain, no smoke, no fog, no lens flares, no clutter. Composition leaves the lower third of the frame as clean empty obsidian space for a title overlay added in post.",
+   "motion_prompt": "Exactly 8 seconds, one continuous shot, slow, precise, confident. Seconds 0-2: the camera pushes in very slowly toward the floating phone on the obsidian background; the studio profile interface on its screen scrolls gently upward one step, cards gliding smoothly. Seconds 2-5, the hero move: the phone screen unfolds and expands outward — the ivory interface stretches laterally beyond the phone's edges into a full desktop-width studio dashboard, side panels sliding out from behind the device like opening wings; as the layout widens, new rounded ivory cards fade and slide into place in a soft cascade: two location cards with small map thumbnails and amber pins on the left, a grid of black-and-grey interior-space photographs in the center, and a row of circular artist roster avatars along the right, one ringed in amber. The phone silhouette dissolves as the wide desktop frame takes over, floating on obsidian. Seconds 5-8: the camera eases back slightly and drifts with gentle parallax between the interface layers, one amber pin pulses subtly once, then all motion settles; the clip ends on a perfectly stable, symmetrical wide desktop studio-profile composition floating on obsidian black, lower third of the frame kept clean and empty, held until the cut. UI stays crisp at all times, no motion blur on interface detail. No text, no captions, no watermarks; interface lettering stays abstract and unreadable — only soft gray placeholder bars. Palette locked to ivory #F2EDE4, obsidian #07080B, single amber accent #E8893B. Clean studio lighting, soft shadows, no grain, no fog, no flares.",
+   "sfx": [
+    {
+     "at_seconds": 2,
+     "prompt": "smooth soft interface expansion whoosh, airy fabric-like unfold, warm, minimal, premium UI sound, gentle rise and release",
+     "duration_seconds": 1.4
+    },
+    {
+     "at_seconds": 3.6,
+     "prompt": "quick gentle cascade of three soft UI card placement taps, rounded, warm, discreet, evenly spaced, minimal product interface sounds",
+     "duration_seconds": 0.9
+    },
+    {
+     "at_seconds": 6.2,
+     "prompt": "single soft warm UI confirmation tick, low and round, very subtle, minimal",
+     "duration_seconds": 0.4
+    }
+   ]
+  },
+  {
+   "scene": 7,
+   "image_prompt": "Premium minimalist product-brand film still, 16:9 widescreen, 1920x1080, photorealistic editorial photography — return to the ivory world. A quiet tattoo studio interior with warm ivory walls (#F2EDE4) and clean obsidian black (#07080B) details. A client in their late twenties, diverse and dignified, stands slightly right of frame before a tall free-standing mirror with a thin matte black frame, seen in a medium shot that includes their calm reflection. Their sleeve is pulled back to reveal a fresh, fine-line black-and-grey tattoo on the upper arm and shoulder, skin with a faint sheen of healing ointment catching the light. One small practical lamp glows warm amber (#E8893B) at the edge of frame, casting a soft amber rim light on the tattoo and mirror edge — the only accent color in an otherwise ivory-and-obsidian palette. Background: a minimalist tattoo workstation and chair softly out of focus, generous negative space, soft studio shadows, shallow depth of field, Apple-ad-level restraint. The client's expression in the reflection is quiet, moved, almost a smile — an intimate emotional beat, authentic tattoo culture, no clichés. Composition leaves clean empty ivory space in the lower third and upper-left for post-production titles and a discreet review-card overlay moment. Absolutely NO readable text anywhere in the image: no signage, no posters, no labels, no letters, no numbers; any UI or paper elements appear only as soft gray greeked placeholder bars, fully illegible. No film grain, no smoke, no lens flares, no logos, no watermarks. Clean, precise, premium.",
+   "motion_prompt": "Exactly 7 seconds, slow, precise, confident, intimate premium brand-film shot. Seconds 0-3: the camera performs one very gentle push-in toward the mirror; the client breathes calmly and turns their arm a few degrees to study the fresh black-and-grey tattoo in the reflection, the healing sheen catching the warm amber rim light; their expression softens into a quiet, moved almost-smile. All human motion is subtle, composed, dignified. Seconds 3-4.5: the shot holds, alive but still — soft fabric shifting, a slow blink in the reflection. Seconds 4.5-6: in the upper-left negative space, a small minimal ivory review card fades in discreetly, floating with a soft drop shadow, rendered in the film's unified UI language: rounded corners, two short soft gray placeholder bars standing in for text, a row of five tiny obsidian star shapes, and one small amber (#E8893B) verification badge — a simple check emblem, no lettering — that gives one gentle glow as it appears. Seconds 6-7: all motion settles completely; the final frame is stable — client at peace before the mirror, the small verified review card resting quietly in the upper-left, lower third clean and empty — held until the cut. Palette locked to warm ivory #F2EDE4, obsidian black #07080B, one amber accent #E8893B. No text, no captions, no watermarks; interface lettering stays abstract and unreadable, soft gray placeholder bars only. No film grain, no smoke, no fog, no lens flares.",
+   "sfx": [
+    {
+     "at_seconds": 0.8,
+     "prompt": "delicate soft fabric rustle, cotton sleeve shifting close to microphone, intimate, warm, very quiet and minimal",
+     "duration_seconds": 1
+    },
+    {
+     "at_seconds": 4.7,
+     "prompt": "soft minimal UI card appear sound, gentle warm airy pop with a faint smooth slide, subtle and premium, low volume",
+     "duration_seconds": 0.6
+    },
+    {
+     "at_seconds": 5.5,
+     "prompt": "single soft verification chime, one warm rounded bell-like UI tone with a tiny tick, clean, reassuring, minimal",
+     "duration_seconds": 0.9
+    }
+   ]
+  },
+  {
+   "scene": 8,
+   "image_prompt": "Premium minimalist product-film still, 16:9 widescreen, 1920x1080, clean editorial triptych composition on a warm ivory background (#F2EDE4). The frame is divided into three equal vertical panels separated by thin ivory gutters and hairline obsidian-black (#07080B) divider lines. LEFT PANEL: a young Latina woman (a client) in soft neutral knitwear, photographed waist-up against a seamless ivory studio backdrop, calm confident expression, holding a sleek dark smartphone; an elegant ivory rounded-corner app UI card with a soft drop shadow floats a few centimeters in front of her at chest height. CENTER PANEL: a Black male tattoo artist in his 30s with fine-line tattoos on his forearms, black t-shirt and black work apron, standing in a spotless minimal tattoo studio with pale ivory walls and one black leather chair softly out of focus; an identical floating ivory UI card hovers beside his shoulder. RIGHT PANEL: an older East Asian woman (a studio owner) in a tailored charcoal shirt, standing in a minimalist studio reception with a pale ivory counter and ivory walls; a third identical floating UI card hovers in front of her. All three people photoreal, diverse, dignified, tattoo-culture authentic — no clichés. All three floating UI cards follow the film's unified design language: ivory surfaces, rounded corners, generous whitespace, real black-and-grey tattoo photograph thumbnails, obsidian type-bars, and exactly one amber (#E8893B) accent element per card (an active button, a map pin, a highlighted date). CRITICAL: absolutely no readable text anywhere — all interface lettering is greeked as soft gray placeholder bars and blurred illegible glyph blocks; no logos, no watermarks, no captions, no signage. Clean soft studio lighting, gentle shadows, shallow depth of field, Apple-advertisement-level restraint. The lower third of the frame is kept visually quiet and uncluttered, reserving breathing room for a title overlay added in post. Palette strictly limited to warm ivory #F2EDE4, obsidian black #07080B, and the single amber accent #E8893B. No film grain, no smoke, no fog, no lens flares, no clutter.",
+   "motion_prompt": "Exactly 7 seconds, slow, precise, confident premium product-film shot; camera and subjects move with Apple-ad restraint. Seconds 0-2.5: the triptych holds nearly still; a very gentle push-in begins; the three people breathe and shift subtly, alive but composed and dignified; each floating ivory UI card drifts forward a few centimeters with soft parallax, its single amber (#E8893B) accent element gently brightening. Seconds 2.5-5: the two thin vertical divider lines dissolve and the three panels glide smoothly toward the center, the left and right panels sliding inward like a tri-fold closing; simultaneously the three floating UI cards converge and interlock into one single unified interface composition at the center of the frame — edges aligning magnetically, cards docking into one clean ivory layout where the amber accents visually link all three sections. Seconds 5-7: motion decelerates to a complete, settled rest — the three people now share one continuous ivory studio space, standing in a balanced line behind the single unified UI panel; camera stops on a perfectly stable, symmetrical final composition with the lower third of the frame quiet and empty, held until the cut. UI detail stays razor-sharp throughout; no fast motion, no motion blur on interface elements. No text, no captions, no watermarks; interface lettering stays abstract and unreadable — soft gray placeholder bars only. No film grain, no smoke, no lens flares; palette locked to warm ivory #F2EDE4, obsidian black #07080B, and one amber accent #E8893B.",
+   "sfx": [
+    {
+     "at_seconds": 2.5,
+     "prompt": "soft airy whoosh of smooth panels gliding together, warm, rounded, minimal, premium UI motion sound, no harshness",
+     "duration_seconds": 1.4
+    },
+    {
+     "at_seconds": 4.8,
+     "prompt": "single soft magnetic snap click, precise UI dock-into-place sound, warm and minimal, satisfying and subtle",
+     "duration_seconds": 0.4
+    },
+    {
+     "at_seconds": 5.4,
+     "prompt": "gentle warm low harmonic settle tone, soft resonant hum fading out, calm resolution, minimal and clean",
+     "duration_seconds": 1.5
+    }
+   ]
+  },
+  {
+   "scene": 9,
+   "image_prompt": "Minimalist premium product-film frame, 16:9 widescreen, 1920x1080 — the closing bookend of the ink-drop motif, now on black. A vast, perfectly clean obsidian black field (#07080B) with an almost imperceptible soft radial lift of light toward the center — deep, velvety, studio-lit darkness, not flat digital black. Suspended in the upper-center of the frame, slightly above the vertical midpoint: one single glossy droplet of liquid black ink, motionless, mid-air, teardrop-round — the same droplet that opened the film. The droplet is defined only by light: a delicate warm ivory (#F2EDE4) specular highlight on its upper curve and a faint, thin amber (#E8893B) rim light tracing one edge — the only accent color in the frame. A soft, barely-there reflective glow beneath it dissolves into the black. Enormous negative space on all sides; the center and lower two-thirds of the frame are completely empty, deliberately reserved for the We Ötzi logo overlay added in post-production. Clean studio lighting, soft shadows, premium editorial Apple-ad restraint. Macro-photography realism, razor-sharp droplet, silky smooth background gradient. Absolutely NO text, no letters, no logos, no numbers, no watermarks, no UI anywhere in the image; if any interface element were implied it would be abstract soft gray placeholder bars only — but this frame contains none. No film grain, no smoke, no fog, no lens flares, no clutter.",
+   "motion_prompt": "Exactly 3 seconds, extreme slow-motion macro on velvety obsidian black, the film's final gesture — slow, precise, confident. Seconds 0-1: the single glossy black ink droplet quivers once, softly, its ivory highlight and thin amber rim light shimmering; the camera holds perfectly still. Seconds 1-2: the droplet divides cleanly and elegantly into two identical smaller droplets — a smooth liquid split, no splash, no debris — which drift gently apart horizontally and round themselves into two perfect, equal dots side by side in the upper-center of the frame: the two dots of the Ö. Seconds 2-3: both dots settle into absolute stillness, evenly spaced, each holding its soft ivory highlight and faint amber edge; the final frame is completely stable and symmetrical, the two dots resting in the upper-center with the center and lower two-thirds of the frame left as clean empty obsidian space for the logo overlay in post, held until the end. No text, no captions, no letters, no logos, no watermarks anywhere; any lettering would stay abstract and unreadable. No film grain, no smoke, no fog, no lens flares. Palette locked to obsidian black #07080B, warm ivory #F2EDE4 highlights, one faint amber #E8893B rim accent.",
+   "sfx": [
+    {
+     "at_seconds": 0.2,
+     "prompt": "single soft liquid blip, a droplet of ink dividing in slow motion, round and warm, intimate close-mic, minimal and clean, no reverb tail",
+     "duration_seconds": 0.8
+    },
+    {
+     "at_seconds": 1.5,
+     "prompt": "two gentle soft ticks in quick succession, like felt-tipped dots locking into place, warm, tiny, precise, minimal UI sound",
+     "duration_seconds": 0.5
+    },
+    {
+     "at_seconds": 2.1,
+     "prompt": "soft deep sub-bass pulse, warm cinematic resolve for a logo reveal, short, restrained, rounded attack, smooth decay",
+     "duration_seconds": 0.8
+    }
+   ]
+  }
+ ]
+}

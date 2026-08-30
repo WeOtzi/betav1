@@ -4,8 +4,9 @@
  * Giras/viajes del artista (/artist/travel) sobre la capa PostgREST unificada.
  * Tablas: artist_trips, trip_studio_links, trip_checklist_items,
  * trip_documents, trip_events (migracion 20260825100000_artist_travel.sql).
- * Corre con la sesion del usuario: la seguridad la da RLS (dueño total,
- * soporte lectura, viajes compartidos legibles por anon via share_enabled).
+ * Corre con la sesión del usuario: RLS protege el itinerario y las decisiones
+ * de estudio pasan exclusivamente por RPCs auditados. El artista solicita;
+ * el estudio propietario o soporte confirma/rechaza.
  *
  * Carga: DESPUES de postgrest-client.js. Expone window.WeotziData.Travel.
  */
@@ -87,21 +88,36 @@
 
         // ---- trip_studio_links ----
 
-        async addStudioLink({ tripId, studioId = null, studioName, studioCity = null }) {
-            const { data } = await run('travel.addStudioLink', (c) =>
-                c.from('trip_studio_links').insert([{ trip_id: tripId, studio_id: studioId, studio_name: studioName, studio_city: studioCity }]).select().single()
+        async requestStudioLink({ tripId, studioId }) {
+            const { data } = await run('travel.requestStudioLink', (c) =>
+                c.rpc('request_trip_studio_link', {
+                    p_trip_id: tripId,
+                    p_studio_id: studioId,
+                })
             );
             return data;
         },
 
-        async updateStudioLinkStatus(linkId, status) {
-            await run('travel.updateStudioLinkStatus', (c) =>
-                c.from('trip_studio_links').update({ status, resolved_at: status === 'esperando_confirmacion' ? null : new Date().toISOString() }).eq('id', linkId)
+        // Solo el estudio propietario o soporte puede resolver la solicitud.
+        async resolveStudioLink(linkId, action) {
+            const { data } = await run('travel.resolveStudioLink', (c) =>
+                c.rpc('resolve_trip_studio_link', {
+                    p_link_id: linkId,
+                    p_action: action,
+                })
             );
+            return data;
         },
 
-        async deleteStudioLink(linkId) {
-            await run('travel.deleteStudioLink', (c) => c.from('trip_studio_links').delete().eq('id', linkId));
+        async listPendingStudioLinks(studioId) {
+            const { data } = await run('travel.listPendingStudioLinks', (c) =>
+                c.from('trip_studio_links')
+                    .select('id,trip_id,studio_id,studio_name,studio_city,status,requested_at,artist_trips!inner(id,artist_user_id,city,country,start_date,end_date,trip_type,status)')
+                    .eq('studio_id', studioId)
+                    .eq('status', 'esperando_confirmacion')
+                    .order('requested_at', { ascending: true })
+            );
+            return data || [];
         },
 
         // ---- trip_checklist_items ----

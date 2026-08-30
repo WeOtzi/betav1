@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light;
+
+  --ink-950: #111112;
+  --ink-900: #292d32;
+  --ink-600: #72757a;
+  --ink-400: #a7a7a7;
+  --line-300: #c2c4c6;
+  --line-100: #e8e8e9;
+  --paper-50: #f9f9f9;
+  --paper: #ffffff;
+  --mist: #f1f4f4;
+  --success: #42be65;
+  --warm-card: #f2ebdf;
+  --cool-card: #e1f2f4;
+  --error: #c9362b;
+
+  --font-sans: 'SF Pro Display', 'SF Pro Text', 'Inter Variable', Inter, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --device-width: 393px;
+  --device-height: 852px;
+  --page-gutter: 24px;
+  --content-width: 345px;
+  --gallery-column: 167px;
+  --gallery-gap: 12px;
+  --status-bar-height: 47px;
+  --app-header-height: 50px;
+  --bottom-nav-height: 72px;
+  --wizard-footer-height: 88px;
+
+  --radius-input: 6px;
+  --radius-card: 6px;
+  --radius-large: 12px;
+  --radius-pill: 29px;
+
+  --type-hero: 700 48px/54px var(--font-sans);
+  --type-statement: 700 24px/30px var(--font-sans);
+  --type-brand: 700 20px/35px var(--font-sans);
+  --type-heading: 700 17px/23px var(--font-sans);
+  --type-body: 400 15px/21px var(--font-sans);
+  --type-label: 500 15px/21px var(--font-sans);
+  --type-meta: 500 13px/18px var(--font-sans);
+
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-route: 280ms;
+  --motion-content: 420ms;
+  --motion-sheet: 220ms;
+  --motion-header: 300ms;
+}

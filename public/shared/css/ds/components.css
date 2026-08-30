@@ -197,8 +197,8 @@ a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
 .wo-mark-triangle{width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid var(--bauhaus-triangle)}
 
 /* ---------- Tabs ---------- */
-.wo-tabs{display:flex;gap:0;border-bottom:var(--border-strong-width) solid var(--border-strong)}
-.wo-tab{padding:var(--space-3) var(--space-5);font-family:var(--font-display);font-size:15px;color:var(--neutral-400);background:transparent;border:0;border-bottom:var(--border-rule-width) solid transparent;cursor:pointer;text-decoration:none;text-transform:uppercase}
+.wo-tabs{display:flex;gap:0;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;border-bottom:var(--border-strong-width) solid var(--border-strong)}
+.wo-tab{flex:none;padding:var(--space-3) var(--space-5);font-family:var(--font-display);font-size:15px;color:var(--neutral-400);background:transparent;border:0;border-bottom:var(--border-rule-width) solid transparent;cursor:pointer;text-decoration:none;text-transform:uppercase;white-space:nowrap}
 .wo-tab:hover{color:var(--neutral-500);text-decoration:none}
 .wo-tab.is-active{color:var(--neutral-500);border-bottom-color:var(--accent)}
 
@@ -258,7 +258,7 @@ a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
 .wo-modal--inverse{background:var(--surface-overlay);border-color:var(--surface-overlay-border);color:var(--text-on-dark)}
 .wo-modal-title{font-family:var(--font-display);font-size:var(--h3-size);color:var(--text-heading);margin:0 0 var(--space-4)}
 .wo-modal--inverse .wo-modal-title{color:var(--white)}
-.wo-modal-actions{display:flex;justify-content:flex-end;gap:var(--space-3);margin-top:var(--space-6)}
+.wo-modal-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-3);margin-top:var(--space-6)}
 
 /* ---------- Stats ---------- */
 .wo-stat{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-5);background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong)}
@@ -286,12 +286,74 @@ a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
 .wo-hidden{display:none !important}
 .wo-sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);overflow:hidden}
 
-/* ---------- Responsive ---------- */
-@media (max-width:768px){
-  .wo-container{padding:0 var(--margin-xs)}
-  .wo-topbar-nav{display:none}
-  .wo-agenda-row{grid-template-columns:72px 1fr auto}
-  .wo-statstrip{grid-auto-flow:row;grid-template-columns:1fr 1fr}
+/* ---------- Responsive mobile-first ---------- */
+img,video,canvas,iframe{max-width:100%}
+.wo-container{padding-inline:var(--margin-xs)}
+.wo-topbar{max-width:100%}
+.wo-topbar-nav{display:none}
+.wo-app .wo-topbar.wo-topbar--artist .wo-topbar-nav{display:none}
+.wo-app .wo-topbar.wo-topbar--artist .wo-topbar-menu-toggle{display:inline-flex}
+.wo-app .wo-topbar-mobile-menu:not([hidden]){display:flex}
+.wo-agenda-row{grid-template-columns:4.5rem minmax(0,1fr) auto}
+.wo-statstrip{grid-auto-flow:row;grid-template-columns:minmax(0,1fr)}
+
+/* La barra canonica conserva marca, menu, perfil y salida dentro de 320px.
+   Los nombres completos siguen disponibles mediante sus labels accesibles y
+   los enlaces del menu; aqui solo se reduce el aire del frame de escritorio. */
+@media (max-width:30rem){
+  .wo-app .wo-topbar.wo-topbar--artist{
+    gap:var(--space-2);
+    min-height:56px;
+  }
+  .wo-app .wo-topbar--artist .wo-topbar-left{
+    min-width:0;
+    flex:0 1 auto;
+  }
+  .wo-app .wo-topbar--artist .wo-topbar-brand{
+    padding-inline:var(--space-2);
+    font-size:16px;
+  }
+  .wo-app .wo-topbar--artist .wo-topbar-right{
+    min-width:0;
+    gap:6px;
+    padding-inline:var(--space-2);
+  }
+  .wo-app .wo-topbar--artist .wo-topbar-right .wo-o-tile{
+    width:44px;
+    height:44px;
+    font-size:16px;
+  }
+  .wo-app .wo-topbar--artist .wo-topbar-right .wo-btn{
+    min-height:44px;
+    padding:var(--space-2) 10px;
+    font-size:10px;
+  }
+  .wo-app .wo-topbar--artist .wo-topbar-menu-toggle{
+    min-width:44px;
+    min-height:44px;
+    padding:var(--space-2) 10px;
+    font-size:10px;
+  }
+}
+
+@media (min-width:30.0625rem){
+  .wo-statstrip{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media (min-width:48.0625rem){
+  .wo-container{padding-inline:var(--margin-md)}
+  .wo-topbar-nav{display:flex}
+  .wo-agenda-row{grid-template-columns:6rem minmax(0,1fr) auto}
+  .wo-statstrip{grid-auto-flow:column;grid-template-columns:none}
+}
+
+/* La navegacion de siete destinos necesita mas ancho que el corte de layout
+   general. Hasta 1151px se conserva el menu compacto; desde 1152px vuelve la
+   barra completa de escritorio. */
+@media (min-width:72rem){
+  .wo-app .wo-topbar.wo-topbar--artist .wo-topbar-nav{display:flex}
+  .wo-app .wo-topbar.wo-topbar--artist .wo-topbar-menu-toggle{display:none}
+  .wo-app .wo-topbar-mobile-menu:not([hidden]){display:none}
 }
 
 /* ============================================================

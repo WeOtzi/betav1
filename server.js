@@ -2074,7 +2074,10 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'studio_artist_memberships', description: 'Membresias artista-estudio' },
     { name: 'studio_spots', description: 'Vacantes / spots de estudios' },
     { name: 'studio_spot_applications', description: 'Postulaciones a spots' },
+    { name: 'studio_spot_counter_offers', description: 'Contraofertas de spots' },
     { name: 'studio_spot_attachments', description: 'Adjuntos de spots' },
+    { name: 'studio_membership_invitation_details', description: 'Detalle de invitaciones de estudios' },
+    { name: 'studio_invitation_change_requests', description: 'Cambios solicitados en invitaciones' },
     { name: 'studio_jobs_log', description: 'Registro de trabajos del estudio' },
     { name: 'studio_invoices', description: 'Facturas del estudio' },
     { name: 'studio_invoice_items', description: 'Items de factura' },
@@ -2089,20 +2092,51 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'quotations_attachments', description: 'Adjuntos de cotizaciones' },
     { name: 'quotation_notes', description: 'Notas de cotizacion' },
     { name: 'quotation_sessions', description: 'Sesiones de cotizacion' },
+    { name: 'quotation_status_history', description: 'Historial de estados de cotizacion' },
+    { name: 'quotation_intake_extras', description: 'Datos complementarios de cotizacion' },
     { name: 'quotation_flow_config', description: 'Configuracion del flujo' },
+    // Account center / verification
+    { name: 'user_preferences', description: 'Preferencias de cuenta' },
+    { name: 'artist_billing_profiles', description: 'Facturacion de artistas' },
+    { name: 'artist_payment_methods', description: 'Metodos de cobro tokenizados' },
+    { name: 'artist_financial_entries', description: 'Movimientos financieros de artistas' },
+    { name: 'artist_account_sessions', description: 'Sesiones de cuenta de artistas' },
+    { name: 'artist_integration_connections', description: 'Integraciones de cuenta de artistas' },
+    { name: 'artist_account_deletion_requests', description: 'Solicitudes de eliminacion de cuenta' },
+    { name: 'artist_verification_documents', description: 'Documentos de verificacion de artistas' },
+    { name: 'verification_history', description: 'Historial de verificaciones' },
     // Catalog / artist content
     { name: 'tattoo_styles', description: 'Estilos de tatuaje' },
     { name: 'body_parts', description: 'Partes del cuerpo' },
     { name: 'artist_tattoo_locations', description: 'Ubicaciones de tatuaje (artistas)' },
+    { name: 'artist_calendar_events', description: 'Eventos del calendario de artistas' },
     { name: 'artist_profile_visits', description: 'Visitas a perfiles de artistas' },
+    { name: 'verified_reviews', description: 'Resenas verificadas' },
+    // Artist travel
+    { name: 'artist_trips', description: 'Viajes de artistas' },
+    { name: 'trip_studio_links', description: 'Estudios vinculados a viajes' },
+    { name: 'trip_checklist_items', description: 'Checklist de viajes' },
+    { name: 'trip_documents', description: 'Documentos de viajes' },
+    { name: 'trip_events', description: 'Cronologia de viajes' },
+    { name: 'trip_studio_link_audit', description: 'Auditoria de vinculaciones de viajes' },
     // Job board
     { name: 'job_board_requests', description: 'Solicitudes del job board' },
     { name: 'job_board_applications', description: 'Postulaciones del job board' },
     { name: 'job_board_attachments', description: 'Adjuntos del job board' },
+    { name: 'job_board_counter_offers', description: 'Contraofertas del job board' },
+    { name: 'job_board_request_stats', description: 'Metricas de solicitudes del job board' },
+    { name: 'artist_saved_job_requests', description: 'Solicitudes guardadas por artistas' },
     // Support / chat
     { name: 'support_conversations', description: 'Conversaciones de soporte' },
     { name: 'support_messages', description: 'Mensajes de soporte' },
     { name: 'chat_messages', description: 'Mensajes de chat' },
+    { name: 'inbox_threads', description: 'Hilos canonicos del inbox' },
+    { name: 'inbox_thread_participants', description: 'Participantes del inbox' },
+    { name: 'inbox_messages', description: 'Mensajes del inbox' },
+    { name: 'inbox_thread_activity', description: 'Actividad auditable del inbox' },
+    { name: 'user_notification_reads', description: 'Lecturas de notificaciones por usuario' },
+    { name: 'client_profiles', description: 'Perfiles extendidos de clientes' },
+    { name: 'client_favorites', description: 'Favoritos de clientes' },
     // Platform / ops
     { name: 'app_settings', description: 'Configuracion de la app' },
     { name: 'session_logs', description: 'Logs de sesion' },
@@ -2113,10 +2147,12 @@ const ADMIN_DATABASE_TABLES = [
     // Read-only views
     { name: 'artists_with_location', description: 'Artistas con ubicacion (vista)', kind: 'view' },
     { name: 'artist_profile_visits_daily', description: 'Visitas diarias (vista)', kind: 'view' },
+    { name: 'artist_artwork_view_counts', description: 'Vistas por trabajo del portfolio (vista)', kind: 'view' },
     { name: 'studio_dashboard_metrics_view', description: 'Metricas de panel de estudio (vista)', kind: 'view' },
     { name: 'studio_artist_performance_view', description: 'Rendimiento de artistas (vista)', kind: 'view' },
     { name: 'studio_inventory_health_view', description: 'Salud de inventario (vista)', kind: 'view' },
-    { name: 'studio_public_sponsors_view', description: 'Patrocinadores publicos (vista)', kind: 'view' }
+    { name: 'studio_public_sponsors_view', description: 'Patrocinadores publicos (vista)', kind: 'view' },
+    { name: 'chat_threads', description: 'Hilos consolidados del inbox (vista)', kind: 'view' }
 ];
 const ADMIN_DATABASE_TABLE_NAMES = new Set(ADMIN_DATABASE_TABLES.map(table => table.name));
 // Only base tables are writable through the generic row editor. Views and any
@@ -4027,6 +4063,82 @@ async function lookupProfileVisitArtist({ artistId, username }) {
     return Array.isArray(rows) ? rows[0] : null;
 }
 
+function normalizeAnalyticsStyles(rows) {
+    const out = [];
+    for (const row of rows || []) {
+        const value = row && row.tattoo_style;
+        let styles = [];
+        if (Array.isArray(value)) styles = value;
+        else if (typeof value === 'string') {
+            try { const parsed = JSON.parse(value); styles = Array.isArray(parsed) ? parsed : [value]; }
+            catch (_) { styles = [value]; }
+        }
+        for (const style of styles) {
+            const clean = cleanProfileVisitText(style, 80);
+            if (clean && !out.includes(clean)) out.push(clean);
+            if (out.length >= 5) return out;
+        }
+    }
+    return out;
+}
+
+async function resolveProfileVisitIdentity(visitorUserId, artistUserId) {
+    const empty = {
+        visitor_user_id: null,
+        visitor_display_name: null,
+        visitor_type: null,
+        visitor_city: null,
+        visitor_interests: [],
+        requested_quote: false
+    };
+    if (!visitorUserId || visitorUserId === artistUserId) return empty;
+
+    const [clients, studios, artists, quoteRows] = await Promise.all([
+        _supabaseFetch(`clients_db?user_id=eq.${encodeURIComponent(visitorUserId)}&select=full_name,city_residence,country,public_profile_enabled&limit=1`).catch(() => []),
+        _supabaseFetch(`studios?user_id=eq.${encodeURIComponent(visitorUserId)}&select=name,city,country&limit=1`).catch(() => []),
+        _supabaseFetch(`artists_db?user_id=eq.${encodeURIComponent(visitorUserId)}&select=name,username,city,country&limit=1`).catch(() => []),
+        _supabaseFetch(`quotations_db?client_user_id=eq.${encodeURIComponent(visitorUserId)}&artist_id=eq.${encodeURIComponent(artistUserId)}&select=tattoo_style,quote_status&order=created_at.desc&limit=20`).catch(() => [])
+    ]);
+
+    const client = Array.isArray(clients) ? clients[0] : null;
+    const studio = Array.isArray(studios) ? studios[0] : null;
+    const artist = Array.isArray(artists) ? artists[0] : null;
+    const quotes = Array.isArray(quoteRows) ? quoteRows : [];
+
+    if (client) {
+        const mayIdentify = client.public_profile_enabled !== false;
+        return {
+            visitor_user_id: visitorUserId,
+            visitor_display_name: mayIdentify ? cleanProfileVisitText(client.full_name, 120) : null,
+            visitor_type: 'client',
+            visitor_city: cleanProfileVisitText(client.city_residence || client.country, 120),
+            visitor_interests: normalizeAnalyticsStyles(quotes),
+            requested_quote: quotes.length > 0
+        };
+    }
+    if (studio) {
+        return {
+            visitor_user_id: visitorUserId,
+            visitor_display_name: cleanProfileVisitText(studio.name, 120),
+            visitor_type: 'studio',
+            visitor_city: cleanProfileVisitText(studio.city || studio.country, 120),
+            visitor_interests: [],
+            requested_quote: false
+        };
+    }
+    if (artist) {
+        return {
+            visitor_user_id: visitorUserId,
+            visitor_display_name: cleanProfileVisitText(artist.name || artist.username, 120),
+            visitor_type: 'artist',
+            visitor_city: cleanProfileVisitText(artist.city || artist.country, 120),
+            visitor_interests: [],
+            requested_quote: false
+        };
+    }
+    return { ...empty, visitor_user_id: visitorUserId };
+}
+
 async function insertProfileVisit(visit) {
     try {
         return await _supabaseFetch('artist_profile_visits', {
@@ -4057,7 +4169,7 @@ async function insertProfileVisit(visit) {
     }
 }
 
-app.post('/api/artist/profile-visit', async (req, res) => {
+async function handleArtistProfileEvent(req, res) {
     const { supabaseUrl, serviceKey } = _supabaseConfigForSupport();
     if (!supabaseUrl || !serviceKey) {
         return res.status(503).json({ success: false, error: 'Supabase service role not configured' });
@@ -4070,8 +4182,18 @@ app.post('/api/artist/profile-visit', async (req, res) => {
         is_authenticated,
         referrer,
         latitude,
-        longitude
+        longitude,
+        event_kind,
+        artwork_key,
+        artwork_title
     } = req.body || {};
+
+    const eventKind = ['profile_view', 'portfolio_view', 'artwork_view'].includes(event_kind)
+        ? event_kind
+        : 'profile_view';
+    if (eventKind === 'artwork_view' && !cleanProfileVisitText(artwork_key, 240)) {
+        return res.status(400).json({ success: false, error: 'artwork_key is required for artwork_view' });
+    }
 
     if (!artist_id && !artist_username) {
         return res.status(400).json({ success: false, error: 'artist_username or artist_id is required' });
@@ -4087,13 +4209,21 @@ app.post('/api/artist/profile-visit', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Artist not found' });
         }
 
+        let authUser = null;
+        try { authUser = await _getAuthUserFromBearer(req); }
+        catch (_) { /* public profile events may be anonymous */ }
+        if (authUser?.id === artist.user_id) {
+            return res.json({ success: true, recorded: false, reason: 'self_visit' });
+        }
+        const identity = await resolveProfileVisitIdentity(authUser?.id, artist.user_id);
+
         const ip = getProfileVisitClientIp(req);
         const ipHash = hashProfileVisitIp(ip, serviceKey);
 
         if (ipHash) {
             const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
             const duplicateRows = await _supabaseFetch(
-                `artist_profile_visits?artist_id=eq.${encodeURIComponent(artist.user_id)}&ip_hash=eq.${encodeURIComponent(ipHash)}&created_at=gte.${encodeURIComponent(since)}&select=id&limit=1`
+                `artist_profile_visits?artist_id=eq.${encodeURIComponent(artist.user_id)}&ip_hash=eq.${encodeURIComponent(ipHash)}&event_kind=eq.${encodeURIComponent(eventKind)}${eventKind === 'artwork_view' ? `&artwork_key=eq.${encodeURIComponent(cleanProfileVisitText(artwork_key, 240))}` : ''}&created_at=gte.${encodeURIComponent(since)}&select=id&limit=1`
             );
             if (Array.isArray(duplicateRows) && duplicateRows.length > 0) {
                 return res.json({ success: true, recorded: false, reason: 'deduplicated' });
@@ -4110,8 +4240,12 @@ app.post('/api/artist/profile-visit', async (req, res) => {
                 artist.username || artist_username || artist_id,
                 120
             ),
+            event_kind: eventKind,
+            ...identity,
+            artwork_key: eventKind === 'artwork_view' ? cleanProfileVisitText(artwork_key, 240) : null,
+            artwork_title: eventKind === 'artwork_view' ? cleanProfileVisitText(artwork_title, 160) : null,
             country: countryHeader && countryHeader !== 'XX' ? countryHeader : null,
-            city: null,
+            city: identity.visitor_city,
             latitude: cleanProfileVisitCoordinate(latitude, -90, 90),
             longitude: cleanProfileVisitCoordinate(longitude, -180, 180),
             device_type: parsedUa.deviceType,
@@ -4120,7 +4254,7 @@ app.post('/api/artist/profile-visit', async (req, res) => {
             ip_hash: ipHash,
             device_fingerprint: cleanProfileVisitText(device_fingerprint, 200),
             referrer: cleanProfileVisitText(referrer, 500),
-            is_authenticated: Boolean(is_authenticated),
+            is_authenticated: Boolean(authUser?.id),
             user_agent: userAgent
         });
 
@@ -4134,7 +4268,10 @@ app.post('/api/artist/profile-visit', async (req, res) => {
         console.error('[ProfileVisit] Error:', err.message);
         return res.status(502).json({ success: false, error: 'Could not record profile visit' });
     }
-});
+}
+
+app.post('/api/artist/profile-visit', handleArtistProfileEvent);
+app.post('/api/artist/profile-event', handleArtistProfileEvent);
 
 /**
  * POST /api/studio/notify

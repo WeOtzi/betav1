@@ -1,822 +1,931 @@
-// ============================================
-// Inbox del artista (DS Bauhaus) — ref Figma 144:1250
-// 3 zonas + sidebar de filtros:
-//   · Hilos de cotización: vista chat_threads + chat_messages via
-//     WeotziData.Chat (Realtime de chat_messages activo).
-//   · Hilo fijo "Soporte": support_conversations/support_messages via
-//     WeotziData.SupportInbox (lectura RLS propia + envío por endpoint);
-//     polling de 5s SOLO mientras el hilo de soporte está abierto.
-// Filtros Spots/Invitaciones/Estudios/Viajes/Archivados/Favoritas: sin
-// backend de inbox aún — atenuados "próximamente".
-// ============================================
-
+/**
+ * Inbox unificado del artista — Figma 144:1250.
+ *
+ * El contrato persistente vive en inbox_threads / inbox_messages. Las fuentes
+ * legacy de cotizaciones y soporte siguen cargándose como compatibilidad, sin
+ * duplicar conversaciones que ya fueron proyectadas al inbox unificado.
+ */
 (function () {
     'use strict';
 
-    const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
-    const supabaseKey = window.CONFIG?.supabase?.anonKey
-        || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-    if (!window._supabase) window._supabase = supabase.createClient(supabaseUrl, supabaseKey);
-    const _supabase = window._supabase;
-
-    const SUPPORT_ID = 'support';
-    const SUPPORT_POLL_MS = 5000;
-
-    // Vocabulario de estado de cotización (mismo del módulo de cotizaciones).
-    const QUOTE_STATUS_VIEW = {
-        pending:          { label: 'Pendiente',          tag: 'wo-tag--highlight' },
-        responded:        { label: 'Respondida',         tag: 'wo-tag--info' },
-        client_approved:  { label: 'Confirmada',         tag: 'wo-tag--active' },
-        in_progress:      { label: 'En progreso',        tag: 'wo-tag--active' },
-        artist_completed: { label: 'Lista para cliente', tag: 'wo-tag--active' },
-        completed:        { label: 'Completada',         tag: 'wo-tag--active' },
-        client_rejected:  { label: 'Rechazada',          tag: 'wo-tag--urgent' },
-        expired:          { label: 'Vencida',            tag: 'wo-tag--archived' },
+    const D = window.WeotziData || {};
+    const CATEGORY_LABELS = {
+        all: 'TODAS',
+        clients: 'CLIENTES',
+        quotations: 'COTIZACIONES',
+        support: 'SOPORTE',
+        invitations: 'INVITACIONES',
+        spots: 'SPOTS',
+        job_board: 'JOB BOARD',
+        studios: 'ESTUDIOS',
+        trips: 'VIAJES',
+        archived: 'ARCHIVADOS',
+        favorites: 'FAVORITAS',
+    };
+    const CATEGORY_META = {
+        clients: { label: 'Cliente', tone: 'client' },
+        quotations: { label: 'Cotización', tone: 'quote' },
+        support: { label: 'Soporte', tone: 'support' },
+        invitations: { label: 'Invitación', tone: 'invitation' },
+        spots: { label: 'Spot', tone: 'spot' },
+        job_board: { label: 'Job Board', tone: 'job' },
+        studios: { label: 'Estudio', tone: 'studio' },
+        trips: { label: 'Viaje', tone: 'trip' },
     };
     const CLOSED_QUOTE_STATUSES = ['completed', 'client_rejected', 'expired'];
-
-    const SUPPORT_STATUS_VIEW = {
-        bot:            { label: 'Asistente',        tag: 'wo-tag--info' },
-        awaiting_human: { label: 'Esperando agente', tag: 'wo-tag--highlight' },
-        human:          { label: 'Con agente',       tag: 'wo-tag--active' },
-        closed:         { label: 'Cerrada',          tag: 'wo-tag--archived' },
+    const FILE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain';
+    const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
+    const state = {
+        userId: null,
+        unified: [],
+        legacyQuotes: [],
+        legacySupport: null,
+        legacySupportMessages: [],
+        rows: [],
+        filter: 'all',
+        search: '',
+        activeKey: null,
+        activeMessages: [],
+        pendingFile: null,
+        listChannel: null,
+        threadChannel: null,
+        refreshTimer: null,
     };
-
-    let session = null;
-    let uid = null;
-    let threads = [];        // hilos de cotización (filas de chat_threads)
-    let supportConv = null;  // conversación de soporte propia (o null)
-    let supportMsgs = [];
-    let filter = 'all';      // all | quotes | support
-    let search = '';
-    let activeId = null;     // quote_id (text) | 'support' | null
-    let chatChannel = null;
-    let badgeChannel = null;
-    let supportPollTimer = null;
-    let supportPollInFlight = false;
-    let refreshTimer = null;
-    let pendingEcho = [];    // dedupe del eco realtime de mensajes propios
-
-    const $ = (id) => document.getElementById(id);
 
     document.addEventListener('DOMContentLoaded', init);
 
     async function init() {
-        wireStaticUI();
-        const ok = await resolveSession();
-        if (!ok) return;
-        await Promise.all([loadThreads(), loadSupport()]);
-        renderAll();
-        subscribeBadges();
-        openFromQuery();
-    }
-
-    // ============================================
-    // SESIÓN / CHROME
-    // ============================================
-
-    async function resolveSession() {
+        wireStaticUi();
         try {
-            const { data } = await _supabase.auth.getSession();
-            session = data?.session || null;
-        } catch (err) {
-            console.warn('[inbox] no pudimos leer la sesión:', err);
-            session = null;
+            if (window.ConfigManager && typeof window.ConfigManager.init === 'function') {
+                await window.ConfigManager.init();
+            }
+            const client = D.getClient ? D.getClient() : window._supabase;
+            const sessionResult = client ? await client.auth.getSession() : null;
+            const session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
+            if (!session) {
+                window.location.replace('/login?returnTo=' + encodeURIComponent(window.location.pathname));
+                return;
+            }
+            state.userId = session.user.id;
+            await reloadRows({ preserveSelection: false });
+            subscribeList();
+            openFromQuery();
+        } catch (error) {
+            console.error('[artist-inbox] init', error);
+            renderFatal('No pudimos cargar tu inbox. Reintentá en unos segundos.');
         }
-        if (!session) {
-            window.location.href = '/artist/login?returnTo=%2Fartist%2Finbox';
-            return false;
-        }
-        uid = session.user.id;
-        return true;
     }
 
-    function wireStaticUI() {
-        const toggle = $('ai-menu-toggle');
-        const menu = $('ai-mobile-menu');
-        if (toggle && menu) {
-            toggle.addEventListener('click', () => {
-                const open = !menu.hidden;
-                menu.hidden = open;
-                toggle.setAttribute('aria-expanded', String(!open));
-            });
-        }
-
-        $('ai-logout')?.addEventListener('click', async () => {
-            try { await _supabase.auth.signOut(); } catch { /* igual salimos */ }
-            window.location.href = '/artist/login';
+    function wireStaticUi() {
+        const menuToggle = el('ai-menu-toggle');
+        menuToggle && menuToggle.addEventListener('click', function () {
+            const menu = el('ai-mobile-menu');
+            const open = menu.hidden;
+            menu.hidden = !open;
+            menuToggle.setAttribute('aria-expanded', String(open));
         });
 
-        document.querySelectorAll('button.ai-side-item').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                filter = btn.dataset.filter || 'all';
-                document.querySelectorAll('button.ai-side-item').forEach((b) =>
-                    b.classList.toggle('is-active', b === btn));
+        el('ai-logout') && el('ai-logout').addEventListener('click', async function () {
+            const client = D.getClient ? D.getClient() : window._supabase;
+            if (client) await client.auth.signOut();
+            window.location.replace('/login');
+        });
+
+        document.querySelectorAll('[data-filter]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                state.filter = button.dataset.filter || 'all';
+                document.querySelectorAll('[data-filter]').forEach(function (item) {
+                    const selected = item === button;
+                    item.classList.toggle('is-active', selected);
+                    item.setAttribute('aria-pressed', String(selected));
+                });
+                closeMobileThread();
                 renderList();
             });
         });
 
-        $('ai-search')?.addEventListener('input', (e) => {
-            search = String(e.target.value || '').trim().toLowerCase();
+        el('ai-search') && el('ai-search').addEventListener('input', function (event) {
+            state.search = event.target.value.trim().toLocaleLowerCase('es');
             renderList();
         });
 
-        const input = $('ai-input');
-        const send = $('ai-send');
-        input?.addEventListener('input', () => { send.disabled = !input.value.trim(); });
-        $('ai-composer')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            sendCurrent();
+        el('ai-list') && el('ai-list').addEventListener('click', onListClick);
+        el('ai-list') && el('ai-list').addEventListener('keydown', function (event) {
+            if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[data-open-thread]')) {
+                event.preventDefault();
+                openThread(event.target.dataset.openThread);
+            }
         });
-
-        // CTA del estado vacío de soporte: solo si el widget está inyectado.
-        const cta = $('ai-support-cta');
-        if (cta) {
-            cta.addEventListener('click', () => {
-                const widget = window.WeotziSupportChat || window.SupportChat;
-                if (widget && typeof widget.openPanel === 'function') widget.openPanel();
-            });
-        }
-
-        // Back móvil (el header del hilo se re-renderiza: delegación).
-        $('ai-thread-head')?.addEventListener('click', (e) => {
-            if (e.target.closest('.ai-back')) closeThread();
+        el('ai-thread-head') && el('ai-thread-head').addEventListener('click', onThreadHeadClick);
+        el('ai-composer') && el('ai-composer').addEventListener('submit', onComposerSubmit);
+        el('ai-input') && el('ai-input').addEventListener('input', syncSendState);
+        el('ai-attach') && el('ai-attach').addEventListener('click', function () { openFilePicker(FILE_ACCEPT); });
+        el('ai-image') && el('ai-image').addEventListener('click', function () { openFilePicker(IMAGE_ACCEPT); });
+        el('ai-emoji') && el('ai-emoji').addEventListener('click', insertComposerEmoji);
+        el('ai-file') && el('ai-file').addEventListener('change', onFileChosen);
+        el('ai-attachment-preview') && el('ai-attachment-preview').addEventListener('click', function (event) {
+            if (event.target.closest('[data-remove-attachment]')) clearPendingFile();
         });
-
-        $('ai-list')?.addEventListener('click', (e) => {
-            const row = e.target.closest('.ai-row');
-            if (row && row.dataset.id) openThread(row.dataset.id);
-        });
+        el('ai-messages') && el('ai-messages').addEventListener('click', onMessageClick);
+        window.addEventListener('beforeunload', cleanupChannels);
     }
 
-    // ============================================
-    // CARGA DE DATOS
-    // ============================================
-
-    async function loadThreads() {
-        try {
-            threads = await WeotziData.Chat.listThreadsForArtist(uid);
-        } catch (err) {
-            console.error('[inbox] error cargando hilos:', err);
-            threads = [];
-        }
+    function openFilePicker(accept) {
+        const input = el('ai-file');
+        if (!input) return;
+        input.accept = accept;
+        input.value = '';
+        input.click();
     }
 
-    async function loadSupport() {
-        try {
-            supportConv = await WeotziData.SupportInbox.getOwnConversation(uid);
-            supportMsgs = supportConv
-                ? await WeotziData.SupportInbox.listMessages(supportConv.id)
-                : [];
-        } catch (err) {
-            console.warn('[inbox] soporte no disponible:', err);
-            supportConv = null;
-            supportMsgs = [];
-        }
+    function insertComposerEmoji() {
+        const input = el('ai-input');
+        if (!input || input.disabled) return;
+        const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+        const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+        input.value = input.value.slice(0, start) + '🙂' + input.value.slice(end);
+        input.focus();
+        input.setSelectionRange(start + 2, start + 2);
+        syncSendState();
     }
 
-    // ============================================
-    // DERIVADOS
-    // ============================================
+    async function reloadRows(options) {
+        const preserveSelection = !options || options.preserveSelection !== false;
+        const active = preserveSelection ? state.activeKey : null;
+        const results = await Promise.allSettled([
+            D.Inbox && D.Inbox.listThreads ? D.Inbox.listThreads() : Promise.resolve([]),
+            D.Chat && D.Chat.listThreadsForArtist ? D.Chat.listThreadsForArtist(state.userId) : Promise.resolve([]),
+            D.SupportInbox && D.SupportInbox.getOwnConversation ? D.SupportInbox.getOwnConversation(state.userId) : Promise.resolve(null),
+        ]);
 
-    function threadStatusView(t) {
-        if (CLOSED_QUOTE_STATUSES.includes(t.quote_status)) return { label: 'Cerrado', cls: 'is-closed' };
-        if (t.last_message_sender === 'client') return { label: 'Esperando respuesta', cls: 'is-waiting' };
-        return { label: 'Respondido', cls: 'is-replied' };
-    }
-
-    function supportStatusLine() {
-        if (!supportConv) return null;
-        if (supportConv.status === 'closed') return { label: 'Cerrado', cls: 'is-closed' };
-        const last = supportMsgs[supportMsgs.length - 1];
-        if (last && last.role !== 'user') return { label: 'Esperando respuesta', cls: 'is-waiting' };
-        return { label: 'Respondido', cls: 'is-replied' };
-    }
-
-    function totalUnread() {
-        return threads.reduce((acc, t) => acc + (Number(t.unread_for_artist) || 0), 0);
-    }
-
-    function matchesSearch(text) {
-        if (!search) return true;
-        return String(text || '').toLowerCase().includes(search);
-    }
-
-    function visibleQuoteThreads() {
-        if (filter === 'support') return [];
-        return threads.filter((t) => matchesSearch(
-            [t.client_full_name, t.last_message, t.tattoo_style, t.tattoo_body_part].join(' ')
-        ));
-    }
-
-    function supportVisible() {
-        if (filter === 'quotes') return false;
-        const last = supportMsgs[supportMsgs.length - 1];
-        return matchesSearch(['soporte we ötzi', last ? last.content : ''].join(' '));
-    }
-
-    // ============================================
-    // RENDER · SIDEBAR + BADGES + LISTA
-    // ============================================
-
-    function renderAll() {
+        state.unified = resultValue(results[0], []);
+        state.legacyQuotes = resultValue(results[1], []);
+        state.legacySupport = resultValue(results[2], null);
+        state.rows = buildRows();
         renderSidebarCounts();
-        renderTopbarBadge();
+        renderUnreadBadge();
         renderList();
+
+        if (active && state.rows.some(function (row) { return row.key === active; })) {
+            state.activeKey = active;
+        } else if (active) {
+            closeThread();
+        }
+    }
+
+    function buildRows() {
+        const unifiedRows = state.unified.map(adaptUnified);
+        const domainKeys = new Set(unifiedRows.map(function (row) {
+            return row.contextType && row.contextId ? row.contextType + ':' + row.contextId : '';
+        }).filter(Boolean));
+
+        const quoteRows = state.legacyQuotes
+            .filter(function (item) {
+                return !domainKeys.has('quotation:' + item.quote_id) &&
+                    !domainKeys.has('quote:' + item.quote_id);
+            })
+            .map(adaptLegacyQuote);
+
+        const hasUnifiedSupport = unifiedRows.some(function (row) { return row.category === 'support'; });
+        const supportRows = !hasUnifiedSupport && state.legacySupport
+            ? [adaptLegacySupport(state.legacySupport)]
+            : [];
+
+        return unifiedRows.concat(quoteRows, supportRows).sort(function (a, b) {
+            return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
+        });
+    }
+
+    function adaptUnified(item) {
+        return {
+            key: 'unified:' + item.id,
+            source: 'unified',
+            id: item.id,
+            category: item.category,
+            name: item.counterparty_name || 'Conversación',
+            initials: item.counterparty_initials || initials(item.counterparty_name),
+            subject: item.subject || '',
+            preview: item.last_message || item.subject || 'Conversación iniciada',
+            lastAt: item.last_message_at,
+            lastSenderUserId: item.last_sender_user_id,
+            unread: Number(item.unread_count) || 0,
+            favorite: Boolean(item.is_favorite),
+            archived: Boolean(item.is_archived),
+            closed: item.status === 'closed',
+            priority: Boolean(item.is_priority),
+            context: item.context || {},
+            contextType: item.context_type,
+            contextId: item.context_id,
+            raw: item,
+        };
+    }
+
+    function adaptLegacyQuote(item) {
+        const quote = item.quote || {};
+        const name = item.client_full_name || item.client_name || quote.client_full_name || quote.client_name || 'Cliente';
+        return {
+            key: 'quote:' + item.quote_id,
+            source: 'quote',
+            id: item.quote_id,
+            category: 'quotations',
+            name: name,
+            initials: initials(name),
+            subject: quote.tattoo_style || item.tattoo_style || 'Cotización',
+            preview: item.last_message || 'Cotización en curso',
+            lastAt: item.last_message_at || quote.updated_at,
+            lastSenderUserId: item.last_message_sender === 'artist' ? state.userId : null,
+            unread: Number(item.unread_for_artist) || 0,
+            favorite: false,
+            archived: false,
+            closed: CLOSED_QUOTE_STATUSES.includes(quote.status || item.quote_status || item.quotation_status),
+            priority: false,
+            context: {
+                budget: fmtMoney(quote.budget || item.budget, quote.currency || item.currency),
+                style: quote.tattoo_style || item.tattoo_style,
+                body_part: quote.tattoo_body_part || item.tattoo_body_part,
+                quote_status: quote.status || item.quote_status || item.quotation_status,
+            },
+            raw: item,
+        };
+    }
+
+    function adaptLegacySupport(item) {
+        return {
+            key: 'support:' + item.id,
+            source: 'support',
+            id: item.id,
+            category: 'support',
+            name: 'Soporte We Ötzi',
+            initials: 'WÖ',
+            subject: item.subject || 'Ayuda con tu cuenta',
+            preview: item.last_message || 'Conversación con soporte',
+            lastAt: item.last_message_at || item.updated_at,
+            lastSenderUserId: null,
+            unread: 0,
+            favorite: false,
+            archived: false,
+            closed: item.status === 'closed',
+            priority: false,
+            context: { channel: 'support', status: item.status },
+            raw: item,
+        };
+    }
+
+    function resultValue(result, fallback) {
+        if (result && result.status === 'fulfilled') return result.value;
+        if (result && result.reason) console.warn('[artist-inbox] fuente no disponible', result.reason);
+        return fallback;
+    }
+
+    function visibleRows() {
+        return state.rows.filter(function (row) {
+            if (state.filter === 'archived') {
+                if (!row.archived) return false;
+            } else if (state.filter === 'favorites') {
+                if (!row.favorite) return false;
+            } else {
+                if (row.archived) return false;
+                if (state.filter !== 'all' && row.category !== state.filter) return false;
+            }
+
+            if (!state.search) return true;
+            return [row.name, row.subject, row.preview, row.category]
+                .filter(Boolean)
+                .join(' ')
+                .toLocaleLowerCase('es')
+                .includes(state.search);
+        });
     }
 
     function renderSidebarCounts() {
-        setText('ai-count-all', threads.length + 1);
-        setText('ai-count-quotes', threads.length);
-        setText('ai-count-support', 1);
-        setText('ai-sum-unread', threads.filter((t) => Number(t.unread_for_artist) > 0).length);
-        setText('ai-sum-replied', threads.filter((t) => t.last_message_sender === 'artist').length);
-        setText('ai-sum-waiting', threads.filter((t) => t.last_message_sender === 'client').length);
+        const activeRows = state.rows.filter(function (row) { return !row.archived; });
+        const counts = {};
+        Object.keys(CATEGORY_META).forEach(function (category) {
+            counts[category] = activeRows.filter(function (row) { return row.category === category; }).length;
+        });
+        setText('ai-count-all', activeRows.length);
+        setText('ai-count-clients', counts.clients || 0);
+        setText('ai-count-quotations', counts.quotations || 0);
+        setText('ai-count-support', counts.support || 0);
+        setText('ai-count-invitations', counts.invitations || 0);
+        setText('ai-count-spots', counts.spots || 0);
+        setText('ai-count-job-board', counts.job_board || 0);
+        setText('ai-count-studios', counts.studios || 0);
+        setText('ai-count-trips', counts.trips || 0);
+        setText('ai-count-archived', state.rows.filter(function (row) { return row.archived; }).length);
+        setText('ai-count-favorites', state.rows.filter(function (row) { return row.favorite; }).length);
+
+        setText('ai-sum-unread', activeRows.filter(function (row) { return row.unread > 0; }).length);
+        setText('ai-sum-replied', activeRows.filter(function (row) {
+            return row.lastSenderUserId && row.lastSenderUserId === state.userId;
+        }).length);
+        setText('ai-sum-waiting', activeRows.filter(function (row) {
+            return !row.closed && (!row.lastSenderUserId || row.lastSenderUserId !== state.userId);
+        }).length);
     }
 
-    function renderTopbarBadge() {
-        const el = $('ai-nav-unread');
-        if (!el) return;
-        const n = totalUnread();
-        el.textContent = String(n);
-        el.hidden = n <= 0;
+    function renderUnreadBadge() {
+        const unread = state.rows.reduce(function (sum, row) {
+            return sum + (row.archived ? 0 : row.unread);
+        }, 0);
+        const badge = el('ai-nav-unread');
+        if (!badge) return;
+        badge.hidden = unread === 0;
+        badge.textContent = unread > 99 ? '99+' : String(unread);
     }
 
     function renderList() {
-        const list = $('ai-list');
-        if (!list) return;
-
-        const rows = visibleQuoteThreads();
-        const showSupport = supportVisible();
-
-        const cap = $('ai-list-cap');
-        if (cap) {
-            const label = filter === 'quotes' ? 'Cotizaciones' : filter === 'support' ? 'Soporte' : 'Todas';
-            const n = rows.length + (showSupport ? 1 : 0);
-            cap.textContent = `${label} · ${n}`;
+        const list = visibleRows();
+        setText('ai-list-cap', (CATEGORY_LABELS[state.filter] || 'TODAS') + ' · ' + list.length);
+        const host = el('ai-list');
+        if (!list.length) {
+            host.innerHTML = '<div class="wo-empty ai-list-empty">' +
+                '<i data-wo-icon="message-circle" aria-hidden="true"></i>' +
+                '<span class="wo-empty-title">No hay conversaciones</span>' +
+                '<p>Probá con otra categoría o búsqueda.</p></div>';
+            refreshIcons();
+            return;
         }
+        host.innerHTML = list.map(rowHtml).join('');
+        refreshIcons();
+    }
 
-        let html = '';
-        if (showSupport) html += supportRowHtml();
-        html += rows.map(quoteRowHtml).join('');
+    function rowHtml(row) {
+        const meta = CATEGORY_META[row.category] || { label: row.category || 'Mensaje', tone: 'default' };
+        const status = row.closed
+            ? { label: 'Cerrado', cls: 'is-closed' }
+            : row.lastSenderUserId === state.userId
+                ? { label: 'Respondida', cls: 'is-replied' }
+                : { label: 'Esperando', cls: 'is-waiting' };
+        const active = row.key === state.activeKey ? ' is-active' : '';
+        const unread = row.unread > 0 ? ' is-unread' : '';
+        const org = ['support', 'invitations', 'spots', 'job_board', 'studios', 'trips'].includes(row.category)
+            ? ' ai-avatar--org'
+            : '';
+        const favoriteButton = row.source === 'unified'
+            ? '<button type="button" class="ai-row-star' + (row.favorite ? ' is-active' : '') + '" data-row-flag="favorite" data-key="' + esc(row.key) + '" aria-label="' + (row.favorite ? 'Quitar de favoritas' : 'Marcar como favorita') + '"><i data-wo-icon="star" class="wo-icon-16" aria-hidden="true"></i></button>'
+            : '';
+        return '<article class="ai-row' + active + unread + '" data-row-key="' + esc(row.key) + '">' +
+            '<button type="button" class="ai-row-open" data-open-thread="' + esc(row.key) + '" aria-label="Abrir conversación con ' + esc(row.name) + '">' +
+                '<span class="ai-avatar' + org + '">' + esc(row.initials) + '</span>' +
+                '<span class="ai-row-body">' +
+                    '<span class="ai-row-top"><span class="ai-row-name">' + esc(row.name) + '</span><time class="ai-row-time">' + esc(fmtListTime(row.lastAt)) + '</time></span>' +
+                    '<span class="ai-row-tags"><span class="wo-tag ai-category-tag is-' + esc(meta.tone) + '">' + esc(meta.label) + '</span>' +
+                        (row.priority ? '<span class="wo-tag wo-tag--warning">Prioridad</span>' : '') +
+                        '<span class="ai-row-status ' + status.cls + '">' + status.label + '</span></span>' +
+                    '<span class="ai-row-prev"><span class="ai-row-preview">' + esc(row.preview) + '</span>' +
+                        (row.unread ? '<span class="wo-badge ai-row-unread">' + row.unread + '</span>' : '') + '</span>' +
+                '</span>' +
+            '</button>' + favoriteButton +
+        '</article>';
+    }
 
-        if (!rows.length && filter !== 'support') {
-            html += `
-                <div class="wo-empty">
-                    <i data-wo-icon="inbox" aria-hidden="true"></i>
-                    <span class="wo-empty-title">Sin conversaciones todavía</span>
-                    <p>Cuando un cliente te escriba por una cotización, el hilo aparece acá.</p>
-                </div>`;
+    async function onListClick(event) {
+        const flag = event.target.closest('[data-row-flag]');
+        if (flag) {
+            event.stopPropagation();
+            await toggleFlag(flag.dataset.key, flag.dataset.rowFlag);
+            return;
         }
-        list.innerHTML = html;
+        const opener = event.target.closest('[data-open-thread]');
+        if (opener) await openThread(opener.dataset.openThread);
     }
 
-    function quoteRowHtml(t) {
-        const st = threadStatusView(t);
-        const unread = Number(t.unread_for_artist) || 0;
-        const active = activeId === t.quote_id;
-        return `
-            <button type="button" role="listitem" class="ai-row${active ? ' is-active' : ''}${unread ? ' is-unread' : ''}" data-id="${esc(t.quote_id)}">
-                <span class="ai-avatar" aria-hidden="true">${esc(initialsOf(t.client_full_name))}</span>
-                <span class="ai-row-body">
-                    <span class="ai-row-top">
-                        <span class="ai-row-name">${esc(t.client_full_name || 'Cliente')}</span>
-                        <span class="ai-row-time">${esc(fmtListTime(t.last_message_at))}</span>
-                    </span>
-                    <span class="ai-row-tags"><span class="wo-tag wo-tag--highlight">Cotización</span></span>
-                    <span class="ai-row-prev">
-                        <span class="ai-row-preview">${esc(t.last_message || '')}</span>
-                        ${unread ? `<span class="wo-badge wo-badge--s wo-badge--accent wo-badge--pill wo-mono-num ai-row-unread">${unread}</span>` : ''}
-                    </span>
-                    <span class="ai-row-status ${st.cls}">${esc(st.label)}</span>
-                </span>
-            </button>`;
+    async function toggleFlag(key, flag) {
+        const row = findRow(key);
+        if (!row || row.source !== 'unified') return;
+        const favorite = flag === 'favorite' ? !row.favorite : null;
+        const archived = flag === 'archived' ? !row.archived : null;
+        try {
+            await D.Inbox.setFlags(row.id, { favorite: favorite, archived: archived });
+            if (favorite !== null) row.raw.is_favorite = favorite;
+            if (archived !== null) row.raw.is_archived = archived;
+            state.rows = buildRows();
+            renderSidebarCounts();
+            renderList();
+            if (archived === true) closeThread();
+            else if (state.activeKey === key) renderThreadHead(row);
+        } catch (error) {
+            console.error('[artist-inbox] flags', error);
+            notify('No pudimos actualizar la conversación.', 'error');
+        }
     }
 
-    function supportRowHtml() {
-        const last = supportMsgs[supportMsgs.length - 1];
-        const st = supportStatusLine();
-        const active = activeId === SUPPORT_ID;
-        const preview = last ? last.content : 'Escribinos si necesitás ayuda';
-        const time = supportConv ? fmtListTime(supportConv.last_message_at) : '';
-        return `
-            <button type="button" role="listitem" class="ai-row${active ? ' is-active' : ''}" data-id="${SUPPORT_ID}">
-                <span class="ai-avatar ai-avatar--org" aria-hidden="true">WÖ</span>
-                <span class="ai-row-body">
-                    <span class="ai-row-top">
-                        <span class="ai-row-name">Soporte We Ötzi</span>
-                        <span class="ai-row-time">${esc(time)}</span>
-                    </span>
-                    <span class="ai-row-tags"><span class="wo-tag wo-tag--info">Soporte</span></span>
-                    <span class="ai-row-prev"><span class="ai-row-preview">${esc(preview)}</span></span>
-                    ${st ? `<span class="ai-row-status ${st.cls}">${esc(st.label)}</span>` : ''}
-                </span>
-            </button>`;
-    }
+    async function openThread(key) {
+        const row = findRow(key);
+        if (!row) return;
+        state.activeKey = key;
+        state.activeMessages = [];
+        clearPendingFile();
+        removeThreadChannel();
 
-    // ============================================
-    // HILO ABIERTO
-    // ============================================
-
-    async function openThread(id) {
-        activeId = id;
-        stopSupportPolling();
-        removeChatChannel();
-
-        $('ai-thread-placeholder').hidden = true;
-        $('ai-thread').hidden = false;
-        $('ai-shell').classList.add('is-thread-open');
+        el('ai-thread-placeholder').hidden = true;
+        el('ai-thread').hidden = false;
+        el('ai-support-empty').hidden = true;
+        el('ai-messages').hidden = false;
+        el('ai-shell').classList.add('is-thread-open');
         renderList();
+        renderThreadHead(row);
+        renderContext(row);
+        renderMessagesLoading();
+        setComposer(row.closed ? 'Esta conversación está cerrada.' : 'Escribí un mensaje…', !row.closed);
 
-        if (id === SUPPORT_ID) {
-            await openSupportThread();
-        } else {
-            await openQuoteThread(id);
+        try {
+            if (row.source === 'unified') {
+                const messages = await D.Inbox.listMessages(row.id);
+                if (state.activeKey !== key) return;
+                state.activeMessages = messages.map(adaptUnifiedMessage);
+                await D.Inbox.markRead(row.id).catch(function () {});
+                row.raw.unread_count = 0;
+                row.unread = 0;
+                state.threadChannel = D.Inbox.subscribeThread(row.id, function (payload) {
+                    const message = payload && payload.new;
+                    if (!message || state.activeKey !== key) return;
+                    if (!state.activeMessages.some(function (item) { return item.id === message.id; })) {
+                        state.activeMessages.push(adaptUnifiedMessage(message));
+                        renderMessages();
+                    }
+                    D.Inbox.markRead(row.id).catch(function () {});
+                    scheduleRefresh();
+                });
+            } else if (row.source === 'quote') {
+                const messages = await D.Chat.listByQuote(row.id);
+                if (state.activeKey !== key) return;
+                state.activeMessages = messages.map(adaptQuoteMessage);
+                await D.Chat.markRead(row.id, 'client').catch(function () {});
+                row.raw.unread_for_artist = 0;
+                row.unread = 0;
+                if (D.Realtime && D.Realtime.subscribeChatMessages) {
+                    state.threadChannel = D.Realtime.subscribeChatMessages('artist-inbox-quote-' + row.id, row.id, function (payload) {
+                        const message = payload && payload.new;
+                        if (!message || state.activeKey !== key) return;
+                        if (!state.activeMessages.some(function (item) { return item.id === message.id; })) {
+                            state.activeMessages.push(adaptQuoteMessage(message));
+                            renderMessages();
+                        }
+                        if (message.sender_type === 'client') D.Chat.markRead(row.id, 'client').catch(function () {});
+                    });
+                }
+            } else {
+                const messages = await D.SupportInbox.listMessages(row.id);
+                if (state.activeKey !== key) return;
+                state.legacySupportMessages = messages;
+                state.activeMessages = messages.map(adaptSupportMessage);
+            }
+
+            renderMessages();
+            renderSidebarCounts();
+            renderUnreadBadge();
+            renderList();
+        } catch (error) {
+            console.error('[artist-inbox] abrir hilo', error);
+            renderMessagesError();
         }
     }
 
     function closeThread() {
-        activeId = null;
-        stopSupportPolling();
-        removeChatChannel();
-        $('ai-thread').hidden = true;
-        $('ai-thread-placeholder').hidden = false;
-        $('ai-shell').classList.remove('is-thread-open');
-        $('ai-context').hidden = true;
+        state.activeKey = null;
+        state.activeMessages = [];
+        removeThreadChannel();
+        clearPendingFile();
+        el('ai-thread').hidden = true;
+        el('ai-thread-placeholder').hidden = false;
+        el('ai-context').hidden = true;
+        el('ai-shell').classList.remove('is-thread-open');
         renderList();
     }
 
-    async function openQuoteThread(quoteId) {
-        const t = threads.find((x) => x.quote_id === quoteId);
-        if (!t) return;
+    function closeMobileThread() {
+        el('ai-shell').classList.remove('is-thread-open');
+    }
 
-        renderQuoteHead(t);
-        renderQuoteContext(t);
-        setComposerState({ enabled: true });
-        $('ai-support-empty').hidden = true;
-        $('ai-messages').hidden = false;
-        renderMessagesLoading();
+    function renderThreadHead(row) {
+        const meta = CATEGORY_META[row.category] || { label: row.category || 'Mensaje' };
+        const persistentTools = row.source === 'unified'
+            ? '<div class="ai-thread-tools">' +
+                '<button type="button" class="wo-iconbtn' + (row.favorite ? ' is-active' : '') + '" data-head-flag="favorite" aria-label="' + (row.favorite ? 'Quitar de favoritas' : 'Marcar como favorita') + '" title="Favorita"><i data-wo-icon="star" class="wo-icon-18" aria-hidden="true"></i></button>' +
+                '<button type="button" class="wo-iconbtn" data-head-flag="archived" aria-label="' + (row.archived ? 'Restaurar conversación' : 'Archivar conversación') + '" title="' + (row.archived ? 'Restaurar' : 'Archivar') + '"><i data-wo-icon="archive" class="wo-icon-18" aria-hidden="true"></i></button>' +
+            '</div>'
+            : '';
+        el('ai-thread-head').innerHTML =
+            '<button type="button" class="wo-iconbtn ai-back" data-thread-back aria-label="Volver a conversaciones"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i></button>' +
+            '<span class="ai-avatar ai-head-avatar">' + esc(row.initials) + '</span>' +
+            '<div class="ai-head-copy"><strong>' + esc(row.name) + '</strong><span>' + esc(meta.label) + (row.subject ? ' · ' + esc(row.subject) : '') + '</span></div>' +
+            persistentTools;
+        refreshIcons();
+    }
 
-        let msgs = [];
-        try {
-            msgs = await WeotziData.Chat.listByQuote(quoteId);
-        } catch (err) {
-            console.error('[inbox] error cargando mensajes:', err);
+    async function onThreadHeadClick(event) {
+        if (event.target.closest('[data-thread-back]')) {
+            closeMobileThread();
+            return;
         }
-        if (activeId !== quoteId) return; // cambió de hilo mientras cargaba
-        renderQuoteMessages(msgs);
-
-        // Marcar leídos los mensajes del cliente y limpiar badges locales.
-        if (Number(t.unread_for_artist) > 0) {
-            WeotziData.Chat.markRead(quoteId, 'client').catch(() => {});
-            t.unread_for_artist = 0;
-            renderSidebarCounts();
-            renderTopbarBadge();
-            renderList();
-        }
-
-        chatChannel = WeotziData.Realtime.subscribeChatMessages(`inbox-chat-${quoteId}`, quoteId, (payload) => {
-            const m = payload?.new;
-            if (!m || activeId !== quoteId) return;
-            if (m.sender_type === 'artist') {
-                const i = pendingEcho.indexOf(m.message);
-                if (i !== -1) { pendingEcho.splice(i, 1); return; } // eco propio
-            }
-            appendMessage(quoteBubble(m), m.created_at);
-            t.last_message = m.message;
-            t.last_message_sender = m.sender_type;
-            t.last_message_at = m.created_at;
-            if (m.sender_type === 'client') {
-                WeotziData.Chat.markRead(quoteId, 'client').catch(() => {});
-            }
-            renderSidebarCounts();
-            renderList();
-        });
-    }
-
-    async function openSupportThread() {
-        renderSupportHead();
-        renderSupportContext();
-
-        if (!supportConv) {
-            // Reintento por si el widget acaba de crear la conversación.
-            try { supportConv = await WeotziData.SupportInbox.getOwnConversation(uid); } catch { /* sigue vacío */ }
-        }
-
-        if (!supportConv) {
-            $('ai-messages').hidden = true;
-            $('ai-support-empty').hidden = false;
-            const widget = window.WeotziSupportChat || window.SupportChat;
-            $('ai-support-cta').hidden = !(widget && typeof widget.openPanel === 'function');
-            setComposerState({ enabled: false, hidden: true });
-        } else {
-            $('ai-support-empty').hidden = true;
-            $('ai-messages').hidden = false;
-            renderMessagesLoading();
-            try {
-                supportMsgs = await WeotziData.SupportInbox.listMessages(supportConv.id);
-            } catch (err) {
-                console.warn('[inbox] error cargando soporte:', err);
-            }
-            if (activeId !== SUPPORT_ID) return;
-            renderSupportMessages();
-            const closed = supportConv.status === 'closed';
-            setComposerState({ enabled: !closed, placeholder: closed ? 'Conversación cerrada' : undefined });
-        }
-
-        startSupportPolling();
-    }
-
-    // ---------- Polling de soporte (solo con el hilo abierto) ----------
-
-    function startSupportPolling() {
-        stopSupportPolling();
-        supportPollTimer = setInterval(supportPollTick, SUPPORT_POLL_MS);
-    }
-
-    function stopSupportPolling() {
-        if (supportPollTimer) { clearInterval(supportPollTimer); supportPollTimer = null; }
-    }
-
-    async function supportPollTick() {
-        if (activeId !== SUPPORT_ID) { stopSupportPolling(); return; }
-        if (document.visibilityState === 'hidden' || supportPollInFlight) return;
-        supportPollInFlight = true;
-        try {
-            if (!supportConv) {
-                supportConv = await WeotziData.SupportInbox.getOwnConversation(uid);
-                if (supportConv && activeId === SUPPORT_ID) await openSupportThread();
-                return;
-            }
-            const lastAt = supportMsgs.length ? supportMsgs[supportMsgs.length - 1].created_at : null;
-            const fresh = await WeotziData.SupportInbox.listMessages(supportConv.id, { since: lastAt });
-            if (fresh.length && activeId === SUPPORT_ID) {
-                fresh.forEach((m) => {
-                    // El polling también trae el eco de lo que enviamos optimista.
-                    if (m.role === 'user' && pendingEcho.includes(m.content)) {
-                        pendingEcho.splice(pendingEcho.indexOf(m.content), 1);
-                        supportMsgs.push(m);
-                        return;
-                    }
-                    supportMsgs.push(m);
-                    appendMessage(supportBubble(m), m.created_at);
-                });
-                renderList();
-            }
-        } catch { /* el siguiente tick reintenta */ } finally {
-            supportPollInFlight = false;
-        }
-    }
-
-    // ============================================
-    // RENDER · HILO
-    // ============================================
-
-    function renderQuoteHead(t) {
-        const sv = QUOTE_STATUS_VIEW[t.quote_status];
-        const sub = ['Cotización', t.tattoo_body_part, t.tattoo_style].filter(Boolean).join(' · ');
-        $('ai-thread-head').innerHTML = `
-            <button type="button" class="ai-back" aria-label="Volver a la lista"><i data-wo-icon="chevron-left" aria-hidden="true"></i></button>
-            <span class="ai-avatar" aria-hidden="true">${esc(initialsOf(t.client_full_name))}</span>
-            <span class="ai-head-who">
-                <span class="ai-head-name">${esc(t.client_full_name || 'Cliente')}</span>
-                <span class="ai-head-sub">${esc(sub)}</span>
-            </span>
-            ${sv ? `<span class="ai-head-tag"><span class="wo-tag ${sv.tag}">${esc(sv.label)}</span></span>` : ''}`;
-    }
-
-    function renderSupportHead() {
-        const sv = supportConv ? SUPPORT_STATUS_VIEW[supportConv.status] : null;
-        $('ai-thread-head').innerHTML = `
-            <button type="button" class="ai-back" aria-label="Volver a la lista"><i data-wo-icon="chevron-left" aria-hidden="true"></i></button>
-            <span class="ai-avatar ai-avatar--org" aria-hidden="true">WÖ</span>
-            <span class="ai-head-who">
-                <span class="ai-head-name">Soporte We Ötzi</span>
-                <span class="ai-head-sub">Equipo de soporte · respuesta en horario hábil</span>
-            </span>
-            ${sv ? `<span class="ai-head-tag"><span class="wo-tag ${sv.tag}">${esc(sv.label)}</span></span>` : ''}`;
+        const flag = event.target.closest('[data-head-flag]');
+        if (flag) await toggleFlag(state.activeKey, flag.dataset.headFlag);
     }
 
     function renderMessagesLoading() {
-        $('ai-messages').dataset.lastDay = '';
-        $('ai-messages').innerHTML = `
-            <div class="ai-list-loading">
-                <span class="wo-spinner" aria-hidden="true"></span>
-                <span class="wo-meta-s">Cargando mensajes</span>
-            </div>`;
+        el('ai-messages').innerHTML = '<div class="ai-msg-loading"><span class="wo-spinner" aria-hidden="true"></span><span class="wo-meta-s">Cargando mensajes</span></div>';
     }
 
-    function renderQuoteMessages(msgs) {
-        renderMessageItems(msgs.map((m) => ({ html: quoteBubble(m), at: m.created_at })));
+    function renderMessagesError() {
+        el('ai-messages').innerHTML = '<div class="wo-empty"><span class="wo-empty-title">No pudimos cargar los mensajes</span><p>Volvé a abrir esta conversación para reintentar.</p></div>';
     }
 
-    function renderSupportMessages() {
-        renderMessageItems(supportMsgs.map((m) => ({ html: supportBubble(m), at: m.created_at })));
+    function adaptUnifiedMessage(message) {
+        return {
+            id: message.id,
+            mine: message.sender_user_id === state.userId || message.sender_role === 'artist',
+            body: message.body || '',
+            at: message.created_at,
+            kind: message.message_kind || 'text',
+            attachmentPath: message.attachment_path,
+            attachmentName: message.attachment_name,
+            attachmentMime: message.attachment_mime,
+        };
     }
 
-    function renderMessageItems(items) {
-        const box = $('ai-messages');
-        box.innerHTML = withDaySeparators(items);
-        const lastWithDate = [...items].reverse().find((i) => i.at);
-        box.dataset.lastDay = lastWithDate ? new Date(lastWithDate.at).toDateString() : '';
-        box.scrollTop = box.scrollHeight;
+    function adaptQuoteMessage(message) {
+        return {
+            id: message.id || String(message.created_at) + ':' + message.message,
+            mine: message.sender_type === 'artist',
+            body: message.message || '',
+            at: message.created_at,
+            kind: 'text',
+        };
     }
 
-    function quoteBubble(m) {
-        const dir = m.sender_type === 'artist' ? 'ai-msg--out' : 'ai-msg--in';
-        return bubbleHtml(dir, m.message, m.created_at);
+    function adaptSupportMessage(message) {
+        return {
+            id: message.id || String(message.created_at) + ':' + message.content,
+            mine: message.role === 'user',
+            body: message.content || '',
+            at: message.created_at,
+            kind: 'text',
+        };
     }
 
-    function supportBubble(m) {
-        const dir = m.role === 'user' ? 'ai-msg--out' : m.role === 'system' ? 'ai-msg--system ai-msg--in' : 'ai-msg--in';
-        return bubbleHtml(dir, m.content, m.created_at);
-    }
-
-    function bubbleHtml(dirClass, text, at) {
-        return `
-            <div class="ai-msg ${dirClass}">
-                <div class="ai-bubble">${esc(text || '')}</div>
-                <span class="ai-msg-time">${esc(fmtMsgTime(at))}</span>
-            </div>`;
-    }
-
-    function withDaySeparators(items) {
-        let html = '';
-        let lastDay = null;
-        items.forEach(({ html: h, at }) => {
-            const day = at ? new Date(at).toDateString() : null;
-            if (day && day !== lastDay) {
-                html += `<span class="ai-day">${esc(fmtDayLabel(at))}</span>`;
-                lastDay = day;
-            }
-            html += h;
-        });
-        return html;
-    }
-
-    function appendMessage(html, at) {
-        const box = $('ai-messages');
-        if (!box || box.hidden) return;
-        const lastDay = box.dataset.lastDay || null;
-        const day = at ? new Date(at).toDateString() : null;
-        let chunk = '';
-        if (day && day !== lastDay) {
-            chunk += `<span class="ai-day">${esc(fmtDayLabel(at))}</span>`;
-            box.dataset.lastDay = day;
+    function renderMessages() {
+        const host = el('ai-messages');
+        if (!state.activeMessages.length) {
+            host.innerHTML = '<div class="wo-empty ai-msg-empty"><i data-wo-icon="message-circle" aria-hidden="true"></i><span class="wo-empty-title">Empezá la conversación</span><p>Escribí un mensaje para continuar.</p></div>';
+            refreshIcons();
+            return;
         }
-        chunk += html;
-        box.insertAdjacentHTML('beforeend', chunk);
-        box.scrollTop = box.scrollHeight;
+        let lastDay = '';
+        host.innerHTML = state.activeMessages.map(function (message) {
+            const day = fmtDayKey(message.at);
+            const separator = day !== lastDay
+                ? '<div class="ai-day"><span>' + esc(fmtDayLabel(message.at)) + '</span></div>'
+                : '';
+            lastDay = day;
+            return separator + messageHtml(message);
+        }).join('');
+        host.scrollTop = host.scrollHeight;
+        refreshIcons();
     }
 
-    function setComposerState({ enabled, hidden = false, placeholder }) {
-        const composer = $('ai-composer');
-        const input = $('ai-input');
-        const send = $('ai-send');
-        composer.hidden = hidden;
-        input.disabled = !enabled;
-        input.placeholder = placeholder || 'Escribí un mensaje…';
-        send.disabled = true;
-        if (enabled) send.disabled = !input.value.trim();
+    function messageHtml(message) {
+        const direction = message.mine ? ' ai-msg--out' : ' ai-msg--in';
+        const attachment = message.attachmentPath
+            ? '<button type="button" class="ai-msg-attachment" data-attachment-path="' + esc(message.attachmentPath) + '">' +
+                '<i data-wo-icon="' + (String(message.attachmentMime || '').startsWith('image/') ? 'image' : 'paperclip') + '" class="wo-icon-18" aria-hidden="true"></i>' +
+                '<span>' + esc(message.attachmentName || 'Abrir adjunto') + '</span>' +
+                '<i data-wo-icon="external-link" class="wo-icon-16" aria-hidden="true"></i></button>'
+            : '';
+        return '<div class="ai-msg' + direction + '"><div class="ai-bubble">' +
+            (message.body ? '<p>' + nl2br(message.body) + '</p>' : '') + attachment +
+            '<time>' + esc(fmtMsgTime(message.at)) + '</time></div></div>';
     }
 
-    // ============================================
-    // RENDER · PANEL DE CONTEXTO
-    // ============================================
+    async function onMessageClick(event) {
+        const attachment = event.target.closest('[data-attachment-path]');
+        if (!attachment || !D.Inbox || !D.Inbox.signedAttachmentUrl) return;
+        try {
+            const url = await D.Inbox.signedAttachmentUrl(attachment.dataset.attachmentPath);
+            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+        } catch (error) {
+            console.error('[artist-inbox] adjunto', error);
+            notify('No pudimos abrir el archivo.', 'error');
+        }
+    }
 
-    function renderQuoteContext(t) {
-        const ctx = $('ai-context');
-        const sv = QUOTE_STATUS_VIEW[t.quote_status];
+    function renderContext(row) {
+        const context = row.context || {};
+        const meta = CATEGORY_META[row.category] || { label: 'Conversación' };
         const blocks = [];
-        blocks.push(ctxBlock('Cliente', esc(t.client_full_name || '—')));
-        if (t.tattoo_body_part) blocks.push(ctxBlock('Zona', esc(t.tattoo_body_part)));
-        if (t.tattoo_style) blocks.push(ctxBlock('Estilo', esc(t.tattoo_style)));
-        if (t.tattoo_size) blocks.push(ctxBlock('Tamaño', esc(t.tattoo_size)));
-        if (sv) {
-            blocks.push(`
-                <div class="ai-ctx-block">
-                    <span class="ai-ctx-label">Estado</span>
-                    <span><span class="wo-tag ${sv.tag}">${esc(sv.label)}</span></span>
-                </div>`);
+        blocks.push(ctxBlock('Contacto', row.name));
+        if (row.subject) blocks.push(ctxBlock('Asunto', row.subject));
+        if (context.client) blocks.push(ctxBlock('Cliente', context.client));
+        if (context.studio || context.studio_name) blocks.push(ctxBlock('Estudio', context.studio || context.studio_name));
+        if (context.city || context.country) blocks.push(ctxBlock('Destino', [context.city, context.country].filter(Boolean).join(', ')));
+        if (context.dates) blocks.push(ctxBlock('Fechas', context.dates, true));
+        if (context.start_date || context.end_date) {
+            blocks.push(ctxBlock('Fechas', formatDateRange(context.start_date, context.end_date), true));
         }
-        if (t.final_budget_amount != null) {
-            blocks.push(ctxBlock('Presupuesto final', esc(fmtMoney(t.final_budget_amount, t.final_budget_currency)), true));
+        if (context.appointment) blocks.push(ctxBlock('Turno', context.appointment));
+        if (context.budget) blocks.push(ctxBlock('Presupuesto', context.budget, true));
+        if (context.style) blocks.push(ctxBlock('Estilo', context.style));
+        if (context.body_part) blocks.push(ctxBlock('Zona', context.body_part));
+        if (context.request_code) blocks.push(ctxBlock('Solicitud', context.request_code, true));
+
+        const domainStatus = context.application_status || context.invitation_status || context.membership_status || context.link_status || context.quote_status;
+        if (domainStatus) blocks.push(ctxBlock('Estado', humanStatus(domainStatus)));
+        blocks.push(ctxBlock('Conversación', row.closed ? 'Cerrada' : 'Activa'));
+
+        const link = contextLink(row);
+        const host = el('ai-context');
+        host.hidden = false;
+        host.innerHTML = '<p class="wo-eyebrow ai-ctx-eyebrow">' + esc(meta.label.toUpperCase()) + '</p>' +
+            blocks.join('') + (link ? '<a class="wo-btn wo-btn--ghost wo-btn--s ai-ctx-link" href="' + esc(link.href) + '">' + esc(link.label) + '<i data-wo-icon="arrow-right" class="wo-icon-16" aria-hidden="true"></i></a>' : '');
+        refreshIcons();
+    }
+
+    function ctxBlock(label, value, mono) {
+        if (value === null || value === undefined || value === '') return '';
+        return '<div class="ai-ctx-block"><span class="ai-ctx-label">' + esc(label) + '</span><span class="ai-ctx-value' + (mono ? ' wo-mono-num' : '') + '">' + esc(value) + '</span></div>';
+    }
+
+    function contextLink(row) {
+        const id = row.contextId || row.id;
+        const links = {
+            quotations: { href: '/my-quotations?quote=' + encodeURIComponent(id), label: 'Ver cotización' },
+            invitations: { href: '/artist/invitations', label: 'Ver invitaciones' },
+            spots: { href: '/studio-spots', label: 'Ver Spot' },
+            job_board: { href: '/job-board', label: 'Ver Job Board' },
+            studios: { href: '/artist/studios', label: 'Ver estudio' },
+            trips: { href: '/artist/travel?trip=' + encodeURIComponent(id), label: 'Ver viaje' },
+        };
+        return links[row.category] || null;
+    }
+
+    function setComposer(placeholder, enabled) {
+        const input = el('ai-input');
+        const attach = el('ai-attach');
+        input.disabled = !enabled;
+        attach.disabled = !enabled;
+        input.placeholder = placeholder;
+        syncSendState();
+    }
+
+    function onFileChosen(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const row = findRow(state.activeKey);
+        if (!row || row.source !== 'unified') {
+            event.target.value = '';
+            notify('Los adjuntos están disponibles en las conversaciones unificadas.', 'info');
+            return;
         }
-        ctx.innerHTML = `
-            <p class="wo-eyebrow ai-ctx-eyebrow">Cotización</p>
-            ${blocks.join('')}
-            <a class="wo-btn wo-btn--ghost wo-btn--mono wo-btn--s ai-ctx-link" href="/my-quotations">Ver cotización →</a>`;
-        ctx.hidden = false;
-    }
-
-    function renderSupportContext() {
-        const ctx = $('ai-context');
-        const sv = supportConv ? SUPPORT_STATUS_VIEW[supportConv.status] : null;
-        ctx.innerHTML = `
-            <p class="wo-eyebrow ai-ctx-eyebrow">Soporte</p>
-            ${ctxBlock('Canal', 'Chat con el equipo We Ötzi')}
-            ${sv ? `
-                <div class="ai-ctx-block">
-                    <span class="ai-ctx-label">Estado</span>
-                    <span><span class="wo-tag ${sv.tag}">${esc(sv.label)}</span></span>
-                </div>` : ''}
-            <p class="ai-ctx-note">Te respondemos por acá, en horario hábil.</p>`;
-        ctx.hidden = false;
-    }
-
-    function ctxBlock(label, valueHtml, mono = false) {
-        return `
-            <div class="ai-ctx-block">
-                <span class="ai-ctx-label">${esc(label)}</span>
-                <span class="ai-ctx-value${mono ? ' wo-mono-num' : ''}">${valueHtml}</span>
-            </div>`;
-    }
-
-    // ============================================
-    // ENVÍO
-    // ============================================
-
-    async function sendCurrent() {
-        const input = $('ai-input');
-        const send = $('ai-send');
-        const text = input.value.trim();
-        if (!text || !activeId) return;
-
-        input.value = '';
-        send.disabled = true;
-
-        if (activeId === SUPPORT_ID) {
-            await sendSupportMessage(text);
-        } else {
-            await sendQuoteMessage(activeId, text);
+        if (file.size > 15 * 1024 * 1024) {
+            event.target.value = '';
+            notify('El archivo supera el límite de 15 MB.', 'error');
+            return;
         }
-        input.focus();
+        state.pendingFile = file;
+        renderPendingFile();
+        syncSendState();
     }
 
-    async function sendQuoteMessage(quoteId, text) {
-        const t = threads.find((x) => x.quote_id === quoteId);
-        const now = new Date().toISOString();
-        pendingEcho.push(text);
-        appendMessage(bubbleHtml('ai-msg--out', text, now), now);
+    function renderPendingFile() {
+        const host = el('ai-attachment-preview');
+        if (!state.pendingFile) {
+            host.hidden = true;
+            host.innerHTML = '';
+            return;
+        }
+        host.hidden = false;
+        host.innerHTML = '<span><i data-wo-icon="' + (String(state.pendingFile.type).startsWith('image/') ? 'image' : 'paperclip') + '" class="wo-icon-16" aria-hidden="true"></i>' + esc(state.pendingFile.name) + '</span>' +
+            '<button type="button" class="wo-iconbtn" data-remove-attachment aria-label="Quitar adjunto"><i data-wo-icon="x" class="wo-icon-16" aria-hidden="true"></i></button>';
+        refreshIcons();
+    }
+
+    function clearPendingFile() {
+        state.pendingFile = null;
+        if (el('ai-file')) el('ai-file').value = '';
+        if (el('ai-attachment-preview')) renderPendingFile();
+        syncSendState();
+    }
+
+    function syncSendState() {
+        const row = findRow(state.activeKey);
+        const enabled = Boolean(row && !row.closed && (el('ai-input').value.trim() || state.pendingFile));
+        el('ai-send').disabled = !enabled;
+    }
+
+    async function onComposerSubmit(event) {
+        event.preventDefault();
+        const row = findRow(state.activeKey);
+        if (!row || row.closed) return;
+        const input = el('ai-input');
+        const body = input.value.trim();
+        const file = state.pendingFile;
+        if (!body && !file) return;
+        input.disabled = true;
+        el('ai-send').disabled = true;
+        el('ai-attach').disabled = true;
+
         try {
-            await WeotziData.Chat.sendMessage({ quoteId, senderType: 'artist', senderId: uid, message: text });
-            try {
-                window.ConfigManager?.sendN8NEvent?.('chat_message_to_client', {
-                    quote_id: quoteId,
-                    client_name: t?.client_full_name || '',
-                    client_email: t?.client_email || '',
-                    artist_name: t?.artist_name || '',
-                    message_preview: text.substring(0, 100),
-                });
-            } catch { /* la notificación no bloquea el envío */ }
-            if (t) {
-                t.last_message = text;
-                t.last_message_sender = 'artist';
-                t.last_message_at = now;
-                renderSidebarCounts();
-                renderList();
+            if (row.source === 'unified') {
+                let attachment = null;
+                if (file) attachment = await D.Inbox.uploadAttachment(row.id, state.userId, file);
+                const saved = await D.Inbox.sendMessage({ threadId: row.id, body: body, attachment: attachment });
+                const message = Array.isArray(saved) ? saved[0] : saved;
+                if (message && !state.activeMessages.some(function (item) { return item.id === message.id; })) {
+                    state.activeMessages.push(adaptUnifiedMessage(message));
+                }
+            } else if (row.source === 'quote') {
+                await D.Chat.sendMessage({ quoteId: row.id, senderType: 'artist', senderId: state.userId, message: body });
+                state.activeMessages.push(adaptQuoteMessage({
+                    id: 'local-' + Date.now(), sender_type: 'artist', message: body, created_at: new Date().toISOString(),
+                }));
+            } else {
+                const response = await D.SupportInbox.sendMessage({ conversationId: row.id, content: body });
+                state.activeMessages.push(adaptSupportMessage({
+                    id: 'local-' + Date.now(), role: 'user', content: body, created_at: new Date().toISOString(),
+                }));
+                if (response && response.response) {
+                    state.activeMessages.push(adaptSupportMessage({
+                        id: 'support-' + Date.now(), role: 'assistant', content: response.response, created_at: new Date().toISOString(),
+                    }));
+                }
             }
-        } catch (err) {
-            console.error('[inbox] error enviando mensaje:', err);
-            const i = pendingEcho.indexOf(text);
-            if (i !== -1) pendingEcho.splice(i, 1);
-            appendMessage(bubbleHtml('ai-msg--system ai-msg--in', 'No pudimos enviar el mensaje. Probá de nuevo.', new Date().toISOString()), null);
-            $('ai-input').value = text;
-            $('ai-send').disabled = false;
-        }
-    }
-
-    async function sendSupportMessage(text) {
-        if (!supportConv) return;
-        const now = new Date().toISOString();
-        pendingEcho.push(text);
-        supportMsgs.push({ role: 'user', content: text, created_at: now });
-        appendMessage(bubbleHtml('ai-msg--out', text, now), now);
-        try {
-            const body = await WeotziData.SupportInbox.sendMessage({ conversationId: supportConv.id, content: text });
-            if (body?.status && body.status !== supportConv.status) {
-                supportConv.status = body.status;
-                renderSupportHead();
-                renderSupportContext();
-            }
-            if (body?.response) {
-                const at = new Date().toISOString();
-                supportMsgs.push({ role: 'assistant', content: body.response, created_at: at });
-                appendMessage(bubbleHtml('ai-msg--in', body.response, at), at);
-            }
-            renderList();
-        } catch (err) {
-            console.error('[inbox] error enviando a soporte:', err);
-            const i = pendingEcho.indexOf(text);
-            if (i !== -1) pendingEcho.splice(i, 1);
-            appendMessage(bubbleHtml('ai-msg--system ai-msg--in', 'No pudimos enviar el mensaje. Probá de nuevo.', new Date().toISOString()), null);
-            $('ai-input').value = text;
-            $('ai-send').disabled = false;
-        }
-    }
-
-    // ============================================
-    // REALTIME (badges de la lista)
-    // ============================================
-
-    function subscribeBadges() {
-        badgeChannel = WeotziData.Realtime.subscribeNewChatFromSender('inbox-new-from-client', 'client', (payload) => {
-            const q = payload?.new?.quotation_id;
-            if (q && q === activeId) return; // el canal del hilo abierto ya lo maneja
+            input.value = '';
+            clearPendingFile();
+            renderMessages();
             scheduleRefresh();
-        });
+        } catch (error) {
+            console.error('[artist-inbox] enviar', error);
+            notify('No pudimos enviar el mensaje. Tu texto sigue acá para reintentar.', 'error');
+        } finally {
+            input.disabled = row.closed;
+            el('ai-attach').disabled = row.closed;
+            syncSendState();
+            input.focus();
+        }
+    }
+
+    function subscribeList() {
+        if (!D.Inbox || !D.Inbox.subscribeList) return;
+        state.listChannel = D.Inbox.subscribeList(state.userId, scheduleRefresh);
     }
 
     function scheduleRefresh() {
-        if (refreshTimer) clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(async () => {
-            refreshTimer = null;
-            await loadThreads();
-            renderAll();
-        }, 700);
+        window.clearTimeout(state.refreshTimer);
+        state.refreshTimer = window.setTimeout(function () {
+            reloadRows({ preserveSelection: true }).catch(function (error) {
+                console.warn('[artist-inbox] actualización realtime', error);
+            });
+        }, 180);
     }
 
-    function removeChatChannel() {
-        if (chatChannel) { WeotziData.Realtime.remove(chatChannel); chatChannel = null; }
+    function removeThreadChannel() {
+        if (!state.threadChannel) return;
+        if (D.Inbox && D.Inbox.removeChannel) D.Inbox.removeChannel(state.threadChannel);
+        else if (D.removeChannel) D.removeChannel(state.threadChannel);
+        state.threadChannel = null;
     }
 
-    window.addEventListener('beforeunload', () => {
-        removeChatChannel();
-        if (badgeChannel) WeotziData.Realtime.remove(badgeChannel);
-        stopSupportPolling();
-    });
-
-    // ============================================
-    // DEEP LINK · ?thread=<quote_id> | ?thread=soporte
-    // ============================================
+    function cleanupChannels() {
+        window.clearTimeout(state.refreshTimer);
+        removeThreadChannel();
+        if (state.listChannel) {
+            if (D.Inbox && D.Inbox.removeChannel) D.Inbox.removeChannel(state.listChannel);
+            else if (D.removeChannel) D.removeChannel(state.listChannel);
+            state.listChannel = null;
+        }
+    }
 
     function openFromQuery() {
         const wanted = new URLSearchParams(window.location.search).get('thread');
         if (!wanted) return;
-        if (wanted === 'soporte' || wanted === SUPPORT_ID) { openThread(SUPPORT_ID); return; }
-        if (threads.some((t) => t.quote_id === wanted)) openThread(wanted);
+        const row = state.rows.find(function (item) {
+            return item.id === wanted || item.key === wanted || item.contextId === wanted;
+        });
+        if (row) openThread(row.key);
     }
 
-    // ============================================
-    // HELPERS
-    // ============================================
+    function renderFatal(message) {
+        const host = el('ai-list');
+        if (!host) return;
+        host.innerHTML = '<div class="wo-empty ai-list-empty"><i data-wo-icon="alert-circle" aria-hidden="true"></i><span class="wo-empty-title">Inbox no disponible</span><p>' + esc(message) + '</p><button class="wo-btn wo-btn--s" type="button" onclick="window.location.reload()">Reintentar</button></div>';
+        refreshIcons();
+    }
+
+    function notify(message, tone) {
+        let toast = document.querySelector('.ai-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'ai-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        toast.className = 'ai-toast is-' + (tone || 'info');
+        toast.textContent = message;
+        toast.hidden = false;
+        window.clearTimeout(toast._hideTimer);
+        toast._hideTimer = window.setTimeout(function () { toast.hidden = true; }, 3600);
+    }
+
+    function findRow(key) {
+        return state.rows.find(function (row) { return row.key === key; }) || null;
+    }
+
+    function el(id) { return document.getElementById(id); }
 
     function setText(id, value) {
-        const el = $(id);
-        if (el) el.textContent = String(value);
+        const node = el(id);
+        if (node) node.textContent = String(value);
     }
 
-    function esc(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    function refreshIcons() {
+        if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') {
+            window.WoIcons.hydrate(document);
+        }
     }
 
-    function initialsOf(name) {
+    function esc(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function nl2br(value) {
+        return esc(value).replace(/\r?\n/g, '<br>');
+    }
+
+    function initials(name) {
         const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-        if (!parts.length) return 'C';
-        return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+        if (!parts.length) return '—';
+        return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
     }
 
-    function fmtListTime(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return '';
+    function fmtListTime(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
         const now = new Date();
-        if (d.toDateString() === now.toDateString()) {
-            return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+        if (date.toDateString() === now.toDateString()) {
+            return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
         }
         const yesterday = new Date(now);
         yesterday.setDate(now.getDate() - 1);
-        if (d.toDateString() === yesterday.toDateString()) return 'ayer';
-        const diffDays = (now - d) / 86400000;
-        if (diffDays < 7) return d.toLocaleDateString('es-AR', { weekday: 'short' }).replace('.', '');
-        if (d.getFullYear() === now.getFullYear()) {
-            return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }).replace('.', '');
-        }
-        return d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' }).replace('.', '');
+        if (date.toDateString() === yesterday.toDateString()) return 'AYER';
+        return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }).replace('.', '').toUpperCase();
     }
 
-    function fmtMsgTime(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return '';
-        return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    function fmtMsgTime(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
     }
 
-    function fmtDayLabel(iso) {
-        const d = new Date(iso);
+    function fmtDayKey(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+    }
+
+    function fmtDayLabel(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
         const now = new Date();
-        if (d.toDateString() === now.toDateString()) return 'hoy';
+        if (date.toDateString() === now.toDateString()) return 'HOY';
         const yesterday = new Date(now);
         yesterday.setDate(now.getDate() - 1);
-        if (d.toDateString() === yesterday.toDateString()) return 'ayer';
-        return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' });
+        if (date.toDateString() === yesterday.toDateString()) return 'AYER';
+        return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }).toUpperCase();
+    }
+
+    function formatDateRange(start, end) {
+        const format = function (value) {
+            if (!value) return '';
+            const date = new Date(value + (String(value).length === 10 ? 'T12:00:00' : ''));
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+        return [format(start), format(end)].filter(Boolean).join(' — ');
+    }
+
+    function humanStatus(value) {
+        const labels = {
+            accepted: 'Aceptada', shortlisted: 'Preseleccionada', pending: 'Pendiente',
+            pending_acceptance: 'Esperando tu respuesta', completed: 'Completada',
+            client_rejected: 'Rechazada', expired: 'Vencida', open: 'Activa', closed: 'Cerrada',
+            esperando_confirmacion: 'Esperando confirmación', confirmada: 'Confirmada',
+            rechazada: 'Rechazada', cancelada: 'Cancelada', active: 'Activa',
+        };
+        return labels[value] || String(value).replace(/_/g, ' ');
     }
 
     function fmtMoney(amount, currency) {
-        const n = Number(amount);
-        if (Number.isNaN(n)) return String(amount);
-        return `$${n.toLocaleString('es-AR')}${currency ? ` ${currency}` : ''}`;
+        if (amount === null || amount === undefined || amount === '') return '';
+        const number = Number(amount);
+        if (Number.isNaN(number)) return String(amount);
+        return '$' + number.toLocaleString('es-AR') + (currency ? ' ' + currency : '');
     }
 })();

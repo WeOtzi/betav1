@@ -17,6 +17,7 @@ We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje, posicio
 *   [**EASYPANEL_DEPLOYMENT.md**](docs/EASYPANEL_DEPLOYMENT.md): Guia de despliegue en Easypanel (VPS con Docker).
 *   [**GOOGLE_OAUTH_SETUP.md**](docs/GOOGLE_OAUTH_SETUP.md): Configuracion de Google OAuth y Drive API.
 *   [**N8N_EMAIL_WEBHOOKS.md**](docs/N8N_EMAIL_WEBHOOKS.md): Integracion con n8n para envio de emails (registro, reset password, cotizaciones).
+*   [**Catálogo de componentes**](public/componentes/index.html): documentación viva del Design System We Ötzi, trazable a los frames de Figma, con código, previews responsive y ejemplos compuestos.
 
 ## Inicio Rapido
 
@@ -31,6 +32,21 @@ npm install
 npm start
 ```
 El servidor estara disponible en `http://localhost:4545`.
+
+### Catálogo del Design System
+
+Con el servidor local activo:
+
+*   `http://localhost:4545/componentes/`: 21 tableros del UI Kit y 28 moléculas, con código y vistas Desktop/Tablet/Móvil.
+*   `http://localhost:4545/componentes/compuestos/`: 17 ejemplos compuestos, incluido el dashboard completo, armados con la biblioteca compartida.
+
+### Workspace del artista
+
+Las superficies principales comparten navegación y comportamiento responsive: la barra completa se conserva en escritorio y pasa a un menú accesible en tablet/móvil, sin ocultar acciones ni datos.
+
+*   **Oportunidades**: `/job-board/`, `/studio-spots/`, `/artist/applications/` y `/artist/invitations/` incluyen listado, detalle y estados de postulación conectados a Supabase.
+*   **Operación diaria**: `/artist/account/`, `/calendar/`, `/my-quotations/`, `/my-quotations/statistics/`, `/artist/travel/` y `/artist/inbox/` cubren cuenta, agenda, cotizaciones, métricas, viajes y conversaciones persistentes.
+*   **Demo integral**: [DEMO-DASHBOARD-ISAINAZ-20260829.md](docs/DEMO-DASHBOARD-ISAINAZ-20260829.md) documenta los datos de `isainazartattoo.wo`, su alcance y el rollback.
 
 ### Despliegue con Docker (Easypanel)
 
@@ -48,8 +64,10 @@ Ver [EASYPANEL_DEPLOYMENT.md](docs/EASYPANEL_DEPLOYMENT.md) para instrucciones c
 
 *   **Gestión de Artistas**: Registro, perfiles públicos y dashboards.
 *   **Cotizaciones Inteligentes**: Flujo completo desde solicitud del cliente hasta carpeta en Drive.
+*   **Oportunidades y agenda**: Job Board, Spots, postulaciones, invitaciones, calendario, Travel e Inbox con persistencia y permisos por propietario.
 *   **IA Integrada**: Generación de referencias de tatuajes con Gemini 3 Pro.
 *   **Backup & Restore**: Sistema propio de copias de seguridad completas.
+*   **Design System navegable**: catálogo Bauhaus reutilizable con componentes web, tokens y composiciones responsive.
 
 ## 📂 Estructura del Proyecto
 

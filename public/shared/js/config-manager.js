@@ -554,15 +554,25 @@ const ConfigManager = (function () {
             return null;
         }
 
-        // Return existing instance if available (local cache or global singleton)
-        if (supabaseInstance) return supabaseInstance;
-        if (window._supabase) {
+        const url = getValue('supabase.url');
+        const key = getValue('supabase.anonKey');
+
+        // A page can start before the async config file has finished loading.
+        // Never adopt a client created during that window unless it matches the
+        // API-served project URL and public key now held by ConfigManager.
+        const matchesConfiguredClient = (client) => Boolean(
+            client && client.supabaseUrl === url && client.supabaseKey === key
+        );
+
+        if (matchesConfiguredClient(supabaseInstance)) return supabaseInstance;
+        if (matchesConfiguredClient(window._supabase)) {
             supabaseInstance = window._supabase;
             return supabaseInstance;
         }
 
-        const url = getValue('supabase.url');
-        const key = getValue('supabase.anonKey');
+        // Discard only the JS reference. Auth remains in Supabase's namespaced
+        // localStorage entry and is picked up by the correctly configured client.
+        supabaseInstance = null;
 
         try {
             supabaseInstance = window.supabase.createClient(url, key);
@@ -1747,12 +1757,13 @@ const ConfigManager = (function () {
     };
 })();
 
+// Expose the manager immediately so deferred consumers can await ready() while
+// the API-served configuration is still loading.
+window.ConfigManager = ConfigManager;
+
 // Auto-initialize when script loads
 (async function () {
     await ConfigManager.init();
-
-    // Make available globally
-    window.ConfigManager = ConfigManager;
 
     // Create convenience aliases
     window.getConfig = ConfigManager.getValue;

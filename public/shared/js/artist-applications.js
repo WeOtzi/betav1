@@ -46,6 +46,7 @@
     let activeChip = 'todas';
     let searchQuery = '';
     let searchTimer = null;
+    let clientProfiles = new Map();
 
     document.addEventListener('DOMContentLoaded', boot);
 
@@ -175,14 +176,71 @@
             if (r.status === 'fulfilled') offerMap[open[i].id] = r.value || [];
         });
 
+        const spotOfferMap = {};
+        if (typeof window.WeotziData?.StudioSpots?.listCounterOffers === 'function') {
+            const spotOfferResults = await Promise.allSettled(
+                spotApps.map((app) => window.WeotziData.StudioSpots.listCounterOffers(app.id))
+            );
+            spotOfferResults.forEach((result, index) => {
+                if (result.status === 'fulfilled') spotOfferMap[spotApps[index].id] = unwrapRows(result.value);
+            });
+        }
+
+        await loadApplicationClientProfiles(jbApps);
+
         items = []
             .concat(jbApps.map((app) => buildJbItem(app, offerMap[app.id] || [])))
-            .concat(spotApps.map(buildSpotItem))
+            .concat(spotApps.map((app) => buildSpotItem(app, spotOfferMap[app.id] || [])))
             .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+    }
+
+    function unwrapRows(result) {
+        if (result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'data')) {
+            if (result.error) throw result.error;
+            return Array.isArray(result.data) ? result.data : (result.data ? [result.data] : []);
+        }
+        return Array.isArray(result) ? result : (result ? [result] : []);
+    }
+
+    async function loadApplicationClientProfiles(applications) {
+        clientProfiles = new Map();
+        const requests = (applications || []).map((app) => app.job_board_requests).filter(Boolean);
+        requests.forEach((request) => {
+            if (!request.client_user_id || !request.client_display_name) return;
+            clientProfiles.set(request.client_user_id, {
+                user_id: request.client_user_id,
+                public_username: request.client_display_name,
+                profile_picture: request.client_avatar_url || null
+            });
+        });
+        const ids = [...new Set(requests.map((request) => request.client_user_id).filter(Boolean))];
+        if (!ids.length || !window.WeotziData?.from) return;
+        try {
+            const { data, error } = await window.WeotziData.from('client_public_profiles')
+                .select('user_id, public_username, profile_picture, city_residence, country, created_at')
+                .in('user_id', ids);
+            if (error) throw error;
+            (data || []).forEach((profile) => clientProfiles.set(profile.user_id, profile));
+        } catch (err) {
+            console.warn('[applications] perfiles públicos de clientes:', err);
+        }
+    }
+
+    function clientProfileOf(request) {
+        const embedded = Array.isArray(request?.client_public_profiles)
+            ? request.client_public_profiles[0]
+            : request?.client_public_profiles;
+        return embedded || clientProfiles.get(request?.client_user_id) || {
+            public_username: request?.client_display_name || 'Cliente',
+            profile_picture: request?.client_avatar_url || null
+        };
     }
 
     function buildJbItem(app, offers) {
         const request = app.job_board_requests || null;
+        const clientProfile = clientProfileOf(request);
+        const attachments = (request && request.job_board_attachments) || [];
+        const thumb = attachments.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))[0]?.file_url || null;
         const pendingClientOffer = offers.find((o) => o.author_role === 'client' && o.status === 'pendiente') || null;
         const currency = (request && request.client_budget_currency) || 'USD';
         return {
@@ -190,6 +248,8 @@
             id: app.id,
             app,
             request,
+            clientProfile,
+            clientName: clientProfile.public_username || request?.client_display_name || 'Cliente',
             pendingClientOffer,
             state: deriveJbState(app, request, !!pendingClientOffer),
             title: jbTitle(request, app),
@@ -200,21 +260,24 @@
             currency,
             sentAt: app.created_at,
             quoteId: (request && request.resulting_quote_id) || null,
-            thumb: null
+            thumb
         };
     }
 
-    function buildSpotItem(app) {
+    function buildSpotItem(app, offers) {
         const spot = app.studio_spots || null;
         const studio = (spot && spot.studios) || null;
         const loc = (spot && spot.location) || null;
+        const pendingStudioOffer = (offers || []).find((offer) => offer.author_role === 'studio' && offer.status === 'pending') || null;
         return {
             kind: 'spot',
             id: app.id,
             app,
             spot,
             studio,
-            state: deriveSpotState(app, spot),
+            offers: offers || [],
+            pendingStudioOffer,
+            state: deriveSpotState(app, spot, !!pendingStudioOffer),
             title: (studio && studio.name) || (spot && spot.title) || 'Spot de estudio',
             kindLabel: spot ? (KIND_LABELS[spot.kind] || 'Spot') : 'Spot',
             city: (loc && loc.city) || null,
@@ -235,10 +298,11 @@
         return 'esperando_respuesta';
     }
 
-    function deriveSpotState(app, spot) {
+    function deriveSpotState(app, spot, hasPendingStudioOffer = false) {
         if (app.status === 'withdrawn') return 'retirada';
         if (app.status === 'rejected') return 'rechazada';
         if (app.status === 'accepted') return 'confirmada';
+        if (hasPendingStudioOffer) return 'contraoferta_recibida';
         if (app.status === 'shortlisted') return 'en_revision';
         if (spot && spot.status && spot.status !== 'open') return 'expirada';
         return 'esperando_respuesta';
@@ -247,6 +311,8 @@
     // Título derivado en render (sin columna nueva): descripción → estilo + zona → código.
     function jbTitle(request, app) {
         if (request) {
+            const displayTitle = (request.display_title || '').trim();
+            if (displayTitle) return truncate(displayTitle, 96);
             const desc = (request.tattoo_idea_description || '').trim();
             if (desc) return truncate(desc, 80);
             const parts = [request.tattoo_style, request.tattoo_body_part].filter(Boolean);
@@ -258,10 +324,27 @@
         return 'Solicitud del job board';
     }
 
+    function listValue(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.filter(Boolean);
+        if (typeof value === 'string') {
+            try {
+                const parsed = value.trim().startsWith('[') ? JSON.parse(value) : null;
+                if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            } catch (err) { /* texto separado por comas */ }
+            return value.split(',').map((part) => part.trim()).filter(Boolean);
+        }
+        return [String(value)];
+    }
+
     function spotPhotos(spot, studio) {
         const feed = studio && Array.isArray(studio.photo_feed_items) ? studio.photo_feed_items : [];
+        const attachments = spot && Array.isArray(spot.attachments)
+            ? spot.attachments.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            : [];
         const urls = [
             spot && spot.cover_image,
+            ...attachments.map((attachment) => attachment.file_url),
             ...feed.map((p) => (p && typeof p === 'object' ? p.url : p)),
             studio && studio.cover_image,
             studio && studio.logo_image
@@ -397,10 +480,11 @@
         CHIP_ORDER.forEach((k) => { counts[k] = 0; });
         tabItems.forEach((it) => { counts[it.state] = (counts[it.state] || 0) + 1; });
         if (activeChip !== 'todas' && !counts[activeChip]) activeChip = 'todas';
+        const visibleChipKeys = CHIP_ORDER.filter((key) => key !== 'retirada' || counts[key] > 0);
         const chipsEl = document.getElementById('apx-chips');
         chipsEl.innerHTML = [
             chipHtml('todas', 'Todas', tabItems.length, activeChip === 'todas', tabItems.length === 0)
-        ].concat(CHIP_ORDER.map((k) =>
+        ].concat(visibleChipKeys.map((k) =>
             chipHtml(k, STATES[k].label, counts[k], activeChip === k, counts[k] === 0)
         )).join('');
 
@@ -442,6 +526,7 @@
     function searchTextOf(it) {
         return [
             it.title, it.city, it.country, it.code,
+            it.clientName,
             it.kind === 'spot' ? it.kindLabel : 'job board',
             it.studio && it.studio.name,
             STATES[it.state].label
@@ -480,7 +565,7 @@
         const isSpot = it.kind === 'spot';
         const media = it.thumb
             ? '<img src="' + escapeAttr(it.thumb) + '" alt="" loading="lazy">'
-            : '<i data-wo-icon="image" aria-hidden="true"></i>';
+            : '<span class="apx-photo-placeholder"><strong>Foto</strong><span>or</span><u>browse<br>files</u></span>';
         const badges = '<span class="apx-typebadge ' + (isSpot ? 'apx-typebadge--spot' : 'apx-typebadge--jb') + '">' +
             (isSpot ? 'Spot' : 'Job board') + '</span>' +
             (isSpot && it.state === 'confirmada'
@@ -488,7 +573,7 @@
                 : '');
         const sub = isSpot
             ? '<i data-wo-icon="home" aria-hidden="true"></i>' + escapeHtml(it.kindLabel)
-            : '<i data-wo-icon="user" aria-hidden="true"></i>Cliente' + (it.code ? ' · ' + escapeHtml(it.code) : '');
+            : '<i data-wo-icon="user" aria-hidden="true"></i>' + escapeHtml(it.clientName || 'Cliente');
         const value = isSpot
             ? (it.split != null ? 'Split ' + it.split.toFixed(0) + '%' : 'A convenir')
             : (it.price != null ? fmtMoney(it.price, it.currency) : 'Sin precio');
@@ -500,7 +585,7 @@
                 '<h3 class="apx-row-title">' + escapeHtml(it.title) + '</h3>' +
                 '<p class="apx-row-sub">' + sub + '</p>' +
             '</div>' +
-            '<div class="apx-row-loc wo-meta"><i data-wo-icon="map-pin" aria-hidden="true"></i>' + escapeHtml(it.city || 'A confirmar') + '</div>' +
+            '<div class="apx-row-loc wo-meta" data-label="Ubicación"><i data-wo-icon="map-pin" aria-hidden="true"></i>' + escapeHtml(it.city || 'A confirmar') + '</div>' +
             '<div class="apx-row-value">' +
                 '<span class="apx-row-price">' + escapeHtml(value) + '</span>' +
                 '<span class="apx-row-date">' + fmtShortDate(it.sentAt) + '</span>' +
@@ -513,11 +598,9 @@
     function rowActionsHtml(it) {
         const actions = [];
         actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="detail">' +
-            (it.kind === 'spot' ? 'Ver oferta →' : 'Ver solicitud →') + '</button>');
-        if (it.kind === 'jobboard' && it.quoteId) {
-            actions.push('<a href="/artist/inbox" class="wo-btn wo-btn--secondary wo-btn--s">' +
-                '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
-        }
+            'Ver solicitud →</button>');
+        actions.push('<a href="' + escapeAttr(conversationUrl(it)) + '" class="wo-btn wo-btn--secondary wo-btn--s">' +
+            '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
         if (it.state === 'contraoferta_recibida') {
             actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="detail">' +
                 '<i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Responder contraoferta</button>');
@@ -529,6 +612,14 @@
                 '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>Retirar</button>');
         }
         return actions.join('');
+    }
+
+    function conversationUrl(item) {
+        const params = new URLSearchParams();
+        if (item.quoteId) params.set('quote', item.quoteId);
+        params.set('opportunity', item.kind);
+        params.set('application', item.id);
+        return '/artist/inbox?' + params.toString();
     }
 
     function onRowAction(event) {
@@ -587,12 +678,14 @@
             item.country = request.client_country || item.country;
             item.currency = request.client_budget_currency || item.currency;
             item.quoteId = request.resulting_quote_id || item.quoteId;
+            item.clientProfile = clientProfileOf(request);
+            item.clientName = item.clientProfile.public_username || request.client_display_name || 'Cliente';
         }
 
         const st = STATES[item.state];
         const attachments = (request && request.job_board_attachments) || [];
         const refImage = attachments.length ? attachments[0].file_url : null;
-        const styles = request ? String(request.tattoo_style || '').split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const styles = request ? listValue(request.tattoo_style) : [];
         const events = jbTimeline(item, app, offers);
         const lastMove = events.length ? events[events.length - 1].when : app.created_at;
 
@@ -656,7 +749,8 @@
                 '<div class="apx-proposal-cell"><span class="wo-label">Precio cotizado</span><span class="wo-mono-num">' +
                     escapeHtml(app.estimated_price != null ? fmtMoney(app.estimated_price, item.currency) : 'A definir') + '</span></div>' +
                 '<div class="apx-proposal-cell"><span class="wo-label">Tiempo estimado</span><strong>' +
-                    escapeHtml(sessionsLabel(app.estimated_sessions) || 'A definir') + '</strong></div>' +
+                    escapeHtml(durationLabel(app.estimated_duration) || sessionsLabel(app.estimated_sessions) || 'A definir') + '</strong>' +
+                    (app.estimated_duration && app.estimated_sessions ? '<small>' + escapeHtml(sessionsLabel(app.estimated_sessions)) + '</small>' : '') + '</div>' +
             '</div>';
         }
         return '<div class="apx-section-head"><h2 class="wo-h2">' + (isSpot ? 'Mi solicitud' : 'Mi propuesta') + '</h2>' +
@@ -687,14 +781,14 @@
             trackRow('Estado actual', '<span class="' + st.tag + '">' + escapeHtml(st.label) + '</span>') +
             trackRow('Último movimiento', '<strong>' + fmtShortDate(lastMove) + '</strong>') +
             trackRow('Desde el envío', '<strong>' + escapeHtml(daysSince(app.created_at)) + '</strong>') +
-            trackRow('Cliente', '<strong>' + escapeHtml('Cliente' + (item.city ? ' · ' + item.city : '')) + '</strong>');
+            trackRow('Cliente', clientMiniHtml(item));
 
         const actions = [];
         if (item.pendingClientOffer) {
             const o = item.pendingClientOffer;
             actions.push(
                 '<div class="apx-offerbox">' +
-                    '<span class="apx-offerbox-title">El cliente propuso cambios</span>' +
+                    '<span class="apx-offerbox-title">Contraoferta del cliente</span>' +
                     '<div><span class="wo-label">Precio</span><br><strong class="wo-mono-num">' +
                         escapeHtml(o.price != null ? fmtMoney(o.price, o.currency || item.currency) : 'Sin cambios de precio') + '</strong></div>' +
                     '<div><span class="wo-label">Fecha propuesta</span><br><strong>' +
@@ -712,10 +806,8 @@
                 actions.push('<a href="/my-quotations" class="wo-btn wo-btn--direct wo-btn--block">Ver cotización →</a>');
             }
         }
-        if (item.quoteId) {
-            actions.push('<a href="/artist/inbox" class="wo-btn wo-btn--secondary wo-btn--block">' +
-                '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
-        }
+        actions.push('<a href="' + escapeAttr(conversationUrl(item)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
+            '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
         if (item.state === 'esperando_respuesta' || item.state === 'en_revision' || item.state === 'contraoferta_recibida') {
             actions.push('<button type="button" class="wo-btn wo-btn--ghost" data-action="withdraw">' +
                 '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>Retirar propuesta</button>');
@@ -729,6 +821,14 @@
         '</aside>';
     }
 
+    function clientMiniHtml(item) {
+        const name = item.clientName || 'Cliente';
+        const avatar = item.clientProfile?.profile_picture || item.request?.client_avatar_url || null;
+        return '<span class="apx-client-mini"><span class="apx-client-avatar">' +
+            (avatar ? '<img src="' + escapeAttr(avatar) + '" alt="">' : escapeHtml(initials(name))) +
+            '</span><strong>' + escapeHtml(name) + '</strong></span>';
+    }
+
     function jbTimeline(item, app, offers) {
         const ev = [];
         ev.push({
@@ -738,6 +838,14 @@
                 (app.estimated_sessions ? ' en ' + sessionsLabel(app.estimated_sessions) : '') + '.',
             when: app.created_at
         });
+        if (app.status === 'viewed' || app.status === 'accepted' || app.status === 'rejected' || (offers && offers.length)) {
+            ev.push({
+                type: 'status',
+                title: 'Cambio de estado: cliente revisando',
+                detail: 'El cliente abrió tu propuesta y está evaluando los detalles.',
+                when: app.viewed_at || app.updated_at || app.created_at
+            });
+        }
         offers.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((o) => {
             ev.push({
                 type: 'offer',
@@ -777,39 +885,42 @@
         const app = item.app;
         const spot = item.spot;
         const studio = item.studio;
-        const events = spotTimeline(item, app);
+        const events = spotTimeline(item, app, item.offers || []);
         const lastMove = events.length ? events[events.length - 1].when : app.created_at;
         const photos = spotPhotos(spot, studio);
 
         let mainHtml = '<div class="apx-detail-main">';
         if (spot) {
-            const offerTags =
-                '<span class="wo-tag apx-tag--accent">' + escapeHtml(item.kindLabel) + '</span>' +
-                (spot.includes_housing ? '<span class="wo-tag">Alojamiento incluido</span>' : '');
-            const includes = [];
+            const benefits = listValue(spot.benefit_tags || spot.featured_tags || spot.studio_includes).slice(0, 3);
+            const offerTags = ['<span class="wo-tag apx-tag--accent">' + escapeHtml(item.kindLabel) + '</span>']
+                .concat(benefits.map((tag) => '<span class="wo-tag">' + escapeHtml(tag) + '</span>'))
+                .join('');
+            const includes = listValue(spot.studio_includes);
             if (spot.includes_housing) includes.push('Alojamiento incluido durante el spot');
             if (spot.stipend_amount) includes.push('Stipend de ' + fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD'));
             if (spot.revenue_split_pct != null) includes.push('Split del ' + Number(spot.revenue_split_pct).toFixed(0) + '% para el artista');
+            const requirements = listValue(spot.minimum_requirements).length
+                ? listValue(spot.minimum_requirements)
+                : listValue(spot.artist_expectations);
 
             mainHtml +=
                 '<span class="apx-detail-loc"><i data-wo-icon="map-pin" aria-hidden="true"></i>' +
                     escapeHtml([item.city, item.country].filter(Boolean).join(', ') || 'Ubicación a confirmar') + '</span>' +
                 '<h1 class="wo-h1 apx-detail-title">' + escapeHtml(item.title) + '</h1>' +
-                (photos.length
-                    ? '<div class="apx-gallery">' + photos.map((u) =>
-                        '<div class="wo-media"><img src="' + escapeAttr(u) + '" alt="Foto del estudio" loading="lazy"></div>').join('') + '</div>'
-                    : '<div class="wo-media apx-refmedia"><span class="apx-media-fallback"><i data-wo-icon="image" aria-hidden="true"></i>Fotos del estudio</span></div>') +
+                '<div class="apx-gallery">' + gallerySlotsHtml(photos, 'Foto del estudio') + '</div>' +
                 (spot.description ? '<p class="apx-detail-desc">' + escapeHtml(spot.description) + '</p>' : '') +
                 '<div class="apx-detail-tags">' + offerTags + '</div>' +
                 '<div class="apx-datagrid">' +
                     dataCell('Fechas', spot.start_date ? fmtRange(new Date(spot.start_date), new Date(spot.end_date || spot.start_date)) : 'A convenir') +
                     dataCell('Duración', spotDuration(spot)) +
                     dataCell('Split', spot.revenue_split_pct != null ? Number(spot.revenue_split_pct).toFixed(0) + '% para el artista' : 'A convenir') +
-                    dataCell('Stipend', spot.stipend_amount ? fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD') : 'Sin stipend', spot.stipend_amount != null) +
+                    dataCell('Stipend', spot.stipend_amount ? fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD') + stipendFrequencyLabel(spot.stipend_frequency) : 'Sin stipend', spot.stipend_amount != null) +
                 '</div>' +
-                (includes.length
-                    ? '<div class="apx-twolists"><div class="apx-bullets"><span class="wo-label">Qué incluye el estudio</span><ul>' +
-                        includes.map((t) => '<li>' + escapeHtml(t) + '</li>').join('') + '</ul></div></div>'
+                ((includes.length || requirements.length)
+                    ? '<div class="apx-twolists">' +
+                        bulletListHtml('Qué incluye el estudio', includes) +
+                        bulletListHtml('Requisitos', requirements) +
+                      '</div>'
                     : '');
         } else {
             mainHtml +=
@@ -832,8 +943,29 @@
         if (window.WoIcons) window.WoIcons.hydrate(view);
     }
 
+    function gallerySlotsHtml(photos, alt) {
+        return Array.from({ length: 4 }, (_, index) => photos[index]
+            ? '<div class="wo-media"><img src="' + escapeAttr(photos[index]) + '" alt="' + escapeAttr(alt) + '" loading="lazy"></div>'
+            : '<div class="wo-media"><span class="apx-media-fallback"><i data-wo-icon="image" aria-hidden="true"></i></span></div>')
+            .join('');
+    }
+
+    function bulletListHtml(label, values) {
+        if (!values || !values.length) return '';
+        return '<div class="apx-bullets"><span class="wo-label">' + escapeHtml(label) + '</span><ul>' +
+            values.map((value) => '<li>' + escapeHtml(value) + '</li>').join('') + '</ul></div>';
+    }
+
     function spotDuration(spot) {
+        if (spot.duration_label) return spot.duration_label;
         if (spot.weeks_minimum) {
+            if (spot.weeks_minimum >= 8) {
+                const minMonths = Math.max(1, Math.round(spot.weeks_minimum / 4));
+                const maxMonths = spot.weeks_maximum ? Math.max(minMonths, Math.round(spot.weeks_maximum / 4)) : minMonths;
+                return maxMonths !== minMonths
+                    ? minMonths + ' a ' + maxMonths + ' meses'
+                    : minMonths + ' mes' + (minMonths === 1 ? '' : 'es');
+            }
             return spot.weeks_maximum && spot.weeks_maximum !== spot.weeks_minimum
                 ? spot.weeks_minimum + ' a ' + spot.weeks_maximum + ' semanas'
                 : spot.weeks_minimum + ' semana' + (spot.weeks_minimum === 1 ? '' : 's');
@@ -847,21 +979,49 @@
         return 'A convenir';
     }
 
+    function stipendFrequencyLabel(value) {
+        const key = String(value || '').trim().toLowerCase();
+        const labels = {
+            monthly: ' mensuales', mensual: ' mensuales',
+            weekly: ' semanales', semanal: ' semanales',
+            daily: ' diarios', diario: ' diarios',
+            total: ' totales', once: ' totales'
+        };
+        return labels[key] || (key ? ' ' + key : '');
+    }
+
     function spotTrackHtml(item, lastMove) {
         const st = STATES[item.state];
+        const spot = item.spot || {};
+        const contactName = spot.contact_name || item.studio?.contact_name || item.studio?.name || 'Estudio';
         const rows =
             trackRow('Estado actual', '<span class="' + st.tag + '">' + escapeHtml(st.label) + '</span>') +
             trackRow('Último movimiento', '<strong>' + fmtShortDate(lastMove) + '</strong>') +
-            trackRow('Desde el envío', '<strong>' + escapeHtml(daysSince(item.app.created_at)) + '</strong>') +
-            trackRow('Estudio', '<strong>' + escapeHtml((item.studio && item.studio.name) || 'Estudio') + '</strong>') +
-            trackRow('Tipo de spot', '<strong>' + escapeHtml(item.kindLabel) + '</strong>');
+            trackRow('Respuesta estimada', '<strong>' + escapeHtml(spot.response_sla_label || 'A confirmar') + '</strong>') +
+            trackRow('Contacto', '<strong>' + escapeHtml(contactName) + (spot.contact_title ? '<small>' + escapeHtml(spot.contact_title) + '</small>' : '') + '</strong>');
 
         const actions = [];
+        if (item.pendingStudioOffer) {
+            const offer = item.pendingStudioOffer;
+            actions.push(
+                '<div class="apx-offerbox">' +
+                    '<span class="apx-offerbox-title">Contraoferta del estudio</span>' +
+                    '<div><span class="wo-label">Fechas propuestas</span><br><strong>' + escapeHtml(counterOfferRange(offer)) + '</strong></div>' +
+                    '<div><span class="wo-label">Split propuesto</span><br><strong class="wo-mono-num">' +
+                        escapeHtml(offer.split_pct != null ? Number(offer.split_pct).toFixed(0) + '% para el artista' : 'Sin cambios') + '</strong></div>' +
+                    (offer.note ? '<div><span class="wo-label">Condiciones</span><p>' + escapeHtml(offer.note) + '</p></div>' : '') +
+                    '<button type="button" class="wo-btn wo-btn--direct wo-btn--block" data-action="respond">' +
+                        'Responder contraoferta<i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i></button>' +
+                '</div>'
+            );
+        }
         if (item.state === 'confirmada') {
             actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--block" data-action="conditions">' +
                 '<i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>Ver condiciones acordadas</button>');
         }
-        if (item.state === 'esperando_respuesta' || item.state === 'en_revision') {
+        actions.push('<a href="' + escapeAttr(conversationUrl(item)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
+            '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
+        if (item.state === 'esperando_respuesta' || item.state === 'en_revision' || item.state === 'contraoferta_recibida') {
             actions.push('<button type="button" class="wo-btn wo-btn--ghost" data-action="withdraw">' +
                 '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>Retirar postulación</button>');
         }
@@ -874,7 +1034,16 @@
         '</aside>';
     }
 
-    function spotTimeline(item, app) {
+    function counterOfferRange(offer) {
+        if (offer.proposed_start_date && offer.proposed_end_date) {
+            return fmtRange(new Date(offer.proposed_start_date), new Date(offer.proposed_end_date));
+        }
+        if (offer.proposed_start_date) return 'Desde ' + fmtLongDate(offer.proposed_start_date);
+        if (offer.proposed_end_date) return 'Hasta ' + fmtLongDate(offer.proposed_end_date);
+        return 'Sin cambios de fecha';
+    }
+
+    function spotTimeline(item, app, offers) {
         const ev = [];
         const range = parseRange(app.requested_dates);
         ev.push({
@@ -885,9 +1054,29 @@
                 : 'Fechas a convenir con el estudio.',
             when: app.created_at
         });
-        if (app.status === 'shortlisted') {
-            ev.push({ type: 'status', title: 'Cambio de estado: en revisión', detail: 'El estudio dejó tu solicitud en la lista corta.', when: app.decided_at || app.created_at });
+        if (app.status === 'shortlisted' || (offers && offers.length)) {
+            ev.push({ type: 'status', title: 'Cambio de estado: en revisión', detail: 'El estudio dejó tu solicitud en la lista corta.', when: app.decided_at || app.updated_at || app.created_at });
         }
+        (offers || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((offer) => {
+            ev.push({
+                type: 'offer',
+                title: offer.author_role === 'studio' ? 'El estudio envió una contraoferta' : 'Enviaste una contrapropuesta',
+                detail: [
+                    offer.split_pct != null ? 'Split ' + Number(offer.split_pct).toFixed(0) + '%' : null,
+                    (offer.proposed_start_date || offer.proposed_end_date) ? counterOfferRange(offer) : null,
+                    offer.note || null
+                ].filter(Boolean).join(' · '),
+                when: offer.created_at
+            });
+            if (offer.decided_at && (offer.status === 'accepted' || offer.status === 'rejected')) {
+                ev.push({
+                    type: offer.status === 'accepted' ? 'ok' : 'bad',
+                    title: offer.status === 'accepted' ? 'Contraoferta aceptada' : 'Contraoferta rechazada',
+                    detail: null,
+                    when: offer.decided_at
+                });
+            }
+        });
         if (app.decided_at) {
             if (app.status === 'accepted') ev.push({ type: 'ok', title: 'Spot confirmado', detail: 'El estudio aceptó tu solicitud.', when: app.decided_at });
             else if (app.status === 'rejected') ev.push({ type: 'bad', title: 'Solicitud rechazada', detail: null, when: app.decided_at });
@@ -1051,6 +1240,7 @@
                 item.app.status = 'withdrawn';
                 item.app.decided_at = new Date().toISOString();
                 item.pendingClientOffer = null;
+                item.pendingStudioOffer = null;
                 item.state = 'retirada';
                 closeModal();
                 refreshCurrentView(item, fromDetail);
@@ -1065,6 +1255,11 @@
     // ---------- Responder contraoferta (solo Job Board) ----------
 
     function openRespondModal(item) {
+        if (item.kind === 'spot') return openSpotRespondModal(item);
+        return openJobRespondModal(item);
+    }
+
+    function openJobRespondModal(item) {
         const o = item.pendingClientOffer;
         if (!o) return;
         const overlay = openModal(
@@ -1147,6 +1342,103 @@
         });
     }
 
+    function openSpotRespondModal(item) {
+        const offer = item.pendingStudioOffer;
+        if (!offer) return;
+        const overlay = openModal(
+            '<h3 class="wo-modal-title">Responder contraoferta</h3>' +
+            '<div class="apx-modal-summary">' +
+                trackRow('Fechas propuestas', '<strong>' + escapeHtml(counterOfferRange(offer)) + '</strong>') +
+                trackRow('Split propuesto', '<strong class="wo-mono-num">' + escapeHtml(offer.split_pct != null ? Number(offer.split_pct).toFixed(0) + '%' : 'Sin cambios') + '</strong>') +
+                (offer.note ? trackRow('Condiciones', '<strong>' + escapeHtml(offer.note) + '</strong>') : '') +
+            '</div>' +
+            '<div class="apx-modal-quick">' +
+                '<button type="button" class="wo-btn wo-btn--direct" data-modal="accept">Aceptar contraoferta</button>' +
+                '<button type="button" class="wo-btn wo-btn--secondary" data-modal="reject">Rechazar</button>' +
+            '</div>' +
+            '<p class="apx-modal-sep">O contra-proponé otras condiciones</p>' +
+            '<form class="apx-modal-form" data-modal="spot-counter-form">' +
+                '<div class="wo-field"><label class="wo-label" for="apx-spot-split">Split para el artista (%)</label>' +
+                    '<input type="number" min="0" max="100" step="1" id="apx-spot-split" class="wo-input" placeholder="66"></div>' +
+                '<div class="apx-modal-dates">' +
+                    '<div class="wo-field"><label class="wo-label" for="apx-spot-start">Fecha de inicio</label><input type="date" id="apx-spot-start" class="wo-input"></div>' +
+                    '<div class="wo-field"><label class="wo-label" for="apx-spot-end">Fecha de fin</label><input type="date" id="apx-spot-end" class="wo-input"></div>' +
+                '</div>' +
+                '<div class="wo-field"><label class="wo-label" for="apx-spot-note">Nota para el estudio</label>' +
+                    '<textarea id="apx-spot-note" class="wo-textarea" rows="3" placeholder="Contale qué condiciones proponés"></textarea></div>' +
+                '<div class="wo-modal-actions">' +
+                    '<button type="button" class="wo-btn wo-btn--ghost" data-modal="cancel">Cancelar</button>' +
+                    '<button type="submit" class="wo-btn">Enviar contrapropuesta</button>' +
+                '</div>' +
+            '</form>'
+        );
+
+        overlay.querySelector('[data-modal="cancel"]').addEventListener('click', closeModal);
+        const decide = async (status, button) => {
+            button.disabled = true;
+            try {
+                const result = await window.WeotziData.StudioSpots.decideCounterOffer(offer.id, status);
+                if (result?.error) throw result.error;
+                offer.status = status;
+                offer.decided_at = new Date().toISOString();
+                item.pendingStudioOffer = null;
+                if (status === 'accepted') item.app.status = 'accepted';
+                item.state = deriveSpotState(item.app, item.spot, false);
+                closeModal();
+                refreshCurrentView(item, true);
+            } catch (err) {
+                console.error('[applications] contraoferta spot:', err);
+                button.disabled = false;
+                modalError(overlay, 'No pudimos registrar tu respuesta. Probá de nuevo en unos segundos.');
+            }
+        };
+        overlay.querySelector('[data-modal="accept"]').addEventListener('click', (event) => decide('accepted', event.currentTarget));
+        overlay.querySelector('[data-modal="reject"]').addEventListener('click', (event) => decide('rejected', event.currentTarget));
+
+        overlay.querySelector('[data-modal="spot-counter-form"]').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const splitRaw = overlay.querySelector('#apx-spot-split').value;
+            const revenueSplitPct = splitRaw === '' ? null : Number(splitRaw);
+            const startDate = overlay.querySelector('#apx-spot-start').value || null;
+            const endDate = overlay.querySelector('#apx-spot-end').value || null;
+            const note = overlay.querySelector('#apx-spot-note').value.trim() || null;
+            if (revenueSplitPct == null && !startDate && !endDate && !note) {
+                modalError(overlay, 'Cargá al menos un cambio de split, fechas o condiciones.');
+                return;
+            }
+            if (startDate && endDate && endDate < startDate) {
+                modalError(overlay, 'La fecha de fin no puede ser anterior al inicio.');
+                return;
+            }
+            const submit = overlay.querySelector('[type="submit"]');
+            submit.disabled = true;
+            try {
+                const result = await window.WeotziData.StudioSpots.createCounterOffer({
+                    applicationId: item.id,
+                    authorRole: 'artist',
+                    revenueSplitPct,
+                    startDate,
+                    endDate,
+                    note
+                });
+                if (result?.error) throw result.error;
+                const created = unwrapRows(result)[0];
+                if (created) item.offers = (item.offers || []).concat(created);
+                offer.status = 'superseded';
+                offer.decided_at = new Date().toISOString();
+                item.pendingStudioOffer = null;
+                item.app.status = 'shortlisted';
+                item.state = deriveSpotState(item.app, item.spot, false);
+                closeModal();
+                refreshCurrentView(item, true);
+            } catch (err) {
+                console.error('[applications] contrapropuesta spot:', err);
+                submit.disabled = false;
+                modalError(overlay, 'No pudimos enviar la contrapropuesta. Probá de nuevo en unos segundos.');
+            }
+        });
+    }
+
     // ---------- Condiciones acordadas ----------
 
     async function openConditionsModal(item) {
@@ -1173,13 +1465,17 @@
         } else {
             const spot = item.spot;
             const range = parseRange(item.app.requested_dates);
+            const acceptedOffer = (item.offers || []).filter((offer) => offer.status === 'accepted')
+                .sort((a, b) => new Date(b.decided_at || b.created_at) - new Date(a.decided_at || a.created_at))[0] || null;
             rows =
                 trackRow('Estudio', '<strong>' + escapeHtml((item.studio && item.studio.name) || 'Estudio') + '</strong>') +
                 trackRow('Tipo de spot', '<strong>' + escapeHtml(item.kindLabel) + '</strong>') +
-                trackRow('Fechas', '<strong>' + escapeHtml(range
-                    ? fmtRange(range.start, range.end)
-                    : (spot && spot.start_date ? fmtRange(new Date(spot.start_date), new Date(spot.end_date || spot.start_date)) : 'A convenir con el estudio')) + '</strong>') +
-                (spot && spot.revenue_split_pct != null ? trackRow('Split', '<strong>' + Number(spot.revenue_split_pct).toFixed(0) + '% para el artista</strong>') : '') +
+                trackRow('Fechas', '<strong>' + escapeHtml(acceptedOffer
+                    ? counterOfferRange(acceptedOffer)
+                    : (range ? fmtRange(range.start, range.end)
+                    : (spot && spot.start_date ? fmtRange(new Date(spot.start_date), new Date(spot.end_date || spot.start_date)) : 'A convenir con el estudio'))) + '</strong>') +
+                ((acceptedOffer?.split_pct != null || spot?.revenue_split_pct != null) ? trackRow('Split', '<strong>' + Number(acceptedOffer?.split_pct ?? spot.revenue_split_pct).toFixed(0) + '% para el artista</strong>') : '') +
+                (acceptedOffer?.note ? trackRow('Condiciones', '<strong>' + escapeHtml(acceptedOffer.note) + '</strong>') : '') +
                 (spot && spot.stipend_amount ? trackRow('Stipend', '<strong class="wo-mono-num">' + escapeHtml(fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD')) + '</strong>') : '');
         }
 
@@ -1214,6 +1510,11 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
     function escapeAttr(v) { return escapeHtml(v); }
+
+    function initials(value) {
+        const parts = String(value || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+        return parts.length ? parts.map((part) => part.charAt(0).toUpperCase()).join('') : 'CL';
+    }
 
     function truncate(str, max) {
         const s = String(str);
@@ -1282,6 +1583,16 @@
         const v = parseInt(n, 10);
         if (isNaN(v) || v < 1) return null;
         return v === 1 ? '1 sesión' : v + ' sesiones';
+    }
+
+    function durationLabel(value) {
+        return {
+            '1_day': '1 día',
+            '2_3_days': '2–3 días',
+            '1_week': '1 semana',
+            '2_weeks': '2 semanas',
+            custom: 'A coordinar'
+        }[value] || null;
     }
 
     function daysSince(v) {

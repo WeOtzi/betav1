@@ -36,6 +36,7 @@
                 <a href="#" class="studio-dash-tab" data-tab="sedes"><span class="dot"></span> Sedes</a>
                 <a href="#" class="studio-dash-tab" data-tab="roster"><span class="dot"></span> Roster</a>
                 <a href="#" class="studio-dash-tab" data-tab="spots"><span class="dot"></span> Spots</a>
+                <a href="#" class="studio-dash-tab" data-tab="travel"><span class="dot"></span> Travel</a>
                 <a href="#" class="studio-dash-tab" data-tab="ops"><span class="dot"></span> Operaciones</a>
                 <a href="#" class="studio-dash-tab" data-tab="inventory"><span class="dot"></span> Inventario</a>
                 <a href="#" class="studio-dash-tab" data-tab="suppliers"><span class="dot"></span> Proveedores</a>
@@ -178,6 +179,17 @@
                     <div id="my-spots-list"><em class="studio-help">Cargando…</em></div>
                 </section>
 
+                <!-- ============ Travel · confirmación propiedad del estudio ============ -->
+                <section class="studio-dash-panel" data-panel="travel">
+                    <p class="studio-section-kicker">Travel</p>
+                    <h1 class="studio-h1">Solicitudes de <span class="accent">vinculación</span></h1>
+                    <p class="studio-help" style="margin-bottom:18px;">
+                        Confirmá únicamente los viajes que este estudio va a recibir. El artista no puede aprobar su propio vínculo.
+                    </p>
+                    <div id="studio-travel-status" class="studio-status studio-status-info" hidden style="margin-bottom:12px;"></div>
+                    <div id="studio-travel-links" aria-live="polite"><em class="studio-help">Cargando solicitudes…</em></div>
+                </section>
+
                 <!-- ============ Operations: Jobs / Clients / Invoicing / Documents ============ -->
                 <section class="studio-dash-panel" data-panel="ops">
                     <p class="studio-section-kicker">Operaciones</p>
@@ -265,6 +277,7 @@
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
+    <script src="/shared/js/data/travel-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
@@ -276,5 +289,6 @@
     <script src="/shared/js/weotzi-uploader.js"></script>
     <script src="/shared/js/studio-dashboard.js"></script>
     <script src="/shared/js/studio-dashboard-ops.js"></script>
+    <script src="/shared/js/studio-travel-links.js"></script>
 </body>
 </html>

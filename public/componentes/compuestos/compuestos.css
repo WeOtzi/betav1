@@ -1,0 +1,57 @@
+.compound-catalog-page {
+  --compound-ink: #001125;
+  --compound-gold: #f2b519;
+}
+
+.compound-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.compound-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 12%;
+  right: 4%;
+  width: clamp(7rem, 18vw, 16rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--compound-gold);
+  opacity: .13;
+}
+
+.compound-hero h1 { max-width: 70rem; }
+
+.compound-hero .docs-breadcrumb a {
+  color: inherit;
+  text-underline-offset: .2rem;
+}
+
+.compound-catalog .docs-family:first-child .docs-reference-badge {
+  border-color: #e9ca7a;
+  background: #fff7de;
+  color: #8a5d00;
+}
+
+.compound-catalog .docs-preview-scroll {
+  background-color: #f4f1e9;
+  background-image: linear-gradient(#e4dfd3 1px, transparent 1px), linear-gradient(90deg, #e4dfd3 1px, transparent 1px);
+}
+
+.compound-catalog .docs-component[data-tag="weotzi-dashboard"] .docs-demo {
+  border-color: #c8ad66;
+  box-shadow: 0 1.5rem 4rem rgb(36 33 29 / .11);
+}
+
+.compound-catalog .docs-component[data-tag="weotzi-dashboard"] .docs-demo-toolbar {
+  background: #fffaf0;
+}
+
+.compound-catalog .docs-component-meta dd {
+  word-break: break-word;
+}
+
+@media (min-width: 48rem) {
+  .compound-hero::after { top: 17%; }
+}

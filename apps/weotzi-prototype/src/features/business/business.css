@@ -1,0 +1,25 @@
+.business-screen { position: relative; height: 100%; overflow: hidden; background: #fff; }
+.business-content { height: calc(100% - 97px); overflow-y: auto; padding: 19px 24px 94px; scrollbar-width: none; }
+.business-content::-webkit-scrollbar { display:none; }
+.complete-profile { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:74px; padding:14px 12px; border:0; border-radius:12px; background:var(--ink-900,#292d32); color:#fff; text-align:left; }
+.complete-profile span { display:grid; gap:2px; }
+.complete-profile strong { font-size:17px; line-height:23px; }
+.complete-profile small { color:#cfd0d1; font-size:15px; line-height:21px; }
+.complete-profile b { font-size:34px; font-weight:300; }
+.earnings { display:flex; justify-content:space-between; margin-top:16px; padding:18px 16px; border-radius:6px; background:#f2ebdf; font-size:16px; }
+.business-section { margin-top:27px; }
+.business-section header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.business-section h1,.business-section h2 { margin:0; font-size:17px; line-height:23px; }
+.business-section header button { border:0; padding:0; background:none; font:inherit; font-weight:700; }
+.agenda-row { display:flex; gap:16px; overflow-x:auto; margin-right:-24px; scrollbar-width:none; }
+.agenda-row article { flex:0 0 246px; display:grid; padding:16px; border-radius:12px; background:#f8f5f0; }
+.agenda-row article strong { font-size:17px; line-height:23px; }
+.agenda-row article span { color:var(--ink-600,#72757a); }
+.inbox-preview { margin-top:40px; }
+.inbox-row { display:grid; grid-template-columns:46px 1fr auto; gap:14px; align-items:center; width:100%; min-height:70px; border:0; border-bottom:1px solid #ddd; padding:0; background:#fff; text-align:left; }
+.initials { display:grid; place-items:center; width:46px; height:46px; border-radius:50%; background:#e1f2f4; color:#586569; font-size:13px; }
+.inbox-copy { display:grid; min-width:0; }
+.inbox-copy strong { font-size:15px; line-height:21px; font-weight:500; }
+.inbox-copy small { overflow:hidden; color:var(--ink-600,#72757a); font-size:15px; line-height:21px; white-space:nowrap; text-overflow:ellipsis; }
+.inbox-row time { align-self:start; margin-top:12px; color:var(--ink-400,#a7a7a7); font-size:14px; }
+

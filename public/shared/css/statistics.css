@@ -88,7 +88,7 @@
 /* ---------- KPIs (Figma: tile 195.7×120, número Archivo 40 + delta mono) ---- */
 .kpi-row {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: var(--space-1);
 }
 
@@ -96,6 +96,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+    container-type: inline-size;
+    min-width: 0;
     min-height: 120px;
     padding: var(--space-5) var(--space-6);
     background: var(--surface-card);
@@ -117,10 +119,15 @@
     font-size: 40px;
     line-height: 1;
     color: var(--surface-ink);
+    max-width: 100%;
 }
 
-.kpi-card--money .kpi-value { color: var(--system-success); }
+.kpi-card--money .kpi-value {
+    color: var(--system-success);
+    font-size: clamp(26px, 13.5cqi, 40px);
+}
 .kpi-card--accent .kpi-value { color: var(--yellow-300); }
+.kpi-card--portfolio .kpi-value { color: var(--surface-ink); }
 .kpi-card--direct .kpi-value { color: var(--blue-300); }
 .kpi-card--alert .kpi-value { color: var(--red-300); }
 
@@ -137,7 +144,7 @@
 /* ---------- Embudo de conversión ---------- */
 .funnel {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     align-items: stretch;
     gap: 0;
 }
@@ -359,6 +366,58 @@
     color: var(--surface-ink);
 }
 
+.ranked-work-list,
+.stats-activity { display: flex; flex-direction: column; }
+
+.ranked-work-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+}
+
+.ranked-work-index,
+.ranked-work-meta b {
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    font-weight: var(--weight-regular);
+    color: var(--text-faint);
+}
+
+.ranked-work-index { width: 20px; flex: none; }
+.ranked-work-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
+.ranked-work-main .bar-track { height: 6px; }
+.ranked-work-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.ranked-work-meta strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+
+.stats-activity-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+    font-size: var(--body-s-size);
+}
+
+.stats-activity-row [data-wo-icon] { width: 16px; height: 16px; color: var(--neutral-400); }
+.stats-activity-row time { font-family: var(--font-mono); font-size: var(--meta-s-size); color: var(--text-faint); white-space: nowrap; }
+
+.stats-visitors-head { align-items: flex-end; }
+.stats-visitors-head > div:first-child { min-width: 280px; flex: 1; }
+.stats-visitor-filters { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.stats-table-wrap { width: 100%; overflow-x: auto; border-top: var(--border-strong-width) solid var(--border-strong); }
+.stats-visitors-table { width: 100%; min-width: 900px; border-collapse: collapse; table-layout: fixed; }
+.stats-visitors-table th,
+.stats-visitors-table td { padding: var(--space-3); border-bottom: var(--border-hairline) solid var(--border-subtle); text-align: left; vertical-align: top; font-size: var(--body-s-size); overflow-wrap: anywhere; }
+.stats-visitors-table th { font-family: var(--font-mono); font-size: var(--meta-s-size); letter-spacing: var(--meta-s-track); text-transform: uppercase; color: var(--text-faint); }
+.stats-visitors-table th:first-child { width: 18%; }
+.stats-visitors-table th:nth-child(4) { width: 24%; }
+.stats-visitor-type,
+.stats-requested,
+.stats-interest { display: inline-flex; margin: 0 var(--space-1) var(--space-1) 0; padding: 2px var(--space-2); font-family: var(--font-mono); font-size: var(--meta-s-size); text-transform: uppercase; background: var(--neutral-100); border: var(--border-hairline) solid var(--border-subtle); }
+.stats-requested { background: var(--yellow-100); color: var(--neutral-500); }
+
 /* ---------- Oportunidades ---------- */
 .insight-list { display: flex; flex-direction: column; gap: var(--space-1); }
 
@@ -376,6 +435,10 @@
 .insight-row [data-wo-icon] { width: 16px; height: 16px; flex: none; color: var(--neutral-400); }
 
 /* ---------- Responsive ---------- */
+@media (min-width: 1025px) and (max-width: 1439px) {
+    .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 1024px) {
     .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .funnel { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
@@ -391,6 +454,16 @@
     .stats-h2 { font-size: var(--h3-size); }
     .evolution-body { height: 200px; }
     .bar-row { grid-template-columns: 96px minmax(0, 1fr) 28px; }
+    .stats-table-wrap { overflow: visible; border-top: 0; }
+    .stats-visitors-table,
+    .stats-visitors-table tbody,
+    .stats-visitors-table tr,
+    .stats-visitors-table td { display: block; width: 100%; min-width: 0; box-sizing: border-box; }
+    .stats-visitors-table thead { display: none; }
+    .stats-visitors-table tr { border: var(--border-hairline) solid var(--border-subtle); margin-bottom: var(--space-3); background: var(--surface-card); }
+    .stats-visitors-table td { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-3); border-bottom: var(--border-hairline) solid var(--border-subtle); }
+    .stats-visitors-table td::before { content: attr(data-label); font-family: var(--font-mono); font-size: var(--meta-s-size); letter-spacing: var(--meta-s-track); text-transform: uppercase; color: var(--text-faint); }
+    .stats-visitors-table td:last-child { border-bottom: 0; }
 }
 
 @media (max-width: 480px) {
@@ -402,4 +475,7 @@
     .evolution-card { padding: var(--space-4); }
     .bar-row { grid-template-columns: 80px minmax(0, 1fr) 28px; }
     .stats-tabs { gap: var(--space-4); }
+    .stats-activity-row { grid-template-columns: 22px minmax(0, 1fr); }
+    .stats-activity-row time { grid-column: 2; }
+    .stats-visitors-table td { grid-template-columns: 96px minmax(0, 1fr); }
 }

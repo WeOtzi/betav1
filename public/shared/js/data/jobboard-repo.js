@@ -66,7 +66,7 @@
         async listForArtist(artistUserId) {
             const { data } = await run('jobboard.applications.listForArtist', (c) =>
                 c.from('job_board_applications')
-                    .select('*, job_board_requests ( id, request_code, status, tattoo_idea_description, tattoo_style, tattoo_body_part, tattoo_body_side, tattoo_size, tattoo_color_type, client_city, client_country, client_budget_min, client_budget_max, client_budget_currency, client_preferred_date, created_at, resulting_quote_id )')
+                    .select('*, job_board_requests ( id, request_code, client_user_id, status, display_title, client_display_name, client_avatar_url, tattoo_idea_description, tattoo_style, tattoo_body_part, tattoo_body_side, tattoo_size, tattoo_color_type, client_city, client_country, client_budget_min, client_budget_max, client_budget_currency, client_preferred_date, created_at, resulting_quote_id, job_board_attachments ( id, file_url, file_name, sort_order ) )')
                     .eq('artist_id', artistUserId)
                     .order('created_at', { ascending: false })
             );
@@ -148,6 +148,84 @@
         },
     };
 
+    const Featured = {
+        // Oportunidad patrocinada persistente. Devuelve un contrato de UI
+        // normalizado y conserva la fila original para callers avanzados.
+        async getActive() {
+            const { data } = await run('jobboard.featured.getActive', (c) =>
+                c.from('job_board_requests')
+                    .select('*, job_board_attachments ( id, file_url, file_name, sort_order )')
+                    .eq('status', 'open')
+                    .eq('is_public', true)
+                    .eq('is_featured', true)
+                    .order('featured_rank', { ascending: true, nullsFirst: false })
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+            );
+            if (!data) return null;
+            const studioName = data.sponsor_name || data.client_display_name || 'Oportunidad destacada';
+            const initials = studioName.split(/\s+/).filter(Boolean).slice(0, 2)
+                .map((part) => part.charAt(0).toUpperCase()).join('');
+            return {
+                ...data,
+                request_id: data.id,
+                opportunity_code: data.request_code,
+                studio_name: studioName,
+                studio_initials: initials || 'WO',
+                slots_count: data.featured_slots_count,
+                title: data.display_title || data.tattoo_idea_description,
+                description: data.sponsor_description || data.tattoo_idea_description,
+                city: data.client_city,
+                country: data.client_country,
+                budget_min: data.client_budget_min,
+                budget_max: data.client_budget_max,
+                budget_currency: data.client_budget_currency,
+                tags: data.featured_tags || [],
+                image_url: data.featured_image_url || data.job_board_attachments?.[0]?.file_url || null,
+                published_label: 'Publicado hoy',
+                cta_label: 'Postularme',
+            };
+        },
+    };
+
+    const SavedRequests = {
+        async listForArtist(artistUserId) {
+            const { data } = await run('jobboard.saved.listForArtist', (c) =>
+                c.from('artist_saved_job_requests')
+                    .select('request_id, created_at')
+                    .eq('artist_user_id', artistUserId)
+                    .order('created_at', { ascending: false })
+            );
+            return data || [];
+        },
+
+        async toggle(requestId, artistUserId, saved) {
+            if (saved) {
+                try {
+                    await run('jobboard.saved.add', (c) =>
+                        c.from('artist_saved_job_requests').insert({
+                            artist_user_id: artistUserId,
+                            request_id: requestId,
+                        })
+                    );
+                } catch (error) {
+                    // La tabla es inmutable (sin UPDATE por diseño). Un segundo
+                    // guardado concurrente ya alcanzó el estado solicitado.
+                    if (error?.code !== '23505' && error?.cause?.code !== '23505') throw error;
+                }
+            } else {
+                await run('jobboard.saved.remove', (c) =>
+                    c.from('artist_saved_job_requests')
+                        .delete()
+                        .eq('artist_user_id', artistUserId)
+                        .eq('request_id', requestId)
+                );
+            }
+            return saved;
+        },
+    };
+
     const JobBoardRealtime = {
         // INSERT de postulaciones de una solicitud (detalle del cliente en vivo).
         subscribeApplicationsForRequest(channelName, requestId, onInsert) {
@@ -160,5 +238,13 @@
         },
     };
 
-    D.JobBoard = { Requests, Applications, CounterOffers, Stats, Realtime: JobBoardRealtime };
+    D.JobBoard = {
+        Requests,
+        Applications,
+        CounterOffers,
+        Featured,
+        SavedRequests,
+        Stats,
+        Realtime: JobBoardRealtime,
+    };
 })();

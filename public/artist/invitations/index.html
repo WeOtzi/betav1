@@ -8,47 +8,30 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/studio-spots-ds.css">
+    <link rel="stylesheet" href="/shared/css/artist-invitations-figma.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="wo-app">
 
-    <!-- TopBar de artista -->
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/artist/dashboard" class="wo-topbar-brand">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal de artista">
-                <a href="/my-quotations" class="wo-topbar-item">Cotizaciones</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/studio-spots" class="wo-topbar-item">Spots</a>
-                <a href="/calendar" class="wo-topbar-item">Calendario</a>
-                <a href="/my-quotations/statistics" class="wo-topbar-item">Estadísticas</a>
-                <a href="/artist/travel" class="wo-topbar-item">Travel</a>
-                <a href="/artist/inbox" class="wo-topbar-item">Inbox</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="wo-btn wo-btn--ghost wo-btn--s inv-menu-toggle" id="inv-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="inv-mobile-menu">
-                Menú
-            </button>
-            <a href="/artist/dashboard" id="auth-nav-btn" class="inv-auth">
-                <span class="wo-o-tile inv-o-tile" aria-hidden="true">Ö</span>
-                <span id="auth-nav-label" class="wo-sr-only">Mi panel</span>
-            </a>
-            <button type="button" class="wo-btn wo-btn--danger wo-btn--mono inv-logout hidden" id="auth-logout">Log out</button>
-        </div>
-    </header>
-    <nav class="inv-mobile-menu" id="inv-mobile-menu" aria-label="Navegación móvil de artista" hidden>
-        <a href="/my-quotations">Cotizaciones</a>
-        <a href="/job-board">Job board</a>
-        <a href="/studio-spots">Spots</a>
-        <a href="/calendar">Calendario</a>
-        <a href="/my-quotations/statistics">Estadísticas</a>
-        <a href="/artist/travel">Travel</a>
-        <a href="/artist/inbox">Inbox</a>
-    </nav>
+    <!-- TopBar compartida de artista -->
+    <weotzi-product-nav
+        active="quotations"
+        menu-toggle-id="inv-mobile-menu-toggle"
+        menu-id="inv-mobile-menu"
+        menu-class="inv-mobile-menu"
+        profile-href="/artist/dashboard"
+        profile-id="auth-nav-btn"
+        profile-class="inv-auth inv-o-tile"
+        profile-label-id="auth-nav-label"
+        profile-label="Mi panel"
+        logout-id="auth-logout"
+        logout-class="inv-logout hidden">
+    </weotzi-product-nav>
 
     <main class="wo-container inv-shell">
 
@@ -57,7 +40,7 @@
             <header class="inv-head">
                 <div>
                     <span class="wo-eyebrow" id="inv-eyebrow">Invitaciones</span>
-                    <h1 class="inv-title">Los <span class="wo-highlight">estudios</span> que te quieren en su equipo.</h1>
+                    <h1 class="inv-title">Los <span class="wo-highlight">estudios</span><br class="inv-title-break"> que te quieren<br class="inv-title-break"> en su equipo.</h1>
                     <p class="inv-sub" id="inv-sub">Cargando…</p>
                 </div>
                 <div class="inv-count">
@@ -76,7 +59,7 @@
                 </div>
                 <span class="inv-bar-sep" aria-hidden="true"></span>
                 <select class="wo-select inv-sort" id="inv-sort" aria-label="Ordenar invitaciones">
-                    <option value="recent">Ordenar · más recientes</option>
+                    <option value="recent">Ordenar</option>
                     <option value="oldest">Ordenar · más antiguas</option>
                     <option value="studio">Ordenar · estudio A–Z</option>
                 </select>
@@ -90,6 +73,9 @@
                 <a class="inv-map-btn" href="/explore">
                     <i data-wo-icon="map" class="wo-icon-18" aria-hidden="true"></i> Mapa de estudios
                 </a>
+                <button class="inv-preferences" id="inv-preferences" type="button" aria-label="Preferencias de invitaciones">
+                    <i data-wo-icon="settings" class="wo-icon-18" aria-hidden="true"></i>
+                </button>
             </div>
 
             <div id="invitations-list" class="inv-list"><em class="wo-muted">Cargando…</em></div>

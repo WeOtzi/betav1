@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Preview · We Ötzi Design System</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23001125'/%3E%3Cpath d='M16 5 27 26H5Z' fill='%23F2B519'/%3E%3C/svg%3E" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+  <link rel="stylesheet" href="/shared/css/ds/components.css">
+  <link rel="stylesheet" href="/shared/css/ds/site-components.css">
+  <link rel="stylesheet" href="/shared/css/ds/molecules.css">
+  <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+  <style>
+    * { box-sizing: border-box; }
+    html { min-width: 20rem; background: #faf8f3; }
+    body { min-height: 100vh; margin: 0; background: #faf8f3; color: #24211d; font-family: var(--font-body, Inter, sans-serif); }
+    .preview-root { width: 100%; min-height: 100vh; display: grid; align-content: start; padding: clamp(.75rem, 2vw, 1.5rem); }
+    .preview-root > * { width: 100%; min-width: 0; }
+    .preview-root > weotzi-molecule { width: min(100%, var(--wo-molecule-natural-width, 100%)); }
+    @media (max-width: 768px) { .preview-root > weotzi-molecule { width: 100%; } }
+    .preview-status { position: fixed; z-index: 10; right: .75rem; bottom: .75rem; max-width: min(24rem, calc(100% - 1.5rem)); margin: 0; padding: .65rem .8rem; border: 1px solid #e8e3d7; border-radius: .3rem; background: rgb(255 255 255 / .94); color: #5a5449; font: 600 .68rem/1.45 var(--font-mono, "JetBrains Mono", monospace); box-shadow: 0 .5rem 1.5rem rgb(36 33 29 / .1); }
+    .preview-status[hidden] { display: none; }
+    .preview-error { max-width: 38rem; margin: 4rem auto; padding: 1.5rem; border: 2px solid #24211d; background: #fff; }
+    .preview-error strong { display: block; font-family: var(--font-display, "Archivo Black", sans-serif); font-size: 1.25rem; }
+    .preview-error code { display: inline-block; margin-top: .75rem; color: #0055ff; font-family: var(--font-mono, "JetBrains Mono", monospace); }
+  </style>
+  <script src="/shared/js/wo-icons.js" defer></script>
+  <script src="/shared/js/ds/site-components.js" defer></script>
+  <script src="/shared/js/ds/organisms.js" defer></script>
+  <script src="/shared/js/ds/molecules.js" defer></script>
+  <script src="/componentes/preview/preview.js" defer></script>
+</head>
+<body>
+  <main class="preview-root" id="preview-root" aria-live="polite"></main>
+  <p class="preview-status" data-preview-status hidden></p>
+</body>
+</html>
