@@ -1,0 +1,12 @@
+DirectoryIndex proxy.php
+Options -Indexes
+RewriteEngine On
+
+# The beta subdomain is the canonical app origin. Keep the WordPress site separate.
+RewriteCond %{HTTP_HOST} ^(www\.)?weotzi\.com$ [NC]
+RewriteRule ^(.*)$ https://beta.weotzi.com/$1 [R=302,L]
+
+# Only the proxy is web-executable. Node serves files from public/ after routing.
+# This also keeps deployment archives, configuration and application source private.
+RewriteRule ^proxy\.php$ - [L]
+RewriteRule ^ proxy.php [L,QSA]

@@ -3,7 +3,7 @@
  * ---------------------------------------------------
  * Giras/viajes del artista (/artist/travel) sobre la capa PostgREST unificada.
  * Tablas: artist_trips, trip_studio_links, trip_checklist_items,
- * trip_documents, trip_events (migracion 20260825100000_artist_travel.sql).
+ * trip_documents, trip_events y artist_travel_passport_stamps.
  * Corre con la sesión del usuario: RLS protege el itinerario y las decisiones
  * de estudio pasan exclusivamente por RPCs auditados. El artista solicita;
  * el estudio propietario o soporte confirma/rechaza.
@@ -20,15 +20,28 @@
     }
     const run = D.run;
 
-    const TRIP_EMBED = '*, trip_studio_links ( id, studio_id, studio_name, studio_city, status, requested_at, resolved_at ), trip_checklist_items ( id, label, is_done, is_custom, sort_order ), trip_documents ( id, category, file_name, storage_path, created_at ), trip_events ( id, event_type, detail, event_date, created_at )';
+    const TRIP_EMBED = '*, trip_studio_links ( id, studio_id, studio_name, studio_city, status, requested_at, resolved_at, contact_name, contact_details, address_snapshot ), trip_checklist_items ( id, label, is_done, is_custom, sort_order ), trip_documents ( id, category, file_name, storage_path, created_at ), trip_events ( id, event_type, detail, event_date, created_at )';
 
     const Travel = {
         // ---- artist_trips ----
 
         // Todos los viajes del artista, proximos primero.
-        async listForArtist(artistUserId, select = '*, trip_studio_links ( id, studio_name, status )') {
+        async listForArtist(artistUserId, select = '*, trip_studio_links ( id, studio_id, studio_name, studio_city, status, contact_name, contact_details, address_snapshot )') {
             const { data } = await run('travel.listForArtist', (c) =>
                 c.from('artist_trips').select(select).eq('artist_user_id', artistUserId).order('start_date', { ascending: false })
+            );
+            return data || [];
+        },
+
+        // Sellos historicos persistidos. RLS limita la lectura al artista
+        // propietario; no se derivan de los viajes visibles del año actual.
+        async listPassport(artistUserId) {
+            const { data } = await run('travel.listPassport', (c) =>
+                c.from('artist_travel_passport_stamps')
+                    .select('id, artist_user_id, city, country, year, tattoo_count, studio_count')
+                    .eq('artist_user_id', artistUserId)
+                    .order('year', { ascending: false })
+                    .order('city', { ascending: true })
             );
             return data || [];
         },
@@ -41,23 +54,31 @@
             return data || null;
         },
 
-        // Itinerario compartido (pagina publica /travel/share?slug=...).
-        // Solo devuelve viajes con share_enabled (policy artist_trips_public_shared).
+        // Itinerario compartido (/travel/t/:slug; query legacy compatible).
+        // La proyeccion RPC es una whitelist y nunca da acceso anon directo a
+        // artist_trips, notas, condiciones, documentos ni contactos privados.
         async getBySlug(slug) {
             const { data } = await run('travel.getBySlug', (c) =>
-                c.from('artist_trips')
-                    .select('id, artist_user_id, city, country, region, start_date, end_date, trip_type, status, event_name, share_slug')
-                    .eq('share_slug', slug)
-                    .eq('share_enabled', true)
-                    .maybeSingle()
+                c.rpc('get_public_travel_share', { p_share_slug: slug }).maybeSingle()
             );
             return data || null;
         },
 
-        // Crea un viaje y lo devuelve (payload incluye artist_user_id).
+        // Crea viaje + checklist canonica + evento en una sola transaccion. La
+        // identidad del artista se toma del JWT; artist_user_id del payload se
+        // ignora deliberadamente para impedir asignaciones cruzadas.
         async create(payload) {
             const { data } = await run('travel.create', (c) =>
-                c.from('artist_trips').insert([payload]).select().single()
+                c.rpc('create_artist_trip', {
+                    p_city: payload.city,
+                    p_country: payload.country,
+                    p_region: payload.region || null,
+                    p_start_date: payload.start_date,
+                    p_end_date: payload.end_date,
+                    p_trip_type: payload.trip_type,
+                    p_studio_name_hint: payload.studio_name_hint || null,
+                    p_personal_notes: payload.personal_notes || null,
+                })
             );
             return data;
         },
@@ -66,17 +87,36 @@
             await run('travel.update', (c) => c.from('artist_trips').update(patch).eq('id', tripId));
         },
 
-        // Cancelacion (recuperable): status + cancelled_at, sin borrar datos.
-        async cancel(tripId) {
-            await run('travel.cancel', (c) =>
-                c.from('artist_trips').update({ status: 'cancelado', cancelled_at: new Date().toISOString() }).eq('id', tripId)
+        // Cancelacion recuperable y atomica: cierra solicitudes pendientes,
+        // desactiva el share y registra la cronologia sin borrar datos.
+        async cancel(tripId, reason = null) {
+            const { data } = await run('travel.cancel', (c) =>
+                c.rpc('cancel_artist_trip', {
+                    p_trip_id: tripId,
+                    p_reason: reason || null,
+                })
             );
+            return data;
         },
 
-        async reactivate(tripId, status = 'planificado') {
-            await run('travel.reactivate', (c) =>
-                c.from('artist_trips').update({ status, cancelled_at: null }).eq('id', tripId)
+        // El estado se deriva en servidor bajo lock; no se confia en un status
+        // calculado por el navegador.
+        async reactivate(tripId) {
+            const { data } = await run('travel.reactivate', (c) =>
+                c.rpc('reactivate_artist_trip', { p_trip_id: tripId })
             );
+            return data;
+        },
+
+        async updateDates(tripId, startDate, endDate) {
+            const { data } = await run('travel.updateDates', (c) =>
+                c.rpc('update_artist_trip_dates', {
+                    p_trip_id: tripId,
+                    p_start_date: startDate,
+                    p_end_date: endDate,
+                })
+            );
+            return data;
         },
 
         // Compartir itinerario: slug + flag (slug lo genera el caller).
@@ -111,13 +151,12 @@
 
         async listPendingStudioLinks(studioId) {
             const { data } = await run('travel.listPendingStudioLinks', (c) =>
-                c.from('trip_studio_links')
-                    .select('id,trip_id,studio_id,studio_name,studio_city,status,requested_at,artist_trips!inner(id,artist_user_id,city,country,start_date,end_date,trip_type,status)')
-                    .eq('studio_id', studioId)
-                    .eq('status', 'esperando_confirmacion')
-                    .order('requested_at', { ascending: true })
+                c.rpc('list_pending_trip_studio_links', { p_studio_id: studioId })
             );
-            return data || [];
+            return (data || []).map((row) => {
+                const { artist_trip: artistTrip, ...link } = row;
+                return { ...link, artist_trips: artistTrip || null };
+            });
         },
 
         // ---- trip_checklist_items ----

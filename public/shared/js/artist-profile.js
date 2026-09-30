@@ -32,7 +32,6 @@ const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_f
 const MIN_GALLERY_SLOTS = 9;
 const MAX_GALLERY_SLOTS = 12;
 const GALLERY_PLACEHOLDER_SRC = '/shared/assets/placeholders/gallery-default.svg';
-const PROFILE_MOBILE_MENU_BREAKPOINT = 768;
 const REVIEW_QUOTE_COUNT = 3;
 const GALLERY_ALL_FILTER = 'todos';
 // Tope de la primera oración de la bio para promoverla a titular-manifiesto.
@@ -74,6 +73,12 @@ const CITY_TONES = ['red', 'blue', 'ink'];
 const REVIEW_AVATAR_COLORS = ['var(--ink)', 'var(--red-300)', 'var(--blue-300)'];
 // Figma: triángulo de color rotando rojo → azul → amarillo por fila de residencia.
 const PRESENCE_TONES = ['red', 'blue', 'yellow'];
+const SPECIALTY_DESCRIPTIONS = {
+    'fine-line': 'Trazo continuo de una sola aguja, ideal en zonas chicas y piezas delicadas.',
+    blackwork: 'Negros sólidos y alto contraste, pensados para leerse a distancia.',
+    botanico: 'Ilustración de plantas reales, con estudio previo de la especie.',
+    minimalista: 'Piezas pequeñas, geométricas, sin relleno ni sombra.'
+};
 
 const GALLERY_CATEGORY_LABELS = {
     realizados: 'Realizados',
@@ -88,6 +93,14 @@ let publicProfilePreferences = {
     privacy: { show_city: true, show_rating: true, show_socials: true, allow_search_indexing: false },
     profile: {},
     availability: {}
+};
+let publicProfileMetrics = {
+    tattooCount: null,
+    tattooCountLabel: '—',
+    responseRate: null,
+    responseRateLabel: '—',
+    avgResponseMinutes: null,
+    responseTimeLabel: '—'
 };
 let galleryItems = [];
 let galleryFilter = GALLERY_ALL_FILTER;
@@ -298,10 +311,11 @@ async function loadArtistData(username) {
         }
 
         artistData = artist;
-        [tattooLocations, studioData, publicProfilePreferences] = await Promise.all([
+        [tattooLocations, studioData, publicProfilePreferences, publicProfileMetrics] = await Promise.all([
             loadArtistTattooLocations(artist.user_id),
             loadArtistStudio(artist.studio_id),
-            loadPublicProfilePreferences(artist.user_id)
+            loadPublicProfilePreferences(artist.user_id),
+            loadPublicProfileMetrics(searchUsername)
         ]);
 
         populateProfile();
@@ -315,6 +329,27 @@ async function loadArtistData(username) {
     } catch (error) {
         console.error('Error loading artist data:', error);
         showError('technical', { requestedArtist: searchUsername });
+    }
+}
+
+async function loadPublicProfileMetrics(username) {
+    const fallback = {
+        tattooCount: null,
+        tattooCountLabel: '—',
+        responseRate: null,
+        responseRateLabel: '—',
+        avgResponseMinutes: null,
+        responseTimeLabel: '—'
+    };
+    try {
+        const response = await fetch(`/api/artist/public-profile-metrics?artist=${encodeURIComponent(username)}`);
+        if (!response.ok) return fallback;
+        const payload = await response.json();
+        if (!payload?.success || !payload.metrics || typeof payload.metrics !== 'object') return fallback;
+        return { ...fallback, ...payload.metrics };
+    } catch (error) {
+        console.warn('Public profile metrics unavailable:', error);
+        return fallback;
     }
 }
 
@@ -503,12 +538,12 @@ function populateProfile() {
         verifiedIcon.hidden = artistData.verification_state !== 'Yes';
     }
 
+    renderGallery();
     renderStyles(styles);
     renderStats();
     renderSobreFacts();
     renderSpecialties(styles);
     renderStudio();
-    renderGallery();
     renderPresence();
     renderCities();
     renderCtaMonths();
@@ -623,7 +658,7 @@ function setQuoteLinks() {
     const quotationUrl = getQuotationUrl();
     const reserveUrl = getQuotationFormUrl();
 
-    for (const id of ['quote-cta-top-btn', 'quote-cta-bar-btn', 'profile-header-quote-link', 'profile-mobile-quote-link']) {
+    for (const id of ['quote-cta-top-btn', 'quote-cta-bar-btn']) {
         const el = document.getElementById(id);
         if (el) el.href = quotationUrl;
     }
@@ -654,9 +689,9 @@ function renderStyles(styles) {
 }
 
 /**
- * Statstrip. El Figma pide 4 métricas; solo `AÑOS TATUANDO` (years_experience) y
- * `CALIFICACIÓN` (public_review_summary) tienen fuente real — TATUAJES y TASA DE
- * RESPUESTA no existen como columnas y quedan fuera.
+ * Statstrip del Figma. La experiencia y calificación siguen viniendo de sus
+ * fuentes públicas; tatuajes completados y respuesta llegan como agregado del
+ * servidor, sin exponer filas de cotizaciones.
  */
 function renderStats() {
     const experienceCell = document.getElementById('statcell-experience');
@@ -666,6 +701,9 @@ function renderStats() {
         experienceCell.hidden = !experience;
         if (experience) setText('display-experience', experience);
     }
+
+    setText('display-tattoos', publicProfileMetrics.tattooCountLabel || '—');
+    setText('display-response-rate', publicProfileMetrics.responseRateLabel || '—');
 
     markLeadStatcell();
 }
@@ -683,8 +721,7 @@ function markLeadStatcell() {
 
 /**
  * Ficha lateral de la banda azul. El Figma lista EXPERIENCIA / IDIOMAS / SESIÓN
- * MÍNIMA / TIEMPO DE RESPUESTA; las tres primeras existen en artists_db, la
- * cuarta no tiene columna y se omite.
+ * MÍNIMA / TIEMPO DE RESPUESTA; la última usa el agregado público del servidor.
  */
 function renderSobreFacts() {
     const experience = formatExperienceFact(artistData?.years_experience);
@@ -694,6 +731,7 @@ function renderSobreFacts() {
     toggleFact('fact-experience', 'display-experience-fact', experience);
     toggleFact('fact-languages', 'display-languages', languages.length ? languages.join(' · ') : '');
     toggleFact('fact-price', 'display-price', price);
+    setText('display-response-time', publicProfileMetrics.responseTimeLabel || '—');
 }
 
 function toggleFact(wrapperId, valueId, value) {
@@ -705,9 +743,9 @@ function toggleFact(wrapperId, valueId, value) {
 }
 
 /**
- * Tabla de Especialidades: numeral + cuadrado de color + nombre del estilo, todo
- * derivado de `styles_array`. La descripción y la miniatura por estilo del Figma
- * no tienen fuente (el catálogo guarda solo label/value) y se omiten.
+ * Tabla de Especialidades: nombre real de `styles_array`, definición editorial
+ * solo para los cuatro estilos documentados por el Figma y primera obra
+ * etiquetada con ese estilo. Si falta contenido se presenta un slot vacío.
  */
 function renderSpecialties(styles) {
     const band = document.getElementById('specialties-band');
@@ -721,13 +759,25 @@ function renderSpecialties(styles) {
     }
 
     band.hidden = false;
-    table.innerHTML = styles.map((styleName, index) => `
+    const rows = window.ArtistProfilePresentation?.buildSpecialtyRows
+        ? window.ArtistProfilePresentation.buildSpecialtyRows(styles, galleryItems, SPECIALTY_DESCRIPTIONS)
+        : styles.map((name) => ({ name, description: '', mediaUrl: '', mediaKind: 'image' }));
+    table.innerHTML = rows.map((row, index) => `
         <div class="specialty-row">
             <span class="specialty-index">${escapeHtml(String(index + 1).padStart(2, '0'))}</span>
             <span class="specialty-swatch" style="--specialty-color: ${SPECIALTY_COLORS[index % SPECIALTY_COLORS.length]}" aria-hidden="true"></span>
-            <p class="specialty-name">${escapeHtml(styleName)}</p>
+            <p class="specialty-name">${escapeHtml(row.name)}</p>
+            <p class="specialty-description">${escapeHtml(row.description)}</p>
+            <span class="specialty-media${row.mediaUrl ? ' has-media' : ''}">
+                ${row.mediaUrl
+                    ? (row.mediaKind === 'video'
+                        ? `<video src="${escapeHtml(row.mediaUrl)}" muted playsinline preload="metadata" aria-label="Muestra de ${escapeHtml(row.name)}"></video>`
+                        : `<img src="${escapeHtml(row.mediaUrl)}" alt="Muestra de ${escapeHtml(row.name)}" loading="lazy" width="160" height="96">`)
+                    : `<span class="specialty-media-empty"><i data-wo-icon="image" aria-hidden="true"></i><span>${escapeHtml(row.name)}</span></span>`}
+            </span>
         </div>
     `).join('');
+    window.WoIcons?.hydrate?.(table);
 }
 
 function buildStudioAddress(studio) {
@@ -810,7 +860,12 @@ function normalizeGalleryItems() {
             : 'realizados';
         const key = String(raw?.id || raw?.key || url.split('?')[0].split('/').pop() || `work-${items.length + 1}`);
         const title = String(raw?.title || raw?.name || `${GALLERY_CATEGORY_LABELS[category]} ${items.length + 1}`);
-        items.push({ url, key, title, category, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
+        const styles = (Array.isArray(raw?.styles) ? raw.styles : [raw?.style, raw?.style_name])
+            .filter(Boolean)
+            .map((style) => String(style).trim())
+            .filter(Boolean);
+        const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
+        items.push({ url, key, title, category, styles, filterValues, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
         seen.add(url);
     }
 
@@ -821,7 +876,12 @@ function normalizeGalleryItems() {
             const raw = typeof entry === 'object' && entry ? entry : {};
             const key = String(raw.id || raw.key || url.split('?')[0].split('/').pop() || `work-${items.length + 1}`);
             const title = String(raw.title || raw.name || `Trabajo ${items.length + 1}`);
-            items.push({ url, key, title, category: 'realizados', kind: isUrlVideo(url) ? 'video' : 'image' });
+            const styles = (Array.isArray(raw.styles) ? raw.styles : [raw.style, raw.style_name])
+                .filter(Boolean)
+                .map((style) => String(style).trim())
+                .filter(Boolean);
+            const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
+            items.push({ url, key, title, category: 'realizados', styles, filterValues, kind: isUrlVideo(url) ? 'video' : 'image' });
             seen.add(url);
         }
     }
@@ -831,28 +891,34 @@ function normalizeGalleryItems() {
 
 function getVisibleGalleryItems() {
     if (galleryFilter === GALLERY_ALL_FILTER) return galleryItems;
-    return galleryItems.filter((item) => item.category === galleryFilter);
+    return galleryItems.filter((item) => item.category === galleryFilter || item.filterValues?.includes(galleryFilter));
 }
 
 function renderGalleryChips() {
-    const chips = document.getElementById('gallery-chips');
-    if (!chips) return;
+    const containers = ['portfolio-intro-chips', 'gallery-chips']
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
+    if (!containers.length) return;
 
-    const categories = Array.from(new Set(galleryItems.map((item) => item.category)));
-    if (categories.length < 2) {
-        chips.hidden = true;
-        chips.innerHTML = '';
+    const options = window.ArtistProfilePresentation?.buildPortfolioFilterOptions
+        ? window.ArtistProfilePresentation.buildPortfolioFilterOptions(galleryItems, GALLERY_CATEGORY_LABELS)
+        : [{ value: GALLERY_ALL_FILTER, label: 'Todos' }];
+    if (options.length < 2) {
+        containers.forEach((chips) => {
+            chips.hidden = false;
+            chips.innerHTML = '<button type="button" class="gallery-chip is-active" data-gallery-filter="todos" aria-pressed="true">Todos</button>';
+        });
         galleryFilter = GALLERY_ALL_FILTER;
         return;
     }
 
-    chips.hidden = false;
-    const options = [{ value: GALLERY_ALL_FILTER, label: 'Todos' }]
-        .concat(categories.map((category) => ({ value: category, label: GALLERY_CATEGORY_LABELS[category] || category })));
-
-    chips.innerHTML = options.map((option) => `
+    const markup = options.map((option) => `
         <button type="button" class="gallery-chip${option.value === galleryFilter ? ' is-active' : ''}" data-gallery-filter="${escapeHtml(option.value)}" aria-pressed="${option.value === galleryFilter}">${escapeHtml(option.label)}</button>
     `).join('');
+    containers.forEach((chips) => {
+        chips.hidden = false;
+        chips.innerHTML = markup;
+    });
 }
 
 function renderGallery() {
@@ -1024,6 +1090,11 @@ function renderCtaMonths() {
     container.innerHTML = months
         .map((month) => `<span class="cta-month">${escapeHtml(month)}</span>`)
         .join('');
+
+    const copy = document.getElementById('cta-copy');
+    if (copy && publicProfileMetrics.responseTimeLabel === 'Menos de 24 h') {
+        copy.textContent = 'Estoy tomando reservas para los próximos dos meses. Contame tu idea y te paso un presupuesto en menos de 24 horas.';
+    }
 }
 
 function hasOpenAgenda() {
@@ -1301,13 +1372,18 @@ function setupEventListeners() {
 
     document.getElementById('reviews-all-link')?.addEventListener('click', toggleFullReviews);
 
-    document.getElementById('gallery-chips')?.addEventListener('click', (event) => {
-        const chip = event.target.closest('[data-gallery-filter]');
-        if (!chip) return;
-        galleryFilter = chip.dataset.galleryFilter || GALLERY_ALL_FILTER;
-        renderGalleryChips();
-        renderGalleryGrid();
-    });
+    for (const id of ['portfolio-intro-chips', 'gallery-chips']) {
+        document.getElementById(id)?.addEventListener('click', (event) => {
+            const chip = event.target.closest('[data-gallery-filter]');
+            if (!chip) return;
+            galleryFilter = chip.dataset.galleryFilter || GALLERY_ALL_FILTER;
+            renderGalleryChips();
+            renderGalleryGrid();
+            if (id === 'portfolio-intro-chips') {
+                document.getElementById('block-gallery')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
 
     document.getElementById('gallery-view-all-btn')?.addEventListener('click', () => {
         window.location.href = getGalleryFeedUrl();
@@ -1332,53 +1408,43 @@ function setupEventListeners() {
     });
 }
 
-function setProfileMobileMenuOpen(isOpen) {
-    const toggleBtn = document.getElementById('profile-mobile-menu-toggle');
-    const menu = document.getElementById('profile-mobile-menu');
-    if (!toggleBtn || !menu) return;
-
-    const shouldOpen = Boolean(isOpen);
-    menu.hidden = !shouldOpen;
-    toggleBtn.setAttribute('aria-expanded', String(shouldOpen));
-}
-
 function setupProfileNavigationMenu() {
-    const toggleBtn = document.getElementById('profile-mobile-menu-toggle');
-    const menu = document.getElementById('profile-mobile-menu');
-    if (!toggleBtn || !menu) return;
-    if (toggleBtn.dataset.menuBound === 'true') return;
+    const navRoot = document.querySelector('weotzi-product-nav');
+    const toggle = document.getElementById('profile-product-menu-toggle');
+    const menu = document.getElementById('profile-product-mobile-menu');
+    const setState = window.ArtistProfilePresentation?.setDisclosureState;
+    if (!navRoot || !toggle || !menu || !setState || toggle.dataset.profileMenuBound === 'true') return;
 
-    setProfileMobileMenuOpen(false);
+    const closeMenu = (restoreFocus = false) => {
+        setState(toggle, menu, false);
+        if (restoreFocus) toggle.focus();
+    };
 
-    toggleBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const shouldOpen = toggleBtn.getAttribute('aria-expanded') !== 'true';
-        setProfileMobileMenuOpen(shouldOpen);
+    toggle.addEventListener('click', () => {
+        setState(toggle, menu, toggle.getAttribute('aria-expanded') !== 'true');
     });
-
-    menu.querySelectorAll('a').forEach((link) => {
-        link.addEventListener('click', () => {
-            setProfileMobileMenuOpen(false);
-        });
+    menu.addEventListener('click', (event) => {
+        if (event.target.closest('a')) closeMenu();
     });
-
     document.addEventListener('click', (event) => {
-        if (menu.hidden) return;
-        const clickInsideMenu = menu.contains(event.target);
-        const clickOnToggle = toggleBtn.contains(event.target);
-        if (!clickInsideMenu && !clickOnToggle) {
-            setProfileMobileMenuOpen(false);
-        }
+        if (!navRoot.contains(event.target)) closeMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') closeMenu(true);
     });
 
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > PROFILE_MOBILE_MENU_BREAKPOINT) {
-            setProfileMobileMenuOpen(false);
-        }
-    });
-
-    toggleBtn.dataset.menuBound = 'true';
+    toggle.dataset.profileMenuBound = 'true';
 }
+
+async function handleProfileLogout() {
+    try {
+        await _supabase?.auth?.signOut?.();
+    } finally {
+        window.location.href = '/artist/login';
+    }
+}
+
+window.handleProfileLogout = handleProfileLogout;
 
 /* ---------- Lightbox ---------- */
 

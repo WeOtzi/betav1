@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>WE ÖTZI | Estadísticas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,7 +119,7 @@
                     <button type="button" class="q-chip is-active" data-metric="visits" aria-pressed="true">Visitas al perfil</button>
                     <button type="button" class="q-chip" data-metric="requests" aria-pressed="false">Solicitudes recibidas</button>
                     <button type="button" class="q-chip" data-metric="bookings" aria-pressed="false">Reservas confirmadas</button>
-                    <button type="button" class="q-chip" data-metric="revenue" aria-pressed="false">Ingresos</button>
+                    <button type="button" class="q-chip" data-metric="revenue" aria-pressed="false">Ingresos (miles)</button>
                 </div>
                 <div class="evolution-card">
                     <div class="evolution-head">
@@ -142,64 +144,58 @@
                         <div class="ranked-work-list" id="works-list"></div>
                         <h3 class="perf-title">Estilos más buscados</h3>
                         <div class="bar-list" id="styles-list"></div>
-                        <h3 class="perf-title">Clientes nuevos vs. recurrentes</h3>
-                        <div class="split-list" id="clients-split"></div>
                     </div>
                     <div class="perf-col">
                         <h3 class="perf-title">Ciudades con más visitas</h3>
                         <div class="bar-list" id="cities-list"></div>
-                        <h3 class="perf-title">Horarios con más actividad</h3>
-                        <div class="rank-list" id="hours-list"></div>
+                        <div class="perf-lower-grid">
+                            <div>
+                                <h3 class="perf-title">Horarios con más actividad</h3>
+                                <div class="rank-list" id="hours-list"></div>
+                            </div>
+                            <div>
+                                <h3 class="perf-title">Clientes nuevos vs. recurrentes</h3>
+                                <div class="split-list" id="clients-split"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <section class="stats-section" aria-labelledby="activity-title">
-                <header class="stats-section-head">
+            <div class="stats-dual">
+                <section class="stats-section" aria-labelledby="activity-title">
                     <h2 class="stats-h2" id="activity-title">Actividad reciente</h2>
-                    <span class="stats-section-note">Últimos movimientos del perfil y las cotizaciones</span>
-                </header>
-                <div class="stats-activity" id="stats-activity"></div>
-            </section>
+                    <div class="stats-activity" id="stats-activity"></div>
+                </section>
+
+                <section class="stats-section" aria-labelledby="insights-title">
+                    <h2 class="stats-h2" id="insights-title">Oportunidades</h2>
+                    <div class="insight-list" id="insights"></div>
+                </section>
+            </div>
 
             <section class="stats-section" aria-labelledby="visitors-title">
                 <header class="stats-section-head stats-visitors-head">
                     <div>
                         <h2 class="stats-h2" id="visitors-title">Quiénes visitaron tu perfil</h2>
-                        <p class="stats-section-sub">Solo mostramos identidad cuando la persona inició sesión y permite un perfil público.</p>
+                        <p class="stats-visitors-count" id="stats-visitors-count">0 de 0 visitantes</p>
                     </div>
                     <div class="stats-visitor-filters" role="group" aria-label="Filtrar visitantes">
                         <button type="button" class="stats-tab is-active" data-visitor-filter="all" aria-pressed="true">Todos</button>
-                        <button type="button" class="stats-tab" data-visitor-filter="client" aria-pressed="false">Clientes</button>
+                        <button type="button" class="stats-tab" data-visitor-filter="client" aria-pressed="false">Clientes potenciales</button>
                         <button type="button" class="stats-tab" data-visitor-filter="studio" aria-pressed="false">Estudios</button>
-                        <button type="button" class="stats-tab" data-visitor-filter="requested" aria-pressed="false">Solicitaron</button>
                     </div>
                 </header>
                 <div class="stats-table-wrap">
                     <table class="stats-visitors-table">
-                        <thead>
-                            <tr>
-                                <th>Visitante</th>
-                                <th>Tipo</th>
-                                <th>Ciudad</th>
-                                <th>Intereses</th>
-                                <th>Última visita</th>
-                                <th>Visitas</th>
-                                <th>Solicitud</th>
-                            </tr>
-                        </thead>
                         <tbody id="stats-visitors-body"></tbody>
                     </table>
                 </div>
             </section>
-
-            <!-- Oportunidades -->
-            <section class="stats-section" aria-labelledby="insights-title">
-                <h2 class="stats-h2" id="insights-title">Oportunidades</h2>
-                <div class="insight-list" id="insights"></div>
-            </section>
         </div>
     </main>
+
+    <weotzi-product-footer></weotzi-product-footer>
 
     <script src="/shared/js/header-effects.js"></script>
     <script src="/shared/js/admin-mobile-menu.js"></script>

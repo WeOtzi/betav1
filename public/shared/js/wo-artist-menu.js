@@ -15,8 +15,8 @@
  * Estado de lectura: el chat usa su is_read real; el resto persiste recibos en
  * user_notification_reads y conserva localStorage como respaldo offline. Sin
  * sesión de artista el tile conserva su
- * comportamiento original (link). Carga: DESPUÉS de config-manager,
- * postgrest-client y los data/*-repo.js de la página (defer).
+ * comportamiento original (link). Carga: DESPUÉS de config-manager y
+ * postgrest-client; el propio componente completa sus repositorios de conteo.
  */
 (function () {
     'use strict';
@@ -358,6 +358,7 @@
             + '<div class="wo-oam-links">'
             + '<a class="wo-oam-link" href="/artist/account"><span class="wo-oam-ic">' + iconEl('user') + '</span>Ir al centro de la cuenta</a>'
             + '<a class="wo-oam-link" href="' + esc(profileHref) + '"><span class="wo-oam-ic">' + iconEl('external-link') + '</span>Ver perfil público</a>'
+            + '<a class="wo-oam-link" id="wo-oam-tour" href="/artist/dashboard?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>'
             + '<a class="wo-oam-link" href="mailto:artistas@weotzi.com"><span class="wo-oam-ic">' + iconEl('help-circle') + '</span>Ayuda</a>'
             + '</div>';
 
@@ -409,9 +410,16 @@
 
     function renderBadge() {
         var total = unreadTotal();
-        if (!els.badge) return;
-        els.badge.textContent = total > 99 ? '99+' : String(total);
-        els.badge.hidden = total <= 0;
+        var counts = {
+            quotations: Math.max(0, Number(state.counts.solic) || 0),
+            notifications: Math.max(0, Number(total) || 0),
+        };
+        window.WeotziArtistMenuCounts = counts;
+        if (els.badge) {
+            els.badge.textContent = counts.notifications > 99 ? '99+' : String(counts.notifications);
+            els.badge.hidden = counts.notifications <= 0;
+        }
+        document.dispatchEvent(new CustomEvent('weotzi:artist-counts', { detail: counts }));
     }
 
     function renderAll() { renderDrop(); renderPanel(); renderBadge(); }
@@ -474,6 +482,34 @@
         return null;
     }
 
+    function loadCounterRepository(src, isReady) {
+        if (isReady()) return Promise.resolve();
+        return new Promise(function (resolve, reject) {
+            var script = document.createElement('script');
+            script.src = src;
+            script.dataset.woCounterRepo = src;
+            script.onload = function () {
+                if (isReady()) { resolve(); return; }
+                reject(new Error('El repositorio no registró su API: ' + src));
+            };
+            script.onerror = function () { reject(new Error('No se pudo cargar ' + src)); };
+            document.head.appendChild(script);
+        });
+    }
+
+    async function ensureCounterRepositories() {
+        await Promise.all([
+            loadCounterRepository('/shared/js/data/quotations-repo.js', function () {
+                var D = window.WeotziData;
+                return Boolean(D && D.Quotations && D.Chat && D.Sessions);
+            }),
+            loadCounterRepository('/shared/js/data/studios-repo.js', function () {
+                var D = window.WeotziData;
+                return Boolean(D && D.StudioMemberships && D.StudioSpots);
+            }),
+        ]);
+    }
+
     // Monta la UI y los listeners SIN esperar a la red: el click en el tile
     // abre el dropdown desde el primer momento (antes esperaba sesión+perfil y,
     // si eso tardaba o fallaba, el tile seguía navegando a /artist/account).
@@ -487,10 +523,13 @@
         host.className = 'wo-oam-host';
         els.trigger.parentNode.insertBefore(host, els.trigger);
         host.appendChild(els.trigger);
-        els.badge = document.createElement('span');
-        els.badge.className = 'wo-oam-badge';
-        els.badge.hidden = true;
-        host.appendChild(els.badge);
+        els.badge = els.trigger.querySelector('[data-artist-notification-count]');
+        if (!els.badge) {
+            els.badge = document.createElement('span');
+            els.badge.className = 'wo-oam-badge';
+            els.badge.hidden = true;
+            host.appendChild(els.badge);
+        }
 
         els.drop = document.createElement('div');
         els.drop.className = 'wo-oam-drop';
@@ -563,6 +602,9 @@
         if (!session) { unmountUi(); return; } // sin sesión el tile vuelve a ser link
         state.user = session.user;
         safeRender();
+
+        try { await ensureCounterRepositories(); }
+        catch (e) { console.warn('[wo-menu] repositorios de conteo:', e && e.message); }
 
         // La identidad es "mejor esfuerzo": si el perfil no resuelve, el menú
         // igual funciona con el email de la sesión.

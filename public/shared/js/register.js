@@ -3213,9 +3213,10 @@ const uniquenessState = {
 const uniquenessSeq = { email: 0, username: 0, instagram: 0 };
 
 async function requestUniqueness(payload) {
+    const { data: sessionData } = await _supabase.auth.getSession();
     const res = await fetch(apiUrl('/api/register/check-uniqueness'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(sessionData.session ? { Authorization: 'Bearer ' + sessionData.session.access_token } : {}) },
         body: JSON.stringify({ draft_id: registrationDraftId, ...payload })
     });
     const data = await readJsonResponse(res);
@@ -4135,7 +4136,7 @@ async function finalizePreAuthRegistration(username) {
 }
 
 const MIN_REGISTRATION_WAIT_MS = 10000;
-const REGISTRATION_EMAIL_TIMEOUT_MS = 8000;
+const REGISTRATION_EMAIL_TIMEOUT_MS = 45000;
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -4413,6 +4414,9 @@ async function submitForm() {
 
         const artistData = {
             user_id: currentUser.id,
+            registration_status: 'pendiente de validacion',
+            registration_step: 12,
+            registration_submitted_at: new Date().toISOString(),
             email: formState.data.email,
             name: fullNameCapitalized,
             username: username,

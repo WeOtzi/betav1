@@ -52,6 +52,8 @@ async function waitForConfigManager(maxWait = 3000) {
     while (!window.ConfigManager && (Date.now() - start) < maxWait) {
         await new Promise(resolve => setTimeout(resolve, 50));
     }
+    if (!window.ConfigManager) throw new Error('No se pudo cargar la configuración');
+    await window.ConfigManager.ready();
 }
 
 // ============================================
@@ -195,7 +197,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (err) {
         console.error('Error initializing marketplace:', err);
-        renderArtists([]); // Show empty state on error
+        renderArtists([]);
+        const empty = document.getElementById('empty-state');
+        if (empty) {
+            empty.classList.remove('hidden');
+            empty.querySelector('.wo-empty-title').textContent = 'No pudimos cargar los artistas';
+            empty.querySelector('p').textContent = 'Reintentá para consultar los perfiles registrados.';
+            const retry = empty.querySelector('button');
+            retry.textContent = 'Reintentar';
+            retry.onclick = () => window.location.reload();
+        }
     } finally {
         hideLoading();
     }
@@ -245,6 +256,7 @@ async function handleMarketplaceLogout() {
 }
 
 async function fetchArtists() {
+    await waitForConfigManager();
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (supabaseClient && !window.ConfigManager.isDemoMode()) {
         try {
@@ -262,45 +274,10 @@ async function fetchArtists() {
                 years_experience: a.years_experience || '5'
             }));
         } catch (err) {
-            console.error('Supabase fetch error, falling back:', err);
-            return fallbackFetch();
+            throw err;
         }
     } else {
-        return fallbackFetch();
-    }
-}
-
-async function fallbackFetch() {
-    try {
-        const response = await fetch('artists_db_rows.json');
-        if (!response.ok) throw new Error('Local JSON not found');
-        const data = await response.json();
-        return data.map(a => ({
-            ...a,
-            is_recommended: a.username === 'yomicoart.wo',
-            languages: ['Español'],
-            country: a.ubicacion ? a.ubicacion.split(', ').pop() : 'México',
-            years_experience: '10'
-        }));
-    } catch (e) {
-        console.warn('Fallback to demo artists');
-        return window.ConfigManager.getDemoArtists().map(a => ({
-            user_id: a.userId,
-            name: a.name,
-            username: a.username,
-            email: a.email,
-            instagram: a.instagram,
-            styles_array: a.styles,
-            ubicacion: a.location,
-            estudios: a.studio,
-            session_price: a.sessionPrice,
-            city: a.location.split(',')[0].trim(),
-            country: a.location.split(',')[1]?.trim() || 'Desconocido',
-            profile_picture: null,
-            is_recommended: false,
-            languages: ['Español'],
-            years_experience: '5'
-        }));
+        throw new Error('La conexión con los artistas no está disponible');
     }
 }
 

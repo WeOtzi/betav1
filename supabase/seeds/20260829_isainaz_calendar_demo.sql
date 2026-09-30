@@ -95,11 +95,11 @@ with target as (
   ),
   (
     'ca1e2608-0011-4000-8000-000000000011'::uuid,
-    'reminder', 'Confirmar insumos', null,
+    'pending_request', 'Nueva solicitud — Matías Silva', 'Matías Silva',
     '2026-07-16 08:30 America/Argentina/Buenos_Aires'::timestamptz,
     '2026-07-16 09:00 America/Argentina/Buenos_Aires'::timestamptz,
-    false, null, '[PRUEBA][CALENDAR-ISAINAZ-20260829] Recordatorio semanal',
-    'scheduled', 'weekly', date '2026-07-30'
+    false, null, '[PRUEBA][CALENDAR-ISAINAZ-20260829] Esperando respuesta',
+    'pending', 'none', null
   ),
   (
     'ca1e2608-0012-4000-8000-000000000012'::uuid,
@@ -124,6 +124,30 @@ with target as (
     '2026-07-25 00:00 America/Argentina/Buenos_Aires'::timestamptz,
     true, null, '[PRUEBA][CALENDAR-ISAINAZ-20260829] Día bloqueado',
     'scheduled', 'none', null
+  ),
+  (
+    'ca1e2608-0015-4000-8000-000000000015'::uuid,
+    'reservation', 'Nadia Ruiz — seña confirmada', 'Nadia Ruiz',
+    '2026-07-20 10:00 America/Argentina/Buenos_Aires'::timestamptz,
+    '2026-07-20 11:00 America/Argentina/Buenos_Aires'::timestamptz,
+    false, 'Estudio propio', '[PRUEBA][CALENDAR-ISAINAZ-20260829] Seña confirmada',
+    'scheduled', 'none', null
+  ),
+  (
+    'ca1e2608-0016-4000-8000-000000000016'::uuid,
+    'convention', 'Flash Day', null,
+    '2026-07-28 10:00 America/Argentina/Buenos_Aires'::timestamptz,
+    '2026-07-28 18:00 America/Argentina/Buenos_Aires'::timestamptz,
+    false, 'Buenos Aires', '[PRUEBA][CALENDAR-ISAINAZ-20260829] Convención local',
+    'scheduled', 'none', null
+  ),
+  (
+    'ca1e2608-0017-4000-8000-000000000017'::uuid,
+    'reminder', 'Confirmar insumos', null,
+    '2026-08-06 08:30 America/Argentina/Buenos_Aires'::timestamptz,
+    '2026-08-06 09:00 America/Argentina/Buenos_Aires'::timestamptz,
+    false, null, '[PRUEBA][CALENDAR-ISAINAZ-20260829] Recordatorio semanal',
+    'scheduled', 'weekly', date '2026-08-20'
   )
 )
 insert into public.artist_calendar_events (

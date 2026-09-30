@@ -1616,60 +1616,32 @@ const ConfigManager = (function () {
      * @returns {Promise<{success: boolean, error?: string}>}
      */
     async function sendN8NEvent(eventId, payload) {
-        if (typeof window !== 'undefined' && window.EmailClient && typeof window.EmailClient.sendEmail === 'function') {
-            try {
-                const res = await window.EmailClient.sendEmail(eventId, payload);
-                return res;
-            } catch (err) {
-                console.error(`❌ EmailClient failed for ${eventId}, falling back to legacy n8n:`, err);
-                // Fall through to legacy path below.
-            }
+        if (typeof window !== 'undefined' && window.EmailClient?.sendEmail) {
+            return window.EmailClient.sendEmail(eventId, payload);
         }
-
-        // Legacy path (kept as a safety net).
+        // Some legacy pages do not load EmailClient. They still use the authenticated
+        // server dispatcher; never retry an uncertain send through another provider.
         try {
-            const event = await getN8NEvent(eventId);
-
-            if (!event) {
-                console.warn(`⚠️ n8n event not found: ${eventId}`);
-                return { success: false, error: `Event not found: ${eventId}` };
-            }
-
-            if (!event.enabled) {
-                _dbg(`n8n event disabled, skipping: ${eventId}`);
-                return { success: true, skipped: true, reason: 'Event disabled' };
-            }
-
-            if (!event.webhookUrl || event.webhookUrl.trim() === '') {
-                console.warn(`⚠️ n8n event has no webhook URL: ${eventId}`);
-                return { success: false, error: 'No webhook URL configured' };
-            }
-
-            const fullPayload = {
-                event_id: eventId,
-                event_name: event.name,
-                timestamp: new Date().toISOString(),
-                source: 'weotzi-app',
-                data: payload
-            };
-
-            _dbg(`Sending n8n event (legacy direct path): ${eventId}...`);
-
-            const response = await fetch(event.webhookUrl, {
+            const client = getSupabaseClient();
+            const { data } = client?.auth ? await client.auth.getSession() : { data: null };
+            const token = data?.session?.access_token;
+            const response = await fetch(appUrl('/api/email/' + encodeURIComponent(eventId)), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(fullPayload)
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+                body: JSON.stringify({ data: payload || {} })
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const result = await response.json();
+            if (!response.ok || result.success === false || result.skipped) {
+                const error = result.error || 'No se pudo confirmar el correo.';
+                window.showToast?.(error, 'error');
+                window.dispatchEvent(new CustomEvent('weotzi:email-failed', { detail: { eventId, error } }));
+                return { ...result, success: false, error };
             }
-
-            _dbg(`n8n event sent successfully (legacy): ${eventId}`);
-            return { success: true };
-        } catch (err) {
-            console.error(`❌ Error sending n8n event ${eventId}:`, err);
-            return { success: false, error: err.message };
+            return result;
+        } catch (_) {
+            const error = 'No se pudo confirmar el envío del correo.';
+            window.showToast?.(error, 'error');
+            return { success: false, uncertain: true, error };
         }
     }
 
@@ -1760,6 +1732,12 @@ const ConfigManager = (function () {
 // Expose the manager immediately so deferred consumers can await ready() while
 // the API-served configuration is still loading.
 window.ConfigManager = ConfigManager;
+
+// Shared account switch for both user experiences.
+const modesScript = document.createElement('script');
+modesScript.src = (window.WEOTZI_BASE_PATH || '') + '/shared/js/account-modes.js';
+modesScript.defer = true;
+document.head.appendChild(modesScript);
 
 // Auto-initialize when script loads
 (async function () {

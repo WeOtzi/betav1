@@ -1,8 +1,7 @@
 // ============================================
-// Itinerario público de gira (/travel/share?slug=...) — DS Bauhaus.
-// Página SIN login: lee el slug con WeotziData.Travel.getBySlug (la policy
-// artist_trips_public_shared permite el select anónimo) y muestra ciudad,
-// país, fechas y tipo con branding We Ötzi + CTA a /quotation.
+// Itinerario público de gira (/travel/t/:slug; query legacy compatible).
+// Página SIN login: WeotziData.Travel.getBySlug usa una RPC de columnas
+// explícitas; el navegador anónimo nunca consulta artist_trips directamente.
 // ============================================
 
 (function () {
@@ -33,9 +32,22 @@
         const [y, m, d] = String(dateStr).split('-').map(Number);
         return new Date(y, m - 1, d);
     }
+    function today() {
+        const n = new Date();
+        return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    }
     function fmtLong(dateStr) {
         const d = pd(dateStr);
         return `${d.getDate()} ${MONTHS_AB[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    function readShareSlug() {
+        const pathMatch = String(location.pathname || '').match(/\/travel\/t\/([^/?#]+)\/?$/i);
+        if (pathMatch) {
+            try { return decodeURIComponent(pathMatch[1]).trim() || null; }
+            catch (err) { return null; }
+        }
+        return new URLSearchParams(location.search).get('slug');
     }
 
     function renderNotFound(root) {
@@ -50,7 +62,7 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
         const root = document.getElementById('ts-root');
-        const slug = new URLSearchParams(location.search).get('slug');
+        const slug = readShareSlug();
         if (!slug) { renderNotFound(root); return; }
 
         let trip = null;
@@ -61,20 +73,20 @@
         }
         if (!trip) { renderNotFound(root); return; }
 
-        // El nombre del artista es un extra: si la lectura anónima no está
-        // permitida, la página degrada sin él.
-        let artistName = null;
-        try {
-            const { data } = await D.Artists.getByUserId(trip.artist_user_id, 'user_id, name, username');
-            if (data) artistName = data.name || data.username || null;
-        } catch (err) { artistName = null; }
+        const artistName = trip.artist_name || trip.artist_username || null;
 
-        const status = pd(trip.end_date) < new Date() && trip.status !== 'cancelado' ? 'finalizado' : trip.status;
+        const status = pd(trip.end_date) < today() && trip.status !== 'cancelado' ? 'finalizado' : trip.status;
         const rows = [
             ['Fechas', `${fmtLong(trip.start_date)} – ${fmtLong(trip.end_date)}`],
             ['Tipo de viaje', TYPE_LABELS[trip.trip_type] || trip.trip_type],
         ];
         if (trip.event_name) rows.push(['Evento', trip.event_name]);
+        if (Number.isInteger(trip.interested_people_count) && trip.interested_people_count > 0) {
+            rows.push(['Personas interesadas', String(trip.interested_people_count)]);
+        }
+        if (trip.climate_celsius != null && Number.isFinite(Number(trip.climate_celsius))) {
+            rows.push(['Clima estimado', `${Number(trip.climate_celsius).toLocaleString('es-AR', { maximumFractionDigits: 1 })} °C`]);
+        }
 
         root.innerHTML = `
             <p class="wo-eyebrow tvs-share-eyebrow">Itinerario de gira · We Ötzi</p>

@@ -1,7 +1,7 @@
 // ============================================================================
 // We Ötzi · /recover — recuperación de contraseña única (cliente + artista + beta)
 // Flujo 100% Supabase Auth con la anon key (frames Figma 243:2530 → 243:2778):
-//   1. Email  → auth.resetPasswordForEmail(email) sin redirectTo (manda código OTP).
+//   1. Email  → auth.resetPasswordForEmail(email) con código OTP y enlace de retorno.
 //               Copy neutral anti-enumeración: nunca revelamos si el email existe.
 //   2. Código → auth.verifyOtp({ email, token, type: 'recovery' }) — crea sesión.
 //   3. Nueva contraseña → auth.updateUser({ password }) con validaciones en vivo.
@@ -91,8 +91,10 @@
     async function sendCode(email) {
         const client = sb();
         if (!client) throw new Error('config');
-        // Sin redirectTo: la plantilla debe incluir {{ .Token }} (código de 6 dígitos).
-        const { error } = await client.auth.resetPasswordForEmail(email);
+        const base = window.WEOTZI_BASE_PATH || '';
+        const { error } = await client.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + base + '/recover?recovery=1'
+        });
         if (error) {
             const msg = String(error.message || '').toLowerCase();
             // Rate limit: el código ya se pidió hace poco — avanzamos igual,
@@ -423,6 +425,22 @@
 
         refreshEmailGate();
         renderStep(1);
+        // Supabase validates the recovery token; ordinary sessions do not advance
+        // unless this page was explicitly opened as the recovery-link destination.
+        const client = sb();
+        const acceptRecoverySession = (session) => {
+            if (!session?.user) return;
+            state.email = session.user.email || '';
+            state.verified = true;
+            renderStep(3);
+            $('rc-password').focus();
+        };
+        client?.auth.onAuthStateChange((event, session) => {
+            if (event === 'PASSWORD_RECOVERY') acceptRecoverySession(session);
+        });
+        if (params.get('recovery') === '1' && client) {
+            client.auth.getSession().then(({ data }) => acceptRecoverySession(data?.session));
+        }
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

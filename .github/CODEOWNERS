@@ -1,0 +1,7 @@
+# Main requires Isai/WeOtzi review. Sensitive control updates stay owner-managed.
+* @WeOtzi
+/.github/ @WeOtzi
+/scripts/release/ @WeOtzi
+/scripts/windows/ @WeOtzi
+/supabase/migrations/ @WeOtzi
+/deployments/ @WeOtzi

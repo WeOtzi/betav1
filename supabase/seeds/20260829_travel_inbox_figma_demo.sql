@@ -19,16 +19,16 @@ with target as (
   id, category, counterparty_name, initials, subject, context, status, priority, age
 ) as (
   values
-    ('a1000000-0000-4000-8000-000000000001'::uuid,'clients','Camila R.','CR','Cambio de turno','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","client":"Camila R.","appointment":"Sábado"}'::jsonb,'open',false,interval '2 minutes'),
-    ('a1000000-0000-4000-8000-000000000002'::uuid,'clients','Rodrigo A.','RA','Sesión confirmada','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","client":"Rodrigo A.","appointment":"12 de septiembre"}'::jsonb,'open',false,interval '5 hours'),
-    ('a1000000-0000-4000-8000-000000000003'::uuid,'clients','Valentina Cruz','VC','Seguimiento del tatuaje','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","client":"Valentina Cruz"}'::jsonb,'open',false,interval '2 days'),
-    ('a1000000-0000-4000-8000-000000000004'::uuid,'quotations','Bruno T.','BT','Cotización prioritaria','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","quote_id":"DEMO-R01","budget":"USD 900"}'::jsonb,'open',true,interval '1 day'),
+    ('a1000000-0000-4000-8000-000000000001'::uuid,'clients','Camila R.','CR','Cambio de turno','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"waiting","client":"Camila R.","appointment":"Sábado"}'::jsonb,'open',false,interval '2 minutes'),
+    ('a1000000-0000-4000-8000-000000000002'::uuid,'clients','Rodrigo A.','RA','Sesión confirmada','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"replied","client":"Rodrigo A.","appointment":"12 de septiembre"}'::jsonb,'open',false,interval '5 hours'),
+    ('a1000000-0000-4000-8000-000000000003'::uuid,'clients','Valentina Cruz','VC','Seguimiento del tatuaje','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"replied","client":"Valentina Cruz"}'::jsonb,'open',false,interval '2 days'),
+    ('a1000000-0000-4000-8000-000000000004'::uuid,'quotations','Bruno T.','BT','Cotización prioritaria','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"waiting","quote_id":"DEMO-R01","budget":"USD 900"}'::jsonb,'open',true,interval '1 day'),
     ('a1000000-0000-4000-8000-000000000005'::uuid,'quotations','Sofía L.','SL','Cotización cerrada','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","quote_id":"DEMO-D01"}'::jsonb,'closed',false,interval '2 days'),
-    ('a1000000-0000-4000-8000-000000000006'::uuid,'invitations','Fierro Negro Tattoo','FN','Invitación al roster','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","invitation_status":"pending_acceptance"}'::jsonb,'open',false,interval '4 hours'),
-    ('a1000000-0000-4000-8000-000000000007'::uuid,'spots','Costa Ink Collective','CI','Residencia de septiembre','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","studio":"Costa Ink Collective","dates":"1 – 15 de septiembre","application_status":"accepted"}'::jsonb,'open',false,interval '3 days'),
-    ('a1000000-0000-4000-8000-000000000008'::uuid,'job_board','Aurora Ink Collective','AI','Propuesta de Job Board','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","application_status":"shortlisted","request_code":"JB-DEMO1"}'::jsonb,'open',true,interval '3 hours'),
-    ('a1000000-0000-4000-8000-000000000009'::uuid,'studios','Estudio Cactus','EC','Coordinación con el estudio','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","studio":"Estudio Cactus"}'::jsonb,'open',false,interval '4 days'),
-    ('a1000000-0000-4000-8000-000000000010'::uuid,'trips','Marta Vidal — Costa Ink','MV','Viaje a Barcelona','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","city":"Barcelona","studio":"Costa Ink","start_date":"2026-09-15","end_date":"2026-09-22"}'::jsonb,'open',false,interval '5 days'),
+    ('a1000000-0000-4000-8000-000000000006'::uuid,'invitations','Fierro Negro Tattoo','FN','Invitación al roster','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"waiting","invitation_status":"pending_acceptance"}'::jsonb,'open',false,interval '4 hours'),
+    ('a1000000-0000-4000-8000-000000000007'::uuid,'spots','Costa Ink Collective','CI','Residencia de septiembre','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"replied","studio":"Costa Ink Collective","dates":"1 – 15 de septiembre","application_status":"accepted"}'::jsonb,'open',false,interval '3 days'),
+    ('a1000000-0000-4000-8000-000000000008'::uuid,'job_board','Aurora Ink Collective','AI','Propuesta de Job Board','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"waiting","application_status":"shortlisted","request_code":"JB-DEMO1"}'::jsonb,'open',true,interval '3 hours'),
+    ('a1000000-0000-4000-8000-000000000009'::uuid,'studios','Estudio Cactus','EC','Coordinación con el estudio','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"replied","studio":"Estudio Cactus"}'::jsonb,'open',false,interval '4 days'),
+    ('a1000000-0000-4000-8000-000000000010'::uuid,'trips','Marta Vidal — Costa Ink','MV','Viaje a Barcelona','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","reply_status":"replied","city":"Barcelona","studio":"Costa Ink","start_date":"2026-09-15","end_date":"2026-09-22"}'::jsonb,'open',false,interval '5 days'),
     ('a1000000-0000-4000-8000-000000000011'::uuid,'support','Soporte We Ötzi','WÖ','Ayuda con tu cuenta','{"demo_marker":"[PRUEBA][INBOX-FIGMA]","channel":"support"}'::jsonb,'open',false,interval '7 days')
 )
 insert into public.inbox_threads (
@@ -133,6 +133,7 @@ where p.user_id = (select user_id from public.artists_db where lower(username) =
   and p.thread_id in (
     'a1000000-0000-4000-8000-000000000002'::uuid,
     'a1000000-0000-4000-8000-000000000003'::uuid,
+    'a1000000-0000-4000-8000-000000000004'::uuid,
     'a1000000-0000-4000-8000-000000000005'::uuid,
     'a1000000-0000-4000-8000-000000000007'::uuid,
     'a1000000-0000-4000-8000-000000000009'::uuid,

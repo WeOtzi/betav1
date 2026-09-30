@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>WE ÖTZI | Dashboard</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
@@ -268,39 +270,7 @@
     </section>
 
     <!-- ============================ FOOTER ============================ -->
-    <footer class="wo-dash-footer">
-        <div class="wo-container">
-            <div class="wo-dash-footer-frame">
-                <div class="wo-dash-footer-cols">
-                    <div class="wo-dash-footer-brand">
-                        <p class="wo-dash-footer-logo">WE ÖTZI</p>
-                        <p class="wo-dash-footer-tag">La plataforma que conecta artistas y clientes de tatuajes en toda la región.</p>
-                    </div>
-                    <div class="wo-dash-footer-col">
-                        <p class="wo-meta-s wo-dash-footer-cap">CONTACTO</p>
-                        <a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a>
-                        <a href="mailto:artistas@weotzi.com">Soporte</a>
-                    </div>
-                    <div class="wo-dash-footer-col">
-                        <p class="wo-meta-s wo-dash-footer-cap">AYUDA</p>
-                        <a href="/faqs">Preguntas frecuentes</a>
-                        <a href="mailto:artistas@weotzi.com">Centro de ayuda</a>
-                    </div>
-                    <div class="wo-dash-footer-col">
-                        <p class="wo-meta-s wo-dash-footer-cap">TÉRMINOS</p>
-                        <a href="/terminos">Términos y condiciones</a>
-                        <a href="/privacidad">Privacidad</a>
-                    </div>
-                </div>
-                <div class="wo-dash-footer-bottom">
-                    <span class="wo-meta-s">© 2026 WE ÖTZI. TODOS LOS DERECHOS RESERVADOS.</span>
-                    <div class="wo-dash-footer-right">
-                        <a class="wo-dash-footer-ig wo-meta-s" href="https://www.instagram.com/weotzi" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18"></i>INSTAGRAM</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </footer>
+    <weotzi-product-footer></weotzi-product-footer>
 
     <!-- Mobile bottom tab bar -->
     <nav class="wod-bottombar" aria-label="Navegación rápida">

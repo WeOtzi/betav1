@@ -1,186 +1,155 @@
-// ============================================
-// Studio Authentication Module
-// Mirrors client-auth.js. Studios authenticate via Supabase Auth and have a
-// row in `studios` linked by user_id. RLS enforces studio ownership on all
-// /studio/* writes.
-// ============================================
-
+// Studio identity, confirmation-safe onboarding and password recovery.
 (function () {
     'use strict';
-
-    const supabaseUrl = window.CONFIG?.supabase?.url
-        || 'https://flbgmlvfiejfttlawnfu.supabase.co';
-    const supabaseKey = window.CONFIG?.supabase?.anonKey
-        || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-
-    // Reuse the same global supabase client name as the rest of the app.
-    if (!window._supabase) {
-        window._supabase = supabase.createClient(supabaseUrl, supabaseKey);
-    }
-    const _supabase = window._supabase;
-
+    let client = null;
+    const basePath = window.WEOTZI_BASE_PATH || (window.location.pathname.startsWith('/beta/') ? '/beta' : '');
+    const appUrl = path => basePath + path;
     let currentStudioData = null;
-
-    // -------------------------------------------------------------
-    // Auth state
-    // -------------------------------------------------------------
+    let checking = null;
+    const recoveryMode = new URLSearchParams(window.location.search).get('recovery') === '1'
+        || /(?:^|&)type=recovery(?:&|$)/.test(window.location.hash.slice(1));
+    function requireClient() {
+        client = window.WeotziData?.getClient?.() || window._supabase || client;
+        if (!client) throw new Error('No pudimos conectar. Recargá la página e intentá nuevamente.');
+        return client;
+    }
+    async function ready() {
+        if (window.ConfigManager?.ready) await window.ConfigManager.ready();
+        return requireClient();
+    }
+    function remember(studio) {
+        currentStudioData = studio;
+        window.currentStudioData = studio;
+        return studio;
+    }
+    async function completeRegistration(draft) {
+        const { data, error } = await requireClient().rpc('complete_studio_registration', {
+            p_profile: draft.profile, p_locations: draft.locations
+        });
+        if (error) throw error;
+        const studio = Array.isArray(data) ? data[0] : data;
+        if (!studio?.id) throw new Error('No pudimos completar el registro del estudio.');
+        remember(studio);
+        // Non-secret draft survives email confirmation on another device.
+        // Clear it only after profile and locations have committed together.
+        await client.auth.updateUser({ data: { studio_registration: null } }).catch(() => {});
+        return studio;
+    }
+    async function resolveStudio(session) {
+        const { data: studio, error } = await WeotziData.Studios.getByUserId(session.user.id);
+        if (error) throw error;
+        if (studio) return remember(studio);
+        const draft = session.user.user_metadata?.studio_registration;
+        if (draft?.profile && Array.isArray(draft.locations)) return completeRegistration(draft);
+        return null;
+    }
     async function checkStudioAuthState() {
-        const currentPath = window.location.pathname;
-
-        try {
-            const { data: { session } } = await _supabase.auth.getSession();
-
-            if (!session) {
-                // No session: dashboard is protected, login/register are public.
-                if (currentPath.startsWith('/studio/dashboard')) {
-                    window.location.href = '/studio/login';
-                }
-                return null;
-            }
-
-            // Look for the studio row owned by this user.
-            const { data: studio } = await WeotziData.Studios.getByUserId(session.user.id);
-
-            if (studio) {
-                currentStudioData = studio;
-                window.currentStudioData = studio;
-                // If on login/register, kick them to the dashboard.
-                if (currentPath.startsWith('/studio/login')
-                    || currentPath.startsWith('/studio/register')) {
-                    window.location.href = '/studio/dashboard';
+        if (checking) return checking;
+        checking = (async () => {
+            const path = window.location.pathname.slice(basePath.length);
+            try {
+                await ready();
+                const { data: { session }, error } = await requireClient().auth.getSession();
+                if (error) throw error;
+                if (!session) {
+                    if (path.startsWith('/studio/dashboard')) window.location.href = appUrl('/studio/login');
                     return null;
                 }
-                return studio;
+                if (recoveryMode) return null;
+                const studio = await resolveStudio(session);
+                if (studio) {
+                    if (path.startsWith('/studio/login') || path.startsWith('/studio/register')) {
+                        window.location.href = appUrl('/studio/dashboard');
+                    }
+                    return studio;
+                }
+                if (path.startsWith('/studio/dashboard')) window.location.href = appUrl('/studio/register?complete=1');
+                return null;
+            } catch (err) {
+                const status = document.getElementById('login-status') || document.getElementById('wizard-status')
+                    || document.getElementById('dashboard-status');
+                if (status) {
+                    status.className = 'studio-status studio-status-error';
+                    status.textContent = err.message || 'No se pudo cargar tu estudio. Intentá nuevamente.';
+                    status.hidden = false;
+                }
+                console.error('[studio-auth] state check failed:', err);
+                return null;
             }
-
-            // Logged in but NOT a studio: don't hijack — they may be an
-            // artist or client. Just redirect away from /studio/dashboard if
-            // they happen to land there.
-            if (currentPath.startsWith('/studio/dashboard')) {
-                // Not a studio account; bounce to home.
-                window.location.href = '/';
-            }
-            return null;
-        } catch (err) {
-            console.error('[studio-auth] state check failed:', err);
-            return null;
-        }
+        })();
+        try { return await checking; } finally { checking = null; }
     }
-
-    // -------------------------------------------------------------
-    // Login
-    // -------------------------------------------------------------
     async function loginStudio(email, password) {
-        const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+        await ready();
+        const { data, error } = await requireClient().auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-
-        // Ensure they have a studio row; otherwise this session belongs to a
-        // different role and we shouldn't pretend it's a studio login.
-        const { data: studio, error: studioErr } = await WeotziData.Studios.getByUserId(data.session.user.id, 'id, user_id, name, slug, profile_complete');
-        if (studioErr) throw studioErr;
-        if (!studio) {
-            await _supabase.auth.signOut();
-            throw new Error('Esta cuenta no es de un estudio. Si querés registrar tu estudio, andá a /studio/register.');
-        }
-
-        currentStudioData = studio;
-        window.currentStudioData = studio;
+        const studio = await resolveStudio(data.session);
+        if (!studio) throw new Error('Tu cuenta todavía no tiene un estudio. Completá el registro desde Registrar tu estudio.');
         return studio;
     }
-
-    // -------------------------------------------------------------
-    // Register: 1) create the auth user, 2) insert the studios row.
-    //
-    // The wizard collects the full payload then calls registerStudio() at
-    // the end. This function does not handle locations/photos — those go
-    // into separate inserts after the studios row exists (so we have an id
-    // to FK against).
-    // -------------------------------------------------------------
     async function registerStudio(payload) {
-        const { email, password, name, ...studioFields } = payload || {};
-        if (!email || !password || !name) {
-            throw new Error('Faltan campos obligatorios: email, password, name.');
+        await ready();
+        const { email, password, locations, ...profile } = payload || {};
+        if (!email || !profile.name || !Array.isArray(locations) || !locations.length) {
+            throw new Error('Completá el nombre, correo y al menos una sede.');
         }
-
-        // 1) Create the auth user.
-        const { data: signUp, error: signErr } = await _supabase.auth.signUp({
-            email, password,
-            options: { data: { user_type: 'studio' } }
+        const draft = { profile, locations };
+        const { data: { session } } = await requireClient().auth.getSession();
+        if (session) {
+            if (session.user.email?.toLowerCase() !== email.trim().toLowerCase()) {
+                throw new Error('Hay otra cuenta abierta. Cerrá esa sesión antes de registrar un correo diferente.');
+            }
+            return completeRegistration(draft);
+        }
+        if (!password || password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+        const { data, error } = await client.auth.signUp({
+            email: email.trim(), password,
+            options: {
+                emailRedirectTo: window.location.origin + appUrl('/studio/login?confirmed=1'),
+                data: { user_type: 'studio', studio_registration: draft }
+            }
         });
-        if (signErr) throw signErr;
-        const userId = signUp?.user?.id;
-        if (!userId) throw new Error('Supabase no devolvió un user.id tras signUp.');
-
-        // 2) Compute slug from name.
-        const slug = String(name).trim().toLowerCase()
-            .normalize('NFD').replace(/[̀-ͯ]/g, '')
-            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-        const normalized = String(name).trim().toUpperCase();
-
-        // 3) Insert the studios row. RLS allows it because user_id == auth.uid().
-        const { data: studio, error: insertErr } = await WeotziData.Studios.create({
-                user_id:        userId,
-                email:          email,
-                name:           name.trim(),
-                normalized_name: normalized,
-                slug:           slug,
-                tagline:        studioFields.tagline || null,
-                bio:            studioFields.bio || null,
-                founded_year:   studioFields.founded_year || null,
-                languages:      studioFields.languages || [],
-                instagram:      studioFields.instagram || null,
-                tiktok:         studioFields.tiktok || null,
-                whatsapp:       studioFields.whatsapp || null,
-                contact_phone:  studioFields.contact_phone || null,
-                cover_image:    studioFields.cover_image || null,
-                logo_image:     studioFields.logo_image || null,
-                photo_feed_items: studioFields.photo_feed_items || [],
-                is_active:      true,
-                profile_complete: false
-            });
-
-        if (insertErr) {
-            // If the studios insert fails the auth user is now orphaned.
-            // We log it; cleanup is a manual support task. (Same risk as
-            // the artist register flow.)
-            console.error('[studio-auth] studios insert failed; auth user orphaned', insertErr);
-            throw insertErr;
+        if (error) throw error;
+        if (!data?.user?.id) throw new Error('No pudimos crear tu cuenta. Intentá nuevamente.');
+        if (Array.isArray(data.user.identities) && !data.user.identities.length) {
+            throw new Error('Ya existe una cuenta con ese email. Iniciá sesión para continuar.');
         }
-
-        currentStudioData = studio;
-        window.currentStudioData = studio;
-        return studio;
+        if (!data.session) return { confirmationRequired: true, email: email.trim() };
+        return completeRegistration(draft);
     }
-
-    async function logoutStudio() {
-        await _supabase.auth.signOut();
-        window.location.href = '/';
-    }
-
     async function requestStudioPasswordReset(email) {
-        const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/studio/login'
+        await ready();
+        if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Escribí un email válido.');
+        const { error } = await requireClient().auth.resetPasswordForEmail(email.trim(), {
+            redirectTo: window.location.origin + appUrl('/studio/login?recovery=1')
         });
         if (error) throw error;
         return true;
     }
-
-    // -------------------------------------------------------------
-    // Public API on window
-    // -------------------------------------------------------------
+    async function changePassword(password) {
+        await ready();
+        if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+        const { data: { session } } = await requireClient().auth.getSession();
+        if (!session) throw new Error('El enlace venció. Solicitá un nuevo correo de recuperación.');
+        const { error } = await client.auth.updateUser({ password });
+        if (error) throw error;
+    }
+    async function verifyRecoveryCode(email, token) {
+        await ready();
+        const { error } = await client.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: 'recovery' });
+        if (error) throw error;
+    }
     window.WeOtziStudioAuth = {
-        check: checkStudioAuthState,
-        login: loginStudio,
-        register: registerStudio,
-        logout: logoutStudio,
-        requestPasswordReset: requestStudioPasswordReset,
-        getSupabase: () => _supabase,
-        getCurrent: () => currentStudioData
+        check: checkStudioAuthState, login: loginStudio, register: registerStudio,
+        requestPasswordReset: requestStudioPasswordReset, changePassword, verifyRecoveryCode,
+        isRecovery: () => recoveryMode, ready, appUrl,
+        logout: async () => {
+            const { error } = await requireClient().auth.signOut();
+            if (error) throw error;
+            remember(null);
+            window.location.href = appUrl('/studio/login');
+        },
+        getSupabase: () => client || requireClient(), getCurrent: () => currentStudioData
     };
-
-    // Run state check on page load (parallels client-auth.js behavior).
-    document.addEventListener('DOMContentLoaded', () => {
-        checkStudioAuthState();
-    });
+    document.addEventListener('DOMContentLoaded', checkStudioAuthState);
 })();

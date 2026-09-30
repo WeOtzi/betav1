@@ -28,6 +28,7 @@ const { JobBoardRepo } = require('./lib/repos/jobboard');
 const { CurrenciesRepo } = require('./lib/repos/currencies');
 const { InstagramRepo } = require('./lib/repos/instagram');
 const { AnalyticsRepo } = require('./lib/repos/analytics');
+const { summarizeArtistPublicProfileMetrics } = require('./lib/artist-public-profile-metrics');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -72,6 +73,17 @@ ensureCronApiToken();
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4545;
+const LISTEN_HOST = process.env.HOST || '127.0.0.1';
+const LISTEN_SOCKET = process.env.LISTEN_SOCKET || '';
+app.get('/api/release', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+        ok: true,
+        commit: process.env.RELEASE_COMMIT || null,
+        version: require('./package.json').version,
+        environment: process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || 'development'
+    });
+});
 let googleApiModule = null;
 
 function getGoogleApisModule() {
@@ -218,6 +230,11 @@ app.use('/api/register/artist-finalize', authLimiter);
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.post('/api/quotations/intake', require('./services/quotation-intake').handleIntake);
+const accountModes = require('./services/account-modes');
+app.get('/api/account/testing', (req, res) => res.json({ registrationOpen: accountModes.testingEnabled() }));
+app.post('/api/account/mode', accountModes.activate);
+app.post('/api/register/test-client', authLimiter, accountModes.registerTestClient);
 
 // ============================================
 // GEMINI API INTEGRATION
@@ -3098,8 +3115,7 @@ app.post('/api/client/quotations/:quoteId/hide', async (req, res) => {
 
         // 3. Verify ownership: client_user_id matches, or client_email matches
         let isOwner = quotation.client_user_id === caller.id;
-        if (!isOwner && caller.email && quotation.client_email &&
-            quotation.client_email.toLowerCase() === caller.email.toLowerCase()) {
+        if (!isOwner && accountModes.canClaimByEmail(caller, quotation)) {
             // Link the quotation to this client before hiding
             await QuotationsRepo.claimForClient(quotation.id, caller.id);
             isOwner = true;
@@ -3151,8 +3167,7 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
         }
 
         let isOwner = quotation.client_user_id === caller.id;
-        if (!isOwner && caller.email && quotation.client_email &&
-            quotation.client_email.toLowerCase() === caller.email.toLowerCase()) {
+        if (!isOwner && accountModes.canClaimByEmail(caller, quotation)) {
             await QuotationsRepo.claimForClient(quotation.id, caller.id);
             isOwner = true;
         }
@@ -4274,6 +4289,44 @@ app.post('/api/artist/profile-visit', handleArtistProfileEvent);
 app.post('/api/artist/profile-event', handleArtistProfileEvent);
 
 /**
+ * GET /api/artist/public-profile-metrics?artist=<username>
+ *
+ * Public, aggregate-only projection for the Figma profile stat strip. Raw
+ * quotations remain behind the service-role boundary; the response contains
+ * counts and rounded timing buckets only.
+ */
+app.get('/api/artist/public-profile-metrics', async (req, res) => {
+    const { supabaseUrl, serviceKey } = _supabaseConfigForSupport();
+    if (!supabaseUrl || !serviceKey) {
+        return res.status(503).json({ success: false, error: 'Profile metrics are unavailable' });
+    }
+
+    const requestedArtist = cleanProfileVisitText(req.query.artist, 120);
+    if (!requestedArtist) {
+        return res.status(400).json({ success: false, error: 'artist is required' });
+    }
+
+    try {
+        const artist = await lookupProfileVisitArtist({ username: requestedArtist });
+        if (!artist?.user_id) {
+            return res.status(404).json({ success: false, error: 'Artist not found' });
+        }
+
+        const quoteRows = await _supabaseFetch(
+            `quotations_db?artist_id=eq.${encodeURIComponent(artist.user_id)}`
+            + '&select=quote_status,sent_to_artist_at,artist_responded_at'
+        );
+        const metrics = summarizeArtistPublicProfileMetrics(quoteRows);
+
+        res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=300');
+        return res.json({ success: true, metrics });
+    } catch (error) {
+        console.error('[PublicProfileMetrics] Error:', error.message);
+        return res.status(502).json({ success: false, error: 'Could not load profile metrics' });
+    }
+});
+
+/**
  * POST /api/studio/notify
  *
  * Sends an email notification when a studio acts on an artist's application
@@ -4285,13 +4338,10 @@ app.post('/api/artist/profile-event', handleArtistProfileEvent);
  *   1. Validates the caller owns the studio originating the notification.
  *   2. Builds the email payload server-side (subject + body) with verified
  *      data (artist email, studio name, role).
- *   3. Posts to N8N_WEBHOOK_URL if configured. Falls back to console.log so
- *      dev environments without n8n don't break the dashboard flow.
- *   4. Returns success regardless of whether n8n was reached (the dashboard
- *      shouldn't roll back the underlying DB operation just because email
- *      delivery is degraded).
+ *   3. Uses the centralized dispatcher and persistent delivery claim.
+ *   4. Reports mail acceptance/failure separately from the saved studio action.
  */
-app.post('/api/studio/notify', async (req, res) => {
+app.post('/api/studio/notify', authLimiter, async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceRoleKey) {
@@ -4313,6 +4363,7 @@ app.post('/api/studio/notify', async (req, res) => {
         }
 
         let payload = null;
+        const mailBase = applicationBase(req);
 
         if (kind === 'spot_decision') {
             if (!application_id) {
@@ -4333,6 +4384,7 @@ app.post('/api/studio/notify', async (req, res) => {
                 throw new Error(`Could not load application: ${loadErr.status || loadErr.message}`);
             }
             if (!app) return res.status(404).json({ success: false, error: 'Application not found.' });
+            if (app.status !== decision) return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
 
             const studio = app.studio_spots?.studios || {};
             const artist = app.artists_db || {};
@@ -4353,11 +4405,11 @@ app.post('/api/studio/notify', async (req, res) => {
                     : `Actualización de tu postulación a ${studio.name}`,
                 body_text: decision === 'accepted'
                     ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}". Ya formás parte del roster como ${roleFromKind(spot.kind)}.\n\nVas a ver el estudio bajo tus memberships activas en /artist/invitations. Mucha suerte y buena tinta.`
-                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: https://weotzi.com/studio-spots`,
+                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 links: {
-                    studio_profile:   `https://weotzi.com/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
-                    invitations:      'https://weotzi.com/artist/invitations',
-                    spots_directory:  'https://weotzi.com/studio-spots'
+                    studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
+                    invitations:      `${mailBase}/artist/invitations`,
+                    spots_directory:  `${mailBase}/studio-spots`
                 },
                 meta: {
                     application_id: app.id,
@@ -4387,6 +4439,7 @@ app.post('/api/studio/notify', async (req, res) => {
                 throw new Error(`Could not load membership: ${loadErr.status || loadErr.message}`);
             }
             if (!m) return res.status(404).json({ success: false, error: 'Membership not found.' });
+            if (!['pending_invite', 'pending_acceptance'].includes(m.status)) return res.status(409).json({ success: false, sent: false, error: 'La invitación ya no está pendiente.' });
 
             const studio = m.studios || {};
             const artist = m.artists_db || {};
@@ -4404,10 +4457,10 @@ app.post('/api/studio/notify', async (req, res) => {
                 body_text:
                     `Hola${artist.name ? ' ' + artist.name : ''},\n\n`
                     + `${studio.name} te invitó como ${roleFromKind(m.role)} a su roster en We Ötzi.\n\n`
-                    + `Para aceptar o rechazar la invitación, ingresá a https://weotzi.com/artist/invitations.`,
+                    + `Para aceptar o rechazar la invitación, ingresá a ${mailBase}/artist/invitations.`,
                 links: {
-                    invitations: 'https://weotzi.com/artist/invitations',
-                    studio_profile: `https://weotzi.com/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`
+                    invitations: `${mailBase}/artist/invitations`,
+                    studio_profile: `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`
                 },
                 meta: {
                     membership_id: m.id,
@@ -4418,33 +4471,19 @@ app.post('/api/studio/notify', async (req, res) => {
             };
         }
 
-        // Forward to n8n if configured; otherwise just log (dev fallback).
-        const webhook = process.env.N8N_WEBHOOK_URL;
-        if (webhook && payload?.to) {
-            try {
-                const wr = await fetch(webhook, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!wr.ok) {
-                    const txt = await wr.text();
-                    console.warn('[StudioNotify] n8n returned non-OK', wr.status, txt.slice(0, 200));
-                } else {
-                    console.log(`[StudioNotify] n8n OK kind=${kind} to=${payload.to}`);
-                }
-            } catch (err) {
-                console.warn('[StudioNotify] n8n webhook error', err.message);
-            }
-        } else {
-            // Fallback: log it. The dashboard treats this as success.
-            console.log('[StudioNotify] (no webhook configured) would send:', payload?.kind, payload?.meta || {});
-        }
-
-        return res.json({ success: true, sent: !!(webhook && payload?.to), payload_kind: payload?.kind });
+        const result = await emailService.sendEmail(payload.kind, {
+            ...payload,
+            artist_email: payload.to,
+            recipient_name: payload.to_name,
+            studio_name: payload.from_name,
+            dashboard_url: payload.links.invitations
+        }, { idempotencyKey: `${payload.meta.application_id || payload.meta.membership_id}:${decision || 'invite'}` });
+        return res.status(result.ok ? 200 : 502).json({ success: !!result.ok, sent: !!result.ok,
+            payload_kind: payload.kind, delivery_status: result.delivery_status,
+            deduplicated: result.deduplicated, uncertain: result.uncertain, error: result.error });
     } catch (err) {
-        console.error('[StudioNotify] error:', err);
-        return res.status(500).json({ success: false, error: err.message });
+        console.error('[StudioNotify] notification failed:', err.message);
+        return res.status(503).json({ success: false, sent: false, error: 'El cambio quedó guardado, pero no se pudo confirmar el correo.' });
     }
 });
 
@@ -4985,17 +5024,8 @@ function getAdminHeaders(serviceRoleKey) {
 }
 
 async function listAuthUsersByEmail(email) {
-    const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
-    if (!supabaseUrl || !serviceRoleKey || !email) return [];
-
-    const response = await fetch(
-        `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-        { headers: getAdminHeaders(serviceRoleKey) }
-    ).catch(() => null);
-
-    if (!response || !response.ok) return [];
-    const body = await response.json().catch(() => ({}));
-    return Array.isArray(body.users) ? body.users : [];
+    if (!email) return [];
+    return pgrest.raw('rpc/registration_auth_lookup', { method: 'POST', body: { p_email: email } });
 }
 
 async function listArtistRowsByFilter(filter, select = 'id,user_id,registration_draft_id,registration_status') {
@@ -5028,7 +5058,7 @@ async function getRegistrationConflicts({ email, username, instagram, draftId, a
         const emailRows = await listArtistRowsByFilter(
             `email=ilike.${encodeURIComponent(email)}`
         );
-        if (emailRows.some(row => isBlockingRegistrationRow(row, draftId))) {
+        if (emailRows.some(row => row.user_id !== allowUserId && isBlockingRegistrationRow(row, draftId))) {
             conflicts.add('email');
         }
     }
@@ -5037,7 +5067,7 @@ async function getRegistrationConflicts({ email, username, instagram, draftId, a
         const usernameRows = await listArtistRowsByFilter(
             `username=ilike.${encodeURIComponent(username)}`
         );
-        if (usernameRows.some(row => isBlockingRegistrationRow(row, draftId))) {
+        if (usernameRows.some(row => row.user_id !== allowUserId && isBlockingRegistrationRow(row, draftId))) {
             conflicts.add('username');
         }
     }
@@ -5326,6 +5356,7 @@ async function createArtistAuthUser({ email, password, fullName, username, draft
             email,
             password,
             email_confirm: true,
+            app_metadata: { qa_unverified_email: true, registration_draft_id: draftId },
             user_metadata: {
                 display_name: fullName || 'Artista',
                 full_name: fullName || null,
@@ -5638,7 +5669,8 @@ app.post('/api/register/check-uniqueness', async (req, res) => {
     }
 
     try {
-        const conflicts = await getRegistrationConflicts({ email, username, instagram, draftId });
+        const caller = await resolveBearerUser(req);
+        const conflicts = await getRegistrationConflicts({ email, username, instagram, draftId, allowUserId: caller && (!email || caller.email?.toLowerCase() === email) ? caller.id : undefined });
         // Instagram duplicado no bloquea el registro: viaja como warning para
         // que el wizard avise que se validara despues.
         const blocking = conflicts.filter((c) => c !== 'instagram');
@@ -5910,6 +5942,7 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
 // IMPORTANT: register specific routes (/events, /test) BEFORE the catch-all
 // /api/email/:eventId so Express does not interpret 'test' as an eventId.
 // ============================================
+const { resolveEmailContext, applicationBase } = require('./services/email-request-context');
 
 /**
  * List all email events with their current routing channel.
@@ -5990,12 +6023,16 @@ app.post('/api/email/test', authLimiter, async (req, res) => {
         password: 'TempPass123!',
         temp_password: 'TempPass123!',
         full_name: 'Test User',
+        recipient_name: 'Test User',
+        studio_name: 'Estudio de prueba',
+        subject: 'We Ötzi — prueba de correo',
+        body_text: 'Esta es una prueba controlada del envío de correo de We Ötzi.',
         name: 'Test User',
         artist_name: 'Test Artist',
         client_name: 'Test Client',
         quote_id: 'TEST-0001',
-        login_url: 'https://weotzi.chat/client/login',
-        dashboard_url: 'https://weotzi.chat/client/dashboard',
+        login_url: `${applicationBase(req)}/client/login`,
+        dashboard_url: `${applicationBase(req)}/client/dashboard`,
         timestamp: new Date().toISOString()
     };
 
@@ -6015,7 +6052,7 @@ app.post('/api/email/test', authLimiter, async (req, res) => {
  * Body: { data: {...} }
  * Optional query: ?force=billionmail|n8n|dual|off  (admin-only override)
  */
-app.post('/api/email/:eventId', async (req, res) => {
+app.post('/api/email/:eventId', authLimiter, async (req, res) => {
     const eventId = req.params.eventId;
     const payload = (req.body && req.body.data) || req.body || {};
     const forceChannel = req.query.force ? String(req.query.force) : undefined;
@@ -6032,12 +6069,16 @@ app.post('/api/email/:eventId', async (req, res) => {
     }
 
     try {
-        const result = await emailService.sendEmail(eventId, payload, { forceChannel });
-        const status = result.ok ? 200 : (result.skipped ? 200 : 502);
+        const context = await resolveEmailContext(req, eventId, payload);
+        if (!context.ok) return res.status(context.status || 403).json({ success: false, error: context.error });
+        const result = await emailService.sendEmail(eventId, context.payload, {
+            forceChannel, idempotencyKey: context.idempotencyKey
+        });
+        const status = result.ok ? 200 : 502;
         return res.status(status).json({ success: !!result.ok, ...result });
     } catch (err) {
-        console.error(`[email] dispatch failed for ${eventId}:`, err);
-        return res.status(500).json({ success: false, error: err.message });
+        console.error(`[email] dispatch failed for ${eventId}:`, err.message);
+        return res.status(503).json({ success: false, error: 'No se pudo enviar el correo. El cambio guardado sigue disponible en tu cuenta.' });
     }
 });
 
@@ -6045,6 +6086,12 @@ app.post('/api/email/:eventId', async (req, res) => {
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {
     res.redirect('/inicio');
+});
+
+// Public Travel links use a readable, non-enumerating slug in the path.
+// The page itself resolves the slug through the restricted Supabase RPC.
+app.get('/travel/t/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'travel', 'share', 'index.html'));
 });
 
 // Serve static files from public directory
@@ -6238,7 +6285,19 @@ function logStartupBanner() {
 }
 
 // Start server
-app.listen(PORT, () => {
+// Shared hosting can reject loopback TCP; a private Unix socket keeps the proxy local.
+if (LISTEN_SOCKET) {
+    if (!path.isAbsolute(LISTEN_SOCKET)) throw new Error('LISTEN_SOCKET must be absolute');
+    fs.mkdirSync(path.dirname(LISTEN_SOCKET), { recursive: true, mode: 0o700 });
+    try {
+        const listenerFile = fs.lstatSync(LISTEN_SOCKET);
+        if (!listenerFile.isSocket()) throw new Error('LISTEN_SOCKET is occupied by a non-socket file');
+        fs.unlinkSync(LISTEN_SOCKET);
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+}
+const listenArguments = LISTEN_SOCKET ? [LISTEN_SOCKET] : [PORT, LISTEN_HOST];
+app.listen(...listenArguments, () => {
+    if (LISTEN_SOCKET) fs.chmodSync(LISTEN_SOCKET, 0o600);
     logStartupBanner();
     startLocalNgrok({ targetPort: PORT }).catch(err => {
         console.warn(`[ngrok] Startup failed: ${err.message}`);

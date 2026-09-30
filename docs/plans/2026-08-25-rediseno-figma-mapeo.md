@@ -10,6 +10,14 @@ ni el Dev Mode MCP). La primera ola del rediseño (ago 2026) se implementó desd
 `.fig` local con `scripts/figma/`; este manifiesto gobierna la **segunda ola contra el archivo
 cloud vivo**, que tiene frames nuevos (prefijos de node-id ≥ `344:` aprox.).
 
+> **Actualización Travel — 2026-08-30:** la fila y las decisiones históricas de Travel de este
+> manifiesto quedan supersedidas por la implementación actual documentada en
+> [`docs/TRAVEL-FIGMA-20260830.md`](../TRAVEL-FIGMA-20260830.md) y su evidencia en
+> [`design-qa.md`](../../design-qa.md). La ruta pública canónica es `/travel/t/<slug>`
+> (`/travel/share?slug=` se conserva como compatibilidad), clima ya forma parte del contrato y
+> los nueve nodos de Travel fueron re-auditados. El resto del manifiesto mantiene su valor
+> histórico y no se reescribe.
+
 ## Pipeline por pantalla (cómo se implementa cada fila)
 
 1. Leer **todos** los frames del grupo: `get_screenshot` (referencia visual) y

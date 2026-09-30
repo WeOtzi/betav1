@@ -27,6 +27,16 @@
         return;
     }
     const from = D.from;
+    const client = () => D.getClient();
+    async function allRows(buildQuery) {
+        const rows = [];
+        for (let offset = 0; ; offset += 500) {
+            const result = await buildQuery().range(offset, offset + 499);
+            if (result.error) return result;
+            rows.push(...(result.data || []));
+            if ((result.data || []).length < 500) return { data: rows, error: null };
+        }
+    }
 
     // Embed FK a artists_db reutilizado por los listados de roster / postulaciones.
     const ARTIST_EMBED = 'artists_db ( user_id, username, name, profile_picture, styles_array, city, country, session_price )';
@@ -97,6 +107,23 @@
         searchDirectory(query, { limit = 8, columns = 'id, name, city, country' } = {}) {
             return from('studios')
                 .select(columns)
+                .ilike('name', `%${query}%`)
+                .order('name')
+                .limit(limit);
+        },
+
+        // Autocompletado de estudios para Crear viaje. A diferencia de la
+        // búsqueda administrativa, esta superficie solo puede proponer
+        // estudios públicos ya dados de alta y con su perfil completo.
+        searchTravelDirectory(query, {
+            limit = 8,
+            columns = 'id, name, city, country, formatted_address, latitude, longitude',
+        } = {}) {
+            return from('studios')
+                .select(columns)
+                .eq('is_active', true)
+                .eq('profile_complete', true)
+                .not('user_id', 'is', null)
                 .ilike('name', `%${query}%`)
                 .order('name')
                 .limit(limit);
@@ -512,6 +539,36 @@
 
     // ===================== StudioOps (jobs, invoices, documents, inventory, suppliers, sponsors, vistas) =====================
     const StudioOps = {
+        listTravelLinks(studioId) { return client().rpc('list_studio_travel_links', { p_studio_id: studioId }); },
+        listDocumentAttachments(documentId) {
+            return from('studio_document_attachments').select('*').eq('document_id', documentId).order('created_at', { ascending: false });
+        },
+        createDocumentAttachment(payload) { return from('studio_document_attachments').insert(payload).select().single(); },
+        deleteDocumentAttachment(id) { return from('studio_document_attachments').delete().eq('id', id); },
+        listBookings(studioId, start, end) {
+            return allRows(() => {
+                let query = from('studio_bookings').select('*, artists_db(name,username), studio_locations(label)')
+                    .eq('studio_id', studioId).order('starts_at').order('id');
+                if (start) query = query.gte('starts_at', start);
+                if (end) query = query.lt('starts_at', end);
+                return query;
+            });
+        },
+        saveBooking(id, payload) {
+            return id ? from('studio_bookings').update(payload).eq('id', id).select().single()
+                : from('studio_bookings').insert(payload).select().single();
+        },
+        completeBooking(id) { return client().rpc('complete_studio_booking', { p_booking_id: id }); },
+        saveInvoice(id, header, items) {
+            return client().rpc('save_studio_invoice', { p_invoice_id: id || null, p_header: header, p_items: items });
+        },
+        replaceSponsorArtists(id, artistIds) {
+            return client().rpc('replace_studio_sponsor_artists', { p_sponsor_id: id, p_artist_ids: artistIds });
+        },
+        listInventoryMovements(itemId) {
+            return from('studio_inventory_movements').select('id,kind,quantity,performed_at,notes')
+                .eq('item_id', itemId).order('performed_at', { ascending: false }).limit(100);
+        },
         // ---- studio_jobs_log ----
 
         // Ultimos N trabajos del estudio con artista embebido (tabla de jobs).
@@ -526,10 +583,16 @@
 
         // Trabajos del estudio para agregacion de clientes. Cubre
         // studio-dashboard-ops.js:210.
-        listJobsForClientAggregation(studioId) {
-            return from('studio_jobs_log')
-                .select('client_user_id, client_display_name, client_email, gross_amount, gross_currency, performed_at')
-                .eq('studio_id', studioId);
+        async listJobsForClientAggregation(studioId) {
+            const rows = [];
+            for (let offset = 0; ; offset += 500) {
+                const result = await from('studio_jobs_log')
+                    .select('id, client_user_id, client_display_name, client_email, gross_amount, gross_currency, performed_at')
+                    .eq('studio_id', studioId).eq('status', 'completed').order('id').range(offset, offset + 499);
+                if (result.error) return result;
+                rows.push(...(result.data || []));
+                if ((result.data || []).length < 500) return { data: rows, error: null };
+            }
         },
 
         // Fila completa de un trabajo por id (editor). Cubre studio-dashboard-ops.js:121.
@@ -556,7 +619,7 @@
 
         // Facturas del estudio ordenadas por emision desc. Cubre studio-dashboard-ops.js:252.
         listInvoices(studioId) {
-            return from('studio_invoices').select('*').eq('studio_id', studioId).order('issue_date', { ascending: false });
+            return allRows(() => from('studio_invoices').select('*').eq('studio_id', studioId).order('issue_date', { ascending: false }).order('id'));
         },
 
         // Factura completa por id (editor). Cubre studio-dashboard-ops.js:281.
@@ -577,7 +640,7 @@
         // Marca una factura como pagada (status='paid', paid_at=now). Cubre
         // studio-dashboard-ops.js:284.
         markInvoicePaid(id) {
-            return from('studio_invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', id);
+            return from('studio_invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', id).in('status', ['draft', 'sent', 'overdue']).select().single();
         },
 
         // Elimina una factura por id. Cubre studio-dashboard-ops.js:288.
@@ -607,7 +670,7 @@
 
         // Documentos del estudio ordenados por creacion desc. Cubre studio-dashboard-ops.js:397.
         listDocuments(studioId) {
-            return from('studio_documents').select('*').eq('studio_id', studioId).order('created_at', { ascending: false });
+            return allRows(() => from('studio_documents').select('*').eq('studio_id', studioId).order('created_at', { ascending: false }).order('id'));
         },
 
         // Documento completo por id (editor). Cubre studio-dashboard-ops.js:425.
@@ -634,11 +697,11 @@
 
         // Items activos de inventario con proveedor embebido. Cubre studio-dashboard-ops.js:508.
         listInventoryItems(studioId) {
-            return from('studio_inventory_items')
+            return allRows(() => from('studio_inventory_items')
                 .select('id, name, sku, category, unit, quantity_on_hand, reorder_level, cost_per_unit, currency, supplier_id, studio_suppliers ( name )')
                 .eq('studio_id', studioId)
                 .eq('is_active', true)
-                .order('name', { ascending: true });
+                .order('name', { ascending: true }).order('id'));
         },
 
         // Item de inventario completo por id (editor). Cubre studio-dashboard-ops.js:546.
@@ -659,7 +722,7 @@
         // Elimina un item de inventario por id (cascada a movimientos). Cubre
         // studio-dashboard-ops.js:552.
         deleteInventoryItem(id) {
-            return from('studio_inventory_items').delete().eq('id', id);
+            return from('studio_inventory_items').update({ is_active: false }).eq('id', id).select().single();
         },
 
         // ---- studio_inventory_movements ----
@@ -674,22 +737,22 @@
         // Vista de salud de inventario (alertas de reorder / valor de stock). Cubre
         // studio-dashboard-ops.js:567.
         listInventoryHealth(studioId) {
-            return from('studio_inventory_health_view')
+            return allRows(() => from('studio_inventory_health_by_currency')
                 .select('id, name, quantity_on_hand, reorder_level, needs_reorder, stock_value, currency')
                 .eq('studio_id', studioId)
-                .order('needs_reorder', { ascending: false });
+                .order('needs_reorder', { ascending: false }).order('id'));
         },
 
         // ---- studio_suppliers ----
 
         // Proveedores del estudio ordenados por nombre. Cubre studio-dashboard-ops.js:719.
         listSuppliers(studioId) {
-            return from('studio_suppliers').select('*').eq('studio_id', studioId).order('name');
+            return allRows(() => from('studio_suppliers').select('*').eq('studio_id', studioId).order('name').order('id'));
         },
 
         // Opciones de proveedor (id, name) para selectores. Cubre studio-dashboard-ops.js:604.
         listSupplierOptions(studioId) {
-            return from('studio_suppliers').select('id,name').eq('studio_id', studioId).order('name');
+            return allRows(() => from('studio_suppliers').select('id,name').eq('studio_id', studioId).order('name').order('id'));
         },
 
         // Proveedor completo por id (editor). Cubre studio-dashboard-ops.js:745.
@@ -716,7 +779,7 @@
 
         // Sponsors del estudio ordenados por tier desc. Cubre studio-dashboard-ops.js:806.
         listSponsors(studioId) {
-            return from('studio_sponsors').select('*').eq('studio_id', studioId).order('tier', { ascending: false });
+            return allRows(() => from('studio_sponsors').select('*').eq('studio_id', studioId).order('tier', { ascending: false }).order('id'));
         },
 
         // Sponsors publicos visibles de un estudio (vista). Cubre studio-profile.js:183.
@@ -778,16 +841,19 @@
 
         // Metricas mensuales del estudio (ultimos N meses). Cubre studio-dashboard-ops.js:982.
         getDashboardMetrics(studioId, { months = 12 } = {}) {
-            return from('studio_dashboard_metrics_view')
+            const since = new Date();
+            since.setUTCDate(1);
+            since.setUTCMonth(since.getUTCMonth() - (months - 1));
+            return from('studio_monthly_metrics_by_currency')
                 .select('*')
                 .eq('studio_id', studioId)
-                .order('month', { ascending: false })
-                .limit(months);
+                .gte('month', since.toISOString().slice(0, 10))
+                .order('month', { ascending: false });
         },
 
         // Rendimiento por artista (top N por bruto facturado). Cubre studio-dashboard-ops.js:983.
         getArtistPerformance(studioId, { limit = 20 } = {}) {
-            return from('studio_artist_performance_view')
+            return from('studio_artist_metrics_by_currency')
                 .select('*')
                 .eq('studio_id', studioId)
                 .order('gross_billed', { ascending: false })

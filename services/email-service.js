@@ -25,12 +25,13 @@
 const path = require('path');
 const fs = require('fs');
 const eventMapping = require('./email-event-mapping');
+const { dispatchOnce } = require('./email-delivery-ledger');
 
 // ===== Config =====
 
 const ROUTING_CACHE_TTL_MS = 30 * 1000;
 const N8N_EVENTS_CACHE_TTL_MS = 30 * 1000;
-const REQUEST_TIMEOUT_MS = parseInt(process.env.BILLIONMAIL_TIMEOUT_MS || '15000', 10);
+const REQUEST_TIMEOUT_MS = parseInt(process.env.EMAIL_REQUEST_TIMEOUT_MS || process.env.BILLIONMAIL_TIMEOUT_MS || '30000', 10);
 
 const BILLIONMAIL_API_URL = process.env.BILLIONMAIL_API_URL || 'https://bm.weotzi.com';
 const BILLIONMAIL_API_KEY = process.env.BILLIONMAIL_API_KEY || '';
@@ -45,6 +46,8 @@ let _routingCache = null;
 let _routingCacheAt = 0;
 let _n8nEventsCache = null;
 let _n8nEventsCacheAt = 0;
+let _n8nSecretCache = null;
+let _n8nSecretCacheAt = 0;
 
 function _loadFileConfig() {
     try {
@@ -67,15 +70,17 @@ function _supabaseConfig() {
 
 async function _supabaseGetSetting(key) {
     const cfg = _supabaseConfig();
-    if (!cfg.url || !cfg.anonKey) return null;
+    const apiKey = cfg.serviceKey || cfg.anonKey;
+    if (!cfg.url || !apiKey) return null;
     try {
         const res = await fetch(
             `${cfg.url}/rest/v1/app_settings?select=setting_value&setting_key=eq.${encodeURIComponent(key)}&limit=1`,
             {
                 headers: {
-                    apikey: cfg.anonKey,
-                    Authorization: `Bearer ${cfg.anonKey}`
-                }
+                    apikey: apiKey,
+                    Authorization: `Bearer ${apiKey}`
+                },
+                signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
             }
         );
         if (!res.ok) return null;
@@ -109,7 +114,7 @@ async function _supabaseUpsertSetting(key, value, settingType = 'json', descript
                     setting_value: typeof value === 'string' ? value : JSON.stringify(value),
                     setting_type: settingType,
                     description,
-                    is_public: true,
+                    is_public: false,
                     updated_at: new Date().toISOString()
                 }
             ])
@@ -168,7 +173,7 @@ async function updateRoutingForEvent(eventId, updates) {
     if (updates.channel && !VALID_CHANNELS.includes(updates.channel)) {
         return { ok: false, error: `Invalid channel: ${updates.channel}` };
     }
-    const current = await getRouting(true);
+    const current = { ...(await getRouting(true)) };
     current[eventId] = { ...(current[eventId] || {}), ...updates };
     const res = await _supabaseUpsertSetting(
         'email_routing',
@@ -184,6 +189,18 @@ async function updateRoutingForEvent(eventId, updates) {
 }
 
 // ===== Channel: n8n =====
+
+async function getN8NHeaders() {
+    let secret = process.env.N8N_WEBHOOK_SECRET || '';
+    if (!secret) {
+        if (_n8nSecretCacheAt + ROUTING_CACHE_TTL_MS < Date.now()) {
+            _n8nSecretCache = await _supabaseGetSetting('n8n_webhook_secret');
+            _n8nSecretCacheAt = Date.now();
+        }
+        secret = typeof _n8nSecretCache === 'string' ? _n8nSecretCache : '';
+    }
+    return { 'Content-Type': 'application/json', ...(secret ? { 'X-Weotzi-Webhook-Token': secret } : {}) };
+}
 
 async function _getN8NEventsConfig(forceRefresh = false) {
     const now = Date.now();
@@ -235,22 +252,13 @@ async function sendViaN8N(eventId, payload, override = {}) {
     try {
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await getN8NHeaders(),
             body: JSON.stringify(body),
             signal: ctrl.signal
         });
-        if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            return {
-                ok: false,
-                channel: 'n8n',
-                status: res.status,
-                error: `HTTP ${res.status}${text ? ': ' + text.slice(0, 200) : ''}`
-            };
-        }
-        return { ok: true, channel: 'n8n', status: res.status };
+        return await providerResult(res, 'n8n');
     } catch (e) {
-        return { ok: false, channel: 'n8n', error: e.message };
+        return { ok: false, channel: 'n8n', uncertain: true, error: 'No se pudo confirmar la respuesta del proveedor de correo.' };
     } finally {
         clearTimeout(t);
     }
@@ -300,25 +308,41 @@ async function sendViaBillionMail(eventId, payload, override = {}) {
             body: JSON.stringify(body),
             signal: ctrl.signal
         });
-        const text = await res.text().catch(() => '');
-        if (!res.ok) {
-            return {
-                ok: false,
-                channel: 'billionmail',
-                status: res.status,
-                error: `HTTP ${res.status}${text ? ': ' + text.slice(0, 200) : ''}`,
-                recipients
-            };
-        }
-        return { ok: true, channel: 'billionmail', status: res.status, recipients };
+        return { ...(await providerResult(res, 'billionmail')), recipients };
     } catch (e) {
-        return { ok: false, channel: 'billionmail', error: e.message, recipients };
+        return { ok: false, channel: 'billionmail', uncertain: true, error: 'No se pudo confirmar la respuesta del proveedor de correo.', recipients };
     } finally {
         clearTimeout(t);
     }
 }
 
 // ===== Public API =====
+
+async function providerResult(res, channel) {
+    const text = await res.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch (_) {}
+    const results = Array.isArray(body) ? body : [body];
+    if (!res.ok || results.some(row => row?.success === false || row?.ok === false || row?.status === false || row?.error || row?.code < 0 || (Array.isArray(row?.rejected) && row.rejected.length))) {
+        // A workflow may fail after one branch already sent. Only explicit HTTP
+        // rejection before execution is safe to retry without inspecting n8n.
+        const uncertain = res.status >= 500 || res.status === 408 ||
+            results.some(row => row?.messageId || row?.accepted?.length) ||
+            (channel === 'n8n' && res.ok);
+        return { ok: false, channel, status: res.status, uncertain,
+            error: uncertain ? 'El proveedor no pudo confirmar todos los correos. Requiere verificación antes de reenviar.' : `El proveedor rechazó el correo (HTTP ${res.status}).` };
+    }
+    if (/<(?:!doctype|html)\b/i.test(text)) {
+        return { ok: false, channel, status: res.status, error: 'El proveedor devolvió una página web en lugar de confirmar el correo.' };
+    }
+    const messageIds = results.map(row => row?.messageId).filter(Boolean);
+    if (channel === 'n8n' && !messageIds.length) {
+        return { ok: false, channel, status: res.status, uncertain: true,
+            error: 'El proveedor no confirmó la aceptación SMTP del correo. No se reenvió automáticamente.' };
+    }
+    return { ok: true, channel, status: res.status, delivery_status: messageIds.length ? 'smtp_accepted' : 'accepted',
+        ...(messageIds.length ? { message_id: String(messageIds[0]) } : {}) };
+}
 
 /**
  * Dispatch an email event.
@@ -334,6 +358,14 @@ async function sendEmail(eventId, payload, options = {}) {
         console.warn(`[email-service] ${err}`);
         return { ok: false, channel: 'none', error: err };
     }
+    if (!eventMapping.resolveRecipients(eventId, payload).length) {
+        return { ok: false, channel: 'none', error: 'No hay un destinatario válido guardado para este correo.' };
+    }
+
+    if (options.idempotencyKey && !options.claimed) {
+        return dispatchOnce(eventId, options.idempotencyKey,
+            () => sendEmail(eventId, payload, { ...options, claimed: true }));
+    }
 
     const routing = await getRoutingForEvent(eventId);
     const channel = options.forceChannel && VALID_CHANNELS.includes(options.forceChannel)
@@ -345,7 +377,7 @@ async function sendEmail(eventId, payload, options = {}) {
 
     if (channel === 'off') {
         console.log(`[email-service] eventId=${eventId} channel=off (skipped)`);
-        return { ok: true, channel: 'off', skipped: true };
+        return { ok: false, channel: 'off', skipped: true, error: 'El envío de este correo está desactivado.' };
     }
 
     if (channel === 'n8n') {
@@ -357,10 +389,12 @@ async function sendEmail(eventId, payload, options = {}) {
             sendViaN8N(eventId, payload, routing),
             sendViaBillionMail(eventId, payload, routing)
         ]);
-        const ok = n8nRes.ok || bmRes.ok; // Either succeeding is enough during validation
+        const ok = n8nRes.ok && bmRes.ok;
         result = {
             ok,
             channel: 'dual',
+            partial: n8nRes.ok !== bmRes.ok,
+            uncertain: !!(n8nRes.uncertain || bmRes.uncertain),
             results: [n8nRes, bmRes],
             error: !ok ? `n8n: ${n8nRes.error || 'ok'} | billionmail: ${bmRes.error || 'ok'}` : undefined
         };
@@ -404,6 +438,8 @@ module.exports = {
     getEventsWithRouting,
     sendViaN8N,
     sendViaBillionMail,
+    providerResult,
+    getN8NHeaders,
     eventMapping,
     VALID_CHANNELS,
     DEFAULT_CHANNEL

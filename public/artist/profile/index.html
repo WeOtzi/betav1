@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>We Ötzi · Perfil del artista</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
@@ -28,8 +30,12 @@
     <meta property="og:description" id="og-description" content="Conocé el trabajo de este artista tatuador">
     <meta property="og:image" id="og-image" content="">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -44,34 +50,20 @@
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 </head>
 
 <body class="wo-app public-profile-view">
     <a class="skip-link" href="#profile-content">Saltar al contenido</a>
 
-    <header class="wo-topbar profile-topbar">
-        <div class="wo-topbar-left">
-            <a class="wo-topbar-brand" href="/marketplace">WE ÖTZI</a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal del perfil público">
-                <a href="/marketplace" class="wo-topbar-item">Marketplace</a>
-                <a href="/quotations" class="wo-topbar-item" id="profile-header-quote-link">Cotizar</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/client/login" class="wo-topbar-item">Acceder</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <button class="profile-menu-toggle" id="profile-mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="profile-mobile-menu">
-                Menú
-            </button>
-            <a class="wo-o-tile" href="/marketplace" aria-label="Explorar el marketplace">Ö</a>
-        </div>
-    </header>
-    <nav class="profile-mobile-menu" id="profile-mobile-menu" aria-label="Navegación móvil del perfil público" hidden>
-        <a href="/marketplace" class="profile-mobile-menu-link">Marketplace</a>
-        <a href="/quotations" class="profile-mobile-menu-link" id="profile-mobile-quote-link">Cotizar</a>
-        <a href="/job-board" class="profile-mobile-menu-link">Job board</a>
-        <a href="/client/login" class="profile-mobile-menu-link">Acceder</a>
-    </nav>
+    <weotzi-product-nav
+        active="quotations"
+        menu-toggle-id="profile-product-menu-toggle"
+        menu-id="profile-product-mobile-menu"
+        profile-label="Centro de la cuenta"
+        logout-handler="handleProfileLogout"
+        dashboard-extras>
+    </weotzi-product-nav>
 
     <div class="profile-loading" id="profile-loading">
         <div class="wo-spinner" aria-hidden="true"></div>
@@ -156,6 +148,14 @@
                     <strong id="display-experience">-</strong>
                     <span>Años tatuando</span>
                 </div>
+                <div class="statcell statcell--accent" id="statcell-tattoos">
+                    <strong id="display-tattoos">—</strong>
+                    <span>Tatuajes</span>
+                </div>
+                <div class="statcell" id="statcell-response-rate">
+                    <strong id="display-response-rate">—</strong>
+                    <span>Tasa de respuesta</span>
+                </div>
                 <div class="statcell statcell--accent" id="statcell-rating" hidden>
                     <strong id="display-rating">-</strong>
                     <span>Calificación</span>
@@ -163,7 +163,15 @@
             </div>
         </section>
 
-        <!-- 03 · Sobre el artista -->
+        <!-- 03 · Entrada de portafolio / filtros -->
+        <section class="profile-band portfolio-intro-band reveal-block" aria-labelledby="portfolio-intro-title">
+            <div class="profile-shell portfolio-intro-grid">
+                <h2 class="section-title" id="portfolio-intro-title">Portafolio</h2>
+                <div class="gallery-chips portfolio-intro-chips" id="portfolio-intro-chips" role="group" aria-label="Filtrar el portafolio"></div>
+            </div>
+        </section>
+
+        <!-- 04 · Sobre el artista -->
         <section class="profile-band profile-band--blue sobre-band reveal-block">
             <span class="band-block band-block--sobre-yellow" aria-hidden="true"></span>
             <span class="band-block band-block--sobre-red" aria-hidden="true"></span>
@@ -186,11 +194,15 @@
                         <dt>Sesión mínima</dt>
                         <dd id="display-price">-</dd>
                     </div>
+                    <div class="sobre-fact" id="fact-response-time">
+                        <dt>Tiempo de respuesta</dt>
+                        <dd id="display-response-time">—</dd>
+                    </div>
                 </dl>
             </div>
         </section>
 
-        <!-- 04 · Especialidades -->
+        <!-- 05 · Especialidades -->
         <section class="profile-band specialties-band reveal-block" id="specialties-band" hidden>
             <div class="profile-shell">
                 <h2 class="section-title">Especialidades</h2>
@@ -198,7 +210,7 @@
             </div>
         </section>
 
-        <!-- 05 · Reseñas -->
+        <!-- 06 · Reseñas -->
         <section class="profile-band reviews-band reveal-block" id="artist-reviews-panel" hidden>
             <div class="profile-shell">
                 <div class="reviews-box">
@@ -216,7 +228,7 @@
             </div>
         </section>
 
-        <!-- 06 · Estudio -->
+        <!-- 07 · Estudio -->
         <section class="profile-band studio-band reveal-block" id="studio-band" hidden>
             <div class="profile-shell studio-grid">
                 <div class="studio-photo" id="studio-photo">
@@ -236,14 +248,14 @@
             </div>
         </section>
 
-        <!-- 07 · CTA disponibilidad -->
+        <!-- 08 · CTA disponibilidad -->
         <section class="profile-band profile-band--red cta-band reveal-block">
             <span class="band-block band-block--cta-yellow" aria-hidden="true"></span>
             <div class="profile-shell cta-grid">
                 <div class="cta-copy-col">
                     <p class="band-eyebrow">Disponibilidad</p>
-                    <h2 class="cta-title">Agenda abierta para nuevos proyectos</h2>
-                    <p class="cta-copy">Estoy tomando reservas para los próximos dos meses. Contame tu idea y te paso un presupuesto en menos de 24 horas.</p>
+                    <h2 class="cta-title" id="cta-title">Agenda abierta para nuevos proyectos</h2>
+                    <p class="cta-copy" id="cta-copy">Estoy tomando reservas para los próximos dos meses. Contame tu idea y te respondo con los próximos pasos.</p>
                 </div>
                 <div class="cta-actions">
                     <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
@@ -253,7 +265,7 @@
             </div>
         </section>
 
-        <!-- 08 · Portafolio -->
+        <!-- 09 · Portafolio -->
         <section class="profile-band gallery-band reveal-block" id="block-gallery">
             <div class="profile-shell">
                 <h2 class="section-title">Portafolio</h2>
@@ -266,7 +278,7 @@
             </div>
         </section>
 
-        <!-- 09 · Próximas residencias -->
+        <!-- 10 · Próximas residencias -->
         <section class="profile-band presence-band reveal-block" id="presence-band" hidden>
             <div class="profile-shell">
                 <div class="presence-head">
@@ -277,7 +289,7 @@
             </div>
         </section>
 
-        <!-- 10 · Dónde tatué -->
+        <!-- 11 · Dónde tatué -->
         <section class="profile-band cities-band reveal-block" id="cities-band" hidden>
             <div class="profile-shell">
                 <div class="cities-head">
@@ -289,7 +301,7 @@
         </section>
     </main>
 
-    <!-- 11 · Barra de acción -->
+    <!-- 12 · Barra de acción -->
     <div class="profile-actionbar" id="profile-actionbar" hidden>
         <div class="profile-actionbar-inner">
             <p class="actionbar-identity">
@@ -298,7 +310,7 @@
                 <span class="actionbar-status" id="actionbar-status" hidden></span>
             </p>
             <div class="actionbar-actions">
-                <a class="actionbar-quiet-link" id="quote-cta-bar-btn" href="/quotations">Solicitar cotización</a>
+                <a class="actionbar-quiet-link" id="quote-cta-bar-btn" href="/quotations">Cotización</a>
                 <a class="wo-btn wo-btn--s actionbar-btn" id="reserve-cta-bar-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
             </div>
         </div>
@@ -323,6 +335,7 @@
 
     <script src="/shared/js/bio-formatting.js"></script>
     <script src="/shared/js/reviews.js"></script>
+    <script src="/shared/js/artist-profile-presentation.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
 </body>
 

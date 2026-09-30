@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>WE ÖTZI | Calendario</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -76,14 +78,14 @@
     </main>
 
     <main class="cal-editor-shell" id="calendar-editor" hidden>
-        <button type="button" class="cal-back" id="editor-back">← Volver</button>
-        <header class="cal-editor-heading">
-            <h1 id="editor-heading">Agregar al calendario</h1>
-            <p>Elegí el tipo de evento y completá la información correspondiente.</p>
-        </header>
-
         <div class="cal-editor-layout">
             <section class="cal-editor-main">
+                <button type="button" class="cal-back" id="editor-back">← Volver</button>
+                <header class="cal-editor-heading">
+                    <h1 id="editor-heading">Agregar al calendario</h1>
+                    <p>Elegí el tipo de evento y completá la información correspondiente.</p>
+                </header>
+
                 <p class="cal-form-label">Tipo de evento</p>
                 <div class="cal-type-picker" id="event-type-picker" role="radiogroup" aria-label="Tipo de evento">
                     <button type="button" data-type="confirmed_session" role="radio" aria-checked="false"><i></i>Turno con cliente</button>
@@ -99,7 +101,7 @@
                 <form id="calendar-event-form" novalidate>
                     <div class="cal-form-empty" id="event-form-empty">
                         <span>Elegí un tipo de evento para continuar</span>
-                        <b aria-hidden="true">▣</b>
+                        <i data-wo-icon="calendar" aria-hidden="true"></i>
                     </div>
                     <div id="event-fields" hidden></div>
                     <p class="cal-form-error" id="event-form-error" role="alert"></p>
@@ -137,6 +139,8 @@
             </aside>
         </div>
     </main>
+
+    <weotzi-product-footer></weotzi-product-footer>
 
     <div class="cal-loading" id="calendar-loading" role="status">
         <span class="wo-spinner" aria-hidden="true"></span>

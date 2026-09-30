@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>We Ötzi · Invitaciones</title>
 
     <!-- Design system Bauhaus -->
@@ -20,7 +22,7 @@
 
     <!-- TopBar compartida de artista -->
     <weotzi-product-nav
-        active="quotations"
+        active="invitations"
         menu-toggle-id="inv-mobile-menu-toggle"
         menu-id="inv-mobile-menu"
         menu-class="inv-mobile-menu"
@@ -84,6 +86,8 @@
         <!-- Vista 2 · Detalle de la invitación -->
         <div id="inv-detail-view" class="inv-detail hidden"></div>
     </main>
+
+    <weotzi-product-footer></weotzi-product-footer>
 
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>

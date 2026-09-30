@@ -67,6 +67,7 @@ const MOLECULE_REFERENCES = Object.freeze([
 const ORGANISM_REFERENCES = Object.freeze([
   ['weotzi-dashboard', '34:533', ''],
   ['weotzi-product-nav', '80:13241', ''],
+  ['weotzi-product-footer', '24:1817', ''],
   ['weotzi-dashboard-sidebar', '34:134', ''],
   ['weotzi-income-stats', '34:135', ''],
   ['weotzi-upcoming-appointments', '34:137', ''],
@@ -281,12 +282,12 @@ test('catalog search matches unaccented queries against accented component metad
   assert.equal(empty.hidden, false);
 });
 
-test('organism catalog and implementation agree on all 17 references and Figma nodes', () => {
+test('organism catalog and implementation agree on all 18 references and Figma nodes', () => {
   const catalog = plain(runtime.sandbox.WEOTZI_ORGANISM_CATALOG);
   const nodeManifest = plain(runtime.sandbox.WeotziOrganisms.nodeIds);
   const flattened = [];
 
-  assert.equal(catalog.length, 17);
+  assert.equal(catalog.length, 18);
   for (const item of catalog) {
     if (item.variants) {
       for (const variant of item.variants) flattened.push([item.tag, variant.nodeId, variant.value]);
@@ -321,13 +322,29 @@ test('organism catalog and implementation agree on all 17 references and Figma n
       figmaFile: 'https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi'
     }
   );
+
+  const productFooter = catalog.find((item) => item.tag === 'weotzi-product-footer');
+  assert.deepEqual(
+    {
+      nodeId: productFooter.nodeId,
+      width: productFooter.width,
+      height: productFooter.height,
+      figmaFile: productFooter.figmaFile
+    },
+    {
+      nodeId: '24:1817',
+      width: 1424.8,
+      height: 275.6,
+      figmaFile: 'https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi?node-id=24-1817'
+    }
+  );
 });
 
 test('artist product navigation always renders the seven Figma destinations in order', () => {
   const html = runtime.sandbox.WeotziOrganisms.render.productNav('statistics');
-  const desktopLinks = html.match(/<div class="wo-org-product-nav__links">([\s\S]*?)<\/div>/)[1];
-  const destinations = [...desktopLinks.matchAll(/href="([^"]+)"[^>]*>([^<]+)<\/a>/g)]
-    .map(([, href, label]) => [href, label]);
+  const desktopLinks = html.match(/<div class="wo-org-product-nav__links">([\s\S]*?)<div class="wo-org-product-nav__account">/)[1];
+  const destinations = [...desktopLinks.matchAll(/<a class="wo-org-product-nav__link[^"]*" href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)]
+    .map(([, href, content]) => [href, content.replace(/<span[\s\S]*?<\/span>/g, '').trim()]);
 
   assert.deepEqual(destinations, [
     ['/my-quotations', 'COTIZACIONES'],
@@ -340,6 +357,26 @@ test('artist product navigation always renders the seven Figma destinations in o
   ]);
   assert.match(html, /data-figma-node="80:13241"/);
   assert.match(html, /href="\/my-quotations\/statistics" aria-current="page">ESTADÍSTICAS<\/a>/);
+});
+
+test('artist product navigation exposes invitations from an accessible Spots dropdown', () => {
+  const html = runtime.sandbox.WeotziOrganisms.render.productNav('invitations', {
+    menuId: 'artist-menu'
+  });
+
+  assert.match(html, /<a class="wo-org-product-nav__link is-active" href="\/studio-spots">SPOTS<\/a>/);
+  assert.match(
+    html,
+    /<button[^>]*data-spots-menu-toggle[^>]*aria-expanded="false"[^>]*aria-controls="artist-menu-spots"[^>]*aria-label="Abrir menú de Spots"/
+  );
+  assert.match(
+    html,
+    /<div id="artist-menu-spots"[^>]*role="menu"[^>]*hidden>[\s\S]*href="\/artist\/invitations"[^>]*role="menuitem"[^>]*aria-current="page"[^>]*>INVITACIONES<\/a>/
+  );
+  assert.match(
+    html,
+    /<a href="\/artist\/invitations" class="wo-org-product-nav__mobile-subitem is-active" aria-current="page">INVITACIONES<\/a>/
+  );
 });
 
 test('artist product navigation renders the Dashboard chrome while preserving page hooks', () => {
@@ -362,6 +399,37 @@ test('artist product navigation renders the Dashboard chrome while preserving pa
   assert.match(html, /id="tv-logout"[^>]*class="[^"]*tvl-logout[^"]*"[^>]*hidden/);
   assert.match(html, /id="tv-mobile-menu"[^>]*class="[^"]*tvl-mobile-menu[^"]*"[^>]*hidden/);
   assert.match(html, /href="\/artist\/travel" aria-current="page">TRAVEL<\/a>/);
+});
+
+test('artist product navigation always exposes the shared quotation and notification counters', () => {
+  const html = runtime.sandbox.WeotziOrganisms.render.productNav('travel');
+
+  assert.match(html, /href="\/my-quotations"[^>]*>[\s\S]*data-artist-quote-count[\s\S]*<\/a>/);
+  assert.match(html, /href="\/artist\/account"[^>]*>[\s\S]*data-artist-notification-count[\s\S]*<\/a>/);
+  assert.equal((html.match(/data-artist-quote-count/g) || []).length, 2);
+  assert.equal((html.match(/data-artist-notification-count/g) || []).length, 1);
+});
+
+test('artist product footer renders the Dashboard and Figma footer contract', () => {
+  const html = runtime.sandbox.WeotziOrganisms.render.productFooter();
+
+  assert.match(html, /data-figma-node="24:1817"/);
+  assert.match(html, /WE ÖTZI/);
+  assert.match(html, /La plataforma que conecta artistas y clientes de tatuajes en toda la región\./);
+  assert.match(html, /CONTACTO[\s\S]*artistas@weotzi\.com[\s\S]*Soporte/);
+  assert.match(html, /AYUDA[\s\S]*Preguntas frecuentes[\s\S]*Centro de ayuda/);
+  assert.match(html, /TÉRMINOS[\s\S]*Términos y condiciones[\s\S]*Privacidad/);
+  assert.match(html, /© 2026 WE ÖTZI\. TODOS LOS DERECHOS RESERVADOS\./);
+  assert.match(html, /data-wo-icon="instagram"[\s\S]*INSTAGRAM/);
+});
+
+test('artist product navigation keeps the Dashboard logout typography above the organism reset', () => {
+  const css = read('public/shared/css/ds/organisms.css');
+
+  assert.match(
+    css,
+    /\.wo-org \.wo-org-product-nav__logout\{[^}]*font-family:var\(--font-mono,'JetBrains Mono',monospace\)[^}]*font-size:13\.543px[^}]*font-weight:400[^}]*line-height:normal[^}]*letter-spacing:1\.354px/
+  );
 });
 
 test('artist product navigation can retain the quotations archive mobile affordance', () => {

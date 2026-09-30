@@ -12,8 +12,15 @@
       category: "Shell del producto", id: "navegacion-producto", title: "Navegación del producto", nodeId: "80:13241",
       figmaFile: "https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi",
       width: 1440, height: 76, previewHeight: 280, tag: "weotzi-product-nav",
-      description: "Barra superior WE ÖTZI con Cotizaciones, Job Board, Spots, Calendario, Estadísticas, Travel, Inbox, acceso de perfil y Log out.",
-      states: "Desktop · 1440 × 76 · Cotizaciones activo"
+      description: "Barra superior WE ÖTZI con Cotizaciones, Job Board, Spots, Calendario, Estadísticas, Travel, Inbox, contadores compartidos, acceso de perfil y Log out.",
+      states: "Desktop · 1440 × 76 · Cotizaciones y notificaciones"
+    },
+    {
+      category: "Shell del producto", id: "footer-producto", title: "Footer del producto", nodeId: "24:1817",
+      figmaFile: "https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi?node-id=24-1817",
+      width: 1424.8, height: 275.6, previewHeight: 420, tag: "weotzi-product-footer",
+      description: "Pie global del artista basado en el Dashboard: marca, contacto, ayuda, términos, copyright e Instagram.",
+      states: "Desktop · 1424.8 × 275.6 · Figma 24:1817"
     },
     {
       category: "Dashboard", id: "lateral-dashboard", title: "Lateral del dashboard", nodeId: "34:134",

@@ -35,6 +35,8 @@
     const CLOSED_QUOTE_STATUSES = ['completed', 'client_rejected', 'expired'];
     const FILE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain';
     const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
+    const MAX_VISIBLE_ATTACHMENTS = 5;
+    const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
     const state = {
         userId: null,
         unified: [],
@@ -46,7 +48,8 @@
         search: '',
         activeKey: null,
         activeMessages: [],
-        pendingFile: null,
+        pendingFiles: [],
+        attachmentDrag: null,
         listChannel: null,
         threadChannel: null,
         refreshTimer: null,
@@ -124,9 +127,12 @@
         el('ai-image') && el('ai-image').addEventListener('click', function () { openFilePicker(IMAGE_ACCEPT); });
         el('ai-emoji') && el('ai-emoji').addEventListener('click', insertComposerEmoji);
         el('ai-file') && el('ai-file').addEventListener('change', onFileChosen);
-        el('ai-attachment-preview') && el('ai-attachment-preview').addEventListener('click', function (event) {
-            if (event.target.closest('[data-remove-attachment]')) clearPendingFile();
-        });
+        const attachmentPreview = el('ai-attachment-preview');
+        attachmentPreview && attachmentPreview.addEventListener('click', onAttachmentPreviewClick);
+        attachmentPreview && attachmentPreview.addEventListener('pointerdown', onAttachmentDragStart);
+        attachmentPreview && attachmentPreview.addEventListener('pointermove', onAttachmentDragMove);
+        attachmentPreview && attachmentPreview.addEventListener('pointerup', onAttachmentDragEnd);
+        attachmentPreview && attachmentPreview.addEventListener('pointercancel', onAttachmentDragEnd);
         el('ai-messages') && el('ai-messages').addEventListener('click', onMessageClick);
         window.addEventListener('beforeunload', cleanupChannels);
     }
@@ -317,12 +323,8 @@
         setText('ai-count-favorites', state.rows.filter(function (row) { return row.favorite; }).length);
 
         setText('ai-sum-unread', activeRows.filter(function (row) { return row.unread > 0; }).length);
-        setText('ai-sum-replied', activeRows.filter(function (row) {
-            return row.lastSenderUserId && row.lastSenderUserId === state.userId;
-        }).length);
-        setText('ai-sum-waiting', activeRows.filter(function (row) {
-            return !row.closed && (!row.lastSenderUserId || row.lastSenderUserId !== state.userId);
-        }).length);
+        setText('ai-sum-replied', activeRows.filter(function (row) { return responseState(row).key === 'replied'; }).length);
+        setText('ai-sum-waiting', activeRows.filter(function (row) { return responseState(row).key === 'waiting'; }).length);
     }
 
     function renderUnreadBadge() {
@@ -353,32 +355,36 @@
 
     function rowHtml(row) {
         const meta = CATEGORY_META[row.category] || { label: row.category || 'Mensaje', tone: 'default' };
-        const status = row.closed
-            ? { label: 'Cerrado', cls: 'is-closed' }
-            : row.lastSenderUserId === state.userId
-                ? { label: 'Respondida', cls: 'is-replied' }
-                : { label: 'Esperando', cls: 'is-waiting' };
+        const status = responseState(row);
         const active = row.key === state.activeKey ? ' is-active' : '';
         const unread = row.unread > 0 ? ' is-unread' : '';
-        const org = ['support', 'invitations', 'spots', 'job_board', 'studios', 'trips'].includes(row.category)
-            ? ' ai-avatar--org'
-            : '';
+        const avatarTone = ' ai-avatar--' + meta.tone;
         const favoriteButton = row.source === 'unified'
             ? '<button type="button" class="ai-row-star' + (row.favorite ? ' is-active' : '') + '" data-row-flag="favorite" data-key="' + esc(row.key) + '" aria-label="' + (row.favorite ? 'Quitar de favoritas' : 'Marcar como favorita') + '"><i data-wo-icon="star" class="wo-icon-16" aria-hidden="true"></i></button>'
             : '';
         return '<article class="ai-row' + active + unread + '" data-row-key="' + esc(row.key) + '">' +
             '<button type="button" class="ai-row-open" data-open-thread="' + esc(row.key) + '" aria-label="Abrir conversación con ' + esc(row.name) + '">' +
-                '<span class="ai-avatar' + org + '">' + esc(row.initials) + '</span>' +
+                '<span class="ai-avatar' + avatarTone + '">' + esc(row.initials) + '</span>' +
                 '<span class="ai-row-body">' +
                     '<span class="ai-row-top"><span class="ai-row-name">' + esc(row.name) + '</span><time class="ai-row-time">' + esc(fmtListTime(row.lastAt)) + '</time></span>' +
                     '<span class="ai-row-tags"><span class="wo-tag ai-category-tag is-' + esc(meta.tone) + '">' + esc(meta.label) + '</span>' +
-                        (row.priority ? '<span class="wo-tag wo-tag--warning">Prioridad</span>' : '') +
-                        '<span class="ai-row-status ' + status.cls + '">' + status.label + '</span></span>' +
+                        (row.priority ? '<span class="ai-priority-tag">Prioritario</span>' : '') + '</span>' +
                     '<span class="ai-row-prev"><span class="ai-row-preview">' + esc(row.preview) + '</span>' +
                         (row.unread ? '<span class="wo-badge ai-row-unread">' + row.unread + '</span>' : '') + '</span>' +
+                    '<span class="ai-row-status ' + status.cls + '">' + status.label + '</span>' +
                 '</span>' +
             '</button>' + favoriteButton +
         '</article>';
+    }
+
+    function responseState(row) {
+        if (row.closed) return { key: 'closed', label: 'Cerrado', cls: 'is-closed' };
+        const explicit = row.context && row.context.reply_status;
+        if (explicit === 'replied') return { key: 'replied', label: 'Respondido', cls: 'is-replied' };
+        if (explicit === 'waiting') return { key: 'waiting', label: 'Esperando respuesta', cls: 'is-waiting' };
+        return row.lastSenderUserId === state.userId
+            ? { key: 'replied', label: 'Respondido', cls: 'is-replied' }
+            : { key: 'waiting', label: 'Esperando respuesta', cls: 'is-waiting' };
     }
 
     async function onListClick(event) {
@@ -405,7 +411,7 @@
             renderSidebarCounts();
             renderList();
             if (archived === true) closeThread();
-            else if (state.activeKey === key) renderThreadHead(row);
+            else if (state.activeKey === key) renderThreadHead(findRow(key) || row);
         } catch (error) {
             console.error('[artist-inbox] flags', error);
             notify('No pudimos actualizar la conversación.', 'error');
@@ -417,7 +423,7 @@
         if (!row) return;
         state.activeKey = key;
         state.activeMessages = [];
-        clearPendingFile();
+        clearPendingFiles();
         removeThreadChannel();
 
         el('ai-thread-placeholder').hidden = true;
@@ -488,7 +494,7 @@
         state.activeKey = null;
         state.activeMessages = [];
         removeThreadChannel();
-        clearPendingFile();
+        clearPendingFiles();
         el('ai-thread').hidden = true;
         el('ai-thread-placeholder').hidden = false;
         el('ai-context').hidden = true;
@@ -504,8 +510,8 @@
         const meta = CATEGORY_META[row.category] || { label: row.category || 'Mensaje' };
         const persistentTools = row.source === 'unified'
             ? '<div class="ai-thread-tools">' +
-                '<button type="button" class="wo-iconbtn' + (row.favorite ? ' is-active' : '') + '" data-head-flag="favorite" aria-label="' + (row.favorite ? 'Quitar de favoritas' : 'Marcar como favorita') + '" title="Favorita"><i data-wo-icon="star" class="wo-icon-18" aria-hidden="true"></i></button>' +
-                '<button type="button" class="wo-iconbtn" data-head-flag="archived" aria-label="' + (row.archived ? 'Restaurar conversación' : 'Archivar conversación') + '" title="' + (row.archived ? 'Restaurar' : 'Archivar') + '"><i data-wo-icon="archive" class="wo-icon-18" aria-hidden="true"></i></button>' +
+                '<button type="button" class="wo-iconbtn' + (row.favorite ? ' is-active' : '') + '" data-head-flag="favorite" aria-label="' + (row.favorite ? 'Quitar de favoritas' : 'Marcar como favorita') + '" title="Favorita"><i data-wo-icon="star" class="wo-icon-16" aria-hidden="true"></i></button>' +
+                '<button type="button" class="wo-iconbtn" data-head-flag="archived" aria-label="' + (row.archived ? 'Restaurar conversación' : 'Archivar conversación') + '" title="' + (row.archived ? 'Restaurar' : 'Archivar') + '"><i data-wo-icon="archive" class="wo-icon-16" aria-hidden="true"></i></button>' +
             '</div>'
             : '';
         el('ai-thread-head').innerHTML =
@@ -615,8 +621,11 @@
         const context = row.context || {};
         const meta = CATEGORY_META[row.category] || { label: 'Conversación' };
         const blocks = [];
-        blocks.push(ctxBlock('Contacto', row.name));
-        if (row.subject) blocks.push(ctxBlock('Asunto', row.subject));
+        const exactSpotContext = row.category === 'spots' && (context.studio || context.studio_name);
+        if (!exactSpotContext) {
+            blocks.push(ctxBlock('Contacto', row.name));
+            if (row.subject) blocks.push(ctxBlock('Asunto', row.subject));
+        }
         if (context.client) blocks.push(ctxBlock('Cliente', context.client));
         if (context.studio || context.studio_name) blocks.push(ctxBlock('Estudio', context.studio || context.studio_name));
         if (context.city || context.country) blocks.push(ctxBlock('Destino', [context.city, context.country].filter(Boolean).join(', ')));
@@ -631,8 +640,8 @@
         if (context.request_code) blocks.push(ctxBlock('Solicitud', context.request_code, true));
 
         const domainStatus = context.application_status || context.invitation_status || context.membership_status || context.link_status || context.quote_status;
-        if (domainStatus) blocks.push(ctxBlock('Estado', humanStatus(domainStatus)));
-        blocks.push(ctxBlock('Conversación', row.closed ? 'Cerrada' : 'Activa'));
+        if (domainStatus) blocks.push(ctxStatus(domainStatus, row.category));
+        if (!exactSpotContext) blocks.push(ctxBlock('Conversación', row.closed ? 'Cerrada' : 'Activa'));
 
         const link = contextLink(row);
         const host = el('ai-context');
@@ -645,6 +654,13 @@
     function ctxBlock(label, value, mono) {
         if (value === null || value === undefined || value === '') return '';
         return '<div class="ai-ctx-block"><span class="ai-ctx-label">' + esc(label) + '</span><span class="ai-ctx-value' + (mono ? ' wo-mono-num' : '') + '">' + esc(value) + '</span></div>';
+    }
+
+    function ctxStatus(status, category) {
+        const label = category === 'spots' && status === 'accepted'
+            ? 'Postulación aceptada'
+            : humanStatus(status);
+        return '<span class="ai-ctx-status">' + esc(label) + '</span>';
     }
 
     function contextLink(row) {
@@ -662,55 +678,104 @@
 
     function setComposer(placeholder, enabled) {
         const input = el('ai-input');
-        const attach = el('ai-attach');
         input.disabled = !enabled;
-        attach.disabled = !enabled;
+        document.querySelectorAll('.ai-composer-tools .ai-attach').forEach(function (button) {
+            button.disabled = !enabled;
+        });
         input.placeholder = placeholder;
         syncSendState();
     }
 
     function onFileChosen(event) {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
         const row = findRow(state.activeKey);
         if (!row || row.source !== 'unified') {
             event.target.value = '';
             notify('Los adjuntos están disponibles en las conversaciones unificadas.', 'info');
             return;
         }
-        if (file.size > 15 * 1024 * 1024) {
-            event.target.value = '';
+        const validFiles = files.filter(function (file) { return file.size <= MAX_ATTACHMENT_BYTES; });
+        if (validFiles.length !== files.length) {
             notify('El archivo supera el límite de 15 MB.', 'error');
-            return;
         }
-        state.pendingFile = file;
-        renderPendingFile();
+        state.pendingFiles.push.apply(state.pendingFiles, validFiles);
+        event.target.value = '';
+        renderPendingFiles();
         syncSendState();
     }
 
-    function renderPendingFile() {
+    function renderPendingFiles() {
         const host = el('ai-attachment-preview');
-        if (!state.pendingFile) {
+        if (!state.pendingFiles.length) {
             host.hidden = true;
             host.innerHTML = '';
+            host.style.removeProperty('--ai-attachment-slots');
+            host.scrollLeft = 0;
             return;
         }
         host.hidden = false;
-        host.innerHTML = '<span><i data-wo-icon="' + (String(state.pendingFile.type).startsWith('image/') ? 'image' : 'paperclip') + '" class="wo-icon-16" aria-hidden="true"></i>' + esc(state.pendingFile.name) + '</span>' +
-            '<button type="button" class="wo-iconbtn" data-remove-attachment aria-label="Quitar adjunto"><i data-wo-icon="x" class="wo-icon-16" aria-hidden="true"></i></button>';
+        host.style.setProperty('--ai-attachment-slots', String(Math.min(state.pendingFiles.length, MAX_VISIBLE_ATTACHMENTS)));
+        host.innerHTML = state.pendingFiles.map(function (file, index) {
+            return '<div class="ai-attachment-card" role="group" aria-label="Adjunto ' + (index + 1) + ' de ' + state.pendingFiles.length + '">' +
+                '<i data-wo-icon="' + (String(file.type).startsWith('image/') ? 'image' : 'paperclip') + '" class="wo-icon-16" aria-hidden="true"></i>' +
+                '<span class="ai-attachment-name" title="' + esc(file.name) + '">' + esc(file.name) + '</span>' +
+                '<button type="button" class="wo-iconbtn ai-attachment-remove" data-remove-attachment="' + index + '" aria-label="Quitar ' + esc(file.name) + '"><i data-wo-icon="x" class="wo-icon-16" aria-hidden="true"></i></button>' +
+            '</div>';
+        }).join('');
         refreshIcons();
     }
 
-    function clearPendingFile() {
-        state.pendingFile = null;
+    function onAttachmentPreviewClick(event) {
+        const remove = event.target.closest('[data-remove-attachment]');
+        if (!remove || (state.attachmentDrag && state.attachmentDrag.moved)) return;
+        const index = Number(remove.dataset.removeAttachment);
+        if (!Number.isInteger(index)) return;
+        state.pendingFiles.splice(index, 1);
+        renderPendingFiles();
+        syncSendState();
+    }
+
+    function onAttachmentDragStart(event) {
+        const host = el('ai-attachment-preview');
+        if (!host || host.scrollWidth <= host.clientWidth || event.button !== 0 || event.target.closest('button')) return;
+        state.attachmentDrag = { pointerId: event.pointerId, startX: event.clientX, scrollLeft: host.scrollLeft, moved: false };
+        host.classList.add('is-dragging');
+        host.setPointerCapture(event.pointerId);
+    }
+
+    function onAttachmentDragMove(event) {
+        const host = el('ai-attachment-preview');
+        const drag = state.attachmentDrag;
+        if (!host || !drag || drag.pointerId !== event.pointerId) return;
+        const delta = event.clientX - drag.startX;
+        if (Math.abs(delta) > 3) drag.moved = true;
+        host.scrollLeft = drag.scrollLeft - delta;
+    }
+
+    function onAttachmentDragEnd(event) {
+        const host = el('ai-attachment-preview');
+        const drag = state.attachmentDrag;
+        if (!host || !drag || drag.pointerId !== event.pointerId) return;
+        if (host.hasPointerCapture(event.pointerId)) host.releasePointerCapture(event.pointerId);
+        host.classList.remove('is-dragging');
+        state.attachmentDrag = null;
+    }
+
+    function clearPendingFiles() {
+        state.pendingFiles = [];
+        state.attachmentDrag = null;
         if (el('ai-file')) el('ai-file').value = '';
-        if (el('ai-attachment-preview')) renderPendingFile();
+        if (el('ai-attachment-preview')) {
+            el('ai-attachment-preview').classList.remove('is-dragging');
+            renderPendingFiles();
+        }
         syncSendState();
     }
 
     function syncSendState() {
         const row = findRow(state.activeKey);
-        const enabled = Boolean(row && !row.closed && (el('ai-input').value.trim() || state.pendingFile));
+        const enabled = Boolean(row && !row.closed && (el('ai-input').value.trim() || state.pendingFiles.length));
         el('ai-send').disabled = !enabled;
     }
 
@@ -720,20 +785,34 @@
         if (!row || row.closed) return;
         const input = el('ai-input');
         const body = input.value.trim();
-        const file = state.pendingFile;
-        if (!body && !file) return;
+        const files = state.pendingFiles.slice();
+        if (!body && !files.length) return;
         input.disabled = true;
         el('ai-send').disabled = true;
-        el('ai-attach').disabled = true;
+        document.querySelectorAll('.ai-composer-tools .ai-attach').forEach(function (button) { button.disabled = true; });
 
         try {
             if (row.source === 'unified') {
-                let attachment = null;
-                if (file) attachment = await D.Inbox.uploadAttachment(row.id, state.userId, file);
-                const saved = await D.Inbox.sendMessage({ threadId: row.id, body: body, attachment: attachment });
-                const message = Array.isArray(saved) ? saved[0] : saved;
-                if (message && !state.activeMessages.some(function (item) { return item.id === message.id; })) {
-                    state.activeMessages.push(adaptUnifiedMessage(message));
+                if (files.length) {
+                    for (let index = 0; index < files.length; index += 1) {
+                        const file = files[index];
+                        const attachment = await D.Inbox.uploadAttachment(row.id, state.userId, file);
+                        const saved = await D.Inbox.sendMessage({ threadId: row.id, body: index === 0 ? body : null, attachment: attachment });
+                        const message = Array.isArray(saved) ? saved[0] : saved;
+                        if (message && !state.activeMessages.some(function (item) { return item.id === message.id; })) {
+                            state.activeMessages.push(adaptUnifiedMessage(message));
+                        }
+                        state.pendingFiles = state.pendingFiles.filter(function (pending) { return pending !== file; });
+                        if (index === 0) input.value = '';
+                        renderPendingFiles();
+                    }
+                } else {
+                    const saved = await D.Inbox.sendMessage({ threadId: row.id, body: body });
+                    const message = Array.isArray(saved) ? saved[0] : saved;
+                    if (message && !state.activeMessages.some(function (item) { return item.id === message.id; })) {
+                        state.activeMessages.push(adaptUnifiedMessage(message));
+                    }
+                    input.value = '';
                 }
             } else if (row.source === 'quote') {
                 await D.Chat.sendMessage({ quoteId: row.id, senderType: 'artist', senderId: state.userId, message: body });
@@ -752,15 +831,17 @@
                 }
             }
             input.value = '';
-            clearPendingFile();
+            clearPendingFiles();
             renderMessages();
             scheduleRefresh();
         } catch (error) {
             console.error('[artist-inbox] enviar', error);
-            notify('No pudimos enviar el mensaje. Tu texto sigue acá para reintentar.', 'error');
+            renderPendingFiles();
+            renderMessages();
+            notify(files.length ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen acá para reintentar.' : 'No pudimos enviar el mensaje. Tu texto sigue acá para reintentar.', 'error');
         } finally {
             input.disabled = row.closed;
-            el('ai-attach').disabled = row.closed;
+            document.querySelectorAll('.ai-composer-tools .ai-attach').forEach(function (button) { button.disabled = row.closed; });
             syncSendState();
             input.focus();
         }

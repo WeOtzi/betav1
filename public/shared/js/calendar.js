@@ -173,9 +173,7 @@
     }
 
     function formatLongDate(date) {
-        return new Intl.DateTimeFormat('es-AR', {
-            day: 'numeric', month: 'long', year: 'numeric',
-        }).format(date);
+        return `${date.getDate()} de ${MONTHS[date.getMonth()].toLowerCase()}, ${date.getFullYear()}`;
     }
 
     function formatShortDate(date) {
@@ -312,14 +310,36 @@
             }
         });
         el['upcoming-list'].addEventListener('click', onEventButtonClick);
+        el['upcoming-list'].addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const target = event.target.closest('[data-event-id]');
+            if (!target) return;
+            event.preventDefault();
+            openEventById(target.dataset.eventId);
+        });
         el['event-type-picker'].addEventListener('click', (event) => {
             const button = event.target.closest('[data-type]');
             if (!button || state.editingEvent) return;
             chooseType(button.dataset.type);
         });
+        el['event-type-picker'].addEventListener('keydown', (event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || state.editingEvent) return;
+            const buttons = [...el['event-type-picker'].querySelectorAll('[data-type]:not(:disabled)')];
+            const current = buttons.indexOf(document.activeElement);
+            if (current < 0) return;
+            event.preventDefault();
+            const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+            const next = buttons[(current + direction + buttons.length) % buttons.length];
+            next.focus();
+            chooseType(next.dataset.type);
+        });
         el['calendar-event-form'].addEventListener('submit', saveCurrentEvent);
         el['event-fields'].addEventListener('input', onFormChanged);
         el['event-fields'].addEventListener('change', onFormChanged);
+        el['event-fields'].addEventListener('click', (event) => {
+            if (!event.target.closest('[data-date-display]')) return;
+            el['mini-grid'].querySelector('.is-selected')?.focus();
+        });
         el['mini-grid'].addEventListener('click', (event) => {
             const button = event.target.closest('[data-date]');
             if (!button) return;
@@ -365,6 +385,7 @@
     }
 
     function renderAll() {
+        el['calendar-page'].dataset.view = state.view;
         updatePeriodLabel();
         updateHeaderSummary();
         if (state.view === 'month') renderMonth();
@@ -383,10 +404,8 @@
                 ? `${start.getDate()} – ${end.getDate()} ${MONTHS[end.getMonth()]}`
                 : `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]}`;
         } else if (state.view === 'day') {
-            label = new Intl.DateTimeFormat('es-AR', {
-                weekday: 'long', day: 'numeric', month: 'long',
-            }).format(state.currentDate);
-            label = label.charAt(0).toUpperCase() + label.slice(1);
+            const weekday = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(state.currentDate);
+            label = `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${state.currentDate.getDate()} ${MONTHS[state.currentDate.getMonth()]}`;
         }
         el['cal-period-label'].textContent = label;
     }
@@ -396,7 +415,7 @@
         const to = endOfMonth(state.currentDate);
         const inMonth = state.events.filter((event) => overlaps(event, from, to));
         const confirmed = inMonth.filter((event) => event.type === 'confirmed_session').length;
-        const pending = inMonth.filter((event) => event.type === 'pending_request' || event.type === 'reservation').length;
+        const pending = inMonth.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length;
         const blocked = new Set(inMonth
             .filter((event) => event.type === 'blocked_day')
             .map((event) => dateKey(asDate(event.start)))).size;
@@ -459,9 +478,9 @@
         const start = columns === 7 ? mondayOfWeek(state.currentDate) : startOfDay(state.currentDate);
         const dates = Array.from({ length: columns }, (_, index) => addDays(start, index));
         const visible = getDisplayEvents();
-        const heads = dates.map((date) => `
+        const heads = columns === 1 ? '' : dates.map((date) => `
             <div class="cal-time-head${sameDay(date, state.currentDate) ? ' is-selected' : ''}">
-                <span>${columns === 1 ? new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(date) : WEEKDAYS[(date.getDay() + 6) % 7]}</span>
+                <span>${WEEKDAYS[(date.getDay() + 6) % 7]}</span>
                 <strong>${date.getDate()}</strong>
             </div>
         `).join('');
@@ -470,13 +489,19 @@
             return `<span class="cal-time-hour-label" style="top:${index * (100 / (HOUR_END - HOUR_START))}%">${pad(hour)}:00</span>`;
         }).join('');
         const dayColumns = dates.map((date) => {
-            const dayEvents = eventsForDay(date, visible);
-            const eventHtml = dayEvents.map((event) => renderTimedEvent(event, date)).join('');
+            const dayEvents = eventsForDay(date, visible).filter((event) => !event.allDay);
+            const eventHtml = dayEvents.map((event) => renderTimedEvent(event, date, columns === 1)).join('');
             return `<div class="cal-time-column" data-date="${dateKey(date)}">${eventHtml}</div>`;
         }).join('');
-        el['calendar-view'].innerHTML = `
-            <div class="cal-time-grid" style="--time-columns:${columns}">
-                <div class="cal-time-corner"></div>
+        const dayTitle = columns === 1 ? `
+            <header class="cal-day-board-title">
+                <span>${escapeHtml(new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(start))}</span>
+                <strong>${start.getDate()} de ${MONTHS[start.getMonth()]}</strong>
+            </header>
+        ` : '';
+        el['calendar-view'].innerHTML = `${dayTitle}
+            <div class="cal-time-grid${columns === 1 ? ' cal-time-grid--day' : ''}" style="--time-columns:${columns}">
+                ${columns === 1 ? '' : '<div class="cal-time-corner"></div>'}
                 ${heads}
                 <div class="cal-time-hours">${hourLabels}</div>
                 ${dayColumns}
@@ -484,7 +509,7 @@
         `;
     }
 
-    function renderTimedEvent(event, day) {
+    function renderTimedEvent(event, day, isDayView = false) {
         const { start, end } = eventDates(event);
         const dayStart = startOfDay(day);
         const visibleStart = new Date(dayStart);
@@ -504,10 +529,15 @@
             height = Math.max(3.5, ((clippedEnd - clippedStart) / 60000) / totalMinutes * 100);
         }
         const time = event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`;
+        const eventType = TYPE_META[event.type]?.label || 'Evento';
+        const timeLabel = isDayView ? `${time} · ${eventType}` : time;
+        const client = isDayView && event.clientName
+            ? `<small>${escapeHtml(event.clientName)}</small>`
+            : '';
         return `
             <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}"
                     style="top:${top}%;height:${height}%" title="${escapeAttr(`${time} · ${event.title}`)}">
-                ${escapeHtml(time)}<strong>${escapeHtml(event.title)}</strong>
+                ${escapeHtml(timeLabel)}<strong>${escapeHtml(event.title)}</strong>${client}
             </button>
         `;
     }
@@ -547,7 +577,7 @@
     }
 
     function renderUpcoming() {
-        const viewStart = state.view === 'week' ? mondayOfWeek(state.currentDate) : startOfDay(state.currentDate);
+        const viewStart = startOfDay(state.currentDate);
         const events = getDisplayEvents()
             .filter((event) => asDate(event.end) > viewStart)
             .slice(0, 6);
@@ -564,7 +594,7 @@
         }).join('') : '<p class="cal-upcoming-foot">Sin próximos eventos en este período.</p>';
 
         const monthEvents = state.events.filter((event) => overlaps(event, startOfMonth(state.currentDate), endOfMonth(state.currentDate)));
-        const pending = monthEvents.filter((event) => event.type === 'pending_request' || event.type === 'reservation').length;
+        const pending = monthEvents.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length;
         const blocked = new Set(monthEvents.filter((event) => event.type === 'blocked_day').map((event) => dateKey(asDate(event.start)))).size;
         const confirmed = monthEvents.filter((event) => event.type === 'confirmed_session').length;
         el['upcoming-summary'].textContent = `${pending} pendientes de confirmar · ${blocked} días bloqueados · ${confirmed} turnos confirmados en total.`;
@@ -611,6 +641,7 @@
         renderEventFields();
         renderMiniCalendar();
         updateFormSummary();
+        checkConflicts();
         window.scrollTo({ top: 0, behavior: 'instant' });
     }
 
@@ -647,8 +678,9 @@
         return `<div class="cal-field ${extraClass}"><label for="${name}">${label}${required ? ' <em>*</em>' : ''}</label>${input}</div>`;
     }
 
-    function textInput(name, value, placeholder, required = false) {
-        return `<input id="${name}" name="${name}" type="text" value="${escapeAttr(value || '')}" placeholder="${escapeAttr(placeholder)}" maxlength="180"${required ? ' required' : ''}>`;
+    function textInput(name, value, placeholder, required = false, icon = '') {
+        const input = `<input id="${name}" name="${name}" type="text" value="${escapeAttr(value || '')}" placeholder="${escapeAttr(placeholder)}" maxlength="180"${required ? ' required' : ''}>`;
+        return icon ? `<span class="cal-input-with-icon"><i data-wo-icon="${escapeAttr(icon)}" aria-hidden="true"></i>${input}</span>` : input;
     }
 
     function buildCommonDateFields(raw) {
@@ -657,8 +689,14 @@
         const dateValue = dateKey(selected);
         const timeValue = start && !state.editingEvent.allDay ? formatTime(start) : '10:00';
         return {
-            date: field('Fecha', 'event-date', `<input id="event-date" name="event-date" type="date" value="${dateValue}" required>`, true),
-            time: field('Hora de inicio', 'event-time', `<input id="event-time" name="event-time" type="time" value="${timeValue}" required>`, false),
+            date: field('Fecha', 'event-date-display', `
+                <span class="cal-input-with-icon cal-date-control">
+                    <i data-wo-icon="calendar" aria-hidden="true"></i>
+                    <button id="event-date-display" type="button" data-date-display>${escapeHtml(formatLongDate(selected))}</button>
+                    <input id="event-date" name="event-date" type="hidden" value="${dateValue}">
+                </span>
+            `, true),
+            time: field('Hora de inicio', 'event-time', timeSelect(timeValue), false),
             notes: field('Notas', 'event-notes', `<textarea id="event-notes" name="event-notes" placeholder="Detalles adicionales…">${escapeHtml(raw?.notes || '')}</textarea>`),
         };
     }
@@ -677,6 +715,28 @@
                 <span class="cal-switch"><input id="${name}" name="${name}" type="checkbox"${checked ? ' checked' : ''}><span></span></span>
             </label>
         `;
+    }
+
+    function checkboxField(name, copy, checked) {
+        return `
+            <label class="cal-checkbox-row" for="${name}">
+                <input id="${name}" name="${name}" type="checkbox"${checked ? ' checked' : ''}>
+                <span>${copy}</span>
+            </label>
+        `;
+    }
+
+    function timeSelect(value) {
+        const options = [];
+        for (let hour = 0; hour < 24; hour += 1) {
+            for (const minute of [0, 30]) {
+                const optionValue = `${pad(hour)}:${pad(minute)}`;
+                const period = hour < 12 ? 'a. m.' : 'p. m.';
+                const hour12 = hour % 12 || 12;
+                options.push(`<option value="${optionValue}"${optionValue === value ? ' selected' : ''}>${hour12}:${pad(minute)} ${period}</option>`);
+            }
+        }
+        return `<select class="cal-time-select" id="event-time" name="event-time" required>${options.join('')}</select>`;
     }
 
     function renderEventFields() {
@@ -699,7 +759,7 @@
         if (state.selectedType === 'confirmed_session' || state.selectedType === 'reservation') {
             const client = raw.client_name || state.editingEvent?.clientName || '';
             html = `
-                ${field('Cliente', 'event-client', textInput('event-client', client, 'Nombre del cliente', true), true)}
+                ${field('Cliente', 'event-client', textInput('event-client', client, 'Nombre del cliente', true, 'user'), true)}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${field('Duración', 'event-duration', durationSelect(durationHours))}
                 ${field('Ubicación', 'event-location', `
@@ -710,7 +770,7 @@
                     </select>
                 `)}
                 ${common.notes}
-                ${state.selectedType === 'reservation' ? toggleField('event-confirmed', 'Reserva confirmada', 'La reserva ya está confirmada por el cliente', raw.status === 'scheduled') : ''}
+                ${state.selectedType === 'reservation' ? checkboxField('event-confirmed', 'La reserva ya está confirmada por el cliente', raw.status === 'scheduled') : ''}
             `;
         } else if (state.selectedType === 'availability') {
             html = `
@@ -722,13 +782,13 @@
         } else if (state.selectedType === 'blocked_day') {
             html = `
                 ${field('Motivo', 'event-title', textInput('event-title', currentTitle, 'Ej: Vacaciones, mantenimiento…', true), true)}
-                <div class="cal-field-grid">${common.date}${common.time}</div>
+                <div class="cal-field-grid cal-field-grid--blocked">${common.date}<div class="cal-blocked-time"${raw.all_day !== false ? ' hidden' : ''}>${common.time}</div></div>
                 ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', raw.all_day !== false)}
                 ${common.notes}
             `;
         } else if (state.selectedType === 'guest_spot') {
             html = `
-                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', true), true)}
+                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', true, 'briefcase'), true)}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
                 ${common.notes}
@@ -737,7 +797,7 @@
             html = `
                 ${field('Nombre del evento', 'event-title', textInput('event-title', currentTitle, 'Ej: Feria Tinta Buenos Aires', true), true)}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
-                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', raw.all_day !== false)}
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
                 ${common.notes}
             `;
         } else if (state.selectedType === 'reminder') {
@@ -815,6 +875,10 @@
         }
         const time = document.getElementById('event-time');
         if (time) time.disabled = !!document.getElementById('event-all-day')?.checked;
+        const blockedTime = el['event-fields'].querySelector('.cal-blocked-time');
+        if (blockedTime) blockedTime.hidden = !!document.getElementById('event-all-day')?.checked;
+        const dateDisplay = el['event-fields'].querySelector('[data-date-display]');
+        if (dateDisplay && date) dateDisplay.textContent = formatLongDate(date);
         updateFormSummary();
         scheduleConflictCheck();
     }
@@ -822,6 +886,12 @@
     function updateFormSummary() {
         el['summary-type'].textContent = state.selectedType ? TYPE_META[state.selectedType].editorLabel : 'Sin elegir';
         el['summary-date'].textContent = state.selectedDate ? formatLongDate(state.selectedDate) : '—';
+        if (!state.selectedType) {
+            el['summary-time'].textContent = '—';
+            el['summary-duration'].textContent = '—';
+            el['summary-location'].textContent = '—';
+            return;
+        }
         try {
             const payload = readFormPayload();
             const start = asDate(payload.starts_at);
@@ -856,7 +926,6 @@
     }
 
     function localProjectedConflicts(payload) {
-        if (!BLOCKING_TYPES.has(payload.event_type)) return [];
         const start = asDate(payload.starts_at);
         const end = asDate(payload.ends_at);
         return state.events.filter((event) => {
@@ -874,12 +943,19 @@
     async function checkConflicts() {
         let payload;
         try {
-            payload = readFormPayload();
+            if (state.selectedType) payload = readFormPayload();
+            else {
+                const start = startOfDay(state.selectedDate);
+                start.setHours(10, 0, 0, 0);
+                payload = {
+                    event_type: 'confirmed_session',
+                    starts_at: start.toISOString(),
+                    ends_at: new Date(start.getTime() + 3600000).toISOString(),
+                    recurrence_rule: 'none',
+                    recurrence_until: null,
+                };
+            }
         } catch (_error) {
-            clearConflict();
-            return;
-        }
-        if (!BLOCKING_TYPES.has(payload.event_type)) {
             clearConflict();
             return;
         }
@@ -990,6 +1066,7 @@
         mondayOfWeek,
         dateKey,
         parseLocalDate,
+        formatLongDate,
         overlaps,
     };
 

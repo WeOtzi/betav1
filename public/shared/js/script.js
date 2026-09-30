@@ -514,9 +514,15 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     // Wait for ConfigManager to be ready (it loads async)
-    await waitForConfigManager();
-    await loadConfig();
-    initApp();
+    try {
+        await waitForConfigManager();
+        await loadConfig();
+        initApp();
+    } catch (error) {
+        console.error('No se pudo iniciar la cotización:', error);
+        document.getElementById('form-steps-container').innerHTML = '<div class="wo-empty"><h2>No pudimos cargar el formulario</h2><p>Recargá la página para volver a conectar.</p><button class="wo-btn" onclick="location.reload()">Reintentar</button></div>';
+        hideLoading();
+    }
 });
 
 // ============ THEME LOGIC (DS Bauhaus: solo tema claro) ============
@@ -535,8 +541,9 @@ async function waitForConfigManager(maxWait = 3000) {
         await new Promise(resolve => setTimeout(resolve, 50));
     }
     if (!window.ConfigManager) {
-        console.warn('⚠️ ConfigManager not available, using defaults');
+        throw new Error('No se pudo cargar la configuración del formulario');
     }
+    await window.ConfigManager.ready();
 }
 
 async function loadConfig() {
@@ -642,6 +649,7 @@ function initApp() {
 
 async function handleUrlArtist(username) {
     showLoading();
+    let artistLoadFailed = false;
     try {
         const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
         let artist = null;
@@ -683,16 +691,18 @@ async function handleUrlArtist(username) {
             currentStepIndex = artistIdx !== -1 ? artistIdx : findNextScreenIndex(0);
             historyStack = [];
         } else {
-            // Sin artista válido el flujo arranca igual en la pantalla 01.
-            console.warn('Artist not found for username:', username);
-            currentStepIndex = findNextScreenIndex(0);
-            historyStack = [];
+            throw new Error('El artista solicitado no está disponible');
         }
     } catch (err) {
         console.error('Error handling URL artist:', err);
-        currentStepIndex = findNextScreenIndex(0);
-        historyStack = [];
+        artistLoadFailed = true;
     } finally {
+        if (artistLoadFailed) {
+            hideLoading();
+            document.getElementById('form-steps-container').innerHTML = '<div class="wo-empty"><h2>No pudimos cargar este artista</h2><p>Volvé a intentarlo o elegí un perfil disponible.</p><button class="wo-btn" onclick="location.reload()">Reintentar</button> <a class="wo-btn" href="/marketplace">Elegir artista</a></div>';
+            _setQuotationChromeVisible(false);
+            return;
+        }
         if (currentStepIndex === -1) currentStepIndex = 0;
         hideLoading();
         renderCurrentStep();
@@ -1853,8 +1863,30 @@ function generateQuoteId() {
 
 let _autoSaveInFlight = false;
 let _autoSavePending = false;
+let _intakeQueue = Promise.resolve();
+
+function saveWebQuotation(mode) {
+    if (!formData.submission_key) formData.submission_key = crypto.randomUUID();
+    saveDraftToLocalStorage();
+    const body = { submission_key: formData.submission_key, mode, quotation: preparePayload(), extras: prepareIntakeExtrasPayload() };
+    const request = _intakeQueue.catch(() => {}).then(async () => {
+        const client = window.ConfigManager.getSupabaseClient();
+        const { data } = await client.auth.getSession();
+        const headers = { 'Content-Type': 'application/json' };
+        if (data?.session?.access_token) headers.Authorization = 'Bearer ' + data.session.access_token;
+        const response = await fetch((window.WEOTZI_BASE_PATH || '') + '/api/quotations/intake', {method:'POST',headers,body:JSON.stringify(body)});
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo guardar la cotización');
+        formData.quote_id = result.quote_id;
+        saveDraftToLocalStorage();
+        return result;
+    });
+    _intakeQueue = request;
+    return request;
+}
 
 async function autoSaveQuotation() {
+    if (_isSubmittingQuotation) return;
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (!supabaseClient || window.ConfigManager.isDemoMode()) return;
 
@@ -1865,12 +1897,7 @@ async function autoSaveQuotation() {
 
     _autoSaveInFlight = true;
     try {
-        const payload = preparePayload();
-
-        await WeotziData.Quotations.upsert(payload);
-        // Satélite del rediseño (quotation_intake_extras): después del padre,
-        // para que el UPDATE del upsert pase la RLS del borrador in_progress.
-        await upsertIntakeExtras();
+        await saveWebQuotation('draft');
     } catch (error) {
         console.error('Auto-save error:', error);
     } finally {
@@ -2217,21 +2244,7 @@ async function fetchAllArtists() {
         if (error) throw error;
         return data;
     } else {
-        // Fallback to demo artists or JSON
-        return window.ConfigManager.getDemoArtists().map(a => ({
-            user_id: a.userId,
-            name: a.name,
-            username: a.username,
-            email: a.email,
-            instagram: a.instagram,
-            styles_array: JSON.stringify(a.styles),
-            ubicacion: a.location,
-            estudios: a.studio,
-            session_price: a.sessionPrice,
-            city: a.location.split(',')[0].trim(),
-            profile_picture: null,
-            portafolio: '#'
-        }));
+        throw new Error('No se pudo conectar con los artistas registrados');
     }
 }
 
@@ -2597,6 +2610,7 @@ function renderStylesGrid(styles) {
             <div class="style-card-wrap">
                 <button type="button" class="style-card ${selected ? 'selected' : ''}"
                     data-style-id="${escapeQuotationHtml(style.id)}"
+                    aria-label="${escapeQuotationHtml(style.name)}"
                     aria-pressed="${selected}"
                     onclick="toggleStyleSelection('${escapeQuotationHtml(String(style.id)).replace(/'/g, "\\'")}')">
                     <span class="style-card-cover">${cover}</span>
@@ -3290,6 +3304,12 @@ async function submitQuotation() {
     let uploadWarnings = [];
 
     try {
+        await waitForConfigManager();
+        if (!window.ConfigManager.getSupabaseClient() || window.ConfigManager.isDemoMode()) {
+            throw new Error('No hay conexión para guardar la cotización');
+        }
+        // Ensure the parent exists before reference attachments are saved.
+        await saveWebQuotation('draft');
         // Finalize status
         formData.quote_status = 'pending';
 
@@ -3332,26 +3352,7 @@ async function submitQuotation() {
         const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
 
         if (supabaseClient && !window.ConfigManager.isDemoMode()) {
-            // Extras del intake ANTES del upsert final: mientras la fila padre
-            // sigue in_progress en la DB, la RLS del satélite permite el
-            // update del borrador anónimo.
-            await upsertIntakeExtras();
-
-            const payload = preparePayload();
-            // Add created_at for the final submission if it doesn't exist (though upsert handles it)
-            payload.created_at = new Date().toISOString();
-
-            // Add reference images URL if available
-            if (formData.tattoo_references) {
-                payload.tattoo_references = formData.tattoo_references;
-            }
-
-            await WeotziData.Quotations.upsert(payload);
-        }
-
-        // 3. Email is now handled by n8n webhook (triggered in step 4.5 below)
-        if (!supabaseClient) {
-            await new Promise(r => setTimeout(r, 1500));
+            await saveWebQuotation('submit');
         }
 
         // 3. Fetch Next Steps content from app_settings
@@ -3525,6 +3526,7 @@ async function submitQuotation() {
         _dbg('Quotation submitted:', formData.quote_id);
 
     } catch (error) {
+        formData.quote_status = 'in_progress';
         _isSubmittingQuotation = false;
         if (submitBtn) submitBtn.disabled = false;
         hideLoading();

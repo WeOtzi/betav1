@@ -1,0 +1,52 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const http = require('node:http');
+const { startLocalPreview } = require('../scripts/release/local-preview.cjs');
+const { healthSocket } = require('../scripts/release/deploy.cjs');
+
+test('local safe development serves current public edits with no .env/backend and preserves JS regex bytes', async t => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'weotzi-local-test-'));
+  t.after(() => fs.rmSync(workspaceRoot, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(workspaceRoot, 'public/inicio'), { recursive: true });
+  fs.mkdirSync(path.join(workspaceRoot, 'public/shared/js'), { recursive: true });
+  fs.writeFileSync(path.join(workspaceRoot, 'package.json'), '{"version":"3.0.0"}');
+  fs.writeFileSync(path.join(workspaceRoot, '.env'), 'SUPABASE_SERVICE_ROLE_KEY=must-never-be-used');
+  fs.writeFileSync(path.join(workspaceRoot, 'server.js'), 'throw new Error("Backend must never run")');
+  fs.writeFileSync(path.join(workspaceRoot, 'public/inicio/index.html'), '<html><head><script src="/shared/js/wo-demo.js"></script></head><body>First edit</body></html>');
+  fs.writeFileSync(path.join(workspaceRoot, 'public/shared/js/app-config.json'), '{"supabase":{"url":"production","anonKey":"real"}}');
+  const js = "const regex = /\\/(artists|clients)\\//g; const next='/artist/dashboard';";
+  fs.writeFileSync(path.join(workspaceRoot, 'public/shared/js/example.js'), js);
+  const bootstrap = path.join(workspaceRoot, 'bootstrap.js'); fs.writeFileSync(bootstrap, 'window.fakeAdapter=true;');
+  const preview = startLocalPreview({ workspaceRoot, port: 0, bootstrap, quiet: true });
+  await new Promise(resolve => preview.server.once('listening', resolve));
+  t.after(() => preview.close());
+  const origin = 'http://127.0.0.1:' + preview.server.address().port, prefix = '/preview/' + preview.target;
+  const first = await (await fetch(origin + prefix + '/inicio/')).text();
+  assert.ok(first.includes('First edit'));
+  assert.ok(first.includes('<base href="' + prefix + '/inicio/">'));
+  assert.equal(first.includes('src="' + prefix + '/shared/js/wo-demo.js"'), false);
+  assert.equal(await (await fetch(origin + prefix + '/shared/js/example.js')).text(), js);
+  const safeConfig = await (await fetch(origin + prefix + '/shared/js/app-config.json')).json();
+  assert.equal(safeConfig.supabase.url, 'https://preview.weotzi.invalid');
+  assert.equal(JSON.stringify(safeConfig).includes('must-never-be-used'), false);
+  assert.equal((await fetch(origin + prefix + '/.env')).status, 404);
+  assert.equal((await fetch(origin + prefix + '/api/email/events', { method: 'POST' })).status, 403);
+  fs.writeFileSync(path.join(workspaceRoot, 'public/inicio/index.html'), '<html><head></head><body>Second edit</body></html>');
+  assert.ok((await (await fetch(origin + prefix + '/inicio/')).text()).includes('Second edit'));
+  const navigation = await fetch(origin + '/artist/dashboard', { headers: { Referer: origin + prefix + '/inicio/' }, redirect: 'manual' });
+  assert.equal(navigation.status, 302);
+  assert.equal(navigation.headers.get('location'), prefix + '/artist/dashboard');
+});
+
+test('private Unix/pipe health proves commit identity without a TCP listener', async t => {
+  const socket = process.platform === 'win32' ? '\\\\.\\pipe\\weotzi-test-' + process.pid + '-' + Date.now() : path.join(os.tmpdir(), 'weotzi-health-' + process.pid + '-' + Date.now() + '.sock');
+  const server = http.createServer((_, response) => { response.writeHead(200, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ ok: true, commit: 'a'.repeat(40) })); });
+  await new Promise(resolve => server.listen(socket, resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  assert.equal((await healthSocket(socket, '/api/release', 'a'.repeat(40), 1)).ok, true);
+  await assert.rejects(healthSocket(socket, '/api/release', 'b'.repeat(40), 1), /health check failed/);
+});

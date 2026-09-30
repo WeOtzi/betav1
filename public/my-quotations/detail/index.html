@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>WE ÖTZI | Detalle de cotización</title>
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
@@ -49,9 +51,12 @@
         </div>
     </main>
 
+    <weotzi-product-footer></weotzi-product-footer>
+
     <div class="qd-toast" id="qd-toast" role="status" hidden></div>
 
     <script src="/shared/js/admin-mobile-menu.js"></script>
+    <script src="/shared/js/wo-artist-menu.js" defer></script>
     <script src="/shared/js/quotation-detail-figma.js"></script>
 </body>
 </html>

@@ -16,12 +16,7 @@
     async function init() {
         const auth = window.WeOtziStudioAuth;
         if (!auth || !D.Travel) return;
-        for (let attempt = 0; attempt < 24; attempt += 1) {
-            studio = auth.getCurrent();
-            if (studio) break;
-            await wait(150);
-        }
-        if (!studio && typeof auth.check === 'function') studio = await auth.check();
+        studio = auth.getCurrent() || await auth.check();
         if (!studio) return;
 
         document.querySelector('[data-tab="travel"]')?.addEventListener('click', load);
@@ -35,7 +30,9 @@
         loading = true;
         const host = document.getElementById('studio-travel-links');
         try {
-            const links = await D.Travel.listPendingStudioLinks(studio.id);
+            const result = await D.StudioOps.listTravelLinks(studio.id);
+            if (result.error) throw result.error;
+            const links = result.data || [];
             const artists = await loadArtists(links);
             render(links, artists);
         } catch (error) {
@@ -61,25 +58,27 @@
         const host = document.getElementById('studio-travel-links');
         if (!host) return;
         if (!links.length) {
-            host.innerHTML = '<div class="studio-card"><p class="studio-section-kicker">Al día</p><h2 class="studio-h2">No hay solicitudes pendientes</h2><p class="studio-help">Cuando un artista quiera vincular un viaje con este estudio, aparecerá acá.</p></div>';
+            host.innerHTML = '<div class="studio-card"><p class="studio-section-kicker">Travel</p><h2 class="studio-h2">Todavía no hay solicitudes</h2><p class="studio-help">Cuando un artista quiera vincular un viaje con este estudio, aparecerá acá. También vas a ver el historial de solicitudes resueltas.</p></div>';
             return;
         }
         host.innerHTML = '<div style="display:grid;gap:14px;">' + links.map(function (link) {
             const trip = link.artist_trips || {};
             const artist = artists.get(trip.artist_user_id) || {};
             const artistName = artist.name || (artist.username ? '@' + artist.username : 'Artista');
+            const pending = link.status === 'esperando_confirmacion' && trip.status !== 'cancelado';
+            const label = trip.status === 'cancelado' ? 'Viaje cancelado' : ({ esperando_confirmacion: 'Pendiente', confirmado: 'Confirmado', rechazado: 'Rechazado', cancelado: 'Cancelado' })[link.status] || link.status;
             return '<article class="studio-card" data-travel-request="' + esc(link.id) + '">' +
                 '<div style="display:flex;gap:14px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;">' +
                     '<div style="min-width:0;">' +
-                        '<p class="studio-section-kicker">Solicitud Travel</p>' +
+                        '<p class="studio-section-kicker">Travel · ' + esc(label) + '</p>' +
                         '<h2 class="studio-h2" style="margin-bottom:8px;">' + esc(artistName) + '</h2>' +
                         '<p class="studio-help" style="margin:0 0 4px;"><strong>' + esc([trip.city, trip.country].filter(Boolean).join(', ')) + '</strong></p>' +
                         '<p class="studio-help" style="margin:0;">' + esc(formatRange(trip.start_date, trip.end_date)) + ' · ' + esc(typeLabel(trip.trip_type)) + '</p>' +
                     '</div>' +
-                    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                    (pending ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
                         '<button type="button" class="studio-btn" data-travel-action="reject">Rechazar</button>' +
                         '<button type="button" class="studio-btn studio-btn-primary" data-travel-action="confirm">Confirmar vínculo</button>' +
-                    '</div>' +
+                    '</div>' : '') +
                 '</div>' +
             '</article>';
         }).join('') + '</div>';
@@ -125,8 +124,6 @@
         node.hidden = false;
         window.setTimeout(function () { node.hidden = true; }, 5000);
     }
-
-    function wait(ms) { return new Promise(function (resolve) { window.setTimeout(resolve, ms); }); }
 
     function typeLabel(value) {
         return ({ guest_spot: 'Guest spot', convencion: 'Convención', estudio_invitado: 'Estudio invitado' })[value] || value || 'Viaje';

@@ -24,21 +24,34 @@
  */
 
 const EVENTS = {
+    studio_roster_invite: {
+        name: 'Estudio: invitación al equipo',
+        templateHint: 'studio-notification',
+        recipient: p => p.artist_email || p.to,
+        attribs: p => ({ ...p })
+    },
+    studio_spot_decision: {
+        name: 'Estudio: respuesta a postulación',
+        templateHint: 'studio-notification',
+        recipient: p => p.artist_email || p.to,
+        attribs: p => ({ ...p })
+    },
     // ===== Registration =====
     artist_registration_completed: {
         name: 'Artista: registro completado',
         templateHint: 'artist-welcome',
-        description: 'Bienvenida + credenciales al artista cuando completa su perfil.',
+        description: 'Bienvenida y acceso al panel del artista cuando completa su perfil.',
         recipient: p => p.email,
         attribs: p => ({
             email: p.email,
             username: p.username,
-            password: p.password,
             name: p.name,
             artistic_name: p.artistic_name,
+            styles_text: p.styles_text || (Array.isArray(p.styles_array) ? p.styles_array.join(', ') : p.estilo || ''),
+            work_type: p.work_type,
             city: p.city,
             country: p.country,
-            studio: p.studio,
+            studio: p.studio || p.estudios,
             session_price: p.session_price,
             years_experience: p.years_experience,
             bio: p.bio,
@@ -50,11 +63,10 @@ const EVENTS = {
     client_registration_completed: {
         name: 'Cliente: registro completado',
         templateHint: 'client-welcome',
-        description: 'Bienvenida + credenciales al cliente.',
+        description: 'Bienvenida y acceso al panel del cliente.',
         recipient: p => p.email,
         attribs: p => ({
             email: p.email,
-            password: p.password,
             full_name: p.full_name,
             whatsapp: p.whatsapp || 'No proporcionado',
             birth_date: p.birth_date || 'No proporcionado',
@@ -89,6 +101,7 @@ const EVENTS = {
         description: 'Confirmación al cliente de que su cotización fue enviada al artista.',
         recipient: p => p.client_email,
         attribs: p => ({
+            ...p,
             client_name: p.client_name,
             client_email: p.client_email,
             client_whatsapp: p.client_whatsapp,
@@ -268,7 +281,9 @@ function resolveRecipients(eventId, payload) {
     } else {
         list = [];
     }
-    return list.filter(x => typeof x === 'string' && x.includes('@'));
+    return [...new Set(list.filter(x => typeof x === 'string')
+        .map(x => x.trim().toLowerCase())
+        .filter(x => x.length <= 254 && /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(x)))];
 }
 
 /**

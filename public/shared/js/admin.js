@@ -3762,37 +3762,16 @@ function saveSupabaseAPI() {
 }
 
 async function testN8NAPI() {
-    const webhookUrl = document.getElementById('api-n8n-webhook').value.trim();
-    
-    if (!webhookUrl) {
-        showToast('Por favor ingresa la URL del webhook', 'error');
+    if (!window.EmailClient) {
+        showToast('El servicio de correo no está cargado. Recargá la página.', 'error');
         return;
     }
-    
-    showToast('Enviando test webhook...', 'info');
-    
-    try {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                test: true,
-                source: 'weotzi-admin',
-                timestamp: new Date().toISOString()
-            })
-        });
-        
-        if (response.ok) {
-            updateAPIStatus('n8n', 'connected');
-            showToast('Webhook respondió correctamente', 'success');
-        } else {
-            updateAPIStatus('n8n', 'error');
-            showToast(`Error: HTTP ${response.status}`, 'error');
-        }
-    } catch (err) {
-        updateAPIStatus('n8n', 'error');
-        showToast('Error: ' + err.message, 'error');
-    }
+    const recipient = window.prompt('Enviar un correo de prueba. Email del destinatario:', '');
+    if (!recipient) return;
+    showToast('Enviando correo de prueba...', 'info');
+    const result = await window.EmailClient.sendTest('artist_registration_completed', recipient.trim(), 'n8n');
+    updateAPIStatus('n8n', result?.success ? 'connected' : 'error');
+    showToast(result?.success ? 'El servidor SMTP aceptó el correo. Revisá la bandeja del destinatario.' : (result?.error || 'No se pudo confirmar el correo.'), result?.success ? 'success' : 'error');
 }
 
 function saveN8NAPI() {

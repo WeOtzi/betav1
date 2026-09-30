@@ -50,11 +50,35 @@
                     </button>
                 </form>
 
-                <div id="login-status" class="studio-status studio-status-info" hidden></div>
+                <form id="studio-recovery-form" class="studio-form" hidden>
+                    <p class="studio-help">Elegí una contraseña nueva para recuperar el acceso a tu estudio.</p>
+                    <div id="studio-recovery-code-fields" hidden>
+                        <div class="studio-field">
+                            <label class="studio-label" for="recovery-email">Email de la cuenta</label>
+                            <input type="email" id="recovery-email" class="studio-input" autocomplete="email">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="recovery-code">Código recibido por correo</label>
+                            <input id="recovery-code" class="studio-input" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
+                        </div>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="recovery-password">Nueva contraseña</label>
+                        <input type="password" id="recovery-password" class="studio-input" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="recovery-confirm">Repetí la nueva contraseña</label>
+                        <input type="password" id="recovery-confirm" class="studio-input" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" id="recovery-submit" class="studio-btn studio-btn-primary">Guardar contraseña</button>
+                </form>
+
+                <div id="login-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden></div>
 
                 <p class="studio-help" style="margin-top:18px;">
                     ¿Aún no tenés cuenta? <a href="/studio/register" style="color:var(--primary-red);font-weight:700;">Registrar tu estudio</a>.<br>
                     ¿Olvidaste tu contraseña? <a href="#" id="forgot-password-link" style="color:var(--primary-red);font-weight:700;">Recuperar acceso</a>.
+                    <a href="#" id="have-recovery-code" style="color:var(--primary-red);font-weight:700;">Ya tengo un código</a>.
                 </p>
             </section>
         </main>
@@ -82,8 +106,59 @@
                 statusEl.hidden = false;
             }
 
+            const recoveryForm = document.getElementById('studio-recovery-form');
+            const recoveryCodeFields = document.getElementById('studio-recovery-code-fields');
+            function showCodeRecovery(email) {
+                form.hidden = true;
+                recoveryForm.hidden = false;
+                recoveryCodeFields.hidden = false;
+                document.getElementById('recovery-email').value = email || '';
+                document.getElementById('recovery-email').required = true;
+                document.getElementById('recovery-code').required = true;
+                document.querySelector('.studio-h2').textContent = 'Recuperar acceso';
+                document.getElementById('recovery-code').focus();
+            }
+            document.getElementById('have-recovery-code').addEventListener('click', event => {
+                event.preventDefault();
+                showCodeRecovery(document.getElementById('login-email').value.trim());
+            });
+            if (window.WeOtziStudioAuth.isRecovery()) {
+                form.hidden = true;
+                recoveryForm.hidden = false;
+                document.querySelector('.studio-section-kicker').textContent = 'Recuperar acceso';
+                document.querySelector('.studio-h2').textContent = 'Nueva contraseña';
+            }
+            recoveryForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const password = document.getElementById('recovery-password').value;
+                if (password !== document.getElementById('recovery-confirm').value) {
+                    showStatus('error', 'Las contraseñas no coinciden.');
+                    return;
+                }
+                const button = document.getElementById('recovery-submit');
+                button.disabled = true;
+                try {
+                    if (!recoveryCodeFields.hidden) {
+                        await window.WeOtziStudioAuth.verifyRecoveryCode(
+                            document.getElementById('recovery-email').value,
+                            document.getElementById('recovery-code').value
+                        );
+                        recoveryCodeFields.hidden = true;
+                        document.getElementById('recovery-email').required = false;
+                        document.getElementById('recovery-code').required = false;
+                    }
+                    await window.WeOtziStudioAuth.changePassword(password);
+                    recoveryForm.reset();
+                    showStatus('success', 'Contraseña actualizada. Entrando al panel…');
+                    window.location.replace(window.WeOtziStudioAuth.appUrl('/studio/dashboard'));
+                } catch (err) {
+                    showStatus('error', err.message || 'No pudimos actualizar la contraseña.');
+                } finally { button.disabled = false; }
+            });
+
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                if (!form.reportValidity()) return;
                 statusEl.hidden = true;
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Accediendo…';
@@ -94,7 +169,7 @@
                 try {
                     await window.WeOtziStudioAuth.login(email, password);
                     showStatus('success', 'Acceso correcto. Redirigiendo…');
-                    setTimeout(() => { window.location.href = '/studio/dashboard'; }, 400);
+                    setTimeout(() => { window.location.href = window.WeOtziStudioAuth.appUrl('/studio/dashboard'); }, 400);
                 } catch (err) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder';
@@ -104,14 +179,15 @@
 
             document.getElementById('forgot-password-link').addEventListener('click', async (e) => {
                 e.preventDefault();
-                const email = document.getElementById('login-email').value.trim();
+                const email = (recoveryForm.hidden ? document.getElementById('login-email') : document.getElementById('recovery-email')).value.trim();
                 if (!email) {
                     showStatus('error', 'Escribí tu email primero, así te mandamos el link de recuperación.');
                     return;
                 }
                 try {
                     await window.WeOtziStudioAuth.requestPasswordReset(email);
-                    showStatus('success', 'Te mandamos un email con el link para recuperar el acceso.');
+                    showCodeRecovery(email);
+                    showStatus('success', 'Revisá tu correo. Ingresá el código recibido o abrí el enlace para elegir una contraseña nueva.');
                 } catch (err) {
                     showStatus('error', err?.message || 'No pudimos enviar el email.');
                 }

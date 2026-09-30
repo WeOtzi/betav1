@@ -1,0 +1,14 @@
+{
+  "stateRoot": "/home/u795331143/weotzi-deploy",
+  "repository": "https://github.com/WeOtzi/betav1.git",
+  "node": "/opt/alt/alt-nodejs22/root/bin/node",
+  "pm2": "/home/u795331143/node_modules/pm2/bin/pm2",
+  "pm2Home": "/home/u795331143/weotzi-deploy/pm2",
+  "mainPort": 4545,
+  "previewPort": 4670,
+  "mainSocket": "/home/u795331143/weotzi-deploy/sockets/main.sock",
+  "previewSocket": "/home/u795331143/weotzi-deploy/sockets/previews.sock",
+  "mainProcess": "weotzi-beta",
+  "mainPublicUrl": "https://beta.weotzi.com",
+  "previewPublicUrl": "https://preview.weotzi.com"
+}

@@ -66,8 +66,9 @@ async function checkDashboardAuth() {
             const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
 
             if (artist) {
-                // User is an artist, redirect to artist dashboard
-                window.location.href = '/artist/dashboard';
+                const response = await fetch('/api/account/mode',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({mode:'client'})});
+                if (!response.ok) throw new Error('No pudimos activar el modo cliente.');
+                window.location.reload();
                 return;
             }
             
@@ -242,6 +243,17 @@ function renderQuotations() {
     listContainer.innerHTML = filtered.map(q => renderQuotationCard(q)).join('');
 }
 
+function formatClientQuotationStyle(value, includeSubstyle = false) {
+    const styles = Array.isArray(value) ? value : [value];
+    return styles.map(style => {
+        if (typeof style === 'string') return style.trim();
+        if (!style || typeof style !== 'object' || Array.isArray(style)) return '';
+        const name = typeof style.style_name === 'string' ? style.style_name.trim() : '';
+        const substyle = typeof style.substyle_name === 'string' ? style.substyle_name.trim() : '';
+        return includeSubstyle ? [name, substyle].filter(Boolean).join(' - ') : name;
+    }).filter(Boolean).join(', ');
+}
+
 function renderQuotationCard(quotation) {
     const statusLabels = {
         'pending': 'Pendiente',
@@ -254,9 +266,7 @@ function renderQuotationCard(quotation) {
     };
 
     const artistInitials = getInitials(quotation.artist_name || 'AR');
-    const styleInfo = typeof quotation.tattoo_style === 'object'
-        ? quotation.tattoo_style?.style_name
-        : quotation.tattoo_style;
+    const styleInfo = escapeFeedHtml(formatClientQuotationStyle(quotation.tattoo_style));
 
     return `
         <div class="quotation-card" data-quote-id="${quotation.quote_id}">
@@ -650,9 +660,7 @@ async function viewQuotationDetail(quoteId) {
     const detailContent = document.getElementById('quotation-detail-content');
     
     // Render detail content
-    const styleInfo = typeof quotation.tattoo_style === 'object' 
-        ? `${quotation.tattoo_style?.style_name}${quotation.tattoo_style?.substyle_name ? ' - ' + quotation.tattoo_style.substyle_name : ''}`
-        : quotation.tattoo_style;
+    const styleInfo = escapeFeedHtml(formatClientQuotationStyle(quotation.tattoo_style, true));
     
     detailContent.innerHTML = `
         <div class="detail-section">
@@ -952,16 +960,8 @@ async function sendChatMessage() {
         // Clear input
         input.value = '';
         
-        try {
-            const currentQuote = currentQuotations.find(q => q.quote_id === currentQuotationId);
-            window.ConfigManager.sendN8NEvent('chat_message_to_artist', {
-                quote_id: currentQuotationId,
-                artist_name: currentQuote ? (currentQuote.artist_name || '') : '',
-                artist_email: currentQuote ? (currentQuote.artist_email || '') : '',
-                client_name: currentClient ? (currentClient.full_name || '') : '',
-                message_preview: message.substring(0, 100)
-            });
-        } catch (e) { /* n8n notification failure should not break main flow */ }
+        // Chat.sendMessage dispatches the persisted message notification.
+
         
         // The realtime subscription will handle adding the message to the UI
         
@@ -1490,7 +1490,7 @@ function renderJobBoardRequests() {
         const pendingApps = (req.job_board_applications || []).filter(a => a.status === 'pending' || a.status === 'viewed').length;
         const totalApps = (req.job_board_applications || []).length;
         const thumbnail = req.job_board_attachments?.[0]?.file_url;
-        const styles = req.tattoo_style ? (Array.isArray(req.tattoo_style) ? req.tattoo_style.join(', ') : String(req.tattoo_style)) : '';
+        const styles = escapeFeedHtml(formatClientQuotationStyle(req.tattoo_style));
 
         return `
         <div class="quotation-card" data-request-id="${req.id}" onclick="viewJBRequestDetail('${req.id}')">

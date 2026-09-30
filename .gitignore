@@ -1,5 +1,7 @@
 node_modules/
 .env
+.env.*
+!.env.example
 .server-credentials
 .DS_Store
 Thumbs.db
@@ -34,4 +36,9 @@ test-results/
 .playwright-cli/
 .playwright-mcp/
 logs/
+output/playwright/
+output/marketing/
+*.clixml
+*.dpapi
+deploy_package.zip
 supabase/.temp/

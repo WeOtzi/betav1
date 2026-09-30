@@ -8,12 +8,6 @@
 (function () {
     'use strict';
 
-    const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
-    const supabaseKey = window.CONFIG?.supabase?.anonKey
-        || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-    if (!window._supabase) window._supabase = supabase.createClient(supabaseUrl, supabaseKey);
-    const _supabase = window._supabase;
-
     document.addEventListener('DOMContentLoaded', async () => {
         const params = new URLSearchParams(window.location.search);
         const studioRef = params.get('studio') || params.get('id') || params.get('slug');
@@ -22,6 +16,7 @@
             return;
         }
         try {
+            await window.ConfigManager?.ready?.();
             await renderStudioProfile(studioRef);
         } catch (err) {
             console.error('[studio-profile] failed:', err);
@@ -42,7 +37,7 @@
                    : WeotziData.Studios.getBySlug(ref)
         );
         if (error) throw error;
-        if (!studio) {
+        if (!studio || studio.is_active === false) {
             renderError('Estudio no encontrado.');
             return;
         }
@@ -53,23 +48,23 @@
             escapeHtml(studio.name || 'Estudio');
         document.getElementById('profile-h1').textContent = studio.name || 'Estudio';
         document.getElementById('profile-tagline').textContent =
-            studio.tagline || (studio.bio ? '' : 'Bauhaus · Ötzi');
+            studio.tagline || (studio.bio ? '' : 'Estudio de tatuajes');
         document.getElementById('profile-bio').textContent =
             studio.bio || 'Este estudio aún no escribió una descripción.';
 
         const cover = document.getElementById('profile-cover');
-        if (studio.cover_image) cover.style.backgroundImage = "url('" + cssEscape(studio.cover_image) + "')";
+        if (safeUrl(studio.cover_image)) cover.style.backgroundImage = "url(" + JSON.stringify(safeUrl(studio.cover_image)) + ")";
 
         // Action chips on the cover
         const actions = document.getElementById('profile-cover-actions');
         actions.innerHTML = [
             studio.instagram ? `<a class="studio-btn" target="_blank" href="${escapeAttr(igUrl(studio.instagram))}"><i class="fa-brands fa-instagram"></i></a>` : '',
-            studio.website   ? `<a class="studio-btn" target="_blank" href="${escapeAttr(studio.website)}"><i class="fa-solid fa-globe"></i> Sitio</a>` : '',
+            safeUrl(studio.website) ? `<a class="studio-btn" target="_blank" rel="noopener noreferrer" href="${escapeAttr(safeUrl(studio.website))}"><i class="fa-solid fa-globe"></i> Sitio</a>` : '',
             studio.whatsapp  ? `<a class="studio-btn" target="_blank" href="${escapeAttr(waUrl(studio.whatsapp))}"><i class="fa-brands fa-whatsapp"></i></a>` : ''
         ].filter(Boolean).join('');
 
         // Photos
-        const photos = (studio.photo_feed_items || []).filter(p => p && p.url);
+        const photos = (Array.isArray(studio.photo_feed_items) ? studio.photo_feed_items : []).filter(p => safeUrl(p?.url));
         const photosEl = document.getElementById('profile-photos');
         if (photos.length === 0) {
             photosEl.innerHTML = '<p class="studio-help">Sin fotos cargadas todavía.</p>';
@@ -80,13 +75,16 @@
         }
 
         // Locations + map
-        const { data: locations } = await WeotziData.StudioLocations.listActiveByStudio(studio.id);
+        const { data: locations, error: locationError } = await WeotziData.StudioLocations.listActiveByStudio(studio.id);
+        if (locationError) throw locationError;
 
         renderMeta(studio, locations || []);
+        renderLocations(locations || []);
         await renderMap(locations || []);
 
         // Roster + aggregated styles via memberships → artists.
-        const { data: memberships } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
+        const { data: memberships, error: rosterError } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
+        if (rosterError) throw rosterError;
 
         renderRoster(memberships || []);
         renderAggregatedStyles(memberships || []);
@@ -198,8 +196,8 @@
                     ${artists.length ? `<small>${artists.slice(0, 3).map(escapeHtml).join(' · ')}</small>` : ''}
                 </div>
             `;
-            return sp.website
-                ? `<a class="studio-sponsor-card" href="${escapeAttr(sp.website)}" target="_blank" rel="noopener">${body}</a>`
+            return safeUrl(sp.website)
+                ? `<a class="studio-sponsor-card" href="${escapeAttr(safeUrl(sp.website))}" target="_blank" rel="noopener">${body}</a>`
                 : `<div class="studio-sponsor-card">${body}</div>`;
         }).join('');
     }
@@ -215,7 +213,8 @@
             return;
         }
 
-        const pinned = locations.filter(l => Number.isFinite(Number(l.latitude)) && Number.isFinite(Number(l.longitude)));
+        const pinned = locations.filter(l => l.latitude != null && l.longitude != null
+            && Number.isFinite(Number(l.latitude)) && Number.isFinite(Number(l.longitude)));
         if (pinned.length === 0) {
             mapEl.innerHTML = '<div style="padding:24px;font-family:var(--studio-mono);font-size:.8rem;text-align:center;">Sin sedes geolocalizadas.</div>';
             return;
@@ -296,7 +295,32 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
     function escapeAttr(v) { return escapeHtml(v); }
-    function cssEscape(v)  { return String(v).replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+    function safeUrl(value) {
+        try {
+            const url = new URL(String(value || ''));
+            return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+        } catch { return ''; }
+    }
+    function cssEscape(value) {
+        return escapeAttr(safeUrl(value).replace(/'/g, '%27').replace(/"/g, '%22').replace(/\\/g, '%5C'));
+    }
+    function renderLocations(locations) {
+        const mount = document.getElementById('profile-locations');
+        if (!mount) return;
+        mount.innerHTML = locations.map(location => {
+            const address = location.formatted_address || '';
+            const query = [address, ...[location.city, location.country].filter(value => value
+                && !address.toLocaleLowerCase().includes(value.toLocaleLowerCase()))].filter(Boolean).join(', ');
+            const mapUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query);
+            return `<article class="studio-location-row">
+                <strong>${escapeHtml(location.label || 'Sede')}${location.is_primary && !/principal/i.test(location.label || '') ? ' · Principal' : ''}</strong>
+                <p class="studio-help">${escapeHtml(query)}</p>
+                ${location.phone ? `<p class="studio-help">Teléfono: ${escapeHtml(location.phone)}</p>` : ''}
+                ${location.hours_json?.description ? `<p class="studio-help">${escapeHtml(location.hours_json.description)}</p>` : ''}
+                <a href="${escapeAttr(mapUrl)}" target="_blank" rel="noopener noreferrer" class="studio-help">Cómo llegar</a>
+            </article>`;
+        }).join('') || '<p class="studio-help">Todavía no hay sedes publicadas.</p>';
+    }
     function igUrl(handle) {
         const h = String(handle || '').trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '');
         return 'https://instagram.com/' + h;

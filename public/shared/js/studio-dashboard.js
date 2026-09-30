@@ -1,7 +1,6 @@
 // ============================================
 // Studio Dashboard
-// Tabs: Perfil (edit studio row), Sedes (CRUD studio_locations), Roster
-// (read-only list of active memberships), Spots/Ops/Analytics (stubs).
+// Perfil, sedes, roster, spots y cuenta. Operaciones lives in the companion module.
 // ============================================
 
 (function () {
@@ -15,16 +14,9 @@
         const auth = window.WeOtziStudioAuth;
         if (!auth) return; // studio-auth.js handles redirect-on-no-session
 
+        await auth.ready();
         supabase = auth.getSupabase();
-        // The auth check fires on DOMContentLoaded too — wait for it to settle.
-        for (let i = 0; i < 20; i++) {
-            studio = auth.getCurrent();
-            if (studio) break;
-            await wait(150);
-        }
-        if (!studio && typeof auth.check === 'function') {
-            studio = await auth.check();
-        }
+        studio = auth.getCurrent() || await auth.check();
         if (!studio) {
             // The auth.check() may already be redirecting; just bail.
             return;
@@ -33,18 +25,18 @@
         document.getElementById('studio-name-display').innerHTML =
             'Panel · <span class="accent">' + escapeHtml(studio.name || 'Mi estudio') + '</span>';
         document.getElementById('view-public-profile').href =
-            '/studio/profile/?studio=' + encodeURIComponent(studio.slug || studio.id);
+            auth.appUrl('/studio/profile/?studio=') + encodeURIComponent(studio.slug || studio.id);
 
         document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
 
         wireTabs();
+        wireAccount();
         await loadProfile();
         await loadSedes();
         await loadRoster();
         await loadSpotsPanel();
     });
 
-    function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
     function escapeHtml(v) {
         return String(v == null ? '' : v)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -52,15 +44,43 @@
     }
 
     function wireTabs() {
-        document.querySelectorAll('.studio-dash-tab').forEach(tab => {
-            tab.addEventListener('click', e => {
-                e.preventDefault();
-                const want = tab.dataset.tab;
-                document.querySelectorAll('.studio-dash-tab').forEach(t =>
-                    t.classList.toggle('is-active', t === tab));
-                document.querySelectorAll('.studio-dash-panel').forEach(p =>
-                    p.classList.toggle('is-active', p.dataset.panel === want));
+        function activate(want) {
+            const found = document.querySelector('.studio-dash-tab[data-tab="' + want + '"]');
+            if (!found) return;
+            document.querySelectorAll('.studio-dash-tab').forEach(tab => {
+                tab.classList.toggle('is-active', tab === found);
+                tab.setAttribute('aria-current', tab === found ? 'page' : 'false');
             });
+            document.querySelectorAll('.studio-dash-panel').forEach(panel =>
+                panel.classList.toggle('is-active', panel.dataset.panel === want));
+        }
+        document.querySelectorAll('.studio-dash-tab').forEach(tab => {
+            tab.href = '#' + tab.dataset.tab;
+            tab.addEventListener('click', () => activate(tab.dataset.tab));
+        });
+        window.addEventListener('hashchange', () => activate(window.location.hash.slice(1)));
+        const hash = window.location.hash.slice(1);
+        if (/^[a-z]+$/.test(hash)) activate(hash);
+    }
+
+    function wireAccount() {
+        document.getElementById('account-email').textContent = studio.email || '—';
+        document.getElementById('account-password-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const password = document.getElementById('account-password').value;
+            if (password !== document.getElementById('account-password-confirm').value) {
+                showStatus('account-status', 'error', 'Las contraseñas no coinciden.');
+                return;
+            }
+            const button = form.querySelector('button');
+            button.disabled = true;
+            try {
+                await window.WeOtziStudioAuth.changePassword(password);
+                form.reset();
+                showStatus('account-status', 'success', 'Contraseña actualizada.');
+            } catch (err) { showStatus('account-status', 'error', err.message); }
+            finally { button.disabled = false; }
         });
     }
 
@@ -70,7 +90,7 @@
         el.className = 'studio-status studio-status-' + kind;
         el.textContent = msg;
         el.hidden = false;
-        setTimeout(() => { el.hidden = true; }, 5000);
+        el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
     }
 
     async function getAccessToken() {
@@ -82,7 +102,7 @@
         const token = await getAccessToken();
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers.Authorization = 'Bearer ' + token;
-        const response = await fetch('/api/studio/notify', {
+        const response = await fetch(window.WeOtziStudioAuth.appUrl('/api/studio/notify'), {
             method: 'POST',
             headers,
             body: JSON.stringify(payload)
@@ -91,7 +111,11 @@
             const text = await response.text();
             throw new Error(text || ('Studio notify failed with ' + response.status));
         }
-        return response.json().catch(() => ({}));
+        const result = await response.json().catch(() => ({}));
+        if (result.sent === false || result.email_sent === false || result.emailSent === false || result.success === false) {
+            throw new Error('La operación se guardó, pero el correo no pudo enviarse.');
+        }
+        return result;
     }
 
     // -------------------------------------------------------------
@@ -149,6 +173,7 @@
 
         document.getElementById('profile-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (!e.currentTarget.reportValidity()) return;
             const photoUrls = (document.getElementById('p-photos').value || '')
                 .split('\n').map(s => s.trim()).filter(s => /^https?:\/\//.test(s));
             const photoFeedItems = photoUrls.map((url, i) => ({
@@ -158,6 +183,7 @@
 
             const update = {
                 name:             document.getElementById('p-name').value.trim(),
+                normalized_name:  document.getElementById('p-name').value.trim().toUpperCase(),
                 tagline:          document.getElementById('p-tagline').value.trim() || null,
                 bio:              document.getElementById('p-bio').value.trim() || null,
                 founded_year:     Number(document.getElementById('p-founded').value) || null,
@@ -171,13 +197,20 @@
                 photo_feed_items: photoFeedItems
             };
 
-            const { error } = await WeotziData.Studios.updateProfile(studio.id, update);
-            if (error) {
-                showStatus('profile-status', 'error', error.message || 'No se pudo guardar.');
-                return;
-            }
-            Object.assign(studio, update);
-            showStatus('profile-status', 'success', 'Perfil actualizado.');
+            const button = e.currentTarget.querySelector('[type="submit"]');
+            button.disabled = true;
+            try {
+                if (update.name.length < 2) throw new Error('El nombre debe tener al menos 2 caracteres.');
+                if (update.founded_year && (update.founded_year < 1900 || update.founded_year > new Date().getFullYear())) {
+                    throw new Error('Revisá el año de fundación.');
+                }
+                const { error } = await WeotziData.Studios.updateProfile(studio.id, update);
+                if (error) throw error;
+                Object.assign(studio, update);
+                document.getElementById('studio-name-display').textContent = 'Panel · ' + studio.name;
+                showStatus('profile-status', 'success', 'Perfil actualizado.');
+            } catch (err) { showStatus('profile-status', 'error', err.message || 'No se pudo guardar.'); }
+            finally { button.disabled = false; }
         });
     }
 
@@ -231,6 +264,15 @@
                        value="${existing ? escapeHtml(existing.formatted_address || '') : ''}">
                 <div class="weotzi-address-fields" data-field="preview" hidden></div>
             </div>
+            <details>
+                <summary class="studio-help">Ingresar dirección manualmente</summary>
+                <div class="studio-field"><label class="studio-label">Ciudad</label><input class="studio-input" data-field="manual-city" value="${escapeHtml(existing?.city || '')}"></div>
+                <div class="studio-field"><label class="studio-label">País</label><input class="studio-input" data-field="manual-country" value="${escapeHtml(existing?.country || '')}"></div>
+                <button type="button" class="studio-locations-add" data-action="manual">Usar la dirección escrita arriba</button>
+                <p class="studio-help">Podés buscarla en el mapa después.</p>
+            </details>
+            <div class="studio-field"><label class="studio-label">Teléfono de la sede</label><input type="tel" class="studio-input" data-field="phone" value="${escapeHtml(existing?.phone || '')}"></div>
+            <div class="studio-field"><label class="studio-label">Horarios de atención</label><textarea class="studio-textarea" data-field="hours" placeholder="Lunes a viernes de 10 a 19 h">${escapeHtml(existing?.hours_json?.description || '')}</textarea></div>
         `;
         list.appendChild(row);
 
@@ -249,8 +291,18 @@
                 latitude: existing.latitude, longitude: existing.longitude,
                 google_place_id: existing.google_place_id || ''
             } : {},
-            picker: null
+            picker: null, hours: existing?.hours_json || {}
         };
+        row.querySelector('[data-action="manual"]').addEventListener('click', () => {
+            const city = row.querySelector('[data-field="manual-city"]').value.trim();
+            const country = row.querySelector('[data-field="manual-country"]').value.trim();
+            if (!addressInput.value.trim() || !city || !country) {
+                showStatus('sedes-status', 'error', 'Completá dirección, ciudad y país.'); return;
+            }
+            entry.address = { formatted_address: addressInput.value.trim(), city, country, latitude: null, longitude: null };
+            previewEl.textContent = [entry.address.formatted_address, city, country].join(' · ');
+            previewEl.hidden = false;
+        });
 
         if (window.WeOtziAddressPicker) {
             entry.picker = window.WeOtziAddressPicker.attach(addressInput, {
@@ -274,9 +326,10 @@
     async function saveSede(entry) {
         const labelInput = entry.row.querySelector('input[data-field="label"]');
         const isPrimary  = entry.row.querySelector('input[data-field="is_primary"]').checked;
+        const saveButton = entry.row.querySelector('[data-action="save"]');
         const a = entry.address || {};
 
-        if (!a.formatted_address) {
+        if (!a.formatted_address || entry.row.querySelector('[data-field="address"]').value.trim() !== a.formatted_address.trim()) {
             showStatus('sedes-status', 'error', 'Elegí una dirección de las sugerencias antes de guardar.');
             return;
         }
@@ -286,6 +339,8 @@
             label:             labelInput.value.trim() || null,
             is_primary:        isPrimary,
             is_active:         true,
+            phone:             entry.row.querySelector('[data-field="phone"]').value.trim() || null,
+            hours_json:        { ...entry.hours, description: entry.row.querySelector('[data-field="hours"]').value.trim() },
             country:           a.country || null,
             country_code:      a.country_code || null,
             state_province:    a.state_province || null,
@@ -303,29 +358,22 @@
         };
 
         try {
-            // If marking primary, demote any other primary first.
-            if (isPrimary) {
-                await WeotziData.StudioLocations.demotePrimary(studio.id);
-            }
-
-            let result;
-            if (entry.locationId) {
-                result = await WeotziData.StudioLocations.updateLocation(entry.locationId, payload);
-            } else {
-                result = await WeotziData.StudioLocations.createLocation(payload);
-                entry.locationId = result.data && result.data.id;
-            }
-            if (result.error) throw result.error;
-
-            // If primary, also patch studios.primary_location_id.
-            if (isPrimary && entry.locationId) {
-                await WeotziData.Studios.setPrimaryLocation(studio.id, entry.locationId);
-            }
+            saveButton.disabled = true;
+            const { data, error } = await supabase.rpc('save_studio_location', {
+                p_studio_id: studio.id, p_location_id: entry.locationId, p_location: payload
+            });
+            if (error) throw error;
+            const saved = Array.isArray(data) ? data[0] : data;
+            if (!saved?.id) throw new Error('No se pudo confirmar la sede guardada.');
+            entry.locationId = saved.id;
+            if (saved.is_primary) studio.primary_location_id = saved.id;
+            await loadSedes();
+            await loadRoster();
 
             showStatus('sedes-status', 'success', 'Sede guardada.');
         } catch (err) {
             showStatus('sedes-status', 'error', err.message || 'No se pudo guardar la sede.');
-        }
+        } finally { saveButton.disabled = false; }
     }
 
     async function removeSede(entry) {
@@ -336,11 +384,15 @@
             return;
         }
         if (!confirm('¿Quitar esta sede? Los artistas asignados solo a esta sede pierden la referencia.')) return;
-        const { error } = await WeotziData.StudioLocations.deleteLocation(entry.locationId);
+        const { error } = await supabase.rpc('remove_studio_location', { p_studio_id: studio.id, p_location_id: entry.locationId });
         if (error) { showStatus('sedes-status', 'error', error.message); return; }
         entry.row.remove();
         const i = sedePickers.indexOf(entry);
         if (i >= 0) sedePickers.splice(i, 1);
+        const { data: updated } = await WeotziData.Studios.getById(studio.id);
+        if (updated) Object.assign(studio, updated);
+        await loadSedes();
+        await loadRoster();
         showStatus('sedes-status', 'success', 'Sede eliminada.');
     }
 
@@ -508,6 +560,15 @@
             status: targetStatus
         };
         if (!payload.title) { showStatus('spots-status', 'error', 'El título es obligatorio.'); return; }
+        if (payload.end_date && payload.start_date && payload.end_date < payload.start_date) {
+            showStatus('spots-status', 'error', 'La fecha final debe ser igual o posterior al inicio.'); return;
+        }
+        if (payload.revenue_split_pct != null && (payload.revenue_split_pct < 0 || payload.revenue_split_pct > 100)) {
+            showStatus('spots-status', 'error', 'El reparto debe estar entre 0 y 100.'); return;
+        }
+        if (payload.stipend_amount != null && payload.stipend_amount < 0) {
+            showStatus('spots-status', 'error', 'El estipendio no puede ser negativo.'); return;
+        }
 
         const result = existing
             ? await WeotziData.StudioSpots.updateSpot(existing.id, payload)
@@ -606,25 +667,17 @@
 
     async function onAppDecision(action, applicationId, artistUserId, spot) {
         const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-        const { error: updErr } = await WeotziData.StudioSpots.decideApplication(applicationId, newStatus);
-        if (updErr) { showStatus('spots-status', 'error', updErr.message); return; }
-
-        if (action === 'accept' && artistUserId) {
-            // Create the membership.
-            const role = spot.kind === 'resident' ? 'resident'
-                       : spot.kind === 'itinerant' ? 'itinerant' : 'guest';
-            const { error: memErr } = await WeotziData.StudioMemberships.createMembership({
-                studio_id: studio.id,
-                artist_user_id: artistUserId,
-                role,
-                status: 'active',
-                started_at: new Date().toISOString()
-            });
-            if (memErr && memErr.code !== '23505' /* unique violation = already exists */) {
-                showStatus('spots-status', 'error', 'Aceptado, pero no pudimos crear la membership: ' + memErr.message);
-                return;
-            }
+        const buttons = document.querySelectorAll('#spots-editor-container button[data-app-action]');
+        buttons.forEach(button => { button.disabled = true; });
+        const { error: updErr } = await supabase.rpc('decide_studio_spot_application', {
+            p_application_id: applicationId, p_status: newStatus
+        });
+        if (updErr) {
+            buttons.forEach(button => { button.disabled = false; });
+            showStatus('spots-status', 'error', updErr.message);
+            return;
         }
+        let emailSent = false;
 
         // Fire-and-forget email notification. Failure here doesn't roll back
         // the DB change — the operator already committed by clicking accept/reject.
@@ -634,11 +687,14 @@
                 application_id: applicationId,
                 decision: newStatus
             });
+            emailSent = true;
         } catch (err) {
             console.warn('[studio-dashboard] notify failed (non-fatal):', err);
         }
 
-        showStatus('spots-status', 'success', action === 'accept' ? '¡Aceptado y sumado al roster! (email enviado al artista)' : 'Postulación rechazada. (email enviado al artista)');
+        const outcome = action === 'accept' ? '¡Aceptado y sumado al roster!' : 'Postulación rechazada.';
+        showStatus('spots-status', emailSent ? 'success' : 'info', outcome + (emailSent
+            ? ' Email enviado al artista.' : ' La decisión está guardada; no se pudo enviar el correo al artista.'));
         await openSpotApplications(spot.id);
         await renderMySpots();
         await loadRoster();
@@ -725,7 +781,8 @@
             debounceTimer = setTimeout(async () => {
                 const term = q.replace(/^@/, '');
                 const { data, error } = await WeotziData.Artists.searchByUsernameOrName(term);
-                if (error) return;
+                if (q !== input.value.trim()) return;
+                if (error) { showStatus('roster-status', 'error', 'No se pudieron buscar artistas. Intentá nuevamente.'); return; }
                 _inviteHits = data || [];
                 suggEl.innerHTML = _inviteHits.map(a => `
                     <div class="studio-location-row" data-id="${escapeAttr(a.user_id)}" style="cursor:pointer;">
@@ -778,9 +835,11 @@
 
             // Notify the artist by email (fire-and-forget).
             const newId = insertedRows && insertedRows.id;
+            let emailSent = false;
             if (newId) {
                 try {
                     await notifyStudio({ kind: 'roster_invite', membership_id: newId });
+                    emailSent = true;
                 } catch (err) {
                     console.warn('[studio-dashboard] roster invite notify failed (non-fatal):', err);
                 }
@@ -788,7 +847,9 @@
 
             input.value = '';
             chosen = null;
-            showStatus('roster-status', 'success', 'Invitación enviada. Le mandamos un email al artista.');
+            showStatus('roster-status', emailSent ? 'success' : 'info', emailSent
+                ? 'Invitación enviada. Le mandamos un email al artista.'
+                : 'Invitación guardada y disponible en el panel del artista. No se pudo enviar el correo.');
             await renderRosterTable();
         });
     }
@@ -873,6 +934,9 @@
             const location_id  = tr.querySelector('select[data-field="location_id"]').value || null;
             const splitInput   = tr.querySelector('input[data-field="revenue_split_pct"]').value;
             const split        = splitInput === '' ? null : Number(splitInput);
+            if (split !== null && (!Number.isFinite(split) || split < 0 || split > 100)) {
+                showStatus('roster-status', 'error', 'El reparto debe estar entre 0 y 100.'); return;
+            }
             const { error } = await WeotziData.StudioMemberships.updateMembership(id, { role, location_id, revenue_split_pct: split });
             if (error) showStatus('roster-status', 'error', error.message);
             else { showStatus('roster-status', 'success', 'Cambios guardados.'); await renderRosterTable(); }

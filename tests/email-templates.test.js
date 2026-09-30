@@ -40,6 +40,14 @@ test('email event template hints point to generated templates', () => {
     }
 });
 
+test('welcome emails never interpolate or request account passwords', () => {
+    for (const name of ['artist-welcome', 'client-welcome']) {
+        assert.equal(manifest[name].variables.includes('password'), false);
+        assert.doesNotMatch(buildEmailHtml(name, { mode: 'n8n', source: 'body' }), /body\.data\.password/);
+        assert.doesNotMatch(fs.readFileSync(path.join(ROOT, manifest[name].file), 'utf8'), /\{\{password\}\}/);
+    }
+});
+
 test('public n8n events are mapped by the backend email service', () => {
     const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/shared/js/app-config.json'), 'utf8'));
     for (const event of config.n8n.events) {

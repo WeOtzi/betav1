@@ -56,7 +56,7 @@ SUPABASE_STORAGE_BUCKET=quotation-references
 SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key_aqui
 
 # Google Maps
-GOOGLE_MAPS_API_KEY=AIzaSyAaop8XBfjEIMw8lSv4LakBXVZ9HL4ekLs
+GOOGLE_MAPS_API_KEY=<clave-browser-restringida-al-dominio>
 
 # n8n Webhook (tu instancia de n8n)
 N8N_WEBHOOK_URL=https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/8bc207a6-ee21-4150-9a92-211a68b19544

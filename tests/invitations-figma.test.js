@@ -14,7 +14,7 @@ test('Invitaciones loads its isolated Figma layer after the shared spots styles'
 
     assert.ok(sharedIndex > -1, 'shared studio/spots stylesheet must remain loaded');
     assert.ok(figmaIndex > sharedIndex, 'the invitations Figma layer must win the cascade');
-    assert.match(html, /<weotzi-product-nav[\s\S]*active="quotations"/);
+    assert.match(html, /<weotzi-product-nav[\s\S]*active="invitations"/);
     assert.match(html, /id="inv-preferences"/);
     assert.match(html, /logout-id="auth-logout"/);
     assert.match(html, /logout-class="inv-logout hidden"/);

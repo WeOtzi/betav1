@@ -42,9 +42,28 @@
                 <a href="#" class="studio-dash-tab" data-tab="suppliers"><span class="dot"></span> Proveedores</a>
                 <a href="#" class="studio-dash-tab" data-tab="sponsors"><span class="dot"></span> Sponsors</a>
                 <a href="#" class="studio-dash-tab" data-tab="analytics"><span class="dot"></span> Analytics</a>
+                <a href="#cuenta" class="studio-dash-tab" data-tab="cuenta"><span class="dot"></span> Cuenta</a>
             </aside>
 
             <main class="studio-dash-main">
+                <div id="dashboard-status" class="studio-status studio-status-info" role="status" hidden></div>
+                <section class="studio-dash-panel" data-panel="cuenta">
+                    <p class="studio-section-kicker">Cuenta del estudio</p>
+                    <h1 class="studio-h1">Acceso y <span class="accent">contraseña</span></h1>
+                    <p class="studio-help">Correo de acceso: <strong id="account-email"></strong></p>
+                    <form id="account-password-form" class="studio-form" style="margin-top:20px;">
+                        <div class="studio-field">
+                            <label class="studio-label" for="account-password">Nueva contraseña</label>
+                            <input class="studio-input" id="account-password" type="password" autocomplete="new-password" minlength="8" required>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="account-password-confirm">Repetí la contraseña</label>
+                            <input class="studio-input" id="account-password-confirm" type="password" autocomplete="new-password" minlength="8" required>
+                        </div>
+                        <button type="submit" class="studio-btn studio-btn-primary">Actualizar contraseña</button>
+                        <div id="account-status" class="studio-status studio-status-info" role="status" hidden></div>
+                    </form>
+                </section>
                 <!-- ============ Perfil ============ -->
                 <section class="studio-dash-panel is-active" data-panel="perfil">
                     <p class="studio-section-kicker">Perfil del estudio</p>

@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>WE ÖTZI | Centro de la cuenta</title>
 
     <script type="text/javascript">
@@ -365,11 +367,7 @@
     </div><!-- /woac-shell -->
 
     <!-- FOOTER -->
-    <footer class="woac-footer">
-        <div class="woac-footer-cur" data-weotzi-currency-mount></div>
-        <div class="wo-meta-s">WE ÖTZI · CENTRO DE LA CUENTA · © 2026</div>
-        <a class="wo-meta-s woac-footer-back" href="/artist/dashboard">← Volver al dashboard</a>
-    </footer>
+    <weotzi-product-footer></weotzi-product-footer>
 
     <!-- HIDDEN HOOK CLUSTER — dashboard-only elements dashboard.js touches
          unconditionally (banner, quotes, gallery admin, ig mount, avatar, bio).

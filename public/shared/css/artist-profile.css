@@ -519,10 +519,7 @@
 }
 
 .hero-agenda-dot {
-    width: 7px;
-    height: 7px;
-    background: var(--neutral-100);
-    flex: none;
+    display: none;
 }
 
 .avatar-image {
@@ -1884,5 +1881,609 @@
 
     .actionbar-actions {
         width: 100%;
+    }
+}
+
+/* ============================================================================
+   Figma 344:1184 · Perfil publico del artista
+   La pagina conserva datos y acciones reales; este bloque fija la composicion
+   editorial del frame de referencia y sus ajustes responsive.
+   ========================================================================== */
+
+.public-profile-view > weotzi-product-nav {
+    position: relative;
+    z-index: 120;
+    flex: none;
+}
+
+.portfolio-intro-grid {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-8);
+}
+
+.portfolio-intro-chips {
+    justify-content: flex-end;
+    margin: 0;
+}
+
+.specialty-description {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.specialty-media {
+    position: relative;
+    display: grid;
+    width: 116px;
+    height: 66px;
+    place-items: center;
+    justify-self: end;
+    overflow: hidden;
+    border: var(--border-hairline) solid var(--sand-350);
+    background: var(--surface-media);
+}
+
+.specialty-media img,
+.specialty-media video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.avatar-image.loaded {
+    z-index: 1;
+}
+
+.specialty-media-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    line-height: 1.2;
+    letter-spacing: var(--meta-s-track);
+    text-align: center;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.specialty-media-empty [data-wo-icon] {
+    width: 17px;
+    height: 17px;
+}
+
+@media (min-width: 1280px) {
+    .profile-shell {
+        max-width: none;
+        padding-inline: 92px;
+    }
+
+    .profile-band {
+        padding-block: 70px;
+    }
+
+    .section-title {
+        font-size: 62px;
+        line-height: .92;
+        letter-spacing: -.025em;
+    }
+
+    .hero-band {
+        min-height: 632px;
+        margin-top: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .hero-grid {
+        grid-template-columns: minmax(0, 660px) minmax(0, 1fr);
+        gap: 0;
+        min-height: 632px;
+        align-items: start;
+        padding-top: 70px;
+        box-sizing: border-box;
+    }
+
+    .hero-copy {
+        display: flex;
+        min-height: 542px;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 56px 40px 48px 0;
+        box-sizing: border-box;
+    }
+
+    .hero-eyebrow {
+        margin-bottom: 20px;
+        font-size: 10px;
+    }
+
+    .hero-name {
+        max-width: 620px;
+        margin-bottom: 18px;
+        font-size: 104px;
+        line-height: .86;
+        letter-spacing: -.035em;
+    }
+
+    .hero-ident {
+        margin-bottom: 24px;
+    }
+
+    .hero-styles {
+        width: 100%;
+        margin-top: auto;
+        padding-block: 14px;
+    }
+
+    .hero-styles .style-tag {
+        font-size: 21px;
+    }
+
+    .hero-cta-row {
+        margin-top: 27px;
+    }
+
+    .hero-portrait {
+        min-width: 0;
+        padding: 56px 0 0;
+    }
+
+    .hero-portrait::before {
+        top: 0;
+        right: -92px;
+        left: 26px;
+        width: auto;
+        height: 370px;
+    }
+
+    .hero-portrait-frame {
+        aspect-ratio: 3 / 2;
+    }
+
+    .hero-portrait::after {
+        left: -20px;
+        bottom: -23px;
+        width: 92px;
+        height: 92px;
+    }
+
+    .hero-agenda {
+        top: 24px;
+        left: -28px;
+    }
+
+    .stats-band {
+        min-height: 92px;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .stats-strip {
+        min-height: 92px;
+        flex-wrap: nowrap;
+    }
+
+    .statcell {
+        min-height: 92px;
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
+        padding: 22px 24px;
+        border-left: 0;
+        border-right: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 20%, transparent);
+        box-sizing: border-box;
+    }
+
+    .statcell:first-child {
+        padding-left: 0;
+    }
+
+    .statcell:last-child {
+        border-right: 0;
+    }
+
+    .statcell strong {
+        flex: none;
+        font-size: 40px;
+    }
+
+    .statcell:nth-child(3) strong,
+    .statcell:nth-child(4) strong {
+        font-size: 34px;
+    }
+
+    .portfolio-intro-band {
+        min-height: 140px;
+        padding-block: 38px 30px;
+        box-sizing: border-box;
+    }
+
+    .portfolio-intro-grid {
+        min-height: 72px;
+    }
+
+    .portfolio-intro-chips .gallery-chip {
+        min-height: 34px;
+        padding: 7px 15px;
+    }
+
+    .portfolio-intro-chips {
+        margin: 0;
+    }
+
+    .sobre-band {
+        min-height: 478px;
+        padding-block: 70px 64px;
+        box-sizing: border-box;
+    }
+
+    .sobre-grid {
+        grid-template-columns: minmax(0, 720px) minmax(0, 1fr);
+        gap: 62px;
+    }
+
+    .sobre-copy {
+        max-width: 690px;
+    }
+
+    .sobre-manifesto {
+        max-width: 680px;
+        margin-bottom: 24px;
+        font-size: 40px;
+        line-height: 1.08;
+    }
+
+    .bio-text {
+        max-width: 645px;
+        font-size: 15px;
+        line-height: 1.55;
+    }
+
+    .sobre-fact {
+        min-height: 67px;
+        justify-content: center;
+        padding: 11px 0;
+        box-sizing: border-box;
+    }
+
+    .band-block--sobre-yellow {
+        top: -74px;
+        left: -68px;
+        width: 222px;
+        height: 222px;
+        border-radius: var(--radius-circle);
+    }
+
+    .band-block--sobre-red {
+        right: 92px;
+        bottom: -42px;
+        width: 130px;
+        height: 130px;
+    }
+
+    .specialties-band {
+        padding-block: 70px 22px;
+    }
+
+    .specialty-table {
+        margin-top: 30px;
+        border-top-color: var(--ink);
+    }
+
+    .specialty-row {
+        grid-template-columns: 48px 22px minmax(230px, .9fr) minmax(260px, 1.3fr) 116px;
+        gap: 20px;
+        min-height: 109px;
+        padding: 18px 20px 18px 0;
+        box-sizing: border-box;
+    }
+
+    .specialty-index {
+        padding-left: 0;
+    }
+
+    .specialty-name {
+        font-size: 33px;
+    }
+
+    .reviews-band {
+        padding-block: 20px 70px;
+    }
+
+    .reviews-box {
+        min-height: 286px;
+    }
+
+    .reviews-panel,
+    .review-quote-card {
+        padding: 32px;
+    }
+
+    .studio-band {
+        padding-block: 0 78px;
+    }
+
+    .studio-grid {
+        grid-template-columns: minmax(0, 658fr) minmax(0, 599fr);
+        gap: 0;
+    }
+
+    .studio-photo,
+    .studio-panel {
+        min-height: 438px;
+    }
+
+    .studio-photo {
+        aspect-ratio: auto;
+    }
+
+    .studio-panel {
+        padding: 76px 54px;
+        box-sizing: border-box;
+    }
+
+    .cta-band {
+        min-height: 338px;
+        padding-block: 64px;
+        box-sizing: border-box;
+    }
+
+    .cta-grid {
+        min-height: 182px;
+        padding-right: 240px;
+        box-sizing: border-box;
+    }
+
+    .cta-copy-col {
+        max-width: 620px;
+    }
+
+    .cta-title {
+        max-width: 560px;
+        font-size: 46px;
+        line-height: 1;
+    }
+
+    .band-block--cta-yellow {
+        top: -58px;
+        right: 60px;
+        width: 210px;
+        height: 210px;
+        border-radius: var(--radius-circle);
+        transform: none;
+    }
+
+    .gallery-band {
+        padding-block: 62px 70px;
+    }
+
+    .gallery-band > .profile-shell {
+        padding-inline: 138px;
+    }
+
+    .gallery-chips {
+        margin: 24px 0 30px;
+    }
+
+    .gallery-grid {
+        gap: 32px;
+        margin-top: 0;
+    }
+
+    .gallery-footer-actions {
+        margin-top: 32px;
+    }
+
+    .presence-band {
+        padding-block: 22px 48px;
+    }
+
+    .presence-head {
+        margin-bottom: 24px;
+    }
+
+    .presence-row {
+        min-height: 86px;
+    }
+
+    .cities-band {
+        padding-block: 16px 66px;
+    }
+
+    .cities-head {
+        margin-bottom: 28px;
+    }
+
+    .profile-actionbar {
+        position: static;
+    }
+
+    .profile-actionbar-inner {
+        max-width: none;
+        min-height: 65px;
+        padding-inline: 92px;
+        padding-block: 9px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1279px) {
+    .profile-shell,
+    .profile-actionbar-inner {
+        padding-inline: 32px;
+    }
+
+    .portfolio-intro-grid {
+        align-items: center;
+    }
+
+    .specialty-row {
+        grid-template-columns: 44px 20px minmax(200px, .9fr) minmax(220px, 1.2fr) 104px;
+        box-sizing: border-box;
+    }
+
+    .specialty-media {
+        width: 104px;
+        height: 60px;
+    }
+
+    .profile-actionbar {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .public-profile-view .artist-profile-shell {
+        overflow: hidden;
+    }
+
+    .hero-band {
+        padding-top: 32px;
+    }
+
+    .hero-copy {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hero-name {
+        font-size: clamp(54px, 19vw, 82px);
+        line-height: .88;
+    }
+
+    .hero-styles {
+        width: 100%;
+        margin-top: 18px;
+    }
+
+    .hero-portrait {
+        width: calc(100% - 12px);
+        margin-top: 32px;
+        padding: 32px 0 24px 12px;
+    }
+
+    .hero-portrait::before {
+        right: -32px;
+        width: 82%;
+        height: 66%;
+    }
+
+    .hero-agenda {
+        top: 8px;
+        left: 0;
+    }
+
+    .stats-strip {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+    }
+
+    .statcell,
+    .statcell:first-child {
+        min-height: 92px;
+        padding: 18px 16px;
+        border-left: 0;
+        border-top: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 18%, transparent);
+    }
+
+    .statcell:nth-child(-n + 2) {
+        border-top: 0;
+    }
+
+    .statcell:nth-child(even) {
+        border-left: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 18%, transparent);
+    }
+
+    .statcell strong {
+        font-size: 30px;
+    }
+
+    .portfolio-intro-grid {
+        display: block;
+    }
+
+    .portfolio-intro-chips {
+        justify-content: flex-start;
+        margin-top: 24px;
+    }
+
+    .sobre-grid {
+        gap: 42px;
+    }
+
+    .sobre-manifesto {
+        font-size: 32px;
+    }
+
+    .specialty-row {
+        grid-template-columns: 30px 16px minmax(0, 1fr) 88px;
+        gap: 12px;
+        padding: 14px 0;
+        box-sizing: border-box;
+    }
+
+    .specialty-description {
+        grid-column: 3;
+    }
+
+    .specialty-media {
+        grid-column: 4;
+        grid-row: 1 / span 2;
+        width: 88px;
+        height: 58px;
+        justify-self: end;
+    }
+
+    .gallery-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reviews-box {
+        grid-template-columns: 1fr;
+    }
+
+    .reviews-panel {
+        min-height: 260px;
+    }
+
+    .cta-grid {
+        align-items: flex-start;
+    }
+
+    .cta-actions {
+        width: 100%;
+    }
+
+    .band-block--cta-yellow {
+        top: -72px;
+        right: -72px;
+        width: 180px;
+        height: 180px;
+        border-radius: var(--radius-circle);
+        transform: none;
+    }
+
+    .profile-actionbar {
+        position: static;
+    }
+
+    .profile-actionbar-inner {
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 340px) {
+    .gallery-grid {
+        grid-template-columns: 1fr;
     }
 }

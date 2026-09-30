@@ -543,16 +543,8 @@ window.saveRating = async function(quoteId, rating, reason) {
         const quote = quotations.find(q => q.id.toString() === quoteId.toString());
         if (quote) { quote.rating = rating; quote.rating_reason = reason; quote.rating_comment = comment; }
         
-        try {
-            window.ConfigManager.sendN8NEvent('client_left_rating', {
-                quote_id: quote ? quote.quote_id : quoteId,
-                artist_name: quote ? (quote.artist_name || '') : '',
-                artist_email: quote ? (quote.artist_email || '') : '',
-                client_name: quote ? (quote.client_full_name || '') : '',
-                rating: rating,
-                rating_comment: comment || ''
-            });
-        } catch (e) { /* n8n notification failure should not break main flow */ }
+        // This is the artist's private opportunity rating, not a client review.
+
         
         inspectQuote(quoteId);
     } catch (err) { window.showToast?.('Error al guardar la calificacion', 'error'); }
@@ -1271,14 +1263,22 @@ window.saveSession = async function(quoteId) {
     try {
         if (editingSessionId) {
             // Update existing session
+            const previousSession = currentQuoteSessions.find(item => String(item.id) === String(editingSessionId));
+            const changedDate = previousSession && new Date(previousSession.session_date).getTime() !== new Date(sessionDate).getTime();
             const updateData = {
                 session_date: new Date(sessionDate).toISOString(),
                 duration_hours: duration ? parseFloat(duration) : null,
                 notes: notes || null,
-                status: status
+                status: changedDate && ['scheduled', 'rescheduled'].includes(status) ? 'rescheduled' : status
             };
             
             await WeotziData.Sessions.update(editingSessionId, updateData);
+            const currentQuote = typeof quotations !== 'undefined' ? quotations.find(q => String(q.id) === String(quoteId)) : null;
+            if (currentQuote && (changedDate || previousSession?.status !== updateData.status)) {
+                void window.ConfigManager.sendN8NEvent(`session_${updateData.status}`, {
+                    quote_id: currentQuote.quote_id, session_id: editingSessionId
+                });
+            }
         } else {
             // Create new session — el session_number lo asigna el trigger
             // server-side (BEFORE INSERT en quotation_sessions). Enviamos null
@@ -1300,6 +1300,7 @@ window.saveSession = async function(quoteId) {
                 if (currentQuote) {
                     window.ConfigManager.sendN8NEvent('session_scheduled', {
                         quote_id: currentQuote.quote_id,
+                        session_id: createdSession.id,
                         client_name: currentQuote.client_full_name || '',
                         client_email: currentQuote.client_email || '',
                         artist_name: currentQuote.artist_name || '',
@@ -1334,6 +1335,7 @@ window.updateSessionStatus = async function(sessionId, newStatus, quoteId) {
                 if (newStatus === 'completed') {
                     window.ConfigManager.sendN8NEvent('session_completed', {
                         quote_id: currentQuote.quote_id,
+                        session_id: sessionId,
                         client_name: currentQuote.client_full_name || '',
                         client_email: currentQuote.client_email || '',
                         artist_name: currentQuote.artist_name || '',
@@ -1343,6 +1345,7 @@ window.updateSessionStatus = async function(sessionId, newStatus, quoteId) {
                 } else if (newStatus === 'rescheduled') {
                     window.ConfigManager.sendN8NEvent('session_rescheduled', {
                         quote_id: currentQuote.quote_id,
+                        session_id: sessionId,
                         client_name: currentQuote.client_full_name || '',
                         client_email: currentQuote.client_email || '',
                         artist_name: currentQuote.artist_name || '',
@@ -1352,6 +1355,7 @@ window.updateSessionStatus = async function(sessionId, newStatus, quoteId) {
                 } else if (newStatus === 'cancelled') {
                     window.ConfigManager.sendN8NEvent('session_cancelled', {
                         quote_id: currentQuote.quote_id,
+                        session_id: sessionId,
                         recipient_name: currentQuote.client_full_name || '',
                         recipient_email: currentQuote.client_email || '',
                         artist_name: currentQuote.artist_name || '',
@@ -1627,15 +1631,8 @@ window.sendDrawerChatMessage = async function(quoteId) {
         // Clear input
         input.value = '';
         
-        try {
-            window.ConfigManager.sendN8NEvent('chat_message_to_client', {
-                quote_id: quote.quote_id,
-                client_name: quote.client_full_name || '',
-                client_email: quote.client_email || '',
-                artist_name: quote.artist_name || '',
-                message_preview: message.substring(0, 100)
-            });
-        } catch (e) { /* n8n notification failure should not break main flow */ }
+        // Chat.sendMessage dispatches the persisted message notification.
+
         
         // Reload messages
         const messages = await loadChatMessages(quoteId);

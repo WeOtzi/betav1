@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import sys
 import time
 import unicodedata
@@ -8,8 +9,10 @@ import urllib.request
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-N8N_URL = 'https://chatbot-we-otzi-n8n.jubcpl.easypanel.host'
-N8N_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYTE5MzZkMC1kMTA5LTQ2ZDMtYTJhZS1lYzNkZTU0ODgzNWMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYxMDcyMTAzfQ.pO8r6ZN_uGfKBSUXhgIPCQaSmXZOsfHpMmSXFTa7q1M'
+N8N_URL = os.environ.get('N8N_URL', '').strip().rstrip('/')
+N8N_KEY = os.environ.get('N8N_API_KEY', '').strip()
+if not N8N_URL or not N8N_KEY:
+    raise SystemExit('Manual integration test: set N8N_URL and N8N_API_KEY privately before running. Never commit these credentials.')
 WORKFLOW_ID = 'UzkfBETe5kdmfX3v'
 CHAT_WEBHOOK_PATH = '6980277d-8edd-4db7-a2be-9a85edf2cee2'
 CHAT_WEBHOOK_URL = f'{N8N_URL}/webhook/{CHAT_WEBHOOK_PATH}/chat'

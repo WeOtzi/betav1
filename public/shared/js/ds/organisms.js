@@ -155,6 +155,7 @@
     'weotzi-statistics-dashboard': '34:532',
     'weotzi-quotes-activity': '34:523',
     'weotzi-product-nav': '80:13241',
+    'weotzi-product-footer': '24:1817',
     'weotzi-dashboard': '34:533'
   };
 
@@ -187,10 +188,10 @@
     var navigation = DATA.navigation.concat({ id: 'inbox', label: 'INBOX', href: '/artist/inbox' });
     var menuToggleId = options.menuToggleId || 'artist-product-menu-toggle';
     var menuId = options.menuId || 'artist-product-mobile-menu';
+    var spotsMenuId = menuId + '-spots';
     var profileHref = options.profileHref || '/artist/account';
     var profileLabel = options.profileLabel || 'Centro de la cuenta';
     var mobileExtras = options.dashboardExtras ? [
-      { id: 'invitations', label: 'INVITACIONES', href: '/artist/invitations' },
       { id: 'visitors', label: 'VISITANTES', href: '/artist/visitors/' },
       { id: 'account', label: 'PERFIL', href: '/artist/profile/details' }
     ] : [];
@@ -198,15 +199,44 @@
       mobileExtras.push({ label: 'ARCHIVO', href: '/archive' });
     }
     var desktopLinks = navigation.map(function (item) {
-      var current = item.id === active;
-      var badge = item.id === options.badgeItem && options.badgeId
-        ? '<span class="' + escapeHtml(options.badgeClass || 'wo-org-product-nav__badge') + '" id="' + escapeHtml(options.badgeId) + '" hidden>0</span>'
-        : '';
-      return '<a class="wo-org-product-nav__link' + (current ? ' is-active' : '') + '" href="' + item.href + '"' + (current ? ' aria-current="page"' : '') + '>' + item.label + badge + '</a>';
+      var current = item.id === active || (item.id === 'spots' && active === 'invitations');
+      var exactCurrent = item.id === active;
+      var badge = '';
+      if (item.id === 'quotations') {
+        var quoteBadgeId = options.badgeItem === item.id && options.badgeId
+          ? ' id="' + escapeHtml(options.badgeId) + '"'
+          : '';
+        var quoteBadgeClass = 'wo-org-product-nav__badge' + (options.badgeItem === item.id && options.badgeClass
+          ? ' ' + escapeHtml(options.badgeClass)
+          : '');
+        badge += '<span' + quoteBadgeId + ' class="' + quoteBadgeClass + '" data-artist-quote-count aria-label="Cotizaciones pendientes" hidden>0</span>';
+      }
+      if (item.id === options.badgeItem && item.id !== 'quotations' && options.badgeId) {
+        badge += '<span class="wo-org-product-nav__badge ' + escapeHtml(options.badgeClass || '') + '" id="' + escapeHtml(options.badgeId) + '" hidden>0</span>';
+      }
+      var link = '<a class="wo-org-product-nav__link' + (current ? ' is-active' : '') + '" href="' + item.href + '"' + (exactCurrent ? ' aria-current="page"' : '') + '>' + item.label + badge + '</a>';
+      if (item.id !== 'spots') return link;
+      return '<div class="wo-org-product-nav__item wo-org-product-nav__item--spots">' + link +
+        '<button class="wo-org-product-nav__spots-toggle" type="button" data-spots-menu-toggle aria-expanded="false" aria-haspopup="menu" aria-controls="' + escapeHtml(spotsMenuId) + '" aria-label="Abrir menú de Spots">' + icon('chevron-down') + '</button>' +
+        '<div id="' + escapeHtml(spotsMenuId) + '" class="wo-org-product-nav__spots-dropdown" role="menu" hidden>' +
+        '<a href="/artist/invitations" role="menuitem"' + (active === 'invitations' ? ' class="is-active" aria-current="page"' : '') + '>INVITACIONES</a>' +
+        '</div></div>';
     }).join('');
-    var mobileLinks = navigation.concat(mobileExtras).map(function (item) {
+    var mobileNavigation = [];
+    navigation.forEach(function (item) {
+      mobileNavigation.push(item);
+      if (item.id === 'spots') {
+        mobileNavigation.push({ id: 'invitations', label: 'INVITACIONES', href: '/artist/invitations', nested: true });
+      }
+    });
+    var mobileLinks = mobileNavigation.concat(mobileExtras).map(function (item) {
       var current = item.id === active;
-      return '<a href="' + item.href + '"' + (current ? ' class="is-active" aria-current="page"' : '') + '>' + item.label + '</a>';
+      var mobileBadge = item.id === 'quotations'
+        ? '<span class="wo-org-product-nav__badge wo-org-product-nav__badge--mobile" data-artist-quote-count aria-label="Cotizaciones pendientes" hidden>0</span>'
+        : '';
+      var mobileClass = item.nested ? 'wo-org-product-nav__mobile-subitem' : '';
+      if (current) mobileClass += (mobileClass ? ' ' : '') + 'is-active';
+      return '<a href="' + item.href + '"' + (mobileClass ? ' class="' + mobileClass + '"' : '') + (current ? ' aria-current="page"' : '') + '>' + item.label + mobileBadge + '</a>';
     }).join('');
     var profileId = options.profileId ? ' id="' + escapeHtml(options.profileId) + '"' : '';
     var profileClass = 'wo-org-product-nav__profile wo-o-tile' + (options.profileClass ? ' ' + escapeHtml(options.profileClass) : '');
@@ -223,11 +253,25 @@
       '<div class="wo-org-product-nav__links">' + desktopLinks + '</div>' +
       '<div class="wo-org-product-nav__account">' +
       '<button class="wo-org-product-nav__menu wo-topbar-menu-toggle" id="' + escapeHtml(menuToggleId) + '" type="button" aria-expanded="false" aria-controls="' + escapeHtml(menuId) + '" aria-label="Menú">' + icon('menu') + '<span>MENÚ</span></button>' +
-      '<a' + profileId + ' class="' + profileClass + '" href="' + escapeHtml(profileHref) + '" aria-label="' + escapeHtml(profileLabel) + '"' + (options.profileCurrent ? ' aria-current="page"' : '') + '>Ö' + profileLabelMarkup + '</a>' +
+      '<a' + profileId + ' class="' + profileClass + '" href="' + escapeHtml(profileHref) + '" aria-label="' + escapeHtml(profileLabel) + '" data-profile-label="' + escapeHtml(profileLabel) + '"' + (options.profileCurrent ? ' aria-current="page"' : '') + '>Ö' + profileLabelMarkup + '<span class="wo-org-product-nav__notification-badge" data-artist-notification-count aria-label="Notificaciones pendientes" hidden>0</span></a>' +
       '<button' + logoutId + ' type="button" class="' + logoutClass + '" aria-label="Cerrar sesión"' + logoutHandler + (options.logoutHidden ? ' hidden' : '') + '>LOG OUT</button>' +
       '</div></header>' +
       '<nav id="' + escapeHtml(menuId) + '" class="wo-org-product-nav__mobile wo-topbar-mobile-menu' + (options.menuClass ? ' ' + escapeHtml(options.menuClass) : '') + '" aria-label="Navegación móvil de artista" hidden>' + mobileLinks + '</nav>' +
       '</div>';
+  }
+
+  function renderProductFooter() {
+    return '<div class="wo-org wo-org-product-footer" data-figma-node="24:1817" data-figma-file="UmVbDewiAHkfLedTR5uyFj">' +
+      '<footer class="wo-org-product-footer__surface" aria-label="Pie de página de We Ötzi">' +
+      '<div class="wo-org-product-footer__inner">' +
+      '<div class="wo-org-product-footer__columns">' +
+      '<div class="wo-org-product-footer__brand"><p class="wo-org-product-footer__logo">WE ÖTZI</p><p class="wo-org-product-footer__tagline">La plataforma que conecta artistas y clientes de tatuajes en toda la región.</p></div>' +
+      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">CONTACTO</p><div><a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a><a href="mailto:artistas@weotzi.com">Soporte</a></div></div>' +
+      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">AYUDA</p><div><a href="/faqs">Preguntas frecuentes</a><a href="mailto:artistas@weotzi.com">Centro de ayuda</a></div></div>' +
+      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">TÉRMINOS</p><div><a href="/terminos">Términos y condiciones</a><a href="/privacidad">Privacidad</a></div></div>' +
+      '</div>' +
+      '<div class="wo-org-product-footer__bottom"><p>© 2026 WE ÖTZI. TODOS LOS DERECHOS RESERVADOS.</p><a class="wo-org-product-footer__instagram" href="https://www.instagram.com/weotzi" target="_blank" rel="noopener">' + icon('instagram') + '<span>INSTAGRAM</span></a></div>' +
+      '</div></footer></div>';
   }
 
   function renderProfilePanel() {
@@ -478,6 +522,24 @@
   }
 
   class ProductNavElement extends WeotziOrganism {
+    constructor() {
+      super();
+      this._artistCounts = null;
+      this._handleArtistCounts = this.handleArtistCounts.bind(this);
+      this._handleSpotsToggle = this.handleSpotsToggle.bind(this);
+      this._handleSpotsToggleKeydown = this.handleSpotsToggleKeydown.bind(this);
+      this._handleSpotsDocumentClick = this.handleSpotsDocumentClick.bind(this);
+      this._handleSpotsDocumentKeydown = this.handleSpotsDocumentKeydown.bind(this);
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      document.addEventListener('weotzi:artist-counts', this._handleArtistCounts);
+    }
+    disconnectedCallback() {
+      document.removeEventListener('weotzi:artist-counts', this._handleArtistCounts);
+      document.removeEventListener('click', this._handleSpotsDocumentClick);
+      document.removeEventListener('keydown', this._handleSpotsDocumentKeydown);
+    }
     static get observedAttributes() {
       return [
         'active', 'variant', 'menu-toggle-id', 'menu-id', 'menu-class',
@@ -509,7 +571,74 @@
         archiveExtra: this.hasAttribute('archive-extra')
       });
     }
+    bind() {
+      this.applyArtistCounts(this._artistCounts || window.WeotziArtistMenuCounts || {});
+      this._spotsToggle = this.querySelector('[data-spots-menu-toggle]');
+      this._spotsMenu = this.querySelector('.wo-org-product-nav__spots-dropdown');
+      if (!this._spotsToggle || !this._spotsMenu) return;
+      this._spotsToggle.addEventListener('click', this._handleSpotsToggle);
+      this._spotsToggle.addEventListener('keydown', this._handleSpotsToggleKeydown);
+      document.removeEventListener('click', this._handleSpotsDocumentClick);
+      document.removeEventListener('keydown', this._handleSpotsDocumentKeydown);
+      document.addEventListener('click', this._handleSpotsDocumentClick);
+      document.addEventListener('keydown', this._handleSpotsDocumentKeydown);
+    }
+    setSpotsMenu(open, restoreFocus) {
+      if (!this._spotsToggle || !this._spotsMenu) return;
+      this._spotsToggle.setAttribute('aria-expanded', String(open));
+      this._spotsToggle.setAttribute('aria-label', open ? 'Cerrar menú de Spots' : 'Abrir menú de Spots');
+      this._spotsMenu.hidden = !open;
+      if (restoreFocus) this._spotsToggle.focus();
+    }
+    handleSpotsToggle(event) {
+      event.stopPropagation();
+      this.setSpotsMenu(this._spotsToggle.getAttribute('aria-expanded') !== 'true');
+    }
+    handleSpotsToggleKeydown(event) {
+      if (event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      this.setSpotsMenu(true);
+      var firstItem = this._spotsMenu.querySelector('[role="menuitem"]');
+      if (firstItem) firstItem.focus();
+    }
+    handleSpotsDocumentClick(event) {
+      if (this._spotsToggle && this._spotsToggle.getAttribute('aria-expanded') === 'true' && !this.contains(event.target)) {
+        this.setSpotsMenu(false);
+      }
+    }
+    handleSpotsDocumentKeydown(event) {
+      if (event.key === 'Escape' && this._spotsToggle && this._spotsToggle.getAttribute('aria-expanded') === 'true') {
+        event.preventDefault();
+        this.setSpotsMenu(false, true);
+      }
+    }
+    handleArtistCounts(event) {
+      this._artistCounts = event && event.detail ? event.detail : {};
+      this.applyArtistCounts(this._artistCounts);
+    }
+    applyArtistCounts(counts) {
+      var quoteCount = Math.max(0, Number(counts.quotations) || 0);
+      var notificationCount = Math.max(0, Number(counts.notifications) || 0);
+      var quoteBadges = this.querySelectorAll('[data-artist-quote-count]');
+      var notificationBadge = this.querySelector('[data-artist-notification-count]');
+      var profile = this.querySelector('.wo-org-product-nav__profile');
+      quoteBadges.forEach(function (quoteBadge) {
+        quoteBadge.textContent = quoteCount > 99 ? '99+' : String(quoteCount);
+        quoteBadge.hidden = quoteCount <= 0;
+      });
+      if (notificationBadge) {
+        notificationBadge.textContent = notificationCount > 99 ? '99+' : String(notificationCount);
+        notificationBadge.hidden = notificationCount <= 0;
+      }
+      if (profile) {
+        var label = profile.getAttribute('data-profile-label') || 'Centro de la cuenta';
+        profile.setAttribute('aria-label', notificationCount > 0
+          ? label + ', ' + notificationCount + ' notificaciones pendientes'
+          : label);
+      }
+    }
   }
+  class ProductFooterElement extends WeotziOrganism { template() { return renderProductFooter(); } }
   class ProfilePanelElement extends WeotziOrganism { template() { return renderProfilePanel(); } }
   class DashboardSidebarElement extends WeotziOrganism { template() { return renderDashboardSidebar(); } }
   class IncomeStatsElement extends WeotziOrganism { template() { return renderIncomeStats(); } }
@@ -572,6 +701,7 @@
   define('weotzi-statistics-dashboard', StatisticsDashboardElement);
   define('weotzi-quotes-activity', QuotesActivityElement);
   define('weotzi-product-nav', ProductNavElement);
+  define('weotzi-product-footer', ProductFooterElement);
   define('weotzi-dashboard', DashboardElement);
 
   window.WeotziOrganismData = DATA;
@@ -580,6 +710,7 @@
     nodeIds: NODE_IDS,
     render: {
       productNav: renderProductNav,
+      productFooter: renderProductFooter,
       profilePanel: renderProfilePanel,
       dashboardSidebar: renderDashboardSidebar,
       incomeStats: renderIncomeStats,

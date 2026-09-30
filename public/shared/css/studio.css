@@ -934,3 +934,6 @@
         display: none !important;
     }
 }
+
+/* Display utilities must never override the semantic hidden state. */
+.studio-page [hidden] { display: none !important; }

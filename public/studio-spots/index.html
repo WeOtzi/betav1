@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>We Ötzi · Spots</title>
     <meta name="description" content="Directorio de spots abiertos en estudios de tatuaje: residencias, itinerantes y guest spots. Encontrá el próximo lugar donde tatuar.">
 
@@ -60,6 +62,8 @@
         <!-- Vista 3 · Solicitud enviada -->
         <div id="spot-sent-view" class="sps-sent hidden"></div>
     </main>
+
+    <weotzi-product-footer></weotzi-product-footer>
 
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>

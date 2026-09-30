@@ -158,26 +158,34 @@
                     state.address = addr;
                     // Always show the resolved address back in the input
                     if (addr.formatted_address) input.value = addr.formatted_address;
-                    if (typeof options.onChange === 'function') options.onChange(addr);
+                    if (typeof options.onChange === 'function') options.onChange(addr, place);
                 });
             } catch (err) {
                 console.warn('[AddressPicker] Failed to instantiate Autocomplete:', err);
             }
+        }).catch(function (err) {
+            if (state.destroyed) return;
+            console.warn('[AddressPicker] Google Maps no está disponible; se mantiene el campo de texto.', err);
         });
 
-        // Pressing Enter with no suggestion selected was reloading the form;
-        // suppress that so callers can submit only via their own buttons.
-        input.addEventListener('keydown', function (e) {
+        // Keep references to native handlers so detach() can fully release the
+        // input before another picker is attached to the same element.
+        function onKeydown(e) {
             if (e.key === 'Enter') e.preventDefault();
-        });
+        }
 
         // If the user clears the input manually, reset address state.
-        input.addEventListener('input', function () {
+        function onInput() {
             if (input.value === '') {
                 state.address = emptyAddress();
                 if (typeof options.onChange === 'function') options.onChange(state.address);
             }
-        });
+        }
+
+        // Pressing Enter with no suggestion selected was reloading the form;
+        // suppress that so callers can submit only via their own buttons.
+        input.addEventListener('keydown', onKeydown);
+        input.addEventListener('input', onInput);
 
         return {
             getAddress: function () { return Object.assign({}, state.address); },
@@ -192,9 +200,13 @@
                 if (typeof options.onChange === 'function') options.onChange(state.address);
             },
             detach: function () {
+                if (state.destroyed) return;
                 state.destroyed = true;
                 if (state.listener && state.listener.remove) state.listener.remove();
+                state.listener = null;
                 state.autocomplete = null;
+                input.removeEventListener('keydown', onKeydown);
+                input.removeEventListener('input', onInput);
             }
         };
     }

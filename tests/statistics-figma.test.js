@@ -51,3 +51,43 @@ test('statistics visitor table becomes labeled cards on tablet and mobile', () =
     assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.stats-visitors-table td::before/);
     assert.match(css, /content: attr\(data-label\)/);
 });
+
+test('statistics desktop composition follows Figma 122:12196 section hierarchy', () => {
+    assert.match(html, /class="perf-lower-grid"/);
+    assert.match(html, /class="stats-dual"[\s\S]*id="activity-title"[\s\S]*id="insights-title"/);
+    assert.match(html, /id="stats-visitors-count"/);
+    assert.match(html, /data-visitor-filter="client"[^>]*>Clientes potenciales</);
+    assert.doesNotMatch(html, /data-visitor-filter="requested"/);
+    assert.doesNotMatch(html, /Solo mostramos identidad/);
+    assert.doesNotMatch(html, /<thead>/);
+
+    assert.match(css, /\.stats-dual\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s+minmax\(0,\s*1fr\)/);
+    assert.match(css, /\.stats-visitors-table tr\s*\{[\s\S]*grid-template-columns:\s*44px\s+minmax\(0,\s*1\.4fr\)\s+minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)\s+90px/);
+    assert.match(css, /\.kpi-card\s*\{[\s\S]*border:\s*0/);
+    assert.match(css, /\.evolution-body\s*\{[^}]*height:\s*206px/);
+});
+
+test('statistics interactions preserve the exact Figma labels and derived aggregates', () => {
+    assert.match(html, />Ingresos \(miles\)</);
+    assert.match(js, /let dailyVisits = \[\]/);
+    assert.match(js, /listDailyVisitsByArtist/);
+    assert.match(js, /function countDailyEvents\(/);
+    assert.match(js, /visitorFilter === 'client'/);
+    assert.match(js, /stats-visitors-count/);
+    assert.match(js, /CLIENTES POTENCIALES/i);
+    assert.match(js, /pointStyle:\s*'circle'/);
+    assert.match(js, /display:\s*false[\s\S]*?beginAtZero:\s*true/);
+});
+
+test('statistics demo seed carries the complete named Figma visitor set and reversible marker', () => {
+    const seed = read('supabase', 'seeds', '20260829_isainaz_statistics_demo.sql');
+    for (const literal of [
+        'Valentina Cruz', 'Estudio Tinta Madre', 'Rodrigo Farías', 'Sofía Lemos',
+        'Estudio Cactus', 'Nicolás Duarte', 'Martina Ibáñez', 'Estudio Zorro Rojo',
+        'Bruno Aquino', 'Camila Ortiz', 'Estudio Fierro Negro', 'Diego Palma'
+    ]) {
+        assert.match(seed, new RegExp(literal));
+    }
+    assert.match(seed, /\[PRUEBA\]\[STATS-ISAINAZ-20260829\]/);
+    assert.match(seed, /delete from public\.artist_profile_visits/i);
+});

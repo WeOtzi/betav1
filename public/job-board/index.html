@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>We Ötzi · Job board</title>
     <meta name="description" content="Explorá solicitudes de tatuaje abiertas y postulate como artista en We Ötzi.">
 
@@ -179,7 +181,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bauhaus-footer" data-bauhaus-footer data-footer-variant="dashboard"></footer>
+    <weotzi-product-footer></weotzi-product-footer>
 
     <!-- Modal de ingreso -->
     <div id="login-modal" class="wo-overlay hidden">
@@ -207,7 +209,6 @@
 
     <!-- Job Board Script -->
     <script src="/shared/js/artist-auth.js"></script>
-    <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/job-board-feed.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>

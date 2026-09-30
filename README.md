@@ -2,6 +2,8 @@
 
 Aplicacion web unificada para la gestion de estudios de tatuaje, combinando registro de artistas, marketplace, cotizaciones y herramientas de IA.
 
+Publicación verificada del 21/09/2026: [beta.weotzi.com](https://beta.weotzi.com/inicio/). Ver [despliegue y validaciones](docs/DEPLOY-20260921.md), [acceso y perfil de estudios](docs/STUDIOS-IDENTITY-20260921.md), [operaciones de estudios](docs/STUDIOS-OPERATIONS-20260921.md) y [entrega de correos](docs/EMAIL-DELIVERY-20260921.md).
+
 ## Mision y Vision
 
 We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje, posicionandose como la plataforma lider a nivel global donde los artistas viven de su oficio sin barreras. Lee la declaracion completa en [**MISSION.md**](docs/MISSION.md).
@@ -13,6 +15,9 @@ We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje, posicio
 *   [**CHANGELOG.md**](docs/CHANGELOG.md): Historial de cambios y nuevas caracteristicas (v2.0.1).
 *   [**TECHNICAL.md**](docs/TECHNICAL.md): Arquitectura, API y detalles tecnicos.
 *   [**ARTIST_SIGNUP_FLOW.md**](docs/ARTIST_SIGNUP_FLOW.md): Flujo de registro de artista (auth + artists_db) y runbook local de validacion.
+*   [**TRAVEL-FIGMA-20260830.md**](docs/TRAVEL-FIGMA-20260830.md): Guia operativa de Travel, contrato seguro de datos, fixture Figma y rollback.
+*   [**STATISTICS-FIGMA-20260830.md**](docs/STATISTICS-FIGMA-20260830.md): Guia de Estadisticas, fuentes agregadas, filtros, exportacion, fixture Figma y rollback.
+*   [**MODO-DEMO-TOUR.md**](docs/MODO-DEMO-TOUR.md): Modo demo del artista (`?demo=1`, datos de ejemplo sin escribir en Supabase) y recorrido guiado narrado por voz (`?tour=1`).
 *   [**DEPLOYMENT.md**](docs/DEPLOYMENT.md): Guia paso a paso para desplegar en nuevos servidores.
 *   [**EASYPANEL_DEPLOYMENT.md**](docs/EASYPANEL_DEPLOYMENT.md): Guia de despliegue en Easypanel (VPS con Docker).
 *   [**GOOGLE_OAUTH_SETUP.md**](docs/GOOGLE_OAUTH_SETUP.md): Configuracion de Google OAuth y Drive API.
@@ -22,16 +27,18 @@ We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje, posicio
 ## Inicio Rapido
 
 ### Requisitos
-*   Node.js 20+
+*   Node.js 22
 *   npm
 
 ### Instalacion Local
 
 ```bash
-npm install
-npm start
+npm ci --ignore-scripts
+npm run dev:safe
 ```
-El servidor estara disponible en `http://localhost:4545`.
+El entorno de desarrollo seguro está en `http://localhost:4647`, con datos ficticios y sin correos reales. Lee el [handoff de Valentina](docs/HANDOFF-VALENTINA.md), la [primera tarea](docs/VALENTINA-FIRST-TASK.md) y el [procedimiento de publicación y rollback](deployments/hostinger/RELEASE-RUNBOOK.md).
+
+El backend real se inicia con `npm start` y requiere un entorno independiente autorizado y sus propias credenciales. El flujo de publicación es local → rama en GitHub → CI aprobado → controlador privado del servidor. Las ramas `valentina/*` publican previews; `main` publica beta.
 
 ### Catálogo del Design System
 
@@ -46,6 +53,8 @@ Las superficies principales comparten navegación y comportamiento responsive: l
 
 *   **Oportunidades**: `/job-board/`, `/studio-spots/`, `/artist/applications/` y `/artist/invitations/` incluyen listado, detalle y estados de postulación conectados a Supabase.
 *   **Operación diaria**: `/artist/account/`, `/calendar/`, `/my-quotations/`, `/my-quotations/statistics/`, `/artist/travel/` y `/artist/inbox/` cubren cuenta, agenda, cotizaciones, métricas, viajes y conversaciones persistentes.
+*   **Travel**: `/artist/travel/` concentra dashboard, alta, detalle y acciones del viaje. El itinerario público canónico usa `/travel/t/<slug>`; `/travel/share?slug=<slug>` permanece como compatibilidad. Ver [TRAVEL-FIGMA-20260830.md](docs/TRAVEL-FIGMA-20260830.md).
+*   **Estadísticas**: `/my-quotations/statistics/` reúne KPIs, embudo, evolución por período y métrica, rendimiento, actividad, oportunidades y visitantes. Los filtros distinguen todos, clientes potenciales y estudios; **Exportar informe** descarga el estado visible en CSV. Ver [STATISTICS-FIGMA-20260830.md](docs/STATISTICS-FIGMA-20260830.md).
 *   **Demo integral**: [DEMO-DASHBOARD-ISAINAZ-20260829.md](docs/DEMO-DASHBOARD-ISAINAZ-20260829.md) documenta los datos de `isainazartattoo.wo`, su alcance y el rollback.
 
 ### Despliegue con Docker (Easypanel)
@@ -90,10 +99,14 @@ La aplicación se conecta a:
 *Desarrollado por el equipo de We Ötzi. v2.0.1*
 
 ---
-**Última sincronización:** 2026-05-27
+**Última sincronización:** 2026-08-30
 
 ### Convenciones frontend (2026-05-13)
 
 *   **Cliente Supabase compartido**: los scripts en `public/shared/js/` reusan una unica instancia via `window._supabase = window._supabase || supabase.createClient(...)`. Al agregar un nuevo script que use Supabase, sigue el mismo patron (ver `public/shared/js/main.js:5` como referencia). Test clients efimeros (admin.js `testClient`) son la unica excepcion deliberada.
 *   **Microsoft Clarity opt-in por entorno**: el snippet en los HTML solo carga el tag cuando `window.CLARITY_PROJECT_ID` esta definido con un ID real. Para activar en produccion, define `window.CLARITY_PROJECT_ID = 'xxx'` antes del bloque de Clarity (idealmente inyectado por el servidor segun entorno).
 *   **Flujo de registro pre-auth**: los datos del wizard de `/register-artist` y del email-form de `/registerclosedbeta` se guardan en `artists_db` con `registration_status='incompleto'` via `POST /api/register/artist-draft` (sin crear `auth.users`). El usuario Auth se crea solo al confirmar el resumen final via `POST /api/register/artist-finalize`, que setea `user_id` y cambia el estado a `pendiente de validacion`. Ver [ARTIST_SIGNUP_FLOW.md](docs/ARTIST_SIGNUP_FLOW.md) para el detalle.
+
+Actualización posterior del 21/09/2026: [marketplace conectado a Supabase y cotizador validado](docs/MARKETPLACE-QUOTATION-20260921.md).
+
+Auditoría de Laura: [accesos y recorrido](docs/AUDITORIA-LAURA-20260922.md), [cambios, evidencia y cierre del registro temporal](docs/AUDITORIA-LAURA-VALIDACION-20260922.md).

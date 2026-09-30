@@ -46,7 +46,7 @@ test('all authenticated artist surfaces mount the same product-navigation compon
         { parts: ['public', 'job-board', 'index.html'], active: 'job-board', menu: 'dashboard-mobile-menu' },
         { parts: ['public', 'studio-spots', 'index.html'], active: 'spots', menu: 'spots-mobile-menu' },
         { parts: ['public', 'artist', 'applications', 'index.html'], active: 'quotations', menu: 'apx-mobile-menu' },
-        { parts: ['public', 'artist', 'invitations', 'index.html'], active: 'quotations', menu: 'inv-mobile-menu' },
+        { parts: ['public', 'artist', 'invitations', 'index.html'], active: 'invitations', menu: 'inv-mobile-menu' },
         { parts: ['public', 'my-quotations', 'index.html'], active: 'quotations', menu: 'admin-mobile-menu' },
         { parts: ['public', 'my-quotations', 'detail', 'index.html'], active: 'quotations', menu: 'admin-mobile-menu' },
     ];
@@ -61,6 +61,48 @@ test('all authenticated artist surfaces mount the same product-navigation compon
         assert.equal((html.match(/<weotzi-product-nav\b/g) || []).length, 1, label);
         assert.doesNotMatch(html, /<header class="[^"]*wo-topbar--artist/, label);
     });
+});
+
+test('all authenticated artist surfaces share live menu counters and the Dashboard footer component', () => {
+    const pages = [
+        ['public', 'artist', 'dashboard', 'index.html'],
+        ['public', 'artist', 'account', 'index.html'],
+        ['public', 'artist', 'profile', 'details', 'index.html'],
+        ['public', 'artist', 'visitors', 'index.html'],
+        ['public', 'calendar', 'index.html'],
+        ['public', 'my-quotations', 'statistics', 'index.html'],
+        ['public', 'artist', 'travel', 'index.html'],
+        ['public', 'artist', 'inbox', 'index.html'],
+        ['public', 'job-board', 'index.html'],
+        ['public', 'studio-spots', 'index.html'],
+        ['public', 'artist', 'applications', 'index.html'],
+        ['public', 'artist', 'invitations', 'index.html'],
+        ['public', 'my-quotations', 'index.html'],
+        ['public', 'my-quotations', 'detail', 'index.html'],
+    ];
+
+    pages.forEach((parts) => {
+        const html = read(...parts);
+        const label = parts.join('/');
+        assert.match(html, /\/shared\/js\/wo-artist-menu\.js/, label);
+        assert.equal((html.match(/<weotzi-product-footer\b/g) || []).length, 1, label);
+        assert.doesNotMatch(html, /<footer class="(?:wo-dash-footer|tvl-footer|woac-footer|wod-footer|bauhaus-footer)/, label);
+    });
+
+    assert.doesNotMatch(
+        read('public', 'shared', 'css', 'artist-travel-ds.css'),
+        /\.wo-app \.wo-oam-badge\{display:none\}/,
+        'Travel must not suppress the shared notification counter'
+    );
+});
+
+test('the shared artist menu owns every repository needed for consistent counters', () => {
+    const menu = read('public', 'shared', 'js', 'wo-artist-menu.js');
+
+    assert.match(menu, /function ensureCounterRepositories\(\)/);
+    assert.match(menu, /\/shared\/js\/data\/quotations-repo\.js/);
+    assert.match(menu, /\/shared\/js\/data\/studios-repo\.js/);
+    assert.match(menu, /await ensureCounterRepositories\(\)/);
 });
 
 test('calendar keeps a single navigation mode throughout tablet widths', () => {

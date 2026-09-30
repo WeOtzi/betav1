@@ -8,7 +8,9 @@
 
 let quotations = [];
 let profileVisits = [];
+let dailyVisits = [];
 let artworkCounts = [];
+let studioActivity = [];
 let charts = {};
 let _supabase = null;
 let currentArtistId = null;
@@ -26,7 +28,12 @@ const ANSWERED_STATUSES = ['responded', 'client_approved', 'in_progress', 'artis
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const VISITS_WINDOW_DAYS = 365;
-const VISITS_MAX_ROWS = 5000;
+const VISITS_MAX_ROWS = 500;
+const VISITOR_FILTER_LABELS = {
+    all: 'TODOS',
+    client: 'CLIENTES POTENCIALES',
+    studio: 'ESTUDIOS'
+};
 
 // Lee un token del DS (Chart.js necesita valores concretos, no var()).
 function woToken(name, fallback) {
@@ -60,8 +67,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function renderEyebrow() {
-    const now = new Date();
-    setText('stats-eyebrow', `Estadísticas · ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`);
+    const latestDay = dailyVisits
+        .map(row => new Date(`${row.day}T12:00:00`))
+        .filter(date => !isNaN(date.getTime()))
+        .sort((a, b) => b - a)[0];
+    const period = latestDay || new Date();
+    setText('stats-eyebrow', `Estadísticas · ${MONTH_NAMES[period.getMonth()]} ${period.getFullYear()}`);
 }
 
 async function initializeSupabase() {
@@ -103,19 +114,24 @@ async function loadStatisticsData() {
 
         currentArtistId = session.user.id;
 
-        const [allQuotes, visits, works] = await Promise.all([
+        const [allQuotes, visits, daily, works, studioEvents] = await Promise.all([
             WeotziData.Quotations.listForArtist(currentArtistId, {
                 excludeArchived: false,
                 excludeInProgress: false
             }),
             loadProfileVisits(currentArtistId),
-            loadArtworkCounts(currentArtistId)
+            loadDailyVisits(currentArtistId),
+            loadArtworkCounts(currentArtistId),
+            loadStudioActivity(currentArtistId)
         ]);
 
         quotations = allQuotes || [];
         profileVisits = visits;
+        dailyVisits = daily;
         artworkCounts = works;
+        studioActivity = studioEvents;
 
+        renderEyebrow();
         renderKpis();
         renderFunnel();
         renderEvolution();
@@ -158,6 +174,32 @@ async function loadProfileVisits(artistId) {
     }
 }
 
+async function loadDailyVisits(artistId) {
+    try {
+        const { data, error } = await WeotziData.ArtistVisits.listDailyVisitsByArtist(artistId, 5000);
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.warn('No se pudieron leer los agregados diarios:', err);
+        return [];
+    }
+}
+
+async function loadStudioActivity(artistId) {
+    const jobs = [];
+    if (WeotziData.StudioMemberships?.listPendingForArtist) {
+        jobs.push(Promise.resolve(WeotziData.StudioMemberships.listPendingForArtist(artistId))
+            .then(result => (result?.data || []).map(row => ({ ...row, stats_kind: 'studio_invitation' })))
+            .catch(() => []));
+    }
+    if (WeotziData.StudioSpots?.listApplicationsByArtist) {
+        jobs.push(Promise.resolve(WeotziData.StudioSpots.listApplicationsByArtist(artistId))
+            .then(result => (result?.data || []).map(row => ({ ...row, stats_kind: 'spot_application' })))
+            .catch(() => []));
+    }
+    return (await Promise.all(jobs)).flat();
+}
+
 // ============================================
 // HELPERS DE PERÍODO
 // ============================================
@@ -167,6 +209,35 @@ function countInWindow(items, dateField, fromDate, toDate) {
         const value = new Date(item[dateField]);
         return !isNaN(value.getTime()) && value >= fromDate && value < toDate;
     }).length;
+}
+
+function countDailyEvents(eventKind, fromDate, toDate) {
+    if (!dailyVisits.length) {
+        return countInWindow(
+            profileVisits.filter(visit => (visit.event_kind || 'profile_view') === eventKind),
+            'created_at', fromDate, toDate
+        );
+    }
+    return dailyVisits.reduce((sum, row) => {
+        if ((row.event_kind || 'profile_view') !== eventKind) return sum;
+        const value = new Date(`${row.day}T00:00:00`);
+        if (isNaN(value.getTime()) || value < fromDate || value >= toDate) return sum;
+        return sum + Number(row.visits_count || 0);
+    }, 0);
+}
+
+function countDailyEventsAll(eventKind) {
+    if (!dailyVisits.length) {
+        if (eventKind === 'portfolio_view') {
+            return profileVisits.filter(visit => visit.event_kind === 'portfolio_view').length;
+        }
+        return profileVisits.filter(visit => (visit.event_kind || 'profile_view') === eventKind).length;
+    }
+    return dailyVisits.reduce((sum, row) => (
+        (row.event_kind || 'profile_view') === eventKind
+            ? sum + Number(row.visits_count || 0)
+            : sum
+    ), 0);
 }
 
 function deltaPercent(current, previous) {
@@ -236,6 +307,16 @@ function formatMoney(total, currency) {
     return `${currency} ${Math.round(total).toLocaleString('es-AR')}`;
 }
 
+function formatCompactMoney(total, currency) {
+    const amount = Number(total || 0);
+    if (amount < 1000000) return formatMoney(amount, currency);
+    const symbol = String(currency || '').toUpperCase() === 'ARS' ? '$' : `${String(currency || 'USD').toUpperCase()} `;
+    return `${symbol}${(amount / 1000000).toLocaleString('es-AR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })}M`;
+}
+
 function revenueEntries(quotes) {
     return quotes
         .filter(q => q.quote_status === 'completed')
@@ -260,42 +341,40 @@ function renderKpis() {
         return !isNaN(d.getTime()) && d >= previousStart && d < windowStart;
     });
 
-    const profileEvents = profileVisits.filter(v => (v.event_kind || 'profile_view') === 'profile_view');
-    const portfolioEvents = profileVisits.filter(v => v.event_kind === 'portfolio_view');
-    const viewsNow = inWindow(profileEvents, 'created_at').length;
-    const viewsPrev = inPrevious(profileEvents, 'created_at').length;
-    const portfolioNow = inWindow(portfolioEvents, 'created_at').length;
-    const portfolioPrev = inPrevious(portfolioEvents, 'created_at').length;
-    setText('kpi-profile-views', formatCount(viewsNow));
+    const viewsNow = countDailyEvents('profile_view', windowStart, now);
+    const viewsPrev = countDailyEvents('profile_view', previousStart, windowStart);
+    const portfolioNow = countDailyEvents('portfolio_view', windowStart, now);
+    const portfolioPrev = countDailyEvents('portfolio_view', previousStart, windowStart);
+    setText('kpi-profile-views', formatCount(countDailyEventsAll('profile_view')));
     renderTrend('kpi-profile-views-trend', viewsNow, viewsPrev);
-    setText('kpi-portfolio', formatCount(portfolioNow));
+    setText('kpi-portfolio', formatCount(countDailyEventsAll('portfolio_view')));
     renderTrend('kpi-portfolio-trend', portfolioNow, portfolioPrev);
 
     // Solicitudes recibidas
     const requestsNow = inWindow(quotations, 'created_at').length;
     const requestsPrev = inPrevious(quotations, 'created_at').length;
-    setText('kpi-requests', formatCount(requestsNow));
+    setText('kpi-requests', formatCount(quotations.length));
     renderTrend('kpi-requests-trend', requestsNow, requestsPrev);
 
     // Cotizaciones enviadas (respondidas por vos)
     const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status));
     const answeredNow = inWindow(answered, 'created_at').length;
     const answeredPrev = inPrevious(answered, 'created_at').length;
-    setText('kpi-answered', formatCount(answeredNow));
+    setText('kpi-answered', formatCount(answered.length));
     renderTrend('kpi-answered-trend', answeredNow, answeredPrev);
 
     // Reservas confirmadas
     const bookings = quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status));
     const bookingsNow = inWindow(bookings, 'created_at').length;
     const bookingsPrev = inPrevious(bookings, 'created_at').length;
-    setText('kpi-bookings', formatCount(bookingsNow));
+    setText('kpi-bookings', formatCount(bookings.length));
     renderTrend('kpi-bookings-trend', bookingsNow, bookingsPrev);
 
     // Ingresos generados (histórico completo, como el resto del producto)
     const revenue = aggregateAmount(revenueEntries(quotations));
     const revenueNow = aggregateAmount(revenueEntries(inWindow(quotations, 'created_at')));
     const revenuePrev = aggregateAmount(revenueEntries(inPrevious(quotations, 'created_at')));
-    setText('kpi-revenue', formatMoney(revenue.total, revenue.currency));
+    setText('kpi-revenue', formatCompactMoney(revenue.total, revenue.currency));
     renderTrend('kpi-revenue-trend', revenueNow.total, revenuePrev.total);
 }
 
@@ -308,8 +387,8 @@ function renderFunnel() {
     if (!container) return;
 
     const steps = [
-        { label: 'Visualización', value: profileVisits.filter(v => (v.event_kind || 'profile_view') === 'profile_view').length, tone: 'ink' },
-        { label: 'Portfolio', value: profileVisits.filter(v => v.event_kind === 'portfolio_view').length, tone: 'paper' },
+        { label: 'Visualización', value: countDailyEventsAll('profile_view'), tone: 'ink' },
+        { label: 'Visita portfolio', value: countDailyEventsAll('portfolio_view'), tone: 'paper' },
         { label: 'Solicitud', value: quotations.length, tone: 'paper' },
         { label: 'Cotización', value: quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status)).length, tone: 'paper' },
         { label: 'Reserva', value: quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status)).length, tone: 'paper' },
@@ -363,6 +442,7 @@ function setupControls() {
     if (exportBtn) exportBtn.addEventListener('click', exportReportCsv);
 
     document.querySelectorAll('[data-visitor-filter]').forEach((button) => {
+        button.setAttribute('aria-label', VISITOR_FILTER_LABELS[button.dataset.visitorFilter] || button.textContent.trim());
         button.addEventListener('click', () => {
             visitorFilter = button.dataset.visitorFilter || 'all';
             document.querySelectorAll('[data-visitor-filter]').forEach((item) => {
@@ -419,11 +499,8 @@ function evolutionBuckets() {
 
 const EVOLUTION_METRICS = {
     visits: {
-        label: 'Visualizaciones',
-        value: (from, to) => countInWindow(
-            profileVisits.filter(v => (v.event_kind || 'profile_view') === 'profile_view'),
-            'created_at', from, to
-        ),
+        label: 'Visitas al perfil',
+        value: (from, to) => countDailyEvents('profile_view', from, to),
         format: formatCount
     },
     requests: {
@@ -485,21 +562,23 @@ function renderEvolution() {
             datasets: [{
                 label: metric.label,
                 data: series,
-                borderColor: woToken('--surface-ink', '#001125'),
+                borderColor: woToken('--blue-300', '#1E3FA6'),
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 tension: 0,
                 fill: false,
                 pointBackgroundColor: woToken('--white', '#FCFCFC'),
-                pointBorderColor: woToken('--surface-ink', '#001125'),
+                pointBorderColor: woToken('--blue-300', '#1E3FA6'),
                 pointBorderWidth: 2,
-                pointRadius: 5,
-                pointStyle: 'rect'
+                pointRadius: 4,
+                pointHoverRadius: 5,
+                pointStyle: 'circle'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -508,16 +587,14 @@ function renderEvolution() {
             },
             scales: {
                 y: {
+                    display: false,
                     beginAtZero: true,
                     border: { display: false },
-                    grid: { color: woToken('--border-subtle', '#E8E3D7') },
-                    ticks: {
-                        color: woToken('--text-faint', '#B9AE98'),
-                        font: { family: "'JetBrains Mono', monospace", size: 11 }
-                    }
+                    grid: { display: false }
                 },
                 x: {
                     grid: { display: false },
+                    border: { display: true, color: woToken('--border-subtle', '#E8E3D7') },
                     ticks: {
                         color: woToken('--text-faint', '#B9AE98'),
                         font: { family: "'JetBrains Mono', monospace", size: 11 }
@@ -612,8 +689,24 @@ function renderWorksList() {
         </div>`).join('');
 }
 
+function dailyCityCounts() {
+    const identifiedVisitors = aggregateVisitors();
+    if (identifiedVisitors.length) {
+        return tally(identifiedVisitors, visitor => visitor.city).slice(0, 5);
+    }
+    if (!dailyVisits.length) return tally(profileVisits, visit => visit.visitor_city || visit.city).slice(0, 5);
+    const totals = {};
+    dailyVisits.forEach((row) => {
+        if ((row.event_kind || 'profile_view') !== 'profile_view') return;
+        const city = row.city;
+        if (!city) return;
+        totals[city] = (totals[city] || 0) + Number(row.visits_count || 0);
+    });
+    return Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+}
+
 function renderCitiesList() {
-    renderBarList('cities-list', tally(profileVisits, v => v.visitor_city || v.city).slice(0, 5), 'direct');
+    renderBarList('cities-list', dailyCityCounts(), 'direct');
 }
 
 function renderHoursList() {
@@ -717,24 +810,55 @@ function renderActivity() {
         const action = kind === 'artwork_view'
             ? `vio ${visit.artwork_title || 'un trabajo'}`
             : (kind === 'portfolio_view' ? 'visitó tu portfolio' : 'visitó tu perfil');
-        return { ts: visit.created_at, icon: kind === 'artwork_view' ? 'image' : 'eye', text: `${who} ${action}` };
+        return { ts: visit.created_at, icon: kind === 'artwork_view' ? 'image' : 'eye', tone: 'neutral', text: `${who} ${action}` };
     });
-    const quoteItems = quotations.slice(0, 25).map((quote) => ({
-        ts: quote.updated_at || quote.created_at,
-        icon: quote.quote_status === 'completed' ? 'check-circle' : 'inbox',
-        text: quote.quote_status === 'completed'
-            ? `Trabajo completado · ${quote.client_full_name || quote.quote_id}`
-            : `Cotización ${quote.quote_id || ''} · ${quote.client_full_name || 'Cliente'}`
-    }));
-    const items = visitItems.concat(quoteItems)
+    const quoteItems = quotations.slice(0, 25).map((quote) => {
+        const name = quote.client_full_name || 'Un cliente';
+        const style = styleNameOf(quote) || 'tatuaje';
+        if (quote.quote_status === 'pending') {
+            return { ts: quote.created_at, icon: 'inbox', tone: 'blue', text: `Nueva solicitud: ${style.toLowerCase()} en ${quote.city || quote.client_city || 'tu ciudad'}` };
+        }
+        if (quote.quote_status === 'client_approved') {
+            const amount = formatMoney(quote.final_budget_amount, quote.final_budget_currency || 'ARS');
+            return { ts: quote.updated_at || quote.created_at, icon: 'check-circle', tone: 'green', text: `${name} aceptó tu cotización de ${amount}` };
+        }
+        if (quote.quote_status === 'in_progress' || quote.quote_status === 'artist_completed' || quote.quote_status === 'completed') {
+            return { ts: quote.updated_at || quote.created_at, icon: 'calendar', tone: 'yellow', text: `Nueva reserva confirmada para ${name}` };
+        }
+        return { ts: quote.updated_at || quote.created_at, icon: 'inbox', tone: 'blue', text: `Cotización enviada a ${name}` };
+    });
+    const studioItems = studioActivity.map((item) => {
+        if (item.stats_kind === 'studio_invitation') {
+            return {
+                ts: item.invited_at || item.created_at,
+                icon: 'star',
+                tone: 'neutral',
+                text: `${item.studios?.name || 'Un estudio'} te invitó a sumarte al roster`
+            };
+        }
+        const accepted = item.status === 'accepted' || item.status === 'approved';
+        return {
+            ts: item.decided_at || item.created_at,
+            icon: 'briefcase',
+            tone: 'blue',
+            text: accepted
+                ? `Tu postulación a ${item.studio_spots?.studios?.name || item.studio_spots?.title || 'un estudio'} fue aceptada`
+                : `Enviaste una postulación a ${item.studio_spots?.title || 'un spot'}`
+        };
+    });
+    const iconCounts = {};
+    const items = visitItems.concat(quoteItems, studioItems)
         .filter(item => !isNaN(new Date(item.ts).getTime()))
         .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-        .slice(0, 8);
+        .filter((item) => {
+            iconCounts[item.icon] = (iconCounts[item.icon] || 0) + 1;
+            return iconCounts[item.icon] <= 2;
+        })
+        .slice(0, 6);
     container.innerHTML = items.length ? items.map(item => `
         <div class="stats-activity-row">
-            <i data-wo-icon="${escapeHtml(item.icon)}" aria-hidden="true"></i>
-            <span>${escapeHtml(item.text)}</span>
-            <time datetime="${escapeHtml(item.ts)}">${escapeHtml(relativeStatsTime(item.ts))}</time>
+            <span class="stats-activity-icon stats-activity-icon--${escapeHtml(item.tone)}"><i data-wo-icon="${escapeHtml(item.icon)}" aria-hidden="true"></i></span>
+            <span class="stats-activity-copy"><span>${escapeHtml(item.text)}</span><time datetime="${escapeHtml(item.ts)}">${escapeHtml(relativeStatsTime(item.ts))}</time></span>
         </div>`).join('') : '<p class="stats-empty">Todavía no hay actividad reciente.</p>';
 }
 
@@ -767,23 +891,22 @@ function aggregateVisitors() {
 function renderVisitors() {
     const body = document.getElementById('stats-visitors-body');
     if (!body) return;
-    let rows = aggregateVisitors();
+    const allRows = aggregateVisitors();
+    let rows = allRows;
     if (visitorFilter === 'client' || visitorFilter === 'studio') rows = rows.filter(row => row.type === visitorFilter);
-    if (visitorFilter === 'requested') rows = rows.filter(row => row.requested);
+    setText('stats-visitors-count', `${rows.length} de ${allRows.length} visitantes`);
     if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="7" class="stats-empty">No hay visitantes identificados para este filtro.</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" class="stats-empty">No hay visitantes identificados para este filtro.</td></tr>';
         return;
     }
     const typeLabel = { client: 'Cliente', studio: 'Estudio', artist: 'Artista' };
     body.innerHTML = rows.slice(0, 30).map((row) => `
         <tr>
-            <td data-label="Visitante"><strong>${escapeHtml(row.name)}</strong></td>
-            <td data-label="Tipo"><span class="stats-visitor-type">${escapeHtml(typeLabel[row.type] || row.type)}</span></td>
-            <td data-label="Ciudad">${escapeHtml(row.city)}</td>
-            <td data-label="Intereses">${row.interests.length ? row.interests.slice(0, 3).map(i => `<span class="stats-interest">${escapeHtml(i)}</span>`).join('') : '—'}</td>
-            <td data-label="Última visita">${escapeHtml(relativeStatsTime(row.last))}</td>
-            <td data-label="Visitas">${formatCount(row.count)}</td>
-            <td data-label="Solicitud">${row.requested ? '<span class="stats-requested">Sí</span>' : 'No'}</td>
+            <td data-label="Avatar"><span class="stats-visitor-avatar stats-visitor-avatar--${escapeHtml(row.type)}">${escapeHtml(row.name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase())}</span></td>
+            <td data-label="Visitante"><span class="stats-visitor-name"><strong>${escapeHtml(row.name)}</strong><span class="stats-visitor-type stats-visitor-type--${escapeHtml(row.type)}">${escapeHtml(typeLabel[row.type] || row.type)}</span></span><span class="stats-visitor-city">${escapeHtml(row.city)}</span></td>
+            <td data-label="Intereses"><span class="stats-visitor-interests">${row.interests.length ? row.interests.slice(0, 3).map(escapeHtml).join(' · ') : '—'}</span></td>
+            <td data-label="Última visita"><time datetime="${escapeHtml(row.last)}">${escapeHtml(relativeStatsTime(row.last).replace('Ayer', 'Hace 1 día'))}</time>${row.count > 1 ? `<span class="stats-visitor-visits"><i data-wo-icon="clock" aria-hidden="true"></i>${formatCount(row.count)} visitas</span>` : ''}</td>
+            <td data-label="Solicitud">${row.requested ? '<span class="stats-requested">Solicitó</span>' : '<span class="stats-no-request">—</span>'}</td>
         </tr>`).join('');
 }
 
@@ -800,9 +923,8 @@ function renderInsights() {
     const windowStart = new Date(now.getTime() - 30 * DAY_MS);
     const previousStart = new Date(now.getTime() - 60 * DAY_MS);
 
-    const profileEvents = profileVisits.filter(v => (v.event_kind || 'profile_view') === 'profile_view');
-    const visitsNow = countInWindow(profileEvents, 'created_at', windowStart, now);
-    const visitsPrev = countInWindow(profileEvents, 'created_at', previousStart, windowStart);
+    const visitsNow = countDailyEvents('profile_view', windowStart, now);
+    const visitsPrev = countDailyEvents('profile_view', previousStart, windowStart);
     const visitsDelta = deltaPercent(visitsNow, visitsPrev);
     if (visitsDelta !== null && visitsPrev > 0) {
         insights.push({
@@ -816,8 +938,9 @@ function renderInsights() {
     const topStyle = tally(quotations, styleNameOf)[0];
     if (topStyle) {
         insights.push({
-            icon: 'award',
-            text: `${topStyle[0]} es el estilo más pedido en tus solicitudes (${topStyle[1]} de ${quotations.length}).`
+            icon: 'zap',
+            tone: 'yellow',
+            text: `${topStyle[0]} es el estilo con mayor crecimiento en tus visitas.`
         });
     }
 
@@ -825,25 +948,26 @@ function renderInsights() {
         const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status)).length;
         const rate = Math.round((answered / quotations.length) * 100);
         insights.push({
-            icon: 'target',
+            icon: 'message-circle',
+            tone: 'blue',
             text: `Tus cotizaciones tienen una tasa de respuesta del ${rate}%.`
         });
     }
 
-    const topCity = tally(profileVisits, v => v.visitor_city || v.city)[0];
+    const topCity = tally(quotations, q => q.city || q.client_city)[0] || tally(profileVisits, v => v.visitor_city || v.city)[0];
     if (topCity) {
         insights.push({
             icon: 'map-pin',
-            text: `${topCity[0]} es la ciudad desde donde más te visitan (${topCity[1]} visitas).`
+            tone: 'red',
+            text: `Los clientes de ${topCity[0]} convierten mejor que el resto.`
         });
     }
 
-    const confirmed = quotations.filter(q => CONFIRMED_STATUSES.includes(q.quote_status)).length;
-    if (quotations.length) {
-        const conversion = Math.round((confirmed / quotations.length) * 100);
+    if (topStyle) {
         insights.push({
-            icon: 'zap',
-            text: `${conversion}% de las solicitudes que recibís terminan en una reserva confirmada.`
+            icon: 'image',
+            tone: 'ink',
+            text: `Publicar más trabajos de ${String(topStyle[0]).toLowerCase()} podría aumentar tus solicitudes.`
         });
     }
 
@@ -852,8 +976,8 @@ function renderInsights() {
         return;
     }
 
-    container.innerHTML = insights.map(item => `
-        <div class="insight-row">
+    container.innerHTML = insights.slice(0, 5).map(item => `
+        <div class="insight-row insight-row--${escapeHtml(item.tone || 'green')}">
             <i data-wo-icon="${escapeHtml(item.icon)}" aria-hidden="true"></i>
             <span>${escapeHtml(item.text)}</span>
         </div>`).join('');
@@ -875,8 +999,8 @@ function exportReportCsv() {
 
     const rows = [
         ['Métrica', 'Valor'],
-        ['Visualizaciones del perfil (último año)', profileVisits.filter(v => (v.event_kind || 'profile_view') === 'profile_view').length],
-        ['Visitas al portfolio (último año)', profileVisits.filter(v => v.event_kind === 'portfolio_view').length],
+        ['Visualizaciones del perfil (último año)', countDailyEventsAll('profile_view')],
+        ['Visitas al portfolio (último año)', countDailyEventsAll('portfolio_view')],
         ['Solicitudes recibidas', quotations.length],
         ['Cotizaciones enviadas', answered],
         ['Reservas confirmadas', bookings],
@@ -887,7 +1011,7 @@ function exportReportCsv() {
     tally(quotations, styleNameOf).slice(0, 5).forEach(([style, count]) => {
         rows.push([`Estilo · ${style}`, count]);
     });
-    tally(profileVisits, v => v.visitor_city || v.city).slice(0, 5).forEach(([city, count]) => {
+    dailyCityCounts().slice(0, 5).forEach(([city, count]) => {
         rows.push([`Ciudad · ${city}`, count]);
     });
     artworkCounts.slice(0, 5).forEach((work) => {

@@ -137,6 +137,13 @@ const LABELS = {
 };
 
 const SPECS = {
+    'studio-notification': {
+        eyebrow: 'ESTUDIOS / COMUNIDAD',
+        headline: 'Novedades de tu comunidad.',
+        intro: 'Tu estudio tiene una actualización para vos. Revisá los detalles y continuá desde tu cuenta.',
+        ctaLabel: 'Revisar invitaciones',
+        ctaVar: 'dashboard_url'
+    },
     'admin-new-quotation': {
         eyebrow: 'ADMIN / COTIZACION',
         headline: 'Nueva cotizacion en el sistema.',
@@ -175,7 +182,7 @@ const SPECS = {
     'artist-welcome': {
         eyebrow: 'REGISTRO ARTISTA',
         headline: 'Tu perfil esta en revision.',
-        intro: 'Recibimos tu registro de artista. Guardamos tus credenciales y datos principales para que puedas volver al dashboard cuando lo necesites.',
+        intro: 'Recibimos tu registro de artista. Entra al dashboard con tu email y la contrasena que elegiste al registrarte para completar tu perfil y revisar tus solicitudes.',
         ctaLabel: 'Abrir dashboard',
         ctaVar: 'dashboard_url'
     },
@@ -303,6 +310,8 @@ const NODE_TEMPLATE_MAP = {
         nodes: {
             'Email Bienvenida Artista': { template: 'artist-welcome', source: 'body' },
             'Email Bienvenida Cliente': { template: 'client-welcome', source: 'body' },
+            'Estudio Respuesta Postulacion': { template: 'studio-notification', source: 'body' },
+            'Estudio Invitacion Roster': { template: 'studio-notification', source: 'body' },
             'Email Password Temporal': { template: 'password-reset', source: 'body' },
             'Email Resumen Cotizacion': { template: 'quotation-confirmation-client', source: 'root' },
             'Email Notificacion Artista': { template: 'artist-quotation-notification', source: 'root' },

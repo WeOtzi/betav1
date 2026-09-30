@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800" role="img">
+<rect width="600" height="800" fill="#FAF8F3"/>
+<rect x="40" y="40" width="520" height="520" fill="none" stroke="#001125" stroke-width="3"/>
+<circle cx="300" cy="310" r="220" fill="#F2B519"/>
+<polygon points="420,540 480,420 540,540" fill="#0055FF"/>
+<line x1="60" y1="560" x2="540" y2="560" stroke="#001125" stroke-width="2"/>
+<line x1="60" y1="572" x2="500" y2="572" stroke="#001125" stroke-width="2"/>
+<line x1="60" y1="584" x2="460" y2="584" stroke="#001125" stroke-width="2"/>
+<line x1="60" y1="596" x2="420" y2="596" stroke="#001125" stroke-width="2"/>
+<line x1="60" y1="608" x2="380" y2="608" stroke="#001125" stroke-width="2"/>
+<line x1="60" y1="620" x2="340" y2="620" stroke="#001125" stroke-width="2"/>
+<text x="60" y="690" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="13" letter-spacing="2" fill="#24211D" text-anchor="start">REFERENCIA · DEMO</text>
+<text x="60" y="740" font-family="'Archivo Black', Impact, sans-serif" font-size="30" fill="#001125">Retrato finalizado</text>
+<text x="60" y="770" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="13" letter-spacing="2" fill="#24211D" text-anchor="start">REALISMO</text>
+</svg>

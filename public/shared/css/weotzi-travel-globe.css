@@ -1,0 +1,118 @@
+/* Global <weotzi-travel-globe> component. Requires the We Ötzi DS tokens. */
+weotzi-travel-globe{display:block;position:relative;isolation:isolate;box-sizing:border-box;min-width:0;min-height:680px;overflow:hidden;background:var(--surface-inverse);color:var(--text-on-dark);container-type:inline-size}
+weotzi-travel-globe[data-layout="wide"]{min-height:680px}
+weotzi-travel-globe[data-layout="compact"]{min-height:960px}
+weotzi-travel-globe [hidden]{display:none !important}
+weotzi-travel-globe .tvl-cobe-fallback{position:absolute;inset:0;z-index:0;background:var(--surface-inverse)}
+weotzi-travel-globe .tvl-cobe-loading{position:absolute;inset:0;display:grid;place-content:center;gap:8px;text-align:center;font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--neutral-200)}
+weotzi-travel-globe .tvl-cobe-loading small{font-size:9px;color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-fallback svg{display:block;width:100%;height:100%;box-sizing:border-box;padding:clamp(12px,3vw,35px)}
+weotzi-travel-globe[data-renderer="svg"] .tvl-cobe-stage{background:transparent}
+weotzi-travel-globe[data-renderer="svg"] .tvl-cobe-canvas,
+weotzi-travel-globe[data-renderer="svg"] .tvl-cobe-plane,
+weotzi-travel-globe[data-renderer="svg"] .tvl-cobe-hotspots{display:none !important}
+weotzi-travel-globe .tvg-wire{fill:none;stroke:var(--neutral-400);stroke-width:1}
+weotzi-travel-globe .tvg-arc{fill:none;stroke-width:2.5;stroke-dasharray:2 7;stroke-linecap:round}
+weotzi-travel-globe .tvg-arc--confirmado{stroke:var(--ink)}
+weotzi-travel-globe .tvg-arc--pendiente,
+weotzi-travel-globe .tvg-arc--planificado{stroke:var(--yellow-300)}
+weotzi-travel-globe .tvg-arc--finalizado{stroke:var(--neutral-400)}
+weotzi-travel-globe .tvg-dot--confirmado{fill:var(--ink)}
+weotzi-travel-globe .tvg-dot--pendiente,
+weotzi-travel-globe .tvg-dot--planificado{fill:var(--yellow-300)}
+weotzi-travel-globe .tvg-dot--finalizado{fill:var(--neutral-400)}
+weotzi-travel-globe .tvg-base{fill:var(--white)}
+weotzi-travel-globe .tvg-label{fill:var(--neutral-300);font-family:var(--font-mono);font-size:13px;letter-spacing:.14em}
+weotzi-travel-globe .tvl-cobe-stage{position:absolute;inset:0;z-index:1;overflow:hidden;background:var(--surface-inverse);font-family:var(--font-body)}
+weotzi-travel-globe .tvl-cobe-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y;outline:0}
+weotzi-travel-globe .tvl-cobe-canvas:active{cursor:grabbing}
+weotzi-travel-globe .tvl-cobe-hotspots{position:absolute;inset:0;z-index:4;pointer-events:none}
+weotzi-travel-globe .tvl-cobe-hotspot{appearance:none;position:absolute;left:0;top:0;width:44px;min-width:44px;height:44px;min-height:44px;box-sizing:border-box;margin:-22px 0 0 -22px;padding:0;border:0;border-radius:var(--radius-pill);background:transparent;box-shadow:none;pointer-events:auto;cursor:pointer}
+weotzi-travel-globe .tvl-cobe-hotspot span{position:absolute;left:50%;bottom:calc(100% + 9px);min-width:max-content;max-width:150px;transform:translateX(-50%);padding:5px 7px;background:var(--surface-inverse);border:var(--border-hairline) solid var(--neutral-300);font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;color:var(--white);opacity:0;pointer-events:none}
+weotzi-travel-globe .tvl-cobe-hotspot:hover span,
+weotzi-travel-globe .tvl-cobe-hotspot:focus-visible span,
+weotzi-travel-globe .tvl-cobe-hotspot.is-selected span{opacity:1}
+weotzi-travel-globe .tvl-cobe-hotspot.is-selected::after{content:"";position:absolute;inset:9px;border:2px solid var(--white);border-radius:var(--radius-pill);box-shadow:0 0 0 2px var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-hotspot:focus-visible{outline:2px solid var(--white);outline-offset:-5px}
+weotzi-travel-globe .tvl-cobe-plane{position:absolute;left:0;top:0;z-index:6;width:28px;height:28px;margin:-14px 0 0 -14px;color:var(--white);transform-origin:50% 50%;pointer-events:none;filter:drop-shadow(0 2px 1px var(--neutral-500));will-change:transform}
+weotzi-travel-globe .tvl-cobe-plane i,
+weotzi-travel-globe .tvl-cobe-plane svg{display:block;width:100%;height:100%;padding:0}
+weotzi-travel-globe.is-animation-paused .tvl-cobe-plane{opacity:.55}
+weotzi-travel-globe .tvl-cobe-controls{position:absolute;z-index:8;left:32px;top:180px;width:64px;border:var(--border-hairline) solid var(--neutral-300);background:var(--surface-inverse)}
+weotzi-travel-globe .tvl-cobe-control{display:grid;place-items:center;width:100%;min-height:44px;border:0;border-bottom:var(--border-hairline) solid var(--ink-rule);background:transparent;color:var(--white);font-family:var(--font-mono);cursor:pointer}
+weotzi-travel-globe .tvl-cobe-control i,
+weotzi-travel-globe .tvl-cobe-control svg{display:block;width:18px;height:18px}
+weotzi-travel-globe .tvl-cobe-control:last-child{border-top:var(--border-hairline) solid var(--ink-rule);border-bottom:0}
+weotzi-travel-globe .tvl-cobe-control:hover,
+weotzi-travel-globe .tvl-cobe-control:focus-visible{background:var(--yellow-300);color:var(--neutral-500)}
+weotzi-travel-globe .tvl-cobe-control:disabled{cursor:default;opacity:.35;background:transparent;color:var(--white)}
+weotzi-travel-globe .tvl-cobe-count{display:grid;place-items:center;min-height:48px;font-family:var(--font-mono);font-size:12px;color:var(--white)}
+weotzi-travel-globe .tvl-cobe-reset,
+weotzi-travel-globe .tvl-cobe-playback,
+weotzi-travel-globe .tvl-cobe-view{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;border:var(--border-hairline) solid var(--neutral-300);background:var(--surface-inverse);color:var(--white);font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+weotzi-travel-globe .tvl-cobe-reset i,
+weotzi-travel-globe .tvl-cobe-playback i,
+weotzi-travel-globe .tvl-cobe-view i,
+weotzi-travel-globe .tvl-cobe-reset svg,
+weotzi-travel-globe .tvl-cobe-playback svg,
+weotzi-travel-globe .tvl-cobe-view svg{display:block;width:16px;height:16px;flex:0 0 auto}
+weotzi-travel-globe .tvl-cobe-reset{position:absolute;z-index:8;left:32px;bottom:126px;padding:0 12px}
+weotzi-travel-globe .tvl-cobe-reset:hover,
+weotzi-travel-globe .tvl-cobe-reset:focus-visible,
+weotzi-travel-globe .tvl-cobe-playback:hover,
+weotzi-travel-globe .tvl-cobe-playback:focus-visible,
+weotzi-travel-globe .tvl-cobe-view:hover,
+weotzi-travel-globe .tvl-cobe-view:focus-visible{border-color:var(--yellow-300);color:var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-playback:disabled{cursor:default;border-color:var(--neutral-400);color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-legend{position:absolute;z-index:7;left:32px;bottom:116px;display:flex;gap:14px;flex-wrap:wrap;pointer-events:none}
+weotzi-travel-globe .tvl-cobe-legend span{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-stepper{position:absolute;z-index:8;left:116px;right:32px;bottom:18px;display:flex;gap:10px;overflow-x:auto;padding:2px;scrollbar-width:none}
+weotzi-travel-globe .tvl-cobe-stepper::-webkit-scrollbar{display:none}
+weotzi-travel-globe .tvl-cobe-step{flex:0 0 136px;min-height:70px;padding:9px 10px;border:var(--border-hairline) solid var(--neutral-400);border-top:2px solid var(--neutral-300);background:var(--surface-inverse);text-align:left;color:var(--white);cursor:pointer}
+weotzi-travel-globe .tvl-cobe-step--confirmado{border-top-color:var(--blue-300)}
+weotzi-travel-globe .tvl-cobe-step--pendiente,
+weotzi-travel-globe .tvl-cobe-step--planificado{border-top-color:var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-step.is-selected{border-color:var(--yellow-300);box-shadow:inset 0 0 0 1px var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-step span,
+weotzi-travel-globe .tvl-cobe-step small{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-step strong{display:block;margin:5px 0;font-size:11px;line-height:1.2;color:var(--white)}
+weotzi-travel-globe .tvl-cobe-step--confirmado small{color:var(--blue-300)}
+weotzi-travel-globe .tvl-cobe-step--pendiente small,
+weotzi-travel-globe .tvl-cobe-step--planificado small{color:var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-info{position:absolute;z-index:9;right:32px;top:32px;width:min(36%,420px);max-height:none;box-sizing:border-box;overflow:visible;border:var(--border-hairline) solid var(--yellow-300);background:color-mix(in srgb,var(--surface-inverse) 94%,transparent);padding:20px;color:var(--white);backdrop-filter:blur(8px)}
+weotzi-travel-globe .tvl-cobe-kicker{margin:0 0 13px;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-kicker::first-letter{color:var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-info-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;margin-bottom:16px}
+weotzi-travel-globe .tvl-cobe-info-head h2{margin:0;font-size:17px;line-height:1.2;color:var(--white)}
+weotzi-travel-globe .tvl-cobe-info-head h2 span{font-weight:var(--weight-regular);color:var(--neutral-200)}
+weotzi-travel-globe .tvl-cobe-status-dot{width:12px;height:12px;border-radius:var(--radius-pill);background:var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-status-dot--confirmado{background:var(--blue-300)}
+weotzi-travel-globe .tvl-cobe-status-dot--finalizado{background:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-tag{padding:4px 6px;border:var(--border-hairline) solid var(--yellow-300);font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--yellow-300)}
+weotzi-travel-globe .tvl-cobe-details{margin:0}
+weotzi-travel-globe .tvl-cobe-details>div{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;padding:11px 0;border-top:var(--border-hairline) solid var(--ink-rule)}
+weotzi-travel-globe .tvl-cobe-details dt{font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-details dd{margin:0;font-family:var(--font-mono);font-size:11px;line-height:1.55;color:var(--neutral-100);overflow-wrap:anywhere}
+weotzi-travel-globe .tvl-cobe-info footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;border-top:var(--border-hairline) solid var(--ink-rule);font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;color:var(--neutral-300)}
+weotzi-travel-globe .tvl-cobe-view{padding:0 10px}
+weotzi-travel-globe .tvl-cobe-playback{position:absolute;z-index:10;right:32px;bottom:112px;width:190px}
+weotzi-travel-globe .tvl-cobe-empty{margin:0;padding:20px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--neutral-200)}
+weotzi-travel-globe .tvl-cobe-fallback-status{position:absolute;z-index:12;left:16px;right:16px;top:16px;margin:0;padding:12px;border:var(--border-hairline) solid var(--yellow-300);background:var(--surface-inverse);font-family:var(--font-mono);font-size:11px;line-height:1.5;color:var(--white)}
+weotzi-travel-globe .tvl-cobe-omitted{position:absolute;z-index:7;left:116px;bottom:115px;margin:0;font-family:var(--font-mono);font-size:9px;color:var(--neutral-300)}
+
+@container (max-width:699px){
+  weotzi-travel-globe .tvl-cobe-canvas,
+  weotzi-travel-globe .tvl-cobe-hotspots{height:460px}
+  weotzi-travel-globe .tvl-cobe-controls{left:16px;top:32px}
+  weotzi-travel-globe .tvl-cobe-reset{left:16px;top:188px;bottom:auto}
+  weotzi-travel-globe .tvl-cobe-legend{left:16px;right:16px;top:396px;bottom:auto}
+  weotzi-travel-globe .tvl-cobe-stepper{left:12px;right:12px;top:430px;bottom:auto;gap:8px;padding-bottom:8px}
+  weotzi-travel-globe .tvl-cobe-step{flex-basis:116px;min-height:76px}
+  weotzi-travel-globe .tvl-cobe-info{left:0;right:0;top:522px;bottom:58px;width:auto;max-height:none;border-width:var(--border-hairline) 0 0;padding:20px 18px 24px}
+  weotzi-travel-globe .tvl-cobe-playback{left:16px;right:16px;bottom:10px;width:auto}
+  weotzi-travel-globe .tvl-cobe-omitted{left:16px;right:16px;top:416px;bottom:auto}
+}
+
+@media (prefers-reduced-motion:reduce){
+  weotzi-travel-globe .tvl-cobe-plane{transition:none}
+}

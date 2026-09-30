@@ -19,10 +19,14 @@
 }
 
 .cal-app {
+    margin: 0;
     min-height: 100vh;
     background: var(--figma-white);
     color: var(--ink);
 }
+
+html:has(body.cal-app) { scrollbar-width: none; }
+html:has(body.cal-app)::-webkit-scrollbar { width: 0; height: 0; }
 
 .cal-topbar {
     min-height: 3.35rem;
@@ -205,7 +209,11 @@
     gap: 1.25rem;
 }
 
-.cal-board { min-width: 0; }
+.cal-board {
+    min-width: 0;
+    container-type: inline-size;
+    container-name: calendar-board;
+}
 
 .cal-upcoming {
     min-width: 0;
@@ -279,7 +287,7 @@
     padding: 0.36rem 0.28rem;
     border-right: 0.0625rem solid var(--ink);
     border-bottom: 0.0625rem solid var(--ink);
-    background: var(--neutral-100);
+    background: var(--figma-ecru);
     color: var(--neutral-300);
     font: 400 0.46rem/1 var(--font-mono);
     letter-spacing: 0.06em;
@@ -294,12 +302,13 @@
     border: 0;
     border-right: 0.0625rem solid var(--ink);
     border-bottom: 0.0625rem solid var(--ink);
-    background: var(--figma-white);
+    background: var(--neutral-100);
     text-align: left;
     cursor: pointer;
 }
 
-.cal-month-day.is-outside { background: var(--sand-050); color: var(--neutral-300); }
+.cal-month-day.is-outside { background: var(--figma-white); color: var(--neutral-300); }
+.cal-month-day.is-outside .cal-day-number { color: var(--neutral-300); }
 .cal-month-day.is-today .cal-day-number { color: var(--blue-400); }
 .cal-month-day.is-selected::after { content: ""; position: absolute; inset: 0.1rem; border: 0.12rem solid var(--blue-300); pointer-events: none; }
 
@@ -348,6 +357,8 @@
     border-left: 0.0625rem solid var(--ink);
 }
 
+.cal-time-grid--day { grid-template-rows: calc(var(--hour-height) * 12); }
+
 .cal-time-corner,
 .cal-time-head {
     min-width: 0;
@@ -366,7 +377,7 @@
 .cal-time-hours {
     position: relative;
     border-right: 0.0625rem solid var(--ink);
-    background: var(--figma-white);
+    background: var(--neutral-100);
 }
 
 .cal-time-hour-label {
@@ -410,6 +421,19 @@
 }
 
 .cal-time-column .cal-event strong { display: block; margin-top: 0.12rem; font-family: var(--font-body); }
+.cal-time-column .cal-event small { display: block; margin-top: 0.05rem; font: 400 0.38rem/1.15 var(--font-body); }
+
+.cal-day-board-title {
+    display: grid;
+    align-content: center;
+    min-height: 5.15rem;
+    padding: 0.85rem 1.3rem;
+    border: 0.0625rem solid var(--ink);
+    border-bottom: 0;
+    background: var(--neutral-100);
+}
+.cal-day-board-title span { color: var(--neutral-300); font: 400 0.58rem/1 var(--font-mono); text-transform: uppercase; }
+.cal-day-board-title strong { margin-top: 0.4rem; color: var(--ink); font: 400 1.65rem/1 var(--font-display); }
 
 /* Agenda */
 .cal-agenda { border-top: 0.1rem solid var(--ink); }
@@ -423,15 +447,15 @@
 .cal-empty { display: grid; place-items: center; min-height: 15rem; border: 0.0625rem dashed var(--neutral-300); color: var(--neutral-400); font: 400 0.7rem/1.5 var(--font-mono); text-align: center; }
 
 /* Event color system */
-.type-confirmed_session { --event-color: var(--neutral-500); --event-tint: var(--neutral-200); --event-contrast: var(--white); }
-.type-pending_request { --event-color: var(--yellow-300); --event-tint: var(--yellow-200); --event-contrast: var(--ink); }
+.type-confirmed_session { --event-color: var(--neutral-500); --event-tint: #d8d0bf; --event-contrast: var(--white); }
+.type-pending_request { --event-color: var(--yellow-300); --event-tint: var(--yellow-300); --event-contrast: var(--ink); }
 .type-reservation { --event-color: var(--blue-400); --event-tint: var(--blue-100); --event-contrast: var(--white); }
-.type-blocked_day { --event-color: var(--neutral-400); --event-tint: var(--neutral-200); --event-contrast: var(--white); }
+.type-blocked_day { --event-color: #d8d0bf; --event-tint: #d8d0bf; --event-contrast: var(--ink); }
 .type-availability { --event-color: var(--system-success); --event-tint: var(--success-bg); --event-contrast: var(--ink); }
 .type-guest_spot { --event-color: var(--red-300); --event-tint: var(--red-100); --event-contrast: var(--white); }
 .type-convention { --event-color: var(--yellow-400); --event-tint: var(--yellow-100); --event-contrast: var(--ink); }
 .type-reminder { --event-color: var(--neutral-300); --event-tint: var(--figma-sand); --event-contrast: var(--ink); }
-.type-personal { --event-color: var(--blue-300); --event-tint: var(--blue-100); --event-contrast: var(--white); }
+.type-personal { --event-color: var(--blue-100); --event-tint: var(--blue-100); --event-contrast: var(--ink); }
 
 /* Editor */
 .cal-editor-shell { background: var(--neutral-100); min-height: calc(100vh - 3.35rem); }
@@ -470,7 +494,8 @@
 .cal-type-picker button[aria-checked="true"]::after { content: "✓"; position: absolute; top: 0.35rem; right: 0.35rem; display: grid; place-items: center; width: 0.9rem; height: 0.9rem; border-radius: 50%; background: var(--blue-400); color: var(--white); font-size: 0.55rem; }
 
 .cal-form-empty { display: grid; place-items: center; align-content: center; gap: 0.8rem; min-height: 8.6rem; border: 0.0625rem dashed var(--sand-350); color: var(--neutral-300); font: 400 0.56rem/1.4 var(--font-mono); letter-spacing: 0.1em; text-align: center; text-transform: uppercase; }
-.cal-form-empty b { color: var(--ink); font-size: 1.1rem; }
+.cal-form-empty > i { display: block; width: 1.1rem; height: 1.1rem; color: var(--ink); }
+.cal-form-empty > i svg { display: block; width: 100%; height: 100%; }
 
 .cal-fields { display: grid; gap: 0.85rem; }
 .cal-field { display: grid; gap: 0.35rem; min-width: 0; }
@@ -481,10 +506,19 @@
 .cal-field select,
 .cal-field textarea { width: 100%; min-height: 2.5rem; padding: 0.68rem 0.75rem; border: 0.0625rem solid var(--neutral-400); border-radius: 0; background: var(--neutral-100); color: var(--neutral-500); font: 400 0.72rem/1.3 var(--font-body); }
 .cal-field textarea { min-height: 4.4rem; resize: vertical; }
+.cal-field .cal-time-select { appearance: none; background-image: none; }
 .cal-field input:focus,
 .cal-field select:focus,
 .cal-field textarea:focus { border-color: var(--blue-400); background: var(--figma-white); box-shadow: var(--shadow-focus); outline: 0; }
 .cal-field-grid { display: grid; gap: 0.85rem; }
+.cal-input-with-icon { display: flex; align-items: center; gap: 0.55rem; min-height: 2.5rem; padding-inline: 0.75rem; border: 0.0625rem solid var(--neutral-400); background: var(--neutral-100); color: var(--neutral-300); }
+.cal-input-with-icon > i { flex: none; width: 1.1rem; height: 1.1rem; }
+.cal-input-with-icon > i svg { display: block; width: 100%; height: 100%; }
+.cal-input-with-icon > input { min-height: 0; padding-inline: 0; border: 0; background: transparent; }
+.cal-date-control button { flex: 1; min-height: 2.25rem; padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 0.72rem/1.3 var(--font-body); text-align: left; cursor: pointer; }
+.cal-checkbox-row { display: flex; align-items: center; gap: 0.7rem; color: var(--neutral-500); font-size: 0.72rem; }
+.cal-checkbox-row input { appearance: none; flex: none; width: 1.25rem; height: 1.25rem; border: 0.0625rem solid var(--neutral-500); background: var(--figma-white); }
+.cal-checkbox-row input:checked { background: var(--blue-400); box-shadow: inset 0 0 0 0.25rem var(--figma-white); }
 .cal-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3.2rem; padding-block: 0.7rem; border-top: 0.0625rem solid var(--neutral-200); border-bottom: 0.0625rem solid var(--neutral-200); }
 .cal-toggle-copy span { display: block; margin-top: 0.2rem; color: var(--neutral-400); font-size: 0.65rem; }
 .cal-switch { position: relative; flex: none; width: 2.35rem; height: 1.3rem; }
@@ -548,8 +582,238 @@
 }
 
 @media (min-width: 80rem) {
-    .cal-shell,
-    .cal-editor-shell { padding-inline: 3.4rem; }
-    .cal-layout { grid-template-columns: minmax(0, 1fr) 15.5rem; }
-    .cal-month-day { min-height: 8.2rem; }
+    .cal-shell {
+        width: calc(100% - 32px);
+        max-width: 1408px;
+        margin: 0 0 0 32px;
+        padding: 44px 44px 110px;
+    }
+    .cal-shell[data-view="week"],
+    .cal-shell[data-view="day"] { padding-right: 64px; padding-left: 24px; }
+
+    .cal-hero {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        padding-bottom: 20px;
+        border-bottom: 0;
+    }
+    .cal-eyebrow { margin: 0 0 13px; font-size: 12px; line-height: 16px; letter-spacing: 1.68px; }
+    .cal-hero h1 { font-size: 42px; line-height: 44.1px; letter-spacing: 0; }
+    .cal-summary { margin-top: 14px; font-size: 16px; line-height: 25.6px; }
+    .cal-new-event { width: 192px; height: 44px; padding-inline: 20px; border-color: var(--blue-300); background: var(--blue-300); font-size: 14px; }
+
+    .cal-controls {
+        grid-template-columns: 250px minmax(0, 1fr) 267px;
+        column-gap: 19px;
+        height: 78.4px;
+        padding: 0;
+        border-top: 1.6px solid var(--ink);
+        border-bottom-width: 1.6px;
+    }
+    .cal-view-tabs { gap: 10px; overflow: visible; }
+    .cal-view-tabs button { min-height: 36px; padding: 8px 4px 10px; font-size: 12px; letter-spacing: 0.72px; }
+    .cal-date-nav { grid-template-columns: 36px 160px 36px; gap: 14px; }
+    .cal-date-nav button { width: 36px; height: 36px; font-size: 20px; }
+    .cal-date-nav h2 { font-size: 20px; line-height: 22px; }
+    .cal-search { width: 267px; min-height: 48px; padding-inline: 16px; }
+    .cal-search input { font-size: 16px; }
+
+    .cal-legend { flex-wrap: nowrap; gap: 8px; height: 76.6px; padding: 14px 0 26.6px; overflow: visible; }
+    .cal-legend button { min-height: 36px; padding: 10px 16px; font-size: 11px; letter-spacing: 1.1px; white-space: nowrap; }
+
+    .cal-layout { grid-template-columns: minmax(0, 980px) minmax(0, 300px); gap: 40px; }
+    .cal-month-weekday { height: 28px; padding: 8px 9px; font-size: 9px; line-height: 10px; }
+    .cal-month-day { min-height: 130px; padding: 8px; }
+    .cal-day-number { font-size: 22px; line-height: 24px; }
+    .cal-month-day.is-selected::after { inset: 4px auto auto 8px; width: 14px; height: 2px; border: 0; background: var(--yellow-300); }
+    .cal-month-events { gap: 4px; margin-top: 13px; }
+    .cal-month-events .cal-event { height: 7px; min-height: 7px; padding: 0; color: transparent; font-size: 0; }
+
+    .cal-upcoming { padding-top: 2px; }
+    .cal-upcoming h2 { margin-bottom: 12px; font-size: 12px; line-height: 16px; letter-spacing: 1.68px; }
+    .cal-upcoming-item { min-height: 52px; padding: 9px 0 8px 20px; }
+    .cal-upcoming-item::before { top: 15px; width: 10px; height: 10px; }
+    .cal-upcoming-item time { font-size: 11px; line-height: 14px; }
+    .cal-upcoming-item strong { font-size: 14px; line-height: 18px; }
+    .cal-upcoming-foot { margin-top: 26px; padding-top: 18px; font-size: 11px; line-height: 18px; }
+
+    .cal-time-grid { --hour-height: 52px; grid-template-columns: 54px repeat(var(--time-columns), minmax(0, 1fr)); grid-template-rows: 54px calc(var(--hour-height) * 12); }
+    .cal-time-corner,
+    .cal-time-head { padding: 9px 10px; }
+    .cal-time-head span { font-size: 9px; }
+    .cal-time-head strong { margin-top: 4px; font-size: 22px; }
+    .cal-time-hour-label { padding: 8px 8px; font-size: 10px; }
+    .cal-time-column .cal-event { left: 3px; right: 3px; padding: 8px; font-size: 11px; line-height: 14px; }
+    .cal-time-column .cal-event strong { margin-top: 2px; font-size: 13px; line-height: 16px; }
+    .cal-time-column .cal-event small { margin-top: 1px; font-size: 11px; line-height: 14px; }
+    .cal-time-grid.cal-time-grid--day { --hour-height: 68px; grid-template-rows: calc(var(--hour-height) * 12); }
+    .cal-day-board-title { height: 82px; min-height: 82px; padding: 12px 26px; }
+    .cal-day-board-title span { font-size: 11px; }
+    .cal-day-board-title strong { margin-top: 7px; font-size: 36px; }
+
+    .cal-editor-shell {
+        width: calc(100% - 40px);
+        max-width: 1360px;
+        min-height: calc(100vh - 76px);
+        margin: 0 0 0 40px;
+        padding: 32px 43.84px 96px 32px;
+    }
+    .cal-editor-layout { grid-template-columns: 881.28px 362.88px; gap: 40px; }
+    .cal-editor-main { min-width: 0; }
+    .cal-back { height: 36px; padding: 1.6px 15.6px; font-size: 12px; letter-spacing: 0.96px; }
+    .cal-editor-heading { margin: 18px 0 0; }
+    .cal-editor-heading h1 { font-size: 36px; line-height: 39.6px; letter-spacing: 0; }
+    .cal-editor-heading p { margin-top: 8px; font-size: 16px; line-height: 19px; }
+    .cal-editor-main > .cal-form-label { margin: 28px 0 4px; font-size: 11px; line-height: 14px; letter-spacing: 1.1px; }
+    .cal-type-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 24px; }
+    .cal-type-picker button { height: 65.6px; min-height: 65.6px; gap: 6px; padding: 10px; border-color: #d8d0bf; border-radius: 10px; font-size: 13px; }
+    .cal-type-picker button i { width: 10px; height: 10px; }
+    .cal-type-picker button[aria-checked="true"] { border-width: 1.6px; box-shadow: 2.4px 2.4px 0 var(--ink); }
+    .cal-type-picker button[aria-checked="true"]::after { top: 10px; right: 10px; width: 18px; height: 18px; font-size: 11px; }
+    .cal-form-empty { min-height: 191.6px; gap: 16px; font-size: 12px; letter-spacing: 0.72px; }
+    .cal-form-empty > i { width: 28px; height: 28px; }
+    .cal-fields { gap: 20px; padding-top: 24.8px; }
+    .cal-field { gap: 8px; }
+    .cal-field label,
+    .cal-toggle-copy strong { font-size: 12px; line-height: 14.4px; letter-spacing: 0.96px; }
+    .cal-field input,
+    .cal-field select,
+    .cal-field textarea { min-height: 44px; padding: 10px 17.6px; font-size: 16px; line-height: 24px; }
+    .cal-field textarea { min-height: 100px; padding-top: 13.6px; resize: vertical; }
+    .cal-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .cal-field-grid--blocked > .cal-field { grid-column: span 1; }
+    .cal-input-with-icon { min-height: 44px; gap: 8px; padding-inline: 17.6px; }
+    .cal-input-with-icon > i { width: 18px; height: 18px; }
+    .cal-input-with-icon > input { min-height: 0; padding: 0; }
+    .cal-date-control button { min-height: 40px; font-size: 16px; }
+    .cal-toggle-row { min-height: 85px; padding-block: 14.8px; }
+    .cal-toggle-copy strong { font-family: var(--font-body); font-size: 16px; line-height: 20px; letter-spacing: 0; text-transform: none; }
+    .cal-toggle-copy span { margin-top: 2px; font-size: 14px; line-height: 18px; }
+    .cal-switch { width: 52px; height: 28px; }
+    .cal-switch span::before { top: 4px; left: 4px; width: 18px; height: 18px; }
+    .cal-switch input:checked + span { background: var(--figma-white); }
+    .cal-switch input:checked + span::before { transform: translateX(24px); background: var(--neutral-500); }
+    .cal-checkbox-row { gap: 12px; font-size: 16px; line-height: 20px; }
+    .cal-checkbox-row input { width: 22px; height: 22px; }
+    .cal-form-error { min-height: 0; margin: 12px 0 0; font-size: 12px; }
+    .cal-form-error:empty { display: none; }
+    .cal-form-actions { gap: 12px; margin-top: 24px; }
+    .cal-form-actions .wo-btn { min-height: 31px; padding: 1.6px 29.6px; font-size: 14px; letter-spacing: 1.12px; }
+    #save-event { border-color: var(--blue-300); background: var(--blue-300); }
+    #save-event:disabled { border-color: var(--blue-100); background: var(--blue-100); color: var(--figma-white); opacity: 1; }
+
+    .cal-editor-aside { gap: 24px; }
+    .cal-mini-calendar,
+    .cal-event-summary { padding: 21.6px; background: var(--figma-white); }
+    .cal-mini-calendar { height: 326px; min-height: 326px; }
+    .cal-mini-calendar header { grid-template-columns: 16px minmax(0, 1fr) 16px; }
+    .cal-mini-calendar header button { width: 16px; height: 16px; font-size: 18px; }
+    .cal-mini-calendar header h2 { font-size: 16px; line-height: 20px; }
+    .cal-mini-grid { gap: 2px; margin-top: 20px; }
+    .cal-mini-grid span { min-height: 24px; font-size: 10px; }
+    .cal-mini-grid button { min-height: 35px; font-size: 12px; }
+    .cal-mini-grid button.is-selected { border-radius: 8px; }
+    .cal-mini-grid button.has-events::after { width: 4px; height: 4px; margin-top: 3px; }
+    .cal-event-summary { height: 239px; min-height: 239px; padding: 17px 21.6px; }
+    .cal-event-summary h2 { margin-bottom: 10px; font-size: 11px; line-height: 14px; letter-spacing: 1.1px; }
+    .cal-event-summary dl div { min-height: 34px; gap: 12px; padding: 7px 0; }
+    .cal-event-summary dt { font-size: 11px; line-height: 15px; letter-spacing: 0.55px; }
+    .cal-event-summary dd { max-width: 220px; font-size: 13px; line-height: 17px; }
+    .cal-conflict { min-height: 95px; padding: 21.6px; }
+    .cal-conflict h2 { margin-bottom: 12px; font-size: 11px; line-height: 14px; letter-spacing: 0.88px; }
+    .cal-conflict p { margin: 0; font-size: 13px; line-height: 18px; }
+}
+
+@media (min-width: 90.0625rem) {
+    .cal-shell {
+        max-width: none;
+    }
+
+    .cal-layout {
+        grid-template-columns: minmax(0, 49fr) minmax(0, 15fr);
+        gap: 3.030303%;
+    }
+
+    .cal-month-weekday {
+        height: auto;
+        aspect-ratio: 5 / 1;
+        padding: 0.816327cqw 0.918367cqw;
+        font-size: 0.918367cqw;
+        line-height: 1.1;
+    }
+
+    .cal-month-day {
+        min-height: 0;
+        aspect-ratio: 14 / 13;
+        padding: 0.816327cqw;
+    }
+
+    .cal-day-number {
+        font-size: 2.244898cqw;
+        line-height: 1.1;
+    }
+
+    .cal-month-events {
+        gap: 0.408163cqw;
+        margin-top: 1.326531cqw;
+    }
+
+    .cal-month-events .cal-event {
+        height: 0.714286cqw;
+        min-height: 0.714286cqw;
+    }
+
+    .cal-time-grid {
+        --hour-height: 5.306122cqw;
+        grid-template-columns: 5.510204cqw repeat(var(--time-columns), minmax(0, 1fr));
+        grid-template-rows: 5.510204cqw calc(var(--hour-height) * 12);
+    }
+
+    .cal-time-grid.cal-time-grid--day {
+        --hour-height: 6.938776cqw;
+        grid-template-rows: calc(var(--hour-height) * 12);
+    }
+
+    .cal-day-board-title {
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 490 / 41;
+    }
+
+    .cal-editor-shell {
+        max-width: none;
+    }
+
+    .cal-editor-layout {
+        grid-template-columns: minmax(0, 2.428fr) minmax(0, 1fr);
+        gap: 3.114877%;
+    }
+
+    .cal-type-picker button {
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 3.22134 / 1;
+    }
+
+    .cal-form-empty {
+        min-height: 0;
+        aspect-ratio: 4.599583 / 1;
+    }
+
+    .cal-mini-calendar {
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 362.88 / 326;
+    }
+
+    .cal-event-summary {
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 362.88 / 239;
+    }
+
+    .cal-conflict {
+        min-height: 0;
+        aspect-ratio: 362.88 / 95;
+    }
 }

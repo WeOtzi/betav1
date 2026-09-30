@@ -7,7 +7,7 @@
 //
 // Usage:
 //     await EmailClient.sendEmail('artist_registration_completed', {
-//         email: '...', username: '...', password: '...', name: '...', ...
+//         email: '...', username: '...', name: '...', ...
 //     });
 //
 // Backend routes the event to n8n / BillionMail / dual / off based on the
@@ -23,8 +23,17 @@
 (function () {
     'use strict';
 
-    const DEFAULT_TIMEOUT_MS = 15000;
-    const ENDPOINT_BASE = '/api/email';
+    const DEFAULT_TIMEOUT_MS = 45000;
+    const basePath = typeof window !== 'undefined' && (window.WEOTZI_BASE_PATH || (/^\/beta(?:\/|$)/.test(window.location?.pathname || '') ? '/beta' : ''));
+    const ENDPOINT_BASE = `${basePath || ''}/api/email`;
+
+    function reportFailure(eventId, result) {
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('weotzi:email-failed', { detail: { eventId, ...result } }));
+            if (typeof window.showToast === 'function') window.showToast('El cambio se guardó, pero no pudimos confirmar el correo. ' + (result.error || ''), 'error');
+        }
+        return result;
+    }
 
     function _dbg() {
         try {
@@ -70,8 +79,10 @@
         // Combine an internal abort timer with any caller-supplied signal.
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        const onAbort = () => controller.abort();
         if (opts.signal) {
-            try { opts.signal.addEventListener('abort', () => controller.abort()); } catch (_) {}
+            if (opts.signal.aborted) controller.abort();
+            else opts.signal.addEventListener('abort', onAbort, { once: true });
         }
 
         try {
@@ -84,23 +95,24 @@
 
             const res = await fetch(`${ENDPOINT_BASE}/${encodeURIComponent(eventId)}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await _authHeaders()) },
                 body: requestBody,
                 signal: controller.signal,
                 keepalive: useKeepalive
             });
             const body = await res.json().catch(() => ({}));
-            if (!res.ok) {
+            if (!res.ok || body.success === false || body.ok === false || body.skipped) {
                 _dbg('failed', eventId, res.status, body);
-                return { success: false, status: res.status, error: body.error || `HTTP ${res.status}`, ...body };
+                return reportFailure(eventId, { ...body, success: false, status: res.status, error: body.error || `HTTP ${res.status}` });
             }
             _dbg('ok', eventId, body.channel);
             return { success: true, ...body };
         } catch (err) {
             _dbg('error', eventId, err && err.message);
-            return { success: false, error: (err && err.message) || 'Unknown error' };
+            return reportFailure(eventId, { success: false, uncertain: true, error: 'No se pudo confirmar el envío. No reintentes la operación para evitar duplicados.' });
         } finally {
             clearTimeout(timeoutId);
+            if (opts.signal) opts.signal.removeEventListener('abort', onAbort);
         }
     }
 

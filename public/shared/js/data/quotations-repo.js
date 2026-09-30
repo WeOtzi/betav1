@@ -303,8 +303,16 @@
         },
         async sendMessage({ quoteId, senderType, senderId, message }) {
             const { data } = await run('chat.sendMessage', (c) =>
-                c.from('chat_messages').insert({ quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message })
+                c.from('chat_messages').insert({ quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message }).select('id')
             );
+            const savedMessage = Array.isArray(data) ? data[0] : data;
+            if (savedMessage?.id && window.ConfigManager?.sendN8NEvent) {
+                // The server resolves the saved sender, recipient, and message.
+                // Mail failure must not turn a persisted chat into a failed send.
+                void window.ConfigManager.sendN8NEvent(senderType === 'artist' ? 'chat_message_to_client' : 'chat_message_to_artist', {
+                    quote_id: quoteId, message_id: savedMessage.id
+                }).catch(() => window.showToast?.('El mensaje se guardó, pero no pudimos confirmar el correo.', 'error'));
+            }
             return data || [];
         },
         // Marca como leidos los mensajes NO leidos enviados por `fromSenderType`.

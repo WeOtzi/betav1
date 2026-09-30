@@ -15,11 +15,23 @@
     let currentStep = 1;
     const locationPickers = []; // array of { row: HTMLElement, picker: AddressPicker, address: {} }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    let existingSession = null;
+    document.addEventListener('DOMContentLoaded', async () => {
         bootLocationsRepeater();
         wireWizardNav();
         renderStep();
         mountIGImport();
+        const authClient = await window.WeOtziStudioAuth.ready();
+        const { data } = await authClient.auth.getSession();
+        existingSession = data?.session || null;
+        if (existingSession) {
+            document.getElementById('reg-email').value = existingSession.user.email || '';
+            document.getElementById('reg-email').readOnly = true;
+            ['reg-password', 'reg-password-confirm'].forEach(id => {
+                document.getElementById(id).closest('.studio-field').hidden = true;
+            });
+            showStatus('info', 'Completá los datos del estudio para asociarlo a tu cuenta actual.');
+        }
     });
 
     function mountIGImport() {
@@ -110,15 +122,25 @@
             const pw2 = document.getElementById('reg-password-confirm').value;
             if (!name || name.length < 2) return showStatus('error', 'El nombre del estudio es obligatorio.') && false;
             if (!/^\S+@\S+\.\S+$/.test(email)) return showStatus('error', 'El email no parece válido.') && false;
-            if (pw.length < 8) return showStatus('error', 'La contraseña debe tener al menos 8 caracteres.') && false;
-            if (pw !== pw2) return showStatus('error', 'Las contraseñas no coinciden.') && false;
+            if (!existingSession && pw.length < 8) return showStatus('error', 'La contraseña debe tener al menos 8 caracteres.') && false;
+            if (!existingSession && pw !== pw2) return showStatus('error', 'Las contraseñas no coinciden.') && false;
             return true;
         }
         if (step === 3) {
             // Locations: at least one with a formatted_address required.
-            const haveAny = locationPickers.some(lp => lp.address && lp.address.formatted_address);
-            if (!haveAny) return showStatus('error', 'Agregá al menos una sede con dirección completa.') && false;
+            const complete = locationPickers.length && locationPickers.every(lp => lp.address?.formatted_address
+                && lp.row.querySelector('[data-field="address"]').value.trim() === lp.address.formatted_address.trim());
+            if (!complete) return showStatus('error', 'Completá la dirección de cada sede o quitá las sedes vacías.') && false;
             return true;
+        }
+        if (step === 2) {
+            const year = Number(document.getElementById('reg-founded').value);
+            if (year && (year < 1900 || year > new Date().getFullYear())) return showStatus('error', 'Revisá el año de fundación.') && false;
+        }
+        if (step === 4) {
+            const urls = ['reg-cover', 'reg-logo'].map(id => document.getElementById(id).value.trim())
+                .concat(document.getElementById('reg-photos').value.split('\n').map(s => s.trim())).filter(Boolean);
+            if (urls.some(url => !/^https?:\/\/[^\s]+$/i.test(url))) return showStatus('error', 'Las imágenes deben tener una URL http o https válida.') && false;
         }
         return true;
     }
@@ -150,6 +172,13 @@
                 <input type="text" class="studio-input weotzi-address-picker-input" data-field="address" placeholder="Buscá la dirección…" autocomplete="off">
                 <div class="weotzi-address-fields" data-field="preview" hidden></div>
             </div>
+            <details>
+                <summary class="studio-help">Ingresar dirección manualmente</summary>
+                <div class="studio-field"><label class="studio-label">Ciudad</label><input class="studio-input" data-field="manual-city"></div>
+                <div class="studio-field"><label class="studio-label">País</label><input class="studio-input" data-field="manual-country"></div>
+                <button type="button" class="studio-locations-add" data-action="manual">Usar la dirección escrita arriba</button>
+                <p class="studio-help">Podés buscarla en el mapa después desde Sedes.</p>
+            </details>
         `;
         list.appendChild(row);
 
@@ -167,6 +196,17 @@
         const addressInput = row.querySelector('input[data-field="address"]');
         const previewEl   = row.querySelector('div[data-field="preview"]');
         const entry = { row, picker: null, address: {}, labelInput: row.querySelector('input[data-field="label"]') };
+        row.querySelector('[data-action="manual"]').addEventListener('click', () => {
+            const city = row.querySelector('[data-field="manual-city"]').value.trim();
+            const country = row.querySelector('[data-field="manual-country"]').value.trim();
+            if (!addressInput.value.trim() || !city || !country) {
+                showStatus('error', 'Para ingresar una sede manualmente completá dirección, ciudad y país.'); return;
+            }
+            entry.address = { formatted_address: addressInput.value.trim(), city, country, latitude: null, longitude: null };
+            previewEl.textContent = [entry.address.formatted_address, city, country].join(' · ');
+            previewEl.hidden = false;
+            clearStatus();
+        });
 
         if (window.WeOtziAddressPicker) {
             entry.picker = window.WeOtziAddressPicker.attach(addressInput, {
@@ -240,6 +280,9 @@
     // -------------------------------------------------------------
     async function submitRegistration() {
         clearStatus();
+        for (let step = 1; step < TOTAL_STEPS; step++) {
+            if (!await validateStep(step)) { currentStep = step; renderStep(); return; }
+        }
         const submitBtn = document.getElementById('wizard-next');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creando estudio…';
@@ -272,58 +315,23 @@
                 logo_image:      document.getElementById('reg-logo').value.trim() || null,
                 photo_feed_items: photoFeedItems
             };
-            const websiteValue = document.getElementById('reg-website').value.trim();
-
-            // 1+2) auth signUp + studios row insert.
-            const studio = await window.WeOtziStudioAuth.register(payload);
-
-            // 2.5) website lives on studios.website (legacy column from prior migrations).
-            if (websiteValue) {
-                await WeotziData.Studios.update(studio.id, { website: websiteValue });
-            }
-
-            // 3) Insert each location.
-            const validLocations = locationPickers
-                .map((lp, idx) => ({ idx, lp }))
-                .filter(({ lp }) => lp.address && lp.address.formatted_address);
-
-            const locationRows = validLocations.map(({ idx, lp }) => ({
-                studio_id:         studio.id,
-                label:             lp.labelInput.value.trim() || (idx === 0 ? 'Sede principal' : 'Sede #' + (idx + 1)),
-                is_primary:        idx === 0,
-                is_active:         true,
-                sort_order:        idx,
-                country:           lp.address.country || null,
-                country_code:      lp.address.country_code || null,
-                state_province:    lp.address.state_province || null,
-                city:              lp.address.city || null,
-                locality:          lp.address.locality || null,
-                street:            lp.address.street || null,
-                street_number:     lp.address.street_number || null,
-                unit:              lp.address.unit || null,
-                postal_code:       lp.address.postal_code || null,
-                formatted_address: lp.address.formatted_address || null,
-                latitude:          Number.isFinite(lp.address.latitude)  ? lp.address.latitude  : null,
-                longitude:         Number.isFinite(lp.address.longitude) ? lp.address.longitude : null,
-                google_place_id:   lp.address.google_place_id || null,
-                geocoded_at:       lp.address.formatted_address ? new Date().toISOString() : null
+            payload.website = document.getElementById('reg-website').value.trim() || null;
+            payload.locations = locationPickers.map((lp, index) => ({
+                ...lp.address,
+                label: lp.labelInput.value.trim() || (index === 0 ? 'Sede principal' : 'Sede #' + (index + 1)),
+                is_primary: index === 0,
+                is_active: true
             }));
-
-            if (locationRows.length) {
-                const { data: insertedLocs, error: locErr } = await WeotziData.StudioLocations.createMany(locationRows);
-                if (locErr) throw locErr;
-
-                const primary = (insertedLocs || []).find(l => l.is_primary);
-                if (primary) {
-                    await WeotziData.Studios.update(studio.id, {
-                        primary_location_id: primary.id,
-                        profile_complete: true
-                    });
-                }
+            const studio = await window.WeOtziStudioAuth.register(payload);
+            if (studio.confirmationRequired) {
+                showStatus('success', 'Revisá ' + studio.email + ' y confirmá tu correo. Al abrir el enlace completaremos tu estudio con estos datos.');
+                submitBtn.textContent = 'Esperando confirmación del correo';
+                document.getElementById('wizard-prev').disabled = true;
+                return;
             }
 
             showStatus('success', '¡Estudio creado! Redirigiendo al panel…');
-            setTimeout(() => { window.location.href = '/studio/dashboard'; }, 600);
+            setTimeout(() => { window.location.href = window.WeOtziStudioAuth.appUrl('/studio/dashboard'); }, 600);
         } catch (err) {
             console.error('[studio-register] submit failed:', err);
             submitBtn.disabled = false;

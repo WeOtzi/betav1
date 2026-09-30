@@ -1,7 +1,9 @@
 # Mapa completo de la aplicacion We Otzi
 
-Actualizado: 2026-05-27  
+Actualizado: 2026-08-30
 Alcance: proyecto local (`weotzi-unified`) y esquema Supabase representado en el codigo local/migraciones. No incluye estado de produccion ni servidor Hostinger.
+
+Actualización de publicación 2026-09-21: consultar [despliegue verificado](DEPLOY-20260921.md), [acceso de estudios](STUDIOS-IDENTITY-20260921.md), [operaciones](STUDIOS-OPERATIONS-20260921.md) y [correo transaccional](EMAIL-DELIVERY-20260921.md) para el estado remoto, los flujos nuevos y sus límites.
 
 ## Resumen ejecutivo
 
@@ -106,10 +108,10 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/artist/profile/gallery` | Artista/publico | `public/artist/profile/gallery/index.html` | Galeria publica categorizada del artista. |
 | `/artist/invitations` | Artista | `public/artist/invitations/index.html` | Invitaciones y membresias pendientes/activas con estudios. |
 | `/artist/applications` | Artista | `public/artist/applications/index.html` | Postulaciones del artista unificadas (job board + spots) con detalle y contraofertas (rediseño 2026). |
-| `/artist/inbox` | Artista | `public/artist/inbox/index.html` | Inbox unificado del artista: hilos de cotización (`chat_threads`) + hilo de soporte (rediseño 2026). |
-| `/artist/travel` | Artista | `public/artist/travel/index.html` | Giras del artista: viajes, estudios vinculados, checklist, documentos, cronología (rediseño 2026; tablas `artist_trips` y satélites). |
+| `/artist/inbox` | Artista | `public/artist/inbox/index.html` | Inbox unificado del artista fiel a Figma `144:1250`: clientes, cotizaciones, soporte, invitaciones, Spots, Job Board, estudios y viajes; lectura, favorito, archivo, realtime, mensajes y adjuntos persistentes. |
+| `/artist/travel` | Artista | `public/artist/travel/index.html` | Giras del artista fieles a los nueve estados Figma: dashboard, alta, éxito, detalle, edición, fechas, vínculo, compartir y cancelar; persiste viajes, contactos, checklist, documentos y cronología. |
 | `/artist/account` | Artista | `public/artist/account/index.html` | Centro de la cuenta del artista: 9 secciones con sidebar (rediseño 2026). |
-| `/travel/share` | Público | `public/travel/share/index.html` | Itinerario de gira compartido por slug (`?slug=`, RLS pública de viajes compartidos). |
+| `/travel/t/:slug` | Público | `public/travel/share/index.html` | Itinerario de solo lectura resuelto por slug mediante un RPC de columnas permitidas; no habilita lectura pública de `artist_trips`. `/travel/share?slug=` queda como compatibilidad de enlaces anteriores. |
 | `/my-quotations` | Artista/admin operativo | `public/my-quotations/index.html` | Gestion de cotizaciones asignadas, drawer, notas, sesiones, chat y estados. |
 | `/my-quotations/statistics` | Artista/admin operativo | `public/my-quotations/statistics/index.html` | Estadisticas de cotizaciones. |
 | `/calendar` | Artista/admin operativo | `public/calendar/index.html` | Calendario de sesiones/cotizaciones con FullCalendar. |
@@ -198,6 +200,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Ver solicitudes publicas de job board y postular.
 - Ver/aceptar/rechazar invitaciones de estudios en `/artist/invitations`.
 - Aplicar a spots abiertos de estudios desde `/studio-spots`.
+- Gestionar Travel desde `/artist/travel`: crear viajes, editar datos y fechas, vincular estudios, completar tareas, conservar documentos y cronología, compartir un itinerario público limitado y cancelar/reactivar.
 
 ### Estudio
 
@@ -283,6 +286,17 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `studio_sponsors` | Sponsors del estudio. |
 | `studio_sponsor_artists` | Relacion sponsor-artista. |
 
+### Travel
+
+| Entidad | Proposito |
+| --- | --- |
+| `artist_trips` | Viajes del artista: destino, región, fechas, tipo, estado, notas, interés, clima y configuración de compartir. |
+| `trip_studio_links` | Solicitudes y resoluciones de vínculo con estudio, con instantáneas de contacto y dirección. |
+| `trip_checklist_items` | Tareas ordenadas de cada viaje. |
+| `trip_documents` | Metadatos y rutas privadas de documentos asociados; la UI elimina primero este metadato y después limpia el objeto privado para no dejar referencias rotas. |
+| `trip_events` | Cronología persistida del viaje. |
+| `artist_travel_passport_stamps` | Sellos históricos de Tattoo Passport, separados de los viajes activos. |
+
 ### Vistas y funciones SQL importantes
 
 - `artists_with_location`: fuente unificada para mapa/explore; combina ubicacion propia de artista con sede primaria del estudio.
@@ -299,6 +313,9 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - `apply_inventory_movement`: actualiza stock a partir de movimientos.
 - `bump_studio_spot_app_count`: mantiene contador de aplicaciones a spots.
 - `sync_artists_db_studio_id_from_membership`: mantiene `artists_db.studio_id` desde memberships activos.
+- `create_artist_trip`, `update_artist_trip_dates`, `cancel_artist_trip`, `reactivate_artist_trip`: mutaciones transaccionales del ciclo de vida de Travel.
+- `resolve_trip_studio_link`, `list_pending_trip_studio_links`: resolución y bandeja segura de solicitudes de vínculo con estudios.
+- `get_public_travel_share`, `list_public_travel_presences`: proyecciones públicas de columnas permitidas; la activación del share se actualiza por el propietario en `artist_trips`.
 
 ### Storage
 
@@ -309,6 +326,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - `studio-photos`: publico; imagenes de perfil, portada, galeria y sponsors de estudios.
 - `studio-documents`: privado; documentos subidos por estudios.
 - `studio-spot-attachments`: publico; adjuntos de spots publicados por estudios.
+- `artist-trip-docs`: privado; documentos de Travel bajo una ruta propiedad del artista, con límite de 10 MiB y MIME PDF/JPEG/PNG/WEBP. Una limpieza fallida deja sólo un objeto privado reintentable, no un metadato activo sin archivo.
 - Media importada desde Instagram tambien puede actualizar `artists_db.gallery_feed_items` o `studios.photo_feed_items`.
 
 ## Flujos principales
@@ -343,6 +361,14 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 3. Publica spots abiertos que aparecen en `/studio-spots`.
 4. Artistas postulan; el estudio decide.
 5. Al aceptar/invitar, se crea/actualiza `studio_artist_memberships` y se notifica via `/api/studio/notify`.
+
+### Travel
+
+1. El artista abre `/artist/travel`, filtra su dashboard o crea un viaje con `create_artist_trip`.
+2. El detalle carga `artist_trips` y sus vínculos, checklist, documentos y eventos; las fechas cambian mediante `update_artist_trip_dates`.
+3. Una solicitud de estudio queda en `trip_studio_links`; el estudio consulta sólo sus pendientes y la resuelve con los RPCs protegidos.
+4. Abrir el diálogo de share no publica ni expone una URL inactiva. El primer click en **Copiar** habilita `/travel/t/<slug>` y el segundo lo copia; Email/WhatsApp habilitan antes de abrir y el mismo diálogo permite revocar. `/travel/share?slug=<slug>` sigue como compatibilidad. El visitante lee únicamente `get_public_travel_share`.
+5. Cancelar o reactivar pasa por funciones transaccionales que mantienen estado, cronología y vínculos coherentes.
 
 ### Instagram import
 
@@ -379,6 +405,11 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `public/shared/js/client-dashboard.js` | Dashboard de cliente, cotizaciones, chat y job board. |
 | `public/shared/js/shared-drawer.js` | Acciones comunes sobre cotizaciones. |
 | `public/shared/js/explore-map.js` / `explore-globe.js` | Descubrimiento geografico de artistas/estudios. |
+| `public/shared/js/artist-travel.js` | Workspace autenticado de Travel y sus nueve estados de interfaz. |
+| `public/shared/js/data/travel-repo.js` | Acceso de dominio a viajes, satélites, Passport y RPCs de Travel. |
+| `public/shared/js/travel-share.js` | Vista pública de solo lectura por slug. |
+| `public/shared/js/wo-demo.js` + `wo-demo-postgrest.js` + `wo-demo-fixtures.js` | **Modo demo del artista:** con `?demo=1` parchea `fetch` y resuelve `/rest/v1/*` en memoria con datos de ejemplo (emulador PostgREST + fixtures), sin escribir en Supabase. Ver `docs/MODO-DEMO-TOUR.md`. |
+| `public/shared/js/wo-tour.js` + `wo-tour-steps.js` | **Recorrido guiado** narrado por voz sobre el modo demo: trece capítulos (una página cada uno) con velo + marco sobre la sección enfocada. |
 
 ## Notas de alcance y riesgos
 
@@ -386,3 +417,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Hay tablas legacy o documentadas por codigo pero no creadas en las migraciones recientes del repo (`clients_db`, `support_users_db`, `feedback_tickets`, `chat_messages`, `quotation_*`, `job_board_*`, `app_settings`). Existen como dependencias reales del codigo y probablemente vienen de migraciones anteriores o de estado historico de Supabase.
 - `app-config.json` contiene configuracion publica y URLs de webhooks; los secretos operativos deben vivir en variables de entorno o en `app_settings` privado.
 - Algunos modulos siguen compartiendo convenciones heredadas de "admin operativo" (`/my-quotations`, `/archive`, `/calendar`) aunque hoy tambien funcionan para artistas.
+
+Actualización posterior del 21/09/2026: [marketplace conectado a Supabase y cotizador validado](MARKETPLACE-QUOTATION-20260921.md).
+
+Actualización 2026-09-22: [modo cliente/tatuador y preparación de auditoría](AUDITORIA-LAURA-VALIDACION-20260922.md). El selector comparte una identidad Auth y activa los perfiles de cada modo.

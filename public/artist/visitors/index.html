@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
     <title>WE OTZI | Visitantes</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -115,11 +117,7 @@
     </section>
     </main>
 
-    <footer class="wod-footer">
-        <div class="wod-footer__cur" data-weotzi-currency-mount></div>
-        <div class="wod-footer__mid">WE OTZI · MAPA DE VISITANTES · PARA ARTISTAS · 2026</div>
-        <div class="wod-footer__soc"><a href="/artist/dashboard">DASHBOARD</a><a href="/artist/profile/details">PERFIL</a></div>
-    </footer>
+    <weotzi-product-footer></weotzi-product-footer>
 
     <nav class="wod-bottombar" aria-label="Navegacion rapida">
         <a class="wod-bottombar__tab" href="/artist/dashboard"><span class="wod-bottombar__ic">IN</span><span class="wod-bottombar__l">Inicio</span></a>

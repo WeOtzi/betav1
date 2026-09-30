@@ -14,6 +14,25 @@ const _supabase = (window._supabase = window._supabase || supabase.createClient(
 
 let currentClientData = null;
 
+async function ensureClientMode(session) {
+    const response = await fetch('/api/account/mode', {method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({mode:'client'})});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'No pudimos activar el modo cliente.');
+}
+
+async function sendPendingClientWelcome(user) {
+    if (!user?.id || !window.ConfigManager?.sendN8NEvent) return;
+    try {
+        if (localStorage.getItem('weotzi_pending_client_welcome') !== user.id) return;
+        const result = window.EmailClient?.sendEmail
+            ? await window.EmailClient.sendEmail('client_registration_completed', {}, { keepalive: true })
+            : await window.ConfigManager.sendN8NEvent('client_registration_completed', {});
+        if (result?.success) localStorage.removeItem('weotzi_pending_client_welcome');
+    } catch (_) {
+        // The profile remains usable; the pending marker is retained for login.
+    }
+}
+
 // ============================================
 // Initialization
 // ============================================
@@ -44,6 +63,7 @@ async function checkClientAuthState() {
             const { data: client, error } = await WeotziData.Clients.getByUserId(session.user.id);
 
             if (client) {
+                void sendPendingClientWelcome(session.user);
                 // User is a valid client
                 if (currentPath.includes('/client/login') || currentPath.includes('/client/register')) {
                     // Redirect to dashboard if trying to access login/register
@@ -58,7 +78,8 @@ async function checkClientAuthState() {
                 if (artist) {
                     // They are an artist, redirect to artist dashboard
                     if (currentPath.includes('/client/')) {
-                        window.location.href = '/artist/dashboard';
+                        await ensureClientMode(session);
+                        window.location.href = '/client/dashboard';
                     }
                 }
             }
@@ -149,6 +170,19 @@ async function handleClientRegistration(payload) {
     }
 
     // Create auth user
+    const testing = await fetch('/api/account/testing').then(r => r.json()).catch(() => ({registrationOpen:false}));
+    if (testing.registrationOpen) {
+        const response = await fetch('/api/register/test-client',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,full_name:name})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'No pudimos crear la cuenta.');
+        const {data:login,error:loginError} = await _supabase.auth.signInWithPassword({email,password});
+        if (loginError) throw loginError;
+        await WeotziData.Clients.updateByUserId(login.user.id,{city_residence:city||null,whatsapp:whatsapp||null});
+        localStorage.setItem('weotzi_pending_client_welcome',login.user.id);
+        await sendPendingClientWelcome(login.user);
+        localStorage.removeItem('weotzi_client_registration_data');
+        return login.user;
+    }
     const { data: authData, error: authError } = await _supabase.auth.signUp({
         email: email,
         password: password,
@@ -223,40 +257,10 @@ async function handleClientRegistration(payload) {
         console.warn('Could not auto-login:', signInError.message);
     }
 
-    // Trigger n8n webhook for client registration completed
-    if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-        try {
-            await window.ConfigManager.sendN8NEvent('client_registration_completed', {
-                // Account info
-                email: email,
-                password: password, // Included per user request
-                user_id: authData.user?.id || null,
-                // Profile summary
-                full_name: name,
-                first_name: firstName || null,
-                last_name: lastName || null,
-                username: payload.username || null,
-                whatsapp: whatsapp || null,
-                birth_date: birthdate || null,
-                age: age,
-                instagram: instagram || null,
-                city: city || null,
-                country: payload.country || null,
-                // Health info
-                health_conditions: currentClientData?.client_health_conditions || null,
-                allergies: currentClientData?.client_allergies || null,
-                // Quotation info if available
-                quote_id: currentClientData?.quote_id || null,
-                artist_name: currentClientData?.artist_name || null,
-                // URLs
-                dashboard_url: window.location.origin + '/client/dashboard',
-                login_url: window.location.origin + '/client/login'
-            });
-            console.log('n8n event sent: client_registration_completed');
-        } catch (webhookErr) {
-            console.warn('Could not send client_registration_completed event:', webhookErr);
-        }
-    }
+    // Persist a non-secret marker while email confirmation prevents a session.
+    // Retry after authenticated login; the server ledger prevents duplicates.
+    try { localStorage.setItem('weotzi_pending_client_welcome', authData.user.id); } catch (_) {}
+    if (!signInError) await sendPendingClientWelcome(authData.user);
 
     // Clear quotation data from localStorage
     localStorage.removeItem('weotzi_client_registration_data');
@@ -349,6 +353,7 @@ async function handleClientLogin(e) {
         const { data: client, error: clientError } = await WeotziData.Clients.getByUserId(data.user.id);
 
         if (client) {
+            void sendPendingClientWelcome(data.user);
             // Link any quotations that might have been created since registration
             await linkQuotationsByEmail(data.user.id, email);
             
@@ -371,9 +376,10 @@ async function handleClientLogin(e) {
             const { data: artist } = await WeotziData.Artists.getByUserId(data.user.id, 'user_id, name');
 
             if (artist) {
-                showFormMessage('Esta cuenta es de artista. Redirigiendo...', 'info');
+                await ensureClientMode(data.session);
+                showFormMessage('Modo cliente activado.', 'success');
                 setTimeout(() => {
-                    window.location.href = artist.name ? '/artist/dashboard' : '/register-artist';
+                    window.location.href = '/client/dashboard';
                 }, 1500);
             } else {
                 // No profile exists - create one
@@ -462,7 +468,8 @@ async function handlePasswordRecovery(e) {
     const emailInput = document.getElementById('login-email') || document.getElementById('register-email');
     const email = emailInput?.value.trim().toLowerCase();
     const qs = email ? '&email=' + encodeURIComponent(email) : '';
-    window.location.href = '/recover?from=client' + qs;
+    const basePath = window.WEOTZI_BASE_PATH || (/^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '');
+    window.location.href = basePath + '/recover?from=client' + qs;
 }
 
 // ============================================
@@ -584,6 +591,7 @@ async function handleOAuthCallback() {
                 await linkQuotationById(session.user.id, currentClientData.quote_id);
             }
         }
+        void sendPendingClientWelcome(session.user);
     }
 }
 
@@ -608,6 +616,7 @@ window.ClientAuth = {
 
             const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
 
+            if (client) void sendPendingClientWelcome(session.user);
             return { session, client };
         } catch (err) {
             console.error('ClientAuth.getSession error:', err);
@@ -642,6 +651,7 @@ window.ClientAuth = {
             return { user: data.user, client: newClient, isArtist: false };
         }
 
+        void sendPendingClientWelcome(data.user);
         return { user: data.user, client, isArtist: false };
     },
 
@@ -651,34 +661,10 @@ window.ClientAuth = {
     },
 
     async resetPassword(email) {
-        const tempPassword = generateTempPassword();
-
-        const response = await fetch('/api/auth/reset-temp-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, userType: 'client', tempPassword })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-            if (response.status === 404) throw new Error('No encontramos una cuenta con ese email.');
-            throw new Error(result.error || 'Error al procesar la solicitud');
-        }
-
-        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-            try {
-                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
-                    email,
-                    temp_password: tempPassword,
-                    user_type: 'client',
-                    login_url: window.location.origin + '/client/login'
-                });
-            } catch (webhookErr) {
-                console.warn('Could not send password_reset_temp event:', webhookErr);
-            }
-        }
-
-        return { success: true };
+        // Recovery verifies ownership before changing the password. It shares the
+        // same OTP delivery path as /recover and never sends credentials twice.
+        const { error } = await _supabase.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase());
+        if (error) throw new Error('No pudimos procesar la solicitud. Probá de nuevo en un momento.');
+        return { success: true, message: 'Si existe una cuenta, recibirás un correo para recuperar el acceso.' };
     }
 };

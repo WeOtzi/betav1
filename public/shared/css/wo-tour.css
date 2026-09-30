@@ -1,0 +1,120 @@
+/* ============================================================================
+   We Ötzi · Modo demo + recorrido guiado (wo-demo.js / wo-tour.js)
+   Sigue el DS Bauhaus: radius 0, jerarquía por borde, tokens semánticos,
+   mono para eyebrows/meta, Archivo Black para títulos, un solo accent.
+   Se carga lazy (solo con el demo activo o la invitación al recorrido).
+   ========================================================================== */
+
+/* ---------- Barra de modo demo ---------- */
+.wo-demo-bar{
+  position:fixed;left:50%;bottom:var(--space-4);transform:translateX(-50%);
+  z-index:1350;display:flex;align-items:center;gap:var(--space-4);
+  max-width:calc(100vw - var(--space-8));padding:var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  background:var(--surface-inverse);color:var(--text-on-dark);
+  border:var(--border-strong-width) solid var(--ink);
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
+}
+.wo-demo-bar__marks{display:inline-flex;gap:6px;flex:none}
+.wo-demo-bar__marks i{display:inline-block;width:10px;height:10px}
+.wo-demo-bar__marks .m-sq{background:var(--bauhaus-square)}
+.wo-demo-bar__marks .m-ci{background:var(--bauhaus-circle);border-radius:var(--radius-circle)}
+.wo-demo-bar__marks .m-tr{width:0;height:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:10px solid var(--bauhaus-triangle)}
+.wo-demo-bar__text{white-space:nowrap}
+.wo-demo-bar__text b{color:var(--yellow-300);font-weight:var(--weight-bold)}
+.wo-demo-bar__actions{display:inline-flex;gap:var(--space-2);flex:none}
+.wo-demo-bar .wo-btn--ghost{background:transparent;color:var(--text-on-dark);border-color:var(--neutral-300)}
+.wo-demo-bar .wo-btn--ghost:hover{background:var(--dark-hover);color:var(--white)}
+html.wo-tour-active .wo-demo-bar{display:none}
+
+/* ---------- Invitación al recorrido (dashboard, primera visita) ---------- */
+.wo-tour-invite{
+  position:fixed;right:var(--space-4);bottom:var(--space-4);z-index:1340;
+  width:min(360px,calc(100vw - var(--space-8)));padding:var(--space-5);
+  background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong);
+  box-shadow:var(--shadow-hard);
+}
+.wo-tour-invite__title{margin:var(--space-2) 0 var(--space-2);font-family:var(--font-display);font-size:var(--h3-size);line-height:var(--h3-lh);color:var(--text-heading)}
+.wo-tour-invite__copy{margin:0 0 var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.wo-tour-invite__actions{display:flex;gap:var(--space-2);flex-wrap:wrap}
+
+/* ---------- Capa del recorrido ---------- */
+.wo-tour-root{position:fixed;inset:0;z-index:1400;pointer-events:none}
+.wo-tour-root[hidden]{display:none}
+.wo-tour-dim{
+  position:fixed;pointer-events:auto;
+  background:rgba(36,33,29,var(--opacity-subtle)); /* mismo velo que .wo-overlay del DS */
+  opacity:1;transition:opacity var(--duration-fade) var(--ease-standard)
+}
+.wo-tour-root.is-clear .wo-tour-dim{opacity:0}
+.wo-tour-root.is-centered .wo-tour-dim{inset:0}
+.wo-tour-hole{position:fixed;pointer-events:auto;background:transparent}
+.wo-tour-root.is-interactive .wo-tour-hole{pointer-events:none}
+.wo-tour-ring{
+  position:fixed;pointer-events:none;box-sizing:border-box;
+  border:var(--border-rule-width) solid var(--ink);
+  opacity:1;transition:opacity var(--duration-fade) var(--ease-standard)
+}
+.wo-tour-root.is-clear .wo-tour-ring{opacity:0}
+.wo-tour-ring::before{
+  content:attr(data-step);position:absolute;left:calc(-1 * var(--border-rule-width));top:-22px;
+  padding:2px var(--space-2);background:var(--yellow-300);color:var(--ink);
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);font-weight:var(--weight-bold);
+  line-height:1.4;white-space:nowrap
+}
+
+/* ---------- Tarjeta de narración ---------- */
+.wo-tour-card{
+  position:fixed;pointer-events:auto;box-sizing:border-box;
+  width:min(440px,calc(100vw - var(--space-8)));max-height:calc(100vh - var(--space-8));overflow:auto;
+  padding:var(--space-5) var(--space-6) var(--space-5);
+  background:var(--surface-card);color:var(--text-body);
+  border:var(--border-strong-width) solid var(--border-strong);box-shadow:var(--shadow-hard);
+  opacity:1;transform:translateY(0);
+  transition:opacity var(--duration-fade) var(--ease-standard),transform var(--duration-fade) var(--ease-standard)
+}
+.wo-tour-root.is-clear .wo-tour-card{opacity:0;transform:translateY(6px)}
+.wo-tour-root.is-centered .wo-tour-card{left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - var(--space-8)))}
+.wo-tour-root.is-centered.is-clear .wo-tour-card{transform:translate(-50%,calc(-50% + 6px))}
+.wo-tour-card__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-3)}
+.wo-tour-card__eyebrow{margin:0;font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-wide-track);text-transform:uppercase;color:var(--text-muted)}
+.wo-tour-card__close{flex:none}
+.wo-tour-card__title{margin:0 0 var(--space-2);font-family:var(--font-display);font-size:22px;line-height:1.15;color:var(--text-heading)}
+.wo-tour-card__text{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.wo-tour-card__text + .wo-tour-card__text{margin-top:var(--space-2)}
+.wo-tour-card__hint{margin:var(--space-3) 0 0;font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
+.wo-tour-card__progress{margin:var(--space-4) 0 var(--space-3)}
+.wo-tour-card__foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap}
+.wo-tour-card__tools{display:inline-flex;gap:var(--space-2)}
+.wo-tour-card__tools .wo-iconbtn{color:var(--neutral-500)}
+.wo-tour-card__tools .wo-iconbtn.is-off{color:var(--text-faint)}
+.wo-tour-card__nav{display:inline-flex;gap:var(--space-2);margin-left:auto}
+.wo-tour-card__skip{
+  display:inline-block;margin-top:var(--space-3);background:none;border:0;padding:0;cursor:pointer;
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
+  color:var(--text-muted);text-decoration:underline;text-underline-offset:3px
+}
+.wo-tour-card__skip:hover{color:var(--text-heading)}
+.wo-tour-card__novoice{margin:var(--space-3) 0 0;padding:var(--space-2) var(--space-3);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+
+/* ---------- Estado del documento durante el recorrido ---------- */
+html.wo-tour-active{scroll-behavior:auto}
+html.wo-tour-active .wo-tour-invite{display:none}
+
+/* ---------- Responsive ---------- */
+@media (max-width:767px){
+  .wo-tour-card,.wo-tour-root.is-centered .wo-tour-card{
+    left:var(--space-3) !important;right:var(--space-3) !important;top:auto !important;bottom:var(--space-3) !important;
+    width:auto;max-height:min(62vh,calc(100vh - var(--space-8)));transform:none
+  }
+  .wo-tour-root.is-clear .wo-tour-card,.wo-tour-root.is-centered.is-clear .wo-tour-card{transform:translateY(6px)}
+  .wo-tour-card__title{font-size:18px}
+  .wo-demo-bar{left:var(--space-3);right:var(--space-3);bottom:var(--space-3);transform:none;max-width:none;flex-wrap:wrap;justify-content:center;gap:var(--space-2)}
+  .wo-demo-bar__text{white-space:normal;text-align:center}
+  .wo-demo-bar__actions{flex-wrap:wrap;justify-content:center}
+  .wod-body .wo-demo-bar{bottom:calc(64px + var(--space-3))} /* sobre la bottombar móvil */
+  .wo-tour-invite{left:var(--space-3);right:var(--space-3);width:auto}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .wo-tour-dim,.wo-tour-ring,.wo-tour-card{transition:none}
+}

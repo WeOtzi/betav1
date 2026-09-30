@@ -106,7 +106,6 @@
       "country",
       "dashboard_url",
       "email",
-      "password",
       "portfolio_url",
       "profile_url",
       "session_price",
@@ -155,7 +154,6 @@
       "email",
       "full_name",
       "instagram",
-      "password",
       "quote_id",
       "whatsapp"
     ]
@@ -370,6 +368,16 @@
       "sessions_completed",
       "upcoming_sessions",
       "week_range"
+    ]
+  },
+  "studio-notification": {
+    "file": "templates/email/billionmail/studio-notification.html",
+    "variables": [
+      "recipient_name",
+      "studio_name",
+      "subject",
+      "body_text",
+      "dashboard_url"
     ]
   }
 }

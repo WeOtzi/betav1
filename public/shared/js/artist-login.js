@@ -499,7 +499,8 @@ function handleArtistPasswordRecovery(e) {
     const loginEmail = document.getElementById('login-email');
     const email = loginEmail ? loginEmail.value.trim().toLowerCase() : '';
     const qs = email ? '&email=' + encodeURIComponent(email) : '';
-    window.location.href = '/recover?from=artist' + qs;
+    const basePath = window.WEOTZI_BASE_PATH || (/^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '');
+    window.location.href = basePath + '/recover?from=artist' + qs;
 }
 
 async function handleRecoverySubmit(e) {
@@ -585,35 +586,11 @@ window.ArtistLogin = {
     },
 
     async resetPassword(email) {
-        const tempPassword = generateTempPassword();
-
-        const response = await fetch('/api/auth/reset-temp-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, userType: 'artist', tempPassword })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-            if (response.status === 404) throw new Error('No encontramos una cuenta de artista con ese email.');
-            throw new Error(result.error || 'Error al procesar la solicitud');
-        }
-
-        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-            try {
-                await window.ConfigManager.sendN8NEvent('password_reset_temp', {
-                    email,
-                    temp_password: tempPassword,
-                    user_type: 'artist',
-                    login_url: window.location.origin + '/artist/login'
-                });
-            } catch (webhookErr) {
-                console.warn('Could not send password_reset_temp event:', webhookErr);
-            }
-        }
-
-        return { success: true };
+        // Recovery verifies ownership before changing the password. It shares the
+        // same OTP delivery path as /recover and never sends credentials twice.
+        const { error } = await _supabase.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase());
+        if (error) throw new Error('No pudimos procesar la solicitud. Probá de nuevo en un momento.');
+        return { success: true, message: 'Si existe una cuenta, recibirás un correo para recuperar el acceso.' };
     },
 
     async logout() {
