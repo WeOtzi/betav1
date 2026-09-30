@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.2] - 2026-09-30
+
+- Se actualizan las guías de Valentina con la evidencia de la entrega 2.1.1: SHA, verificaciones de GitHub y publicación automática de beta y preview. Se conserva el historial de recuperación y rollback.
+- Se aclara el orden de incorporación: crear y verificar la cuenta Windows, proteger main y comprobar la regla antes de habilitar escritura de su identidad GitHub. La guía y el borrador de correo usan el mismo criterio; el correo sigue sin enviar.
+- Se unifican las instrucciones de instalación con npm ci --ignore-scripts y se indican los accesos personales aún pendientes. Esta entrega modifica documentación y versión; no cambia la lógica de la aplicación ni la base de datos.
+- Validación: lectura de CI completado con éxito para main y preview en ee70226 y de ambos endpoints públicos /api/release con versión 2.1.1; revisión de enlaces, coherencia del onboarding y política de entrega.
+- Rollback: revertir este commit con una nueva versión documental, o activar la release anterior desde el controlador privado. No incluye migraciones ni cambios de permisos.
+
+
 ## [2.1.1] - 2026-09-30
 
 - La activación PM2 reemplaza exclusivamente la aplicación conocida para aplicar la ruta de cada release; la recuperación legacy espera a que el listener esté preparado.

@@ -4,17 +4,17 @@ Fecha: 30 de septiembre de 2026. Responsable del proyecto y de aprobar publicaci
 
 Esta guía explica cómo trabajar en este PC con tu propia cuenta, conversar con un agente IA, aplicar el rediseño pendiente y probar la aplicación. Isaí revisa los cambios antes de incorporarlos a la beta principal.
 
-**Estado comprobado al 30/09:** GitHub, CI, publicación automática de beta, preview de rama y rollback real funcionan. Puedes revisar la [preview preparada](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/). Quedan tres preparativos personales/administrativos: crear y comprobar tu cuenta Windows (UAC fue cancelado), informar tu correo/usuario GitHub y otorgarle escritura, y activar la [protección de `main`](MAIN-PROTECTION.md). La regla de revisión de Isaí es obligatoria para el equipo; hasta activar la protección, GitHub todavía no la impone.
+**Estado comprobado al 30/09:** GitHub, CI, publicación automática de beta, preview de rama y rollback real funcionan. La versión **2.1.1**, commit `ee702262fb765744b1df5dc1f42b68eb1da9c5ef`, completó CI y se publicó automáticamente en beta y en la [preview preparada](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/). Esta es evidencia de esa entrega; comprueba la versión actual antes de cada prueba. Quedan tres preparativos personales/administrativos: crear y comprobar tu cuenta Windows y clon (UAC fue cancelado), informar tu correo/usuario GitHub y activar la [protección de `main`](MAIN-PROTECTION.md). Isaí debe comprobar esa protección antes de otorgarte escritura y habilitar tu primer push. La revisión manual por sí sola no sustituye las reglas efectivas de GitHub.
 
 ## 1. Empieza aquí
 
 1. Cuando Isaí haya creado y comprobado tu cuenta, inicia sesión con **tu usuario Windows estándar de Valentina**, tu cuenta de ChatGPT/Codex y tu cuenta de GitHub.
 2. Abre únicamente **`C:\WeOtzi-Valentina\weotzi-unified`** en Codex, después de que Isaí haya preparado y comprobado tu clon de [WeOtzi/betav1](https://github.com/WeOtzi/betav1).
 3. Pide a la IA: “Lee AGENTS.md y el handoff de Valentina. Revisa la rama y el estado de Git. Explícame cómo arrancar el entorno seguro y comprueba que no usa datos ni correos reales”.
-4. Abre PowerShell en esa carpeta, instala dependencias con `npm ci` y arranca **`npm run dev:safe`**. Abre **http://localhost:4647**. Si ya hay un proceso en ese puerto, identifica de quién es antes de cerrarlo.
+4. Abre PowerShell en esa carpeta, instala dependencias con `npm ci --ignore-scripts` y arranca **`npm run dev:safe`**. Abre **http://localhost:4647**. Si ya hay un proceso en ese puerto, identifica de quién es antes de cerrarlo.
 5. Lee [tu primera tarea](VALENTINA-FIRST-TASK.md). El primer entregable es un inventario comprobado de pantallas y defectos, seguido de una corrección pequeña que puedas revisar de principio a fin.
 
-Antes de empezar, confirma con Isaí que tu usuario Windows, tu acceso de GitHub y los tres archivos Figma están habilitados. Estas identidades usan tus cuentas; no son las de Isaí. El nombre de usuario y correo de GitHub deben ser los tuyos al firmar commits.
+Antes de empezar, confirma con Isaí que tu usuario Windows y clon están comprobados, la protección de `main` está activa, tu acceso de GitHub está habilitado y puedes abrir los tres archivos Figma. Estas identidades usan tus cuentas; no son las de Isaí. El nombre de usuario y correo de GitHub deben ser los tuyos al firmar commits. Mientras esos requisitos estén pendientes, puedes recorrer la preview ya publicada y preparar el inventario, pero no iniciar la publicación de ramas con una cuenta prestada.
 
 ## 2. Qué es We Ötzi
 
@@ -82,7 +82,7 @@ weotzi-unified/
 ├── AGENTS.md                   Reglas que debe leer tu agente IA
 ├── server.js                   Servidor Express, rutas API y configuración
 ├── package.json                Dependencias, scripts y versión
-├── package-lock.json           Versiones exactas instaladas por npm ci
+├── package-lock.json           Versiones exactas instaladas por npm ci --ignore-scripts
 ├── public/
 │   ├── artist/                 Login, dashboard, perfil, inbox, travel, cuenta...
 │   ├── client/                 Login, registro, dashboard, chats, solicitudes, cuenta
@@ -168,7 +168,7 @@ feat(client-login): aplicar el rediseño de acceso
 
 Problema: el acceso de cliente no coincide con el frame de referencia.
 Cambio: reutiliza los campos y botones del sistema de diseño.
-Version: 2.1.1-valentina.login.1
+Version: 2.1.3-valentina.login.1
 Validación: login/errores y capturas a 1440, 768 y 390 px en entorno seguro.
 Límite: el email real no se prueba en la preview.
 Rollback: revertir este commit; no incluye migraciones.
@@ -180,25 +180,25 @@ Después del commit, publica tu rama:
 git push -u origin valentina/rediseno-login
 ```
 
-Antes de ese primer push, la IA debe comprobar `gh auth status` y que **tu identidad personal tenga permiso de escritura** en `WeOtzi/betav1`. El CLI guardado del administrador usa `isai-weotzi` y actualmente solo tiene lectura; la publicación inicial la hizo el conector GitHub autorizado del propietario. No copies su sesión o token ni asumas que el CLI ya puede publicar. Si el push devuelve falta de permisos, conserva el commit local y pide a Isaí el acceso para tu usuario GitHub.
+Antes de ese primer push, Isaí debe haber comprobado el aislamiento de tu usuario Windows y clon y las reglas efectivas de `main`. Después, la IA debe comprobar `gh auth status` y que **tu identidad personal tenga permiso de escritura** en `WeOtzi/betav1`. El CLI guardado del administrador usa `isai-weotzi` y actualmente solo tiene lectura; la publicación inicial la hizo el conector GitHub autorizado del propietario. No copies su sesión o token ni asumas que el CLI ya puede publicar. Si falta alguno de estos requisitos o el push devuelve falta de permisos, conserva el commit local y pide a Isaí la preparación pendiente. No pruebes publicar antes de que la protección esté activa.
 
-Abre el workflow **Verify delivery** en [GitHub Actions](https://github.com/WeOtzi/betav1/actions) y espera que **Tests and release policy** pase para el commit que acabas de publicar. El controlador del servidor comprueba periódicamente ese resultado y descarga el commit aprobado. Después abre el índice **https://preview.weotzi.chat**, busca tu rama y comprueba que su versión/commit coinciden antes de probar. La rama `valentina/prueba-entorno` ya completó este recorrido con [CI aprobado](https://github.com/WeOtzi/betav1/actions/runs/36685093322) y [preview funcionando](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/). Si falla CI, corrige la causa en la misma rama y haz un nuevo commit. La publicación no está comprobada solo porque `git push` haya terminado.
+Abre el workflow **Verify delivery** en [GitHub Actions](https://github.com/WeOtzi/betav1/actions) y espera que **Tests and release policy** pase para el commit que acabas de publicar. El controlador del servidor comprueba periódicamente ese resultado y descarga el commit aprobado. Después abre el índice **https://preview.weotzi.chat**, busca tu rama y comprueba que su versión/commit coinciden antes de probar. La rama `valentina/prueba-entorno` completó este recorrido para **2.1.1**, commit `ee702262fb765744b1df5dc1f42b68eb1da9c5ef`, con [CI aprobado](https://github.com/WeOtzi/betav1/actions/runs/36687128430) y [preview funcionando](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/). Cada publicación posterior requiere su propia comprobación. Si falla CI, corrige la causa en la misma rama y haz un nuevo commit. La publicación no está comprobada solo porque `git push` haya terminado.
 
 Abre un Pull Request hacia `main`. Incluye el problema, pantalla/nodo Figma, qué cambió, pruebas, capturas, URL de preview, versión y forma de revertir. Isaí revisa y decide el merge. Si `main` avanzó, incorpora esos cambios a tu rama y vuelve a revisar las partes afectadas.
 
 ## 8. Versión, changelog y rollback
 
-Cada commit de cambios debe estar identificado por una versión única, y cada publicación por su commit y ejecución de Actions. La primera integración es **2.1.0**, commit `c181087ae3903771daa5418209ed141a75bd4ebc`, con [CI aprobado](https://github.com/WeOtzi/betav1/actions/runs/36684275260) y `/api/release` público comprobado. La **2.1.1** incorpora correcciones de las herramientas de arranque/recuperación y los proxies ya probadas en el servidor; su nueva publicación en GitHub/CI debe identificarse con su propia SHA. Consulta `package.json` y el commit de `/api/release` del entorno desplegado. No se crearon tags estables en esta entrega.
+Cada commit de cambios debe estar identificado por una versión única, y cada publicación por su commit y ejecución de Actions. La primera integración es **2.1.0**, commit `c181087ae3903771daa5418209ed141a75bd4ebc`, con [CI aprobado](https://github.com/WeOtzi/betav1/actions/runs/36684275260) y `/api/release` público comprobado. La **2.1.1**, commit `ee702262fb765744b1df5dc1f42b68eb1da9c5ef`, incorpora correcciones de arranque/recuperación y proxies. Su [CI de main](https://github.com/WeOtzi/betav1/actions/runs/36687126630) y [CI de preview](https://github.com/WeOtzi/betav1/actions/runs/36687128430) terminaron aprobados; el cron publicó beta a las **08:02:12 UTC** y preview a las **08:02:16 UTC** del 30/09. Ambos endpoints `/api/release` devolvieron esa SHA y versión. Es evidencia histórica de 2.1.1, no una garantía sobre la versión que encontrarás después. Consulta `package.json` y el commit de `/api/release` del entorno desplegado. No se crearon tags estables en esta entrega.
 
-Antes del commit, usa la herramienta de versión. El ejemplo siguiente prepara el primer cambio de una rama; la IA debe elegir el siguiente número libre a partir de la versión actual, no copiar un número que ya existe:
+Antes del commit, usa la herramienta de versión. El ejemplo siguiente prepara el primer cambio de una rama; la IA debe recalcular el siguiente número libre desde la versión actual de `package.json`, no copiar un número que ya existe ni usar un prerelease anterior a la versión estable:
 
 ```powershell
-npm run version:delivery -- 2.1.1-valentina.login.1 "Rediseño del acceso de cliente"
+npm run version:delivery -- 2.1.3-valentina.login.1 "Rediseño del acceso de cliente"
 npm test
 npm run check:release
 ```
 
-La herramienta actualiza `package.json`, `package-lock.json` y crea una entrada de `docs/CHANGELOG.md`. **Completa la validación y el rollback de esa entrada con lo que realmente hiciste**, y agrega los tres archivos al commit. El siguiente commit de esa tarea usa, por ejemplo, `2.1.1-valentina.login.2`. El cuerpo de cada commit lleva `Version: <version>` y `Validación: <evidencia>` además de problema, cambio y rollback. Los checks de GitHub verifican esta política.
+La herramienta actualiza `package.json`, `package-lock.json` y crea una entrada de `docs/CHANGELOG.md`. **Completa la validación y el rollback de esa entrada con lo que realmente hiciste**, y agrega los tres archivos al commit. El siguiente commit de esa tarea usa, por ejemplo, `2.1.3-valentina.login.2`; recalcula también ese número desde `package.json` y el historial de la rama. El cuerpo de cada commit lleva `Version: <version>` y `Validación: <evidencia>` además de problema, cambio y rollback. Los checks de GitHub verifican esta política.
 
 Usa patch para correcciones compatibles; minor para nuevas funciones compatibles; major requiere revisión de Isaí por incompatibilidades. En una rama las versiones llevan el sufijo de tarea. Isaí prepara la versión estable al integrar. No inventes resultados de pruebas ni publiques entradas genéricas.
 
@@ -264,10 +264,10 @@ La carpeta compartida por sí sola no limita una cuenta Windows: los permisos de
 
 - [ ] Entré con mi usuario Windows estándar y mis cuentas de ChatGPT/Codex y GitHub.
 - [ ] Mi carpeta y el remoto de Git corresponden a WeOtzi/betav1.
-- [ ] Mi usuario GitHub puede publicar `valentina/*`; Isaí confirmó que la protección de `main` exige su revisión antes de integrar.
+- [ ] Isaí comprobó las reglas efectivas de `main` antes de otorgarme escritura; exigen revisión y CI antes de integrar. Mi usuario GitHub puede publicar `valentina/*`.
 - [ ] `gh auth status` muestra mi identidad; una publicación de prueba confirmó el permiso de escritura, sin reutilizar credenciales de Isaí.
 - [ ] Puedo abrir la auditoría, el rediseño y el sistema de diseño con mi cuenta Figma.
-- [ ] `npm ci` y `npm run dev:safe` funcionan; local usa datos ficticios.
+- [ ] `npm ci --ignore-scripts` y `npm run dev:safe` funcionan; local usa datos ficticios.
 - [ ] Una primera rama genera una preview y conozco su enlace.
 - [ ] No tengo credenciales SSH ni acceso al perfil/otros proyectos de Isaí.
 

@@ -2,25 +2,29 @@
 
 Este documento explica la separación de cuentas en este PC. El documento de handoff del proyecto explica las ramas, los previews, el rediseño y la publicación.
 
+**Estado comprobado al 30/09/2026:** los scripts están preparados y auditados, pero la autorización UAC fue cancelada. **La cuenta Valentina y su clon todavía no están creados.** No se comprobó el aislamiento con su token Windows ni con el token de herramientas de su Codex. Las instrucciones siguientes se ejecutan después de que Isaí complete la preparación y verificación; la presencia de los scripts no acredita que ya se aplicaron los permisos.
+
 ## Para Valentina
 
-1. Iniciá sesión en Windows con **Valentina**. Usá tu propia contraseña. No trabajes dentro de la sesión de Isaí.
+1. Cuando Isaí confirme que creó y comprobó la cuenta y el clon, iniciá sesión en Windows con **Valentina**. Usá tu propia contraseña. No trabajes dentro de la sesión de Isaí.
 2. Instalá o abrí Codex desde tu cuenta de Windows e iniciá sesión con **tu propia cuenta de ChatGPT**. Tu perfil y tus chats se guardan en tu cuenta, sin copiar la configuración de Isaí.
 3. En Codex, agregá únicamente **`C:\WeOtzi-Valentina\weotzi-unified`** como proyecto. Es un clon separado del mismo repositorio [WeOtzi/betav1](https://github.com/WeOtzi/betav1).
 4. Autenticá GitHub con tu propia cuenta. No uses la sesión, el token ni el correo de Git de Isaí. Configurá tu nombre y correo con `git config --local user.name "Valentina"` y `git config --local user.email "TU_CORREO_DE_GITHUB"` dentro del clon.
 5. Ejecutá el modo seguro de desarrollo indicado en el handoff (`npm run dev:safe`). Este modo debe trabajar con los datos de prueba configurados por el proyecto. No copies `.env` de otro clon ni credenciales de servicios reales.
-6. Trabajá en tu rama, hacé commits descriptivos, actualizá la versión y el changelog según el handoff y hacé push con tu cuenta. GitHub y el servidor publican el preview. No necesitás SSH ni el panel del VPS.
+6. Después de que Isaí confirme la protección efectiva de `main` y te otorgue escritura en GitHub, trabajá en tu rama, hacé commits descriptivos, actualizá la versión y el changelog según el handoff y hacé push con tu cuenta. GitHub y el servidor publican la preview. No necesitás SSH ni el panel del hosting. La beta está en hosting compartido Hostinger, no en un VPS.
 
-Si no existe todavía el clon, ejecutá en tu cuenta:
+Solo si Isaí preparó la cuenta y permisos con `-SkipClone` y confirmó la carpeta de trabajo, ejecutá en tu cuenta:
 
 ```powershell
 Set-Location C:\WeOtzi-Valentina
 git clone https://github.com/WeOtzi/betav1.git weotzi-unified
 Set-Location .\weotzi-unified
-npm.cmd ci
+npm.cmd ci --ignore-scripts
 ```
 
 Una cuenta normal no puede administrar Windows, instalar controladores ni cambiar permisos de otros usuarios. Si una instalación pide una cuenta de administrador, solicitá esa instalación a Isaí; no uses su cuenta para continuar desarrollando.
+
+Si el clon se crea después con `-SkipClone`, Isaí debe completar la verificación de acceso real antes de dar por terminado el onboarding. No inicies un clon en la carpeta prevista antes de la preparación: los scripts rechazan apropiarse de una carpeta existente que no tenga el marcador de preparación.
 
 ## Qué queda separado
 
@@ -41,7 +45,7 @@ Una cuenta de Windows separada no crea una máquina virtual: comparte los progra
 
 ## Para Isaí: preparación y verificación
 
-La revisión del **30/09/2026**, antes de ejecutar la preparación, encontró que `C:\dev` permitía leer a todos los usuarios normales y modificar a usuarios autenticados. No existía la cuenta Valentina y el proceso de Codex no estaba elevado. Por eso abrir otro perfil de Codex en la misma cuenta de Windows no alcanzaba para separar los proyectos.
+La revisión del **30/09/2026** encontró que `C:\dev` permitía leer a todos los usuarios normales y modificar a usuarios autenticados. No existía la cuenta Valentina y el proceso de Codex no estaba elevado. El intento de preparación se detuvo porque la autorización UAC fue cancelada; la cuenta y el clon siguen sin crearse y las verificaciones efectivas están pendientes. Por eso abrir otro perfil de Codex en la misma cuenta de Windows no alcanza para separar los proyectos.
 
 Los scripts son compatibles con **Windows PowerShell 5.1**, que está instalado para todas las cuentas. La copia actual de PowerShell 7 y Codex vive dentro del perfil de Isaí; no hay que dar acceso a ese perfil para reutilizarla.
 
@@ -54,7 +58,7 @@ Set-Location C:\dev\weotzi-unified
 .\scripts\windows\Provision-Valentina.ps1 -AuditOnly
 ```
 
-Preparación con un clon desde GitHub, después de publicar la versión inicial en `main`:
+Preparación con un clon desde GitHub. La versión inicial y la corrección 2.1.1 ya se publicaron en `main`; el clon obtiene la versión vigente al ejecutarse:
 
 ```powershell
 Set-Location C:\dev\weotzi-unified
