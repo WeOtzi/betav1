@@ -1,0 +1,16 @@
+# Operator installs this as .htaccess next to preview-proxy.php renamed proxy.php.
+# The dedicated origin serves only the trusted bridge; application PHP and source
+# are never executed from a developer branch.
+DirectoryIndex proxy.php
+Options -Indexes
+RewriteEngine On
+
+<FilesMatch "^(?!proxy\.php$).*\.php$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+RewriteRule ^proxy\.php$ - [L]
+RewriteRule ^ proxy.php [L,QSA]

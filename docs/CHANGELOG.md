@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.1] - 2026-09-30
+
+- La activación PM2 reemplaza exclusivamente la aplicación conocida para aplicar la ruta de cada release; la recuperación legacy espera a que el listener esté preparado.
+- Se versionan el proxy de previews, reglas Apache y wrapper de cron privado; el dominio de pruebas es preview.weotzi.chat, con una rama de ejemplo publicada automáticamente.
+- Validación: 398 pruebas aprobadas; sintaxis PHP y pruebas de rechazo HTTP/CLI; main 2.1.0 publicado por cron después de CI. Rollback real a la baseline, bloqueo de republicación y reanudación automática comprobados. Preview pública con modos artista/cliente, actividad y detalle de cotización verificados.
+- Rollback: controlador privado hacia la release anterior conservada. Configuración y archivos persistentes permanecen compartidos; no se ejecutan migraciones Supabase.
+
+
 ## [2.1.0] - 2026-09-30
 
 - Se incorpora a Git el runtime de septiembre: rediseño del workspace del artista, marketplace y cotizador con datos existentes, flujos de estudios, correos y preparación de auditoría con una identidad en modo cliente/tatuador.

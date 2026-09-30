@@ -2,6 +2,8 @@
 
 Lee primero [HANDOFF-VALENTINA.md](HANDOFF-VALENTINA.md). Trabaja desde tu copia local en una rama `valentina/<tarea>` y verifica cada entrega en su preview. Isaí aprueba el PR a `main`.
 
+Antes de comenzar a editar, Isaí debe crear y comprobar tu cuenta Windows estándar, preparar tu clon y otorgar escritura a tu identidad GitHub. Al 30/09 estos accesos personales siguen pendientes; también falta activar la [protección de `main`](MAIN-PROTECTION.md). Puedes comenzar a recorrer la [preview remota comprobada](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/): la rama `valentina/prueba-entorno` tiene [CI aprobado](https://github.com/WeOtzi/betav1/actions/runs/36685093322) y se publicó automáticamente. Para tus cambios locales usa `npm run dev:safe` en **http://localhost:4647**. Ambas opciones simulan datos y no prueban emails ni integraciones reales.
+
 ## Objetivo
 
 Comparar una por una las pantallas actuales de **artista y cliente** con la auditoría de Laura y el rediseño original. Implementar las diferencias pendientes usando el sistema de diseño. Probar los flujos y corregir los defectos que puedas reproducir dentro del alcance de cada tarea; reportar los demás con evidencia.

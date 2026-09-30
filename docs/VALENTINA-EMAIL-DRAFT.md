@@ -6,13 +6,17 @@
 
 Hola Valentina,
 
-Te dejamos preparado el proyecto We Ötzi para que puedas trabajar con IA y revisar tus cambios en una web de prueba antes de integrarlos a la beta.
+Preparé el código y las guías de We Ötzi para que puedas trabajar con IA y revisar tus cambios en una web de prueba antes de integrarlos a la beta. Antes de que empieces, falta crear y comprobar tu usuario Windows y habilitar tu acceso GitHub. Necesito tu correo y nombre de usuario GitHub para asignarte los accesos personales.
 
-Vas a usar tu propio usuario Windows en este PC, tu cuenta de ChatGPT/Codex, GitHub y Figma. Tu carpeta de trabajo es `C:\WeOtzi-Valentina\weotzi-unified` y el repositorio es [WeOtzi/betav1](https://github.com/WeOtzi/betav1). Al iniciar, abre esa carpeta en Codex y pídele al agente que lea `AGENTS.md` y el handoff. Para arrancar el entorno seguro: `npm ci`, luego `npm run dev:safe`, y abre http://localhost:4647.
+Vas a usar tu propio usuario Windows en este PC, tu cuenta de ChatGPT/Codex, GitHub y Figma. La carpeta prevista de trabajo es `C:\WeOtzi-Valentina\weotzi-unified` y el repositorio es [WeOtzi/betav1](https://github.com/WeOtzi/betav1). Cuando te confirme que tu usuario y clon están listos, abre esa carpeta en Codex y pídele al agente que lea `AGENTS.md` y el handoff. Para arrancar el entorno seguro: `npm ci`, luego `npm run dev:safe`, y abre http://localhost:4647.
 
 Tu guía principal es [HANDOFF-VALENTINA.md](https://github.com/WeOtzi/betav1/blob/main/docs/HANDOFF-VALENTINA.md). Incluye qué hace el producto, su stack, estructura, entorno, cómo conversar con la IA, cómo probar y cómo entregar. La [primera tarea](https://github.com/WeOtzi/betav1/blob/main/docs/VALENTINA-FIRST-TASK.md) incluye los recorridos y nodos Figma para comenzar el inventario.
 
-Vas a trabajar en ramas `valentina/<tarea>`. Al hacer commit y push, GitHub Actions ejecuta **Verify delivery**. Cuando pasa, el controlador del servidor descarga ese commit y publica la preview. Comprueba el resultado en [Actions](https://github.com/WeOtzi/betav1/actions) y busca tu rama en el índice https://preview.weotzi.com para copiar su enlace. El dominio debe estar habilitado por Isaí; si sigue pendiente, trabaja con `npm run dev:safe` y anótalo en el reporte. Después abre un PR a `main`; Isaí revisa e integra. Al integrarse y pasar CI, el servidor publica la beta principal: https://beta.weotzi.com. No necesitas acceso SSH ni contraseña del servidor.
+Ya puedes recorrer esta [preview de prueba](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/). Tiene un artista con perfil, tres trabajos y agenda, y el modo cliente con cotizaciones y actividad. La barra amarilla identifica los datos ficticios. Usa **Modo cliente / Modo tatuador** para cambiar de experiencia con la misma cuenta. La guía explica también cómo salir y probar los formularios de acceso.
+
+Vas a trabajar en ramas `valentina/<tarea>`. Al hacer commit y push, GitHub Actions ejecuta **Verify delivery** y el servidor publica el commit aprobado. Ese recorrido ya se probó con la rama de la preview anterior. Comprueba [Actions](https://github.com/WeOtzi/betav1/actions) y copia el enlace de tu rama desde el [índice de previews](https://preview.weotzi.chat). Después abre un PR a `main`; yo reviso e integro. El servidor publica la beta principal https://beta.weotzi.com tras aprobarse el commit de `main`. No necesitas SSH ni contraseña del servidor. Falta activar la protección de `main`; mientras tanto, conserva la revisión y mi autorización antes de integrar, como explica [esta guía](https://github.com/WeOtzi/betav1/blob/main/docs/MAIN-PROTECTION.md).
+
+Tu agente debe comprobar que GitHub usa tu identidad y que puedes publicar en el repositorio. El acceso CLI guardado actualmente solo tiene lectura; la primera integración se publicó con el conector autorizado del propietario. No reutilices sus credenciales. Si faltan permisos, conserva tus cambios locales y avísame.
 
 Tu primera tarea es comparar cada pantalla y estado de artista y cliente con estos archivos:
 
@@ -33,4 +37,4 @@ Isaí
 
 ---
 
-**Nota de preparación:** este texto es un borrador; no está enviado. La dirección de correo y el usuario GitHub de Valentina deben confirmarse para asignar los accesos personales. CI se comprueba en GitHub Actions, y la publicación en el índice de previews y su commit/versión; no se entrega una contraseña SSH.
+**Nota de preparación:** este texto es un borrador; no está enviado. GitHub/CI, publicación automática de beta, preview y rollback real están comprobados. Solo quedan crear y probar la cuenta Windows (UAC cancelado), confirmar correo/usuario GitHub de Valentina y asignarle escritura, y activar la protección de `main`. No se entregan credenciales del propietario.

@@ -104,7 +104,7 @@
             ubicacion: 'Buenos Aires, Argentina', city: 'Buenos Aires', country: 'Argentina',
             address: 'Dirección ficticia', latitude: -34.6037, longitude: -58.3816, years_experience: 5,
             styles_array: ['Fine line', 'Blackwork'], estilo: 'Fine line', session_price: '180 USD', session_price_amount: 180, session_price_currency: 'USD', session_currency: 'USD',
-            profile_picture: scoped('/shared/assets/demo/iconclient-avatar.svg'), gallery_images: gallery,
+            profile_picture: scoped('/shared/assets/demo/client-avatar.svg'), gallery_images: gallery,
             gallery_feed_items: gallery.map((url, i) => ({ id: 'preview-work-' + i, url, media_type: 'image', category: i === 0 ? 'Fine line' : 'Blackwork', is_featured: i === 0 })),
             instagram: 'valentina.preview', portafolio: '', work_type: 'independent', estudios: '', birth_date: '1995-06-01',
             subscribed_newsletter: false, ms_profile_complete: true, profile_completeness: 100, registration_status: 'aprobado', registration_step: 12,

@@ -24,6 +24,7 @@ function validateConfig(config) {
   }
   if (config.mainSocket && config.mainSocket === config.previewSocket) throw new Error('Main and preview must use different sockets');
   if (config.pm2Home && (!path.isAbsolute(config.pm2Home) || !path.resolve(config.pm2Home).startsWith(path.resolve(config.stateRoot) + path.sep))) throw new Error('PM2_HOME must be private to this deployment');
+  if (config.mainProcess && !/^weotzi-[a-z0-9][a-z0-9-]{0,40}$/.test(config.mainProcess)) throw new Error('Main process must be a named We Otzi app, never all or a numeric process id');
   return config;
 }
 
@@ -132,14 +133,22 @@ async function health(url, expectedCommit, fetchFn = fetch, attempts = 25) {
   throw new Error('Release health check failed: ' + url);
 }
 
-async function legacyHealth(config, fetchFn = fetch) {
-  if (config.mainSocket) {
-    const response = await socketRequest(config.mainSocket, '/inicio/');
-    if (response.status !== 200 || !/We\s*(?:Ö|&Ouml;|O)tzi/i.test(response.text)) throw new Error('Legacy application did not recover');
-    return;
+async function legacyHealth(config, fetchFn = fetch, attempts = 25, retryDelayMs = 800) {
+  // PM2 start acknowledges a process before its HTTP listener is ready. The adopted baseline
+  // needs the same startup grace as current releases, including after a real rollback.
+  for (let index = 0; index < attempts; index++) {
+    try {
+      if (config.mainSocket) {
+        const response = await socketRequest(config.mainSocket, '/inicio/');
+        if (response.status === 200 && /We\s*(?:Ö|&Ouml;|O)tzi/i.test(response.text)) return;
+      } else {
+        const response = await fetchFn(`http://127.0.0.1:${config.mainPort}/inicio/`, { signal: AbortSignal.timeout(2500) });
+        if (response.ok && /We\s*(?:Ö|&Ouml;|O)tzi/i.test(await response.text())) return;
+      }
+    } catch (_) { /* legacy startup is still in progress */ }
+    if (index + 1 < attempts) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
   }
-  const response = await fetchFn(`http://127.0.0.1:${config.mainPort}/inicio/`, { signal: AbortSignal.timeout(5000) });
-  if (!response.ok || !/We\s*(?:Ö|&Ouml;|O)tzi/i.test(await response.text())) throw new Error('Legacy application did not recover');
+  throw new Error('Legacy application did not recover');
 }
 
 function socketRequest(socketPath, route) {
@@ -188,7 +197,15 @@ async function activate(config, target, releaseId, options = {}) {
   fs.mkdirSync(safeChild(config.stateRoot, 'logs'), { recursive: true });
   const start = (directory, metadata) => {
     atomicJson(pm2File, ecosystem(config, directory, target, metadata));
-    run(config.node, [config.pm2, 'startOrReload', pm2File, '--update-env'], { env: pm2Env });
+    const appName = preview ? 'weotzi-previews' : (config.mainProcess || 'weotzi-beta');
+    // PM2 startOrReload retains pm_exec_path/pm_cwd of an existing app. A new immutable
+    // release requires replacement of this one named app in its private daemon.
+    const listed = String(run(config.node, [config.pm2, 'jlist'], { env: pm2Env })).trim();
+    const jsonStart = listed.search(/\[\s*(?:\{|\])/);
+    const apps = JSON.parse(jsonStart >= 0 ? listed.slice(jsonStart) : listed || '[]');
+    if (!Array.isArray(apps)) throw new Error('PM2 did not return a valid process inventory');
+    if (apps.some(app => app.name === appName)) run(config.node, [config.pm2, 'delete', appName], { env: pm2Env });
+    run(config.node, [config.pm2, 'start', pm2File, '--only', appName, '--update-env'], { env: pm2Env });
   };
   try {
     replaceSymlink(currentLink, release.directory);

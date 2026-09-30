@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { runtimePath, safeChild, targetForRef, atomicJson, sanitizedPreviewConfig } = require('../scripts/release/runtime.cjs');
-const { validateConfig, fetchCommit, exportRuntime, activate, health, ecosystem } = require('../scripts/release/deploy.cjs');
+const { validateConfig, fetchCommit, exportRuntime, activate, health, legacyHealth, ecosystem } = require('../scripts/release/deploy.cjs');
 const { gateway, rewritePaths, CSP } = require('../scripts/release/preview-server.cjs');
 
 function temporary(t) {
@@ -98,15 +98,34 @@ test('release health requires both success and the deployed commit, not merely H
   assert.equal(result.commit, 'expected');
 });
 
+test('legacy rollback health waits for startup instead of treating the first refused connection as failure', async () => {
+  let probes = 0;
+  await legacyHealth({ mainPort: 4545 }, async () => {
+    if (++probes < 3) throw new Error('ECONNREFUSED');
+    return { ok: true, text: async () => '<html><h1>WE ÖTZI</h1></html>' };
+  }, 3, 0);
+  assert.equal(probes, 3);
+  await assert.rejects(legacyHealth({ mainPort: 4545 }, async () => ({ ok: true, text: async () => 'unrelated HTTP 200' }), 1, 0), /did not recover/);
+});
+
 test('failed activation restarts the previous actual process and restores deployment state', async t => {
   const root = temporary(t), config = fixtureConfig(root);
   const previous = release(root, 'old', 'a'.repeat(40)), candidate = release(root, 'new', 'b'.repeat(40));
   atomicJson(path.join(root, 'targets/main.json'), previous.metadata);
   const launches = [];
-  const run = (_, args) => { if (args.includes('startOrReload')) launches.push(JSON.parse(fs.readFileSync(args[2], 'utf8')).apps[0]); return ''; };
+  const commands = [];
+  const run = (_, args, options) => {
+    commands.push(args.slice(1));
+    assert.equal(options?.env.PM2_HOME, path.join(root, 'pm2'));
+    if (args.includes('jlist')) return JSON.stringify([{ name: 'weotzi-beta' }, { name: 'unrelated-app' }]);
+    if (args.includes('start')) launches.push(JSON.parse(fs.readFileSync(args[2], 'utf8')).apps[0]);
+    return '';
+  };
   const probe = async (_, expected) => { if (expected === candidate.metadata.commit) throw new Error('candidate crashed'); return { ok: true }; };
   await assert.rejects(activate(config, 'main', 'new', { run, health: probe }), /previous release restored/);
   assert.deepEqual(launches.map(app => app.cwd), [candidate.directory, previous.directory]);
+  assert.deepEqual(commands.filter(args => args[0] !== 'save').map(args => args[0]), ['jlist', 'delete', 'start', 'jlist', 'delete', 'start']);
+  assert.ok(commands.filter(args => args[0] === 'delete').every(args => args[1] === 'weotzi-beta'));
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'targets/main.json'))).releaseId, 'old');
   assert.equal(fs.realpathSync(path.join(root, 'current/main')), fs.realpathSync(previous.directory));
 });

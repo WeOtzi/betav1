@@ -1,6 +1,6 @@
 # Publicación y recuperación en Hostinger
 
-El servidor publica commits de GitHub. La aplicación de beta funciona desde releases privadas y la carpeta pública conserva solamente el proxy PHP. Las previews usan otro origen y un servidor de archivos de confianza; nunca ejecutan `server.js`, servicios, dependencias o scripts de instalación de una rama.
+El servidor publica commits de GitHub. La aplicación de beta funciona desde releases privadas y el tráfico público pasa por el proxy PHP. Los archivos anteriores se conservan como respaldo y no se actualizan mediante Git. Las previews usan otro origen y un servidor de archivos de confianza; nunca ejecutan `server.js`, servicios, dependencias o scripts de instalación de una rama.
 
 ## Carpetas privadas
 
@@ -25,7 +25,7 @@ Copiar los scripts de `scripts/release/` a la carpeta privada `control/`, junto 
   --source /home/u795331143/domains/weotzi.com/public_html/beta
 ```
 
-La adopción respalda su código operativo, importa el `.env` y conserva uploads/storage/logs. No cambia el proceso activo. Si ya existe una publicación registrada, rechaza sobrescribir el historial. La versión anterior también conserva un hook para escuchar en `127.0.0.1` en este servidor.
+La adopción respalda su código operativo, importa el `.env` y conserva uploads/storage/logs. No cambia el proceso activo. Si ya existe una publicación registrada, rechaza sobrescribir el historial. La versión anterior también conserva un hook para escuchar en el socket Unix privado configurado en este servidor.
 
 El administrador instala el proxy de beta y el proxy de previews en sus respectivos dominios. En este alojamiento las pruebas detectaron que TCP loopback no comunica los procesos; se usan sockets Unix privados: `main.sock` para beta y `previews.sock` para el gateway. Los puertos `4545` y `4670` son solamente un fallback para otros entornos compatibles. Las previews deben utilizar un origen diferente a beta para evitar compartir cookies o almacenamiento del navegador.
 
@@ -49,6 +49,10 @@ node ~/weotzi-deploy/control/poll.cjs
 ```
 
 El cron del administrador invoca el poller cada minuto. Una cerradura evita invocaciones simultáneas. Lee las ramas públicas `main` y `valentina/*` mediante Git, sin tokens. Publica solamente cuando GitHub demuestra un workflow `Verify delivery` y su job `Tests and release policy` concluidos con éxito para la misma SHA, rama y evento `push`.
+
+El wrapper versionado `poll-cron.php` se instala en `control/` y se invoca con PHP CLI. En este alojamiento la tarea existente de hPanel apunta a `beta/auto_monitor.php`: ese archivo contiene únicamente el puente `cron-bridge.php`, que requiere el wrapper privado. El puente rechaza peticiones web. La tarea programada de hPanel se conserva; `crontab` no está disponible por SSH.
+
+El origen de previews es `https://preview.weotzi.chat`. Instalar `preview-proxy.php` como `proxy.php` y `preview.htaccess` como `.htaccess` en `/home/u795331143/domains/preview.weotzi.chat/public_html`. El proxy lee la configuración privada del controlador, permite GET/HEAD y rechaza operaciones reales; no reenvía credenciales de aplicación.
 
 Para una rama junior, exige que `verify.yml`, `check-policy.cjs` y el comando `npm test` coincidan con los de `main`; no acepta un workflow cambiado por la rama que simplemente declare un éxito. Este control no sustituye la revisión humana de las modificaciones ni demuestra integraciones externas: las previews ejecutan solamente UI y datos ficticios. Los scripts del controlador se instalan desde `main` revisada, fuera de las ramas.
 
