@@ -14,6 +14,7 @@ function startServer(extraEnv = {}) {
             ...process.env,
             PORT: String(port),
             NODE_ENV: 'test',
+            CRON_API_TOKEN: 'dev-local-test-only',
             ...extraEnv
         },
         stdio: ['ignore', 'pipe', 'pipe']

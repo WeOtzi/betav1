@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.0] - 2026-09-30
+
+- Scripts manuales para la cuenta Windows estándar Dev: inspección sin cambios, respaldo de DACL antes de restringir sus accesos, clon público independiente en C:\WeOtzi-Dev, verificación desde su sesión/Codex y recuperación sin borrar archivos ni cambiar la cuenta.
+- Scripts manuales GitHub: sesión administrativa propia, respaldo privado, protección y verificación de main antes de gestionar escritura; invitaciones pendientes se distinguen de accesos activos. La recuperación conserva main protegida por defecto y rechaza cambios posteriores ajenos.
+- Handoff y borrador de correo actualizados para Dev y su nueva ruta. El correo sigue sin enviar. Los permisos Windows/GitHub todavía no se aplicaron: los scripts los ejecuta el propietario.
+- La suite usa un token ficticio en el proceso de pruebas del servidor para evitar generar un .env en un clon nuevo. No se cambia el runtime normal ni la base de datos.
+- Validación: 398 pruebas aprobadas y política de entrega; análisis sintáctico PowerShell 5.1 y auditorías sin cambios; 26 verificaciones offline de políticas, invitaciones y recuperación GitHub. La comprobación efectiva desde Dev, navegador/Codex y aplicación administrativa siguen pendientes.
+- Rollback de código: revertir este commit con nueva versión. Los cambios administrativos que el propietario aplique después se recuperan con Restore-DevWorkspace.ps1 o Restore-WeOtziRepository.ps1 y sus manifiestos privados; git revert no revierte permisos.
+
+
 ## [2.1.2] - 2026-09-30
 
 - Se actualizan las guías de Valentina con la evidencia de la entrega 2.1.1: SHA, verificaciones de GitHub y publicación automática de beta y preview. Se conserva el historial de recuperación y rollback.

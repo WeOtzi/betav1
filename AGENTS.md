@@ -8,7 +8,7 @@ We Ötzi conecta clientes, tatuadores y estudios. El runtime principal es Node.j
 
 ## Entorno de Valentina
 
-- Trabaja en `C:\WeOtzi-Valentina\weotzi-unified`, con su usuario Windows, su GitHub y su propia cuenta de ChatGPT/Codex.
+- Trabaja en `C:\WeOtzi-Dev\weotzi-unified`, con el usuario Windows estándar `Dev`, su GitHub y su propia cuenta de ChatGPT/Codex. El checkout de Isaí en `C:\dev\weotzi-unified` contiene archivos privados y no es la copia compartida.
 - Usa `npm run dev:safe` y `http://localhost:4647`. La configuración segura usa datos ficticios. Comprueba que se identifica como entorno de prueba antes de interactuar.
 - Crea una rama `valentina/<tarea>` desde `main` actualizado. Valentina publica esa rama y abre un PR a `main`; Isaí revisa la integración.
 - El push de `valentina/*` ejecuta `Verify delivery`. El servidor publica la preview cuando comprueba el commit aprobado por CI. Abre el índice de previews y copia la URL de esa rama; no inventes el slug.
@@ -21,7 +21,7 @@ We Ötzi conecta clientes, tatuadores y estudios. El runtime principal es Node.j
 2. Explica el problema, el alcance y la evidencia necesaria en lenguaje simple. Una tarea debe corresponder a un flujo o corrección revisable.
 3. Conserva consultas, permisos, estados y comportamiento existentes al aplicar diseño. No reemplaces datos reales por mocks en el runtime normal.
 4. Prueba el cambio en navegador. La inspección de CSS o un HTTP 200 no demuestra que una interacción funcione. Comprueba el resultado visible, validaciones, responsive y persistencia cuando el entorno permita guardar datos.
-5. Antes de cada commit de cambios, prepara una versión única con `npm run version:delivery -- <version> "Descripción"`, completa la entrada de `docs/CHANGELOG.md` y revisa package/lockfile. Para una rama usa un prerelease como `2.1.1-valentina.login.1`, incrementando el último número en el siguiente commit. Cada commit debe explicar problema, cambio, validación y forma de revertirlo y llevar las líneas `Version:` y `Validación:`; no publiques un commit titulado solamente "cambios" o "fix".
+5. Antes de cada commit de cambios, prepara una versión única con `npm run version:delivery -- <version> "Descripción"`, completa la entrada de `docs/CHANGELOG.md` y revisa package/lockfile. Para una rama calcula el siguiente patch desde la versión actual de `package.json` y añade el sufijo `-valentina.<tarea>.1`; incrementa el último número en el siguiente commit. Cada commit debe explicar problema, cambio, validación y forma de revertirlo y llevar las líneas `Version:` y `Validación:`; no publiques un commit titulado solamente "cambios" o "fix".
 6. Antes del push, revisa el diff y los archivos incluidos, ejecuta `npm test` y `npm run check:release` y confirma que no hay secretos ni datos privados. Adjunta evidencia y límites de la prueba al PR.
 7. Valentina no mezcla su PR a `main`, no opera SSH ni ejecuta migraciones sobre Supabase compartido. Si el propietario autoriza expresamente una de estas acciones, sigue el procedimiento de despliegue y respaldos vigente.
 

@@ -4,12 +4,12 @@ Fecha: 30 de septiembre de 2026. Responsable del proyecto y de aprobar publicaci
 
 Esta guía explica cómo trabajar en este PC con tu propia cuenta, conversar con un agente IA, aplicar el rediseño pendiente y probar la aplicación. Isaí revisa los cambios antes de incorporarlos a la beta principal.
 
-**Estado comprobado al 30/09:** GitHub, CI, publicación automática de beta, preview de rama y rollback real funcionan. La versión **2.1.1**, commit `ee702262fb765744b1df5dc1f42b68eb1da9c5ef`, completó CI y se publicó automáticamente en beta y en la [preview preparada](https://preview.weotzi.chat/preview/preview-valentina-prueba-entorno-f6aefa2d/inicio/). Esta es evidencia de esa entrega; comprueba la versión actual antes de cada prueba. Quedan tres preparativos personales/administrativos: crear y comprobar tu cuenta Windows y clon (UAC fue cancelado), informar tu correo/usuario GitHub y activar la [protección de `main`](MAIN-PROTECTION.md). Isaí debe comprobar esa protección antes de otorgarte escritura y habilitar tu primer push. La revisión manual por sí sola no sustituye las reglas efectivas de GitHub.
+**Estado comprobado al 30/09:** GitHub, CI, publicación automática de beta, preview de rama y rollback real funcionan. La entrega **2.1.1**, commit `ee702262fb765744b1df5dc1f42b68eb1da9c5ef`, tiene la evidencia histórica detallada abajo; comprueba la versión actual antes de cada prueba. Isaí ya creó la cuenta Windows estándar **Dev**. Quedan aplicar y comprobar el aislamiento y el clon independiente, informar tu identidad GitHub y verificar la [protección de `main`](MAIN-PROTECTION.md) antes de otorgarte escritura. Los scripts de [preparación Windows](DEV-WINDOWS-SETUP.md) y [preparación GitHub](DEV-GITHUB-SETUP.md) los ejecuta Isaí manualmente; su presencia no significa que los permisos ya estén aplicados.
 
 ## 1. Empieza aquí
 
-1. Cuando Isaí haya creado y comprobado tu cuenta, inicia sesión con **tu usuario Windows estándar de Valentina**, tu cuenta de ChatGPT/Codex y tu cuenta de GitHub.
-2. Abre únicamente **`C:\WeOtzi-Valentina\weotzi-unified`** en Codex, después de que Isaí haya preparado y comprobado tu clon de [WeOtzi/betav1](https://github.com/WeOtzi/betav1).
+1. Cuando Isaí haya preparado y comprobado el aislamiento, inicia sesión con **el usuario Windows estándar Dev**, tu cuenta de ChatGPT/Codex y tu cuenta de GitHub.
+2. Abre únicamente **`C:\WeOtzi-Dev\weotzi-unified`** en Codex, después de que Isaí haya preparado y comprobado tu clon de [WeOtzi/betav1](https://github.com/WeOtzi/betav1).
 3. Pide a la IA: “Lee AGENTS.md y el handoff de Valentina. Revisa la rama y el estado de Git. Explícame cómo arrancar el entorno seguro y comprueba que no usa datos ni correos reales”.
 4. Abre PowerShell en esa carpeta, instala dependencias con `npm ci --ignore-scripts` y arranca **`npm run dev:safe`**. Abre **http://localhost:4647**. Si ya hay un proceso en ese puerto, identifica de quién es antes de cerrarlo.
 5. Lee [tu primera tarea](VALENTINA-FIRST-TASK.md). El primer entregable es un inventario comprobado de pantallas y defectos, seguido de una corrección pequeña que puedas revisar de principio a fin.
@@ -28,7 +28,7 @@ Tu primera misión se concentra en **artistas y clientes**: revisar el inventari
 
 | Lugar | Para qué sirve | Cómo se actualiza |
 | --- | --- | --- |
-| `C:\WeOtzi-Valentina\weotzi-unified` | Tu código y pruebas locales | Tú y la IA editan archivos en una rama |
+| `C:\WeOtzi-Dev\weotzi-unified` | Tu código y pruebas locales | Tú y la IA editan archivos en una rama |
 | `http://localhost:4647` | Prueba local segura con datos ficticios | `npm run dev:safe` |
 | [GitHub WeOtzi/betav1](https://github.com/WeOtzi/betav1) | Historial, ramas, PR, versiones y automatización | Commit y push con tu GitHub |
 | `https://preview.weotzi.chat/preview/<slug>/` | Preview de una rama `valentina/*` | El controlador del servidor publica el commit aprobado por CI; copia el enlace del [índice de previews](https://preview.weotzi.chat). Publicación de la rama de prueba comprobada |
@@ -168,7 +168,7 @@ feat(client-login): aplicar el rediseño de acceso
 
 Problema: el acceso de cliente no coincide con el frame de referencia.
 Cambio: reutiliza los campos y botones del sistema de diseño.
-Version: 2.1.3-valentina.login.1
+Version: 2.2.1-valentina.login.1
 Validación: login/errores y capturas a 1440, 768 y 390 px en entorno seguro.
 Límite: el email real no se prueba en la preview.
 Rollback: revertir este commit; no incluye migraciones.
@@ -193,12 +193,12 @@ Cada commit de cambios debe estar identificado por una versión única, y cada p
 Antes del commit, usa la herramienta de versión. El ejemplo siguiente prepara el primer cambio de una rama; la IA debe recalcular el siguiente número libre desde la versión actual de `package.json`, no copiar un número que ya existe ni usar un prerelease anterior a la versión estable:
 
 ```powershell
-npm run version:delivery -- 2.1.3-valentina.login.1 "Rediseño del acceso de cliente"
+npm run version:delivery -- 2.2.1-valentina.login.1 "Rediseño del acceso de cliente"
 npm test
 npm run check:release
 ```
 
-La herramienta actualiza `package.json`, `package-lock.json` y crea una entrada de `docs/CHANGELOG.md`. **Completa la validación y el rollback de esa entrada con lo que realmente hiciste**, y agrega los tres archivos al commit. El siguiente commit de esa tarea usa, por ejemplo, `2.1.3-valentina.login.2`; recalcula también ese número desde `package.json` y el historial de la rama. El cuerpo de cada commit lleva `Version: <version>` y `Validación: <evidencia>` además de problema, cambio y rollback. Los checks de GitHub verifican esta política.
+La herramienta actualiza `package.json`, `package-lock.json` y crea una entrada de `docs/CHANGELOG.md`. **Completa la validación y el rollback de esa entrada con lo que realmente hiciste**, y agrega los tres archivos al commit. El siguiente commit de esa tarea usa, por ejemplo, `2.2.1-valentina.login.2`; recalcula también ese número desde `package.json` y el historial de la rama. El cuerpo de cada commit lleva `Version: <version>` y `Validación: <evidencia>` además de problema, cambio y rollback. Los checks de GitHub verifican esta política.
 
 Usa patch para correcciones compatibles; minor para nuevas funciones compatibles; major requiere revisión de Isaí por incompatibilidades. En una rama las versiones llevan el sufijo de tarea. Isaí prepara la versión estable al integrar. No inventes resultados de pruebas ni publiques entradas genéricas.
 
@@ -252,7 +252,9 @@ Anota cada defecto con ruta, modo, datos de prueba, pasos, esperado/observado, c
 
 ## 11. Tu cuenta en este PC
 
-Tu usuario Windows debe ser estándar y tener acceso a tu carpeta de We Ötzi. Usa tu propio perfil de navegador; no abras las sesiones de Isaí. Tu Codex muestra los proyectos y chats de tu perfil y de tu cuenta, y debe abrir esta copia del proyecto.
+Tu usuario Windows es **Dev** y debe seguir siendo estándar, con permisos de modificación en tu copia independiente de We Ötzi. Node, npm, Git y el servidor local no requieren permisos de administrador. Usa tu propio perfil de navegador; no abras las sesiones de Isaí. Tu Codex muestra los proyectos y chats de tu perfil y de tu cuenta, y debe abrir esta copia del proyecto.
+
+La carpeta `C:\dev` del propietario queda fuera de tu entorno, porque contiene otros proyectos y el checkout original con secretos. Tu acceso es `C:\WeOtzi-Dev\weotzi-unified`. La configuración administrativa y su verificación están en [DEV-WINDOWS-SETUP.md](DEV-WINDOWS-SETUP.md). Una cuenta administradora podría cambiar estas restricciones; por eso no se utiliza para el desarrollo cotidiano.
 
 El repositorio no entrega SSH, contraseña del servidor, `.env` del propietario ni secretos administrativos. GitHub Actions verifica tu commit y el controlador del servidor publica el commit aprobado. Isaí administra las cuentas, permisos, secretos, migraciones y rollback operativo. Si un comando pide elevación de administrador, acceso a otro proyecto o un secreto, detente y reporta la acción concreta necesaria.
 

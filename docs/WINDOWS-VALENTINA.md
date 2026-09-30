@@ -1,5 +1,7 @@
 # Cuenta de Windows y entorno de Valentina
 
+**Documento histórico del intento de preparar una cuenta llamada Valentina.** Isaí creó después la cuenta estándar **Dev**. Usa [DEV-WINDOWS-SETUP.md](DEV-WINDOWS-SETUP.md) y sus scripts para preparar **`C:\WeOtzi-Dev\weotzi-unified`**. No ejecutes las instrucciones antiguas siguientes para la cuenta Dev. Su aislamiento y clon todavía necesitan aplicación manual y comprobación desde su sesión y Codex.
+
 Este documento explica la separación de cuentas en este PC. El documento de handoff del proyecto explica las ramas, los previews, el rediseño y la publicación.
 
 **Estado comprobado al 30/09/2026:** los scripts están preparados y auditados, pero la autorización UAC fue cancelada. **La cuenta Valentina y su clon todavía no están creados.** No se comprobó el aislamiento con su token Windows ni con el token de herramientas de su Codex. Las instrucciones siguientes se ejecutan después de que Isaí complete la preparación y verificación; la presencia de los scripts no acredita que ya se aplicaron los permisos.
