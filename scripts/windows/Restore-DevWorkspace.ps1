@@ -173,6 +173,7 @@ try {
     $manifest | Add-Member -NotePropertyName restoredAt -NotePropertyValue $report.finishedAt -Force
     $temporary=Join-Path $backup ('.manifest-'+[guid]::NewGuid().ToString('N')+'.tmp')
     [IO.File]::WriteAllText($temporary,($manifest | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($true))
-    [IO.File]::Replace($temporary,$resolvedManifest,$null)
+    # A plain $null binds as an empty backup path; NullString passes a true .NET null.
+    [IO.File]::Replace($temporary,$resolvedManifest,[NullString]::Value)
     Write-Output "Captured DACLs/ownership restored for existing items; missing items were reported and not recreated. Dev's account/files preserved. Report: $restoreReport"
 } catch { $report.status='failed'; $report.error=$_.Exception.Message; Save-Report; throw }

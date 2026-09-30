@@ -273,7 +273,8 @@ function New-PrivateBackup($Record) {
 function Save-Backup($Record) {
     $temporary = Join-Path ([System.IO.Path]::GetDirectoryName($script:BackupFile)) ('journal-' + [Guid]::NewGuid().ToString('N') + '.tmp')
     [System.IO.File]::WriteAllText($temporary, ($Record | ConvertTo-Json -Depth 60), (New-Object System.Text.UTF8Encoding($false)))
-    if (Test-Path -LiteralPath $script:BackupFile) { [System.IO.File]::Replace($temporary, $script:BackupFile, $null) }
+    # A plain $null binds as an empty backup path; NullString passes a true .NET null.
+    if (Test-Path -LiteralPath $script:BackupFile) { [System.IO.File]::Replace($temporary, $script:BackupFile, [NullString]::Value) }
     else { [System.IO.File]::Move($temporary, $script:BackupFile) }
 }
 

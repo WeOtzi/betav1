@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.1] - 2026-09-30
+
+- Se corrige File.Replace en los manifiestos Windows y el respaldo GitHub: NullString entrega un null real a .NET y evita que PowerShell convierta el parámetro en una ruta vacía. Se conserva la sustitución atómica.
+- El configurador lee explícitamente UTF-16LE de icacls /save, también sin BOM, antes de validar su DACL. Se conserva el rechazo de datos inválidos y permisos previos incompatibles.
+- Se agregan regresiones que ejecutan los escritores JSON y el lector ACL reales en Windows PowerShell 5.1 sobre archivos temporales, sin ejecutar cambios de permisos. GitHub Actions incorpora la ejecución de estas regresiones en Windows.
+- El intento humano reportado falló durante el inventario: el manifiesto temporal confirma aclChangesStarted=false y no hay clon Dev. Se conservan sus archivos de diagnóstico; no se ejecutaron acciones administrativas para reparar el intento.
+- Validación: sustituciones reproducidas en PowerShell 5.1 y 7; lectura del respaldo ACL real y muestras UTF-16LE con/sin BOM; 400 pruebas locales aprobadas, incluidas las dos regresiones Windows; sintaxis PowerShell y política de entrega aprobadas.
+- Rollback: git revert en una nueva entrega de código. Los permisos administrativos siguen requiriendo sus manifiestos privados y scripts Restore; esta corrección no aplica permisos ni migraciones.
+
+
 ## [2.2.0] - 2026-09-30
 
 - Scripts manuales para la cuenta Windows estándar Dev: inspección sin cambios, respaldo de DACL antes de restringir sus accesos, clon público independiente en C:\WeOtzi-Dev, verificación desde su sesión/Codex y recuperación sin borrar archivos ni cambiar la cuenta.

@@ -99,7 +99,8 @@ $manifest = [ordered]@{
 function Save-Manifest {
     $temporary = Join-Path $backup ('.manifest-'+[guid]::NewGuid().ToString('N')+'.tmp')
     [IO.File]::WriteAllText($temporary,($manifest | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($true))
-    if ([IO.File]::Exists($manifestPath)) { [IO.File]::Replace($temporary,$manifestPath,$null) }
+    # A plain $null binds as an empty backup path; NullString passes a true .NET null.
+    if ([IO.File]::Exists($manifestPath)) { [IO.File]::Replace($temporary,$manifestPath,[NullString]::Value) }
     else { [IO.File]::Move($temporary,$manifestPath) }
 }
 function Write-Snapshot($Entry, [IO.StreamWriter]$Writer) { $Writer.WriteLine(($Entry | ConvertTo-Json -Compress -Depth 5)) }
@@ -183,7 +184,9 @@ try {
                     # icacls /deny removes this SID's existing explicit grants.
                     # Reject that baseline before any deny, rather than letting
                     # rollback mistake our own removed grant for unrelated drift.
-                    $savedSddl = @([IO.File]::ReadAllLines($linkFile) | Where-Object { $_ -match '^(O:|G:|D:|S:)' })
+                    # icacls /save writes UTF-16LE and can omit the BOM. Decode
+                    # explicitly and reject malformed input before trusting it.
+                    $savedSddl = @([IO.File]::ReadAllLines($linkFile,[Text.UnicodeEncoding]::new($false,$false,$true)) | Where-Object { $_ -match '^(O:|G:|D:|S:)' })
                     if ($savedSddl.Count -ne 1) { throw "Cannot inspect the reparse ACL baseline: $($item.FullName)" }
                     $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($savedSddl[0])
                     if ($null -eq $descriptor.DiscretionaryAcl) { throw "A reparse null DACL cannot receive a safe private deny: $($item.FullName)" }
