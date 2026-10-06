@@ -1,15 +1,15 @@
 # Inventario inicial de flujos — Valentina
 
-**Estado:** primera versión, en borrador. Todavía no comparé la auditoría con el diseño original, así que no marco ninguna pantalla como correcta o con errores. Los nodos y rutas los tomé de `docs/VALENTINA-FIRST-TASK.md` (registrados el 30/09/2026). Falta reabrirlos en Figma con mi cuenta para confirmarlos.
+**Estado:** primera versión, en borrador. Todavía no comparé la auditoría con el diseño original, así que no marco ninguna pantalla como correcta o con errores. Los nodos y rutas los tomé de `docs/VALENTINA-FIRST-TASK.md` (registrados el 30/09/2026).
 
 ## Referencias maestras
 
 | Archivo | Enlace | Nodos de entrada documentados | Verificación actual |
 |---|---|---|---|
-| Auditoría de Laura | [Figma](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditor%25C3%25ADa-Redise%25C3%25B1o-We-%25C3%2596tzi?node-id=0-1&p=f&t=IUxv0DfpCyb0BazH-0) | Artistas `0:1`; Clientes `1:2` | Pendiente abrir con la cuenta de Valentina |
+| Auditoría de Laura | [Figma](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditor%25C3%25ADa-Redise%25C3%25B1o-We-%25C3%2596tzi?node-id=0-1&p=f&t=IUxv0DfpCyb0BazH-0) | Artistas `0:1`; Clientes `1:2` | Abierto con mi cuenta el 05/10/2026; revisé los comentarios de Laura. Nodos sin confirmar uno por uno. |
 | Pantallas We Ötzi — copia ampliada | [Figma](https://www.figma.com/design/WHCgICsA3ipbAE2srVls9A/Pantallas--We-Otzi--copia-?node-id=0-1&p=f&m=draw) | Nodo interno pendiente | Pendiente acceso, inspección y mapeo de nodos propios |
-| Pantallas We Ötzi — original | [Figma](https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi?node-id=0-1&p=f&m=dev) | Artistas `0:1`; Clientes `205:302` | Pendiente reabrir con la cuenta de Valentina |
-| Design System | [Figma](https://www.figma.com/design/jLxPQyG2rxrq5bvfQgNcBd/Design-System-We-Otzi?node-id=11-782&p=f&t=ymJ2wGHS8dKqkFQP-0) | UI Kit `0:1`; Atomic Design `11:782`; Auditoría `21:7455` | Pendiente reabrir con la cuenta de Valentina |
+| Pantallas We Ötzi — original | [Figma](https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi?node-id=0-1&p=f&m=dev) | Artistas `0:1`; Clientes `205:302` | Pendiente reabrir con mi cuenta |
+| Design System | [Figma](https://www.figma.com/design/jLxPQyG2rxrq5bvfQgNcBd/Design-System-We-Otzi?node-id=11-782&p=f&t=ymJ2wGHS8dKqkFQP-0) | UI Kit `0:1`; Atomic Design `11:782`; Auditoría `21:7455` | Pendiente reabrir con mi cuenta |
 
 ## Auditoría de Laura
 
