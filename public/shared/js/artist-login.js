@@ -419,6 +419,22 @@ async function handleArtistLogin(e) {
 // Google OAuth
 // ============================================
 
+// These providers appear in Figma but are not integrated with artist auth yet.
+// Keep the existing Google route available without implying a working provider.
+function handleArtistSocialUnavailable(provider) {
+    const notice = document.getElementById('social-access-notice');
+    const message = document.getElementById('social-access-message');
+    if (!notice || !message) return;
+    message.textContent = `El acceso con ${provider} todavía no está disponible. Ingresá con tu email o continuá con Google.`;
+    notice.hidden = false;
+}
+
+function focusArtistEmailLogin() {
+    const notice = document.getElementById('social-access-notice');
+    if (notice) notice.hidden = true;
+    document.getElementById('login-email')?.focus();
+}
+
 async function handleArtistGoogleLogin() {
     try {
         const returnTo = getReturnToParam();
