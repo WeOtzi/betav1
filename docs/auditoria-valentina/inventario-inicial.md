@@ -1,6 +1,6 @@
 # Inventario inicial de flujos — Valentina
 
-Estado: **borrador previo a la comparación**. No declara pantallas coincidentes, desviadas ni defectuosas. Los pares de nodos auditoría/original y rutas se transcriben de `docs/VALENTINA-FIRST-TASK.md`; fueron registrados allí como leídos el 30/09/2026. Aún no se reabrieron los nodos en la sesión Figma de Valentina. No se trasladan IDs a la copia ampliada.
+**Estado:** primera versión, en borrador. Todavía no comparé la auditoría con el diseño original, así que no marco ninguna pantalla como correcta o con errores. Los nodos y rutas los tomé de `docs/VALENTINA-FIRST-TASK.md` (registrados el 30/09/2026). Falta reabrirlos en Figma con mi cuenta para confirmarlos.
 
 ## Referencias maestras
 
