@@ -95,11 +95,20 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 .wo-auth-or::after{content:"";flex:1;border-top:var(--border-hairline) solid var(--border-subtle)}
 
 /* ---------- Social (Figma 22-1106: Instagram recomendado · Email · Facebook) ---------- */
-.wo-auth-social{display:flex;flex-direction:column;align-items:flex-start;gap:0}
-.wo-auth-reco{gap:var(--space-1);position:relative;z-index:1;margin-bottom:calc(var(--space-1) * -1)}
+@font-face{font-family:'We Otzi Button Inter';src:url('/shared/fonts/artist-login/Inter.ttf') format('truetype');font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:'We Otzi Badge Mono';src:url('/shared/fonts/artist-login/JetBrainsMono.ttf') format('truetype');font-weight:100 800;font-style:normal;font-display:swap}
+.wo-auth-social{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-1);container-type:inline-size}
+.wo-auth-reco{gap:var(--space-1);position:static;margin:0}
 .wo-auth-reco [data-wo-icon]{width:12px;height:12px}
-.wo-auth-social-row{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);width:100%}
-.wo-auth-social-row .wo-btn{width:100%;padding-left:var(--space-2);padding-right:var(--space-2);white-space:nowrap}
+.wo-auth-social-row{display:grid;grid-template-columns:minmax(0,136fr) minmax(0,102fr) minmax(0,118fr);gap:clamp(8px,3.158cqw,14.779px);width:100%}
+/* Figma 22:1106 scales the 380px DS form to 468px. Scale its compact
+   controls to the existing form width while retaining original SVG sizes. */
+.registerclosedbeta-page .wo-auth-social-row .wo-btn{width:100%;height:25.863px;min-height:0;padding:0;gap:clamp(4px,2.105cqw,9.853px);border-width:1.232px;font-size:clamp(12px,3.684cqw,17.24px);line-height:1;letter-spacing:1.12px;white-space:nowrap}
+.registerclosedbeta-page .wo-auth-reco{box-sizing:border-box;min-height:0;height:24.632px;padding:0 5.17px;gap:0;border:0;border-radius:0;font-size:11.78px;font-weight:600;line-height:1;letter-spacing:.5739px}
+.registerclosedbeta-page .btn-register-primary{height:54.189px;min-height:0;padding:0 26.603px;gap:9.853px;border-width:1.232px;color:var(--neutral-100);font-size:17.24px;line-height:17.242px;letter-spacing:1.12px}
+.registerclosedbeta-page .btn-register-primary,
+.registerclosedbeta-page .wo-auth-social-row .wo-btn{font-family:'We Otzi Button Inter',var(--font-body)}
+.registerclosedbeta-page .wo-auth-reco{font-family:'We Otzi Badge Mono',var(--font-mono)}
 
 /* ---------- "¿Ya tenés cuenta? Ingresá" (link rojo mono) ---------- */
 .wo-beta-haveaccount{margin:0;text-align:center;color:var(--text-faint)}
@@ -131,7 +140,7 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 @media (max-width:640px){
   .wo-auth-fieldrow{grid-template-columns:1fr}
   .wo-auth-social-row{grid-template-columns:1fr}
-  .wo-auth-social-row .wo-btn{justify-content:center}
+  .registerclosedbeta-page .wo-auth-social-row .wo-btn{justify-content:center;height:44px;font-size:14px;gap:8px}
 }
 @media (max-width:480px){
   .wo-auth-panel{padding:var(--space-8) var(--space-4)}

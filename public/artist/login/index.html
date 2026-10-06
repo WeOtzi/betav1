@@ -6,15 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Ingreso artista</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
-        rel="stylesheet">
-
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/artist-auth-ds.css">
+    <link rel="stylesheet" href="/shared/css/artist-login-figma.css">
     <script src="/shared/js/wo-icons.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -73,46 +68,51 @@
                     <div class="wo-field">
                         <label class="wo-label" for="login-email">Email</label>
                         <div class="wo-auth-inputwrap">
-                            <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                            <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/mail.svg" alt="">
                             <input type="email" id="login-email" class="wo-input" placeholder="vos@email.com" required autocomplete="email">
                         </div>
                     </div>
                     <div class="wo-field">
                         <label class="wo-label" for="login-password">Contraseña</label>
                         <div class="wo-auth-inputwrap">
-                            <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                            <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/lock.svg" alt="">
                             <input type="password" id="login-password" class="wo-input" placeholder="••••••••" required autocomplete="current-password">
                         </div>
                     </div>
                     <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="btn-login">
                         <span class="btn-text">Entrar</span>
-                        <i data-wo-icon="arrow-up-right" class="wo-icon-18" aria-hidden="true"></i>
+                        <img src="/shared/assets/figma/artist-login/arrow-right.svg" alt="">
                     </button>
                 </form>
+
+                <button type="button" class="wo-auth-forgot" onclick="handleArtistPasswordRecovery(event)">¿Olvidaste tu contraseña?</button>
 
                 <div id="form-message" class="wo-auth-message" role="status" hidden></div>
 
                 <div class="wo-auth-or" role="separator">O continuá con</div>
 
                 <div class="wo-auth-social">
-                    <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><i data-wo-icon="zap" aria-hidden="true"></i>Recomendado</span>
-                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard" onclick="handleArtistGoogleLogin()">
-                        <svg class="wo-auth-google-g" viewBox="0 0 24 24" aria-hidden="true">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path>
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path>
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path>
-                        </svg>
-                        <span class="btn-text">Google</span>
-                    </button>
+                    <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><img src="/shared/assets/figma/artist-login/star.svg" alt="">Recomendado</span>
+                    <div class="wo-auth-social-buttons">
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Instagram')" aria-describedby="social-access-message">
+                            <img src="/shared/assets/figma/artist-login/instagram.svg" alt=""><span class="btn-text">Instagram</span>
+                        </button>
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="focusArtistEmailLogin()">
+                            <img src="/shared/assets/figma/artist-login/email.svg" alt=""><span class="btn-text">Email</span>
+                        </button>
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Facebook')" aria-describedby="social-access-message">
+                            <img src="/shared/assets/figma/artist-login/facebook.svg" alt=""><span class="btn-text">Facebook</span>
+                        </button>
+                    </div>
+                    <div id="social-access-notice" class="wo-auth-social-notice" hidden>
+                        <p id="social-access-message" role="status"></p>
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistGoogleLogin()">Continuar con Google</button>
+                    </div>
                 </div>
 
                 <div class="wo-auth-links">
                     <p class="wo-meta">¿Sin cuenta? <a href="/registerclosedbeta">Registrate</a></p>
-                    <p class="wo-meta">¿Sos cliente? <a href="/client/login">Ingresá acá</a></p>
                 </div>
-
-                <button type="button" class="wo-auth-forgot" onclick="handleArtistPasswordRecovery(event)">¿Olvidaste tu contraseña?</button>
             </div>
 
             <!-- Vista: recuperar contraseña -->
@@ -195,6 +195,6 @@
 
 </div>
 
-<script src="/shared/js/artist-login.js?v=20260816-ds-auth"></script>
+<script src="/shared/js/artist-login.js?v=20261006-figma-login"></script>
 </body>
 </html>

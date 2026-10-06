@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.2] - 2026-10-06
+
+- Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón
+- Tipografía e iconos originales locales; opciones sociales del login con avisos explícitos para Instagram/Facebook y alternativa Google; registro con botones compactos y separación de 4 px para el tag Recomendado. Proyecto conserva #0055FF.
+- Validación: Chromium a 1440, 768 y 390 px, sin overflow; foco, validaciones, avisos sociales, recuperación y acceso/sesión con fixtures. npm test: 398 aprobadas, 2 omitidas por requerir Windows; check:release aprobado. Supabase/OAuth/emails reales no probados. Evidencia en docs/auditoria-valentina/.
+- Rollback: revertir la entrega en una nueva rama con versión propia; el controlador conserva la release anterior. No incluye migraciones, permisos o cambios de datos.
+
+
 ## [2.2.1] - 2026-09-30
 
 - Se corrige File.Replace en los manifiestos Windows y el respaldo GitHub: NullString entrega un null real a .NET y evita que PowerShell convierta el parámetro en una ruta vacía. Se conserva la sustitución atómica.
@@ -53,6 +61,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+- Registro de beta: botones con bordes, tipografía, proporciones e iconos del nodo Figma 22:1106; el tag Recomendado mantiene 4 px de separación positiva, también durante hover. Se conservan los handlers existentes.
+- Validación del ajuste de botones: Chromium a 1440, 768 y 390 px, sin solapamiento ni overflow; Email enfoca el formulario y Facebook muestra el aviso existente. Política de entrega y diff --check aprobados. Ver docs/auditoria-valentina/registro-botones.md.
+- Rollback del ajuste de botones: revertir únicamente los cambios de registro; no incluye datos ni migraciones.
 
 - **Auditoría de Laura y doble modo (2026-09-22)**: una sesión permite activar cliente y tatuador; selector compartido y alta autenticada sin duplicar correo. Registro temporal de cliente sin confirmación en beta, con protecciones para impedir reclamar cotizaciones históricas mediante emails de prueba. Corregido el conflicto del trigger Auth con los borradores de artista. Cuenta con actividad, guía en Notion y borrador de correo preparados. 364 pruebas y verificaciones HTTP reales; 419 archivos publicados y comprobados. Ver [guía](AUDITORIA-LAURA-20260922.md) y [validación](AUDITORIA-LAURA-VALIDACION-20260922.md).
 

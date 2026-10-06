@@ -1,0 +1,70 @@
+/* Artist login · Pantallas We Otzi 24:1261. Page-specific dimensions keep
+   shared auth screens unchanged. Colors and primitives come from the DS. */
+@font-face{font-family:'Archivo Black';src:url('/shared/fonts/artist-login/ArchivoBlack-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Inter;src:url('/shared/fonts/artist-login/Inter.ttf') format('truetype');font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('/shared/fonts/artist-login/JetBrainsMono.ttf') format('truetype');font-weight:100 800;font-style:normal;font-display:swap}
+
+.artist-login-page{--login-placeholder:#757575}
+.artist-login-page .wo-auth-split{grid-template-columns:minmax(0,728fr) minmax(0,716fr)}
+.artist-login-page .wo-auth-poster{box-sizing:border-box;padding:var(--space-12)}
+.artist-login-page .wo-auth-poster-frame{gap:0}
+.artist-login-page .wo-auth-poster .wo-marks{position:absolute;top:var(--space-12);left:calc(var(--space-12) - 2px);gap:var(--space-2)}
+.artist-login-page .wo-auth-poster .wo-mark-triangle{border-left-width:9.6px;border-right-width:9.6px}
+.artist-login-page .wo-auth-poster-title{font-size:72px;line-height:68.4px;letter-spacing:0}
+.artist-login-page .wo-auth-poster::after{right:56px;bottom:55.8px;width:0;height:0;border:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:80px solid var(--bauhaus-square);opacity:1}
+
+.artist-login-page .wo-auth-panel{box-sizing:border-box;align-items:flex-start;padding: max(64px,calc((100svh - 572px)/2)) var(--space-8) var(--space-16) calc(var(--space-8) + 2px)}
+.artist-login-page .wo-auth-panel-inner{max-width:422px;gap:30.43px}
+.artist-login-page .wo-auth-brand{gap:13.326px;height:30.206px;color:var(--ink)}
+.artist-login-page .wo-auth-brand .wo-marks{gap:6.663px}
+.artist-login-page .wo-auth-brand .wo-mark-square,
+.artist-login-page .wo-auth-brand .wo-mark-circle{width:22.211px;height:22.211px}
+.artist-login-page .wo-auth-brand .wo-mark-triangle{border-left-width:10.661px;border-right-width:10.661px;border-bottom-width:22.211px}
+.artist-login-page .wo-auth-brand-name{font-size:22.211px;letter-spacing:.8884px}
+.artist-login-page .wo-auth-title{font-size:35.537px;line-height:37.314px;letter-spacing:0}
+.artist-login-page .wo-auth-copy{font-size:16.658px;line-height:normal}
+.artist-login-page #login-anonymous-view{gap:0}
+.artist-login-page #login-anonymous-view .wo-auth-copy{margin-top:4.442px}
+.artist-login-page #login-form{margin-top:23.6px;gap:22.878px}
+.artist-login-page #login-form .wo-field{gap:8.884px}
+.artist-login-page #login-form .wo-label{font-size:13.326px;line-height:15.992px;letter-spacing:1.0661px;color:var(--text-muted)}
+.artist-login-page #login-form .wo-input{height:52.417px;min-height:0;border-width:1.111px;padding:0 19.545px 0 48.418px;font-size:17.768px;line-height:normal}
+.artist-login-page #login-form .wo-input::placeholder{color:var(--login-placeholder)}
+.artist-login-page #login-form .wo-input:focus{border-width:1.111px;padding:0 19.545px 0 48.418px;box-shadow:var(--shadow-focus)}
+.artist-login-page .wo-auth-field-icon{position:absolute;left:19.545px;top:50%;transform:translateY(-50%);pointer-events:none}
+.artist-login-page #btn-login{height:48.863px;min-height:0;padding:0 23.988px;gap:8.884px;border-width:1.111px;color:var(--neutral-100);font-size:15.547px;line-height:15.547px;letter-spacing:1.2438px}
+.artist-login-page .wo-auth-forgot{min-height:48.863px;padding:0 8px;margin-top:7.77px;font-size:15.547px;line-height:15.547px;letter-spacing:1.2438px}
+.artist-login-page .wo-auth-or{height:17.768px;margin-top:15.55px;gap:13.326px;font-size:13.326px;line-height:normal;letter-spacing:1.0661px}
+.artist-login-page .wo-auth-social{margin-top:14.422px;gap:0}
+.artist-login-page .wo-auth-reco{box-sizing:border-box;height:22.211px;min-height:0;padding:0 4.66px;gap:0;border:0;border-radius:0;font-size:10.622px;line-height:normal;letter-spacing:.6373px;font-weight:600}
+.artist-login-page .wo-auth-social-buttons{display:grid;grid-template-columns:151.032fr 113.274fr 131.042fr;gap:13.326px;width:100%}
+.artist-login-page .wo-auth-social-buttons .wo-btn{height:23.543px;min-height:0;padding:0;gap:8.884px;border-width:1.111px;font-size:15.547px;line-height:15.547px;letter-spacing:1.2438px}
+.artist-login-page #login-anonymous-view .wo-auth-links{margin-top:21.75px}
+.artist-login-page .wo-auth-links .wo-meta{font-size:12.216px;line-height:normal;letter-spacing:.7329px}
+.artist-login-page .wo-auth-links a{color:var(--bauhaus-square)}
+.artist-login-page .wo-auth-links a:hover{color:var(--red-700)}
+.artist-login-page #form-message:not([hidden]){margin-top:var(--space-4)}
+.artist-login-page .wo-auth-social-notice{width:100%;margin-top:var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.artist-login-page .wo-auth-social-notice p{margin:0 0 var(--space-2)}
+
+/* Figma supplies a desktop frame. Keep its composition on tablet, then stack
+   the poster and form, with 44px social targets on touch-sized screens. */
+@media(max-width:1100px){
+  .artist-login-page .wo-auth-poster-title{font-size:56px;line-height:.95}
+  .artist-login-page .wo-auth-panel{padding-left:var(--space-6);padding-right:var(--space-6)}
+  .artist-login-page .wo-auth-title{font-size:30px;line-height:1.05}
+  .artist-login-page .wo-auth-social-buttons{gap:8px}
+  .artist-login-page .wo-auth-social-buttons .wo-btn{font-size:12px;letter-spacing:.5px;gap:4px}
+}
+@media(max-width:800px){
+  .artist-login-page .wo-auth-split{grid-template-columns:1fr}
+  .artist-login-page .wo-auth-poster{min-height:260px;padding:64px 24px 32px;align-items:center;justify-content:center}
+  .artist-login-page .wo-auth-poster .wo-marks{top:24px;left:24px}
+  .artist-login-page .wo-auth-poster-title{font-size:48px;line-height:.95}
+  .artist-login-page .wo-auth-poster::after{display:block;right:24px;bottom:24px;border-left-width:18px;border-right-width:18px;border-bottom-width:33px}
+  .artist-login-page .wo-auth-panel{padding:40px 24px 48px}
+  .artist-login-page .wo-auth-title{font-size:clamp(26px,7vw,35.537px);line-height:1.05}
+  .artist-login-page .wo-auth-copy{font-size:15px;line-height:1.4}
+  .artist-login-page .wo-auth-social-buttons .wo-btn{height:44px}
+  .artist-login-page .wo-auth-forgot{font-size:13px;letter-spacing:.8px}
+}
