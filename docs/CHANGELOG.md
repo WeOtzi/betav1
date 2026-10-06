@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.2-valentina.inventario-flujos.1] - 2026-10-06
+
+- Agregar inventario de flujos y observaciones reportadas; sin cambios de app
+- Validación: `npm.cmd run check:release` aprobado (1396 archivos revisados); `npm.cmd test`: 399/400 aprobadas, falla `Job Board Figma feed seed owns a complete guarded rank sequence` porque falta el seed dedicado (`tests/opportunity-persistence.test.js:67`), sin relación con este inventario; revisión documental y `git diff --check` aprobados. No se realizaron pruebas de navegador nuevas.
+- Rollback: revertir este commit en una nueva entrega; solo documentación e identificación de versión, sin cambios de runtime ni migraciones.
+
+
 ## [2.2.1] - 2026-09-30
 
 - Se corrige File.Replace en los manifiestos Windows y el respaldo GitHub: NullString entrega un null real a .NET y evita que PowerShell convierta el parámetro en una ruta vacía. Se conserva la sustitución atómica.
