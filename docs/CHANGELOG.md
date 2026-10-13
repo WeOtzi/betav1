@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.artist-login-figma.1] - 2026-10-13
+
+- Conservar acceso alternativo fuera del encuadre Figma del login de artista
+- Google y el acceso de cliente quedan disponibles debajo del primer encuadre; Instagram/Facebook anuncian su indisponibilidad sin fingir OAuth. La vista con sesión oculta las opciones anónimas. Referencia: copia ampliada 24:1262 (SVG proporcionado), inventario en docs/auditoria-valentina/login-artista-copia.md.
+- Validación: prueba nueva 2/2; Chrome en preview segura a 1440, 768 y 390 px, sin overflow ni errores de página; foco, validación nativa y recuperación simulada. `npm test`: 401/402, con fallo ajeno de Job Board por LF/CRLF en Windows; `npm run check:release` aprobado. Sin prueba de OAuth o email real.
+- Rollback: revertir este commit en una nueva rama y PR; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

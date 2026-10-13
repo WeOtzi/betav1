@@ -264,6 +264,8 @@ function renderAuthenticatedView({ email, role, artist, progress }) {
     anonView.hidden = true;
     if (recoveryView) recoveryView.hidden = true;
     authView.hidden = false;
+    const extraAccess = document.getElementById('wo-auth-extras');
+    if (extraAccess) extraAccess.hidden = true;
     togglePoster('login');
 
     if (emailEl) emailEl.textContent = email || '';
@@ -425,7 +427,7 @@ function handleArtistSocialUnavailable(provider) {
     const notice = document.getElementById('social-access-notice');
     const message = document.getElementById('social-access-message');
     if (!notice || !message) return;
-    message.textContent = `El acceso con ${provider} todavía no está disponible. Ingresá con tu email o continuá con Google.`;
+    message.textContent = `El acceso con ${provider} todavía no está disponible. Ingresá con tu email.`;
     notice.hidden = false;
 }
 
