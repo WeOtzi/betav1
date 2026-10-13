@@ -1,8 +1,8 @@
 /* ============================================================================
    We Ötzi · Recuperar contraseña — /recover
    Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
-   Frames Figma 243:2530 → 243:2600 → 243:2669 → 243:2778.
-   Layout: split 50/50 — póster oscuro "RECUPERÁ TU ACCESO" + card de pasos.
+   Paso 1: copia ampliada 243:2531; pasos restantes: referencias por revisar.
+   Layout: póster oscuro + formulario sobre crema (frame 243:2531).
    Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
    Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
    ========================================================================== */
@@ -15,12 +15,11 @@
 .rc-skip-link:focus{left:0}
 
 /* ---------- Split ---------- */
-.rc-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:100vh}
+.rc-split{display:grid;grid-template-columns:1fr;min-height:100vh}
 
 /* ---------- Póster (panel oscuro) ---------- */
-.rc-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-12);background:var(--surface-inverse)}
-/* Triángulo rojo decorativo abajo-derecha (frame 243:2530) */
-.rc-poster::after{content:"";position:absolute;right:var(--space-16);bottom:var(--space-12);width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:78px solid var(--bauhaus-square)}
+.rc-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;padding:var(--space-8) var(--space-6);background:var(--surface-inverse)}
+.rc-poster::after{content:"";position:absolute;right:var(--space-12);bottom:var(--space-12);width:88px;height:80px;border:var(--border-strong-width) solid var(--bauhaus-square);box-sizing:border-box}
 .rc-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
 .rc-poster .wo-marks{gap:var(--space-2)}
 .rc-poster .wo-mark-square,
@@ -32,12 +31,15 @@
 .rc-poster-title .hl-yellow{color:var(--yellow-300)}
 
 /* ---------- Panel (columna derecha) ---------- */
-.rc-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-8);background:var(--surface-page)}
-.rc-panel-inner{width:100%;max-width:424px;display:flex;flex-direction:column;gap:var(--space-6)}
+.rc-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-8) var(--space-5);background:var(--surface-page)}
+.rc-panel-inner{width:100%;max-width:420px;display:flex;flex-direction:column;gap:var(--space-6)}
 
 .rc-brand{display:inline-flex;align-items:center;gap:var(--space-3);align-self:flex-start;text-decoration:none;color:var(--text-heading)}
 .rc-brand:hover{text-decoration:none;color:var(--text-heading)}
-.rc-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+.rc-brand-name{font-family:var(--font-display);font-size:20px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+.rc-brand .wo-marks{gap:6px}
+.rc-brand .wo-mark-square,.rc-brand .wo-mark-circle{width:20px;height:20px}
+.rc-brand .wo-mark-triangle{border-left-width:10px;border-right-width:10px;border-bottom-width:20px}
 
 .rc-view{display:flex;flex-direction:column;gap:var(--space-5)}
 .rc-title{margin:0;font-family:var(--font-display);font-size:var(--h2-size);line-height:1.08;letter-spacing:var(--h2-track);color:var(--text-heading)}
@@ -60,6 +62,7 @@
 .rc-form{display:flex;flex-direction:column;gap:var(--space-5)}
 .rc-inputwrap{position:relative}
 .rc-inputwrap > [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);color:var(--neutral-300);pointer-events:none}
+.rc-field-icon{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);pointer-events:none}
 .rc-inputwrap .wo-input{padding-left:var(--space-12);border-color:var(--border-strong)}
 .rc-inputwrap .wo-input:focus{padding-left:calc(var(--space-12) - 1px)}
 .rc-inputwrap--toggle .wo-input{padding-right:var(--space-12)}
@@ -107,7 +110,18 @@
 /* ---------- Link de retorno ---------- */
 .rc-back{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);align-self:center;background:transparent;border:0;padding:var(--space-2);cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);text-decoration:none}
 .rc-back:hover{color:var(--neutral-500);text-decoration:none}
+.wo-app a.rc-back{font-size:10px;letter-spacing:0.04em;color:var(--text-muted)}
+.wo-app a.rc-back:hover{color:var(--neutral-500)}
 .rc-back [data-wo-icon]{width:14px;height:14px}
+.rc-back-arrow{font-family:var(--font-body);font-size:18px;line-height:14px}
+
+/* Paso 1: las medidas del frame 243:2531 no cambian los pasos posteriores. */
+#rc-view-email .rc-copy{max-width:355px;margin-top:calc(-1 * var(--space-4))}
+#rc-view-email .rc-form{margin-top:calc(-1 * var(--space-2))}
+#rc-view-email .wo-input{height:46px;min-height:46px;padding-top:0;padding-bottom:0}
+#rc-view-email .wo-input:focus{padding-top:0;padding-bottom:0}
+#rc-email-submit{height:var(--control-h-md);min-height:var(--control-h-md);padding-top:0;padding-bottom:0}
+#rc-email-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
 
 /* ---------- Éxito ---------- */
 .rc-success{align-items:center;text-align:center}
@@ -117,16 +131,20 @@
 .rc-success .wo-btn{align-self:stretch}
 
 /* ---------- Responsive ---------- */
-@media (max-width:1180px){
-  .rc-poster-title{font-size:var(--h1-size)}
+@media (min-width:769px){
+  .rc-split{grid-template-columns:minmax(0,47.2222%) minmax(0,1fr)}
+  .rc-poster{padding:0 0 0 clamp(var(--space-8),8.4vw,120px)}
+  .rc-poster .wo-marks{position:absolute;top:var(--space-12);left:var(--space-12)}
+  .rc-poster-title{transform:translateY(-36px)}
+  .rc-panel-inner{transform:translateY(11px)}
+  .rc-steps{width:486px;max-width:none;margin-left:-33px}
 }
-@media (max-width:1024px){
-  .rc-split{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
-  .rc-poster{padding:var(--space-10) var(--space-8)}
+@media (min-width:769px) and (max-width:1180px){
+  .rc-poster-title{font-size:clamp(var(--title-lg-size),5vw,var(--h1-size))}
+  .rc-steps{width:100%;margin-left:0}
 }
 @media (max-width:768px){
-  .rc-split{grid-template-columns:1fr}
-  .rc-poster{align-items:flex-start;justify-content:flex-start;padding:var(--space-8) var(--space-6)}
+  .rc-poster{align-items:flex-start;padding:var(--space-8) var(--space-6)}
   .rc-poster::after{display:none}
   .rc-poster-frame{gap:var(--space-4)}
   .rc-poster-title{font-size:var(--title-lg-size)}

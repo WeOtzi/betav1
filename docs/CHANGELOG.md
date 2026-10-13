@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.1] - 2026-10-13
+
+- Ajustar el primer paso de recuperación de artista al nodo 243:2531
+- El póster, la marca, el stepper, el formulario y los iconos locales reproducen el SVG de 1440 × 900; el layout se adapta a 768 y 390 px. Se mantiene la lógica de recuperación existente y se documentan los límites del paso 1.
+- Validación: Edge/Playwright en preview segura a 1440, 768 y 390 px, sin overflow; campo inválido/válido, estado de error simulado y retorno al login de artista. `check:release` aprobado. `npm test`: 399/400; la prueba ajena de Job Board `Job Board Figma feed seed owns a complete guarded rank sequence` falla en este checkout Windows por CRLF frente a LF literal. No se probó envío de email ni OTP real.
+- Rollback: revertir este commit mediante una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón
