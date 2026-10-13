@@ -94,19 +94,18 @@
                 <div class="wo-auth-social">
                     <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><img src="/shared/assets/figma/artist-login/star.svg" alt="">Recomendado</span>
                     <div class="wo-auth-social-buttons">
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Instagram')" aria-describedby="social-access-message">
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Instagram')" aria-label="Instagram — no disponible">
                             <img src="/shared/assets/figma/artist-login/instagram.svg" alt=""><span class="btn-text">Instagram</span>
                         </button>
                         <button type="button" class="wo-btn wo-btn--ghost" onclick="focusArtistEmailLogin()">
                             <img src="/shared/assets/figma/artist-login/email.svg" alt=""><span class="btn-text">Email</span>
                         </button>
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Facebook')" aria-describedby="social-access-message">
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Facebook')" aria-label="Facebook — no disponible">
                             <img src="/shared/assets/figma/artist-login/facebook.svg" alt=""><span class="btn-text">Facebook</span>
                         </button>
                     </div>
                     <div id="social-access-notice" class="wo-auth-social-notice" hidden>
                         <p id="social-access-message" role="status"></p>
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistGoogleLogin()">Continuar con Google</button>
                     </div>
                 </div>
 
@@ -194,6 +193,11 @@
     </main>
 
 </div>
+
+<section class="wo-auth-extras" id="wo-auth-extras" aria-label="Otras opciones de acceso">
+    <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistGoogleLogin()">Continuar con Google</button>
+    <p class="wo-meta">¿Sos cliente? <a href="/client/login">Ingresá acá</a></p>
+</section>
 
 <script src="/shared/js/artist-login.js?v=20261006-figma-login"></script>
 </body>
