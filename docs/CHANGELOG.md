@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.5] - 2026-10-14
+
+- Agregar al PR #6 una galería de ocho capturas de `/recover?from=artist`: pasos 1–4 a 1440 y 390 px, con barra de preview y solo datos ficticios. El paso 4 está rotulado como estado actual pendiente de rediseño; no se cambió UI, Auth ni datos.
+- Validación: capturas inspeccionadas, títulos y recursos locales visibles, sin desborde horizontal (`scrollWidth` 1425/1440 y 390/390); estados alternados solo en el DOM de un Chrome aislado sobre `preview-local-safe`, sin llamadas de recuperación ni escritura. `check:release` aprobado; `npm test` 404/405 por la falla preexistente del seed de Job Board en Windows.
+- Rollback: revertir este commit en nueva rama/PR para retirar únicamente la galería y versión; no hay migraciones.
+
+
 ## [2.2.3-valentina.artist-recover.4] - 2026-10-14
 
 - Confirmar la entrega del paso 3 de recuperación ya implementado en `.3`, sin cambios adicionales de UI ni Auth. La política del push anterior apuntó al SHA retirado durante la corrección del prefijo de su mensaje; este commit avanza la rama desde una base existente para que Verify delivery evalúe el contenido final.
