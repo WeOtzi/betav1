@@ -2,7 +2,7 @@
 
 | ID | Rol / URL / estado | Nodo auditoría | Nodo rediseño | Visual | Funcional | Evidencia | Acción / PR |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| V-REC-03 | Artista · `/recover?from=artist` · nueva contraseña vacía | [Auditoría, desde 1:29615](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditoria-Rediseno-We-Otzi?node-id=1-29615) (no releído) | [Copia ampliada 243:2670](https://www.figma.com/design/WHCgICsA3ipbAE2srVls9A/Pantallas--We-Otzi--copia-?node-id=243-2670) · SVG 1440 × 900 aportado | Coincide en composición desktop según SVG; tablet/móvil adaptados sin frame específico | Simulado: reglas, confirmación, visibilidad y error; OTP y escritura real bloqueados | Local `preview-local-safe`, versión `2.2.3-valentina.artist-recover.3`; mediciones 1440/768/390 y recorrido en navegador | PR #6 · rama `valentina/artist-recover-figma` |
+| V-REC-03 | Artista · `/recover?from=artist` · nueva contraseña vacía | [Auditoría, desde 1:29615](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditoria-Rediseno-We-Otzi?node-id=1-29615) (no releído) | [Copia ampliada 243:2670](https://www.figma.com/design/WHCgICsA3ipbAE2srVls9A/Pantallas--We-Otzi--copia-?node-id=243-2670) · SVG 1440 × 900 aportado | Coincide en composición desktop según SVG; tablet/móvil adaptados sin frame específico | Simulado: reglas, confirmación, visibilidad y error; OTP y escritura real bloqueados | Local `preview-local-safe`, UI `.3`, entrega `.4` sin cambios visuales; mediciones 1440/768/390 y recorrido en navegador | PR #6 · rama `valentina/artist-recover-figma` |
 
 ## Alcance y prueba
 

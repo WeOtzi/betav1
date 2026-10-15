@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.4] - 2026-10-14
+
+- Confirmar la entrega del paso 3 de recuperación ya implementado en `.3`, sin cambios adicionales de UI ni Auth. La política del push anterior apuntó al SHA retirado durante la corrección del prefijo de su mensaje; este commit avanza la rama desde una base existente para que Verify delivery evalúe el contenido final.
+- Validación: 8/8 pruebas focalizadas, `check:release` con `POLICY_BASE` del commit `.3`; `npm test` 404/405 en Windows por el seed ajeno de Job Board (CRLF). El PR de `.3` pasó tests y política en Linux; la prueba del push de `.4` se comprobará aparte.
+- Rollback: revertir los commits `.4` y `.3` en nueva rama/PR para volver al paso 2; sin migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.artist-recover.3] - 2026-10-14
 
 - Ajustar el paso 3 de `/recover?from=artist` al SVG del nodo 243:2670: iconos locales, campos y botón compactos, requisitos y fallback visible de ojos/checks sin CDN. El adorno del póster es un triángulo rojo relleno en los pasos 1 a 3. Se conserva el handler de Supabase Auth.
