@@ -1,8 +1,8 @@
 /* ============================================================================
    We Ötzi · Recuperar contraseña — /recover
    Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
-   Paso 1: copia ampliada 243:2531; pasos restantes: referencias por revisar.
-   Layout: póster oscuro + formulario sobre crema (frame 243:2531).
+   Pasos 1 y 2: copia ampliada 243:2531 y 243:2601; restantes por revisar.
+   Layout: póster oscuro + formulario sobre crema.
    Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
    Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
    ========================================================================== */
@@ -55,7 +55,8 @@
 .rc-step.is-active .box{background:var(--yellow-300);border-color:var(--border-strong);color:var(--neutral-500)}
 .rc-step.is-active .lbl{color:var(--text-heading);font-weight:var(--weight-bold)}
 .rc-step.is-done .box{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--white)}
-.rc-step.is-done .box [data-wo-icon]{width:18px;height:18px}
+.rc-step.is-done .box [data-wo-icon]{display:none}
+.rc-step.is-done .box::after{content:"";width:12px;height:7px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(-45deg)}
 .rc-step.is-done + .rc-step::before{border-top-color:var(--neutral-500)}
 
 /* ---------- Formularios ---------- */
@@ -123,6 +124,18 @@
 #rc-email-submit{height:var(--control-h-md);min-height:var(--control-h-md);padding-top:0;padding-bottom:0}
 #rc-email-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
 
+/* Paso 2 · frame 243:2601: mismo armazón, seis casillas y acciones compactas. */
+#rc-view-code .rc-copy{max-width:355px;margin-top:calc(-1 * var(--space-4))}
+#rc-view-code .rc-form{margin-top:calc(-1 * var(--space-2))}
+#rc-view-code .rc-otp-box{height:64px;min-height:64px}
+#rc-view-code .rc-resend{font-size:var(--meta-s-size)}
+#rc-code-submit{height:44px;min-height:44px;padding-top:0;padding-bottom:0}
+#rc-code-submit [data-wo-icon]{display:none}
+#rc-code-submit::after{content:"";width:12px;height:7px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(-45deg)}
+#rc-code-submit[data-prev-html]::after{display:none}
+#rc-code-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
+#rc-back-to-email{transform:translateY(calc(-1 * var(--space-2)))}
+
 /* ---------- Éxito ---------- */
 .rc-success{align-items:center;text-align:center}
 .rc-success .rc-title{text-align:center}
@@ -138,6 +151,7 @@
   .rc-poster-title{transform:translateY(-36px)}
   .rc-panel-inner{transform:translateY(11px)}
   .rc-steps{width:486px;max-width:none;margin-left:-33px}
+  .rc-body:has(#rc-view-code:not([hidden])) .rc-step + .rc-step::before{left:calc(-50% + 48px);width:calc(100% - 96px)}
 }
 @media (min-width:769px) and (max-width:1180px){
   .rc-poster-title{font-size:clamp(var(--title-lg-size),5vw,var(--h1-size))}
@@ -157,4 +171,5 @@
   .rc-step + .rc-step::before{top:18px;left:calc(-50% + 26px);width:calc(100% - 52px)}
   .rc-otp{gap:var(--space-2)}
   .rc-otp-box{height:52px;min-height:52px;font-size:var(--body-l-size)}
+  #rc-view-code .rc-otp-box{height:52px;min-height:52px}
 }

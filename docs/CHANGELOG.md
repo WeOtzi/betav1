@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.2] - 2026-10-14
+
+- Ajustar el paso de código de `/recover?from=artist` al SVG del nodo 243:2601: copy, seis casillas, stepper, reenvío, botón y retorno; conservar el contrato de Supabase Auth y los demás pasos.
+- Validación: vista y geometría en Chromium a 1440, 768 y 390 px (sin overflow); recorrido interactivo en preview segura con respuesta ficticia del servicio externo: entrada de seis dígitos, habilitación, error, reenvío y Volver. `check:release` aprobado; `npm test` 400/401, falla ajena y preexistente del seed de Job Board en Windows por CRLF. No se probó correo recibido ni OTP real.
+- Rollback: revertir este commit en una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.artist-recover.1] - 2026-10-13
 
 - Ajustar el primer paso de recuperación de artista al nodo 243:2531
