@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.6] - 2026-10-15
+
+- Ajustar el paso 4 de `/recover?from=artist` al SVG del nodo 243:2778: copy literal, check visible sin CDN, bloque verde de 72 px, acción compacta y capturas desktop/celular actualizadas. Se conserva la transición y navegación post-auth por rol sin cambiar `recover.js`.
+- Validación: 6/6 pruebas focalizadas; Chrome en preview segura a 1440/768/390 px con respuestas Auth ficticias solo en la sesión: transición a éxito, stepper oculto, botón al destino de artista y sin overflow ni errores de página. Capturas a 1440 y 390 px alternando solo el DOM. `check:release` aprobado; `npm test` 406/407 por la falla preexistente del seed de Job Board en Windows (CRLF). No se probó correo, OTP, sesión ni actualización real.
+- Rollback: revertir este commit en una nueva rama/PR para restaurar el paso 4 y sus capturas previas. No incluye migraciones ni cambios de datos.
+
+
+## [2.2.3-valentina.artist-recover.5] - 2026-10-14
+
+- Agregar al PR #6 una galería de ocho capturas de `/recover?from=artist`: pasos 1–4 a 1440 y 390 px, con barra de preview y solo datos ficticios. El paso 4 está rotulado como estado actual pendiente de rediseño; no se cambió UI, Auth ni datos.
+- Validación: capturas inspeccionadas, títulos y recursos locales visibles, sin desborde horizontal (`scrollWidth` 1425/1440 y 390/390); estados alternados solo en el DOM de un Chrome aislado sobre `preview-local-safe`, sin llamadas de recuperación ni escritura. `check:release` aprobado; `npm test` 404/405 por la falla preexistente del seed de Job Board en Windows.
+- Rollback: revertir este commit en nueva rama/PR para retirar únicamente la galería y versión; no hay migraciones.
+
+
+## [2.2.3-valentina.artist-recover.4] - 2026-10-14
+
+- Confirmar la entrega del paso 3 de recuperación ya implementado en `.3`, sin cambios adicionales de UI ni Auth. La política del push anterior apuntó al SHA retirado durante la corrección del prefijo de su mensaje; este commit avanza la rama desde una base existente para que Verify delivery evalúe el contenido final.
+- Validación: 8/8 pruebas focalizadas, `check:release` con `POLICY_BASE` del commit `.3`; `npm test` 404/405 en Windows por el seed ajeno de Job Board (CRLF). El PR de `.3` pasó tests y política en Linux; la prueba del push de `.4` se comprobará aparte.
+- Rollback: revertir los commits `.4` y `.3` en nueva rama/PR para volver al paso 2; sin migraciones ni cambios de datos.
+
+
+## [2.2.3-valentina.artist-recover.3] - 2026-10-14
+
+- Ajustar el paso 3 de `/recover?from=artist` al SVG del nodo 243:2670: iconos locales, campos y botón compactos, requisitos y fallback visible de ojos/checks sin CDN. El adorno del póster es un triángulo rojo relleno en los pasos 1 a 3. Se conserva el handler de Supabase Auth.
+- Validación: `node --test tests/recover-password-view.test.js` (4/4), preview local segura con respuestas ficticias para llegar al paso 3, validaciones, mostrar contraseña y error de actualización; geometría de HTML/CSS a 1440, 768 y 390 px sin desborde. `check:release` aprobado; `npm test` 404/405 por la falla preexistente del seed de Job Board en Windows. No se probó OTP, actualización real ni persistencia.
+- Rollback: revertir este commit en una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+
+## [2.2.3-valentina.artist-recover.2] - 2026-10-14
+
+- Ajustar el paso de código de `/recover?from=artist` al SVG del nodo 243:2601: copy, seis casillas, stepper, reenvío, botón y retorno; conservar el contrato de Supabase Auth y los demás pasos.
+- Validación: vista y geometría en Chromium a 1440, 768 y 390 px (sin overflow); recorrido interactivo en preview segura con respuesta ficticia del servicio externo: entrada de seis dígitos, habilitación, error, reenvío y Volver. `check:release` aprobado; `npm test` 400/401, falla ajena y preexistente del seed de Job Board en Windows por CRLF. No se probó correo recibido ni OTP real.
+- Rollback: revertir este commit en una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+
+## [2.2.3-valentina.artist-recover.1] - 2026-10-13
+
+- Ajustar el primer paso de recuperación de artista al nodo 243:2531
+- El póster, la marca, el stepper, el formulario y los iconos locales reproducen el SVG de 1440 × 900; el layout se adapta a 768 y 390 px. Se mantiene la lógica de recuperación existente y se documentan los límites del paso 1.
+- Validación: Edge/Playwright en preview segura a 1440, 768 y 390 px, sin overflow; campo inválido/válido, estado de error simulado y retorno al login de artista. `check:release` aprobado. `npm test`: 399/400; la prueba ajena de Job Board `Job Board Figma feed seed owns a complete guarded rank sequence` falla en este checkout Windows por CRLF frente a LF literal. No se probó envío de email ni OTP real.
+- Rollback: revertir este commit mediante una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

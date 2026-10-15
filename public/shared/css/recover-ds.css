@@ -1,8 +1,8 @@
 /* ============================================================================
    We Ötzi · Recuperar contraseña — /recover
    Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
-   Frames Figma 243:2530 → 243:2600 → 243:2669 → 243:2778.
-   Layout: split 50/50 — póster oscuro "RECUPERÁ TU ACCESO" + card de pasos.
+   Pasos 1 a 4: copia ampliada 243:2531, 243:2601, 243:2670 y 243:2778.
+   Layout: póster oscuro + formulario sobre crema.
    Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
    Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
    ========================================================================== */
@@ -15,12 +15,11 @@
 .rc-skip-link:focus{left:0}
 
 /* ---------- Split ---------- */
-.rc-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:100vh}
+.rc-split{display:grid;grid-template-columns:1fr;min-height:100vh}
 
 /* ---------- Póster (panel oscuro) ---------- */
-.rc-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-12);background:var(--surface-inverse)}
-/* Triángulo rojo decorativo abajo-derecha (frame 243:2530) */
-.rc-poster::after{content:"";position:absolute;right:var(--space-16);bottom:var(--space-12);width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:78px solid var(--bauhaus-square)}
+.rc-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;padding:var(--space-8) var(--space-6);background:var(--surface-inverse)}
+.rc-poster::after{content:"";position:absolute;right:calc(var(--space-12) + var(--space-2));bottom:calc(var(--space-12) + var(--space-2));width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:80px solid var(--bauhaus-square)}
 .rc-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
 .rc-poster .wo-marks{gap:var(--space-2)}
 .rc-poster .wo-mark-square,
@@ -32,12 +31,15 @@
 .rc-poster-title .hl-yellow{color:var(--yellow-300)}
 
 /* ---------- Panel (columna derecha) ---------- */
-.rc-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-16) var(--space-8);background:var(--surface-page)}
-.rc-panel-inner{width:100%;max-width:424px;display:flex;flex-direction:column;gap:var(--space-6)}
+.rc-panel{display:flex;align-items:center;justify-content:center;padding:var(--space-8) var(--space-5);background:var(--surface-page)}
+.rc-panel-inner{width:100%;max-width:420px;display:flex;flex-direction:column;gap:var(--space-6)}
 
 .rc-brand{display:inline-flex;align-items:center;gap:var(--space-3);align-self:flex-start;text-decoration:none;color:var(--text-heading)}
 .rc-brand:hover{text-decoration:none;color:var(--text-heading)}
-.rc-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+.rc-brand-name{font-family:var(--font-display);font-size:20px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-heading)}
+.rc-brand .wo-marks{gap:6px}
+.rc-brand .wo-mark-square,.rc-brand .wo-mark-circle{width:20px;height:20px}
+.rc-brand .wo-mark-triangle{border-left-width:10px;border-right-width:10px;border-bottom-width:20px}
 
 .rc-view{display:flex;flex-direction:column;gap:var(--space-5)}
 .rc-title{margin:0;font-family:var(--font-display);font-size:var(--h2-size);line-height:1.08;letter-spacing:var(--h2-track);color:var(--text-heading)}
@@ -53,13 +55,15 @@
 .rc-step.is-active .box{background:var(--yellow-300);border-color:var(--border-strong);color:var(--neutral-500)}
 .rc-step.is-active .lbl{color:var(--text-heading);font-weight:var(--weight-bold)}
 .rc-step.is-done .box{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--white)}
-.rc-step.is-done .box [data-wo-icon]{width:18px;height:18px}
+.rc-step.is-done .box [data-wo-icon]{display:none}
+.rc-step.is-done .box::after{content:"";width:12px;height:7px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(-45deg)}
 .rc-step.is-done + .rc-step::before{border-top-color:var(--neutral-500)}
 
 /* ---------- Formularios ---------- */
 .rc-form{display:flex;flex-direction:column;gap:var(--space-5)}
 .rc-inputwrap{position:relative}
 .rc-inputwrap > [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);color:var(--neutral-300);pointer-events:none}
+.rc-field-icon{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);pointer-events:none}
 .rc-inputwrap .wo-input{padding-left:var(--space-12);border-color:var(--border-strong)}
 .rc-inputwrap .wo-input:focus{padding-left:calc(var(--space-12) - 1px)}
 .rc-inputwrap--toggle .wo-input{padding-right:var(--space-12)}
@@ -107,26 +111,78 @@
 /* ---------- Link de retorno ---------- */
 .rc-back{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);align-self:center;background:transparent;border:0;padding:var(--space-2);cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);text-decoration:none}
 .rc-back:hover{color:var(--neutral-500);text-decoration:none}
+.wo-app a.rc-back{font-size:10px;letter-spacing:0.04em;color:var(--text-muted)}
+.wo-app a.rc-back:hover{color:var(--neutral-500)}
 .rc-back [data-wo-icon]{width:14px;height:14px}
+.rc-back-arrow{font-family:var(--font-body);font-size:18px;line-height:14px}
 
-/* ---------- Éxito ---------- */
-.rc-success{align-items:center;text-align:center}
-.rc-success .rc-title{text-align:center}
-.rc-success-icon{width:72px;height:64px;margin-top:var(--space-2);background:var(--system-success);display:grid;place-content:center;color:var(--ink)}
-.rc-success-icon [data-wo-icon]{width:36px;height:36px}
-.rc-success .wo-btn{align-self:stretch}
+/* Paso 1: las medidas del frame 243:2531 no cambian los pasos posteriores. */
+#rc-view-email .rc-copy{max-width:355px;margin-top:calc(-1 * var(--space-4))}
+#rc-view-email .rc-form{margin-top:calc(-1 * var(--space-2))}
+#rc-view-email .wo-input{height:46px;min-height:46px;padding-top:0;padding-bottom:0}
+#rc-view-email .wo-input:focus{padding-top:0;padding-bottom:0}
+#rc-email-submit{height:var(--control-h-md);min-height:var(--control-h-md);padding-top:0;padding-bottom:0}
+#rc-email-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
+
+/* Paso 2 · frame 243:2601: mismo armazón, seis casillas y acciones compactas. */
+#rc-view-code .rc-copy{max-width:355px;margin-top:calc(-1 * var(--space-4))}
+#rc-view-code .rc-form{margin-top:calc(-1 * var(--space-2))}
+#rc-view-code .rc-otp-box{height:64px;min-height:64px}
+#rc-view-code .rc-resend{font-size:var(--meta-s-size)}
+#rc-code-submit{height:44px;min-height:44px;padding-top:0;padding-bottom:0}
+#rc-code-submit [data-wo-icon]{display:none}
+#rc-code-submit::after{content:"";width:12px;height:7px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(-45deg)}
+#rc-code-submit[data-prev-html]::after{display:none}
+#rc-code-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
+#rc-back-to-email{transform:translateY(calc(-1 * var(--space-2)))}
+
+/* Paso 3 · frame 243:2670: formulario compacto, requisitos y acción final. */
+#rc-view-password .rc-copy{margin-top:calc(-1 * var(--space-4))}
+#rc-view-password .wo-field{gap:var(--space-1)}
+#rc-view-password .wo-input{height:46px;min-height:46px;padding-top:0;padding-bottom:0}
+#rc-view-password .wo-input:focus{padding-top:0;padding-bottom:0}
+#rc-view-password .rc-reqs{gap:var(--space-2)}
+#rc-view-password .rc-req{font-size:var(--meta-m-size);line-height:var(--space-4)}
+#rc-view-password .rc-reqs + .wo-field{margin-top:var(--space-1)}
+#rc-view-password .rc-req [data-wo-icon]{color:var(--neutral-500)}
+#rc-view-password .rc-req.is-ok [data-wo-icon]{color:var(--system-success)}
+/* La preview bloquea el CDN Feather: dibujar solo los íconos vacíos. */
+#rc-view-password .rc-req [data-wo-icon]:empty{position:relative;display:inline-block;flex:none;width:14px;height:14px;border:1.33px solid currentColor;border-radius:50%}
+#rc-view-password .rc-req [data-wo-icon]:empty::after{content:"";position:absolute;left:3px;top:3px;width:6px;height:4px;border-left:1.33px solid currentColor;border-bottom:1.33px solid currentColor;transform:rotate(-45deg)}
+#rc-view-password .rc-eye [data-wo-icon]:empty{position:relative;display:inline-block;width:18px;height:18px}
+#rc-view-password .rc-eye [data-wo-icon]:empty::before{content:"";position:absolute;left:1px;top:5px;width:14px;height:8px;border:1.5px solid currentColor;border-radius:50%}
+#rc-view-password .rc-eye [data-wo-icon]:empty::after{content:"";position:absolute;left:7px;top:8px;width:4px;height:4px;background:currentColor;border-radius:50%}
+#rc-view-password .rc-eye [data-wo-icon="eye-off"]:empty{transform:rotate(-25deg)}
+#rc-view-password .rc-eye [data-wo-icon="eye-off"]:empty::after{left:0;top:8px;width:18px;height:1.5px;border-radius:0}
+#rc-password-submit{height:var(--control-h-md);min-height:var(--control-h-md);padding-top:0;padding-bottom:0}
+#rc-password-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
+
+/* Paso 4 · frame 243:2778: sin stepper, icono autocontenido y acción compacta. */
+.rc-success{align-items:center;text-align:center;gap:0}
+.rc-success-icon{width:72px;height:72px;margin-top:var(--space-7);background:var(--system-success);display:grid;place-content:center;color:var(--ink)}
+.rc-success-check{display:block}
+.rc-success .rc-title{max-width:420px;margin-top:var(--space-4);text-align:center}
+.rc-success .rc-copy{margin-top:var(--space-2)}
+#rc-success-cta{align-self:stretch;height:var(--control-h-md);min-height:var(--control-h-md);margin-top:var(--space-4);padding-top:0;padding-bottom:0}
 
 /* ---------- Responsive ---------- */
-@media (max-width:1180px){
-  .rc-poster-title{font-size:var(--h1-size)}
+@media (min-width:769px){
+  .rc-split{grid-template-columns:minmax(0,47.2222%) minmax(0,1fr)}
+  .rc-poster{padding:0 0 0 clamp(var(--space-8),8.4vw,120px)}
+  .rc-poster .wo-marks{position:absolute;top:var(--space-12);left:var(--space-12)}
+  .rc-poster-title{transform:translateY(-36px)}
+  .rc-panel-inner{transform:translateY(11px)}
+  .rc-body:has(#rc-view-password:not([hidden])) .rc-panel-inner{transform:none}
+  .rc-body:has(#rc-view-success:not([hidden])) .rc-panel-inner{transform:translateY(-12px)}
+  .rc-steps{width:486px;max-width:none;margin-left:-33px}
+  .rc-body:has(#rc-view-code:not([hidden])) .rc-step + .rc-step::before{left:calc(-50% + 48px);width:calc(100% - 96px)}
 }
-@media (max-width:1024px){
-  .rc-split{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
-  .rc-poster{padding:var(--space-10) var(--space-8)}
+@media (min-width:769px) and (max-width:1180px){
+  .rc-poster-title{font-size:clamp(var(--title-lg-size),5vw,var(--h1-size))}
+  .rc-steps{width:100%;margin-left:0}
 }
 @media (max-width:768px){
-  .rc-split{grid-template-columns:1fr}
-  .rc-poster{align-items:flex-start;justify-content:flex-start;padding:var(--space-8) var(--space-6)}
+  .rc-poster{align-items:flex-start;padding:var(--space-8) var(--space-6)}
   .rc-poster::after{display:none}
   .rc-poster-frame{gap:var(--space-4)}
   .rc-poster-title{font-size:var(--title-lg-size)}
@@ -139,4 +195,5 @@
   .rc-step + .rc-step::before{top:18px;left:calc(-50% + 26px);width:calc(100% - 52px)}
   .rc-otp{gap:var(--space-2)}
   .rc-otp-box{height:52px;min-height:52px;font-size:var(--body-l-size)}
+  #rc-view-code .rc-otp-box{height:52px;min-height:52px}
 }
