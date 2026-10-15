@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.6] - 2026-10-15
+
+- Ajustar el paso 4 de `/recover?from=artist` al SVG del nodo 243:2778: copy literal, check visible sin CDN, bloque verde de 72 px, acción compacta y capturas desktop/celular actualizadas. Se conserva la transición y navegación post-auth por rol sin cambiar `recover.js`.
+- Validación: 6/6 pruebas focalizadas; Chrome en preview segura a 1440/768/390 px con respuestas Auth ficticias solo en la sesión: transición a éxito, stepper oculto, botón al destino de artista y sin overflow ni errores de página. Capturas a 1440 y 390 px alternando solo el DOM. `check:release` aprobado; `npm test` 406/407 por la falla preexistente del seed de Job Board en Windows (CRLF). No se probó correo, OTP, sesión ni actualización real.
+- Rollback: revertir este commit en una nueva rama/PR para restaurar el paso 4 y sus capturas previas. No incluye migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.artist-recover.5] - 2026-10-14
 
 - Agregar al PR #6 una galería de ocho capturas de `/recover?from=artist`: pasos 1–4 a 1440 y 390 px, con barra de preview y solo datos ficticios. El paso 4 está rotulado como estado actual pendiente de rediseño; no se cambió UI, Auth ni datos.

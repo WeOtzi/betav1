@@ -1,7 +1,7 @@
 /* ============================================================================
    We Ötzi · Recuperar contraseña — /recover
    Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
-   Pasos 1 a 3: copia ampliada 243:2531, 243:2601 y 243:2670.
+   Pasos 1 a 4: copia ampliada 243:2531, 243:2601, 243:2670 y 243:2778.
    Layout: póster oscuro + formulario sobre crema.
    Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
    Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
@@ -157,12 +157,13 @@
 #rc-password-submit{height:var(--control-h-md);min-height:var(--control-h-md);padding-top:0;padding-bottom:0}
 #rc-password-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
 
-/* ---------- Éxito ---------- */
-.rc-success{align-items:center;text-align:center}
-.rc-success .rc-title{text-align:center}
-.rc-success-icon{width:72px;height:64px;margin-top:var(--space-2);background:var(--system-success);display:grid;place-content:center;color:var(--ink)}
-.rc-success-icon [data-wo-icon]{width:36px;height:36px}
-.rc-success .wo-btn{align-self:stretch}
+/* Paso 4 · frame 243:2778: sin stepper, icono autocontenido y acción compacta. */
+.rc-success{align-items:center;text-align:center;gap:0}
+.rc-success-icon{width:72px;height:72px;margin-top:var(--space-7);background:var(--system-success);display:grid;place-content:center;color:var(--ink)}
+.rc-success-check{display:block}
+.rc-success .rc-title{max-width:420px;margin-top:var(--space-4);text-align:center}
+.rc-success .rc-copy{margin-top:var(--space-2)}
+#rc-success-cta{align-self:stretch;height:var(--control-h-md);min-height:var(--control-h-md);margin-top:var(--space-4);padding-top:0;padding-bottom:0}
 
 /* ---------- Responsive ---------- */
 @media (min-width:769px){
@@ -172,6 +173,7 @@
   .rc-poster-title{transform:translateY(-36px)}
   .rc-panel-inner{transform:translateY(11px)}
   .rc-body:has(#rc-view-password:not([hidden])) .rc-panel-inner{transform:none}
+  .rc-body:has(#rc-view-success:not([hidden])) .rc-panel-inner{transform:translateY(-12px)}
   .rc-steps{width:486px;max-width:none;margin-left:-33px}
   .rc-body:has(#rc-view-code:not([hidden])) .rc-step + .rc-step::before{left:calc(-50% + 48px);width:calc(100% - 96px)}
 }
