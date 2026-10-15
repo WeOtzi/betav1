@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.artist-recover.3] - 2026-10-14
+
+- Ajustar el paso 3 de `/recover?from=artist` al SVG del nodo 243:2670: iconos locales, campos y botón compactos, requisitos y fallback visible de ojos/checks sin CDN. El adorno del póster es un triángulo rojo relleno en los pasos 1 a 3. Se conserva el handler de Supabase Auth.
+- Validación: `node --test tests/recover-password-view.test.js` (4/4), preview local segura con respuestas ficticias para llegar al paso 3, validaciones, mostrar contraseña y error de actualización; geometría de HTML/CSS a 1440, 768 y 390 px sin desborde. `check:release` aprobado; `npm test` 404/405 por la falla preexistente del seed de Job Board en Windows. No se probó OTP, actualización real ni persistencia.
+- Rollback: revertir este commit en una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.artist-recover.2] - 2026-10-14
 
 - Ajustar el paso de código de `/recover?from=artist` al SVG del nodo 243:2601: copy, seis casillas, stepper, reenvío, botón y retorno; conservar el contrato de Supabase Auth y los demás pasos.

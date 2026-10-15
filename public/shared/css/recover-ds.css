@@ -1,7 +1,7 @@
 /* ============================================================================
    We Ötzi · Recuperar contraseña — /recover
    Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
-   Pasos 1 y 2: copia ampliada 243:2531 y 243:2601; restantes por revisar.
+   Pasos 1 a 3: copia ampliada 243:2531, 243:2601 y 243:2670.
    Layout: póster oscuro + formulario sobre crema.
    Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
    Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
@@ -19,7 +19,7 @@
 
 /* ---------- Póster (panel oscuro) ---------- */
 .rc-poster{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;padding:var(--space-8) var(--space-6);background:var(--surface-inverse)}
-.rc-poster::after{content:"";position:absolute;right:var(--space-12);bottom:var(--space-12);width:88px;height:80px;border:var(--border-strong-width) solid var(--bauhaus-square);box-sizing:border-box}
+.rc-poster::after{content:"";position:absolute;right:calc(var(--space-12) + var(--space-2));bottom:calc(var(--space-12) + var(--space-2));width:0;height:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:80px solid var(--bauhaus-square)}
 .rc-poster-frame{display:flex;flex-direction:column;gap:var(--space-8)}
 .rc-poster .wo-marks{gap:var(--space-2)}
 .rc-poster .wo-mark-square,
@@ -136,6 +136,27 @@
 #rc-code-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
 #rc-back-to-email{transform:translateY(calc(-1 * var(--space-2)))}
 
+/* Paso 3 · frame 243:2670: formulario compacto, requisitos y acción final. */
+#rc-view-password .rc-copy{margin-top:calc(-1 * var(--space-4))}
+#rc-view-password .wo-field{gap:var(--space-1)}
+#rc-view-password .wo-input{height:46px;min-height:46px;padding-top:0;padding-bottom:0}
+#rc-view-password .wo-input:focus{padding-top:0;padding-bottom:0}
+#rc-view-password .rc-reqs{gap:var(--space-2)}
+#rc-view-password .rc-req{font-size:var(--meta-m-size);line-height:var(--space-4)}
+#rc-view-password .rc-reqs + .wo-field{margin-top:var(--space-1)}
+#rc-view-password .rc-req [data-wo-icon]{color:var(--neutral-500)}
+#rc-view-password .rc-req.is-ok [data-wo-icon]{color:var(--system-success)}
+/* La preview bloquea el CDN Feather: dibujar solo los íconos vacíos. */
+#rc-view-password .rc-req [data-wo-icon]:empty{position:relative;display:inline-block;flex:none;width:14px;height:14px;border:1.33px solid currentColor;border-radius:50%}
+#rc-view-password .rc-req [data-wo-icon]:empty::after{content:"";position:absolute;left:3px;top:3px;width:6px;height:4px;border-left:1.33px solid currentColor;border-bottom:1.33px solid currentColor;transform:rotate(-45deg)}
+#rc-view-password .rc-eye [data-wo-icon]:empty{position:relative;display:inline-block;width:18px;height:18px}
+#rc-view-password .rc-eye [data-wo-icon]:empty::before{content:"";position:absolute;left:1px;top:5px;width:14px;height:8px;border:1.5px solid currentColor;border-radius:50%}
+#rc-view-password .rc-eye [data-wo-icon]:empty::after{content:"";position:absolute;left:7px;top:8px;width:4px;height:4px;background:currentColor;border-radius:50%}
+#rc-view-password .rc-eye [data-wo-icon="eye-off"]:empty{transform:rotate(-25deg)}
+#rc-view-password .rc-eye [data-wo-icon="eye-off"]:empty::after{left:0;top:8px;width:18px;height:1.5px;border-radius:0}
+#rc-password-submit{height:var(--control-h-md);min-height:var(--control-h-md);padding-top:0;padding-bottom:0}
+#rc-password-submit:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:var(--opacity-disabled)}
+
 /* ---------- Éxito ---------- */
 .rc-success{align-items:center;text-align:center}
 .rc-success .rc-title{text-align:center}
@@ -150,6 +171,7 @@
   .rc-poster .wo-marks{position:absolute;top:var(--space-12);left:var(--space-12)}
   .rc-poster-title{transform:translateY(-36px)}
   .rc-panel-inner{transform:translateY(11px)}
+  .rc-body:has(#rc-view-password:not([hidden])) .rc-panel-inner{transform:none}
   .rc-steps{width:486px;max-width:none;margin-left:-33px}
   .rc-body:has(#rc-view-code:not([hidden])) .rc-step + .rc-step::before{left:calc(-50% + 48px);width:calc(100% - 96px)}
 }
