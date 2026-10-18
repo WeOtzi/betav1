@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.inicio-placeholders.1] - 2026-10-18
+
+- En `/inicio/`, las tarjetas Cliente y Tatuador sustituyen las figuras de color por superficies neutras, sin texto provisional ni iconos externos. Conservan contenido y enlaces originales.
+- Validación: prueba nueva `tests/inicio-placeholders.test.js` aprobada; preview local segura a 800 CSS px sin desborde, sin figuras ni texto, con navegación comprobada a marketplace y login de artista. `check:release` aprobado. `npm test`: 401 aprobadas y 1 fallo previo en `opportunity-persistence.test.js` por comparación LF contra el seed con CRLF en Windows. No se probaron servicios reales ni otros tamaños en navegador.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

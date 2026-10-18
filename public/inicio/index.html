@@ -19,14 +19,7 @@
         .inicio-card{display:flex;flex-direction:column;color:inherit}
         .inicio-card:hover,.inicio-card:active{color:inherit;text-decoration:none}
 
-        .inicio-media{position:relative;height:280px;background:var(--surface-media);border-bottom:var(--border-strong-width) solid var(--border-strong);overflow:hidden}
-        .inicio-media span{position:absolute}
-        .im-circle{width:180px;height:180px;border-radius:var(--radius-circle);background:var(--bauhaus-circle);top:32px;left:44px}
-        .im-square{width:120px;height:120px;background:var(--bauhaus-square);bottom:-24px;right:104px}
-        .im-triangle{width:0;height:0;border-left:80px solid transparent;border-right:80px solid transparent;border-bottom:140px solid var(--bauhaus-triangle);top:56px;right:-36px}
-        .inicio-media--alt .im-circle{left:auto;right:44px}
-        .inicio-media--alt .im-square{right:auto;left:104px}
-        .inicio-media--alt .im-triangle{right:auto;left:-36px}
+        .inicio-media{height:280px;background:var(--surface-media);border-bottom:var(--border-hairline) solid var(--border-subtle)}
 
         .inicio-body{display:flex;flex-direction:column;gap:var(--space-4);flex:1}
         .inicio-card-title{font-family:var(--font-display);font-size:26px;line-height:1.1;color:var(--text-heading);margin:0}
@@ -69,11 +62,7 @@
 
         <div class="inicio-cards">
             <a class="wo-card wo-card--media wo-card--hover inicio-card" href="/marketplace">
-                <div class="inicio-media" aria-hidden="true">
-                    <span class="im-circle"></span>
-                    <span class="im-square"></span>
-                    <span class="im-triangle"></span>
-                </div>
+                <div class="inicio-media" aria-hidden="true"></div>
                 <div class="wo-card-body inicio-body">
                     <span class="wo-tag wo-tag--soft">Cliente</span>
                     <h2 class="inicio-card-title">Quiero tatuarme</h2>
@@ -89,11 +78,7 @@
             </a>
 
             <a class="wo-card wo-card--media wo-card--hover inicio-card" href="/artist/login">
-                <div class="inicio-media inicio-media--alt" aria-hidden="true">
-                    <span class="im-circle"></span>
-                    <span class="im-square"></span>
-                    <span class="im-triangle"></span>
-                </div>
+                <div class="inicio-media" aria-hidden="true"></div>
                 <div class="wo-card-body inicio-body">
                     <span class="wo-tag wo-tag--soft">Artista</span>
                     <h2 class="inicio-card-title">Soy tatuador</h2>
