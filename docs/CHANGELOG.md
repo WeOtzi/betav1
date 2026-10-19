@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.inicio-placeholders.3] - 2026-10-19
+
+- En `/client/login/`, el panel oscuro incorpora `[ Acceso anticipado · beta cerrada ]` y `gratis para siempre` con la tipografía y los tokens del póster de artistas. No cambia el formulario ni la autenticación.
+- Validación: prueba nueva `tests/client-login-poster.test.js` falló antes y pasó después; preview local segura a 1440 × 900 CSS px (captura completa de 1440 px de ancho), panel y ambos textos visibles sin desborde; a 390 px el formulario sigue visible y el panel permanece oculto. El envío vacío enfoca Email e impide navegar. `npm test`: 403 aprobadas y el fallo previo de `opportunity-persistence.test.js` por LF/CRLF en Windows; `npm run check:release` aprobado. Sin autenticación real.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.inicio-placeholders.2] - 2026-10-19
 
 - En `/artist/login/`, el póster incorpora el rótulo de beta cerrada y la bajada «gratis para siempre» con el estilo de `/registerclosedbeta/`. `A TU` ya tenía `#0055FF` mediante `--blue-400`; no se modificó.
