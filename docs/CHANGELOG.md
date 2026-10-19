@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.inicio-placeholders.2] - 2026-10-19
+
+- En `/artist/login/`, el póster incorpora el rótulo de beta cerrada y la bajada «gratis para siempre» con el estilo de `/registerclosedbeta/`. `A TU` ya tenía `#0055FF` mediante `--blue-400`; no se modificó.
+- Validación: regresión `tests/artist-login-poster.test.js` (roja antes, verde después); preview local segura a 800 CSS px sin desborde, formulario anónimo y navegación a recuperación comprobados, color computado `rgb(0, 85, 255)`. `npm test`: 402 aprobadas, 1 fallo previo de `opportunity-persistence.test.js` por LF/CRLF en Windows. Sin pruebas de escritura real ni de 1440/390 px.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.inicio-placeholders.1] - 2026-10-18
 
 - En `/inicio/`, las tarjetas Cliente y Tatuador sustituyen las figuras de color por superficies neutras, sin texto provisional ni iconos externos. Conservan contenido y enlaces originales.
