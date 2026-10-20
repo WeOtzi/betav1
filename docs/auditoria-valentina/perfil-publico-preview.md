@@ -1,0 +1,8 @@
+# Perfil público · vista previa del artista
+
+| ID | Rol / URL / estado | Nodo auditoría | Nodo rediseño | Visual | Funcional | Evidencia | Acción / PR |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| V-PERFIL-01 | Artista · `/artist/dashboard/` → Ver perfil público → `/artist/profile/?artist=…&preview=owner` | [Comentario 13:385](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditor%C3%ADa-Redise%C3%B1o-We-%C3%96tzi?node-id=13-385) | [Perfil 344:1184](https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi?node-id=344-1184) | Falta referencia | Simulado | Local seguro `local-safe`, 20/10/2026: el perfil ficticio se carga y las cinco acciones de reserva/cotización quedan invisibles; captura fuera del repo. | En esta rama: ocultar acciones solo con contexto de preview y propietario autenticado. |
+| V-PERFIL-02 | Cliente · `/artist/profile/?artist=…` normal, tras Modo cliente | [Comentario 13:385](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditor%C3%ADa-Redise%C3%B1o-We-%C3%96tzi?node-id=13-385) | [Perfil 344:1184](https://www.figma.com/design/UmVbDewiAHkfLedTR5uyFj/Pantallas--We-Otzi?node-id=344-1184) | Falta referencia | Simulado | Local seguro: cinco enlaces visibles con destinos del cotizador conservados. | Sin cambio al recorrido público. |
+
+La captura y el comentario aportados definen esta corrección de comportamiento; no hubo conector Figma para leer jerarquía, variantes o medidas del nodo. La preview usa identidad y datos ficticios; no acredita reservas, cotizaciones ni persistencia real. La consola muestra un 501 esperado del chat de soporte no simulado. La herramienta de navegador no permitió fijar 1440/768/390 px; queda pendiente la comprobación comparativa en esos tamaños.

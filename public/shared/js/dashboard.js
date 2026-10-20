@@ -4016,7 +4016,7 @@ function previewPublicProfile() {
     
     const username = artistData.username;
     const baseUrl = window.location.origin;
-    const profileUrl = `${baseUrl}/artist/profile?artist=${encodeURIComponent(username)}`;
+    const profileUrl = `${baseUrl}/artist/profile?artist=${encodeURIComponent(username)}&preview=owner`;
     
     // Open in new tab
     window.open(profileUrl, '_blank');

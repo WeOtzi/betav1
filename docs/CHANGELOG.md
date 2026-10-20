@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.5-valentina.inicio-placeholders.5] - 2026-10-20
+
+- Desde «Ver perfil público» del artista, el perfil propio se muestra sin enlaces de reserva/cotización en hero, disponibilidad y barra inferior. Se confirma el propietario con Auth; el enlace público normal y los destinos de cliente no cambian.
+- Validación: regresión nueva roja/verde en `tests/artist-public-profile-presentation.test.js`; preview local segura con identidad ficticia: desde dashboard desaparecen las cinco acciones y, tras Modo cliente, la URL pública normal conserva las cinco. Captura del perfil propio fuera del repo. `npm test`: 407 aprobadas, un fallo preexistente en `opportunity-persistence.test.js` por LF/CRLF de un seed en Windows. No se probaron 1440/768/390 px ni Auth/persistencia real; el chat de soporte devuelve 501 esperado en preview.
+- Rollback: revertir este commit en una rama nueva; sin migraciones ni cambios de datos.
+
+
 ## [2.2.4-valentina.inicio-placeholders.4] - 2026-10-20
 
 - En `/my-quotations/detail/`, la timeline muestra Pendiente, Respondida, Aprobada, En progreso, Lista para cliente y Completada con marcadores cuadrados y la etapa vigente amarilla; fechas compactas. El estado del encabezado, historial y acciones no cambian.

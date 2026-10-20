@@ -338,7 +338,7 @@
         var initials = display.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'Ö';
         var pic = a.profile_picture || '';
         var total = unreadTotal();
-        var profileHref = a.username ? '/artist/profile?artist=' + encodeURIComponent(a.username) : '/artist/profile';
+        var profileHref = a.username ? '/artist/profile?artist=' + encodeURIComponent(a.username) + '&preview=owner' : '/artist/profile';
 
         els.drop.innerHTML =
             '<div class="wo-oam-head">'
