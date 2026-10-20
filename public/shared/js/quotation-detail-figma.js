@@ -76,6 +76,13 @@
         return new Intl.DateTimeFormat('es-AR', options).format(date).replace('.', '').toUpperCase();
     }
 
+    function timelineDate(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short' }).format(date).replace(/[.-]/g, ' ').trim().toUpperCase();
+    }
+
     function chatDate(value) {
         if (!value) return '';
         const date = new Date(value);
@@ -184,18 +191,25 @@
     function timelineModel() {
         const quote = state.quote;
         const historyByStatus = new Map(state.history.map((row) => [row.new_status, row]));
-        const lastClientMessage = [...state.messages].reverse().find((message) => message.sender_type === 'client');
-        const current = quote.quote_status;
-        const isResponded = Boolean(quote.artist_responded_at || historyByStatus.has('responded') || ['responded', 'client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected'].includes(current));
-        const clientAnswered = Boolean(lastClientMessage || historyByStatus.has('client_approved') || historyByStatus.has('client_rejected') || ['client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected'].includes(current));
-        const currentStatus = STATUS[current]?.label || current || 'Pendiente';
-        return [
-            { label: 'Solicitud creada', at: quote.created_at, complete: true },
-            { label: 'Vista por vos', at: quote.sent_to_artist_at || quote.created_at, complete: true },
-            { label: 'Cotización enviada', at: quote.artist_responded_at || historyByStatus.get('responded')?.changed_at, complete: isResponded },
-            { label: 'Cliente respondió', at: lastClientMessage?.created_at || historyByStatus.get('client_approved')?.changed_at || historyByStatus.get('client_rejected')?.changed_at, complete: clientAnswered },
-            { label: currentStatus === 'Pendiente' ? 'Esperando tu decisión' : currentStatus, at: quote.updated_at, complete: current !== 'pending', current: true },
+        const stages = [
+            ['pending', 'Pendiente'],
+            ['responded', 'Respondida'],
+            ['client_approved', 'Aprobada'],
+            ['in_progress', 'En progreso'],
+            ['artist_completed', 'Lista para cliente'],
+            ['completed', 'Completada'],
         ];
+        const currentIndex = stages.findIndex(([status]) => status === quote.quote_status);
+        const lastReachedIndex = currentIndex >= 0 ? currentIndex
+            : quote.quote_status === 'client_rejected' || quote.artist_responded_at || historyByStatus.has('responded') ? 2 : 1;
+        return stages.map(([status, label], index) => ({
+            label,
+            at: status === 'pending' ? quote.created_at
+                : status === 'responded' ? quote.artist_responded_at || historyByStatus.get(status)?.changed_at || (currentIndex === index ? quote.updated_at : null)
+                    : historyByStatus.get(status)?.changed_at || (currentIndex === index ? quote.updated_at : null),
+            complete: index < lastReachedIndex,
+            current: index === currentIndex,
+        }));
     }
 
     function historyHtml() {
@@ -296,8 +310,8 @@
                 <p class="qd-section-label" id="qd-timeline-title">Timeline de la cotización</p>
                 <div class="qd-timeline">
                     ${timeline.map((step) => `
-                        <div class="qd-timeline-step${step.complete ? ' is-complete' : ''}${step.current ? ' is-current' : ''}">
-                            <span class="qd-timeline-date">${escapeHtml(step.at ? dateLabel(step.at).replace(/\s+\d{4}$/, '') : '—')}</span>
+                        <div class="qd-timeline-step${step.complete ? ' is-complete' : ''}${step.current ? ' is-current' : ''}"${step.current ? ' aria-current="step"' : ''}>
+                            <span class="qd-timeline-date">${escapeHtml(timelineDate(step.at))}</span>
                             <strong class="qd-timeline-status">${escapeHtml(step.label)}</strong>
                         </div>`).join('')}
                 </div>

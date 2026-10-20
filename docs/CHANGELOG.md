@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.4-valentina.inicio-placeholders.4] - 2026-10-20
+
+- En `/my-quotations/detail/`, la timeline muestra Pendiente, Respondida, Aprobada, En progreso, Lista para cliente y Completada con marcadores cuadrados y la etapa vigente amarilla; fechas compactas. El estado del encabezado, historial y acciones no cambian.
+- Validación: regresiones nuevas rojas/verdes en `tests/quotation-detail-figma.test.js`; preview local segura a 800 CSS px sin desborde, Aceptar cambia el hito de Pendiente a Respondida y Reiniciar datos lo restablece; consola sin advertencias. Capturas headless a 1440, 768 y 390 px; la timeline se apila en tablet/móvil, con recorte horizontal preexistente en otras partes de la página a 390 px. `npm test`: 406 aprobadas y un fallo previo de `opportunity-persistence.test.js` por LF/CRLF en Windows. `npm run check:release` aprobado. Sin prueba de persistencia real.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.3-valentina.inicio-placeholders.3] - 2026-10-19
 
 - En `/client/login/`, el panel oscuro incorpora `[ Acceso anticipado · beta cerrada ]` y `gratis para siempre` con la tipografía y los tokens del póster de artistas. No cambia el formulario ni la autenticación.
