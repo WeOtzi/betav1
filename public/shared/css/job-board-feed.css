@@ -248,12 +248,24 @@ body.wo-app.jbf-is-sent #sc-fab { display: none !important; }
     min-width: 0;
 }
 .jbf-head { margin-bottom: 27px; }
+.jbf-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+}
 .jbf-title {
     font-family: var(--font-display);
     font-size: 40px;
     line-height: 1.05;
     color: var(--ink);
     margin: 10px 0 0;
+}
+.jbf-applications-link {
+    margin-left: auto;
+    margin-top: 10px;
+    white-space: nowrap;
 }
 .jbf-sub {
     margin: 10px 0 0;

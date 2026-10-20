@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.6-valentina.inicio-placeholders.6] - 2026-10-20
+
+- En `/job-board/`, el encabezado del feed suma «Mis postulaciones →» a la derecha del título, con reflujo en anchos estrechos. Reutiliza la ruta `/artist/applications?tab=jobboard` ya usada al enviar una propuesta; no cambia el feed, los filtros ni las acciones existentes.
+- Validación: regresión roja/verde en `tests/job-applications-figma.test.js`; preview local segura a 800 CSS px, enlace visible sin desborde, clic abre «Mis postulaciones» con pestaña Job board seleccionada y dos registros ficticios; captura fuera del repo. `npm test`: 408 aprobadas y un fallo preexistente de `opportunity-persistence.test.js` por LF/CRLF de un seed en Windows. Sin inspección directa de Figma, tamaños 1440/768/390 ni prueba de datos reales; soporte devuelve 501 esperado en preview.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.5-valentina.inicio-placeholders.5] - 2026-10-20
 
 - Desde «Ver perfil público» del artista, el perfil propio se muestra sin enlaces de reserva/cotización en hero, disponibilidad y barra inferior. Se confirma el propietario con Auth; el enlace público normal y los destinos de cliente no cambian.
