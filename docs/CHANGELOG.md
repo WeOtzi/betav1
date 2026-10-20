@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.7-valentina.inicio-placeholders.7] - 2026-10-20
+
+- La fila ficticia `JB-FIGMA-SPONSOR` del seed ahora tiene una descripción de solicitud de tatuaje en `tattoo_idea_description`, distinta del texto promocional conservado en `sponsor_description`. El detalle «Postularme» ya leía únicamente el primer campo; sin cambios de diseño ni de lógica de postulación.
+- Validación: regresión roja/verde en `tests/job-applications-figma.test.js`; preview local segura con artista ficticio: «POSTULARME» en `JB-DEMO3` abre el detalle y muestra solo su descripción de solicitud, con captura fuera del repo. `npm test`: 409 aprobadas y el fallo previo de `opportunity-persistence.test.js` por LF/CRLF de otro seed en Windows. `check:release` aprobado. La preview local no carga `JB-FIGMA-SPONSOR`; no se ejecutó el seed ni se modificaron datos compartidos.
+- Rollback: revertir este commit en una rama nueva. Si un entorno de prueba ya ejecutó la versión corregida del seed, un rollback de código no revierte ese dato: restaurarlo con un cambio de datos autorizado y respaldo.
+
+
 ## [2.2.6-valentina.inicio-placeholders.6] - 2026-10-20
 
 - En `/job-board/`, el encabezado del feed suma «Mis postulaciones →» a la derecha del título, con reflujo en anchos estrechos. Reutiliza la ruta `/artist/applications?tab=jobboard` ya usada al enviar una propuesta; no cambia el feed, los filtros ni las acciones existentes.

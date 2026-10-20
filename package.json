@@ -1,6 +1,6 @@
 {
   "name": "weotzi-unified",
-  "version": "2.2.6-valentina.inicio-placeholders.6",
+  "version": "2.2.7-valentina.inicio-placeholders.7",
   "description": "We Ötzi - Unified Web Application",
   "main": "server.js",
   "scripts": {
