@@ -1,0 +1,11 @@
+# Tres comentarios de Laura: Travel y Job Board
+
+Referencia: capturas y nodos enlazados por la usuaria de Auditoría (`YyppETJDvHCC98scjrZnlO`) y Pantallas (`UmVbDewiAHkfLedTR5uyFj`). No hubo conector Figma autenticado para inspeccionar medidas ni variantes internas. Entorno de prueba: `npm run dev:safe`, `/preview/preview-local-safe/`, datos ficticios; versión de esta rama indicada en `package.json`.
+
+| ID | Rol / URL / estado | Auditoría | Pantallas | Visual | Funcional | Evidencia y acción |
+| --- | --- | --- | --- | --- | --- | --- |
+| L-01 | Artista · `/artist/travel/?trip=…` · compartir itinerario | `18:517` | `173:27503` | Coincide en el cambio solicitado | Simulado | El campo muestra la URL publicada al abrir, Copiar cambia a “Copiado” en el primer clic; Email, WhatsApp y Cerrar siguen disponibles. Prueba de fallo de publicación: no abre una URL inactiva. La preview no comprueba acceso público remoto ni entrega de correo. |
+| L-02 | Artista · `/job-board/` · propuesta enviada | `15:421` | `105:4079` | Coincide en la fila solicitada | Simulado | Propuesta de fixture JB-DEMO3 enviada: Proyecto muestra “Botánico en costillas”. Prueba de regresión con encabezado de búsqueda distinto de la idea comprueba que se prioriza el proyecto de tatuaje. El correo externo está desactivado en preview. |
+| L-03 | Artista · `/artist/travel/?trip=…` · solicitar vinculación | `18:513` | `132:14854` | Coincide en el aviso solicitado | Simulado | Viaje Madrid de prueba → buscar y seleccionar estudio → Solicitar vinculación: modal cerrado, detalle visible, “Vinculación pendiente”; persiste tras recargar en el navegador de preview. El simulador ahora usa el estado contractual `esperando_confirmacion`. No se verificó Supabase real ni la confirmación del estudio. |
+
+No se modificaron estilos ni otras rutas. Se observó un fallo local previo, también reproducible en el checkout original: `tests/opportunity-persistence.test.js` informa `missing dedicated Job Board feed seed`, aunque el archivo existe; su búsqueda de LF literal no coincide con CRLF del checkout Windows. CI en Linux pasa. No se alteró esa prueba ni el seed porque quedan fuera de estos comentarios. La inspección de móvil/tablet con viewport exacto quedó pendiente por falta de control de tamaño en el navegador disponible.

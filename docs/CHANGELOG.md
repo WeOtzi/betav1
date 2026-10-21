@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.2.3-valentina.laura-tres-comentarios.2] - 2026-10-21
+
+- Corregir el diagnóstico de la prueba local de seed en Windows: el archivo existe; la aserción de LF literal no coincide con los CRLF del checkout. Sin cambios en código de producto ni en el seed.
+- Validación: `Verify delivery` del commit anterior aprobado en Linux (403 pruebas, 0 fallos) y Windows; `check:release` aprobado. La prueba local de seed sigue fallando por finales de línea, también en el checkout original. Los recorridos de preview segura y sus límites están registrados en la versión anterior.
+- Rollback: revertir este commit documental en una nueva rama/PR si corresponde; para revertir la funcionalidad, revertir también el commit de la versión .1. No incluye migraciones.
+
+
+## [2.2.3-valentina.laura-tres-comentarios.1] - 2026-10-21
+
+- Travel publica y muestra el enlace al abrir Compartir itinerario para copiarlo en un clic; Job Board usa el proyecto de tatuaje en el resumen de propuesta; la preview de vinculación usa `esperando_confirmacion` y muestra el aviso al volver al viaje. Sin migraciones ni cambios de permisos.
+- Validación: pruebas dirigidas aprobadas; navegador seguro con datos ficticios: enlace/copia, propuesta enviada y vinculación pendiente tras recarga. `check:release` aprobado. `npm test` local en Windows: 404/405 aprobadas; falla previa en `tests/opportunity-persistence.test.js` por coincidencia de LF literal contra CRLF del seed en el checkout, reproducida también en el checkout original. CI en Linux: 403/403 aprobadas. Sin correo ni escritura real; viewport móvil/tablet no medido.
+- Rollback: revertir este commit en una nueva rama y PR; no hay migraciones. Isaí gestiona la reversión operativa del servidor.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

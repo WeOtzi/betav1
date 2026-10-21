@@ -1,6 +1,6 @@
 {
   "name": "weotzi-unified",
-  "version": "2.2.2",
+  "version": "2.2.3-valentina.laura-tres-comentarios.2",
   "description": "We Ötzi - Unified Web Application",
   "main": "server.js",
   "scripts": {
