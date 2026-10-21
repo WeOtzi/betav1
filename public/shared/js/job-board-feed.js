@@ -103,6 +103,14 @@ function requestDisplayTitle(request) {
         request.tattoo_idea_description || request.request_code || 'Solicitud';
 }
 
+function proposalProjectTitle(request) {
+    const title = String(request?.tattoo_idea_title || '').trim();
+    if (title) return title;
+    const description = String(request?.tattoo_idea_description || '').trim().split(/[.\n]/)[0].trim();
+    if (description) return description;
+    return 'Idea de tatuaje';
+}
+
 function requestDisplayCode(request) {
     return request?.display_code || request?.request_code || '';
 }
@@ -1809,7 +1817,7 @@ function renderProposalSent(request, proposal) {
             <div class="jbf-summary-body">
                 <div class="jbf-summary-row">
                     <span class="jbf-summary-key">Proyecto</span>
-                    <span class="jbf-summary-val">${escapeHtml(requestDisplayTitle(request))}</span>
+                    <span class="jbf-summary-val">${escapeHtml(proposalProjectTitle(request))}</span>
                 </div>
                 <div class="jbf-summary-row">
                     <span class="jbf-summary-key">Cliente</span>

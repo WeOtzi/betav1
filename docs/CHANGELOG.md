@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.laura-tres-comentarios.1] - 2026-10-21
+
+- Travel publica y muestra el enlace al abrir Compartir itinerario para copiarlo en un clic; Job Board usa el proyecto de tatuaje en el resumen de propuesta; la preview de vinculación usa `esperando_confirmacion` y muestra el aviso al volver al viaje. Sin migraciones ni cambios de permisos.
+- Validación: pruebas dirigidas aprobadas; navegador seguro con datos ficticios: enlace/copia, propuesta enviada y vinculación pendiente tras recarga. `check:release` aprobado. `npm test`: 404/405 aprobadas; falla previa en `tests/opportunity-persistence.test.js` por el seed de feed ausente, reproducida también en el checkout original. Sin correo ni escritura real; viewport móvil/tablet no medido.
+- Rollback: revertir este commit en una nueva rama y PR; no hay migraciones. Isaí gestiona la reversión operativa del servidor.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón
