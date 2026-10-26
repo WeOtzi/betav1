@@ -19,13 +19,16 @@ test('role cards show neutral image placeholders without unfinished copy or colo
 test('role cards select one option with blue feedback without navigating', () => {
     assert.equal((page.match(/type="radio" name="inicio-role"/g) || []).length, 2);
     assert.match(page, /\.inicio-card:has\(\.inicio-choice:checked\)\{[^}]*border-color:var\(--blue-400\);[^}]*background:var\(--info-bg\)/);
-    assert.match(page, /\.inicio-card:has\(\.inicio-choice:checked\) \.inicio-check\{[^}]*color:var\(--blue-400\)/);
+    assert.match(page, /\.inicio-check\{[^}]*border-radius:var\(--radius-circle\);[^}]*background:var\(--blue-400\);[^}]*color:var\(--white\)/);
+    assert.match(page, /\.inicio-card\{[^}]*border:var\(--border-hairline\) solid var\(--figma-sand-border\);[^}]*border-radius:var\(--space-3\)/);
+    assert.doesNotMatch(page, /wo-card--hover inicio-card/);
     assert.equal((page.match(/class="inicio-check"[^>]*>\s*<i data-wo-icon="check"/g) || []).length, 2);
     assert.match(page, /\.inicio-check i:empty::after\{[^}]*border-right:[^;]+;border-bottom:[^;]+;[^}]*transform:rotate\(45deg\)/);
     assert.doesNotMatch(page, /class="wo-card wo-card--media wo-card--hover inicio-card" href=/);
 });
 
 test('continuar stays disabled until selection and follows the chosen existing route', () => {
+    assert.match(page, /\.inicio-continue\{[^}]*background:var\(--figma-panel-ink\);[^}]*color:var\(--figma-white\)/);
     assert.match(page, /id="inicio-continue"[^>]*disabled/);
     const script = page.match(/<script id="inicio-role-selection">([\s\S]*?)<\/script>/)?.[1];
     assert.ok(script, 'selection script should be present');

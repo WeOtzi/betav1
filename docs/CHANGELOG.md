@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.8-valentina.inicio-placeholders.2] - 2026-10-26
+
+- En `/inicio/`, el botón de continuar pasa a tinta oscura con texto blanco; la tilde queda blanca dentro de un círculo azul. Las tarjetas tienen esquinas redondeadas y borde gris suave, sin elevación/sombra de hover. El estado seleccionado conserva borde azul y fondo celeste; textos, placeholders y destinos no cambian.
+- Validación: regresión roja/verde en `tests/inicio-placeholders.test.js`; Edge/Playwright en preview local segura a 1440, 768 y 390 px confirma colores computados, radio, ausencia de sombra, selección, botón, navegación y teclado, sin desborde ni errores JS. PNG nuevos fuera del repositorio. `npm test`: 410 aprobadas y el fallo previo de LF/CRLF en `tests/opportunity-persistence.test.js` en Windows; `npm run check:release` aprobado. No se probaron autenticación ni servicios reales.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.8-valentina.inicio-placeholders.1] - 2026-10-26
 
 - En `/inicio/`, las tarjetas ahora seleccionan un rol con borde azul, fondo celeste y tilde; `CONTINUAR →` se habilita tras elegir y lleva a `/marketplace/` o a la landing existente `/landing-tatuador/`. No cambian los placeholders ni el resto del contenido.
