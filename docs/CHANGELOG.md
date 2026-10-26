@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.8-valentina.inicio-placeholders.1] - 2026-10-26
+
+- En `/inicio/`, las tarjetas ahora seleccionan un rol con borde azul, fondo celeste y tilde; `CONTINUAR →` se habilita tras elegir y lleva a `/marketplace/` o a la landing existente `/landing-tatuador/`. No cambian los placeholders ni el resto del contenido.
+- Validación: pruebas rojas/verdes en `tests/inicio-placeholders.test.js`; preview local segura en Edge/Playwright a 1440, 768 y 390 px, selección visual, botón, navegación a ambas rutas, teclado y ausencia de desborde/errores JS. Captura PNG fuera del repositorio. `npm test`: 410 aprobadas, 1 fallo previo en `opportunity-persistence.test.js` por comparación LF/CRLF de un seed en Windows. `npm run check:release` aprobado. Sin prueba de autenticación ni datos reales; el nodo Figma no estuvo accesible mediante conector.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+
 ## [2.2.7-valentina.inicio-placeholders.7] - 2026-10-20
 
 - La fila ficticia `JB-FIGMA-SPONSOR` del seed ahora tiene una descripción de solicitud de tatuaje en `tattoo_idea_description`, distinta del texto promocional conservado en `sponsor_description`. El detalle «Postularme» ya leía únicamente el primer campo; sin cambios de diseño ni de lógica de postulación.

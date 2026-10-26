@@ -16,8 +16,14 @@
         .inicio-sub{margin:0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted)}
 
         .inicio-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-8);max-width:1120px;margin:0 auto}
-        .inicio-card{display:flex;flex-direction:column;color:inherit}
+        .inicio-card{display:flex;flex-direction:column;color:inherit;position:relative;cursor:pointer}
         .inicio-card:hover,.inicio-card:active{color:inherit;text-decoration:none}
+        .inicio-card:has(.inicio-choice:checked){border-color:var(--blue-400);background:var(--info-bg)}
+        .inicio-card:has(.inicio-choice:focus-visible){box-shadow:var(--shadow-focus)}
+        .inicio-check{position:absolute;top:var(--space-4);right:var(--space-4);z-index:1;visibility:hidden}
+        .inicio-card:has(.inicio-choice:checked) .inicio-check{visibility:visible;color:var(--blue-400)}
+        .inicio-check i:empty{align-items:center;justify-content:center}
+        .inicio-check i:empty::after{content:"";display:block;width:7px;height:11px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg)}
 
         .inicio-media{height:280px;background:var(--surface-media);border-bottom:var(--border-hairline) solid var(--border-subtle)}
 
@@ -30,6 +36,7 @@
         .inicio-feats [data-wo-icon]{color:var(--text-muted)}
         .inicio-cta{display:inline-flex;align-items:center;gap:var(--space-2);margin-top:auto;padding-top:var(--space-4);color:var(--text-muted)}
         .inicio-card:hover .inicio-cta{color:var(--text-heading)}
+        .inicio-actions{display:flex;justify-content:center;margin-top:var(--space-8)}
 
         .inicio-note{margin:var(--space-10) auto 0;max-width:640px;text-align:center;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-faint)}
 
@@ -61,7 +68,9 @@
         </header>
 
         <div class="inicio-cards">
-            <a class="wo-card wo-card--media wo-card--hover inicio-card" href="/marketplace">
+            <label class="wo-card wo-card--media wo-card--hover inicio-card">
+                <input class="wo-sr-only inicio-choice" type="radio" name="inicio-role" value="client">
+                <span class="inicio-check" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>
                 <div class="inicio-media" aria-hidden="true"></div>
                 <div class="wo-card-body inicio-body">
                     <span class="wo-tag wo-tag--soft">Cliente</span>
@@ -75,9 +84,11 @@
                     </ul>
                     <span class="wo-meta inicio-cta">Continuar como cliente <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></span>
                 </div>
-            </a>
+            </label>
 
-            <a class="wo-card wo-card--media wo-card--hover inicio-card" href="/artist/login">
+            <label class="wo-card wo-card--media wo-card--hover inicio-card">
+                <input class="wo-sr-only inicio-choice" type="radio" name="inicio-role" value="artist">
+                <span class="inicio-check" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>
                 <div class="inicio-media" aria-hidden="true"></div>
                 <div class="wo-card-body inicio-body">
                     <span class="wo-tag wo-tag--soft">Artista</span>
@@ -91,10 +102,25 @@
                     </ul>
                     <span class="wo-meta inicio-cta">Continuar como tatuador <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></span>
                 </div>
-            </a>
+            </label>
         </div>
 
+        <div class="inicio-actions">
+            <button class="wo-btn wo-btn--direct wo-btn--hard" type="button" id="inicio-continue" disabled>Continuar →</button>
+        </div>
         <p class="inicio-note">Podés cambiar esta experiencia en cualquier momento desde la configuración de tu cuenta.</p>
     </main>
+    <script id="inicio-role-selection">
+        const choices = document.querySelectorAll('input[name="inicio-role"]');
+        const continueButton = document.getElementById('inicio-continue');
+        choices.forEach(input => input.addEventListener('change', () => {
+            continueButton.disabled = !document.querySelector('input[name="inicio-role"]:checked');
+        }));
+        continueButton.addEventListener('click', () => {
+            const selected = document.querySelector('input[name="inicio-role"]:checked');
+            if (!selected) return;
+            window.location.href = selected.value === 'artist' ? '../landing-tatuador/' : '../marketplace/';
+        });
+    </script>
 </body>
 </html>
