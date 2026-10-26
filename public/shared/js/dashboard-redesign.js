@@ -815,7 +815,7 @@
     var username = artist && String(artist.username || '').replace(/^@/, '').trim();
     if (!username) return;
     var pub = $('wod-profile-public');
-    if (pub) pub.href = '/artist/profile?artist=' + encodeURIComponent(username);
+    if (pub) pub.href = '/artist/profile?artist=' + encodeURIComponent(username) + '&preview=owner';
     var nc = $('wod-new-client');
     if (nc) nc.href = '/quotation?artist=' + encodeURIComponent(username);
   }

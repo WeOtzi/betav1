@@ -8,9 +8,12 @@
 .artist-login-page .wo-auth-split{grid-template-columns:minmax(0,728fr) minmax(0,716fr)}
 .artist-login-page .wo-auth-poster{box-sizing:border-box;padding:var(--space-12)}
 .artist-login-page .wo-auth-poster-frame{gap:0}
-.artist-login-page .wo-auth-poster .wo-marks{position:absolute;top:var(--space-12);left:calc(var(--space-12) - 2px);gap:var(--space-2)}
+.artist-login-page .wo-auth-poster-top{position:absolute;top:var(--space-12);left:var(--space-12);display:flex;align-items:center;gap:var(--space-8)}
+.artist-login-page .wo-auth-poster .wo-marks{gap:var(--space-2)}
 .artist-login-page .wo-auth-poster .wo-mark-triangle{border-left-width:9.6px;border-right-width:9.6px}
+.artist-login-page .wo-auth-poster-eyebrow{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-300)}
 .artist-login-page .wo-auth-poster-title{font-size:72px;line-height:68.4px;letter-spacing:0}
+.artist-login-page .wo-auth-poster-manifesto{position:absolute;bottom:var(--space-12);left:var(--space-12);margin:0;max-width:300px;font-family:var(--font-mono);font-size:var(--meta-m-size);line-height:1.7;letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-300)}
 .artist-login-page .wo-auth-poster::after{right:56px;bottom:55.8px;width:0;height:0;border:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:80px solid var(--bauhaus-square);opacity:1}
 
 .artist-login-page .wo-auth-panel{box-sizing:border-box;align-items:flex-start;padding: max(64px,calc((100svh - 572px)/2)) var(--space-8) var(--space-16) calc(var(--space-8) + 2px)}
@@ -58,8 +61,10 @@
 }
 @media(max-width:800px){
   .artist-login-page .wo-auth-split{grid-template-columns:1fr}
-  .artist-login-page .wo-auth-poster{min-height:260px;padding:64px 24px 32px;align-items:center;justify-content:center}
-  .artist-login-page .wo-auth-poster .wo-marks{top:24px;left:24px}
+  .artist-login-page .wo-auth-poster{min-height:320px;padding:var(--space-6);flex-direction:column;align-items:stretch;justify-content:space-between}
+  .artist-login-page .wo-auth-poster-top,.artist-login-page .wo-auth-poster-manifesto{position:static}
+  .artist-login-page .wo-auth-poster-top{gap:var(--space-4)}
+  .artist-login-page .wo-auth-poster-frame{align-self:center}
   .artist-login-page .wo-auth-poster-title{font-size:48px;line-height:.95}
   .artist-login-page .wo-auth-poster::after{display:block;right:24px;bottom:24px;border-left-width:18px;border-right-width:18px;border-bottom-width:33px}
   .artist-login-page .wo-auth-panel{padding:40px 24px 48px}
