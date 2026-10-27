@@ -382,9 +382,11 @@ async function handleArtistLogin(e) {
             showFormMessage('Sesión iniciada. Abriendo tu panel…', 'success');
 
             const returnTo = getReturnToParam();
-            setTimeout(() => {
-                window.location.href = returnTo || '/artist/dashboard';
-            }, 1500);
+            if (window.ArtistAuthLoader) {
+                window.ArtistAuthLoader.show({ targetUrl: returnTo || '/artist/dashboard', delayMs: 1500 });
+            } else {
+                setTimeout(() => { window.location.href = returnTo || '/artist/dashboard'; }, 1500);
+            }
             return;
         }
 
@@ -397,7 +399,11 @@ async function handleArtistLogin(e) {
 
         showFormMessage('Sesión iniciada. Abriendo tu panel…', 'success');
         const returnTo = getReturnToParam();
-        setTimeout(() => { window.location.href = returnTo || '/artist/dashboard'; }, 1500);
+        if (window.ArtistAuthLoader) {
+            window.ArtistAuthLoader.show({ targetUrl: returnTo || '/artist/dashboard', delayMs: 1500 });
+        } else {
+            setTimeout(() => { window.location.href = returnTo || '/artist/dashboard'; }, 1500);
+        }
 
     } catch (error) {
         console.error('Artist login error:', error);

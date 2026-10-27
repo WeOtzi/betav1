@@ -92,8 +92,9 @@
         const client = sb();
         if (!client) throw new Error('config');
         const base = window.WEOTZI_BASE_PATH || '';
+        const artistReturn = new URLSearchParams(window.location.search).get('from') === 'artist' ? '&from=artist' : '';
         const { error } = await client.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + base + '/recover?recovery=1'
+            redirectTo: window.location.origin + base + '/recover?recovery=1' + artistReturn
         });
         if (error) {
             const msg = String(error.message || '').toLowerCase();
@@ -380,7 +381,10 @@
         const btn = $('rc-success-cta');
         setBusy(btn, true, 'Un segundo…');
         const dest = await resolveDestination();
-        if (window.WoPostAuthLoader) {
+        if (new URLSearchParams(window.location.search).get('from') === 'artist'
+            && dest.role === 'artist' && window.ArtistAuthLoader) {
+            window.ArtistAuthLoader.show({ targetUrl: dest.url });
+        } else if (window.WoPostAuthLoader) {
             window.WoPostAuthLoader.show({ role: dest.role, targetUrl: dest.url });
         } else {
             window.location.href = dest.url;
