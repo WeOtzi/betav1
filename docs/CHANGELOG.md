@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.inicio-figma.1] - 2026-10-27
+
+- Aplicar el selector de experiencia de Figma en Inicio
+- Se reproducen composición, tipografía local, tarjetas y selección de experiencia del nodo 797:269; Continuar conserva los destinos existentes. CSS limitado a Inicio.
+- Validación: Chromium a 1024, 1280, 1440, 1920, 2560, 768 y 390 px sin overflow; selección por clic/teclado y destinos, sin errores JavaScript. npm test: 398 aprobadas y 2 omitidas (Windows). check:release aprobado. Evidencia y límite de SVG originales (descarga 403) en docs/auditoria-valentina/inicio-figma/.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón
