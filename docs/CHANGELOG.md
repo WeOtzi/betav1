@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.3] - 2026-10-27
+
+- Auditar las 51 páginas, restaurar recursos compartidos y agregar ojo de preview arrastrable
+- Validación: npm test 405/405; check:release y sintaxis. Navegador: 51 páginas por dominio, sin iconos visibles ni imágenes estáticas faltantes tras hidratación; 171 recursos HTTP. Ojo: arrastre, clic, flechas, Escape, persistencia y límites a 390x844. Beta sin sesión redirige en 22 rutas; ver docs/auditoria-valentina/preview-recursos-20261027.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.2] - 2026-10-27
 
 - Documentar la comprobación de la rama y los controles locales de publicación de Valen

@@ -7,12 +7,14 @@ const path = require('node:path');
 const { safeChild, runtimePath, sanitizedPreviewConfig } = require('./runtime.cjs');
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.pdf': 'application/pdf' };
-const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://code.jquery.com; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; worker-src 'none'";
+const PREVIEW_ASSETS = require('./preview-assets.json');
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://code.jquery.com; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; worker-src 'none'";
 
 function json(response, status, body) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(JSON.stringify(body)); }
 function escaped(value) { return String(value).replace(/[&<>"']/g, item => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[item]); }
 function rewritePaths(content, prefix) {
   // Only markup attributes and CSS URLs. Rewriting arbitrary JS strings also corrupts regex literals.
+  for (const [url, local] of Object.entries(PREVIEW_ASSETS.rewrites)) content = content.split(url).join(local);
   return content.replace(/\b(src|href|action|poster|data-src)\s*=\s*(["'])\/(?!\/|__preview\/)([^"']*)\2/gi, (_, name, quote, rest) => name + '=' + quote + prefix + '/' + rest + quote)
     .replace(/url\(\/(?!\/)([^)]+)\)/g, (_, rest) => 'url(' + prefix + '/' + rest + ')');
 }
@@ -23,13 +25,21 @@ function gateway(config) {
     response.setHeader('Content-Security-Policy', CSP);
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Referrer-Policy', 'same-origin');
-    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('Cache-Control', 'no-store, no-transform');
     response.setHeader('X-Weotzi-Environment', 'preview');
     // Cookies and Authorization are deliberately ignored. Demo identities are browser-local.
     if (!['GET', 'HEAD'].includes(request.method)) return json(response, 403, { success: false, preview: true, error: 'Esta preview usa datos de demostración; no ejecuta operaciones de la beta.' });
     let pathname;
     try { pathname = decodeURIComponent(new URL(request.url, 'http://127.0.0.1').pathname); }
     catch (_) { return json(response, 400, { error: 'Invalid path' }); }
+    if (pathname.startsWith('/__preview/assets/')) {
+      const name = pathname.slice('/__preview/assets/'.length);
+      if (!Object.prototype.hasOwnProperty.call(PREVIEW_ASSETS.files, name)) return json(response, 404, { error: 'Unknown preview asset' });
+      const file = safeChild(__dirname, 'preview-assets', name);
+      const body = fs.readFileSync(file);
+      response.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Content-Length': body.length });
+      return response.end(request.method === 'HEAD' ? undefined : body);
+    }
     const icon = pathname.match(/^\/__preview\/icons\/([a-z0-9-]+)\.svg$/);
     if (icon) {
       const svg = require('./feather-icons.json')[icon[1]];

@@ -35,7 +35,7 @@ git push origin valentina/rediseno-laura
 
 ## Barra flotante y datos
 
-La barra de datos ficticios flota sobre la página: no agrega altura ni desplaza el diseño. **Ocultar datos ficticios** la contrae; **Mostrar datos ficticios** la vuelve a abrir. La preferencia se conserva durante la navegación del mismo commit. Puedes entrar como artista o cliente de prueba y reiniciar los ejemplos.
+La preview muestra únicamente un **ojo flotante**. Haz clic para abrir o cerrar los controles de datos ficticios. Arrástralo con el ratón o el dedo para moverlo; las flechas del teclado también lo desplazan y Escape cierra el panel. Su posición se conserva al navegar, recargar y cambiar de commit en este dominio. Se mantiene dentro de la pantalla al cambiar el tamaño. No agrega altura ni desplaza el diseño. Puedes entrar como artista o cliente de prueba y reiniciar los ejemplos.
 
 Los iconos Feather 4.29.2 se sirven localmente en preview para mantener los mismos SVG que beta. La preview sigue sin conectar cuentas reales, emails, cobros o bases compartidas. Las acciones no simuladas se identifican explícitamente.
 

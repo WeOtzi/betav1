@@ -31,6 +31,10 @@ test('local safe development serves current public edits with no .env/backend an
   assert.equal(await icon.text(), require('../scripts/release/feather-icons.json').search);
   assert.equal((await fetch(origin + '/__preview/icons/not-a-feather-icon.svg')).status, 404);
   assert.equal((await fetch(origin + '/__preview/icons/search.svg', { method: 'POST' })).status, 403);
+  const font = await fetch(origin + '/__preview/assets/fontawesome/webfonts/fa-solid-900.woff2');
+  assert.equal(font.status, 200);
+  assert.match(font.headers.get('content-type'), /font\/woff2/);
+  assert.equal((await fetch(origin + '/__preview/assets/not-approved.js')).status, 404);
   const first = await (await fetch(origin + prefix + '/inicio/')).text();
   assert.ok(first.includes('First edit'));
   assert.ok(first.includes('<base href="' + prefix + '/inicio/">'));
