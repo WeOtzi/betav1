@@ -1,6 +1,6 @@
 {
   "name": "weotzi-unified",
-  "version": "2.2.3-valentina.rediseno-laura.3",
+  "version": "2.2.3-valentina.rediseno-laura.4",
   "description": "We Ötzi - Unified Web Application",
   "main": "server.js",
   "scripts": {
@@ -11,7 +11,10 @@
     "check:release": "node scripts/release/check-policy.cjs",
     "version:delivery": "node scripts/release/version-delivery.cjs",
     "test:prequote": "node scripts/test-prequote-estimator.js",
-    "test:instagram": "node scripts/test-instagram-import.js"
+    "test:instagram": "node scripts/test-instagram-import.js",
+    "valen:status": "node scripts/release/valentina-delivery.cjs status",
+    "valen:verify": "node scripts/release/valentina-delivery.cjs verify",
+    "valen:wait": "node scripts/release/valentina-delivery.cjs wait"
   },
   "dependencies": {
     "archiver": "^7.0.1",

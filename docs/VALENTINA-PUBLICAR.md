@@ -17,13 +17,17 @@ La rama debe ser `valentina/rediseno-laura`. Si es otra, conserva el trabajo pen
 
 La prueba local es http://localhost:4647/preview/preview-local-safe/inicio/ . Los archivos se ven al refrescar; no necesitas publicarlos para probarlos en local. Usa OpenCode con tu cuenta; Codex es opcional. No copies sesiones, .env ni credenciales de Isaí.
 
+## Entrega automática desde OpenCode
+
+Sigue [VALENTINA-AUTOENTREGA.md](VALENTINA-AUTOENTREGA.md). La autorización de Isaí incluye pruebas, commit, push y comprobación pública al terminar cada tarea de código, sin otra confirmación rutinaria. El proyecto configura Build y los comandos `/verificar-valen` y `/publicar-valen`. Reabre el proyecto desde Windows Dev para cargar las instrucciones. No se configuró ni utilizó el perfil de OpenCode de Isaí.
+
 ## Publicar cambios y verlos en el dominio
 
 1. Revisa el flujo y sus estados en navegador, incluido móvil. Sigue el Figma de Laura y el Design System. Mantén datos, permisos, navegación y texto.
 2. Prepara una versión única: en esta rama se usa `2.2.3-valentina.rediseno-laura.N`, incrementando N en cada entrega. Si cambia la versión base, calcula el siguiente patch desde la versión vigente. Ejecuta `npm run version:delivery -- <version> "Descripción concreta"` y completa `docs/CHANGELOG.md`.
 3. Ejecuta `npm test` y `npm run check:release`. Revisa `git diff` y agrega solo los archivos de esa entrega con `git add <archivos>`.
-4. Crea el commit con problema, cambio, validación y rollback, incluyendo las líneas `Version:` y `Validación:`. Revisa `git diff --cached` antes de confirmarlo.
-5. Publica siempre en el mismo destino:
+4. En OpenCode usa la herramienta de [entrega automática](VALENTINA-AUTOENTREGA.md), con `--title`, `--validation` y los archivos explícitos en `--files`. La herramienta ejecuta las pruebas, hace el commit y publica. No uses git commit/push directos desde el agente.
+5. Si revisas el destino manualmente desde tu terminal, la única rama de publicación es:
 
 ```powershell
 git push origin valentina/rediseno-laura

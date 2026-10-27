@@ -8,7 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const stripSqlComments = (source) => source
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/--[^\r\n]*/g, '');
-const readSql = (file) => stripSqlComments(read(file));
+const readSql = (file) => stripSqlComments(read(file).replace(/\r\n/g, '\n'));
 
 function sqlFunction(source, name) {
     const startNeedle = `create or replace function public.${name}(`;

@@ -1,5 +1,7 @@
 # Handoff para Valentina — We Ötzi
 
+**Entrega automática vigente:** al terminar cada tarea de código, OpenCode completa pruebas, commit, push y comprobación de preview en la misma rama, sin pedir otra aprobación rutinaria. Lee [VALENTINA-AUTOENTREGA.md](VALENTINA-AUTOENTREGA.md). No se publica desde Windows Isaí ni se mezcla a main.
+
 **Actualización del 27/10/2026:** trabaja siempre en `valentina/rediseno-laura`. Publica y revisa en [preview.weotzi.chat/inicio/](https://preview.weotzi.chat/inicio/). Sigue [la guía de publicación vigente](VALENTINA-PUBLICAR.md); reemplaza las instrucciones históricas de crear una rama por tarea. Los estados de acceso que figuran abajo son históricos: `valen-rozes` tiene escritura comprobada y el clon ya existe.
 
 Fecha: 30 de septiembre de 2026. Responsable del proyecto y de aprobar publicaciones: Isaí.

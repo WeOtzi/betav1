@@ -15,6 +15,10 @@ We Ötzi conecta clientes, tatuadores y estudios. El runtime principal es Node.j
 - No copies `.env`, credenciales SSH, tokens, sesiones del propietario ni archivos de otros proyectos. El controlador del servidor descarga commits aprobados por CI con permisos administrados por Isaí; GitHub Actions no recibe acceso SSH.
 - Las previews usan datos ficticios y servicios externos desactivados. La prueba de persistencia real, correos o integraciones requiere el entorno y las cuentas de prueba que indique Isaí.
 
+## Entrega automática de Valentina
+
+El propietario autoriza completar automáticamente cada tarea de código terminada con pruebas, versión/changelog, commit, push a la rama permanente y comprobación de CI y la SHA pública. No esperes otro mensaje de aprobación para esos pasos. Lee y aplica `docs/VALENTINA-AUTOENTREGA.md`; usa `node scripts/release/valentina-delivery.cjs publish` con archivos explícitos. No hagas commits para preguntas, planes o tareas que el usuario pida dejar sin publicar. La entrega personal se ejecuta únicamente desde Windows Dev con GitHub valen-rozes. Conserva el trabajo ajeno y detente ante un fallo real; no crees ramas ni mezcles a main.
+
 ## Método de trabajo
 
 1. Lee `git status`, rama, archivos relevantes y documentación antes de editar. Preserva trabajo ajeno; no uses `reset --hard`, `clean -fd` o restauraciones generales para limpiar el checkout.

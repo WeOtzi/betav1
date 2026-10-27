@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.4] - 2026-10-27
+
+- Configurar OpenCode de Valen para completar entregas en su rama y verificar CI y preview
+- Validación: npm test 416/416 y check:release. opencode.json validado contra el esquema oficial. Once pruebas de entrega cubren secuencia, identidad, conflictos, cambios concurrentes, política de credenciales, rechazo de push, CI y SHA pública. Ejecución real desde Windows Isaí rechaza publish sin mutar Git. La carga y autenticación de OpenCode en Dev quedan para /verificar-valen desde su sesión RDP. Se corrigió la lectura CRLF de SQL en una prueba para permitir el flujo en Windows.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.3] - 2026-10-27
 
 - Auditar las 51 páginas, restaurar recursos compartidos y agregar ojo de preview arrastrable
