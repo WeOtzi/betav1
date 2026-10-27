@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.artist-auth-loading.1] - 2026-10-19
+
+- Pantalla de carga de acceso y recuperación de artistas
+- Loader específico con fondo claro, aro azul, marca WE ÖTZI y «Organizando tu agenda…». Se activa tras acceso válido de artista y al salir de recuperación iniciada desde artistas con destino artista; el enlace de recuperación conserva ese origen. El loader compartido de clientes y otros flujos no se modifica.
+- Validación: 7 pruebas nuevas aprobadas; preview local segura, login ficticio y navegación al panel; capturas a 1440, 768 y 390 px sin scroll de fondo. `npm test`: 406 aprobadas, 1 fallo preexistente en `opportunity-persistence.test.js` por CRLF del seed SQL en este checkout Windows. Recuperación completa/email real no probados en preview.
+- Rollback: revertir el commit de esta entrega mediante otra rama/PR. Sin migraciones ni cambios de datos.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón
