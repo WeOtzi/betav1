@@ -1,6 +1,6 @@
 {
   "name": "weotzi-unified",
-  "version": "2.2.3-valentina.rediseno-laura.1",
+  "version": "2.2.3-valentina.rediseno-laura.2",
   "description": "We Ötzi - Unified Web Application",
   "main": "server.js",
   "scripts": {

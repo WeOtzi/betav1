@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.2] - 2026-10-27
+
+- Documentar la comprobación de la rama y los controles locales de publicación de Valen
+- Validación: guardia de rama correcta, push --dry-run, rechazo de destino main (exit 1) y aceptación de rama permanente (exit 0). Mantiene el código probado con 402 tests y comparación DOM contra beta.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.1] - 2026-10-27
 
 - Configurar la rama permanente de Valen, recuperar iconos Feather y convertir la barra de preview en flotante y plegable

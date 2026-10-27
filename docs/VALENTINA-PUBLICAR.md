@@ -13,7 +13,7 @@ git pull --ff-only
 npm run dev:safe
 ```
 
-La rama debe ser `valentina/rediseno-laura`. Si es otra, conserva el trabajo pendiente y cambia a la permanente antes de editar; no crees otra rama. No apliques automáticamente stashes o cambios de las ramas anteriores. No uses reset, clean ni force push. El lanzador de onboarding verifica esta rama y avisa si se cambió por accidente.
+La rama debe ser `valentina/rediseno-laura`. Si es otra, conserva el trabajo pendiente y cambia a la permanente antes de editar; no crees otra rama. No apliques automáticamente stashes o cambios de las ramas anteriores. No uses reset, clean ni force push. El lanzador de onboarding verifica esta rama y avisa si se cambió por accidente. El clon tiene upstream a origin/valentina/rediseno-laura y push.default=simple. Su hook pre-push local rechaza otros destinos, incluido main; no modifica otros clones. Se comprobó que acepta la rama permanente y rechaza main.
 
 La prueba local es http://localhost:4647/preview/preview-local-safe/inicio/ . Los archivos se ven al refrescar; no necesitas publicarlos para probarlos en local. Usa OpenCode con tu cuenta; Codex es opcional. No copies sesiones, .env ni credenciales de Isaí.
 
