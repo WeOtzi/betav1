@@ -272,12 +272,12 @@ body.quotation-detail-page {
 .qd-timeline-section,
 .qd-messages { padding-block: var(--space-7); border-bottom: var(--border-strong-width) solid var(--ink); }
 .qd-timeline-section { border-top: 0; }
-.qd-timeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: var(--space-5); }
+.qd-timeline { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: var(--space-5); }
 .qd-timeline-step { position: relative; min-width: 0; padding-top: var(--space-5); padding-right: var(--space-3); border-top: var(--border-strong-width) solid var(--sand-350); }
-.qd-timeline-step::before { content: ""; position: absolute; top: -6px; left: 0; width: 11px; height: 11px; border-radius: 50%; background: var(--sand-350); }
+.qd-timeline-step::before { content: ""; position: absolute; top: -5px; left: 0; width: 8px; height: 8px; border: var(--border-hairline) solid var(--sand-350); background: var(--surface-page); }
 .qd-timeline-step.is-complete { border-top-color: var(--ink); }
-.qd-timeline-step.is-complete::before { background: var(--ink); }
-.qd-timeline-step.is-current::before { background: var(--yellow-300); }
+.qd-timeline-step.is-complete::before { background: var(--ink); border-color: var(--ink); }
+.qd-timeline-step.is-current::before { background: var(--yellow-300); border-color: var(--yellow-300); }
 .qd-timeline-status { display: block; margin-top: var(--space-1); font-size: 12px; font-weight: var(--weight-bold); overflow-wrap: anywhere; }
 
 .qd-history { display: grid; gap: var(--space-2); margin-top: var(--space-6); }
@@ -329,7 +329,7 @@ body.quotation-detail-page {
     .qd-proposal { border-right: 0; border-bottom: var(--border-strong-width) solid var(--ink); }
     .qd-timeline { grid-template-columns: minmax(0, 1fr); gap: 0; margin-left: var(--space-2); }
     .qd-timeline-step { min-height: 68px; padding: 0 0 var(--space-4) var(--space-6); border-top: 0; border-left: var(--border-strong-width) solid var(--sand-350); }
-    .qd-timeline-step::before { top: 0; left: -6px; }
+    .qd-timeline-step::before { top: 0; left: -5px; }
     .qd-timeline-step.is-complete { border-left-color: var(--ink); }
     .qd-timeline-date { display: block; }
     .qd-compose { grid-template-columns: minmax(0, 1fr); }

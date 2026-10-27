@@ -1694,7 +1694,7 @@
         const url = shareUrl(pendingShareSlug);
         const isEnabled = Boolean(t.share_enabled && t.share_slug === pendingShareSlug);
         const urlInput = $('tvs-url');
-        urlInput.value = isEnabled ? url : 'El enlace se activará al copiar';
+        urlInput.value = isEnabled ? url : '';
         urlInput.disabled = !isEnabled;
         $('tvs-copy-label').textContent = 'Copiar';
         const msg = `Itinerario de mi viaje a ${t.city}: ${url}`;
@@ -1710,6 +1710,7 @@
             const reusablePendingSlug = pendingShareTripId === t.id ? pendingShareSlug : null;
             pendingShareSlug = t.share_slug || reusablePendingSlug || makeSlug(t);
             pendingShareTripId = t.id;
+            await ensureShareEnabled();
             syncShareModal();
         } catch (err) {
             console.error('[travel] preparar enlace:', err);
@@ -1761,13 +1762,7 @@
 
     async function copyEnabledShareUrl() {
         const t = currentTrip;
-        if (!t.share_enabled || t.share_slug !== pendingShareSlug) {
-            // Primer click: publicar de forma segura. Copiar en un segundo click conserva
-            // el gesto de usuario sin exponer un slug todavía inactivo.
-            await ensureShareEnabled();
-            $('tvs-copy-label').textContent = 'Copiar ahora';
-            return false;
-        }
+        if (!t.share_enabled || t.share_slug !== pendingShareSlug) return false;
         const url = shareUrl(pendingShareSlug);
         await copyShareUrlWithGesture(url);
         return true;
@@ -1810,6 +1805,7 @@
         $('tvs-disable').addEventListener('click', async () => {
             try {
                 await disableShare();
+                closeModal('tv-modal-share');
             } catch (err) {
                 console.error('[travel] desactivar enlace:', err);
             }

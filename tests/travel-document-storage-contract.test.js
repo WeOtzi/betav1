@@ -92,22 +92,22 @@ test('Travel keeps document deletion reachable and compensates a failed metadata
     assert.match(openBranch, /catch\s*\([^)]*\)\s*\{[\s\S]*popup\?\.close\(\)[\s\S]*window\.alert/i);
 });
 
-test('Share dialog does not publish on open and supports explicit enable plus revocation', () => {
+test('Share dialog publishes on open for one-click copy and supports revocation', () => {
     const page = read('public/artist/travel/index.html');
     const script = read('public/shared/js/artist-travel.js');
     const openShare = script.slice(script.indexOf('async function openShare()'), script.indexOf('async function ensureShareEnabled()'));
 
-    assert.doesNotMatch(openShare, /setShare\(/i);
+    assert.match(openShare, /await ensureShareEnabled\(\)/i);
     assert.match(script, /async function ensureShareEnabled\(/i);
     assert.match(script, /async function disableShare\(/i);
     assert.match(script, /pendingShareTripId\s*===\s*t\.id[\s\S]*pendingShareSlug[\s\S]*makeSlug\(t\)/i);
     assert.match(script, /urlInput\.disabled\s*=\s*!isEnabled/i);
-    assert.match(script, /isEnabled\s*\?\s*url\s*:\s*'El enlace se activará al copiar'/i);
+    assert.match(script, /urlInput\.value\s*=\s*isEnabled\s*\?\s*url\s*:\s*''/i);
     assert.match(script, /\$\('tvs-email'\)\.href\s*=\s*isEnabled\s*\?/i);
     const copyHelper = script.slice(script.indexOf('async function copyEnabledShareUrl()'), script.indexOf('function wireShareModal()'));
     const shareWiring = script.slice(script.indexOf('function wireShareModal()'), script.indexOf('// ---------- Modal adjuntar archivo'));
     assert.match(script, /function copyShareUrlWithGesture\(url\)[\s\S]*navigator\.clipboard\.writeText\(url\)/i);
-    assert.match(copyHelper, /if\s*\([^)]*!t\.share_enabled[\s\S]*await ensureShareEnabled\(\);[\s\S]*return false;/i);
+    assert.match(copyHelper, /if\s*\([^)]*!t\.share_enabled[\s\S]*return false;/i);
     assert.match(copyHelper, /copyShareUrlWithGesture\(url\)/i);
     assert.doesNotMatch(copyHelper, /await ensureShareEnabled\(\)[\s\S]*navigator\.clipboard\.writeText/i);
     assert.match(shareWiring, /tvs-wa[\s\S]*const\s+popup\s*=\s*window\.open\([^;]+;[\s\S]*await ensureShareEnabled\(\);[\s\S]*popup\.location/i);

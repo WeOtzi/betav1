@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/artist-auth-ds.css">
     <link rel="stylesheet" href="/shared/css/artist-login-figma.css">
+    <link rel="stylesheet" href="/shared/css/artist-auth-loader.css">
     <script src="/shared/js/wo-icons.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -33,10 +34,13 @@
 <div class="wo-auth-split">
 
     <aside class="wo-auth-poster" aria-hidden="true">
-        <div class="wo-auth-poster-frame">
+        <div class="wo-auth-poster-top">
             <span class="wo-marks">
                 <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
             </span>
+            <span class="wo-auth-poster-eyebrow">[ Acceso anticipado · beta cerrada ]</span>
+        </div>
+        <div class="wo-auth-poster-frame">
             <p class="wo-auth-poster-title" id="poster-login">
                 <span class="line">Accedé</span>
                 <span class="line hl-blue">A tu</span>
@@ -47,6 +51,7 @@
                 <span class="line"><span class="hl-blue">Tu</span> <span class="hl-yellow">acceso</span></span>
             </p>
         </div>
+        <p class="wo-auth-poster-manifesto">El artista merece más apoyo y menos complicaciones. Crecer y conectar — gratis para siempre.</p>
     </aside>
 
     <main class="wo-auth-panel" id="login-content" tabindex="-1">
@@ -94,19 +99,18 @@
                 <div class="wo-auth-social">
                     <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><img src="/shared/assets/figma/artist-login/star.svg" alt="">Recomendado</span>
                     <div class="wo-auth-social-buttons">
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Instagram')" aria-describedby="social-access-message">
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Instagram')" aria-label="Instagram — no disponible">
                             <img src="/shared/assets/figma/artist-login/instagram.svg" alt=""><span class="btn-text">Instagram</span>
                         </button>
                         <button type="button" class="wo-btn wo-btn--ghost" onclick="focusArtistEmailLogin()">
                             <img src="/shared/assets/figma/artist-login/email.svg" alt=""><span class="btn-text">Email</span>
                         </button>
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Facebook')" aria-describedby="social-access-message">
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistSocialUnavailable('Facebook')" aria-label="Facebook — no disponible">
                             <img src="/shared/assets/figma/artist-login/facebook.svg" alt=""><span class="btn-text">Facebook</span>
                         </button>
                     </div>
                     <div id="social-access-notice" class="wo-auth-social-notice" hidden>
                         <p id="social-access-message" role="status"></p>
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistGoogleLogin()">Continuar con Google</button>
                     </div>
                 </div>
 
@@ -195,6 +199,12 @@
 
 </div>
 
+<section class="wo-auth-extras" id="wo-auth-extras" aria-label="Otras opciones de acceso">
+    <button type="button" class="wo-btn wo-btn--ghost" onclick="handleArtistGoogleLogin()">Continuar con Google</button>
+    <p class="wo-meta">¿Sos cliente? <a href="/client/login">Ingresá acá</a></p>
+</section>
+
+<script src="/shared/js/artist-auth-loader.js"></script>
 <script src="/shared/js/artist-login.js?v=20261006-figma-login"></script>
 </body>
 </html>

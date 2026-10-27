@@ -318,6 +318,23 @@ async function loadArtistData(username) {
             loadPublicProfileMetrics(searchUsername)
         ]);
 
+        // Solo la entrada "Ver perfil público" del artista pide la vista previa.
+        // Confirmar el propietario con Auth evita ocultar acciones a otros visitantes.
+        const ownerPreviewRequested = new URLSearchParams(window.location.search).get('preview') === 'owner';
+        let viewerUserId = null;
+        if (ownerPreviewRequested) {
+            try {
+                const { data, error: authError } = await _supabase.auth.getUser();
+                if (!authError) viewerUserId = data?.user?.id || null;
+            } catch (_) { /* Si Auth falla, conservar la vista pública. */ }
+        }
+        document.body.classList.toggle('own-profile-preview',
+            window.ArtistProfilePresentation.shouldHideClientActions(
+                artist.user_id,
+                viewerUserId,
+                ownerPreviewRequested
+            ));
+
         populateProfile();
         hideLoading();
         showContent();

@@ -44,6 +44,24 @@ test('Job Board consumes persistent sponsor and saved-request contracts without 
     assert.match(css, /@media\s*\(min-width:\s*48\.0625rem\)[\s\S]*grid-template-columns:\s*minmax\(280px,\s*32%\)/);
 });
 
+test('Job Board feed header links to the existing Job Board applications tab', () => {
+    const html = read('public/job-board/index.html');
+    const header = html.match(/<header class="jbf-head">([\s\S]*?)<\/header>/)?.[1] || '';
+
+    assert.match(header, /Explorá solicitudes abiertas/);
+    assert.match(header, /<a\b[^>]*href="\/artist\/applications\?tab=jobboard"[^>]*>\s*Mis postulaciones\s*→\s*<\/a>/);
+});
+
+test('Postularme shows the Job Board request description, not the Spot promo copy', () => {
+    const js = read('public/shared/js/job-board-feed.js');
+    const seed = read('supabase/seeds/20260829_opportunities_figma_demo.sql');
+    const featuredRow = seed.split('\n').find(line => line.includes("('JB-FIGMA-SPONSOR',")) || '';
+
+    assert.match(js, /<p class="jbf-sum-text">\$\{escapeHtml\(request\.tattoo_idea_description \|\| 'Sin descripción'\)\}<\/p>/);
+    assert.match(featuredRow, /'Busco artista para un tatuaje fine line de una flor en el antebrazo, tamaño mediano, en blanco y negro\.'/);
+    assert.match(featuredRow, /'Aurora Ink Collective','Estudio boutique especializado en blackwork y fine line/);
+});
+
 test('Job Board conserva las formas y colores del set curado de Figma', () => {
     const css = read('public/shared/css/job-board-feed.css');
     assert.match(css, /\.jbf-card--feed-1 \.jbf-card-media\.no-image::after[\s\S]*border-radius: 50%/);

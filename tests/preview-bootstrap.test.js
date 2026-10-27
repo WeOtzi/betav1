@@ -65,6 +65,19 @@ test('preview emulates filtered mutations and preserves them across navigation o
     assert.equal(first.requests.length + second.requests.length + other.requests.length, 0);
 });
 
+test('preview studio-link request returns the pending-confirmation status used by Travel detail', async () => {
+    const { win, runtime } = browser();
+    await runtime.ready;
+    const client = win.supabase.createClient('x', 'x');
+    const trip = runtime.getStore().rows('artist_trips')[1];
+    const studio = runtime.getStore().rows('studios')[3];
+    const { data, error } = await client.rpc('request_trip_studio_link', { p_trip_id: trip.id, p_studio_id: studio.id });
+    assert.equal(error, null);
+    assert.equal(data.status, 'esperando_confirmacion');
+    const { data: detail } = await client.from('artist_trips').select('*, trip_studio_links (*)').eq('id', trip.id).single();
+    assert.equal(detail.trip_studio_links[0].status, 'esperando_confirmacion');
+});
+
 test('external HTTP, unknown RPC/table/API and Storage writes fail visibly without pass-through', async () => {
     const { win, runtime, requests } = browser();
     await runtime.ready;

@@ -1,0 +1,77 @@
+/* Transición propia de acceso/recuperación de artistas; no altera el loader general. */
+html:has(.artist-auth-loader) { overflow: hidden; }
+
+.artist-auth-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: var(--space-6);
+    background: var(--surface-page);
+    color: var(--text-heading);
+}
+
+.artist-auth-loader__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    text-align: center;
+}
+
+.artist-auth-loader__spinner {
+    box-sizing: border-box;
+    width: 92px;
+    height: 92px;
+    margin-bottom: var(--space-5);
+    border: 6px solid var(--neutral-200);
+    border-right-color: var(--figma-direct);
+    border-radius: var(--radius-circle);
+    animation: artist-auth-spin var(--duration-spin-slow) linear infinite;
+}
+
+.artist-auth-loader__brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    max-width: 100%;
+    white-space: nowrap;
+}
+
+.artist-auth-loader__brand .wo-marks { gap: var(--space-3); }
+.artist-auth-loader__brand .wo-mark-square,
+.artist-auth-loader__brand .wo-mark-circle { width: 20px; height: 20px; }
+.artist-auth-loader__brand .wo-mark-triangle {
+    border-left-width: 11px;
+    border-right-width: 11px;
+    border-bottom-width: 20px;
+}
+
+.artist-auth-loader__name {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    line-height: 1;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+}
+
+.artist-auth-loader__caption {
+    margin: var(--space-6) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+@keyframes artist-auth-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .artist-auth-loader__spinner { animation: none; }
+}

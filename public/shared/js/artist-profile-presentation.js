@@ -64,10 +64,18 @@
         menu.hidden = !open;
     }
 
+    function shouldHideClientActions(profileUserId, viewerUserId, ownerPreviewRequested) {
+        return ownerPreviewRequested === true
+            && Boolean(profileUserId)
+            && Boolean(viewerUserId)
+            && profileUserId === viewerUserId;
+    }
+
     return {
         filterKey,
         buildPortfolioFilterOptions,
         buildSpecialtyRows,
-        setDisclosureState
+        setDisclosureState,
+        shouldHideClientActions
     };
 });
