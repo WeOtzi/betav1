@@ -761,7 +761,7 @@
                 if (!trip) return null;
                 var link = store.insert('trip_studio_links', [{
                     trip_id: trip.id, studio_id: args.p_studio_id, studio_name: studio ? studio.name : 'Estudio', studio_city: studio ? studio.city : trip.city,
-                    status: 'pendiente', requested_at: nowIso(), resolved_at: null, contact_name: null, contact_details: null, address_snapshot: studio ? studio.formatted_address : null
+                    status: 'esperando_confirmacion', requested_at: nowIso(), resolved_at: null, contact_name: null, contact_details: null, address_snapshot: studio ? studio.formatted_address : null
                 }])[0];
                 tripEvent(store, trip.id, 'estudio_solicitado', 'Solicitud enviada a ' + link.studio_name);
                 return link;

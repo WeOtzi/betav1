@@ -4,8 +4,17 @@ const assert = require('node:assert/strict');
 const {
     buildPortfolioFilterOptions,
     buildSpecialtyRows,
-    setDisclosureState
+    setDisclosureState,
+    shouldHideClientActions
 } = require('../public/shared/js/artist-profile-presentation');
+
+test('owner preview hides client actions only for the authenticated profile owner', () => {
+    assert.equal(shouldHideClientActions('artist-1', 'artist-1', true), true);
+    assert.equal(shouldHideClientActions('artist-1', 'artist-1', false), false);
+    assert.equal(shouldHideClientActions('artist-1', 'viewer-2', true), false);
+    assert.equal(shouldHideClientActions('artist-1', null, true), false);
+    assert.equal(shouldHideClientActions(null, 'artist-1', true), false);
+});
 
 test('portfolio filters use artwork styles and keep one canonical Todos option', () => {
     const options = buildPortfolioFilterOptions([

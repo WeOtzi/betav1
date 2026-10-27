@@ -1,0 +1,12 @@
+# Recuperar contraseña · artista · paso 4
+
+| ID | Rol / URL / estado | Nodo auditoría | Nodo rediseño | Visual | Funcional | Evidencia | Acción / PR |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| V-REC-04 | Artista · `/recover?from=artist` · éxito | [Auditoría, desde 1:29615](https://www.figma.com/design/YyppETJDvHCC98scjrZnlO/Auditoria-Rediseno-We-Otzi?node-id=1-29615) (no releído) | [Copia ampliada 243:2778](https://www.figma.com/design/WHCgICsA3ipbAE2srVls9A/Pantallas--We-Otzi--copia-?node-id=243-2778) · SVG 1440 × 900 aportado | Coincide en composición desktop según SVG; tablet/móvil adaptados sin frame específico | Simulado: transición y destino; Auth real bloqueado | [Capturas desktop y celular](artist-recover-capturas.md), navegador seguro 1440/768/390 | PR #6 · `valentina/artist-recover-figma` |
+
+## Alcance y prueba
+
+- Se conservaron póster, marca y panel compartidos. En éxito se oculta el stepper; check de 36 px autocontenido sobre cuadrado verde de 72 px, texto literal del SVG y botón oscuro de 44 px. La imagen de flecha es local. En desktop, sin la barra PREVIEW, el bloque queda aproximadamente en las coordenadas del SVG (marca x850/y279, icono x1024/y354, botón x850/y557). En 768 y 390 px no hubo desborde horizontal ni acción inaccesible.
+- Con la barra **PREVIEW · Datos ficticios** visible, se sustituyeron exclusivamente en la sesión aislada las respuestas externas de solicitud de email, OTP, actualización, sesión y consulta de rol por respuestas ficticias. Se recorrieron los formularios hasta que `auth.updateUser` simuló éxito: se mostró la vista 4, desapareció el stepper y el botón invocó el cargador post-auth para `/artist/dashboard`. Sin cambiar `recover.js`, el error de actualización probado en el paso 3 sigue sin mostrar éxito. No se guardó una contraseña ni se validó una sesión real.
+- El CTA dice **INICIAR SESIÓN** como Figma, pero el handler existente conserva la sesión de recuperación y va al panel según el rol (o `/inicio` sin sesión). No se agregó un `signOut` ni se cambió el contrato de Auth por una diferencia de copy. Esta discrepancia semántica requiere decisión de producto si el botón debe forzar un login nuevo.
+- Sin conector Figma para leer propiedades del nodo, el SVG aportado es la referencia. La preview no acredita correo recibido, OTP válido, sesión recuperada ni persistencia de la nueva contraseña; hacen falta entorno y cuentas de prueba autorizadas por Isaí.

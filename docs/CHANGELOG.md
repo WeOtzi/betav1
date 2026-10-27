@@ -1,5 +1,136 @@
 # Changelog
 
+## [2.2.3-valentina.revision-completa.6] - 2026-10-26
+
+- Reunir el contenido de los 22 commits pendientes de seis ramas de Valentina en una preview de revisión; main permanece sin cambios. Incluye inventario, login, recuperación, selección de rol, ajustes de perfil/cotizaciones/Job Board/Travel e indicadores de carga.
+- Conservar tanto los accesos Google/cliente como el loader en el login. Se mantienen los controles de CI y publicación idénticos a main. El inventario se incorpora como contenido de esta entrega porque dos de sus commits documentales no tienen los metadatos exigidos por la política; sus ramas originales permanecen intactas.
+- Validación: npm test, 430 aprobadas y 2 omitidas por requerir Windows; npm run check:release y node --check server.js aprobados. Chromium local con datos ficticios a 1440, 768 y 390 px: selección de rol, destinos, login con loader y cuatro pasos de recuperación mediante stubs de sesión. Timeline de seis etapas y compartir/copiar en Travel comprobados. Recuperación/email reales y persistencia remota no probados.
+- Publicación: rama valentina/revision-completa; el controlador espera Verify delivery aprobado para su commit exacto antes de agregarla al índice de preview.weotzi.chat. La publicación remota requiere verificación del índice y de /api/release; las pruebas locales no acreditan ese despliegue.
+- Rollback: retirar esta preview del controlador o volver a su release anterior; la beta de main y los datos reales permanecen sin cambios. Después de una futura integración, revertir mediante una rama y un nuevo PR.
+
+## [2.2.3-valentina.artist-auth-loading.1] - 2026-10-19
+
+- Pantalla de carga de acceso y recuperación de artistas
+- Loader específico con fondo claro, aro azul, marca WE ÖTZI y «Organizando tu agenda…». Se activa tras acceso válido de artista y al salir de recuperación iniciada desde artistas con destino artista; el enlace de recuperación conserva ese origen. El loader compartido de clientes y otros flujos no se modifica.
+- Validación: 7 pruebas nuevas aprobadas; preview local segura, login ficticio y navegación al panel; capturas a 1440, 768 y 390 px sin scroll de fondo. `npm test`: 406 aprobadas, 1 fallo preexistente en `opportunity-persistence.test.js` por CRLF del seed SQL en este checkout Windows. Recuperación completa/email real no probados en preview.
+- Rollback: revertir el commit de esta entrega mediante otra rama/PR. Sin migraciones ni cambios de datos.
+
+## [2.2.3-valentina.laura-tres-comentarios.2] - 2026-10-21
+
+- Corregir el diagnóstico de la prueba local de seed en Windows: el archivo existe; la aserción de LF literal no coincide con los CRLF del checkout. Sin cambios en código de producto ni en el seed.
+- Validación: `Verify delivery` del commit anterior aprobado en Linux (403 pruebas, 0 fallos) y Windows; `check:release` aprobado. La prueba local de seed sigue fallando por finales de línea, también en el checkout original. Los recorridos de preview segura y sus límites están registrados en la versión anterior.
+- Rollback: revertir este commit documental en una nueva rama/PR si corresponde; para revertir la funcionalidad, revertir también el commit de la versión .1. No incluye migraciones.
+
+## [2.2.3-valentina.laura-tres-comentarios.1] - 2026-10-21
+
+- Travel publica y muestra el enlace al abrir Compartir itinerario para copiarlo en un clic; Job Board usa el proyecto de tatuaje en el resumen de propuesta; la preview de vinculación usa `esperando_confirmacion` y muestra el aviso al volver al viaje. Sin migraciones ni cambios de permisos.
+- Validación: pruebas dirigidas aprobadas; navegador seguro con datos ficticios: enlace/copia, propuesta enviada y vinculación pendiente tras recarga. `check:release` aprobado. `npm test` local en Windows: 404/405 aprobadas; falla previa en `tests/opportunity-persistence.test.js` por coincidencia de LF literal contra CRLF del seed en el checkout, reproducida también en el checkout original. CI en Linux: 403/403 aprobadas. Sin correo ni escritura real; viewport móvil/tablet no medido.
+- Rollback: revertir este commit en una nueva rama y PR; no hay migraciones. Isaí gestiona la reversión operativa del servidor.
+
+## [2.2.8-valentina.inicio-placeholders.2] - 2026-10-26
+
+- En `/inicio/`, el botón de continuar pasa a tinta oscura con texto blanco; la tilde queda blanca dentro de un círculo azul. Las tarjetas tienen esquinas redondeadas y borde gris suave, sin elevación/sombra de hover. El estado seleccionado conserva borde azul y fondo celeste; textos, placeholders y destinos no cambian.
+- Validación: regresión roja/verde en `tests/inicio-placeholders.test.js`; Edge/Playwright en preview local segura a 1440, 768 y 390 px confirma colores computados, radio, ausencia de sombra, selección, botón, navegación y teclado, sin desborde ni errores JS. PNG nuevos fuera del repositorio. `npm test`: 410 aprobadas y el fallo previo de LF/CRLF en `tests/opportunity-persistence.test.js` en Windows; `npm run check:release` aprobado. No se probaron autenticación ni servicios reales.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.8-valentina.inicio-placeholders.1] - 2026-10-26
+
+- En `/inicio/`, las tarjetas ahora seleccionan un rol con borde azul, fondo celeste y tilde; `CONTINUAR →` se habilita tras elegir y lleva a `/marketplace/` o a la landing existente `/landing-tatuador/`. No cambian los placeholders ni el resto del contenido.
+- Validación: pruebas rojas/verdes en `tests/inicio-placeholders.test.js`; preview local segura en Edge/Playwright a 1440, 768 y 390 px, selección visual, botón, navegación a ambas rutas, teclado y ausencia de desborde/errores JS. Captura PNG fuera del repositorio. `npm test`: 410 aprobadas, 1 fallo previo en `opportunity-persistence.test.js` por comparación LF/CRLF de un seed en Windows. `npm run check:release` aprobado. Sin prueba de autenticación ni datos reales; el nodo Figma no estuvo accesible mediante conector.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.7-valentina.inicio-placeholders.7] - 2026-10-20
+
+- La fila ficticia `JB-FIGMA-SPONSOR` del seed ahora tiene una descripción de solicitud de tatuaje en `tattoo_idea_description`, distinta del texto promocional conservado en `sponsor_description`. El detalle «Postularme» ya leía únicamente el primer campo; sin cambios de diseño ni de lógica de postulación.
+- Validación: regresión roja/verde en `tests/job-applications-figma.test.js`; preview local segura con artista ficticio: «POSTULARME» en `JB-DEMO3` abre el detalle y muestra solo su descripción de solicitud, con captura fuera del repo. `npm test`: 409 aprobadas y el fallo previo de `opportunity-persistence.test.js` por LF/CRLF de otro seed en Windows. `check:release` aprobado. La preview local no carga `JB-FIGMA-SPONSOR`; no se ejecutó el seed ni se modificaron datos compartidos.
+- Rollback: revertir este commit en una rama nueva. Si un entorno de prueba ya ejecutó la versión corregida del seed, un rollback de código no revierte ese dato: restaurarlo con un cambio de datos autorizado y respaldo.
+
+## [2.2.6-valentina.inicio-placeholders.6] - 2026-10-20
+
+- En `/job-board/`, el encabezado del feed suma «Mis postulaciones →» a la derecha del título, con reflujo en anchos estrechos. Reutiliza la ruta `/artist/applications?tab=jobboard` ya usada al enviar una propuesta; no cambia el feed, los filtros ni las acciones existentes.
+- Validación: regresión roja/verde en `tests/job-applications-figma.test.js`; preview local segura a 800 CSS px, enlace visible sin desborde, clic abre «Mis postulaciones» con pestaña Job board seleccionada y dos registros ficticios; captura fuera del repo. `npm test`: 408 aprobadas y un fallo preexistente de `opportunity-persistence.test.js` por LF/CRLF de un seed en Windows. Sin inspección directa de Figma, tamaños 1440/768/390 ni prueba de datos reales; soporte devuelve 501 esperado en preview.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.5-valentina.inicio-placeholders.5] - 2026-10-20
+
+- Desde «Ver perfil público» del artista, el perfil propio se muestra sin enlaces de reserva/cotización en hero, disponibilidad y barra inferior. Se confirma el propietario con Auth; el enlace público normal y los destinos de cliente no cambian.
+- Validación: regresión nueva roja/verde en `tests/artist-public-profile-presentation.test.js`; preview local segura con identidad ficticia: desde dashboard desaparecen las cinco acciones y, tras Modo cliente, la URL pública normal conserva las cinco. Captura del perfil propio fuera del repo. `npm test`: 407 aprobadas, un fallo preexistente en `opportunity-persistence.test.js` por LF/CRLF de un seed en Windows. No se probaron 1440/768/390 px ni Auth/persistencia real; el chat de soporte devuelve 501 esperado en preview.
+- Rollback: revertir este commit en una rama nueva; sin migraciones ni cambios de datos.
+
+## [2.2.4-valentina.inicio-placeholders.4] - 2026-10-20
+
+- En `/my-quotations/detail/`, la timeline muestra Pendiente, Respondida, Aprobada, En progreso, Lista para cliente y Completada con marcadores cuadrados y la etapa vigente amarilla; fechas compactas. El estado del encabezado, historial y acciones no cambian.
+- Validación: regresiones nuevas rojas/verdes en `tests/quotation-detail-figma.test.js`; preview local segura a 800 CSS px sin desborde, Aceptar cambia el hito de Pendiente a Respondida y Reiniciar datos lo restablece; consola sin advertencias. Capturas headless a 1440, 768 y 390 px; la timeline se apila en tablet/móvil, con recorte horizontal preexistente en otras partes de la página a 390 px. `npm test`: 406 aprobadas y un fallo previo de `opportunity-persistence.test.js` por LF/CRLF en Windows. `npm run check:release` aprobado. Sin prueba de persistencia real.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.inicio-placeholders.3] - 2026-10-19
+
+- En `/client/login/`, el panel oscuro incorpora `[ Acceso anticipado · beta cerrada ]` y `gratis para siempre` con la tipografía y los tokens del póster de artistas. No cambia el formulario ni la autenticación.
+- Validación: prueba nueva `tests/client-login-poster.test.js` falló antes y pasó después; preview local segura a 1440 × 900 CSS px (captura completa de 1440 px de ancho), panel y ambos textos visibles sin desborde; a 390 px el formulario sigue visible y el panel permanece oculto. El envío vacío enfoca Email e impide navegar. `npm test`: 403 aprobadas y el fallo previo de `opportunity-persistence.test.js` por LF/CRLF en Windows; `npm run check:release` aprobado. Sin autenticación real.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.inicio-placeholders.2] - 2026-10-19
+
+- En `/artist/login/`, el póster incorpora el rótulo de beta cerrada y la bajada «gratis para siempre» con el estilo de `/registerclosedbeta/`. `A TU` ya tenía `#0055FF` mediante `--blue-400`; no se modificó.
+- Validación: regresión `tests/artist-login-poster.test.js` (roja antes, verde después); preview local segura a 800 CSS px sin desborde, formulario anónimo y navegación a recuperación comprobados, color computado `rgb(0, 85, 255)`. `npm test`: 402 aprobadas, 1 fallo previo de `opportunity-persistence.test.js` por LF/CRLF en Windows. Sin pruebas de escritura real ni de 1440/390 px.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.inicio-placeholders.1] - 2026-10-18
+
+- En `/inicio/`, las tarjetas Cliente y Tatuador sustituyen las figuras de color por superficies neutras, sin texto provisional ni iconos externos. Conservan contenido y enlaces originales.
+- Validación: prueba nueva `tests/inicio-placeholders.test.js` aprobada; preview local segura a 800 CSS px sin desborde, sin figuras ni texto, con navegación comprobada a marketplace y login de artista. `check:release` aprobado. `npm test`: 401 aprobadas y 1 fallo previo en `opportunity-persistence.test.js` por comparación LF contra el seed con CRLF en Windows. No se probaron servicios reales ni otros tamaños en navegador.
+- Rollback: revertir este commit en una rama nueva; no incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.artist-recover.6] - 2026-10-15
+
+- Ajustar el paso 4 de `/recover?from=artist` al SVG del nodo 243:2778: copy literal, check visible sin CDN, bloque verde de 72 px, acción compacta y capturas desktop/celular actualizadas. Se conserva la transición y navegación post-auth por rol sin cambiar `recover.js`.
+- Validación: 6/6 pruebas focalizadas; Chrome en preview segura a 1440/768/390 px con respuestas Auth ficticias solo en la sesión: transición a éxito, stepper oculto, botón al destino de artista y sin overflow ni errores de página. Capturas a 1440 y 390 px alternando solo el DOM. `check:release` aprobado; `npm test` 406/407 por la falla preexistente del seed de Job Board en Windows (CRLF). No se probó correo, OTP, sesión ni actualización real.
+- Rollback: revertir este commit en una nueva rama/PR para restaurar el paso 4 y sus capturas previas. No incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.artist-recover.5] - 2026-10-14
+
+- Agregar al PR #6 una galería de ocho capturas de `/recover?from=artist`: pasos 1–4 a 1440 y 390 px, con barra de preview y solo datos ficticios. El paso 4 está rotulado como estado actual pendiente de rediseño; no se cambió UI, Auth ni datos.
+- Validación: capturas inspeccionadas, títulos y recursos locales visibles, sin desborde horizontal (`scrollWidth` 1425/1440 y 390/390); estados alternados solo en el DOM de un Chrome aislado sobre `preview-local-safe`, sin llamadas de recuperación ni escritura. `check:release` aprobado; `npm test` 404/405 por la falla preexistente del seed de Job Board en Windows.
+- Rollback: revertir este commit en nueva rama/PR para retirar únicamente la galería y versión; no hay migraciones.
+
+## [2.2.3-valentina.artist-recover.4] - 2026-10-14
+
+- Confirmar la entrega del paso 3 de recuperación ya implementado en `.3`, sin cambios adicionales de UI ni Auth. La política del push anterior apuntó al SHA retirado durante la corrección del prefijo de su mensaje; este commit avanza la rama desde una base existente para que Verify delivery evalúe el contenido final.
+- Validación: 8/8 pruebas focalizadas, `check:release` con `POLICY_BASE` del commit `.3`; `npm test` 404/405 en Windows por el seed ajeno de Job Board (CRLF). El PR de `.3` pasó tests y política en Linux; la prueba del push de `.4` se comprobará aparte.
+- Rollback: revertir los commits `.4` y `.3` en nueva rama/PR para volver al paso 2; sin migraciones ni cambios de datos.
+
+## [2.2.3-valentina.artist-recover.3] - 2026-10-14
+
+- Ajustar el paso 3 de `/recover?from=artist` al SVG del nodo 243:2670: iconos locales, campos y botón compactos, requisitos y fallback visible de ojos/checks sin CDN. El adorno del póster es un triángulo rojo relleno en los pasos 1 a 3. Se conserva el handler de Supabase Auth.
+- Validación: `node --test tests/recover-password-view.test.js` (4/4), preview local segura con respuestas ficticias para llegar al paso 3, validaciones, mostrar contraseña y error de actualización; geometría de HTML/CSS a 1440, 768 y 390 px sin desborde. `check:release` aprobado; `npm test` 404/405 por la falla preexistente del seed de Job Board en Windows. No se probó OTP, actualización real ni persistencia.
+- Rollback: revertir este commit en una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.artist-recover.2] - 2026-10-14
+
+- Ajustar el paso de código de `/recover?from=artist` al SVG del nodo 243:2601: copy, seis casillas, stepper, reenvío, botón y retorno; conservar el contrato de Supabase Auth y los demás pasos.
+- Validación: vista y geometría en Chromium a 1440, 768 y 390 px (sin overflow); recorrido interactivo en preview segura con respuesta ficticia del servicio externo: entrada de seis dígitos, habilitación, error, reenvío y Volver. `check:release` aprobado; `npm test` 400/401, falla ajena y preexistente del seed de Job Board en Windows por CRLF. No se probó correo recibido ni OTP real.
+- Rollback: revertir este commit en una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.artist-recover.1] - 2026-10-13
+
+- Ajustar el primer paso de recuperación de artista al nodo 243:2531
+- El póster, la marca, el stepper, el formulario y los iconos locales reproducen el SVG de 1440 × 900; el layout se adapta a 768 y 390 px. Se mantiene la lógica de recuperación existente y se documentan los límites del paso 1.
+- Validación: Edge/Playwright en preview segura a 1440, 768 y 390 px, sin overflow; campo inválido/válido, estado de error simulado y retorno al login de artista. `check:release` aprobado. `npm test`: 399/400; la prueba ajena de Job Board `Job Board Figma feed seed owns a complete guarded rank sequence` falla en este checkout Windows por CRLF frente a LF literal. No se probó envío de email ni OTP real.
+- Rollback: revertir este commit mediante una nueva rama/PR. No incluye migraciones ni cambios de datos.
+
+## [2.2.3-valentina.artist-login-figma.1] - 2026-10-13
+
+- Conservar acceso alternativo fuera del encuadre Figma del login de artista
+- Google y el acceso de cliente quedan disponibles debajo del primer encuadre; Instagram/Facebook anuncian su indisponibilidad sin fingir OAuth. La vista con sesión oculta las opciones anónimas. Referencia: copia ampliada 24:1262 (SVG proporcionado), inventario en docs/auditoria-valentina/login-artista-copia.md.
+- Validación: prueba nueva 2/2; Chrome en preview segura a 1440, 768 y 390 px, sin overflow ni errores de página; foco, validación nativa y recuperación simulada. `npm test`: 401/402, con fallo ajeno de Job Board por LF/CRLF en Windows; `npm run check:release` aprobado. Sin prueba de OAuth o email real.
+- Rollback: revertir este commit en una nueva rama y PR; no incluye migraciones ni cambios de datos.
+
+## [2.2.2-valentina.inventario-flujos.1] - 2026-10-06
+
+- Agregar inventario de flujos y observaciones reportadas; sin cambios de app
+- Validación: `npm.cmd run check:release` aprobado (1396 archivos revisados); `npm.cmd test`: 399/400 aprobadas, falla `Job Board Figma feed seed owns a complete guarded rank sequence` porque falta el seed dedicado (`tests/opportunity-persistence.test.js:67`), sin relación con este inventario; revisión documental y `git diff --check` aprobados. No se realizaron pruebas de navegador nuevas.
+- Rollback: revertir este commit en una nueva entrega; solo documentación e identificación de versión, sin cambios de runtime ni migraciones.
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

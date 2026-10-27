@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
@@ -10,6 +11,42 @@ const js = read('public', 'shared', 'js', 'quotation-detail-figma.js');
 const css = read('public', 'shared', 'css', 'quotation-detail-figma.css');
 const listJs = read('public', 'shared', 'js', 'quotations.js');
 const repo = read('public', 'shared', 'js', 'data', 'quotations-repo.js');
+
+function timelineFor(quote, history = []) {
+    const context = {
+        window: {},
+        document: { getElementById: () => null, addEventListener: () => {} },
+    };
+    vm.runInNewContext(js.replace(/}\(\)\);\s*$/, 'window.timelineForTest = (quote, history) => { state.quote = quote; state.history = history; return timelineModel(); }; }());'), context);
+    return JSON.parse(JSON.stringify(context.window.timelineForTest(quote, history)));
+}
+
+test('timeline dates use the compact day and month shown beside the milestones', () => {
+    const context = { window: {}, document: { getElementById: () => null, addEventListener: () => {} } };
+    vm.runInNewContext(js.replace(/}\(\)\);\s*$/, 'window.timelineDateForTest = timelineDate; }());'), context);
+    assert.equal(context.window.timelineDateForTest('2026-10-20T12:00:00Z'), '20 OCT');
+    assert.equal(context.window.timelineDateForTest(null), '—');
+});
+
+test('timeline follows the six quotation states with only the active state highlighted', () => {
+    const labels = ['Pendiente', 'Respondida', 'Aprobada', 'En progreso', 'Lista para cliente', 'Completada'];
+    const statuses = ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed', 'completed'];
+    for (const [index, status] of statuses.entries()) {
+        const steps = timelineFor({ quote_status: status, created_at: '2026-09-24T12:00:00Z', updated_at: '2026-09-25T12:00:00Z' });
+        assert.deepEqual(steps.map((step) => step.label), labels);
+        assert.deepEqual(steps.map((step) => step.current), labels.map((_, stepIndex) => stepIndex === index));
+        assert.deepEqual(steps.map((step) => step.complete), labels.map((_, stepIndex) => stepIndex < index));
+    }
+});
+
+test('timeline leaves rejection outside the six positive stages', () => {
+    for (const [status, completedStages] of [['cancelled', 1], ['client_rejected', 2], ['expired', 1]]) {
+        const steps = timelineFor({ quote_status: status, created_at: '2026-09-24T12:00:00Z' });
+        assert.equal(steps.length, 6);
+        assert.equal(steps.some((step) => step.current), false);
+        assert.equal(steps.filter((step) => step.complete).length, completedStages);
+    }
+});
 
 test('quotation detail reproduces the Figma command bar and complete dossier', () => {
     for (const id of [

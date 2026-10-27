@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/recover-ds.css">
+    <link rel="stylesheet" href="/shared/css/artist-auth-loader.css">
     <script src="/shared/js/wo-icons.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -58,25 +59,25 @@
             <!-- Paso 1 · Email -->
             <section id="rc-view-email" class="rc-view" aria-labelledby="rc-email-title">
                 <h1 class="rc-title" id="rc-email-title">¿Olvidaste tu contraseña?</h1>
-                <p class="rc-copy">Ingresá tu email y, si existe una cuenta, te mandamos un código para restablecer tu contraseña.</p>
+                <p class="rc-copy">Ingresá tu email y te mandamos un código para restablecer tu contraseña.</p>
 
                 <form id="rc-email-form" class="rc-form" novalidate>
                     <div class="wo-field">
                         <label class="wo-label" for="rc-email">Email</label>
                         <div class="rc-inputwrap">
-                            <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                            <img class="rc-field-icon" src="/shared/assets/figma/artist-login/mail.svg" width="20" height="20" alt="">
                             <input type="email" id="rc-email" class="wo-input" placeholder="vos@email.com" required autocomplete="email">
                         </div>
                         <p id="rc-email-error" class="wo-error-msg rc-error" role="alert" hidden></p>
                     </div>
                     <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="rc-email-submit" disabled>
                         <span class="btn-text">Enviar código</span>
-                        <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                        <img src="/shared/assets/figma/artist-login/arrow-right.svg" width="20" height="20" alt="">
                     </button>
                 </form>
 
                 <a class="rc-back" id="rc-back-login" href="/client/login">
-                    <i data-wo-icon="arrow-left" aria-hidden="true"></i>
+                    <span class="rc-back-arrow" aria-hidden="true">←</span>
                     Volver al inicio de sesión
                 </a>
             </section>
@@ -84,7 +85,7 @@
             <!-- Paso 2 · Código -->
             <section id="rc-view-code" class="rc-view" aria-labelledby="rc-code-title" hidden>
                 <h1 class="rc-title" id="rc-code-title">Verificá tu código</h1>
-                <p class="rc-copy">Si existe una cuenta con <strong id="rc-code-email"></strong>, te enviamos un código de 6 dígitos.</p>
+                <p class="rc-copy">Te enviamos un código de 6 dígitos a la <strong id="rc-code-email"></strong>.</p>
 
                 <form id="rc-code-form" class="rc-form" novalidate>
                     <div class="rc-otp" id="rc-otp" role="group" aria-label="Código de 6 dígitos">
@@ -109,7 +110,7 @@
                 </form>
 
                 <button type="button" class="rc-back" id="rc-back-to-email">
-                    <i data-wo-icon="arrow-left" aria-hidden="true"></i>
+                    <span class="rc-back-arrow" aria-hidden="true">←</span>
                     Volver
                 </button>
             </section>
@@ -123,7 +124,7 @@
                     <div class="wo-field">
                         <label class="wo-label" for="rc-password">Nueva contraseña</label>
                         <div class="rc-inputwrap rc-inputwrap--toggle">
-                            <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                            <img class="rc-field-icon" src="/shared/assets/figma/artist-login/lock.svg" width="20" height="20" alt="">
                             <input type="password" id="rc-password" class="wo-input" placeholder="••••••••" autocomplete="new-password">
                             <button type="button" class="rc-eye" data-eye-for="rc-password" aria-label="Mostrar contraseña" aria-pressed="false">
                                 <i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>
@@ -146,7 +147,7 @@
                     <div class="wo-field">
                         <label class="wo-label" for="rc-password-confirm">Confirmar contraseña</label>
                         <div class="rc-inputwrap rc-inputwrap--toggle">
-                            <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                            <img class="rc-field-icon" src="/shared/assets/figma/artist-login/lock.svg" width="20" height="20" alt="">
                             <input type="password" id="rc-password-confirm" class="wo-input" placeholder="••••••••" autocomplete="new-password">
                             <button type="button" class="rc-eye" data-eye-for="rc-password-confirm" aria-label="Mostrar contraseña" aria-pressed="false">
                                 <i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>
@@ -159,19 +160,21 @@
 
                     <button type="submit" class="wo-btn wo-btn--block wo-btn--hard" id="rc-password-submit" disabled>
                         <span class="btn-text">Actualizar contraseña</span>
-                        <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                        <img src="/shared/assets/figma/artist-login/arrow-right.svg" width="20" height="20" alt="">
                     </button>
                 </form>
             </section>
 
             <!-- Paso 4 · Éxito -->
             <section id="rc-view-success" class="rc-view rc-success" aria-labelledby="rc-success-title" hidden>
-                <div class="rc-success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
-                <h1 class="rc-title" id="rc-success-title">Contraseña actualizada</h1>
-                <p class="rc-copy">Ya podés usar tu cuenta con tu nueva contraseña.</p>
+                <div class="rc-success-icon" aria-hidden="true">
+                    <svg class="rc-success-check" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 9L13.5 25.5L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </div>
+                <h1 class="rc-title" id="rc-success-title">¡Contraseña actualizada!</h1>
+                <p class="rc-copy">Ya podés iniciar sesión con tu nueva contraseña.</p>
                 <button type="button" class="wo-btn wo-btn--block wo-btn--hard" id="rc-success-cta">
-                    <span class="btn-text">Ir a tu panel</span>
-                    <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                    <span class="btn-text">Iniciar sesión</span>
+                    <img src="/shared/assets/figma/artist-login/arrow-right.svg" width="20" height="20" alt="">
                 </button>
             </section>
 
@@ -184,6 +187,7 @@
 <script src="/shared/js/data/postgrest-client.js"></script>
 <script src="/shared/js/data/artists-repo.js"></script>
 <script src="/shared/js/wo-postauth-loader.js"></script>
+<script src="/shared/js/artist-auth-loader.js"></script>
 <script src="/shared/js/recover.js"></script>
 </body>
 

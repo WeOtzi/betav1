@@ -1365,6 +1365,13 @@
     display: none;
 }
 
+/* La vista previa del propietario conserva el perfil, sin acciones del cliente. */
+.own-profile-preview .hero-cta-row,
+.own-profile-preview #reserve-cta-bottom-btn,
+.own-profile-preview .profile-actionbar {
+    display: none;
+}
+
 .profile-actionbar-inner {
     width: 100%;
     max-width: var(--container-max);
