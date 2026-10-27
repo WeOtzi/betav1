@@ -25,6 +25,12 @@ test('local safe development serves current public edits with no .env/backend an
   await new Promise(resolve => preview.server.once('listening', resolve));
   t.after(() => preview.close());
   const origin = 'http://127.0.0.1:' + preview.server.address().port, prefix = '/preview/' + preview.target;
+  const icon = await fetch(origin + '/__preview/icons/search.svg');
+  assert.equal(icon.status, 200);
+  assert.match(icon.headers.get('content-type'), /image\/svg/);
+  assert.equal(await icon.text(), require('../scripts/release/feather-icons.json').search);
+  assert.equal((await fetch(origin + '/__preview/icons/not-a-feather-icon.svg')).status, 404);
+  assert.equal((await fetch(origin + '/__preview/icons/search.svg', { method: 'POST' })).status, 403);
   const first = await (await fetch(origin + prefix + '/inicio/')).text();
   assert.ok(first.includes('First edit'));
   assert.ok(first.includes('<base href="' + prefix + '/inicio/">'));

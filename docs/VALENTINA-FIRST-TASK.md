@@ -1,6 +1,8 @@
 # Primera tarea de Valentina: completar el rediseño y probar los flujos
 
-Lee primero [HANDOFF-VALENTINA.md](HANDOFF-VALENTINA.md). Trabaja desde tu copia local en una rama `valentina/<tarea>` y verifica cada entrega en su preview. Isaí aprueba el PR a `main`.
+**Actualización del 27/10/2026:** trabaja siempre en `valentina/rediseno-laura`. Publica y revisa en [preview.weotzi.chat/inicio/](https://preview.weotzi.chat/inicio/). Sigue [la guía de publicación vigente](VALENTINA-PUBLICAR.md); reemplaza las instrucciones históricas de crear una rama por tarea. Los estados de acceso que figuran abajo son históricos: `valen-rozes` tiene escritura comprobada y el clon ya existe.
+
+Lee primero [HANDOFF-VALENTINA.md](HANDOFF-VALENTINA.md). Trabaja desde tu copia local en una rama `valentina/rediseno-laura` y verifica cada entrega en su preview. Isaí aprueba el PR a `main`.
 
 Antes de comenzar a editar, Isaí debe preparar tu clon y comprobar el aislamiento de la cuenta Windows estándar **Dev**, que ya existe. El espacio previsto es **`C:\WeOtzi-Dev\weotzi-unified`**; usa [DEV-WINDOWS-SETUP.md](DEV-WINDOWS-SETUP.md) para prepararlo. Antes de otorgarte escritura y habilitar tu primer push, debe comprobar las reglas efectivas de [protección de `main`](MAIN-PROTECTION.md), usando [la guía y scripts manuales de GitHub](DEV-GITHUB-SETUP.md). Al 30/09 esos permisos todavía no se aplicaron y tu identidad GitHub sigue pendiente.
 
@@ -36,7 +38,7 @@ Guarda una tabla en `docs/auditoria-valentina/<tarea>.md` con estas columnas:
 
 Para **Visual**, usa `Coincide`, `Con desvíos`, `Sin rediseño` o `Falta referencia`. Para **Funcional**, usa `Probado`, `Falla`, `Simulado`, `Bloqueado` o `No probado`. No mezcles ambas clasificaciones. Una preview con fixtures debe marcarse como simulada cuando corresponda.
 
-Prioriza defectos que bloqueen entrar, navegar, cotizar o responder. Después corrige diferencias de la pantalla y sus componentes. Si dos cambios tienen objetivos independientes, usa ramas y PR separados.
+Prioriza defectos que bloqueen entrar, navegar, cotizar o responder. Después corrige diferencias de la pantalla y sus componentes. Si dos cambios tienen objetivos independientes, haz commits separados en la misma rama permanente y explica cada alcance en la entrega.
 
 ## 2. Guía de pantallas y nodos
 
@@ -75,7 +77,7 @@ La auditoría también contiene recordatorios, notificaciones, menú de usuario,
 
 Ejemplo:
 
-> En mi rama valentina/rediseno-[flujo], aplica esta pantalla y sus estados: auditoría [nodo], rediseño [nodo], sistema de diseño [enlace]. Primero compara la app local y ubica los archivos. Reutiliza la biblioteca CSS/JS existente. Conserva datos, permisos, acciones y navegación. No inventes textos ni controles. Valida desktop, tablet y móvil con capturas y prueba cada interacción de este flujo. Dime qué pruebas son simuladas y cuáles requieren el entorno real. Actualiza changelog, versión y evidencia del PR.
+> En mi rama valentina/rediseno-laura, aplica esta pantalla y sus estados: auditoría [nodo], rediseño [nodo], sistema de diseño [enlace]. Primero compara la app local y ubica los archivos. Reutiliza la biblioteca CSS/JS existente. Conserva datos, permisos, acciones y navegación. No inventes textos ni controles. Valida desktop, tablet y móvil con capturas y prueba cada interacción de este flujo. Dime qué pruebas son simuladas y cuáles requieren el entorno real. Actualiza changelog, versión y evidencia del PR.
 
 El sistema de diseño del código está en `public/shared/css/ds/` y `public/shared/js/ds/`. Consulta la [guía de uso](../public/shared/css/ds/README.md) y los catálogos `/componentes/` y `/componentes/compuestos/` antes de crear un componente nuevo.
 

@@ -284,6 +284,10 @@
         const url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
         const method = String(init && init.method || input && input.method || 'GET').toUpperCase();
         const path = base && url.pathname.startsWith(base + '/') ? url.pathname.slice(base.length) : url.pathname;
+        // Exact pinned UI assets are served locally; external APIs remain blocked.
+        const featherIcon = url.origin === 'https://unpkg.com' && !url.search && !url.hash
+            && url.pathname.match(/^\/feather-icons@4\.29\.2\/dist\/icons\/([a-z0-9-]+)\.svg$/);
+        if (featherIcon && ['GET', 'HEAD'].includes(method)) return nativeFetch(origin + '/__preview/icons/' + featherIcon[1] + '.svg', { method });
         const rest = path.match(/^\/rest\/v1\/(.+)$/);
         if (rest) {
             try {
@@ -321,16 +325,28 @@
     function mountBanner() {
         if (!document || !document.body || document.getElementById('weotzi-preview-bar')) return;
         banner = document.createElement('aside'); banner.id = 'weotzi-preview-bar'; banner.setAttribute('aria-label', 'Entorno de prueba');
-        banner.style.cssText = 'position:relative;z-index:2147483647;background:#ffdd57;color:#181818;border-bottom:2px solid #181818;padding:8px 12px;font:12px/1.4 sans-serif;display:flex;flex-wrap:wrap;gap:8px;align-items:center';
-        const summary = document.createElement('strong'); summary.dataset.previewSummary = ''; banner.appendChild(summary);
+        banner.style.cssText = 'position:fixed;top:12px;right:12px;max-width:calc(100vw - 24px);box-sizing:border-box;z-index:2147483647;background:#ffdd57;color:#181818;border:1px solid #181818;border-radius:8px;padding:8px 12px;font:12px/1.4 sans-serif;box-shadow:0 2px 8px #0002';
+        const toggle = document.createElement('button'); toggle.type = 'button'; toggle.setAttribute('aria-controls', 'weotzi-preview-controls');
+        toggle.style.cssText = 'font:inherit;cursor:pointer;min-height:32px';
+        const panel = document.createElement('div'); panel.id = 'weotzi-preview-controls';
+        panel.style.cssText = 'flex-wrap:wrap;gap:8px;align-items:center;max-width:720px;padding-top:8px';
+        let collapsed = readStorage('toolbar-collapsed') === '1';
+        function updatePanel() {
+            panel.hidden = collapsed; panel.style.display = collapsed ? 'none' : 'flex';
+            toggle.textContent = collapsed ? 'Mostrar datos ficticios' : 'Ocultar datos ficticios';
+            toggle.setAttribute('aria-expanded', String(!collapsed));
+        }
+        toggle.addEventListener('click', () => { collapsed = !collapsed; writeStorage('toolbar-collapsed', collapsed ? '1' : '0'); updatePanel(); });
+        banner.appendChild(toggle); banner.appendChild(panel); updatePanel();
+        const summary = document.createElement('strong'); summary.dataset.previewSummary = ''; panel.appendChild(summary);
         const actions = [
             ['Artista de prueba', () => { publishSession(makeSession(makeUser(defaultEmail)), 'SIGNED_IN'); window.location.href = scoped('/artist/dashboard/'); }],
             ['Cliente de prueba', () => { publishSession(makeSession(makeUser(defaultEmail)), 'SIGNED_IN'); window.location.href = scoped('/client/dashboard/'); }],
             ['Salir de prueba', () => { publishSession(null, 'SIGNED_OUT'); window.location.href = scoped('/artist/login/'); }],
             ['Reiniciar datos', () => { try { window.localStorage.removeItem(key + ':tables'); window.localStorage.removeItem(key + ':session'); } catch (_) {} window.location.reload(); }]
         ];
-        actions.forEach(([text, action]) => { const button = document.createElement('button'); button.type = 'button'; button.textContent = text; button.addEventListener('click', action); banner.appendChild(button); });
-        const warning = document.createElement('span'); warning.dataset.previewError = ''; warning.setAttribute('role', 'status'); banner.appendChild(warning);
+        actions.forEach(([text, action]) => { const button = document.createElement('button'); button.type = 'button'; button.textContent = text; button.addEventListener('click', action); panel.appendChild(button); });
+        const warning = document.createElement('span'); warning.dataset.previewError = ''; warning.setAttribute('role', 'status'); panel.appendChild(warning);
         document.body.insertBefore(banner, document.body.firstChild); renderBanner();
     }
     if (document) { if (document.body) mountBanner(); else document.addEventListener('DOMContentLoaded', mountBanner, { once: true }); }

@@ -89,3 +89,11 @@ El rollback recupera código y dependencias; preserva el `.env`, uploads y regis
 Los scripts de `control/` son herramientas de administración. Se actualizan solamente desde una revisión aprobada de `main`, después de pasar las pruebas de `tests/release-pipeline.test.js`. Evitar copiar archivos de una rama junior a esa carpeta.
 
 Valentina necesita su GitHub y el entorno local con datos ficticios. Su trabajo se publica a través del repositorio y de CI; no necesita SSH, credenciales de Hostinger ni secretos de beta.
+
+## Rama permanente de Valentina (27/10/2026)
+
+La raíz de `preview.weotzi.chat` está asignada por el administrador a `valentina/rediseno-laura` mediante `control/root-preview.json` con `{ "ref": "valentina/rediseno-laura" }`. El gateway busca esa ref en el mapa de releases en cada petición; no fija una SHA ni omite CI. El índice anterior sigue en `/__preview/branches` y las previews antiguas conservan sus rutas.
+
+Al actualizar el controlador, conservar `preview-server.cjs`, `preview-bootstrap.js` y `feather-icons.json` juntos, con `FEATHER-LICENSE`. Los 287 SVG proceden de `feather-icons@4.29.2`, exactamente la versión de `wo-icons.js`. El adaptador redirige exclusivamente los GET/HEAD de esos iconos al gateway local; las APIs y demás peticiones externas siguen bloqueadas. La barra de prueba usa posición fija y se puede contraer sin modificar el layout.
+
+El script general de despliegue de beta no se usa para este cambio administrativo. Respaldar los archivos de control antes de instalarlos y reiniciar únicamente `weotzi-previews`. Para recuperar el controlador anterior, restaurar sus archivos desde el respaldo privado y reiniciar ese proceso. Las releases, datos y proceso de beta se conservan. Ver [guía de Valentina](../../docs/VALENTINA-PUBLICAR.md).

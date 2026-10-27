@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.1] - 2026-10-27
+
+- Configurar la rama permanente de Valen, recuperar iconos Feather y convertir la barra de preview en flotante y plegable
+- Validación: npm ci --ignore-scripts; npm test (402/402); npm run check:release; node --check server.js y gateway/bootstrap. Navegador a 1280 px: 10/10 SVG idénticos a beta, geometría de título y tarjetas idéntica; ocultar/mostrar y recarga conservan el layout. La copia de prueba Windows normalizó LF del seed SQL para una aserción sensible a CRLF, sin cambiar su contenido Git.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

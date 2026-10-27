@@ -1,5 +1,7 @@
 # Handoff para Valentina — We Ötzi
 
+**Actualización del 27/10/2026:** trabaja siempre en `valentina/rediseno-laura`. Publica y revisa en [preview.weotzi.chat/inicio/](https://preview.weotzi.chat/inicio/). Sigue [la guía de publicación vigente](VALENTINA-PUBLICAR.md); reemplaza las instrucciones históricas de crear una rama por tarea. Los estados de acceso que figuran abajo son históricos: `valen-rozes` tiene escritura comprobada y el clon ya existe.
+
 Fecha: 30 de septiembre de 2026. Responsable del proyecto y de aprobar publicaciones: Isaí.
 
 Esta guía explica cómo trabajar en este PC con tu propia cuenta, conversar con un agente IA, aplicar el rediseño pendiente y probar la aplicación. Isaí revisa los cambios antes de incorporarlos a la beta principal.
@@ -31,7 +33,7 @@ Tu primera misión se concentra en **artistas y clientes**: revisar el inventari
 | `C:\WeOtzi-Dev\weotzi-unified` | Tu código y pruebas locales | Tú y la IA editan archivos en una rama |
 | `http://localhost:4647` | Prueba local segura con datos ficticios | `npm run dev:safe` |
 | [GitHub WeOtzi/betav1](https://github.com/WeOtzi/betav1) | Historial, ramas, PR, versiones y automatización | Commit y push con tu GitHub |
-| `https://preview.weotzi.chat/preview/<slug>/` | Preview de una rama `valentina/*` | El controlador del servidor publica el commit aprobado por CI; copia el enlace del [índice de previews](https://preview.weotzi.chat). Publicación de la rama de prueba comprobada |
+| [preview.weotzi.chat](https://preview.weotzi.chat/) | Rama permanente `valentina/rediseno-laura`, con rutas desde la raíz | Commit y push a la misma rama; el controlador publica la SHA aprobada por CI |
 | [beta.weotzi.com](https://beta.weotzi.com) | Beta principal que ya usan las pruebas del proyecto | El controlador del servidor descarga el commit de `main` aprobado por CI |
 | Supabase | Usuarios, datos, permisos y archivos del entorno conectado | Migraciones y operaciones controladas por Isaí |
 
@@ -44,7 +46,7 @@ Los cambios simulados se guardan solo en el navegador, por rama y commit. Si cam
 El flujo de trabajo es:
 
 ```text
-Tu rama local → commit con explicación → push a valentina/<tarea>
+Tu rama local → commit con explicación → push a valentina/rediseno-laura
                     ↓
           tests automáticos + preview de esa rama
                     ↓

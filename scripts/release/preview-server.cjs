@@ -30,6 +30,13 @@ function gateway(config) {
     let pathname;
     try { pathname = decodeURIComponent(new URL(request.url, 'http://127.0.0.1').pathname); }
     catch (_) { return json(response, 400, { error: 'Invalid path' }); }
+    const icon = pathname.match(/^\/__preview\/icons\/([a-z0-9-]+)\.svg$/);
+    if (icon) {
+      const svg = require('./feather-icons.json')[icon[1]];
+      if (!svg) return json(response, 404, { error: 'Unknown Feather icon' });
+      response.writeHead(200, { 'Content-Type': MIME['.svg'] });
+      return response.end(request.method === 'HEAD' ? undefined : svg);
+    }
     if (pathname === '/__preview/bootstrap.js') {
       const bootstrap = path.join(root, 'control', 'preview-bootstrap.js');
       if (!fs.existsSync(bootstrap)) return json(response, 503, { error: 'Preview fixture adapter is not installed' });
@@ -39,9 +46,18 @@ function gateway(config) {
     let map;
     try { map = JSON.parse(fs.readFileSync(path.join(root, 'preview-map.json'), 'utf8')); }
     catch (_) { map = {}; }
+    // Operator-selected permanent branch at the domain root. Read on every request so
+    // the CI-controlled preview map remains the single source of release selection.
+    let rootRef;
+    try { rootRef = JSON.parse(fs.readFileSync(path.join(root, 'control', 'root-preview.json'), 'utf8')).ref; } catch (_) {}
+    const rootTarget = typeof rootRef === 'string' && /^valentina\/[A-Za-z0-9._/-]+$/.test(rootRef)
+      ? Object.keys(map).find(key => map[key].ref === rootRef) : null;
+    const branchIndex = pathname === '/__preview/branches' || pathname === '/__preview/branches/';
+    const rootRequest = Boolean(rootRef) && !pathname.startsWith('/preview/') && !branchIndex;
+    if (rootRequest && !rootTarget) return json(response, 503, { error: 'La rama permanente espera su publicación verificada por CI.' });
     // Legacy JS sometimes navigates to root-relative routes. Redirect those requests back to the
     // branch from the same-origin Referer; a demo-only cookie is a fallback for no-Referer navigation.
-    if (pathname !== '/' && !pathname.startsWith('/preview/')) {
+    if (!rootRequest && !branchIndex && pathname !== '/' && !pathname.startsWith('/preview/')) {
       let inferred;
       try { inferred = new URL(request.headers.referer).pathname.match(/^\/preview\/(preview-[a-z0-9-]+)(?:\/|$)/)?.[1]; } catch (_) {}
       inferred ||= String(request.headers.cookie || '').match(/(?:^|;\s*)weotzi_preview_target=(preview-[a-z0-9-]+)/)?.[1];
@@ -50,13 +66,13 @@ function gateway(config) {
         return response.end();
       }
     }
-    if (pathname === '/') {
+    if ((!rootRequest && pathname === '/') || branchIndex) {
       response.writeHead(200, { 'Content-Type': MIME['.html'] });
       return response.end('<!doctype html><html lang="es"><meta charset="utf-8"><title>We Ötzi · Previews</title><h1>Previews de desarrollo</h1><p>Datos de demostración. Los cambios de cada rama se prueban aquí antes de integrarlos a main.</p><ul>' + Object.entries(map).map(([target, item]) => '<li><a href="/preview/' + escaped(target) + '/inicio/">' + escaped(item.ref) + '</a> · ' + escaped(item.version) + ' · ' + escaped(item.commit.slice(0, 8)) + '</li>').join('') + '</ul></html>');
     }
-    const match = pathname.match(/^\/preview\/(preview-[a-z0-9-]+)(\/.*)?$/);
+    const match = rootRequest ? [pathname, rootTarget, pathname] : pathname.match(/^\/preview\/(preview-[a-z0-9-]+)(\/.*)?$/);
     if (!match || !map[match[1]]) return json(response, 404, { error: 'Preview not found' });
-    const target = match[1], entry = map[target], prefix = '/preview/' + target;
+    const target = match[1], entry = map[target], prefix = rootRequest ? '' : '/preview/' + target;
     response.setHeader('Set-Cookie', 'weotzi_preview_target=' + target + '; Path=/; HttpOnly; SameSite=Lax');
     let relative = match[2] || '/';
     if (relative === '/') {
