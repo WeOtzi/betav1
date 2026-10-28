@@ -45,6 +45,7 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/profile-public-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -117,8 +118,6 @@
 
                     <div class="hero-styles" id="display-styles">-</div>
 
-                    <div class="hero-socials" id="hero-socials" aria-label="Redes y sitio del artista" hidden></div>
-
                     <!-- CTA dual del funnel (Figma 344:1323/344:1326): reservar = wizard, cotizar = listado -->
                     <div class="hero-cta-row">
                         <a class="wo-btn wo-btn--hard hero-cta-primary" id="reserve-cta-top-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
@@ -133,8 +132,8 @@
                     <div class="hero-portrait-frame" id="avatar-wrapper">
                         <img src="" alt="Foto de perfil del artista" class="avatar-image" id="avatar-image" width="600" height="400">
                         <div class="avatar-placeholder" id="avatar-placeholder">
-                            <i data-wo-icon="user" aria-hidden="true"></i>
-                            <span class="wo-meta-s">Retrato del artista</span>
+                            <i data-wo-icon="image" aria-hidden="true"></i>
+                            <span>Retrato del artista</span>
                         </div>
                     </div>
                 </div>
@@ -259,7 +258,7 @@
                 </div>
                 <div class="cta-actions">
                     <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
-                    <!-- Único botón accent de la vista (regla 8 del DS) -->
+                    <!-- Figma 801:1108: botón accent de la banda roja (el otro accent es la barra de acción) -->
                     <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="reserve-cta-bottom-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
                 </div>
             </div>
@@ -272,9 +271,6 @@
                 <div class="gallery-chips" id="gallery-chips" role="group" aria-label="Filtrar el portafolio" hidden></div>
                 <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
                 <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Los espacios están reservados para su próxima colección.</p>
-                <div class="gallery-footer-actions">
-                    <button class="wo-btn wo-btn--ghost wo-btn--hard gallery-view-all" id="gallery-view-all-btn" style="display: none;" type="button">Ver la galería completa →</button>
-                </div>
             </div>
         </section>
 
@@ -311,7 +307,7 @@
             </p>
             <div class="actionbar-actions">
                 <a class="actionbar-quiet-link" id="quote-cta-bar-btn" href="/quotations">Cotización</a>
-                <a class="wo-btn wo-btn--s actionbar-btn" id="reserve-cta-bar-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                <a class="wo-btn wo-btn--accent wo-btn--s wo-btn--hard actionbar-btn" id="reserve-cta-bar-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
             </div>
         </div>
     </div>

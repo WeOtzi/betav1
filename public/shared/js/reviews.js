@@ -102,7 +102,7 @@
         return `
             <div class="reviews-summary">
                 <strong>${average}</strong>
-                <span>${count} resena${count === 1 ? '' : 's'}</span>
+                <span>${count} ${count === 1 ? 'reseña' : 'reseñas'}</span>
             </div>
         `;
     }
@@ -110,10 +110,10 @@
     function renderFilters(activeRating) {
         const buttons = ['all', 5, 4, 3, 2, 1].map((value) => {
             const active = String(activeRating || 'all') === String(value);
-            const label = value === 'all' ? 'Todas' : `${value} estrellas`;
+            const label = value === 'all' ? 'Todas' : `${value} ${value === 1 ? 'estrella' : 'estrellas'}`;
             return `<button type="button" class="review-filter-btn ${active ? 'is-active' : ''}" data-review-rating="${value}">${label}</button>`;
         }).join('');
-        return `<div class="reviews-controls" aria-label="Filtrar resenas por calificacion">${buttons}</div>`;
+        return `<div class="reviews-controls" aria-label="Filtrar reseñas por calificación">${buttons}</div>`;
     }
 
     function renderTags(tags) {
@@ -155,7 +155,7 @@
                     <div class="review-avatar">${avatar}</div>
                     <div>
                         <h3 class="review-card-name">${escapeHtml(name)}</h3>
-                        <div class="review-card-country">${escapeHtml(review.reviewer_country || 'Pais no indicado')}</div>
+                        <div class="review-card-country">${escapeHtml(review.reviewer_country || 'País no indicado')}</div>
                     </div>
                     <div>
                         <div class="review-stars" aria-label="${Number(review.rating)} de 5 estrellas">${formatStars(review.rating)}</div>
@@ -165,7 +165,7 @@
                 <div class="review-card-body">
                     <p class="review-card-comment">${escapeHtml(review.comment)}</p>
                     ${tags.length ? `<div class="reviews-tags">${tags.map((tag) => `<span class="review-tag-chip">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-                    ${photos.length ? `<div class="review-photo-grid">${photos.map((url) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" style="background-image:url('${escapeAttr(url)}')" aria-label="Foto de la resena"></a>`).join('')}</div>` : ''}
+                    ${photos.length ? `<div class="review-photo-grid">${photos.map((url) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" style="background-image:url('${escapeAttr(url)}')" aria-label="Foto de la reseña"></a>`).join('')}</div>` : ''}
                     ${response}
                     ${responsePending}
                     ${responseAction}
@@ -178,9 +178,9 @@
         const totalPages = Math.max(1, Math.ceil(total / REVIEW_PAGE_SIZE));
         if (totalPages <= 1) return '';
         return `
-            <div class="reviews-pagination" aria-label="Paginacion de resenas">
+            <div class="reviews-pagination" aria-label="Paginación de reseñas">
                 <button type="button" class="review-page-btn" data-review-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>Anterior</button>
-                <span class="review-tag-chip">Pagina ${page} de ${totalPages}</span>
+                <span class="review-tag-chip">Página ${page} de ${totalPages}</span>
                 <button type="button" class="review-page-btn" data-review-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>Siguiente</button>
             </div>
         `;
@@ -192,7 +192,7 @@
 
         const revieweeType = options.revieweeType;
         const revieweeId = options.revieweeId;
-        const title = options.title || 'Resenas verificadas';
+        const title = options.title || 'Reseñas verificadas';
         const client = getClient();
         const state = {
             page: Number(options.page || 1),
@@ -201,12 +201,12 @@
         const responseActor = await getResponseActor(revieweeType, revieweeId);
 
         if (!client || !revieweeType || !revieweeId) {
-            mount.innerHTML = '<div class="reviews-empty">No se pudo cargar la reputacion publica.</div>';
+            mount.innerHTML = '<div class="reviews-empty">No se pudo cargar la reputación pública.</div>';
             return;
         }
 
         async function load() {
-            mount.innerHTML = '<div class="reviews-shell"><div class="reviews-empty">Cargando resenas...</div></div>';
+            mount.innerHTML = '<div class="reviews-shell"><div class="reviews-empty">Cargando reseñas…</div></div>';
             const from = (state.page - 1) * REVIEW_PAGE_SIZE;
             const to = from + REVIEW_PAGE_SIZE - 1;
 
@@ -255,7 +255,7 @@
                 <section class="reviews-shell" aria-label="${escapeAttr(title)}">
                     <div class="reviews-heading">
                         <div>
-                            <p class="reviews-kicker">Reputacion publica</p>
+                            <p class="reviews-kicker">Reputación pública</p>
                             <h2 class="reviews-title">${escapeHtml(title)}</h2>
                         </div>
                         ${renderSummary(summary)}
@@ -263,7 +263,7 @@
                     ${renderFilters(state.rating)}
                     ${renderTags(tags)}
                     <div class="reviews-list">
-                        ${reviews.length ? reviews.map((review) => renderReviewCard(review, responseActor)).join('') : '<div class="reviews-empty">No hay resenas aprobadas para este filtro.</div>'}
+                        ${reviews.length ? reviews.map((review) => renderReviewCard(review, responseActor)).join('') : '<div class="reviews-empty">No hay reseñas aprobadas para este filtro.</div>'}
                     </div>
                     ${renderPagination(state.page, total)}
                 </section>
@@ -321,7 +321,7 @@
 
         const { data: authData, error: authError } = await client.auth.getSession();
         const session = authData?.session;
-        if (authError || !session) return { session: null, profile: null, error: authError || new Error('Sesion requerida') };
+        if (authError || !session) return { session: null, profile: null, error: authError || new Error('Sesión requerida') };
 
         if (reviewerType === 'artist') {
             const { data: profile, error } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id,email,username,name,country,city,profile_picture');
@@ -402,7 +402,7 @@
         }
 
         if (!reviewerUserId) {
-            window.alert?.('No encontramos un perfil valido para dejar esta resena.');
+            window.alert?.('No encontramos un perfil válido para dejar esta reseña.');
             return;
         }
 
@@ -413,12 +413,12 @@
                         <div class="review-modal-header">
                             <div>
                                 <p class="review-modal-kicker">Perfil requerido</p>
-                                <h2 class="review-modal-title">Completa tu perfil publico</h2>
+                                <h2 class="review-modal-title">Completá tu perfil público</h2>
                             </div>
                             <button class="review-modal-close" type="button" data-review-close>&times;</button>
                         </div>
                         <div class="review-profile-gate" style="margin-top:1rem;">
-                            Para dejar resenas necesitas nombre, alias publico y pais.
+                            Para dejar reseñas necesitás nombre, alias público y país.
                         </div>
                         <div class="review-modal-actions" style="margin-top:1rem;">
                             <button class="review-modal-submit" type="button" data-review-edit-profile>Editar perfil</button>
@@ -447,14 +447,14 @@
                 <div class="review-modal" role="dialog" aria-modal="true">
                     <div class="review-modal-header">
                         <div>
-                            <p class="review-modal-kicker">Resena verificada</p>
+                            <p class="review-modal-kicker">Reseña verificada</p>
                             <h2 class="review-modal-title">${escapeHtml(options.title || 'Calificar experiencia')}</h2>
                         </div>
                         <button class="review-modal-close" type="button" data-review-close>&times;</button>
                     </div>
                     <form class="review-form" id="review-form">
                         <div class="review-field">
-                            <label for="review-rating">Calificacion</label>
+                            <label for="review-rating">Calificación</label>
                             <select id="review-rating" required>
                                 <option value="5">5 estrellas</option>
                                 <option value="4">4 estrellas</option>
@@ -465,20 +465,20 @@
                         </div>
                         <div class="review-field">
                             <label for="review-comment">Comentario</label>
-                            <textarea id="review-comment" rows="5" minlength="3" maxlength="2000" required placeholder="Cuenta como fue la experiencia"></textarea>
+                            <textarea id="review-comment" rows="5" minlength="3" maxlength="2000" required placeholder="Contá cómo fue la experiencia"></textarea>
                         </div>
                         <div class="review-field">
-                            <label>Que destacarias</label>
+                            <label>Qué destacarías</label>
                             <div class="review-tag-options">${tagOptions}</div>
                         </div>
                         <div class="review-field">
                             <label for="review-photos">Fotos opcionales</label>
-                            <textarea id="review-photos" rows="2" placeholder="Pega URLs de fotos, una por linea"></textarea>
+                            <textarea id="review-photos" rows="2" placeholder="Pegá URLs de fotos, una por línea"></textarea>
                         </div>
                         <div class="reviews-error" id="review-form-error" hidden></div>
                         <div class="review-modal-actions">
                             <button type="button" class="review-modal-cancel" data-review-close>Cancelar</button>
-                            <button type="submit" class="review-modal-submit">Enviar a moderacion</button>
+                            <button type="submit" class="review-modal-submit">Enviar a moderación</button>
                         </div>
                     </form>
                 </div>
@@ -533,15 +533,15 @@
             if (insertError) {
                 errorEl.hidden = false;
                 errorEl.textContent = insertError.code === '23505'
-                    ? 'Ya existe una resena para esta relacion.'
+                    ? 'Ya existe una reseña para esta relación.'
                     : insertError.message;
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Enviar a moderacion';
+                submitBtn.textContent = 'Enviar a moderación';
                 return;
             }
 
             closeReviewModal();
-            window.alert?.('Resena enviada. Soporte la revisara antes de publicarla.');
+            window.alert?.('Reseña enviada. Soporte la va a revisar antes de publicarla.');
             if (typeof options.onSubmitted === 'function') options.onSubmitted();
         });
     }
@@ -552,8 +552,8 @@
                 <div class="review-modal" role="dialog" aria-modal="true">
                     <div class="review-modal-header">
                         <div>
-                            <p class="review-modal-kicker">Respuesta publica</p>
-                            <h2 class="review-modal-title">Responder resena</h2>
+                            <p class="review-modal-kicker">Respuesta pública</p>
+                            <h2 class="review-modal-title">Responder reseña</h2>
                         </div>
                         <button class="review-modal-close" type="button" data-review-response-close>&times;</button>
                     </div>
@@ -565,7 +565,7 @@
                         <div class="reviews-error" id="review-response-error" hidden></div>
                         <div class="review-modal-actions">
                             <button type="button" class="review-modal-cancel" data-review-response-close>Cancelar</button>
-                            <button type="submit" class="review-modal-submit">Enviar a moderacion</button>
+                            <button type="submit" class="review-modal-submit">Enviar a moderación</button>
                         </div>
                     </form>
                 </div>
@@ -608,7 +608,7 @@
             }
 
             close();
-            window.alert?.('Respuesta enviada. Soporte la revisara antes de publicarla.');
+            window.alert?.('Respuesta enviada. Soporte la va a revisar antes de publicarla.');
             if (typeof onSubmitted === 'function') onSubmitted();
         });
     }

@@ -425,28 +425,6 @@
     color: var(--blue-300);
 }
 
-.hero-socials {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-5);
-    padding-top: var(--space-4);
-}
-
-.hero-socials[hidden] { display: none; }
-
-.hero-socials a {
-    color: var(--ink);
-    font-family: var(--font-mono);
-    font-size: var(--meta-m-size);
-    font-weight: var(--weight-bold);
-    letter-spacing: .08em;
-    text-decoration-thickness: var(--border-hairline);
-    text-underline-offset: 4px;
-    text-transform: uppercase;
-}
-
-.hero-socials a:hover { color: var(--blue-300); }
-
 .hero-cta-row {
     display: flex;
     flex-wrap: wrap;
@@ -642,18 +620,19 @@
     border-top: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 30%, transparent);
 }
 
+/* Figma 344:1386: etiqueta Mono 9 (+1.26px) y valor Inter SemiBold 16, a 4px. */
 .sobre-fact {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
     padding: var(--space-4) 0;
     border-bottom: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 20%, transparent);
 }
 
 .sobre-fact dt {
     font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-wide-track);
+    font-size: 9px;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: color-mix(in srgb, var(--neutral-100) 60%, transparent);
 }
@@ -661,7 +640,7 @@
 .sobre-fact dd {
     margin: 0;
     font-size: var(--body-m-size);
-    font-weight: var(--weight-bold);
+    font-weight: var(--weight-semibold);
     color: var(--neutral-100);
     overflow-wrap: anywhere;
 }
@@ -669,7 +648,7 @@
 .sobre-fact dd a,
 .sobre-fact dd a strong {
     color: var(--neutral-100);
-    font-weight: var(--weight-bold);
+    font-weight: var(--weight-semibold);
 }
 
 .sobre-fact dd a:hover,
@@ -818,15 +797,16 @@
     overflow: hidden;
 }
 
-/* Figma: círculo amarillo oscuro sangrando por la esquina inferior derecha. */
+/* Figma 344:1544: círculo ink al 12% de 150px sangrando por la esquina
+   inferior derecha (bottom -46.4 / right -35.92). */
 .reviews-panel-block {
     position: absolute;
-    right: calc(-1 * var(--space-16));
-    bottom: calc(-1 * var(--space-16));
-    width: 240px;
-    height: 240px;
+    right: -36px;
+    bottom: -46px;
+    width: 150px;
+    height: 150px;
     border-radius: var(--radius-circle);
-    background: var(--yellow-400);
+    background: color-mix(in srgb, var(--ink) 12%, transparent);
     pointer-events: none;
 }
 
@@ -934,23 +914,37 @@
     gap: var(--space-3);
 }
 
-/* Circular por regla dura 1 del DS (avatar 999px), aunque el mock mezcle formas. */
+/* Figma 344:1511/1523/1535: cuadrado · círculo · cuadrado con iniciales en
+   Archivo Black 12. Ambas formas caben en la regla 1 del DS (radius 0 por
+   defecto; el avatar circular es la excepción 999px). */
 .review-quote-avatar {
     width: 32px;
     height: 32px;
     flex: none;
     display: grid;
     place-content: center;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-none);
     background: var(--review-avatar-bg, var(--ink));
     color: var(--neutral-100);
-    font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-s-track);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 0;
     text-transform: uppercase;
 }
 
+.review-quote-avatar.is-round {
+    border-radius: var(--radius-pill);
+}
+
+/* Figma 344:1514: nombre (Inter Bold 13) y debajo país · año (Mono 10). */
+.review-quote-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
 .review-quote-name {
+    display: block;
     margin: 0;
     font-size: 13px;
     font-weight: var(--weight-bold);
@@ -958,10 +952,11 @@
 }
 
 .review-quote-meta {
+    display: block;
     margin: 0;
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-s-track);
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-muted);
 }
@@ -1018,18 +1013,21 @@
     height: 40px;
 }
 
+/* Figma 344:1591: bloque centrado en vertical, sin huecos internos. Ritmo
+   eyebrow → nombre 16 · dirección 10 · datos 26 · enlace 30. */
 .studio-panel {
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-4);
+    justify-content: center;
+    gap: 0;
     padding: var(--space-8);
     background: var(--ink);
     color: var(--neutral-100);
 }
 
-/* Figma: triángulo rojo de esquina superior derecha (patrón wo-corner-flag). */
+/* Figma 344:1621: triángulo rojo de 96px en la esquina superior derecha. */
 .studio-panel::after {
     content: "";
     position: absolute;
@@ -1037,8 +1035,8 @@
     right: 0;
     width: 0;
     height: 0;
-    border-top: var(--corner-flag-lg) solid var(--red-300);
-    border-left: var(--corner-flag-lg) solid transparent;
+    border-top: 96px solid var(--red-300);
+    border-left: 96px solid transparent;
     pointer-events: none;
 }
 
@@ -1052,16 +1050,16 @@
 }
 
 .studio-name {
-    margin: 0;
+    margin: 16px 0 0;
     font-family: var(--font-display);
-    font-size: 20px;
-    line-height: 1.2;
+    font-size: 16px;
+    line-height: 1;
     color: var(--neutral-100);
     overflow-wrap: anywhere;
 }
 
 .studio-address {
-    margin: 0;
+    margin: 10px 0 0;
     font-family: var(--font-mono);
     font-size: var(--meta-m-size);
     letter-spacing: 0.06em;
@@ -1073,38 +1071,47 @@
     display: none;
 }
 
+/* Figma 344:1600: fila de datos 26px debajo de la dirección, columnas a 24px. */
 .studio-facts {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-8);
-    margin: var(--space-4) 0 0;
+    gap: var(--space-3) var(--space-6);
+    margin: 26px 0 0;
+}
+
+.studio-facts:empty {
+    display: none;
 }
 
 .studio-fact {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 3px;
 }
 
 .studio-fact dt {
     font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-wide-track);
+    font-size: 9px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--neutral-100) 60%, transparent);
+    color: color-mix(in srgb, var(--neutral-100) 55%, transparent);
 }
 
 .studio-fact dd {
     margin: 0;
     font-size: var(--body-s-size);
+    font-weight: var(--weight-semibold);
     color: var(--neutral-100);
 }
 
+/* Figma 344:1619: enlace 30px debajo de los datos, Mono 11 con filete amarillo. */
 .studio-panel .studio-link {
-    margin-top: auto;
+    margin-top: 30px;
+    padding-bottom: 4.6px;
+    border-bottom: 1.6px solid var(--yellow-300);
     font-family: var(--font-mono);
-    font-size: var(--meta-s-size);
-    letter-spacing: var(--meta-s-track);
+    font-size: 11px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--yellow-300);
     text-decoration: none;
@@ -1115,8 +1122,8 @@
 }
 
 .studio-panel .studio-link:hover {
-    color: var(--yellow-200);
-    text-decoration: underline;
+    color: var(--yellow-400);
+    border-bottom-color: var(--yellow-400);
 }
 
 /* ---------- Próximas residencias (tabla única) ---------- */
@@ -1425,7 +1432,7 @@
 }
 
 /* Figma 344:1645: "Solicitar cotización" atenuado junto al botón de reserva. */
-.actionbar-quiet-link {
+.public-profile-view .actionbar-quiet-link {
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
     letter-spacing: var(--meta-s-track);
@@ -2228,7 +2235,7 @@
     }
 
     .studio-panel {
-        padding: 76px 54px;
+        padding: var(--space-10);
         box-sizing: border-box;
     }
 
@@ -2355,9 +2362,12 @@
         flex-direction: column;
     }
 
+    /* 390px: el nombre entra palabra por palabra (sin cortes a mitad de palabra). */
     .hero-name {
-        font-size: clamp(54px, 19vw, 82px);
-        line-height: .88;
+        font-size: clamp(40px, 13vw, 64px);
+        line-height: .9;
+        overflow-wrap: break-word;
+        hyphens: auto;
     }
 
     .hero-styles {
@@ -2485,5 +2495,367 @@
 @media (max-width: 340px) {
     .gallery-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================================
+   Figma final 801:1108 · "Perfil público - Artista y portafolio" (oct 2026)
+   Ajustes sobre la composición 344:1184: mismos bloques, con la franja de
+   estilos, residencias, chips, slots vacíos y barra de acción del frame final.
+   ========================================================================== */
+
+/* La grilla del contenido no estira sus filas cuando la ventana es más alta
+   que la página (capturas full-height, monitores verticales). */
+#profile-content {
+    align-content: start;
+}
+
+/* `.wo-app a` (DS) tiene más especificidad que `.wo-btn`: los botones-enlace
+   del perfil recuperan el color de su variante. */
+.public-profile-view a.wo-btn {
+    color: var(--action-primary-fg);
+}
+
+.public-profile-view a.wo-btn--accent,
+.public-profile-view a.wo-btn--accent:hover {
+    color: var(--action-accent-fg);
+}
+
+.public-profile-view a.wo-btn--ghost,
+.public-profile-view a.wo-btn--ghost:hover {
+    color: var(--action-ghost-fg);
+}
+
+/* Retrato sin foto: slot punteado con ícono de imagen. */
+.avatar-placeholder {
+    gap: 5px;
+    padding: var(--space-3);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: var(--weight-semibold, 600);
+}
+
+.avatar-placeholder::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: var(--border-hairline) dashed color-mix(in srgb, var(--ink) 35%, transparent);
+    pointer-events: none;
+}
+
+.avatar-placeholder [data-wo-icon] {
+    width: 28px;
+    height: 28px;
+    color: color-mix(in srgb, var(--ink) 75%, transparent);
+}
+
+/* Franja de estilos: filete superior ink, sin filete inferior; cada estilo
+   cierra con su divisor de arena, también el último. */
+.hero-styles {
+    border-bottom: 0;
+}
+
+.hero-styles .style-tag:last-child {
+    border-right: var(--border-hairline) solid var(--sand-350);
+}
+
+/* Reseñas: enlace subrayado (no caja) y citas con el autor pegado al texto. */
+.reviews-all-link {
+    margin-top: var(--space-5);
+    padding: 0 0 5px;
+    border: 0;
+    border-bottom: var(--border-strong-width) solid var(--ink);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+}
+
+.reviews-all-link:hover {
+    transform: none;
+    box-shadow: none;
+    color: var(--blue-300);
+    border-bottom-color: var(--blue-300);
+}
+
+.reviews-cards {
+    align-items: start;
+}
+
+.review-quote-card {
+    justify-content: flex-start;
+    gap: 0;
+}
+
+/* Próximas residencias: filete ink, ciudad + PAÍS en línea. */
+.presence-table {
+    border-top: var(--border-strong-width) solid var(--ink);
+}
+
+.presence-row {
+    min-height: 0;
+    padding: var(--space-6) 0 25px;
+}
+
+.presence-place {
+    gap: 18px;
+    align-items: center;
+}
+
+.presence-tri {
+    width: 21px;
+    height: 20px;
+}
+
+.presence-city {
+    line-height: 1;
+}
+
+.presence-country {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--neutral-400);
+    white-space: nowrap;
+}
+
+.presence-when {
+    gap: 22px;
+}
+
+.presence-table .presence-badge {
+    padding: 5px 10px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+}
+
+/* Portafolio · chips. Entrada: contorno ink sobre crema ("Todo" nunca se
+   resalta). Grilla: blancos y el activo amarillo con sombra dura de 3px. */
+.portfolio-intro-chips .gallery-chip {
+    background: transparent;
+    border-color: var(--ink);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+}
+
+.portfolio-intro-chips .gallery-chip.is-active {
+    background: transparent;
+    font-weight: var(--weight-regular);
+}
+
+.portfolio-intro-chips .gallery-chip.is-active:not([data-gallery-filter="todos"]) {
+    background: var(--ink);
+    color: var(--neutral-100);
+}
+
+.gallery-band .gallery-chip {
+    min-height: 36px;
+    padding: 0 14px;
+    background: var(--white);
+    border-color: var(--neutral-500);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--neutral-500);
+}
+
+.gallery-band .gallery-chip.is-active {
+    background: var(--yellow-300);
+    box-shadow: 3px 3px 0 var(--neutral-500);
+    font-weight: var(--weight-bold);
+}
+
+.gallery-band .gallery-chip.is-active:active {
+    box-shadow: none;
+}
+
+/* Portafolio · celda vacía = slot de imagen del Figma. */
+.gallery-image-item.is-placeholder {
+    background: var(--sand-050);
+    border: var(--border-hairline) dashed color-mix(in srgb, var(--neutral-500) 35%, transparent);
+}
+
+.gallery-slot-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: var(--space-3);
+    font-size: 13px;
+    font-weight: var(--weight-semibold, 600);
+    color: color-mix(in srgb, var(--neutral-500) 75%, transparent);
+    text-align: center;
+}
+
+.gallery-slot-empty [data-wo-icon] {
+    width: 28px;
+    height: 28px;
+}
+
+/* Banda roja: chips de mes del Figma (contorno crema, mono 12). */
+.cta-month {
+    padding: 13px 19px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+}
+
+.cta-copy {
+    max-width: 460px;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Barra de acción: punto circular, cotización discreta y reserva amarilla. */
+.actionbar-identity {
+    gap: 14px;
+}
+
+.actionbar-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-pill);
+}
+
+.actionbar-actions {
+    gap: 10px;
+}
+
+.public-profile-view .actionbar-quiet-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 15px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.08em;
+    color: color-mix(in srgb, var(--neutral-100) 60%, transparent);
+}
+
+.public-profile-view .profile-actionbar .actionbar-btn {
+    gap: var(--space-2);
+    min-height: 36px;
+    padding: 0 15px;
+    background: var(--action-accent);
+    border: var(--border-hairline) solid var(--neutral-500);
+    color: var(--action-accent-fg);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+}
+
+.public-profile-view .profile-actionbar a.actionbar-btn:hover {
+    background: var(--action-accent-hover);
+    border-color: var(--neutral-500);
+    color: var(--action-accent-fg);
+}
+
+.profile-actionbar .actionbar-btn [data-wo-icon] {
+    width: 14px;
+    height: 14px;
+}
+
+/* El margen de los chips de la grilla (.gallery-chips) no aplica a la entrada. */
+.portfolio-intro-grid .portfolio-intro-chips {
+    margin: 0;
+}
+
+@media (min-width: 1280px) {
+    .hero-styles .style-tag {
+        font-size: 19px;
+    }
+
+    /* Entrada de portafolio: 138px, título y chips alineados abajo (chips 6px arriba). */
+    .portfolio-intro-band {
+        min-height: 0;
+        padding-block: 40px 42px;
+    }
+
+    .portfolio-intro-grid {
+        min-height: 0;
+    }
+
+    .portfolio-intro-grid .portfolio-intro-chips {
+        padding-bottom: 6px;
+    }
+
+    .statcell:last-child {
+        border-right: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 20%, transparent);
+    }
+
+    .portfolio-intro-chips .gallery-chip {
+        min-height: 34px;
+        padding: 0 15px;
+    }
+
+    .review-quote-card {
+        padding: 34px 30px;
+    }
+
+    .presence-city {
+        font-size: 38px;
+    }
+
+    .cta-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        align-items: center;
+        gap: 48px;
+        padding-right: 92px;
+    }
+
+    .cta-actions {
+        gap: var(--space-6);
+    }
+
+    .cta-title {
+        line-height: 0.94;
+    }
+
+    .profile-actionbar-inner {
+        min-height: 0;
+        padding-block: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .presence-place {
+        flex-wrap: wrap;
+        gap: 10px 14px;
+    }
+}
+
+/* ============================================================================
+   Corrección ronda 1 · auditoría 801:1108 (oct 2026)
+   CTA del hero y de la banda roja con las medidas del Figma (344:1344/1349 y
+   344:1638): alto 52, aire lateral 29.6, Inter Bold 14 con +1.12px y 8px
+   entre texto y flecha. El botón amarillo de la banda roja lleva borde
+   neutral-500 (#24211d), como en el mock.
+   ========================================================================== */
+.hero-cta-row {
+    gap: 14px;
+}
+
+.hero-cta-row .wo-btn,
+.cta-actions .cta-btn {
+    gap: var(--space-2);
+    min-height: 52px;
+    height: 52px;
+    padding-block: 0;
+    padding-inline: 29.6px;
+    border-width: var(--border-hairline);
+    font-size: var(--button-m-size);
+    letter-spacing: 0.08em;
+}
+
+.public-profile-view .cta-actions a.cta-btn,
+.public-profile-view .cta-actions a.cta-btn:hover {
+    border-color: var(--neutral-500);
+}
+
+@media (max-width: 480px) {
+    .hero-cta-row .wo-btn,
+    .cta-actions .cta-btn {
+        padding-inline: var(--space-4);
     }
 }

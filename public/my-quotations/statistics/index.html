@@ -18,8 +18,8 @@
     <script src="/shared/js/ds/site-components.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js (versión fija: la página usa la API v4, p. ej. scales.x.border) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -28,6 +28,8 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/profile-public-repo.js"></script>
+    <script src="/shared/js/statistics-format.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -44,18 +46,20 @@
         logout-handler="handleStatsLogout">
     </weotzi-product-nav>
 
-    <main class="qadmin-main">
+    <!-- Figma final 801:543 "Estadísticas - Actividad y conversión" -->
+    <main class="qadmin-main stats-main">
         <section class="stats-hero">
             <div class="stats-hero-row">
                 <div class="stats-hero-main">
-                    <p class="q-hero-eyebrow" id="stats-eyebrow">Estadísticas</p>
+                    <p class="q-hero-eyebrow" id="stats-eyebrow">ESTADÍSTICAS</p>
                     <h1 class="stats-title">Tu negocio en We Ötzi</h1>
+                    <!-- Dentro del bloque principal: en móvil el botón queda después de la bajada. -->
+                    <p class="q-hero-sub">Un vistazo rápido a cómo está creciendo tu actividad, para después entrar en el detalle de cada métrica.</p>
                 </div>
                 <button type="button" class="q-hero-btn" id="export-report-btn">
-                    <i data-wo-icon="share" aria-hidden="true"></i>Exportar informe
+                    <i data-wo-icon="external-link" aria-hidden="true"></i>Exportar informe
                 </button>
             </div>
-            <p class="q-hero-sub">Un vistazo rápido a cómo está creciendo tu actividad, para después entrar en el detalle de cada métrica.</p>
         </section>
 
         <div class="stats-rule" role="presentation"></div>
@@ -136,7 +140,7 @@
             </section>
 
             <!-- Rendimiento del perfil -->
-            <section class="stats-section" aria-labelledby="performance-title">
+            <section class="stats-section stats-section--performance" aria-labelledby="performance-title">
                 <h2 class="stats-h2" id="performance-title">Rendimiento del perfil</h2>
                 <div class="perf-grid">
                     <div class="perf-col">

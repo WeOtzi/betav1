@@ -28,10 +28,10 @@ const ARTIST_PUBLIC_FIELDS_LEGACY = [
 
 const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items`;
 
-// Figma: grilla de 3 columnas con 12 slots; nunca menos de 9 (3 filas llenas).
+// Figma 801:1108: grilla de 3 columnas (4 filas en el frame). Nunca menos de 9
+// celdas; con más obras se muestran todas (la galería aparte /artist/profile/gallery
+// se retira, así que el perfil es el único lugar público del portafolio).
 const MIN_GALLERY_SLOTS = 9;
-const MAX_GALLERY_SLOTS = 12;
-const GALLERY_PLACEHOLDER_SRC = '/shared/assets/placeholders/gallery-default.svg';
 const REVIEW_QUOTE_COUNT = 3;
 const GALLERY_ALL_FILTER = 'todos';
 // Tope de la primera oración de la bio para promoverla a titular-manifiesto.
@@ -70,7 +70,7 @@ const PRESENCE_BADGES = {
 // Rotación cromática del DS para tablas/listas tipográficas (rojo · azul · ink).
 const SPECIALTY_COLORS = ['var(--red-300)', 'var(--blue-300)', 'var(--yellow-300)', 'var(--ink)'];
 const CITY_TONES = ['red', 'blue', 'ink'];
-const REVIEW_AVATAR_COLORS = ['var(--ink)', 'var(--red-300)', 'var(--blue-300)'];
+const REVIEW_AVATAR_COLORS = ['var(--ink)', 'var(--red-300)', 'var(--blue-400)'];
 // Figma: triángulo de color rotando rojo → azul → amarillo por fila de residencia.
 const PRESENCE_TONES = ['red', 'blue', 'yellow'];
 const SPECIALTY_DESCRIPTIONS = {
@@ -89,6 +89,7 @@ const GALLERY_CATEGORY_LABELS = {
 let artistData = null;
 let studioData = null;
 let tattooLocations = [];
+let travelPresences = [];
 let publicProfilePreferences = {
     privacy: { show_city: true, show_rating: true, show_socials: true, allow_search_indexing: false },
     profile: {},
@@ -168,21 +169,28 @@ function getQuotationFormUrl() {
     return `/quotation?artist=${encodeURIComponent(username)}`;
 }
 
-function getGalleryFeedUrl() {
-    const username = artistData?.username || '';
-    return `/artist/profile/gallery?artist=${encodeURIComponent(username)}`;
-}
-
 // `years_experience` viene como rango ("0-1", "5-10", "10+") o número suelto.
 // El statstrip lo muestra crudo; la ficha lateral lo lee como "X años".
 function formatExperienceStat(value) {
     return String(value || '').trim();
 }
 
+// Figma 344:1391: "8 años tatuando".
 function formatExperienceFact(value) {
+    if (window.ArtistProfilePresentation?.formatExperienceFact) {
+        return window.ArtistProfilePresentation.formatExperienceFact(value);
+    }
     const raw = formatExperienceStat(value);
     if (!raw) return '';
-    return /años/i.test(raw) ? raw : `${raw} años`;
+    return /años/i.test(raw) ? raw : `${raw} años tatuando`;
+}
+
+// Figma 344:1401: "$180 USD".
+function formatSessionPriceFact(value) {
+    if (window.ArtistProfilePresentation?.formatSessionPriceFact) {
+        return window.ArtistProfilePresentation.formatSessionPriceFact(value);
+    }
+    return String(value || '').trim();
 }
 
 function getLocationParts(data) {
@@ -210,6 +218,7 @@ function normalizeTattooLocationRecord(record) {
         period_type: record?.period_type === 'upcoming' ? 'upcoming' : 'current',
         studio_name: (record?.studio_name || '').trim(),
         city: normalizeCityName(record?.city),
+        country: String(record?.country || '').trim(),
         agenda_status: PRESENCE_BADGES[agenda] ? agenda : 'open',
         start_date: record?.start_date || '',
         end_date: record?.end_date || '',
@@ -311,9 +320,10 @@ async function loadArtistData(username) {
         }
 
         artistData = artist;
-        [tattooLocations, studioData, publicProfilePreferences, publicProfileMetrics] = await Promise.all([
+        [tattooLocations, travelPresences, studioData, publicProfilePreferences, publicProfileMetrics] = await Promise.all([
             loadArtistTattooLocations(artist.user_id),
-            loadArtistStudio(artist.studio_id),
+            loadTravelPresences(artist.user_id),
+            loadArtistStudio(artist.studio_id, artist.user_id),
             loadPublicProfilePreferences(artist.user_id),
             loadPublicProfileMetrics(searchUsername)
         ]);
@@ -321,7 +331,7 @@ async function loadArtistData(username) {
         populateProfile();
         hideLoading();
         showContent();
-        void renderArtistReviews();
+        void renderArtistReviews().then(applyProfileUrlState);
 
         // Structured funnel telemetry (fire-and-forget, one event/hour).
         trackProfileEvent('profile_view').catch(() => { /* noop */ });
@@ -359,12 +369,11 @@ async function loadPublicProfilePreferences(artistUserId) {
         profile: {},
         availability: {}
     };
-    if (!artistUserId || !_supabase?.rpc) return fallback;
+    if (!artistUserId || !WeotziData?.ProfilePublic?.getPreferences) return fallback;
     try {
-        const { data, error } = await _supabase.rpc('get_artist_public_profile_preferences', {
-            p_artist_user_id: artistUserId
-        });
-        if (error || !data || typeof data !== 'object') return fallback;
+        // RPC security-definer `get_artist_public_profile_preferences` vía el repo del área.
+        const data = await WeotziData.ProfilePublic.getPreferences(artistUserId);
+        if (!data || typeof data !== 'object') return fallback;
         return {
             privacy: { ...fallback.privacy, ...(data.privacy || {}) },
             profile: data.profile && typeof data.profile === 'object' ? data.profile : {},
@@ -436,16 +445,11 @@ function setupPortfolioAnalytics() {
 }
 
 async function loadArtistTattooLocations(artistUserId) {
-    if (!artistUserId) return getLegacyTattooLocations();
+    if (!artistUserId || !WeotziData?.ProfilePublic?.listResidencies) return getLegacyTattooLocations();
 
     try {
-        const { data, error } = await WeotziData.ArtistLocations.listByArtistUserId(artistUserId, 'id, period_type, studio_name, city, agenda_status, start_date, end_date, sort_order');
-
-        if (error) {
-            console.error('Error loading tattoo locations:', error);
-            return getLegacyTattooLocations();
-        }
-
+        // Incluye `country` cuando la migración 20261028160000 está aplicada.
+        const data = await WeotziData.ProfilePublic.listResidencies(artistUserId);
         const list = Array.isArray(data) ? data.map(normalizeTattooLocationRecord) : [];
         if (!list.length) return getLegacyTattooLocations();
 
@@ -462,9 +466,17 @@ async function loadArtistTattooLocations(artistUserId) {
     }
 }
 
+// Viajes confirmados de Travel (proyección pública): completan "Próximas
+// residencias" con ciudad, país y fechas.
+async function loadTravelPresences(artistUserId) {
+    if (!artistUserId || !WeotziData?.ProfilePublic?.listTravelPresences) return [];
+    return WeotziData.ProfilePublic.listTravelPresences(artistUserId);
+}
+
 // Estudio del artista + tamaño del roster (único dato de la fila del Figma con
-// fuente real; AMBIENTE y ACCESOS no existen como columnas).
-async function loadArtistStudio(studioId) {
+// fuente real; AMBIENTE y ACCESOS no existen como columnas). El artista del
+// perfil cuenta como residente aunque su vínculo sea solo `studio_id`.
+async function loadArtistStudio(studioId, artistUserId) {
     if (!studioId || !WeotziData?.Studios?.getById) return null;
 
     try {
@@ -474,13 +486,16 @@ async function loadArtistStudio(studioId) {
         );
         if (error || !studio) return null;
 
-        let rosterCount = 0;
+        let roster = [];
         try {
-            const { data: roster } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
-            rosterCount = Array.isArray(roster) ? roster.length : 0;
+            const result = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
+            roster = Array.isArray(result?.data) ? result.data : [];
         } catch (rosterError) {
             console.warn('Studio roster unavailable:', rosterError);
         }
+        const rosterCount = window.ArtistProfilePresentation?.studioRosterCount
+            ? window.ArtistProfilePresentation.studioRosterCount(roster, artistUserId)
+            : Math.max(roster.length, artistUserId ? 1 : 0);
 
         return { ...studio, rosterCount };
     } catch (error) {
@@ -531,8 +546,6 @@ function populateProfile() {
         else heroBand.style.removeProperty('--profile-banner-image');
     }
 
-    renderPublicSocials(privacy, profileExtras);
-
     const verifiedIcon = document.getElementById('artist-verified-icon');
     if (verifiedIcon) {
         verifiedIcon.hidden = artistData.verification_state !== 'Yes';
@@ -561,33 +574,6 @@ function safePublicHttpUrl(value) {
     } catch (_) {
         return '';
     }
-}
-
-function socialProfileUrl(provider, value) {
-    const handle = String(value || '').trim().replace(/^@+/, '');
-    if (!handle) return '';
-    if (provider === 'instagram') return `https://www.instagram.com/${encodeURIComponent(handle)}`;
-    if (provider === 'tiktok') return `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
-    return '';
-}
-
-function renderPublicSocials(privacy, profileExtras) {
-    const container = document.getElementById('hero-socials');
-    if (!container) return;
-    if (privacy.show_socials === false) {
-        container.hidden = true;
-        container.innerHTML = '';
-        return;
-    }
-    const links = [
-        ['Instagram', socialProfileUrl('instagram', artistData?.instagram)],
-        ['TikTok', socialProfileUrl('tiktok', profileExtras?.tiktok)],
-        ['Sitio web', safePublicHttpUrl(artistData?.portafolio)]
-    ].filter((entry) => entry[1]);
-    container.hidden = !links.length;
-    container.innerHTML = links.map(([label, url]) => `
-        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)} ↗</a>
-    `).join('');
 }
 
 /**
@@ -726,7 +712,7 @@ function markLeadStatcell() {
 function renderSobreFacts() {
     const experience = formatExperienceFact(artistData?.years_experience);
     const languages = Array.isArray(artistData?.languages) ? artistData.languages.filter(Boolean) : [];
-    const price = String(artistData?.session_price || '').trim();
+    const price = formatSessionPriceFact(artistData?.session_price);
 
     toggleFact('fact-experience', 'display-experience-fact', experience);
     toggleFact('fact-languages', 'display-languages', languages.length ? languages.join(' · ') : '');
@@ -844,10 +830,20 @@ function renderStudio() {
 }
 
 /**
- * Portafolio: una sola tabla de trabajos con chips de filtro. Los chips filtran
- * por categoría de `gallery_feed_items` (dato real); el filtrado por estilo del
- * Figma necesitaría etiquetar cada imagen con su estilo.
+ * Portafolio: una sola grilla de trabajos con chips de filtro por estilo
+ * (Figma 801:1108). El estilo de cada obra sale de `styles[]`/`style` o de su
+ * categoría cuando no es una categoría de galería (realizados/flash/proyectos).
  */
+function galleryStylesOf(raw) {
+    if (window.ArtistProfilePresentation?.galleryItemStyles) {
+        return window.ArtistProfilePresentation.galleryItemStyles(raw, GALLERY_CATEGORY_LABELS);
+    }
+    return (Array.isArray(raw?.styles) ? raw.styles : [raw?.style, raw?.style_name])
+        .filter(Boolean)
+        .map((style) => String(style).trim())
+        .filter(Boolean);
+}
+
 function normalizeGalleryItems() {
     const items = [];
     const seen = new Set();
@@ -860,10 +856,7 @@ function normalizeGalleryItems() {
             : 'realizados';
         const key = String(raw?.id || raw?.key || url.split('?')[0].split('/').pop() || `work-${items.length + 1}`);
         const title = String(raw?.title || raw?.name || `${GALLERY_CATEGORY_LABELS[category]} ${items.length + 1}`);
-        const styles = (Array.isArray(raw?.styles) ? raw.styles : [raw?.style, raw?.style_name])
-            .filter(Boolean)
-            .map((style) => String(style).trim())
-            .filter(Boolean);
+        const styles = galleryStylesOf(raw);
         const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
         items.push({ url, key, title, category, styles, filterValues, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
         seen.add(url);
@@ -876,10 +869,7 @@ function normalizeGalleryItems() {
             const raw = typeof entry === 'object' && entry ? entry : {};
             const key = String(raw.id || raw.key || url.split('?')[0].split('/').pop() || `work-${items.length + 1}`);
             const title = String(raw.title || raw.name || `Trabajo ${items.length + 1}`);
-            const styles = (Array.isArray(raw.styles) ? raw.styles : [raw.style, raw.style_name])
-                .filter(Boolean)
-                .map((style) => String(style).trim())
-                .filter(Boolean);
+            const styles = galleryStylesOf(raw);
             const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
             items.push({ url, key, title, category: 'realizados', styles, filterValues, kind: isUrlVideo(url) ? 'video' : 'image' });
             seen.add(url);
@@ -894,30 +884,33 @@ function getVisibleGalleryItems() {
     return galleryItems.filter((item) => item.category === galleryFilter || item.filterValues?.includes(galleryFilter));
 }
 
+/**
+ * Dos grupos de chips sincronizados (Figma 801:1108): la entrada de portafolio
+ * ("Todo", en contorno) y la grilla ("Todos", el activo en amarillo con sombra
+ * dura). Ambos filtran la misma grilla.
+ */
 function renderGalleryChips() {
     const containers = ['portfolio-intro-chips', 'gallery-chips']
         .map((id) => document.getElementById(id))
         .filter(Boolean);
     if (!containers.length) return;
 
-    const options = window.ArtistProfilePresentation?.buildPortfolioFilterOptions
+    let options = window.ArtistProfilePresentation?.buildPortfolioFilterOptions
         ? window.ArtistProfilePresentation.buildPortfolioFilterOptions(galleryItems, GALLERY_CATEGORY_LABELS)
         : [{ value: GALLERY_ALL_FILTER, label: 'Todos' }];
     if (options.length < 2) {
-        containers.forEach((chips) => {
-            chips.hidden = false;
-            chips.innerHTML = '<button type="button" class="gallery-chip is-active" data-gallery-filter="todos" aria-pressed="true">Todos</button>';
-        });
+        options = [{ value: GALLERY_ALL_FILTER, label: 'Todos' }];
         galleryFilter = GALLERY_ALL_FILTER;
-        return;
     }
 
-    const markup = options.map((option) => `
-        <button type="button" class="gallery-chip${option.value === galleryFilter ? ' is-active' : ''}" data-gallery-filter="${escapeHtml(option.value)}" aria-pressed="${option.value === galleryFilter}">${escapeHtml(option.label)}</button>
-    `).join('');
     containers.forEach((chips) => {
+        const isIntro = chips.id === 'portfolio-intro-chips';
         chips.hidden = false;
-        chips.innerHTML = markup;
+        chips.innerHTML = options.map((option) => {
+            const active = option.value === galleryFilter;
+            const label = isIntro && option.value === GALLERY_ALL_FILTER ? 'Todo' : option.label;
+            return `<button type="button" class="gallery-chip${active ? ' is-active' : ''}" data-gallery-filter="${escapeHtml(option.value)}" aria-pressed="${active}">${escapeHtml(label)}</button>`;
+        }).join('');
     });
 }
 
@@ -930,16 +923,12 @@ function renderGallery() {
 function renderGalleryGrid() {
     const galleryGrid = document.getElementById('gallery-grid');
     const galleryEmpty = document.getElementById('gallery-empty');
-    const viewAllBtn = document.getElementById('gallery-view-all-btn');
     if (!galleryGrid) return;
 
     const visible = getVisibleGalleryItems();
     if (galleryEmpty) galleryEmpty.style.display = visible.length ? 'none' : 'block';
 
-    const slotCount = Math.min(
-        MAX_GALLERY_SLOTS,
-        Math.max(MIN_GALLERY_SLOTS, Math.ceil(visible.length / 3) * 3)
-    );
+    const slotCount = Math.max(MIN_GALLERY_SLOTS, Math.ceil(visible.length / 3) * 3);
 
     let html = '';
     for (let index = 0; index < slotCount; index += 1) {
@@ -954,32 +943,54 @@ function renderGalleryGrid() {
                 </button>
             `;
         } else {
+            // Celda vacía con el slot de imagen del Figma (borde punteado + ícono).
             html += `
                 <div class="gallery-image-item is-placeholder" aria-hidden="true">
-                    <img src="${GALLERY_PLACEHOLDER_SRC}" alt="" loading="lazy" width="1200" height="800">
-                    <span class="gallery-placeholder-meta"><span>Disponible</span><span>Slot libre</span></span>
+                    <span class="gallery-slot-empty"><i data-wo-icon="image"></i><span>Foto de portafolio</span></span>
                 </div>
             `;
         }
     }
 
     galleryGrid.innerHTML = html;
-
-    if (viewAllBtn) {
-        viewAllBtn.style.display = galleryItems.length ? 'inline-flex' : 'none';
-    }
 }
 
 /**
  * Próximas residencias: una sola tabla (sin separar actual/próximo). La línea
  * secundaria usa el nombre del estudio — `artist_tattoo_locations` no guarda país.
  */
+/**
+ * Próximas residencias (Figma 801:1108): ciudad + PAÍS en línea, fechas y
+ * estado. Une `artist_tattoo_locations` con los viajes confirmados de Travel.
+ * El estudio queda como tooltip de la fila (el diseño no lo muestra).
+ */
+function getResidencyRows() {
+    const base = getLocationParts(artistData);
+    if (window.ArtistProfilePresentation?.buildResidencyRows) {
+        return window.ArtistProfilePresentation.buildResidencyRows(tattooLocations, travelPresences, {
+            base: { city: base.city, country: base.country }
+        });
+    }
+    return tattooLocations.map((location) => {
+        const badge = resolvePresenceBadge(location);
+        return {
+            city: location.city || location.studio_name || '-',
+            country: location.country || '',
+            venue: location.city ? location.studio_name : '',
+            dates: formatResidencyRange(location.start_date, location.end_date),
+            state: badge.state,
+            label: badge.label
+        };
+    });
+}
+
 function renderPresence() {
     const band = document.getElementById('presence-band');
     const table = document.getElementById('presence-table');
     if (!band || !table) return;
 
-    if (!tattooLocations.length) {
+    const rows = getResidencyRows();
+    if (!rows.length) {
         band.hidden = true;
         table.innerHTML = '';
         return;
@@ -988,24 +999,21 @@ function renderPresence() {
     band.hidden = false;
     const quoteFormUrl = getQuotationFormUrl();
 
-    table.innerHTML = tattooLocations.map((location, index) => {
-        const badge = resolvePresenceBadge(location);
-        const dates = formatResidencyRange(location.start_date, location.end_date);
-        const badgeHtml = badge.state === 'open'
-            ? `<a class="presence-badge" data-state="open" href="${escapeHtml(quoteFormUrl)}">${escapeHtml(badge.label)}</a>`
-            : `<span class="presence-badge" data-state="${escapeHtml(badge.state)}">${escapeHtml(badge.label)}</span>`;
+    table.innerHTML = rows.map((row, index) => {
+        const badgeHtml = row.state === 'open'
+            ? `<a class="presence-badge" data-state="open" href="${escapeHtml(quoteFormUrl)}">${escapeHtml(row.label)}</a>`
+            : `<span class="presence-badge" data-state="${escapeHtml(row.state)}">${escapeHtml(row.label)}</span>`;
+        const venueTitle = row.venue ? ` title="${escapeHtml(row.venue)}"` : '';
 
         return `
-            <div class="presence-row">
+            <div class="presence-row"${venueTitle}>
                 <div class="presence-place">
                     <span class="presence-tri" data-tone="${PRESENCE_TONES[index % PRESENCE_TONES.length]}" aria-hidden="true"></span>
-                    <div>
-                        <p class="presence-city">${escapeHtml(location.city || location.studio_name || '-')}</p>
-                        ${location.city && location.studio_name ? `<p class="presence-venue">${escapeHtml(location.studio_name)}</p>` : ''}
-                    </div>
+                    <p class="presence-city">${escapeHtml(row.city || '-')}</p>
+                    ${row.country ? `<span class="presence-country">${escapeHtml(row.country)}</span>` : ''}
                 </div>
                 <div class="presence-when">
-                    ${dates ? `<span class="presence-dates">${escapeHtml(dates)}</span>` : ''}
+                    ${row.dates ? `<span class="presence-dates">${escapeHtml(row.dates)}</span>` : ''}
                     ${badgeHtml}
                 </div>
             </div>
@@ -1014,8 +1022,8 @@ function renderPresence() {
 }
 
 /**
- * "Dónde tatué": ciudades únicas del artista (base + residencias cargadas),
- * en bloque tipográfico con colores alternados.
+ * "Dónde tatué": ciudad base + lugares donde ya tatuó (ubicaciones vigentes y
+ * viajes de Travel ya iniciados), en bloque tipográfico con colores alternados.
  */
 function renderCities() {
     const band = document.getElementById('cities-band');
@@ -1029,17 +1037,10 @@ function renderCities() {
     }
 
     const location = getLocationParts(artistData);
-    const cities = [];
-    const seen = new Set();
-
-    for (const candidate of [location.city, ...tattooLocations.map((item) => item.city)]) {
-        const city = normalizeCityName(candidate);
-        if (!city || city === '-') continue;
-        const key = city.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        cities.push(city);
-    }
+    const cities = window.ArtistProfilePresentation?.buildVisitedCities
+        ? window.ArtistProfilePresentation.buildVisitedCities(location.city, tattooLocations, travelPresences)
+        : [location.city, ...tattooLocations.map((item) => normalizeCityName(item.city))]
+            .filter((city, index, list) => city && city !== '-' && list.indexOf(city) === index);
 
     if (!cities.length) {
         band.hidden = true;
@@ -1206,12 +1207,14 @@ async function renderArtistReviews() {
 
         const cards = document.getElementById('reviews-cards');
         if (cards) {
+            // Figma 344:1510-1542: avatar cuadrado · circular · cuadrado (ink, rojo,
+            // azul) y el autor en dos líneas (nombre arriba, país · año debajo).
             cards.innerHTML = quotes.map((review, index) => `
                 <article class="review-quote-card">
                     <p class="review-quote-text">“${escapeHtml(review.comment || '')}”</p>
                     <div class="review-quote-author">
-                        <span class="review-quote-avatar" style="--review-avatar-bg: ${REVIEW_AVATAR_COLORS[index % REVIEW_AVATAR_COLORS.length]}" aria-hidden="true">${escapeHtml(getReviewInitials(review.reviewer_display_name))}</span>
-                        <span>
+                        <span class="review-quote-avatar${index % REVIEW_AVATAR_COLORS.length === 1 ? ' is-round' : ''}" style="--review-avatar-bg: ${REVIEW_AVATAR_COLORS[index % REVIEW_AVATAR_COLORS.length]}" aria-hidden="true">${escapeHtml(getReviewInitials(review.reviewer_display_name))}</span>
+                        <span class="review-quote-who">
                             <span class="review-quote-name">${escapeHtml(review.reviewer_display_name || 'Cliente verificado')}</span>
                             <span class="review-quote-meta">${escapeHtml(formatReviewMeta(review))}</span>
                         </span>
@@ -1222,6 +1225,20 @@ async function renderArtistReviews() {
     } catch (error) {
         console.error('Artist reviews render failed:', error);
         panel.hidden = true;
+    }
+}
+
+// Estados por URL para QA y enlaces directos: ?estilo=<estilo> filtra el
+// portafolio (ej. estilo=blackwork) · ?resenas=1 abre todas las reseñas.
+function applyProfileUrlState() {
+    const params = new URLSearchParams(window.location.search);
+    const style = window.ArtistProfilePresentation?.filterKey?.(params.get('estilo') || '') || '';
+    if (style) {
+        document.querySelector(`#gallery-chips [data-gallery-filter="${CSS.escape(style)}"]`)?.click();
+    }
+    const reviews = document.getElementById('artist-reviews');
+    if (params.get('resenas') === '1' && reviews?.hidden && !document.getElementById('artist-reviews-panel')?.hidden) {
+        toggleFullReviews();
     }
 }
 
@@ -1384,10 +1401,6 @@ function setupEventListeners() {
             }
         });
     }
-
-    document.getElementById('gallery-view-all-btn')?.addEventListener('click', () => {
-        window.location.href = getGalleryFeedUrl();
-    });
 
     document.getElementById('gallery-grid')?.addEventListener('click', handleGalleryActivation);
 

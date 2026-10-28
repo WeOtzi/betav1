@@ -17,7 +17,8 @@
 }
 
 .stats-hero-main { flex: 1 1 480px; min-width: 0; }
-.stats-hero .q-hero-eyebrow { margin-bottom: var(--space-2); }
+/* Figma 122:10699: "ESTADÍSTICAS · Julio 2026" tal cual (sin forzar mayúsculas), +1.44px. */
+.stats-hero .q-hero-eyebrow { margin-bottom: var(--space-2); text-transform: none; letter-spacing: 0.12em; }
 
 .stats-title {
     margin: 0;
@@ -127,37 +128,45 @@
     color: var(--text-faint);
 }
 
+/* Figma 122:10714…10769: todos los números en Archivo Black 40 (también
+   ingresos, que se compactan en JS: "US$4,9K"); alto fijo para que las
+   etiquetas de las seis tarjetas queden en la misma línea. */
 .kpi-value {
-    max-width: 100%;
+    max-width: none;
+    min-height: 40px;
     font-family: var(--font-display);
     font-size: 40px;
     line-height: 1;
+    white-space: nowrap;
     color: var(--surface-ink);
 }
 
 .kpi-card--money .kpi-value {
     color: var(--system-success);
-    font-size: clamp(26px, 13.5cqi, 40px);
 }
 
 .kpi-card--accent .kpi-value { color: var(--yellow-300); }
-.kpi-card--portfolio .kpi-value { color: var(--surface-ink); }
+.kpi-card--portfolio .kpi-value { color: var(--black); }
 .kpi-card--direct .kpi-value { color: var(--blue-300); }
 .kpi-card--alert .kpi-value { color: var(--red-300); }
 
+/* Figma 122:10715: flecha Feather de 12px + porcentaje en Mono 12. */
 .kpi-trend {
     position: absolute;
     top: 0;
     right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     font-family: var(--font-mono);
     font-size: var(--meta-m-size);
-    letter-spacing: .04em;
+    letter-spacing: 0;
 }
 
-.kpi-trend::before { content: "↗ "; }
+.kpi-trend [data-wo-icon] { display: inline-flex; width: 12px; height: 12px; flex: none; }
+.kpi-trend [data-wo-icon] svg { width: 100%; height: 100%; }
 .kpi-trend.trend-up { color: var(--system-success); }
 .kpi-trend.trend-down { color: var(--system-error); }
-.kpi-trend.trend-down::before { content: "↖ "; }
 .kpi-trend.trend-neutral { color: var(--text-faint); }
 
 /* ---------- Embudo ---------- */
@@ -311,26 +320,29 @@
 
 .perf-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
+/* Figma 122:10908: JetBrains Mono Regular 11 con +1.1px (sin la negrita del h3). */
 .perf-title {
     margin: 18px 0 0;
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: var(--meta-m-track);
+    font-weight: var(--weight-regular);
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--text-faint);
 }
 
 .perf-col > .perf-title:first-child { margin-top: 0; }
 
+/* Figma 122:11010: mitades iguales a 24px, 18px debajo de las ciudades. */
 .perf-lower-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
-    gap: var(--space-10);
-    padding-top: var(--space-4);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-6);
+    padding-top: 18px;
 }
 
 .perf-lower-grid > div { min-width: 0; }
-.perf-lower-grid .perf-title { margin-top: 0; }
+.perf-lower-grid .perf-title { margin: 0 0 12px; }
 .bar-list { display: flex; flex-direction: column; gap: 6px; }
 
 .bar-row {
@@ -345,6 +357,8 @@
 .bar-fill { display: block; height: 100%; }
 .bar-fill--accent { background: var(--yellow-300); }
 .bar-fill--direct { background: var(--blue-300); }
+#cities-list .bar-row { grid-template-columns: 110px minmax(0, 1fr) 22px; }
+#cities-list .bar-track { height: 14px; }
 
 .bar-count {
     font-family: var(--font-mono);
@@ -355,24 +369,26 @@
 
 .rank-list { display: flex; flex-direction: column; }
 
+/* Figma 122:11014: filas de ~29px (6px arriba, 7px abajo y filete). */
 .rank-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    padding: var(--space-2) 0;
+    padding: 6px 0 7px;
     border-bottom: var(--border-hairline) solid var(--border-subtle);
+    line-height: 16px;
 }
 
 .rank-label { font-size: 13px; color: var(--neutral-500); }
 .rank-value { font-size: 13px; font-weight: var(--weight-bold); color: var(--surface-ink); }
-.split-list { display: flex; flex-direction: column; gap: var(--space-3); }
-.split-row { display: flex; align-items: center; gap: var(--space-3); }
+.split-list { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-1); }
+.split-row { display: flex; align-items: center; gap: 10px; line-height: 16px; }
 .split-mark { width: 10px; height: 10px; flex: none; }
 .split-mark--direct { background: var(--blue-300); }
 .split-mark--accent { background: var(--yellow-300); }
 .split-label { flex: 1 1 auto; font-size: 13px; color: var(--neutral-500); }
-.split-value { font-size: 13px; font-weight: var(--weight-bold); color: var(--surface-ink); }
+.split-value { font-family: var(--font-mono); font-size: 13px; font-weight: var(--weight-bold); color: var(--surface-ink); }
 
 .ranked-work-list,
 .stats-activity { display: flex; flex-direction: column; }
@@ -388,6 +404,8 @@
 }
 
 .ranked-work-index { width: 20px; flex: none; }
+/* Figma 122:10917: contador de vistas en Mono 13 gris oscuro. */
+.ranked-work-meta b { font-size: 13px; color: var(--text-muted); }
 .ranked-work-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .ranked-work-main .bar-track { height: 6px; }
 .ranked-work-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -542,7 +560,10 @@
 
 @media (max-width: 480px) {
     .stats-hero .q-hero-btn { margin-top: 0; }
-    .kpi-row { grid-template-columns: 1fr; }
+    /* 390px: KPI en dos columnas compactas (no una pantalla y media de tarjetas). */
+    .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: var(--space-4); }
+    .kpi-card { min-height: 0; padding: var(--space-5) var(--space-4) var(--space-4); }
+    .kpi-value { min-height: 28px; }
     .funnel { grid-template-columns: 1fr; }
     .funnel-step { flex-direction: column; }
     .funnel-gap { width: 100%; flex-direction: row; gap: var(--space-2); padding: var(--space-1) 0; }
@@ -553,4 +574,194 @@
     .stats-tabs { gap: var(--space-4); }
     .stats-visitors-head { padding-top: 0; }
     .stats-visitors-table td { grid-template-columns: 96px minmax(0, 1fr); }
+}
+
+/* ============================================================================
+   Figma final 801:543 · "Estadísticas - Actividad y conversión" (oct 2026)
+   Main de 1280px con 48px de aire (contenido de 1184px) corrido como en el
+   frame (x=58 a 1440px); el filete de cabecera sobresale 48px a la derecha.
+   ========================================================================== */
+@media (min-width: 1025px) {
+    .stats-main {
+        max-width: 1280px;
+        padding: 0 48px 96px;
+    }
+
+    .stats-rule {
+        margin-right: -48px;
+    }
+}
+
+@media (min-width: 1324px) {
+    .stats-main {
+        margin-left: calc(50% - 662px);
+        margin-right: auto;
+    }
+}
+
+/* Cabecera: botón de exportar compacto (ícono 14px, Inter 12). */
+.stats-hero .q-hero-btn {
+    gap: var(--space-2);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+}
+
+.stats-hero .q-hero-btn [data-wo-icon] {
+    width: 14px;
+    height: 14px;
+}
+
+/* Embudo: la etiqueta de la primera etapa va en arena tenue, como el resto. */
+.funnel-tile--ink .funnel-label {
+    color: var(--text-faint);
+}
+
+.funnel-label {
+    letter-spacing: 0.08em;
+}
+
+/* Evolución: tablist con filete inferior y chips de métrica en mono 12; la
+   activa en amarillo con sombra dura de 3px. */
+#evolution-range {
+    gap: var(--space-6);
+    border-bottom: 1.6px solid var(--border-subtle);
+}
+
+#evolution-range .stats-tab {
+    margin-bottom: -1.6px;
+}
+
+#evolution-metrics .q-chip {
+    background: var(--white);
+    border: var(--border-hairline) solid var(--neutral-500);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--weight-regular);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--neutral-500);
+}
+
+#evolution-metrics .q-chip.is-active {
+    background: var(--yellow-300);
+    border-color: var(--neutral-500);
+    box-shadow: 3px 3px 0 var(--neutral-500);
+    font-weight: var(--weight-bold);
+}
+
+.evolution-delta.is-up {
+    color: var(--success-fg);
+}
+
+/* Rendimiento del perfil: 42px de aire sobre el título (Figma). */
+.stats-section--performance {
+    padding-top: 36px;
+}
+
+/* Actividad reciente: texto ink 14 y hora en mono 11 tenue. */
+.stats-activity-row {
+    font-size: 14px;
+    color: var(--ink);
+}
+
+.stats-activity-row time {
+    font-size: 11px;
+}
+
+.stats-activity-icon {
+    color: var(--neutral-500);
+}
+
+/* Oportunidades: filas blancas separadas por 2px, filete izquierdo fino. */
+.insight-list {
+    gap: 2px;
+}
+
+.insight-row {
+    align-items: flex-start;
+    gap: var(--space-3);
+    min-height: 0;
+    padding: 14px 16px 14px 18px;
+    border-left-width: var(--border-strong-width);
+    border-bottom: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--neutral-500);
+}
+
+.insight-row--blue {
+    border-left-color: var(--blue-400);
+}
+
+.insight-row--ink {
+    border-left-color: var(--neutral-500);
+}
+
+.insight-row [data-wo-icon] {
+    margin-top: 2px;
+    color: var(--neutral-500);
+}
+
+/* Visitantes: avatar azul de clientes, nombre + tipo en línea, ciudad debajo,
+   última visita en mono tenue y "—" alineado a la derecha. */
+.stats-visitor-avatar--client {
+    background: var(--blue-400);
+}
+
+.stats-visitor-name-line strong {
+    color: var(--ink);
+}
+
+.stats-visitor-type {
+    align-items: center;
+    min-height: 20px;
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+
+.stats-visitor-type--client {
+    color: var(--blue-300);
+}
+
+.stats-visitor-interests {
+    color: var(--neutral-500);
+}
+
+.stats-visitor-time time {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-faint);
+}
+
+.stats-visitors-table td:last-child {
+    text-align: right;
+}
+
+.stats-requested-empty {
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+@media (max-width: 768px) {
+    .stats-visitors-table td:last-child {
+        text-align: left;
+    }
+
+    .stats-section--performance {
+        padding-top: 0;
+    }
+}
+
+/* KPIs: la etiqueta va 8px debajo del número en todas las tarjetas (no al pie). */
+.stats-main .kpi-title {
+    margin-top: 0;
+}
+
+.stats-activity-row {
+    line-height: 1.25;
+}
+
+/* Embudo: 14px entre la bajada y las etapas (Figma). */
+.stats-main .funnel {
+    padding-top: 14px;
 }
