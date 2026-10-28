@@ -1,0 +1,227 @@
+{
+  "area": "calendario",
+  "frames": [
+    {
+      "node": "801:542",
+      "name": "Artista / Calendario - Vista mensual",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Tabs con divisor vertical, navegación de 35,2 px con chevrons Feather, búsqueda con ícono y borde tinta, leyenda en mono bold 12, grilla con bordes de 1,6 px, cabecera arena, días de otro mes atenuados y \"Próximos eventos\" sin sangría. Ronda 1: hoy en tinta con barra amarilla de 2,4 px del ancho del número (sin azul), contador \"+N\" calculado con todos los eventos del día (el 28/10 muestra +2), \"Nuevo evento\" con tracking de 1,12 px y texto #FAF8F3, barra de scroll visible, y agenda agrupada desde el primer día visible y con encabezados en mayúscula inicial.",
+      "figma_png": "output/figma-final-artista/frames/801-542_calendario-mensual.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-542.png",
+      "state_url": "/calendar/",
+      "fidelity": "alta",
+      "fidelity_notes": "Los datos son los del preview (octubre de 2026, relativos a hoy) y no el mural de julio del mockup. La opacidad de los días de otro mes usa --opacity-disabled (0,40) en lugar de 0,35. El \"+N\" (mono de 10 px) no aparece en el Figma porque ningún día del mockup tiene más de tres eventos. Arriba de la página el banner del preview agrega ~64 px. Debajo de la grilla sigue el footer compartido (<weotzi-product-footer>), que el frame no muestra (decisión transversal, ver notes)."
+    },
+    {
+      "node": "801:544",
+      "name": "Artista / Calendario - Vista semanal",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Cabeceras de día arena (hoy en amarillo), columna de horas de 56 px con separador tinta de 1,6 px, filas de 52,8 px con líneas arena de 0,8 px y bloques compactos (mono bold 9 + Inter 600 11); la solicitud pendiente lleva borde punteado. Ronda 1: los eventos de todo el día pasaron a una franja propia (\"Todo el día\") entre la cabecera y las 09:00, con elipsis visible. Ya no tapan los turnos de la mañana. Ronda 2: los bloques cortos ya no cortan el texto. calendar.js mide el alto real de cada bloque (también al cambiar el tamaño de la ventana) y elige un formato que entre: una sola línea \"09:30 Título…\" si no entran hora y título (30 min = 26,4 px), o el título recortado con elipsis en la última línea completa (el turno 18:30–19:15 queda en \"Sesión — Valentina…\").",
+      "figma_png": "output/figma-final-artista/frames/801-544_calendario-semanal.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-544.png",
+      "state_url": "/calendar/?view=week",
+      "fidelity": "alta",
+      "fidelity_notes": "Los bloques de una hora o más son iguales al Figma: hora en mono bold 9 y título en Inter 600 11, en las líneas que entren. El Figma no tiene turnos de menos de una hora: el formato de una línea para bloques cortos es una decisión propia, con la misma tipografía. Tampoco tiene eventos de todo el día: cuando la semana tiene alguno aparece la franja \"Todo el día\" (unos 35 px) y la grilla baja esa altura; sin ellos la grilla es idéntica al frame. En el Figma las etiquetas de hora (56,8 px) no coinciden con las filas (52,8 px); acá cada etiqueta queda alineada con su línea. El rótulo del período crece si la semana cruza meses (\"26 Octubre – 1 Noviembre\")."
+    },
+    {
+      "node": "801:545",
+      "name": "Artista / Calendario - Vista diaria",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Título del día en caja arena separada 8 px de la grilla (Archivo 32), filas de 65,6 px, separador tinta de 1,6 px en la columna de horas y bloque con 8 px de aire a cada lado; hora + tipo en mono bold 10, título Inter 600 14 y cliente. Ronda 1: los eventos de todo el día van en una franja propia arriba de las 09:00. Ronda 2: el turno de 30 min (32,8 px) pasa a una línea \"09:30 Pedir cartuchos 3RL\" en vez de cortar el título a la mitad; en el de 45 min (18:30–19:15) se oculta el cliente, que no entra, y quedan hora y título completos. Desde 1 h el bloque muestra hora, título y cliente como el Figma.",
+      "figma_png": "output/figma-final-artista/frames/801-545_calendario-diaria.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-545.png",
+      "state_url": "/calendar/?view=day",
+      "fidelity": "alta",
+      "fidelity_notes": "El bloque 11:00–14:00 del Figma se ve igual (hora · tipo, título y cliente). El formato de una línea para bloques cortos y el cliente oculto cuando no entra son decisiones propias: el Figma no tiene turnos cortos. Captura del caso corto: output/figma-final-artista/shots/calendario/801-545-30oct.png (/calendar/?view=day&date=2026-10-30). Mismo desfase de etiquetas de hora en el Figma (68,8 vs 65,6 px), resuelto alineando con las líneas. Con eventos de todo el día aparece la franja \"Todo el día\" (no está en el frame) y la grilla baja unos 36 px."
+    },
+    {
+      "node": "801:546",
+      "name": "Artista / Calendario - Nuevo evento - Elegir tipo",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Editor sin tipo elegido: espaciados del selector y de los botones ajustados al Figma, puntos de color propios del selector, botón Guardar deshabilitado en azul al 40 %, puntos en el minicalendario e íconos Feather. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-546_nuevo-evento-tipo.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-546.png",
+      "state_url": "/calendar/?new",
+      "fidelity": "exacta",
+      "fidelity_notes": "Diferencias solo de datos (fecha de hoy, puntos de días con eventos y la superposición real con los turnos del día). El minicalendario queda unos 2 px más arriba que en el Figma."
+    },
+    {
+      "node": "801:547",
+      "name": "Artista / Calendario - Nuevo turno con cliente",
+      "route": "/calendar",
+      "result": "estado-nuevo",
+      "summary": "Combobox \"Cotización a vincular *\" con búsqueda por cliente, proyecto o número, listbox agrupado, badges de estado, resumen de sesiones y teclado. Ronda 1: asterisco en el gris de la etiqueta, fecha en Inter 14 con ícono tinta, Cancelar y Guardar con borde de 1 px y Notas sin resize. Ronda 2: el link \"Crear cotización manual\" aparece una sola vez. Después de Guardar sin cotización va solo dentro del aviso de error (ya no se suma el párrafo fijo) y al elegir una cotización desaparece junto con el aviso. El párrafo fijo solo se ve si no hay ninguna cotización agendable. Con la lista cerrada solo se ven los avisos que piden atención: reserva pendiente (cotización sin aprobar), error de carga y turno heredado sin cotización. La confirmación \"Se agenda como sesión de <código>…\" queda como descripción accesible del campo y ya no se muestra. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44, fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-547_nuevo-turno.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-547.png",
+      "state_url": "/calendar/?new=turno&picker=open",
+      "fidelity": "alta",
+      "fidelity_notes": "En el preview todas las cotizaciones tienen el mismo cliente ficticio (\"Valentina · Preview\") y el listbox muestra primero cinco aprobadas, así que el grupo \"Sin aprobar\" queda abajo del scroll. Las opciones deshabilitadas usan --opacity-disabled (0,40) en lugar de 0,5. El estado cerrado no tiene frame. Capturas: cerrado con DEMO-D01 elegida (sin avisos ni link) en output/figma-final-artista/shots/calendario/801-547-closed.png, y Guardar sin cotización (un solo link, dentro del aviso) en output/figma-final-artista/shots/calendario/801-547-error.png. Las dos salen de /calendar/?new=turno con interacción: no tienen parámetro de URL propio."
+    },
+    {
+      "node": "801:548",
+      "name": "Artista / Calendario - Nueva reserva pendiente",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Cliente, fecha, hora, duración, ubicación (selects con chevron Feather), notas y 'La reserva ya está confirmada por el cliente'. Etiquetas en neutral-400, asterisco rojo y bordes tinta. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-548_nueva-reserva.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-548.png",
+      "state_url": "/calendar/?new=reserva",
+      "fidelity": "alta",
+      "fidelity_notes": "El resumen muestra el tipo elegido ('Reserva pendiente'); el Figma repite 'Turno con cliente' en todos los formularios."
+    },
+    {
+      "node": "801:549",
+      "name": "Artista / Calendario - Nueva disponibilidad",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Título, fecha, hora, 'Se repite' (semanal) y notas; fila de interruptor de 67 px como en el Figma. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-549_nueva-disponibilidad.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-549.png",
+      "state_url": "/calendar/?new=disponibilidad",
+      "fidelity": "alta",
+      "fidelity_notes": "Resumen con el tipo real (ver 801:548)."
+    },
+    {
+      "node": "801:550",
+      "name": "Artista / Calendario - Bloquear un día",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Motivo, fecha (media columna, sin hora mientras \"Todo el día\" está activo), interruptor y notas. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-550_bloquear-dia.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-550.png",
+      "state_url": "/calendar/?new=bloqueo",
+      "fidelity": "alta",
+      "fidelity_notes": "Desviación pendiente de diseño: el Figma dibuja el interruptor \"Todo el día\" apagado pero oculta \"Hora de inicio\". Acá arranca encendido (cuadrado a la derecha) para que el estado sea coherente; al apagarlo aparece la hora. Ver notes."
+    },
+    {
+      "node": "801:551",
+      "name": "Artista / Calendario - Nuevo guest spot",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Estudio (opcional, ícono maletín), fecha, hora, 'Todo el día' y notas. Se guarda como evento manual; los guest spots de Travel se muestran solo lectura y abren /artist/travel?trip=<id>. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-551_nuevo-guest-spot.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-551.png",
+      "state_url": "/calendar/?new=guest-spot",
+      "fidelity": "alta",
+      "fidelity_notes": "Resumen con el tipo real."
+    },
+    {
+      "node": "801:552",
+      "name": "Artista / Calendario - Nueva convención",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Nombre del evento, fecha, hora, 'Todo el día' y notas. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-552_nueva-convencion.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-552.png",
+      "state_url": "/calendar/?new=convencion",
+      "fidelity": "alta",
+      "fidelity_notes": "Resumen con el tipo real."
+    },
+    {
+      "node": "801:553",
+      "name": "Artista / Calendario - Nuevo recordatorio",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Título, fecha, hora, 'Se repite' y notas. Se guarda en artist_calendar_events (event_type reminder). Además el calendario muestra, solo lectura, los recordatorios del dashboard (artist_reminders) con fecha. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-553_nuevo-recordatorio.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-553.png",
+      "state_url": "/calendar/?new=recordatorio",
+      "fidelity": "alta",
+      "fidelity_notes": "Resumen con el tipo real."
+    },
+    {
+      "node": "801:554",
+      "name": "Artista / Calendario - Nuevo evento personal",
+      "route": "/calendar",
+      "result": "rediseñada",
+      "summary": "Título, fecha, hora, 'Todo el día' y notas. Ronda 1: fecha en Inter 14 con ícono tinta, botones con borde de 1 px y Notas sin agarrador de resize. Ronda 1 (común a 801:546…554): minicalendario con paso de 46 px entre semanas y día elegido de 44×44 (antes 37 px y 44×35), fondo arena de borde a borde, título \"Resumen del evento\" en #B9AE98 y caja \"Posible superposición\" de 83 px (crece si hay varias).",
+      "figma_png": "output/figma-final-artista/frames/801-554_nuevo-evento-personal.png",
+      "impl_png": "output/figma-final-artista/shots/calendario/801-554.png",
+      "state_url": "/calendar/?new=personal",
+      "fidelity": "alta",
+      "fidelity_notes": "Resumen con el tipo real."
+    }
+  ],
+  "removed_in_page": [
+    "Glifos ‹ › ⌕ ＋ △ reemplazados por íconos Feather (no había secciones del calendario fuera del Figma para quitar)",
+    "Toast \"se administra desde Cotizaciones\" al tocar una sesión: ahora la sesión se edita desde el calendario",
+    "Ronda 1 · 801:547 con la lista cerrada: la ayuda genérica \"Elegí una cotización para asociar este turno…\" (queda como descripción accesible y solo se ven los avisos reales) y el link fijo \"¿Todavía no cargaste este trabajo? Crear cotización manual\" (ahora solo en estados vacíos o después de intentar guardar sin cotización)",
+    "Ronda 1 · Atajo de demo que abría siempre el 7/7/2026 para la cuenta real isainazartattoo.wo (para demos: ?date=2026-07-07)",
+    "Ronda 1 · Reglas que ocultaban la barra de scroll vertical de toda la página",
+    "Ronda 2 · 801:547: el párrafo fijo \"¿Todavía no cargaste este trabajo? Crear cotización manual\" que se sumaba al aviso de error después de Guardar sin cotización (y seguía visible con una cotización elegida), y la confirmación visible \"Se agenda como sesión de <código>…\" con la lista cerrada (queda como descripción accesible)"
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Unificar recordatorios del calendario y del dashboard",
+      "detail": "El dashboard creó artist_reminders (título, detalle, fecha, prioridad, ícono, adjuntos; sin hora ni repetición). El formulario 801:553 necesita hora y 'Se repite', así que el recordatorio del calendario sigue en artist_calendar_events. El calendario ya muestra los de artist_reminders (solo lectura, link a /artist/dashboard?modal=recordatorio&id=<id>). Propuesta: agregar due_time y recurrence_rule a artist_reminders, migrar las filas event_type='reminder' y guardar desde el calendario vía WeotziData.Reminders.",
+      "severity": "baja"
+    },
+    {
+      "title": "Superposición de sesiones en servidor",
+      "detail": "El trigger prevent_artist_calendar_overlap solo cubre artist_calendar_events. Los turnos guardados como quotation_sessions se validan solo con la vista previa local ('Posible superposición').",
+      "severity": "baja"
+    },
+    {
+      "title": "Solicitudes pendientes desde cotizaciones",
+      "detail": "'Solicitud pendiente' (leyenda) sigue siendo un tipo heredado sin formulario: solo aparece si hay filas manuales. Podría proyectarse desde quotations_db (pending + client_preferred_date).",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028140000_calendar_quote_links.sql",
+      "rollback": "supabase/rollbacks/20261028140000_calendar_quote_links.down.sql",
+      "purpose": "artist_calendar_events.quotation_id (FK a quotations_db, on delete set null, índice parcial y políticas insert/update que exigen que la cotización sea del mismo artista) para reservas pendientes vinculadas a cotizaciones sin aprobar; quotation_sessions.location (texto 1-120) para la 'Ubicación' del turno. Sin la migración el repo reintenta sin esas columnas (la referencia a la cotización queda en las notas).",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "Sesion — <cliente> (título generado por el repo) → Sesión — <cliente>",
+    "Convencion · <ciudad> (título generado por el repo) → Convención · <ciudad>",
+    "Resumen del evento · Tipo 'Turno con cliente' repetido en todos los formularios → muestra el tipo elegido",
+    "Contadores en singular cuando corresponde (1 turno confirmado, 1 día bloqueado)",
+    "Hora del próximo evento 'TODO EL DÍA' → 'Todo el día' (como el Figma)"
+  ],
+  "missing_assets": [],
+  "files_changed": [
+    "public/calendar/index.html",
+    "public/shared/css/calendar-figma.css",
+    "public/shared/js/calendar.js",
+    "public/shared/js/data/calendar-repo.js",
+    "public/shared/js/demo-fixtures/calendario.js",
+    "tests/calendar-figma.test.js",
+    "tests/figma-final-calendario.test.js"
+  ],
+  "files_created": [
+    "public/shared/js/calendar-links.js",
+    "supabase/migrations/20261028140000_calendar_quote_links.sql",
+    "supabase/rollbacks/20261028140000_calendar_quote_links.down.sql",
+    "tests/figma-final-calendario.test.js",
+    "output/figma-final-artista/frames/801-542_calendario-mensual.png … 801-554_nuevo-evento-personal.png",
+    "output/figma-final-artista/shots/calendario/801-542.png … 801-554.png, 801-545-30oct.png, 801-547-closed.png, 801-547-error.png"
+  ],
+  "tests": "Ronda 2 · node --test \"tests/*.test.js\": 582 tests, 574 pass, 7 fail, 1 skipped. Calendario: tests/calendar-figma.test.js + tests/figma-final-calendario.test.js, 27/27 en verde (2 tests nuevos: formato de bloques cortos con timedEventLayout y link único de \"Crear cotización manual\" en 801:547; se actualizó el assert de avisos visibles). Los 7 fallos son ajenos al calendario: PowerShell 7 (3, preexistentes), components-catalog (topbar del artista, 1), figma-final-travel-inbox (2) y job-applications-figma (1), áreas que otros agentes están editando.",
+  "notes": [
+    "Parámetros de URL: ?view=month|week|day|agenda (o mes/semana/dia), ?date=YYYY-MM-DD, ?new (elegir tipo) o ?new=turno|reserva|disponibilidad|bloqueo|guest-spot|convencion|recordatorio|personal, ?quote=<quote_id|id> (abre el turno con la cotización elegida; acepta ?new=appointment del detalle de cotización), ?event=<uuid> o ?event=session:<id> (editar), ?picker=open (abre la lista de cotizaciones), ?q=<texto> (búsqueda). La página reescribe la URL con replaceState al cambiar de vista, fecha o formulario.",
+    "Contrato con el detalle de cotización: /calendar?quote=<quote_id o id>&new=appointment[&date=YYYY-MM-DD]. Si la cotización está rechazada, vencida o completada se avisa con un toast y no se preselecciona.",
+    "Turno con cotización aprobada (client_approved, in_progress ya enviada al artista, artist_completed) = fila de quotation_sessions: se crea, edita y borra desde el calendario y aparece en el detalle de la cotización. Con cotización sin aprobar (pending, responded) = reserva pendiente en artist_calendar_events con quotation_id; al editarla cuando la cotización ya está aprobada pasa a ser sesión y se borra la reserva (sin duplicados).",
+    "Guest spots y convenciones de Travel (artist_trips) se muestran solo lectura y al tocarlos abren /artist/travel?trip=<id>. Los que se crean desde el calendario son eventos manuales.",
+    "La página ahora carga account-repo.js y reminders-repo.js (área dashboard) para mostrar los recordatorios con fecha del dashboard; si no están, la proyección se omite sin errores.",
+    "Selector de chevrons con respaldo CSS (:empty) para cuando el CDN de Feather no responde.",
+    "En el preview compartido el estado se guarda en localStorage común a todas las pestañas: otra pestaña puede pisar cambios hechos en la mía. Las capturas con shot.sh usan perfil limpio y sí muestran las fixtures del calendario.",
+    "No se tocó la topbar (<weotzi-product-nav>). En los frames el subrayado amarillo está bajo COTIZACIONES; en la app sigue marcando CALENDARIO.",
+    "Ronda 1 · Sin sesión, el calendario redirige a /artist/login?returnTo=%2Fcalendar (antes iba a /registerclosedbeta, que es \"Crear cuenta\").",
+    "Ronda 1 · Decisión de diseño pendiente (801:550): en \"Bloquear un día\", el interruptor \"Todo el día\" arranca encendido. El Figma lo dibuja apagado y sin \"Hora de inicio\", lo que es contradictorio. Opciones: que el bloqueo sea siempre de jornada completa (sin interruptor) o aceptar el estado actual.",
+    "Ronda 1 · Decisión transversal para el orquestador: <weotzi-product-footer> aparece debajo del calendario y de todas las páginas del artista, pero ningún frame del Figma final lo muestra. No lo quité solo del calendario para no romper la consistencia.",
+    "Ronda 1 · La página vuelve a mostrar la barra de scroll vertical. Las capturas con shot.sh no cambian porque usan --hide-scrollbars.",
+    "Ronda 1 · El link \"Crear cotización manual\" apunta a /my-quotations/new, que ya existe.",
+    "Ronda 2 · Bloques cortos de semana y día: calendar.js (fitTimedEvents + timedEventLayout) mide el alto de cada bloque al renderizar y con un ResizeObserver sobre la vista. Elige entre una línea \"09:30 Título…\" (.is-compact), el título recortado a las líneas que entran (--title-lines) o el bloque completo; si en la vista día el cliente no entra, agrega .is-client-hidden. Medido sin recortes a 1440, 1700, 1100 y 390 px, y al pasar de 1440 a 1700 sin recargar. Sin scroll horizontal a 390 px.",
+    "Ronda 2 · El hallazgo de 801:544/545 decía que \"Pedir cartuchos 3RL\" se veía completo debajo de la franja \"Todo el día\". Era al revés: el título quedaba cortado por la mitad (bloque de 26,4 px en semana y 32,8 px en día). Está corregido como se describe arriba.",
+    "Ronda 2 · 801:547 verificado con un Chrome headless propio (CDP, perfil temporal), porque el navegador integrado no tenía pestañas libres. Inicial: sin ayuda ni link. Guardar sin cotización: 1 link visible, en el aviso. Cotización aprobada elegida: 0 links y sin avisos. Cotización sin aprobar: aviso de reserva pendiente. Búsqueda sin resultados: estado vacío con el link. Sin errores de consola."
+  ]
+}

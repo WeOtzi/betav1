@@ -1,0 +1,269 @@
+{
+  "area": "cotizaciones-detalle",
+  "frames": [
+    {
+      "node": "801:576",
+      "name": "Artista / Cotizaciones - Detalle - Pendiente de respuesta",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "rediseñada",
+      "summary": "Barra de comandos con Aceptar/Rechazar/Agendar/Contactar, dossier propuesta + evaluación (presupuesto con Guardar, tiempo total estimado, notas privadas con Abrir notas), timeline de 6 pasos, historial y mensajes. Aceptar abre el diálogo 'Aceptar y enviar presupuesto' (monto, moneda, sesiones, duración por sesión, disponibilidad, mensaje).",
+      "figma_png": "output/figma-final-artista/frames/801-576_detalle-pendiente.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-576.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-P01 (real) · &estado=pendiente (solo preview)",
+      "fidelity": "alta",
+      "fidelity_notes": "Ronda 1: el dossier mide 519px (Figma 518): textarea de 123px sin handle de resize, estado del autoguardado superpuesto (no suma alto) y el panel cierra a 14px del textarea. \"sin archivo adjunto\" ya no se ve subrayado (no es un link). AGENDAR abre /calendar?date=&quote=<quote_id> con \"Turno con cliente\" y la cotización vinculada (sin aprobar: reserva pendiente). Quedan: datos de fixtures (el preview renombra a los clientes \"Valentina · Preview\"), texto de la propuesta en Inter (el Figma usa Space Grotesk, fuera del DS), tamaños < 10px elevados a --font-size-min, badges de la topbar y footer compartido (otras áreas)."
+    },
+    {
+      "node": "801:577",
+      "name": "Artista / Cotizaciones - Detalle - Respuesta enviada",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "estado-nuevo",
+      "summary": "Estado Respondida: tag azul, solo Agendar + Contactar, tiempo '2hrs 30min x N', historial 'Respuesta enviada: $… · N sesiones · 2h 30m.'. Agendar abre 'Confirmar acuerdo y agendar' (presupuesto final, sesiones, duración, primera sesión, comentario) → client_approved + primera sesión.",
+      "figma_png": "output/figma-final-artista/frames/801-577_detalle-respuesta-enviada.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-577.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01 (real) · &estado=respondida (solo preview)",
+      "fidelity": "alta",
+      "fidelity_notes": "Mismo dossier corregido que 801:576 (textarea 123px, sin resize, panel de ~518px). Datos de fixtures."
+    },
+    {
+      "node": "801:580",
+      "name": "Artista / Cotizaciones - Detalle - Acuerdo aprobado",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "estado-nuevo",
+      "summary": "Presupuesto final acordado (borde verde + 'Valores anteriores en el historial' que lleva al historial), panel amarillo 'Acuerdo aprobado' (final, sesiones, duración, primera sesión, estudio, comentario) y 'Sesiones del proyecto' con barra de avance y filas Agendada / Sin agendar.",
+      "figma_png": "output/figma-final-artista/frames/801-580_detalle-acuerdo-aprobado.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-580.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-D01&estado=aprobada (escenario del frame) · ?id=DEMO-D01 (real)",
+      "fidelity": "alta",
+      "fidelity_notes": "Ronda 2: DEMO-D01 real (output/figma-final-artista/shots/cotizaciones-detalle/801-580-d01-real.png) ya no arranca el historial con la sesión 1: solicitud 15 OCT, respuesta 16 OCT, acuerdo 17 OCT y sesión 1 realizada 18 OCT, en ese orden en el historial y el timeline. El estado real de D01 mezcla \"Aprobado\" con una sesión ya realizada (fixture base); el frame se captura con &estado=aprobada. \"Ver sesión\" abre /calendar?date=&event=session:<id>&quote=<quote_id> (verificado: el calendario abre el editor de esa sesión con D01 vinculada); en una fila sin fecha abre el diálogo para agendarla. \"editá el acuerdo\" abre \"Editar acuerdo\". Con ?estado= el link va sin event porque la sesión no existe."
+    },
+    {
+      "node": "801:581",
+      "name": "Artista / Cotizaciones - Detalle - Sesiones en progreso",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "estado-nuevo",
+      "summary": "Filas con Realizada + N fotos + Ver sesión, Agendada con Ver sesión / Reprogramar / Marcar realizada, Sin agendar con Agendar sesión. Marcar realizada pide duración real, fotos (Storage privado) y nota; la primera sesión realizada pasa la cotización a in_progress.",
+      "figma_png": "output/figma-final-artista/frames/801-581_detalle-sesiones-en-progreso.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-581.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-D01&estado=en-progreso (escenario del frame) · /my-quotations/detail/?id=DEMO-D01 real + \"Marcar realizada\" en la sesión 2 (output/figma-final-artista/shots/cotizaciones-detalle/801-581-d01-real.png)",
+      "fidelity": "alta",
+      "fidelity_notes": "Ronda 2: el historial de DEMO-D01 real queda en el orden del Figma: 15 OCT Solicitud creada, 15 OCT Vista por vos, 16 OCT Respuesta enviada, 17 OCT Acuerdo confirmado, 18 OCT Trabajo iniciado, 18 OCT Sesión 1 registrada, 28 OCT Sesión 2 registrada; el timeline muestra 15/16/17/18 OCT. Cambios: (1) fixtures de DEMO-D01 con solicitud -13, respuesta -12 y acuerdo -11 días (antes de la sesión 1, -10); (2) una sola fecha para \"Trabajo iniciado\" y el paso \"En progreso\" (QuotationDetailModel.workStartedAt: primera fila in_progress; sin ella, la primera sesión realizada, como en el Figma donde ambas son 12 AGO; último recurso updated_at); (3) \"Trabajo iniciado\" ya no depende de updated_at mientras quote_status sea in_progress: sigue después de \"Marcar listo para cliente\" (output/figma-final-artista/shots/cotizaciones-detalle/801-582-d01-listo.png), en completada y en disputa. En el backend real con el trigger fn_quotation_status_change manda la fila in_progress del historial, en el historial y en el timeline. Captura del frame con el escenario (output/figma-final-artista/shots/cotizaciones-detalle/801-581.png): mismo orden de bloques, botones y copy que el Figma; quedan datos de fixtures, Inter en lugar de Space Grotesk y la topbar/footer de otras áreas."
+    },
+    {
+      "node": "801:582",
+      "name": "Artista / Cotizaciones - Detalle - Marcar listo para cliente",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "estado-nuevo",
+      "summary": "Con todas las sesiones realizadas la barra muestra 'Marcar listo para cliente' (confirmación → artist_completed, 'Entrega enviada al cliente para su aprobación.').",
+      "figma_png": "output/figma-final-artista/frames/801-582_detalle-marcar-listo.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-582.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-D01&estado=listo (escenario) · real: DEMO-D01 con las 3 sesiones realizadas y \"Marcar listo para cliente\" (output/figma-final-artista/shots/cotizaciones-detalle/801-582-d01-listo.png)",
+      "fidelity": "alta",
+      "fidelity_notes": "Ronda 2: después de \"Marcar listo para cliente\" el historial conserva \"18 OCT Trabajo iniciado\" y suma \"28 OCT Entrega enviada al cliente para su aprobación.\"; el timeline queda en 18 OCT En progreso / 28 OCT Lista para cliente. Una sesión agendada para otro día que se marca realizada hoy se guarda con la fecha de hoy (el diálogo lo avisa: \"Estaba agendada para el 09 NOV 2026 · 11:00: queda registrada con la fecha de hoy.\"). El estado \"Lista para cliente\" no muestra el panel inventado: quedan la barra con \"Contactar cliente\" y el timeline, como la parte superior de 801:584. \"Reabrir trabajo\" queda solo por ?modal=reabrir (no hay frame)."
+    },
+    {
+      "node": "801:583",
+      "name": "Artista / Cotizaciones - Detalle - Proyecto completado",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "estado-nuevo",
+      "summary": "Panel oscuro 'Proyecto completado · aprobado por el cliente' (final, sesiones realizadas, inicio, finalización, aprobada por el cliente), miniaturas de fotos por sesión + Final, Descargar resumen (.txt) y Archivar/Desarchivar.",
+      "figma_png": "output/figma-final-artista/frames/801-583_detalle-completado.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-583.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-C01 (real, 2 sesiones) · &estado=completada",
+      "fidelity": "alta",
+      "fidelity_notes": "Panel \"Proyecto completado\": 5 columnas de 160px cada 186px, etiquetas en una línea. Ronda 2: el historial de DEMO-C01 suma \"08 OCT Trabajo iniciado\" (misma fecha que \"En progreso\" en el timeline). Diferencia con el frame: el historial de 801:583 está abreviado (no lista \"Trabajo iniciado\" ni \"Sesión N registrada\", que sí aparecen en 801:581); el expediente muestra el registro completo para que no desaparezcan eventos al avanzar de estado. El frame 801:583 es algo más ancho que 801:576 (márgenes de 63px contra 80px); se mantiene el ancho común del expediente."
+    },
+    {
+      "node": "801:584",
+      "name": "Artista / Cotizaciones - Detalle - Disputa abierta",
+      "route": "/my-quotations/detail?id=<quote_id>",
+      "result": "estado-nuevo",
+      "summary": "Tag 'En disputa', botón rojo 'Ver disputa ⌄' con menú (ver detalle, responder a la disputa, agendar sesión de corrección, escribir al cliente), panel rosa con título, descripción, evidencia, respuesta del artista y aviso; timeline con punto rojo en 'Lista para cliente'.",
+      "figma_png": "output/figma-final-artista/frames/801-584_detalle-disputa.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-584.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-D03 (real) · &estado=disputa · &modal=disputa abre el menú · corrección registrada: output/figma-final-artista/shots/cotizaciones-detalle/801-584-correccion.png",
+      "fidelity": "alta",
+      "fidelity_notes": "Fixtures de DEMO-D03 coherentes: timeline 03/04/05/07/25 OCT. Ronda 2: la sesión de corrección agendada para mañana y marcada realizada hoy queda como \"28 OCT Sesión 3 registrada como realizada\" (antes 29 OCT, fecha futura): el diálogo guarda session_date = ahora cuando la sesión era de otro día, y el modelo nunca fecha una sesión después de hoy ni de su última modificación (QuotationDetailModel.sessionDoneAt). Igual que en 801:583, el historial del frame está abreviado (sin \"Trabajo iniciado\" ni sesiones); el expediente muestra el registro completo. El contenido del menú desplegable no está en el Figma (diseñado con el DS)."
+    },
+    {
+      "node": "801:578",
+      "name": "Artista / Notas de trabajo - Brief y preparación",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas",
+      "result": "creada",
+      "summary": "Panel lateral de 620px: título editable, autoguardado con conteo de bloques, plantillas, bloques texto/título/lista/checklist/cita/separador/imagen con borrar, etiquetas, notas anteriores (Abrir/borrar), Nueva nota y Exportar (.md).",
+      "figma_png": "output/figma-final-artista/frames/801-578_notas-brief-preparacion.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-578.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas",
+      "fidelity": "alta",
+      "fidelity_notes": "Velo detrás del panel: --neutral-500 al 46% (Figma rgba(26,26,26,.45); sobre arena da ~(152,149,145) contra (149,148,145) del Figma). Las plantillas cortan 4+1 y \"Agregar bloque\" 5+2 como el Figma, también con la scrollbar clásica de Windows (medido con 15px de scrollbar): 10px (mínimo del DS) con tracking 0.06em/0.025em reproduce el avance por carácter del Figma (9.5px + 0.95px)."
+    },
+    {
+      "node": "801:579",
+      "name": "Artista / Notas de trabajo - Nueva nota",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas&nota=nueva",
+      "result": "creada",
+      "summary": "Nota nueva con un bloque de texto vacío; se guarda sola al escribir.",
+      "figma_png": "output/figma-final-artista/frames/801-579_notas-nueva-nota.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-579.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas&nota=nueva",
+      "fidelity": "alta",
+      "fidelity_notes": "Mismas filas de chips que 801:578."
+    },
+    {
+      "node": "801:1111",
+      "name": "Plantilla de brief",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas&plantilla=brief",
+      "result": "creada",
+      "summary": "Título 'Brief del proyecto', texto generado con el proyecto y la zona de la cotización, 2 ítems de lista.",
+      "figma_png": "output/figma-final-artista/frames/801-1111_plantilla-brief.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-1111.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas&plantilla=brief",
+      "fidelity": "alta",
+      "fidelity_notes": "El texto del brief sale de la cotización real (el Figma muestra el de Bruno). ?plantilla= arma la nota sin guardarla: se inserta en quotation_notes recién cuando el artista la edita. Recargar o compartir el link ya no duplica notas (verificado: 3 notas al cargar, 4 al editar, 4 al recargar). Filas de chips 4+1 / 5+2 como el Figma."
+    },
+    {
+      "node": "801:1112",
+      "name": "Plantilla de preparación de sesión",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas&plantilla=preparacion",
+      "result": "creada",
+      "summary": "Título + 3 checklist (stencil, agujas, anestesia).",
+      "figma_png": "output/figma-final-artista/frames/801-1112_plantilla-preparacion-sesion.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-1112.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas&plantilla=preparacion",
+      "fidelity": "alta",
+      "fidelity_notes": "?plantilla= arma la nota sin guardarla: se inserta en quotation_notes recién cuando el artista la edita. Recargar o compartir el link ya no duplica notas (verificado: 3 notas al cargar, 4 al editar, 4 al recargar). Filas de chips 4+1 / 5+2 como el Figma."
+    },
+    {
+      "node": "801:1113",
+      "name": "Plantilla de seguimiento",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas&plantilla=seguimiento",
+      "result": "creada",
+      "summary": "Título + texto de seguimiento de cicatrización.",
+      "figma_png": "output/figma-final-artista/frames/801-1113_plantilla-seguimiento.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-1113.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas&plantilla=seguimiento",
+      "fidelity": "alta",
+      "fidelity_notes": "?plantilla= arma la nota sin guardarla: se inserta en quotation_notes recién cuando el artista la edita. Recargar o compartir el link ya no duplica notas (verificado: 3 notas al cargar, 4 al editar, 4 al recargar). Filas de chips 4+1 / 5+2 como el Figma."
+    },
+    {
+      "node": "801:1114",
+      "name": "Plantilla de cuidados",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas&plantilla=cuidados",
+      "result": "creada",
+      "summary": "Título 'Cuidados post sesión' + 2 ítems de lista.",
+      "figma_png": "output/figma-final-artista/frames/801-1114_plantilla-cuidados.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-1114.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas&plantilla=cuidados",
+      "fidelity": "alta",
+      "fidelity_notes": "?plantilla= arma la nota sin guardarla: se inserta en quotation_notes recién cuando el artista la edita. Recargar o compartir el link ya no duplica notas (verificado: 3 notas al cargar, 4 al editar, 4 al recargar). Filas de chips 4+1 / 5+2 como el Figma."
+    },
+    {
+      "node": "801:1115",
+      "name": "Plantilla de pendientes",
+      "route": "/my-quotations/detail?id=<quote_id>&panel=notas&plantilla=pendientes",
+      "result": "creada",
+      "summary": "Título 'Pendientes' + 2 checklist.",
+      "figma_png": "output/figma-final-artista/frames/801-1115_plantilla-pendientes.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones-detalle/801-1115.png",
+      "state_url": "/my-quotations/detail/?id=DEMO-S01&panel=notas&plantilla=pendientes",
+      "fidelity": "alta",
+      "fidelity_notes": "?plantilla= arma la nota sin guardarla: se inserta en quotation_notes recién cuando el artista la edita. Recargar o compartir el link ya no duplica notas (verificado: 3 notas al cargar, 4 al editar, 4 al recargar). Filas de chips 4+1 / 5+2 como el Figma."
+    }
+  ],
+  "removed_in_page": [
+    "Botones fijos de la barra (Aceptar/Rechazar/Agendar/Contactar siempre visibles con 'Iniciar trabajo'/'Respondida' deshabilitados): ahora cada estado muestra solo los botones de su frame",
+    "Timeline legacy de 5 pasos ('Solicitud creada / Vista por vos / Cotización enviada / Cliente respondió / Esperando tu decisión') → timeline de 6 estados del Figma",
+    "Borde inferior de la sección de mensajes",
+    "Scripts sin uso en la página: currency-utils.js y artists-repo.js",
+    "Panel \"Lista para cliente · enviada <fecha>\" (texto de espera, \"Escribir al cliente →\" y \"Reabrir trabajo\") del estado artist_completed: no está en ningún frame. Reabrir queda por ?modal=reabrir.",
+    "Recuadro punteado \"Vista previa del estado … · acciones deshabilitadas\" al pie de las URLs ?estado=: ahora es un toast pasajero y las capturas quedan iguales al frame."
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Apertura de disputas por el cliente",
+      "detail": "El expediente lee/responde disputas (tabla nueva quotation_disputes), pero ninguna pantalla del cliente ni de soporte las crea todavía; hoy solo existe quotations_db.dispute_status. Si dispute_status='open' sin fila, el panel muestra un texto genérico.",
+      "severity": "media"
+    },
+    {
+      "title": "Fotos de sesión requieren la migración",
+      "detail": "Marcar realizada sube fotos al bucket privado quotation-session-photos y las guarda en quotation_sessions.photo_urls. Sin la migración aplicada (o en preview, sin Storage) la sesión se marca igual y avisa cuántas fotos no se subieron.",
+      "severity": "media"
+    },
+    {
+      "title": "Completar la cotización es del cliente",
+      "detail": "El artista llega hasta 'Lista para cliente' (artist_completed) y puede reabrir; el paso a 'completed' lo hace el cliente con /api/client/quotations/:id/complete (existente).",
+      "severity": "baja"
+    },
+    {
+      "title": "Historial en el preview",
+      "detail": "El backend real registra cada cambio de estado con el trigger fn_quotation_status_change; el emulador del preview no. Sin fila, \"Trabajo iniciado\" y el paso \"En progreso\" se fechan con la primera sesión realizada (como en el Figma) y \"Aprobada\" puede quedar sin fecha en datos sin historial.",
+      "severity": "baja"
+    },
+    {
+      "title": "Reabrir trabajo sin lugar en el Figma",
+      "detail": "El estado artist_completed (Lista para cliente) no tiene frame. Se quitó el panel inventado; \"Reabrir trabajo\" sigue funcionando solo por /my-quotations/detail?id=<id>&modal=reabrir. Diseño tiene que definir si va en la barra de comandos.",
+      "severity": "baja"
+    },
+    {
+      "title": "Re-entrega formal después de una disputa",
+      "detail": "En disputa el artista agenda y registra la sesión de corrección (sin cambiar quote_status) y responde la disputa; el cierre lo hace soporte (quotation_disputes.status=resolved sincroniza dispute_status). El Figma no tiene un botón \"volver a entregar\".",
+      "severity": "baja"
+    },
+    {
+      "title": "Sesiones de corrección fuera del acuerdo",
+      "detail": "En disputa la corrección se suma a las filas como \"Sesión 3 de 3\" aunque el acuerdo sea de 2 sesiones, y cuenta en \"N realizadas\" y en la barra de avance. El Figma no tiene un frame con corrección; Diseño tiene que definir si va aparte.",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028130000_quotation_detail_figma.sql",
+      "rollback": "supabase/rollbacks/20261028130000_quotation_detail_figma.down.sql",
+      "purpose": "quotations_db.artist_session_minutes (duración por sesión del presupuesto) y artist_viewed_at ('Vista por vos'); quotation_sessions.photo_urls (fotos de avance); tabla quotation_disputes con RLS (partes + soporte), guardia de columnas por rol y sync de quotations_db.dispute_status; bucket privado quotation-session-photos (carpeta = auth.uid()).",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "Slot de referencia 'or browse files' (inglés, placeholder del componente image-slot) → 'sin archivo adjunto'",
+    "'GUARDADO AUTOMÁTICAMENTE · 1 BLOQUES' → '· 1 bloque' (singular)",
+    "'VER chat COMPLETO' (mayúsculas mezcladas) → 'Ver chat completo' (en mayúsculas por CSS)",
+    "Referencia 'COT-051' y datos de Bruno Aquino → quote_id y datos reales de la cotización"
+  ],
+  "missing_assets": [
+    "Tipografía Space Grotesk del texto de la propuesta (fuera del DS): se usa Inter",
+    "Miniaturas de 'Referencia N' y fotos de sesión: contenido dinámico (adjuntos/fotos reales); sin archivo se muestra el placeholder"
+  ],
+  "files_changed": [
+    "public/my-quotations/detail/index.html (versiones ?v=20261028-3 del modelo y la página)",
+    "public/shared/css/quotation-detail-figma.css",
+    "public/shared/js/quotation-detail-figma.js",
+    "public/shared/js/demo-fixtures/cotizaciones-detalle.js",
+    "public/shared/js/wo-tour-steps.js (solo ruta ?id= y una frase del paso 'evaluation'; sin cambios en las rondas 1 y 2)",
+    "tests/quotation-detail-figma.test.js"
+  ],
+  "files_created": [
+    "public/shared/js/quotation-detail-model.js",
+    "public/shared/js/work-notes-drawer.js",
+    "public/shared/css/work-notes-drawer.css",
+    "public/shared/js/data/quotation-detail-repo.js",
+    "public/shared/assets/quotation-detail-quote-mark.svg",
+    "supabase/migrations/20261028130000_quotation_detail_figma.sql",
+    "supabase/rollbacks/20261028130000_quotation_detail_figma.down.sql",
+    "tests/figma-final-cotizaciones-detalle.test.js"
+  ],
+  "tests": "node --test \"tests/*.test.js\" (ronda 2): 605 tests, 601 pass / 3 fail. Las 3 fallas son los tests de PowerShell 7 preexistentes (onboarding x2, Manual Dev verification). Área: figma-final-cotizaciones-detalle 19/19 (3 tests nuevos de la ronda 2 y el de fixtures ampliado a DEMO-D01), quotation-detail-figma 4/4, demo-tour 12/12.",
+  "notes": [
+    "Ruta canónica /my-quotations/detail?id=<quote_id>; ?quote= sigue funcionando (emails, links viejos). Acepta quote_id o id numérico.",
+    "Parámetros de QA: ?estado=pendiente|respondida|aprobada|en-progreso|listo|completada|disputa (SOLO preview/demo, datos en memoria, acciones deshabilitadas; el aviso es un toast pasajero); ?panel=notas[&nota=nueva|<id>][&plantilla=brief|preparacion|seguimiento|cuidados|pendientes] (la plantilla no se guarda hasta que el artista la edita); ?modal=responder|rechazar|acuerdo|agendar|listo|disputa|responder-disputa|correccion|reabrir.",
+    "Enlaces entre áreas (verificados en el preview, ronda 2): todos los enlaces al calendario llevan ?quote=<quote_id>. \"Ver sesión\" abre /calendar?date=YYYY-MM-DD&event=session:<id>&quote=<quote_id> (el calendario abre el editor de esa sesión con la cotización vinculada; probado con la sesión 2 de DEMO-D01); \"Agendar\" en pendiente abre /calendar?date=&quote=<quote_id> (el calendario lo reescribe a ?new=turno&quote= y preselecciona la cotización; probado con DEMO-P01); \"Abrir calendario →\" del aviso \"Ya agendaste N sesiones\" y los \"Ver en el calendario →\" de los toasts también llevan quote. \"Contactar cliente\" y \"Ver chat completo\" abren /artist/inbox?quote=<quote_id>, y el inbox selecciona la conversación de esa cotización (probado con DEMO-D01: hilo \"COTIZACIÓN · FINE LINE\" con \"Confirmo el turno de hoy, gracias.\"). LOG OUT redirige a /artist/login.",
+    "Fixtures: agregan columnas nuevas, notas, comentario y estudio, fotos en sesiones realizadas y una disputa sobre DEMO-D03. Ronda 1: DEMO-C01 y DEMO-D03 adelantan created_at, sent_to_artist_at, artist_viewed_at y artist_responded_at (C01 de -12 a -24 días, D03 de -20 a -25) y fechan pending, responded y client_approved (en D03 también in_progress y artist_completed) en quotation_status_history, para que la solicitud y el acuerdo queden antes de la primera sesión. Siguen en el mismo grupo mensual del listado y dentro de los 30 días de estadísticas; no cambian estados, montos ni sesiones. Ronda 2: DEMO-D01 recibe el mismo arreglo (solicitud -13, apertura, respuesta -12 y acuerdo -11 días en quotation_status_history), antes de su sesión 1 realizada (-10). Sigue entre DEMO-S01 y DEMO-D02 en el orden \"Más recientes\" del listado, dentro de los 30 días de estadísticas y sin cambios de estado, montos ni sesiones (calendario).",
+    "Las notas de trabajo usan quotation_notes sin cambios de esquema: bloques compatibles con EditorJS en content (jsonb) + content.tags; el visor legacy del shared-drawer las sigue leyendo.",
+    "Topbar: el Figma no muestra el badge numérico en COTIZACIONES ni el contador sobre el avatar (área Dashboard).",
+    "Íconos Feather en línea para el expediente (mismo set) para no depender del CDN; probado también con el CDN activo.",
+    "Valores sin token exacto mapeados al más cercano: #a79f91/#b4aea1→--neutral-300, #8a8377/#6e675c/#757575→--neutral-400, #3b3730/#4a453c→--dark-rule, #dcd6c9→--sand-250, #c9c2b4→--sand-350, #efebe2→--sand-050, #fbf0d2→--yellow-100, #2e2a25→--dark-hover, #e3f3ec/#12795a→--success-bg/--success-fg, #eef3ff/#0040c4→--info-bg/--blue-500, #fff3f1→--red-100, #efc9c1→--red-on-red-strong, #e8d9a8→--sand-250. Fuentes de 8.5–9.5px elevadas a 10px (--font-size-min).",
+    "No corregido por estar fuera del área (ronda 1): <weotzi-product-footer> debajo de \"Ver chat completo\" (todas las páginas del artista lo usan; decisión global del orquestador o del área Dashboard); badges \"3\" y \"18\" de la topbar (área Dashboard); Space Grotesk en \"La propuesta\" (decisión del DS).",
+    "Ronda 2 · capturas de flujos reales (Chrome headless por CDP, perfil temporal): 801-580-d01-real.png (D01 al cargar), 801-581-d01-real.png (después de marcar realizada la sesión 2), 801-582-d01-listo.png (sesión 3 registrada hoy + Marcar listo para cliente) y 801-584-correccion.png (corrección de D03 agendada para mañana y registrada hoy). Consola sin errores.",
+    "Ronda 2 · regla nueva: una sesión agendada para un día posterior que se marca realizada se guarda con session_date = ahora (el calendario la muestra hoy). Mismo día con hora posterior: se conserva la hora y el historial la fecha hoy."
+  ]
+}
