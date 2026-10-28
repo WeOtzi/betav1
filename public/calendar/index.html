@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
-    <link rel="stylesheet" href="/shared/css/calendar-figma.css">
+    <link rel="stylesheet" href="/shared/css/calendar-figma.css?v=20261028-figma-final-r1">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -19,7 +19,10 @@
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/travel-repo.js"></script>
-    <script src="/shared/js/data/calendar-repo.js"></script>
+    <script src="/shared/js/data/account-repo.js"></script>
+    <script src="/shared/js/data/reminders-repo.js?v=20261028-figma-final"></script>
+    <script src="/shared/js/data/calendar-repo.js?v=20261028-figma-final"></script>
+    <script src="/shared/js/calendar-links.js?v=20261028-figma-final"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
 </head>
@@ -42,7 +45,7 @@
                 <p class="cal-summary" id="calendar-summary">Cargando tu agenda…</p>
             </div>
             <button class="wo-btn wo-btn--direct wo-btn--s cal-new-event" id="new-event-button" type="button">
-                <span aria-hidden="true">＋</span> Nuevo evento
+                <i data-wo-icon="plus" aria-hidden="true"></i> Nuevo evento
             </button>
         </section>
 
@@ -54,12 +57,12 @@
                 <button type="button" role="tab" data-view="agenda" aria-selected="false">Agenda</button>
             </div>
             <div class="cal-date-nav">
-                <button type="button" id="cal-prev" aria-label="Período anterior">‹</button>
+                <button type="button" id="cal-prev" aria-label="Período anterior"><i data-wo-icon="chevron-left" aria-hidden="true"></i></button>
                 <h2 id="cal-period-label">Julio 2026</h2>
-                <button type="button" id="cal-next" aria-label="Período siguiente">›</button>
+                <button type="button" id="cal-next" aria-label="Período siguiente"><i data-wo-icon="chevron-right" aria-hidden="true"></i></button>
             </div>
             <label class="cal-search">
-                <span aria-hidden="true">⌕</span>
+                <i data-wo-icon="search" aria-hidden="true"></i>
                 <span class="sr-only">Buscar evento o cliente</span>
                 <input id="calendar-search" type="search" placeholder="Buscar evento o cliente…" autocomplete="off">
             </label>
@@ -80,7 +83,7 @@
     <main class="cal-editor-shell" id="calendar-editor" hidden>
         <div class="cal-editor-layout">
             <section class="cal-editor-main">
-                <button type="button" class="cal-back" id="editor-back">← Volver</button>
+                <button type="button" class="cal-back" id="editor-back"><i data-wo-icon="arrow-left" aria-hidden="true"></i> Volver</button>
                 <header class="cal-editor-heading">
                     <h1 id="editor-heading">Agregar al calendario</h1>
                     <p>Elegí el tipo de evento y completá la información correspondiente.</p>
@@ -108,7 +111,7 @@
                     <div class="cal-form-actions">
                         <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" id="cancel-event">Cancelar</button>
                         <button type="button" class="wo-btn wo-btn--danger wo-btn--s" id="delete-event" hidden>Eliminar</button>
-                        <button type="submit" class="wo-btn wo-btn--direct wo-btn--s" id="save-event" disabled>Guardar evento →</button>
+                        <button type="submit" class="wo-btn wo-btn--direct wo-btn--s" id="save-event" disabled>Guardar evento <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
                     </div>
                 </form>
             </section>
@@ -116,9 +119,9 @@
             <aside class="cal-editor-aside">
                 <section class="cal-mini-calendar" aria-label="Selector de fecha">
                     <header>
-                        <button type="button" id="mini-prev" aria-label="Mes anterior">‹</button>
+                        <button type="button" id="mini-prev" aria-label="Mes anterior"><i data-wo-icon="chevron-left" aria-hidden="true"></i></button>
                         <h2 id="mini-title">Julio 2026</h2>
-                        <button type="button" id="mini-next" aria-label="Mes siguiente">›</button>
+                        <button type="button" id="mini-next" aria-label="Mes siguiente"><i data-wo-icon="chevron-right" aria-hidden="true"></i></button>
                     </header>
                     <div id="mini-grid"></div>
                 </section>
@@ -133,7 +136,7 @@
                     </dl>
                 </section>
                 <section class="cal-conflict" id="calendar-conflict" hidden aria-live="polite">
-                    <h2>△ Posible superposición</h2>
+                    <h2><i data-wo-icon="alert-triangle" aria-hidden="true"></i> Posible superposición</h2>
                     <div id="calendar-conflict-list"></div>
                 </section>
             </aside>
@@ -149,7 +152,7 @@
     <div class="cal-toast" id="calendar-toast" role="status" aria-live="polite" hidden></div>
 
     <script src="/shared/js/admin-mobile-menu.js"></script>
-    <script src="/shared/js/calendar.js"></script>
+    <script src="/shared/js/calendar.js?v=20261028-figma-final-r1"></script>
     <script src="/shared/js/header-effects.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
