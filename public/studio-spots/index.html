@@ -38,8 +38,91 @@
 
     <main class="sps-shell" id="spots-main">
 
-        <!-- Vista 1 · Directorio -->
+        <!-- Vista 1 · Directorio (Figma 801:537) -->
         <div id="spots-feed-view">
+            <header class="sps-explore" aria-labelledby="spots-explore-title">
+                <div class="sps-explore-head">
+                    <h1 class="sps-explore-title" id="spots-explore-title">Encontrá tu próximo spot</h1>
+                    <p class="sps-explore-sub">Explorá residencias, guest spots y oportunidades en estudios de todo el mundo.</p>
+                </div>
+
+                <nav class="sps-explore-tabs" aria-label="Secciones de spots">
+                    <a class="sps-explore-tab is-active" href="/studio-spots" aria-current="page">Explorar spots</a>
+                    <a class="sps-explore-tab" href="/artist/applications?tab=spots">Mis postulaciones</a>
+                    <a class="sps-explore-tab" href="/artist/invitations" id="spots-invitations-tab">
+                        <span id="spots-invitations-label">Invitaciones</span>
+                        <span class="sps-explore-dot" id="spots-invitations-dot" hidden aria-hidden="true"></span>
+                    </a>
+                </nav>
+
+                <div class="sps-explore-filters">
+                    <label class="sps-explore-search" for="spots-search">
+                        <i data-wo-icon="search" aria-hidden="true"></i>
+                        <span class="wo-sr-only">Buscar spots</span>
+                        <input type="search" id="spots-search" placeholder="Buscar por estudio, ciudad o país…" autocomplete="off">
+                    </label>
+                    <div class="sps-explore-selects" role="group" aria-label="Filtros de spots">
+                        <label class="sps-filter">
+                            <span class="wo-sr-only">País</span>
+                            <select id="spots-filter-country" data-filter="country"><option value="">País</option></select>
+                            <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                        </label>
+                        <label class="sps-filter">
+                            <span class="wo-sr-only">Ciudad</span>
+                            <select id="spots-filter-city" data-filter="city"><option value="">Ciudad</option></select>
+                            <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                        </label>
+                        <label class="sps-filter">
+                            <span class="wo-sr-only">Fecha</span>
+                            <select id="spots-filter-date" data-filter="date">
+                                <option value="">Fecha</option>
+                                <option value="30">Empieza en 30 días</option>
+                                <option value="90">Empieza en 3 meses</option>
+                                <option value="later">Más adelante</option>
+                                <option value="closing">Cierra esta semana</option>
+                            </select>
+                            <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                        </label>
+                        <label class="sps-filter">
+                            <span class="wo-sr-only">Tipo de spot</span>
+                            <select id="spots-filter-kind" data-filter="kind">
+                                <option value="">Tipo de spot</option>
+                                <option value="resident">Residencia</option>
+                                <option value="guest_spot">Guest spot</option>
+                                <option value="itinerant">Itinerante</option>
+                            </select>
+                            <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                        </label>
+                        <button type="button" class="sps-filter sps-filter--more" id="spots-more-toggle" aria-expanded="false" aria-controls="spots-more-panel">
+                            <i data-wo-icon="filter" aria-hidden="true"></i>
+                            <span>Más filtros</span>
+                        </button>
+                    </div>
+                    <div class="sps-more-panel" id="spots-more-panel" hidden>
+                        <label class="wo-check"><input type="checkbox" id="spots-more-housing"> Incluye alojamiento</label>
+                        <label class="wo-check"><input type="checkbox" id="spots-more-stipend"> Con stipend</label>
+                        <label class="wo-check"><input type="checkbox" id="spots-more-mystyles"> Coincide con mis estilos</label>
+                        <button type="button" class="sps-more-clear" id="spots-clear-filters">Limpiar filtros</button>
+                    </div>
+                </div>
+
+                <div class="sps-explore-count">
+                    <p class="sps-explore-total" aria-live="polite"><strong id="spots-count">0</strong> <span id="spots-count-label">Oportunidades encontradas</span></p>
+                    <label class="sps-explore-sort" for="spots-sort">
+                        <span>Ordenar</span>
+                        <span class="sps-explore-sort-box">
+                            <select id="spots-sort">
+                                <option value="relevance">Más relevantes</option>
+                                <option value="closing">Cierran antes</option>
+                                <option value="recent">Más recientes</option>
+                                <option value="split">Mayor split</option>
+                            </select>
+                            <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                        </span>
+                    </label>
+                </div>
+            </header>
+
             <!-- Spot destacado, franja de ancho completo -->
             <section id="spots-feature" class="sps-feature-slot" aria-label="Spot destacado"></section>
 
@@ -51,8 +134,8 @@
 
             <div id="spots-empty" class="wo-empty hidden">
                 <i data-wo-icon="inbox" aria-hidden="true"></i>
-                <span class="wo-empty-title">No hay spots abiertos</span>
-                <p>Volvé más tarde: los estudios publican sus posiciones acá.</p>
+                <span class="wo-empty-title" id="spots-empty-title">No hay spots abiertos</span>
+                <p id="spots-empty-text">Volvé más tarde: los estudios publican sus posiciones acá.</p>
             </div>
         </div>
 
@@ -71,9 +154,11 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/spots-opportunities-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/applications-state.js"></script>
     <script src="/shared/js/studio-spots-directory.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>

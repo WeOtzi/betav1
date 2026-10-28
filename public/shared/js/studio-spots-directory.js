@@ -31,6 +31,11 @@
         'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
     let spots = [];
+    // Directorio completo (sin filtrar) y estado de la barra de exploración (Figma 801:537).
+    let allSpots = [];
+    const filters = { q: '', country: '', city: '', date: '', kind: '', housing: false, stipend: false, mystyles: false };
+    let sortMode = 'relevance';
+    let searchTimer = null;
     let currentSpot = null;
     let session = null;
     let artist = null;
@@ -43,6 +48,8 @@
         setupMobileMenu();
         await resolveViewer();
         wireLogout();
+        wireExploreControls();
+        loadInvitationsCount();
         window.addEventListener('popstate', () => openFromQuery({ push: false }));
         await loadSpots();
     });
@@ -66,8 +73,53 @@
                 'user_id, username, name, city, ubicacion, styles_array, profile_picture, gallery_images, portafolio'
             );
             artist = row || null;
+            if (artist) loadArtistStats();
         }
         paintTopbarAuth();
+    }
+
+    // "4,9 · 32 trabajos" (con estrella Feather) de la tarjeta de portfolio (Figma 801:538).
+    let artistStats = { rating: null, works: null };
+    async function loadArtistStats() {
+        try {
+            const [ratingResult, workResult] = await Promise.all([
+                WeotziData.from('public_review_summary')
+                    .select('average_rating, review_count')
+                    .eq('reviewee_type', 'artist')
+                    .eq('reviewee_user_id', artist.user_id)
+                    .maybeSingle(),
+                WeotziData.from('quotations_db')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('artist_id', artist.user_id)
+                    .eq('quote_status', 'completed')
+            ]);
+            artistStats = {
+                rating: ratingResult?.data?.average_rating != null ? Number(ratingResult.data.average_rating) : null,
+                works: Number.isFinite(Number(workResult?.count)) ? Number(workResult.count) : null
+            };
+            const line = document.getElementById('spot-preview-stats');
+            if (line) {
+                line.innerHTML = previewStatsHtml();
+                if (window.WoIcons) window.WoIcons.hydrate(line);
+            }
+        } catch (err) {
+            console.warn('[spots] estadísticas públicas del artista:', err);
+        }
+    }
+
+    function previewStatsText() {
+        const parts = [];
+        if (artistStats.rating != null) parts.push(artistStats.rating.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+        if (artistStats.works != null) parts.push(artistStats.works + ' trabajo' + (artistStats.works === 1 ? '' : 's'));
+        return parts.join(' · ') || 'Perfil verificado';
+    }
+
+    // Misma línea con la estrella Feather (outline) delante del rating.
+    function previewStatsHtml() {
+        const text = escapeHtml(previewStatsText());
+        return artistStats.rating != null
+            ? `<i data-wo-icon="star" aria-hidden="true"></i>${text}`
+            : text;
     }
 
     function paintTopbarAuth() {
@@ -130,16 +182,186 @@
     // ============================================
 
     async function loadSpots() {
-        const { data, error } = await WeotziData.StudioSpots.listOpenWithStudioAndLocation();
+        const repo = WeotziData.SpotsOpportunities;
+        const { data, error } = repo && typeof repo.listOpenDirectory === 'function'
+            ? await repo.listOpenDirectory()
+            : await WeotziData.StudioSpots.listOpenWithStudioAndLocation();
 
         if (error) {
             document.getElementById('spots-mosaic').innerHTML =
                 '<div class="wo-alert wo-alert--error">No pudimos cargar los spots: ' + escapeHtml(error.message) + '</div>';
             return;
         }
-        spots = data || [];
-        renderDirectory();
+        allSpots = data || [];
+        populateFilterOptions();
+        applyFilters();
         openFromQuery({ push: false });
+    }
+
+    // ============================================
+    // EXPLORAR · búsqueda, filtros y orden (Figma 801:537)
+    // ============================================
+
+    async function loadInvitationsCount() {
+        const label = document.getElementById('spots-invitations-label');
+        const dot = document.getElementById('spots-invitations-dot');
+        const repo = WeotziData.SpotsOpportunities;
+        if (!session || !artist || !label || !repo) return;
+        const { data } = await repo.countPendingInvitations(session.user.id);
+        const count = Number(data) || 0;
+        label.textContent = count > 0 ? `Invitaciones · ${count}` : 'Invitaciones';
+        if (dot) dot.hidden = count === 0;
+    }
+
+    function countryOf(s) {
+        return (s.location && s.location.country) || '';
+    }
+
+    function populateFilterOptions() {
+        const fill = (id, values, placeholder) => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
+                values.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
+            if (values.includes(current)) select.value = current;
+        };
+        const uniq = list => [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+        fill('spots-filter-country', uniq(allSpots.map(countryOf)), 'País');
+        const cityPool = filters.country ? allSpots.filter(s => countryOf(s) === filters.country) : allSpots;
+        fill('spots-filter-city', uniq(cityPool.map(cityOf)), 'Ciudad');
+    }
+
+    function wireExploreControls() {
+        const search = document.getElementById('spots-search');
+        if (search) {
+            search.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => {
+                    filters.q = search.value.trim().toLowerCase();
+                    applyFilters();
+                }, 150);
+            });
+        }
+        document.querySelectorAll('.sps-explore-selects select[data-filter]').forEach(select => {
+            select.addEventListener('change', () => {
+                filters[select.dataset.filter] = select.value;
+                if (select.dataset.filter === 'country') {
+                    filters.city = '';
+                    populateFilterOptions();
+                }
+                select.closest('.sps-filter')?.classList.toggle('is-active', Boolean(select.value));
+                applyFilters();
+            });
+        });
+        const moreToggle = document.getElementById('spots-more-toggle');
+        const morePanel = document.getElementById('spots-more-panel');
+        moreToggle?.addEventListener('click', () => {
+            const open = moreToggle.getAttribute('aria-expanded') !== 'true';
+            moreToggle.setAttribute('aria-expanded', String(open));
+            if (morePanel) morePanel.hidden = !open;
+        });
+        [['spots-more-housing', 'housing'], ['spots-more-stipend', 'stipend'], ['spots-more-mystyles', 'mystyles']].forEach(([id, key]) => {
+            document.getElementById(id)?.addEventListener('change', (event) => {
+                filters[key] = event.target.checked;
+                syncMoreToggle();
+                applyFilters();
+            });
+        });
+        document.getElementById('spots-clear-filters')?.addEventListener('click', clearFilters);
+        document.getElementById('spots-sort')?.addEventListener('change', (event) => {
+            sortMode = event.target.value || 'relevance';
+            applyFilters();
+        });
+    }
+
+    function syncMoreToggle() {
+        const toggle = document.getElementById('spots-more-toggle');
+        if (toggle) toggle.classList.toggle('is-active', filters.housing || filters.stipend || filters.mystyles);
+    }
+
+    function clearFilters() {
+        Object.assign(filters, { q: '', country: '', city: '', date: '', kind: '', housing: false, stipend: false, mystyles: false });
+        const search = document.getElementById('spots-search');
+        if (search) search.value = '';
+        document.querySelectorAll('.sps-explore-selects select').forEach(select => {
+            select.value = '';
+            select.closest('.sps-filter')?.classList.remove('is-active');
+        });
+        ['spots-more-housing', 'spots-more-stipend', 'spots-more-mystyles'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.checked = false;
+        });
+        syncMoreToggle();
+        populateFilterOptions();
+        applyFilters();
+    }
+
+    function hasActiveFilters() {
+        return Boolean(filters.q || filters.country || filters.city || filters.date || filters.kind ||
+            filters.housing || filters.stipend || filters.mystyles);
+    }
+
+    function daysUntil(iso) {
+        const d = parseISODate(iso);
+        if (!d) return null;
+        return Math.round((d - startOfDay(new Date())) / DAY_MS);
+    }
+
+    function matchesFilters(s) {
+        if (filters.country && countryOf(s) !== filters.country) return false;
+        if (filters.city && cityOf(s) !== filters.city) return false;
+        if (filters.kind && s.kind !== filters.kind) return false;
+        if (filters.housing && !s.includes_housing) return false;
+        if (filters.stipend && !s.stipend_amount) return false;
+        if (filters.mystyles) {
+            const mine = normalizeList(artist?.styles_array).map(v => String(v).toLowerCase());
+            const wanted = normalizeList(s.styles_wanted).map(v => String(v).toLowerCase());
+            if (!mine.length || !wanted.some(v => mine.includes(v))) return false;
+        }
+        if (filters.date) {
+            if (filters.date === 'closing') {
+                const close = daysToClose(s);
+                if (close === null || close > 7) return false;
+            } else {
+                const start = daysUntil(s.start_date);
+                if (start === null) return false;
+                if (filters.date === '30' && start > 30) return false;
+                if (filters.date === '90' && start > 90) return false;
+                if (filters.date === 'later' && start <= 90) return false;
+            }
+        }
+        if (filters.q) {
+            const studio = s.studios || {};
+            const haystack = [spotName(s), s.title, cityOf(s), countryOf(s), KIND_LABELS[s.kind],
+                ...(normalizeList(s.styles_wanted)), studio.tagline].filter(Boolean).join(' ').toLowerCase();
+            if (!haystack.includes(filters.q)) return false;
+        }
+        return true;
+    }
+
+    function sortSpots(list) {
+        const byRank = (a, b) => (Number(a.directory_rank) || Number.MAX_SAFE_INTEGER) - (Number(b.directory_rank) || Number.MAX_SAFE_INTEGER);
+        const sorted = list.slice();
+        if (sortMode === 'closing') {
+            sorted.sort((a, b) => (daysToClose(a) ?? Infinity) - (daysToClose(b) ?? Infinity) || byRank(a, b));
+        } else if (sortMode === 'recent') {
+            sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0) || byRank(a, b));
+        } else if (sortMode === 'split') {
+            sorted.sort((a, b) => (Number(b.revenue_split_pct) || 0) - (Number(a.revenue_split_pct) || 0) || byRank(a, b));
+        } else {
+            sorted.sort(byRank);
+        }
+        return sorted;
+    }
+
+    function applyFilters() {
+        spots = sortSpots(allSpots.filter(matchesFilters));
+        const countEl = document.getElementById('spots-count');
+        const labelEl = document.getElementById('spots-count-label');
+        if (countEl) countEl.textContent = String(spots.length);
+        if (labelEl) labelEl.textContent = spots.length === 1 ? 'Oportunidad encontrada' : 'Oportunidades encontradas';
+        renderDirectory();
     }
 
     // ---- helpers de contenido ----
@@ -189,8 +411,10 @@
     }
 
     // Línea mono del Figma: "3 a 6 meses · Split 66% · Stipend 1.000 EUR".
+    // El cierre solo se anuncia cuando está cerca (≤ 14 días), como en el Figma.
     function metaLine(s) {
-        return [durationText(s), splitText(s), stipendText(s), closingText(s)]
+        const close = daysToClose(s);
+        return [durationText(s), splitText(s), stipendText(s), close !== null && close <= 14 ? closingText(s) : '']
             .filter(Boolean).join(' · ');
     }
 
@@ -214,9 +438,15 @@
         return list.map(st => `<span class="sps-tag">${escapeHtml(st)}</span>`).join('');
     }
 
-    function markHtml(kind) {
-        return `<span class="sps-mark sps-mark--${escapeAttr(kind)}" aria-hidden="true"></span>`;
+    // Figma 801:537 alterna la marca por posición (cuadrado rojo → triángulo azul →
+    // círculo amarillo) en el mosaico y en la cinta; sin posición, la marca es por tipo.
+    const MARK_ROTATION = ['square', 'triangle', 'circle'];
+    function markHtml(kind, slot) {
+        const shape = Number.isInteger(slot) ? MARK_ROTATION[((slot % 3) + 3) % 3] : null;
+        return `<span class="sps-mark ${shape ? `sps-mark--${shape}` : `sps-mark--${escapeAttr(kind)}`}" aria-hidden="true"></span>`;
     }
+
+    const SPONSORED_BADGE = '<span class="sps-sponsored-badge"><i data-wo-icon="star" aria-hidden="true"></i>Patrocinado</span>';
 
     function descriptionOf(s) {
         const studio = s.studios || {};
@@ -312,9 +542,61 @@
             showView('feed');
             return;
         }
-        const spot = spots.find(x => x.id === id);
+        const spot = allSpots.find(x => x.id === id);
         if (!spot) { showView('feed'); return; }
+        // ?spot=<id>&estado=enviada → confirmación de una postulación ya enviada (QA y deep link).
+        if (new URLSearchParams(window.location.search).get('estado') === 'enviada') {
+            openSentFromQuery(spot);
+            return;
+        }
         openDetail(spot, { push: options.push === true });
+    }
+
+    async function openSentFromQuery(spot) {
+        const application = await existingApplication(spot);
+        if (!application) { openDetail(spot, { push: false }); return; }
+        const state = await applicationState(application, spot);
+        renderSent(spot, application, state);
+    }
+
+    // Estado real de la postulación (mismo criterio que Mis postulaciones): una
+    // contraoferta pendiente del estudio o un spot cerrado pisan el status crudo.
+    async function applicationState(application, spot) {
+        let offers = [];
+        if (application?.id && typeof WeotziData.StudioSpots?.listCounterOffers === 'function') {
+            try {
+                const { data } = await WeotziData.StudioSpots.listCounterOffers(application.id);
+                offers = Array.isArray(data) ? data : [];
+            } catch (err) {
+                console.warn('[spots] contraofertas de la postulación:', err);
+            }
+        }
+        const spotRow = application?.studio_spots || spot || null;
+        const S = window.WoApplicationState;
+        if (S) return { key: S.deriveSpot(application, spotRow, offers), label: S.label(S.deriveSpot(application, spotRow, offers)) };
+        const fallback = { pending: 'Esperando respuesta', shortlisted: 'En revisión', accepted: 'Confirmada', rejected: 'Rechazada', withdrawn: 'Retirada' };
+        return { key: application?.status || 'pending', label: fallback[application?.status] || 'Esperando respuesta' };
+    }
+
+    function rawStatusLabel(status) {
+        const S = window.WoApplicationState;
+        if (S) return S.rawSpotLabel(status);
+        return ({ pending: 'Esperando respuesta', shortlisted: 'En revisión', accepted: 'Confirmada', rejected: 'Rechazada', withdrawn: 'Retirada' })[status] || 'Esperando respuesta';
+    }
+
+    async function existingApplication(spot) {
+        if (!session || !artist || !spot) return null;
+        try {
+            const { data } = await WeotziData.StudioSpots.getApplication(spot.id, session.user.id);
+            if (!data) return null;
+            const { data: rows } = await (WeotziData.SpotsOpportunities
+                ? WeotziData.SpotsOpportunities.listApplicationsByArtist(session.user.id)
+                : WeotziData.StudioSpots.listApplicationsByArtist(session.user.id));
+            return (rows || []).find(row => row.id === data.id) || data;
+        } catch (err) {
+            console.warn('[spots] postulación existente:', err);
+            return null;
+        }
     }
 
     function backToDirectory() {
@@ -337,6 +619,16 @@
             featureEl.innerHTML = '';
             mosaicEl.innerHTML = '';
             ribbonEl.innerHTML = '';
+            const filtered = hasActiveFilters() && allSpots.length > 0;
+            const title = document.getElementById('spots-empty-title');
+            const text = document.getElementById('spots-empty-text');
+            if (title) title.textContent = filtered ? 'Ningún spot coincide con tu búsqueda' : 'No hay spots abiertos';
+            if (text) {
+                text.innerHTML = filtered
+                    ? 'Probá con otros filtros o <button type="button" class="sps-empty-reset" id="spots-empty-reset">limpiá la búsqueda</button>.'
+                    : 'Volvé más tarde: los estudios publican sus posiciones acá.';
+                document.getElementById('spots-empty-reset')?.addEventListener('click', clearFilters);
+            }
             emptyEl.classList.remove('hidden');
             return;
         }
@@ -344,13 +636,21 @@
 
         const layout = partitionSpotsForLayout(spots);
         featureEl.innerHTML = layout.hero ? renderFeature(layout.hero) : '';
-        mosaicEl.innerHTML = layout.mosaic.map((entry, i) => renderTile(entry.spot, i, entry.layout)).join('');
-        ribbonEl.innerHTML = renderRibbon();
+        // La rotación de marcas cuenta solo las fichas orgánicas (la promovida lleva su círculo en tinta).
+        let markSlot = 0;
+        mosaicEl.innerHTML = layout.mosaic.map((entry, i) => renderTile(entry.spot, i, entry.layout,
+            entry.layout === 'promoted' ? null : 1 + markSlot++)).join('');
+        // Con menos piezas que el mosaico completo, la grilla deja de reservar filas fijas.
+        const hasPromoted = layout.mosaic.some(entry => entry.layout === 'promoted');
+        mosaicEl.classList.toggle('is-partial', layout.mosaic.length < MOSAIC_SLOTS || !hasPromoted);
+        mosaicEl.hidden = layout.mosaic.length === 0;
+        const shown = new Set([layout.hero && layout.hero.id].concat(layout.mosaic.map(entry => entry.spot.id)).filter(Boolean));
+        ribbonEl.innerHTML = renderRibbon(shown);
 
         document.querySelectorAll('[data-spot-open]').forEach(el => {
             el.addEventListener('click', (event) => {
                 event.preventDefault();
-                const spot = spots.find(x => x.id === el.dataset.spotOpen);
+                const spot = allSpots.find(x => x.id === el.dataset.spotOpen);
                 if (spot) openDetail(spot);
             });
         });
@@ -368,15 +668,15 @@
         return `
             <article class="sps-feature" data-spot-layout="hero">
                 <div class="sps-feature-media${cover ? ' has-image' : ''}" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
-                    ${isFeatured(s) ? '<span class="sps-sponsored-badge">☆ Patrocinado</span>' : ''}
+                    ${isFeatured(s) ? SPONSORED_BADGE : ''}
                     ${cover ? '' : mediaPlaceholder('Foto del estudio')}
                 </div>
                 <div class="sps-feature-body">
-                    <span class="sps-feature-eyebrow">${markHtml(s.kind)} ${escapeHtml(eyebrow)}</span>
+                    <span class="sps-feature-eyebrow"><span class="sps-mark sps-mark--hero" aria-hidden="true"></span> ${escapeHtml(eyebrow)}</span>
                     <h2 class="sps-feature-title">${escapeHtml(spotName(s))}</h2>
                     ${metaLine(s) ? `<span class="sps-feature-meta">${escapeHtml(metaLine(s))}</span>` : ''}
                     ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
-                    ${desc ? `<p class="sps-feature-desc">${escapeHtml(truncate(desc, 190))}</p>` : ''}
+                    ${desc ? `<p class="sps-feature-desc">${escapeHtml(truncate(desc, 130))}</p>` : ''}
                     <div class="sps-feature-actions">
                         <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" data-spot-open="${escapeAttr(s.id)}">
                             Postularme <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
@@ -389,13 +689,13 @@
     }
 
     // Mosaico bento: 2 tiles grandes (blanco / arena) + 4 compactos.
-    function renderTile(s, index, layout) {
+    function renderTile(s, index, layout, markSlot) {
         if (layout === 'promoted') return renderPromotedTile(s);
 
         const close = daysToClose(s);
         const urgent = close !== null && close <= 2;
         const large = index < 2;
-        const featuredBadge = isFeatured(s) ? '<span class="sps-sponsored-badge">☆ Patrocinado</span>' : '';
+        const featuredBadge = isFeatured(s) ? SPONSORED_BADGE : '';
         const city = cityOf(s);
         const eyebrow = [KIND_LABELS[s.kind] || s.kind, city].filter(Boolean).join(' · ');
         const cover = large ? (spotMediaOf(s)[0] || '') : '';
@@ -413,7 +713,7 @@
                 <article class="sps-tile sps-tile--large ${variant}" data-spot-open="${escapeAttr(s.id)}"
                     data-spot-layout="large" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
                     ${featuredBadge}
-                    <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
+                    <span class="sps-tile-top">${markHtml(s.kind, markSlot)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
                     <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                     ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
                     ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
@@ -425,15 +725,50 @@
             `;
         }
 
+        // Urgente (Figma 107:5373): sin marca; ciudad y cierre debajo del nombre.
+        if (urgent) {
+            return `
+                <article class="sps-tile ${variant}" data-spot-open="${escapeAttr(s.id)}" data-spot-layout="urgent">
+                    ${featuredBadge}
+                    <span class="sps-tile-urgency">Última oportunidad</span>
+                    <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
+                    <span class="sps-tile-meta">${escapeHtml([city, closingText(s)].filter(Boolean).join(' · '))}</span>
+                </article>
+            `;
+        }
+
+        // Itinerante (Figma 107:5380): ficha de texto mono en una sola línea editorial.
+        if (s.kind === 'itinerant') {
+            return `
+                <article class="sps-tile sps-tile--itinerant ${variant}" data-spot-open="${escapeAttr(s.id)}" data-spot-layout="itinerant">
+                    ${featuredBadge}
+                    <span class="sps-tile-kind">${escapeHtml(KIND_LABELS.itinerant)}</span>
+                    <p class="sps-tile-itinerary">${escapeHtml(itinerantLine(s))}</p>
+                </article>
+            `;
+        }
+
         return `
             <article class="sps-tile ${variant}" data-spot-open="${escapeAttr(s.id)}" data-spot-layout="${layout === 'featured' ? 'featured' : 'compact'}">
                 ${featuredBadge}
-                ${urgent ? '<span class="sps-tile-urgency">Última oportunidad</span>' : ''}
-                <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(city || KIND_LABELS[s.kind] || '')}</span></span>
+                <span class="sps-tile-top">${markHtml(s.kind, markSlot)}<span class="sps-tile-city">${escapeHtml(city || KIND_LABELS[s.kind] || '')}</span></span>
                 <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                 ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
             </article>
         `;
+    }
+
+    // "Línea Fina Studio, Villa Crespo, BA. 2 semanas, Fine line / Minimalista, split 65%. Cierra en 5 días."
+    function itinerantLine(s) {
+        const loc = s.location || {};
+        const place = String(loc.formatted_address || loc.city || '').split(',')[0].trim();
+        const head = [spotName(s), place, loc.city && loc.city !== place ? loc.city : ''].filter(Boolean).join(', ');
+        const terms = [
+            durationText(s),
+            normalizeList(s.styles_wanted).slice(0, 2).join(' / '),
+            s.revenue_split_pct != null ? `split ${Number(s.revenue_split_pct).toFixed(0)}%` : ''
+        ].filter(Boolean).join(', ');
+        return [head, terms, closingText(s)].filter(Boolean).map(part => part.replace(/\.$/, '')).join('. ') + '.';
     }
 
     function renderPromotedTile(s) {
@@ -444,7 +779,7 @@
 
         return `
             <article class="sps-tile sps-tile--promoted" data-spot-open="${escapeAttr(s.id)}" data-spot-layout="promoted">
-                <span class="sps-sponsored-badge">☆ Patrocinado</span>
+                ${SPONSORED_BADGE}
                 <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
                 <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                 ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
@@ -466,22 +801,22 @@
             <span class="sps-media-placeholder" aria-hidden="true">
                 <i data-wo-icon="image" class="wo-icon-24"></i>
                 <strong>${escapeHtml(label)}</strong>
-                <small>or <u>browse files</u></small>
             </span>
         `;
     }
 
-    // Cinta inferior: los spots con cierre más próximo.
-    function renderRibbon() {
-        const closing = spots
-            .filter(s => daysToClose(s) !== null)
-            .sort((a, b) => daysToClose(a) - daysToClose(b))
-            .slice(0, RIBBON_SLOTS);
-        if (closing.length === 0) return '';
+    // Cinta inferior: primero los spots que no entraron en la franja ni en el
+    // mosaico; si sobran celdas, se completan con los que cierran antes.
+    function renderRibbon(shown) {
+        const byClose = (a, b) => (daysToClose(a) ?? Infinity) - (daysToClose(b) ?? Infinity);
+        const rest = spots.filter(s => !shown || !shown.has(s.id));
+        const fill = spots.filter(s => shown && shown.has(s.id) && daysToClose(s) !== null).sort(byClose);
+        const closing = rest.concat(fill).slice(0, RIBBON_SLOTS);
+        if (closing.length === 0 || (shown && rest.length === 0 && spots.length < MOSAIC_SLOTS)) return '';
 
-        return closing.map(s => `
+        return closing.map((s, i) => `
             <a class="sps-ribbon-cell" href="?spot=${encodeURIComponent(s.id)}" data-spot-open="${escapeAttr(s.id)}">
-                ${markHtml(s.kind)}
+                ${markHtml(s.kind, i)}
                 <span>${escapeHtml([spotName(s), cityOf(s), closingText(s)].filter(Boolean).join(' · '))}</span>
             </a>
         `).join('');
@@ -583,7 +918,7 @@
 
                 <div class="sps-links" id="spot-links">
                     ${studio.instagram ? `<a href="https://instagram.com/${encodeURIComponent(String(studio.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i> @${escapeHtml(String(studio.instagram).replace(/^@/, ''))}</a>` : ''}
-                    ${studio.website ? `<a href="${escapeAttr(studio.website)}" target="_blank" rel="noopener"><i data-wo-icon="globe" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(String(studio.website).replace(/^https?:\/\//, ''))}</a>` : ''}
+                    ${studio.website ? `<a href="${escapeAttr(studio.website)}" target="_blank" rel="noopener"><i data-wo-icon="external-link" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(String(studio.website).replace(/^https?:\/\//, ''))}</a>` : ''}
                     <span id="spot-roster" hidden></span>
                 </div>
 
@@ -630,14 +965,15 @@
         }).join('');
 
         return `
+            <span class="sps-label sps-preview-label">Portfolio</span>
             <div class="sps-preview">
-                <span class="sps-label">Portfolio</span>
                 <div class="sps-preview-id">
-                    <span class="wo-avatar wo-avatar--s">${artist.profile_picture ? `<img src="${escapeAttr(artist.profile_picture)}" alt="">` : escapeHtml(initial)}</span>
+                    <span class="sps-preview-avatar">${artist.profile_picture ? `<img src="${escapeAttr(artist.profile_picture)}" alt="">` : escapeHtml(initial)}</span>
                     <div>
                         <span class="sps-preview-name">${escapeHtml(name)}</span>
-                        ${city ? `<span class="sps-preview-city">${escapeHtml(city)}</span>` : ''}
+                        <span class="sps-preview-stats" id="spot-preview-stats">${previewStatsHtml()}</span>
                     </div>
+                    ${city ? `<span class="sps-preview-city"><i data-wo-icon="map-pin" aria-hidden="true"></i>${escapeHtml(city)}</span>` : ''}
                 </div>
                 ${styles.length ? `<div class="sps-styles">${styles.map(st => `<span class="sps-tag">${escapeHtml(st)}</span>`).join('')}</div>` : ''}
                 <div class="sps-preview-shots">${shotSlots}</div>
@@ -674,7 +1010,7 @@
 
             <span class="sps-label">Fechas disponibles</span>
             <div class="sps-cal" id="spot-cal"></div>
-            <p class="sps-cal-summary" id="spot-cal-summary">Elegí el día de inicio y el de cierre.</p>
+            <p class="sps-cal-summary" id="spot-cal-summary" aria-live="polite" hidden></p>
 
             <div class="wo-field">
                 <label class="wo-label" for="apply-message">Mensaje de presentación</label>
@@ -709,6 +1045,28 @@
         renderCalendar();
         wireApply(s);
         loadRosterCount(s);
+        markAlreadyApplied(s);
+    }
+
+    // Si el artista ya se postuló, el aside muestra el estado en lugar del formulario.
+    async function markAlreadyApplied(s) {
+        const application = await existingApplication(s);
+        if (!application || currentSpot?.id !== s.id) return;
+        const state = await applicationState(application, s);
+        const aside = document.querySelector('#spot-detail-view .sps-detail-aside');
+        if (!aside || currentSpot?.id !== s.id) return;
+        aside.innerHTML = `
+            <h2 class="sps-aside-title">Ya te postulaste a este spot</h2>
+            <p class="sps-aside-sub">Enviaste tu solicitud el ${escapeHtml(formatLongDateTime(new Date(application.created_at)))}.</p>
+            <div class="sps-applied-state">
+                <span class="sps-label">Estado actual</span>
+                <span class="sps-summary-badge" data-state="${escapeAttr(state.key)}">${escapeHtml(state.label)}</span>
+            </div>
+            <a class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" href="/artist/applications?type=spot&id=${encodeURIComponent(application.id)}&from=spots">
+                ${state.key === 'contraoferta_recibida' ? 'Responder contraoferta' : 'Ver seguimiento'} <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+            </a>
+        `;
+        if (window.WoIcons) window.WoIcons.hydrate(aside);
     }
 
     // "N artistas residentes" — conteo real del roster activo del estudio.
@@ -840,8 +1198,9 @@
     function paintCalendarSummary() {
         const el = document.getElementById('spot-cal-summary');
         if (!el) return;
+        el.hidden = !selStart;
         if (!selStart) {
-            el.textContent = 'Elegí el día de inicio y el de cierre.';
+            el.textContent = '';
             return;
         }
         el.textContent = selEnd
@@ -857,7 +1216,7 @@
 
     function selectedRangeLabel() {
         if (!selStart) return 'A convenir con el estudio';
-        return selEnd ? `${formatDayMonth(selStart)} – ${formatDayMonth(selEnd)}` : formatDayMonth(selStart);
+        return formatShortRange(selStart, selEnd || selStart);
     }
 
     // ============================================
@@ -875,7 +1234,8 @@
 
             const { data: existing } = await WeotziData.StudioSpots.getApplication(s.id, session.user.id);
             if (existing) {
-                showApplyError(statusEl, btn, 'Ya te postulaste a este spot. Estado: ' + existing.status + '.');
+                showApplyError(statusEl, btn, 'Ya te postulaste a este spot. Estado: ' + rawStatusLabel(existing.status).toLowerCase() + '.');
+                markAlreadyApplied(s);
                 return;
             }
 
@@ -908,18 +1268,23 @@
     // SOLICITUD ENVIADA (ref 07)
     // ============================================
 
-    function renderSent(s) {
+    function renderSent(s, application, state) {
         const view = document.getElementById('spot-sent-view');
         if (!view) return;
+        const sentRange = application ? parseDaterange(application.requested_dates) : null;
+        const rangeLabel = application
+            ? (sentRange ? formatShortRange(sentRange.start, sentRange.end) : 'A convenir con el estudio')
+            : selectedRangeLabel();
+        const sentAt = application?.created_at ? new Date(application.created_at) : new Date();
 
         const initials = String(spotName(s)).split(/\s+/).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase();
         const rows = [
-            ['Estudio', `<span class="sps-sum-studio"><span class="wo-avatar wo-avatar--s">${escapeHtml(initials)}</span>${escapeHtml(spotName(s))}</span>`, true],
+            ['Estudio', `<span class="sps-sum-studio"><span class="sps-sum-initials" aria-hidden="true">${escapeHtml(initials)}</span>${escapeHtml(spotName(s))}</span>`, true],
             ['Ciudad', escapeHtml(cityCountryOf(s) || 'A confirmar'), false],
-            ['Tipo de spot', escapeHtml(KIND_LABELS[s.kind] || s.kind), false],
-            ['Fechas propuestas', escapeHtml(selectedRangeLabel()), false],
-            ['Split / condiciones', escapeHtml([splitText(s) ? `${Number(s.revenue_split_pct).toFixed(0)}% para el artista` : '', stipendText(s)].filter(Boolean).join(' · ') || 'A convenir'), false],
-            ['Fecha de envío', escapeHtml(formatLongDateTime(new Date())), false]
+            ['Tipo de spot', `<span class="sps-summary-kind">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>`, false],
+            ['Fechas propuestas', escapeHtml(rangeLabel), false],
+            ['Split / condiciones', '<span class="sps-summary-mono">' + escapeHtml(s.revenue_split_pct != null ? `${Number(s.revenue_split_pct).toFixed(0)}% para el artista` : (stipendText(s) || 'A convenir')) + '</span>', false],
+            ['Fecha de envío', escapeHtml(formatLongDateTime(sentAt)), false]
         ];
 
         view.innerHTML = `
@@ -934,7 +1299,7 @@
             <div class="sps-summary">
                 <div class="sps-summary-head">
                     <span class="wo-meta-s">Resumen del spot</span>
-                    <span class="sps-summary-badge">En revisión</span>
+                    <span class="sps-summary-badge"${state ? ` data-state="${escapeAttr(state.key)}"` : ''}>${escapeHtml(state ? state.label : 'En revisión')}</span>
                 </div>
                 <div class="sps-summary-body">
                     ${rows.map(([k, v]) => `
@@ -987,6 +1352,21 @@
     }
     function formatMoney(value) {
         return Number(value).toLocaleString('es-AR');
+    }
+    // Literal DATERANGE '[inicio,fin)' → fechas inclusivas.
+    function parseDaterange(raw) {
+        const m = String(raw || '').match(/^[\[(]\s*(\d{4}-\d{2}-\d{2})\s*,\s*(\d{4}-\d{2}-\d{2})\s*([\])])$/);
+        if (!m) return null;
+        const start = parseISODate(m[1]);
+        let end = parseISODate(m[2]);
+        if (m[3] === ')') end = new Date(end.getTime() - DAY_MS);
+        return start && end ? { start, end } : null;
+    }
+    // "1 – 15 de septiembre" o "28 de septiembre – 5 de octubre".
+    function formatShortRange(start, end) {
+        if (!end || start.getTime() === end.getTime()) return formatDayMonth(start);
+        if (start.getMonth() === end.getMonth()) return `${start.getDate()} – ${end.getDate()} de ${MONTHS[end.getMonth()]}`;
+        return `${formatDayMonth(start)} – ${formatDayMonth(end)}`;
     }
     function formatDayMonth(date) {
         return `${date.getDate()} de ${MONTHS[date.getMonth()]}`;

@@ -97,6 +97,26 @@
                 c.from('job_board_applications').update({ status: 'rejected', decided_at: new Date().toISOString() }).eq('id', applicationId)
             );
         },
+
+        // Edicion de la propuesta por el artista mientras el cliente no la vio
+        // (status 'pending'): solo campos de la propuesta. Devuelve la fila
+        // actualizada o null si ya no estaba pendiente (el cliente la abrio).
+        async updateProposal(applicationId, patch) {
+            const allowed = ['message', 'estimated_price', 'estimated_sessions', 'estimated_duration', 'availability_note'];
+            const row = {};
+            allowed.forEach((key) => {
+                if (patch && Object.prototype.hasOwnProperty.call(patch, key)) row[key] = patch[key];
+            });
+            if (!Object.keys(row).length) return null;
+            const { data } = await run('jobboard.applications.updateProposal', (c) =>
+                c.from('job_board_applications')
+                    .update(row)
+                    .eq('id', applicationId)
+                    .eq('status', 'pending')
+                    .select('id, status, message, estimated_price, estimated_sessions, estimated_duration, availability_note')
+            );
+            return Array.isArray(data) ? (data[0] || null) : (data || null);
+        },
     };
 
     const CounterOffers = {

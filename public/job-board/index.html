@@ -86,7 +86,7 @@
                 <div class="jbf-side-section">
                     <span class="jbf-side-label wo-meta-s">Para vos</span>
                     <div class="jbf-quick" id="quick-filters">
-                        <button type="button" class="jbf-quick-item is-active" data-quick="recommended">
+                        <button type="button" class="jbf-quick-item" data-quick="recommended">
                             <i data-wo-icon="star" class="wo-icon-18" aria-hidden="true"></i>
                             <span>Recomendado</span>
                         </button>
@@ -95,7 +95,7 @@
                             <span>Cerca tuyo</span>
                         </button>
                         <button type="button" class="jbf-quick-item" data-quick="newest">
-                            <i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i>
+                            <i data-wo-icon="zap" class="wo-icon-18" aria-hidden="true"></i>
                             <span>Recién publicados</span>
                         </button>
                         <button type="button" class="jbf-quick-item" data-quick="saved">
@@ -152,9 +152,14 @@
             <!-- Vista 1 · Feed de solicitudes -->
             <div id="jbf-feed-view">
                 <header class="jbf-head">
-                    <span class="wo-eyebrow">Job board</span>
-                    <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
-                    <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
+                    <div class="jbf-head-text">
+                        <span class="wo-eyebrow">Job board</span>
+                        <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
+                        <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
+                    </div>
+                    <a class="jbf-head-link" href="/artist/applications?tab=jobboard">
+                        Mis postulaciones <i data-wo-icon="arrow-right" aria-hidden="true"></i>
+                    </a>
                 </header>
 
                 <!-- Oportunidad patrocinada (solo si el backend expone una activa) -->
@@ -209,6 +214,7 @@
 
     <!-- Job Board Script -->
     <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/applications-state.js"></script>
     <script src="/shared/js/job-board-feed.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
