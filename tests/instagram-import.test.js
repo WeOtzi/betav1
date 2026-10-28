@@ -54,3 +54,22 @@ test('instagram transform falls back to dataset media rows when profile arrays a
     assert.equal(payload.photos.length, 1);
     assert.equal(payload.photos[0].cdn_url, 'https://cdn.example.com/photo-2.jpg');
 });
+
+test('instagram preview summary lists each post so the dialog can pick them one by one', () => {
+    const payload = igImport._internal.transformProfile([
+        {
+            username: 'ink_test',
+            latestPosts: [
+                { id: 'p1', type: 'Image', displayUrl: 'https://cdn.example.com/p1.jpg', url: 'https://instagram.com/p/p1/' },
+                { id: 'r1', productType: 'clips', type: 'Video', videoUrl: 'https://cdn.example.com/r1.mp4', displayUrl: 'https://cdn.example.com/r1.jpg', videoDuration: 14.6, url: 'https://instagram.com/reel/r1/' }
+            ]
+        }
+    ], 'ink_test');
+    const summary = igImport._internal.summarizePayload(payload);
+    assert.equal(summary.media.length, 2);
+    assert.deepEqual(summary.media.map(m => m.permalink), ['https://instagram.com/p/p1/', 'https://instagram.com/reel/r1/']);
+    assert.equal(summary.media[1].kind, 'reel');
+    assert.equal(summary.media[1].video_duration, 15);
+    // El resumen no expone las URLs de descarga del CDN, solo metadatos para elegir.
+    assert.ok(summary.media.every(m => !('cdn_url' in m)));
+});

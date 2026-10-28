@@ -359,20 +359,15 @@ test('artist product navigation always renders the seven Figma destinations in o
   assert.match(html, /href="\/my-quotations\/statistics" aria-current="page">ESTADÍSTICAS<\/a>/);
 });
 
-test('artist product navigation exposes invitations from an accessible Spots dropdown', () => {
+test('artist product navigation keeps SPOTS as a plain Figma link and invitations in the mobile menu', () => {
   const html = runtime.sandbox.WeotziOrganisms.render.productNav('invitations', {
     menuId: 'artist-menu'
   });
 
+  // Figma final del flujo de artista (24:1425): sin chevron ni desplegable en SPOTS.
   assert.match(html, /<a class="wo-org-product-nav__link is-active" href="\/studio-spots">SPOTS<\/a>/);
-  assert.match(
-    html,
-    /<button[^>]*data-spots-menu-toggle[^>]*aria-expanded="false"[^>]*aria-controls="artist-menu-spots"[^>]*aria-label="Abrir menú de Spots"/
-  );
-  assert.match(
-    html,
-    /<div id="artist-menu-spots"[^>]*role="menu"[^>]*hidden>[\s\S]*href="\/artist\/invitations"[^>]*role="menuitem"[^>]*aria-current="page"[^>]*>INVITACIONES<\/a>/
-  );
+  assert.doesNotMatch(html, /data-spots-menu-toggle/);
+  assert.doesNotMatch(html, /wo-org-product-nav__spots-dropdown/);
   assert.match(
     html,
     /<a href="\/artist\/invitations" class="wo-org-product-nav__mobile-subitem is-active" aria-current="page">INVITACIONES<\/a>/
@@ -401,12 +396,19 @@ test('artist product navigation renders the Dashboard chrome while preserving pa
   assert.match(html, /href="\/artist\/travel" aria-current="page">TRAVEL<\/a>/);
 });
 
-test('artist product navigation always exposes the shared quotation and notification counters', () => {
-  const html = runtime.sandbox.WeotziOrganisms.render.productNav('travel');
+test('artist product navigation keeps the tile counter and moves the quotation counter to the mobile menu', () => {
+  const html = runtime.sandbox.WeotziOrganisms.render.productNav('travel', {
+    badgeItem: 'inbox', badgeId: 'ai-nav-unread', badgeClass: 'ai-navcount'
+  });
+  const desktop = html.slice(html.indexOf('wo-org-product-nav__links'), html.indexOf('wo-org-product-nav__account'));
+  const mobile = html.slice(html.indexOf('wo-org-product-nav__mobile'));
 
-  assert.match(html, /href="\/my-quotations"[^>]*>[\s\S]*data-artist-quote-count[\s\S]*<\/a>/);
+  // Figma final (24:1425 / 801:*): sin contadores en los links de escritorio;
+  // el único visible es el del tile Ö (801:559).
+  assert.doesNotMatch(desktop, /wo-org-product-nav__badge|data-artist-quote-count|ai-nav-unread/);
+  assert.match(mobile, /href="\/my-quotations"[^>]*>[\s\S]*data-artist-quote-count[\s\S]*<\/a>/);
   assert.match(html, /href="\/artist\/account"[^>]*>[\s\S]*data-artist-notification-count[\s\S]*<\/a>/);
-  assert.equal((html.match(/data-artist-quote-count/g) || []).length, 2);
+  assert.equal((html.match(/data-artist-quote-count/g) || []).length, 1);
   assert.equal((html.match(/data-artist-notification-count/g) || []).length, 1);
 });
 
@@ -419,6 +421,11 @@ test('artist product footer renders the Dashboard and Figma footer contract', ()
   assert.match(html, /CONTACTO[\s\S]*artistas@weotzi\.com[\s\S]*Soporte/);
   assert.match(html, /AYUDA[\s\S]*Preguntas frecuentes[\s\S]*Centro de ayuda/);
   assert.match(html, /TÉRMINOS[\s\S]*Términos y condiciones[\s\S]*Privacidad/);
+  // Sin rutas inexistentes (/faqs, /terminos, /privacidad) ni dos mailto iguales.
+  assert.doesNotMatch(html, /href="\/(faqs|terminos|privacidad)"/);
+  assert.match(html, /href="https:\/\/weotzi\.com\/faqs\/[^"]*"[^>]*>Preguntas frecuentes/);
+  assert.match(html, /href="\/artist\/inbox\?filter=support">Soporte/);
+  assert.equal((html.match(/mailto:artistas@weotzi\.com/g) || []).length, 1);
   assert.match(html, /© 2026 WE ÖTZI\. TODOS LOS DERECHOS RESERVADOS\./);
   assert.match(html, /data-wo-icon="instagram"[\s\S]*INSTAGRAM/);
 });
@@ -432,20 +439,23 @@ test('artist product navigation keeps the Dashboard logout typography above the 
   );
 });
 
-test('artist product navigation can retain the quotations archive mobile affordance', () => {
+test('artist product navigation keeps the archived quotations mobile affordance on the listing scope', () => {
   const html = runtime.sandbox.WeotziOrganisms.render.productNav('quotations', {
     archiveExtra: true
   });
 
-  assert.match(html, /href="\/archive">ARCHIVO<\/a>/);
+  // /archive se retiró con el Figma final: las archivadas son un alcance del listado.
+  assert.match(html, /href="\/my-quotations\?alcance=archivadas">ARCHIVADAS<\/a>/);
+  assert.doesNotMatch(html, /href="\/archive"/);
 });
 
-test('artist product navigation marks an active auxiliary Dashboard destination', () => {
-  const html = runtime.sandbox.WeotziOrganisms.render.productNav('visitors', {
+test('artist product navigation Dashboard extras only link to screens of the final Figma', () => {
+  const html = runtime.sandbox.WeotziOrganisms.render.productNav('account', {
     dashboardExtras: true
   });
 
-  assert.match(html, /href="\/artist\/visitors\/" class="is-active" aria-current="page">VISITANTES<\/a>/);
+  assert.match(html, /href="\/artist\/account" class="is-active" aria-current="page">PERFIL<\/a>/);
+  assert.doesNotMatch(html, /artist\/visitors|VISITANTES/);
 });
 
 test('Figma fixture data retains the key product literals used by the organisms', () => {
