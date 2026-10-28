@@ -20,8 +20,9 @@
     <script src="/shared/js/wo-icons.js" defer></script>
     <link rel="stylesheet" href="/shared/css/client.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
+    <link rel="stylesheet" href="/shared/css/client-dashboard-figma.css">
 </head>
-<body class="wo-app client-page">
+<body class="wo-app client-page client-dashboard-figma">
 
     <header class="wo-topbar client-topbar">
         <div class="wo-topbar-left">
@@ -29,9 +30,11 @@
             <nav class="wo-topbar-nav">
                 <a class="wo-topbar-item is-active" href="#mis-cotizaciones" onclick="switchToQuotations('all')">Cotizaciones</a>
                 <a class="wo-topbar-item" href="#mis-cotizaciones" onclick="switchToJobBoard()">Job board</a>
-                <a class="wo-topbar-item" href="/client/chats">Chats</a>
-                <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
-                <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+                <a class="wo-topbar-item" href="/studio-spots/">Spots</a>
+                <a class="wo-topbar-item" href="/calendar/">Calendario</a>
+                <a class="wo-topbar-item" href="/my-quotations/statistics/">Estadísticas</a>
+                <a class="wo-topbar-item" href="/artist/travel/">Travel</a>
+                <a class="wo-topbar-item" href="/client/chats/">Inbox</a>
             </nav>
         </div>
         <div class="wo-topbar-right">
@@ -56,10 +59,13 @@
                 </header>
                 <div class="client-activity-grid">
                     <!-- Feed de actividad (eventos reales: cotizaciones, chat, job board) -->
-                    <div class="client-feed" id="activity-feed">
-                        <div class="loading-skeleton loading-skeleton--row"></div>
-                        <div class="loading-skeleton loading-skeleton--row"></div>
-                        <div class="loading-skeleton loading-skeleton--row"></div>
+                    <div class="client-activity-stream">
+                        <article class="client-next-appointment" id="next-appointment" hidden></article>
+                        <div class="client-feed" id="activity-feed">
+                            <div class="loading-skeleton loading-skeleton--row"></div>
+                            <div class="loading-skeleton loading-skeleton--row"></div>
+                            <div class="loading-skeleton loading-skeleton--row"></div>
+                        </div>
                     </div>
 
                     <!-- Contadores -->
@@ -118,13 +124,13 @@
                 </div>
                 <div class="client-idea-cards">
                     <article class="wo-card client-idea-card">
-                        <span class="client-idea-icon"><i data-wo-icon="radio"></i></span>
+                        <span class="client-idea-icon"><i data-wo-icon="briefcase"></i></span>
                         <h3 class="client-idea-card-title">Publicar en Job Board</h3>
                         <p class="client-idea-card-copy">Recibí propuestas de tatuadores interesados en tu idea.</p>
                         <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/job-board/request">Publicar idea <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
                     </article>
                     <article class="wo-card client-idea-card">
-                        <span class="client-idea-icon"><i data-wo-icon="send"></i></span>
+                        <span class="client-idea-icon" aria-hidden="true"></span>
                         <h3 class="client-idea-card-title">Solicitar cotización</h3>
                         <p class="client-idea-card-copy">Enviá los detalles de tu idea a un artista puntual y recibí un presupuesto.</p>
                         <a class="wo-btn wo-btn--hard wo-btn--block" href="/quotation">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
@@ -137,7 +143,7 @@
         <section class="client-globe">
             <div class="wo-container client-globe-inner">
                 <div class="client-globe-media wo-media">
-                    <i data-wo-icon="globe" class="client-globe-glyph"></i>
+                    <img src="/shared/assets/client-dashboard/tattoo-globe.png" width="652" height="534" alt="Globo del mundo con ubicaciones de tatuadores" class="client-globe-image">
                 </div>
                 <div class="client-globe-copy">
                     <p class="wo-eyebrow client-globe-eyebrow">Tattoo globe</p>
@@ -302,6 +308,7 @@
     </div>
 
     <script src="/shared/js/reviews.js"></script>
+    <script src="/shared/js/client-dashboard-reference.js"></script>
     <script src="/shared/js/client-dashboard.js"></script>
 </body>
 </html>

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.13] - 2026-10-28
+
+- Pantalla 5: replicar el dashboard de cliente del frame final 801:1126
+- Encabezado literal confirmado por Valentina, fuentes y geometría locales a esta ruta, próxima cita, actividad, contadores, tarjetas, globo original de Figma y footer. Los ejemplos Sophie/Lauu y contadores del frame existen únicamente en la presentación aislada de preview; no se modifican tablas compartidas ni datos de otras pantallas. En runtime normal la cita se obtiene por los IDs numéricos de las cotizaciones del cliente.
+- Validación: npm test 427/427; tests de cita próxima, cancelación/pasado, vacío, error, identidad y aislamiento de fixtures. Navegador Browser en preview segura: referencia de 1440×2694 y siete anchos entre 390 y 1920 px sin scroll horizontal ni botones fuera del área; fuentes e imágenes cargadas. Ver detalle abre y cierra la cotización ficticia, el contador abre Pendientes y Ö abre cuenta. Regresión de fotos reales bajo el placeholder reproducida y corregida. Evidencia y límites en docs/auditoria-valentina/client-dashboard-frame-801-1126.md. check:release y repetición de npm test mediante entrega automática. No prueba Supabase, reservas, mensajes ni correos reales; soporte remoto 501 es una limitación existente de preview.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.12] - 2026-10-28
 
 - Corregir diferencias visuales de las cuatro pantallas finales: etiquetas, títulos y espaciado de Inicio; cartel de ambos accesos; desplazamiento del login cliente; ancho y posición de CONTINUAR en registro. Se conservan las figuras aprobadas por Laura, los placeholders y «or browse files».
