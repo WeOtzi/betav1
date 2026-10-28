@@ -19,7 +19,7 @@ test('una ruta retirada redirige a su reemplazo cuando su carpeta ya no existe',
     const dir = tempPublic([]);
     assert.equal(legacyRedirectFor('/artist/visitors', dir), '/my-quotations/statistics');
     assert.equal(legacyRedirectFor('/artist/visitors/', dir), '/my-quotations/statistics');
-    assert.equal(legacyRedirectFor('/artist/profile/gallery/index.html', dir), '/artist/account#portafolio');
+    assert.equal(legacyRedirectFor('/artist/profile/gallery/index.html', dir), '/artist/profile');
 });
 
 test('si la carpeta vuelve a existir (git restore) la página original se sirve sin redirección', () => {
