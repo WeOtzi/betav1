@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.9] - 2026-10-28
+
+- Pantalla 4: registro de clientes fiel a Figma y Continuar a la derecha
+- Validación: navegador Chromium/Edge local seguro a 1440×857, 768 y 390 px: botón de 44 px alineado al margen derecho, placeholders vacíos, fuentes cargadas y sin overflow horizontal. Comparación visual con 801:1120; SVG originales locales. Requeridos/foco, avanzar a paso 02, volver y restaurar borrador comprobados; contraseña no persistida. Capturas alternativas con Edge headless porque Browser no tenía ventana visible. Sin crear cuentas ni probar emails/Supabase reales; soporte 501 es una limitación existente de preview. npm test y check:release se ejecutan en la entrega automática. Evidencia en docs/auditoria-valentina/client-register-frame-801-1120.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.8] - 2026-10-28
 
 - Replicar el acceso de clientes del frame final 801:1124

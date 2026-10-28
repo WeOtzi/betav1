@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-register-ds.css">
+    <link rel="stylesheet" href="/client/register/step-one.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -83,9 +84,9 @@
                         <button type="button" class="cw-photo-drop" id="cw-photo-drop" aria-labelledby="cw-photo-label">
                             <img id="cw-photo-preview" class="wo-hidden" alt="Tu foto de perfil">
                             <span class="cw-photo-empty" id="cw-photo-empty">
-                                <i data-wo-icon="image" aria-hidden="true"></i>
+                                <img class="cw-frame-icon" src="/client/register/assets/photo.svg" width="28" height="29.1" alt="">
                                 <strong>Subí una foto</strong>
-                                <span class="browse">o elegí un archivo</span>
+                                <span class="browse">or <u>browse files</u></span>
                             </span>
                         </button>
                         <input type="file" id="cw-photo-input" accept="image/*" class="wo-hidden" tabindex="-1" aria-hidden="true">
@@ -111,7 +112,7 @@
                         <div class="wo-field">
                             <label class="wo-label" for="cw-email">Email <span class="req">*</span></label>
                             <div class="cw-inputwrap cw-inputwrap--icon">
-                                <i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>
+                                <img class="cw-frame-icon" src="/client/register/assets/mail.svg" width="18" height="18" alt="">
                                 <input type="email" id="cw-email" class="wo-input" placeholder="vos@email.com" autocomplete="email" required>
                             </div>
                         </div>
@@ -120,7 +121,7 @@
                             <div class="wo-field">
                                 <label class="wo-label" for="cw-username">Nombre de usuario <span class="req">*</span></label>
                                 <div class="cw-inputwrap cw-inputwrap--at">
-                                    <span class="at" aria-hidden="true">@</span>
+                                    <img class="cw-frame-icon" src="/client/register/assets/at.svg" width="14.374" height="14.706" alt="">
                                     <input type="text" id="cw-username" class="wo-input" placeholder="tuusuario" autocomplete="username" spellcheck="false" required>
                                 </div>
                                 <span class="wo-help">Así te van a encontrar</span>
@@ -128,7 +129,7 @@
                             <div class="wo-field">
                                 <label class="wo-label" for="cw-password">Contraseña <span class="req">*</span></label>
                                 <div class="cw-inputwrap cw-inputwrap--icon">
-                                    <i data-wo-icon="lock" class="wo-icon-18" aria-hidden="true"></i>
+                                    <img class="cw-frame-icon" src="/client/register/assets/lock.svg" width="18" height="18" alt="">
                                     <input type="password" id="cw-password" class="wo-input" placeholder="Tu contraseña" autocomplete="new-password" minlength="8" required>
                                 </div>
                                 <span class="wo-help">Mínimo 8 caracteres</span>
