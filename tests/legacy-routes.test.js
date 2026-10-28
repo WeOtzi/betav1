@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { LEGACY_ARTIST_ROUTES, legacyRedirectFor } = require('../lib/legacy-routes');
+const { LEGACY_ARTIST_ROUTES, legacyRedirectFor, legacyLocation } = require('../lib/legacy-routes');
 
 function tempPublic(existing) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wo-legacy-'));
@@ -36,6 +36,14 @@ test('las rutas que no están en el mapa nunca redirigen', () => {
 test('todos los destinos son rutas internas absolutas', () => {
     for (const [from, to] of Object.entries(LEGACY_ARTIST_ROUTES)) {
         assert.match(from, /^\/[a-z-/]+$/);
-        assert.match(to, /^\/[a-z-/]+(#[a-z]+)?$/);
+        assert.match(to, /^\/[a-z-/]+(\?[a-z0-9=&]+)?(#[a-z]+)?$/);
     }
+});
+
+test('el Location combina el query del destino con el pedido y conserva el hash', () => {
+    assert.equal(legacyLocation('/my-quotations?alcance=archivadas', ''), '/my-quotations?alcance=archivadas');
+    assert.equal(legacyLocation('/my-quotations?alcance=archivadas', '?page=2'), '/my-quotations?alcance=archivadas&page=2');
+    assert.equal(legacyLocation('/artist/profile', '?artist=lau'), '/artist/profile?artist=lau');
+    assert.equal(legacyLocation('/artist/account#perfil', '', { prefix: '/beta' }), '/beta/artist/account#perfil');
+    assert.equal(legacyLocation('/my-quotations?demo=1&tour=1', '', { prefix: '/preview/x', trailingSlash: true }), '/preview/x/my-quotations/?demo=1&tour=1');
 });

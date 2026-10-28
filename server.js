@@ -20,7 +20,7 @@ const artistRegistration = require('./lib/artist-registration');
 const emailService = require('./services/email-service');
 const emailEventMapping = require('./services/email-event-mapping');
 const { startLocalNgrok } = require('./lib/local-ngrok');
-const { legacyRedirectFor } = require('./lib/legacy-routes');
+const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
@@ -6102,8 +6102,7 @@ app.use((req, res, next) => {
     const target = legacyRedirectFor(req.path, path.join(__dirname, 'public'));
     if (!target) return next();
     const search = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
-    const [targetPath, hash] = target.split('#');
-    return res.redirect(301, (req.weotziBasePath || '') + targetPath + search + (hash ? '#' + hash : ''));
+    return res.redirect(301, legacyLocation(target, search, { prefix: req.weotziBasePath || '' }));
 });
 
 // Serve static files from public directory
@@ -6170,14 +6169,10 @@ const packageInfo = require('./package.json');
 
 const routeDescriptions = {
     '/': 'Redirects to quotation form',
-    '/archive': 'Archived quotations',
     '/artist/dashboard': 'Artist dashboard',
     '/artist/invitations': 'Artist invitations',
     '/artist/login': 'Artist login',
     '/artist/profile': 'Public artist profile',
-    '/artist/profile/details': 'Artist profile details',
-    '/artist/profile/gallery': 'Artist profile gallery',
-    '/artist/visitors': 'Artist visitors',
     '/backoffice': 'Admin panel',
     '/backoffice/login': 'Admin login',
     '/calendar': 'Calendar view',
@@ -6188,7 +6183,6 @@ const routeDescriptions = {
     '/explore/globe': 'Explore globe',
     '/job-board': 'Job board public feed',
     '/job-board/request': 'Publish tattoo request',
-    '/landing-tatuador': 'Landing page for tattoo artists',
     '/marketplace': 'Artists marketplace',
     '/migration-log': 'Migration log',
     '/my-quotations': 'Artist quotations panel',
@@ -6205,7 +6199,6 @@ const routeDescriptions = {
     '/studio-spots': 'Studio spots',
     '/support/dashboard': 'Support dashboard',
     '/support/login': 'Support login',
-    '/tutorial': 'Interactive tour'
 };
 
 function titleFromRoute(routePath) {

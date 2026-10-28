@@ -26,10 +26,10 @@ function call(store, method, p, search, headers, body) {
 const ARTIST_PAGES = [
     'public/artist/dashboard/index.html', 'public/artist/account/index.html', 'public/artist/applications/index.html',
     'public/artist/inbox/index.html', 'public/artist/invitations/index.html', 'public/artist/profile/index.html',
-    'public/artist/profile/details/index.html', 'public/artist/travel/index.html', 'public/artist/visitors/index.html',
+    'public/artist/travel/index.html',
     'public/calendar/index.html', 'public/job-board/index.html', 'public/my-quotations/index.html',
-    'public/my-quotations/detail/index.html', 'public/my-quotations/statistics/index.html', 'public/studio-spots/index.html',
-    'public/archive/index.html',
+    'public/my-quotations/detail/index.html', 'public/my-quotations/new/index.html', 'public/my-quotations/statistics/index.html',
+    'public/studio-spots/index.html',
 ];
 
 /* ------------------------------ emulador ------------------------------ */
@@ -203,7 +203,9 @@ test('el bootstrap del demo parchea fetch antes de que exista el cliente y bloqu
     assert.doesNotMatch(js, /createClient\(/, 'el bootstrap no crea clientes propios');
     const menu = read('public/shared/js/wo-artist-menu.js');
     assert.match(menu, /Recorrido guiado · modo demo/);
-    assert.match(menu, /\/artist\/dashboard\?demo=1&amp;tour=1/);
+    // Figma final (801:559): el acceso al recorrido solo aparece con el demo activo.
+    assert.match(menu, /window\.WoDemo && window\.WoDemo\.enabled/);
+    assert.match(menu, /appPath\('\/artist\/dashboard'\)\) \+ '\?demo=1&amp;tour=1/);
 });
 
 test('el CSS del recorrido usa solo tokens del DS (sin hex sueltos ni [hidden] con display)', () => {

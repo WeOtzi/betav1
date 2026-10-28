@@ -105,18 +105,17 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/registerclosedbeta` | Artista | `public/registerclosedbeta/index.html` | Landing/registro de beta cerrada para artistas. |
 | `/artist/dashboard` | Artista | `public/artist/dashboard/index.html` | Panel de artista: perfil, ubicaciones, galeria, QR, cotizaciones, aplicaciones y ajustes. |
 | `/artist/profile` | Artista/publico | `public/artist/profile/index.html` | Perfil publico del artista por username/user id. |
-| `/artist/profile/gallery` | Artista/publico | `public/artist/profile/gallery/index.html` | Galeria publica categorizada del artista. |
 | `/artist/invitations` | Artista | `public/artist/invitations/index.html` | Invitaciones y membresias pendientes/activas con estudios. |
 | `/artist/applications` | Artista | `public/artist/applications/index.html` | Postulaciones del artista unificadas (job board + spots) con detalle y contraofertas (rediseño 2026). |
 | `/artist/inbox` | Artista | `public/artist/inbox/index.html` | Inbox unificado del artista fiel a Figma `144:1250`: clientes, cotizaciones, soporte, invitaciones, Spots, Job Board, estudios y viajes; lectura, favorito, archivo, realtime, mensajes y adjuntos persistentes. |
 | `/artist/travel` | Artista | `public/artist/travel/index.html` | Giras del artista fieles a los nueve estados Figma: dashboard, alta, éxito, detalle, edición, fechas, vínculo, compartir y cancelar; persiste viajes, contactos, checklist, documentos y cronología. |
 | `/artist/account` | Artista | `public/artist/account/index.html` | Centro de la cuenta del artista: 9 secciones con sidebar (rediseño 2026). |
 | `/travel/t/:slug` | Público | `public/travel/share/index.html` | Itinerario de solo lectura resuelto por slug mediante un RPC de columnas permitidas; no habilita lectura pública de `artist_trips`. `/travel/share?slug=` queda como compatibilidad de enlaces anteriores. |
-| `/my-quotations` | Artista/admin operativo | `public/my-quotations/index.html` | Gestion de cotizaciones asignadas, drawer, notas, sesiones, chat y estados. |
+| `/my-quotations` | Artista/admin operativo | `public/my-quotations/index.html` | Gestion de cotizaciones asignadas, drawer, notas, sesiones, chat y estados. Las archivadas y los borradores son alcances del listado (`?alcance=archivadas`). |
+| `/my-quotations/new` | Artista | `public/my-quotations/new/index.html` | Cotización manual (Figma final, oct 2026): para un cliente que llegó por fuera de la plataforma o una cita ya acordada (`?origen=cliente\|cita`). |
+| `/my-quotations/detail` | Artista | `public/my-quotations/detail/index.html` | Expediente de una cotización: propuesta, acuerdo, sesiones, disputa, notas de trabajo e historial. |
 | `/my-quotations/statistics` | Artista/admin operativo | `public/my-quotations/statistics/index.html` | Estadisticas de cotizaciones. |
 | `/calendar` | Artista/admin operativo | `public/calendar/index.html` | Calendario de sesiones/cotizaciones con FullCalendar. |
-| `/archive` | Artista/admin operativo | `public/archive/index.html` | Cotizaciones archivadas. |
-| `/tutorial` | Artista/admin operativo | `public/tutorial/index.html` | Tour del panel de cotizaciones. |
 | `/studio/register` | Estudio | `public/studio/register/index.html` | Registro de estudio en 5 pasos: cuenta, identidad, sedes, fotos, confirmar. |
 | `/studio/login` | Estudio | `public/studio/login/index.html` | Login de estudio. |
 | `/studio/dashboard` | Estudio | `public/studio/dashboard/index.html` | Panel de estudio: perfil, sedes, roster, spots, operaciones, inventario, proveedores, sponsors y analytics. |
@@ -126,6 +125,19 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/support/dashboard` | Soporte | `public/support/dashboard/index.html` | Dashboard de soporte para artistas, cotizaciones, tickets, sesiones, chats y acciones operativas. |
 | `/backoffice/login` | Admin | `public/backoffice/login/index.html` | Login de superadmin/backoffice. |
 | `/backoffice` | Admin | `public/backoffice/index.html` | Backoffice global: cotizaciones, artistas, soporte, analytics, salud, backup, integraciones y configuracion. |
+
+### Rutas retiradas (Figma final del artista, oct 2026)
+
+Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se eliminaron. Su URL responde 301 al reemplazo mientras la carpeta no exista (`lib/legacy-routes.js`); el detalle frame ↔ ruta está en [docs/plans/2026-10-28-figma-final-artista-mapeo.md](plans/2026-10-28-figma-final-artista-mapeo.md).
+
+| Ruta retirada | Redirige a |
+| --- | --- |
+| `/artist/profile/details` | `/artist/account#perfil` |
+| `/artist/profile/gallery` | `/artist/profile` (conserva `?artist=`) |
+| `/artist/visitors` | `/my-quotations/statistics` |
+| `/archive` | `/my-quotations?alcance=archivadas` |
+| `/tutorial` | `/my-quotations?demo=1&tour=1` |
+| `/landing-tatuador` | `/bienvenida` |
 
 ## Rutas API
 
@@ -194,9 +206,9 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Registrarse en `/register-artist` o beta cerrada.
 - Importar bio, link, ubicacion, fotos y reels desde Instagram durante registro o dashboard.
 - Administrar perfil, ubicaciones, estilos, galeria, QR y datos de sesion en `/artist/dashboard`.
-- Publicar perfil y galeria en `/artist/profile` y `/artist/profile/gallery`.
+- Publicar perfil y galeria en `/artist/profile` (la galeria publica vive dentro del perfil).
 - Recibir y gestionar cotizaciones en `/my-quotations`, con notas, sesiones, chat, rating y estados.
-- Consultar calendario y archivo.
+- Consultar calendario y cotizaciones archivadas (`/my-quotations?alcance=archivadas`).
 - Ver solicitudes publicas de job board y postular.
 - Ver/aceptar/rechazar invitaciones de estudios en `/artist/invitations`.
 - Aplicar a spots abiertos de estudios desde `/studio-spots`.
@@ -416,7 +428,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - La fuente de verdad usada para este mapa es el codigo local y las migraciones locales. Si la base remota de Supabase tiene migraciones aplicadas fuera del repo, este documento no las ve.
 - Hay tablas legacy o documentadas por codigo pero no creadas en las migraciones recientes del repo (`clients_db`, `support_users_db`, `feedback_tickets`, `chat_messages`, `quotation_*`, `job_board_*`, `app_settings`). Existen como dependencias reales del codigo y probablemente vienen de migraciones anteriores o de estado historico de Supabase.
 - `app-config.json` contiene configuracion publica y URLs de webhooks; los secretos operativos deben vivir en variables de entorno o en `app_settings` privado.
-- Algunos modulos siguen compartiendo convenciones heredadas de "admin operativo" (`/my-quotations`, `/archive`, `/calendar`) aunque hoy tambien funcionan para artistas.
+- Algunos modulos siguen compartiendo convenciones heredadas de "admin operativo" (`/my-quotations`, `/calendar`) aunque hoy tambien funcionan para artistas.
 
 Actualización posterior del 21/09/2026: [marketplace conectado a Supabase y cotizador validado](MARKETPLACE-QUOTATION-20260921.md).
 
