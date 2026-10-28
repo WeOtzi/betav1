@@ -5,14 +5,14 @@
 @font-face{font-family:'JetBrains Mono';src:url('/shared/fonts/artist-login/JetBrainsMono.ttf') format('truetype');font-weight:100 800;font-style:normal;font-display:swap}
 
 .client-login-page{--login-placeholder:#757575}
-.client-login-page .ca-split{grid-template-columns:minmax(0,calc(50% + 8px)) minmax(0,1fr)}
+.client-login-page .ca-split{grid-template-columns:minmax(0,728fr) minmax(0,716fr)}
 .client-login-page .ca-hero{box-sizing:border-box;justify-content:center;padding:var(--space-12)}
 .client-login-page .ca-hero-inner{gap:0}
 .client-login-page .ca-hero .wo-marks{position:absolute;left:46px;top:48px;gap:8px}
 .client-login-page .ca-hero .wo-mark-triangle{border-left-width:9.6px;border-right-width:9.6px}
-.client-login-page .ca-hero-title{font-size:72px;line-height:68.4px;letter-spacing:0}
+.client-login-page .ca-hero-title{width:327px;font-size:72px;line-height:69px;letter-spacing:0}
 .client-login-page .ca-hero-deco{right:56px;bottom:55.8px;width:0;height:0;border:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:80px solid var(--bauhaus-square)}
-.client-login-page .ca-form-col{box-sizing:border-box;align-items:flex-start;padding:max(64px,calc((100svh - 572px)/2)) 32px 64px 36px}
+.client-login-page .ca-form-col{box-sizing:border-box;align-items:flex-start;padding:max(64px,calc((100svh - 572px)/2)) 32px 64px 34px}
 .client-login-page .ca-form{max-width:422px;gap:0}
 .client-login-page .ca-brand{gap:13.326px;height:30.206px}
 .client-login-page .ca-brand .wo-marks{gap:6.663px}
@@ -44,8 +44,10 @@
 .client-login-page .ca-social-notice{width:100%;margin-top:var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
 .client-login-page .ca-social-notice p{margin:0 0 var(--space-2)}
 
+/* Align the browser font baseline with Figma's 69px text boxes. */
+@media(min-width:1101px){.client-login-page .ca-hero-title{transform:translate(-1px,-3.5px)}}
 @media(max-width:1100px){
-  .client-login-page .ca-hero-title{font-size:56px;line-height:.95}
+  .client-login-page .ca-hero-title{width:auto;font-size:56px;line-height:.95}
   .client-login-page .ca-form-col{padding-left:24px;padding-right:24px}
   .client-login-page .ca-title{font-size:30px;line-height:1.05}
   .client-login-page .ca-social-buttons{gap:8px}

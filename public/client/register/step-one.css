@@ -2,7 +2,7 @@
    Scope only the visible first step; later wizard screens keep their styles. */
 body.cw-page:has(.cw-step[data-step="1"]:not([hidden])){margin:0}
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])){
-  min-height:calc(100vh - var(--space-12));
+  min-height:calc(100vh - 49.2px);
   --cw-field-shadow:3px 3px 0 var(--border-strong);
 }
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-topbar{height:72px;min-height:72px;box-sizing:border-box}
@@ -52,13 +52,14 @@ body.cw-page:has(.cw-step[data-step="1"]:not([hidden])){margin:0}
 .cw-step[data-step="1"] .cw-alt{display:none}
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer{padding:18px var(--space-8);border-top-width:1px}
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer-right{margin-left:auto}
-#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) #cw-next{height:44px;min-height:44px;padding:0 21px;gap:var(--space-2);border-width:1px;line-height:14px;letter-spacing:1.12px;color:var(--surface-page)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) #cw-next{width:164.66px;height:44px;min-height:44px;padding:0;gap:var(--space-2);border-width:1px;line-height:14px;letter-spacing:1.12px;color:var(--surface-page)}
 .cw-frame-icon{display:block;flex:none;position:relative;z-index:1;pointer-events:none}
 .cw-inputwrap>.cw-frame-icon{position:absolute;left:18px}
 /* Keep the existing support action clear of the primary registration action. */
 body.cw-page:has(.cw-step[data-step="1"]:not([hidden])) #sc-fab{bottom:140px}
 @media(min-width:1100px){
   #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-main{transform:translateX(5px)}
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer{padding-right:27px}
 }
 @media(max-width:768px){
   #cw-shell:has(.cw-step[data-step="1"]:not([hidden])){min-height:100vh}

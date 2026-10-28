@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.12] - 2026-10-28
+
+- Corregir diferencias visuales de las cuatro pantallas finales: etiquetas, títulos y espaciado de Inicio; cartel de ambos accesos; desplazamiento del login cliente; ancho y posición de CONTINUAR en registro. Se conservan las figuras aprobadas por Laura, los placeholders y «or browse files».
+- Validación: navegador seguro a 1440, 768 y 390 px, sin overflow ni excepciones JS; selección por teclado y navegación, validación de ambos accesos, recuperación artista, registro/avanzar/volver/borrador sin contraseña. Aserciones geométricas reproducen los desvíos antes del cambio; medición y capturas posteriores en la auditoría. npm test y check:release mediante entrega automática. Sin autenticación, altas, emails ni persistencia remota reales.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.11] - 2026-10-28
 
 - Registro de clientes: restaurar or browse files como en Figma
