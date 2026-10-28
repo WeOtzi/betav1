@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.3] - 2026-10-28
+
+- Publicar en beta el selector de experiencia de Inicio
+- Publicación solicitada expresamente por el usuario; composición y selección de experiencia del PR #11.
+- Validación: CI de la implementación aprobado en Linux y Windows; Chromium entre 390 y 2560 px, navegación de ambos roles y teclado comprobados. Publicación sujeta al CI de esta versión y comprobación posterior de /api/release.
+- Límite conocido: los SVG originales de Figma no se pudieron descargar (HTTP 403); se utilizan iconos Feather locales, como se documenta en la evidencia del PR.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.inicio-figma.1] - 2026-10-27
 
 - Aplicar el selector de experiencia de Figma en Inicio
