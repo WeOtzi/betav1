@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.5] - 2026-10-28
+
+- Inicio: reproducir el frame 797:269 y continuar con la experiencia seleccionada
+- Validación: npm test 419/419. Navegador en preview local segura: selección por clic y flechas, foco visible, CONTINUAR hacia /artist/login/ y /marketplace/, sin errores de consola en Inicio. Layout renderizado a 1920, 1440, 1280, 1024, 768 y 390 px, sin overflow ni CTA recortados; capturas desktop/móvil. Solo se modifica Inicio y se conservan sus ilustraciones. Evidencia y límites en docs/auditoria-valentina/inicio-frame-797-269.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.4] - 2026-10-27
 
 - Configurar OpenCode de Valen para completar entregas en su rama y verificar CI y preview
