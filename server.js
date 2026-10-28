@@ -20,6 +20,7 @@ const artistRegistration = require('./lib/artist-registration');
 const emailService = require('./services/email-service');
 const emailEventMapping = require('./services/email-event-mapping');
 const { startLocalNgrok } = require('./lib/local-ngrok');
+const { legacyRedirectFor } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
@@ -6092,6 +6093,17 @@ app.get('/', (req, res) => {
 // The page itself resolves the slug through the restricted Supabase RPC.
 app.get('/travel/t/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'travel', 'share', 'index.html'));
+});
+
+// Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
+// solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const target = legacyRedirectFor(req.path, path.join(__dirname, 'public'));
+    if (!target) return next();
+    const search = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    const [targetPath, hash] = target.split('#');
+    return res.redirect(301, (req.weotziBasePath || '') + targetPath + search + (hash ? '#' + hash : ''));
 });
 
 // Serve static files from public directory
