@@ -1110,7 +1110,7 @@
                     <p class="cal-quote-hint" id="quote-hint" hidden>${escapeHtml(QUOTE_HINT)}</p>
                     <div class="cal-quote-listbox" id="quote-listbox" role="listbox" aria-label="Cotizaciones" hidden></div>
                 </div>
-                <p class="cal-quote-create" hidden>¿Todavía no cargaste este trabajo? <a href="${escapeAttr(appUrl(MANUAL_QUOTE_PATH))}">Crear cotización manual</a></p>
+                <p class="cal-quote-create" hidden>¿Todavía no cargaste este trabajo? <a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a></p>
             </div>
         `;
     }
@@ -1317,8 +1317,15 @@
         create.hidden = !nothingToLink || errorHasLink;
     }
 
+    // Cotización manual desde el calendario: la hoja abre como cita y precarga
+    // la fecha elegida (?origen=cita&fecha=AAAA-MM-DD); Cancelar vuelve acá.
+    function manualQuoteHref() {
+        const params = new URLSearchParams({ origen: 'cita', fecha: dateKey(state.selectedDate || new Date()) });
+        return appUrl(`${MANUAL_QUOTE_PATH}?${params.toString()}`);
+    }
+
     function manualQuoteLink() {
-        return `<a href="${escapeAttr(appUrl(MANUAL_QUOTE_PATH))}">Crear cotización manual</a>`;
+        return `<a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a>`;
     }
 
     function renderQuoteListbox() {
@@ -1752,7 +1759,7 @@
                 // Sin cotización elegida: el aviso enlaza a crear una manual.
                 el['event-form-error'].innerHTML = escapeHtml(error.message).replace(
                     'creá una cotización manual',
-                    `<a href="${escapeAttr(appUrl(MANUAL_QUOTE_PATH))}">creá una cotización manual</a>`,
+                    `<a href="${escapeAttr(manualQuoteHref())}">creá una cotización manual</a>`,
                 );
                 updateQuoteCreate();
                 renderQuoteListbox();
