@@ -1,8 +1,9 @@
 /**
  * WE OTZI - /bienvenida · selección de rol (rediseño Bauhaus 2026)
  * ----------------------------------------------------------------
- * Figma 238:2335 (= 205:666): "¿Cómo querés usar We Ötzi?" — dos cards
- * radio (cliente / artista) + CONTINUAR.
+ * Figma final (oct 2026) 797:269 (= 801:1125 del flujo de clientes):
+ * "¡Bienvenido! ¿Cómo querés usar We Ötzi?" — dos cards radio
+ * (cliente / artista) + CONTINUAR.
  *
  * Comportamiento al continuar:
  *  - Sin sesión  → cliente: /client/register · artista: /registerclosedbeta
@@ -10,7 +11,8 @@
  *                → artista: si tiene perfil en artists_db, loader → /artist/dashboard;
  *                  si no, /register-artist
  * La elección se guarda en localStorage ('wo-role-choice') y se preselecciona
- * al volver.
+ * al volver. `?role=artist|client` (o `?rol=artista|cliente`) preselecciona
+ * una card al llegar desde un link de la landing.
  *
  * Datos: solo via window.WeotziData.* (capa PostgREST). Auth directo via
  * window.ConfigManager.getSupabaseClient().auth.
@@ -97,14 +99,33 @@
         }
     }
 
-    function go(url) { window.location.href = url; }
+    // Prefijo de la app (/beta en producción, /preview/<id> en el preview local).
+    function appPath(path) {
+        var base = window.WEOTZI_BASE_PATH
+            ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '');
+        if (base && (path === base || path.indexOf(base + '/') === 0)) return path;
+        return base + path;
+    }
+
+    function go(url) { window.location.href = appPath(url); }
 
     function goWithLoader(role, targetUrl) {
         if (window.WoPostAuthLoader && typeof window.WoPostAuthLoader.show === 'function') {
-            window.WoPostAuthLoader.show({ role: role, targetUrl: targetUrl });
+            window.WoPostAuthLoader.show({ role: role, targetUrl: appPath(targetUrl) });
         } else {
             go(targetUrl);
         }
+    }
+
+    function roleFromQuery() {
+        try {
+            var params = new URLSearchParams(window.location.search);
+            var raw = String(params.get('role') || params.get('rol') || '').toLowerCase();
+            if (raw === 'artist' || raw === 'artista' || raw === 'tatuador') return 'artist';
+            if (raw === 'client' || raw === 'cliente') return 'client';
+        } catch (e) { /* sin URLSearchParams */ }
+        return null;
     }
 
     async function proceed() {
@@ -135,8 +156,8 @@
     }
 
     function init() {
-        // Preselección desde la visita anterior
-        var stored = readStoredRole();
+        // Preselección: ?role= de la URL, o la elección de la visita anterior
+        var stored = roleFromQuery() || readStoredRole();
         if (stored) setRole(stored);
         else syncSelection();
 
