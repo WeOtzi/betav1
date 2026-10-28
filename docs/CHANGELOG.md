@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.6] - 2026-10-28
+
+- Inicio: quitar el segundo contorno azul y conservar borde fino con sombra
+- Validación: regresión reproducida en navegador con foco de teclado (outline azul de 3 px separado 5 px). Aserción de borde único primero falló y luego pasó: sin outline adicional, borde CSS de 1 px y sombra oscura 3 px abajo/derecha intactos. Cliente/Artista comprobados a 1440, 768 y 390 px; foco visible por subrayado del CTA, destinos correctos y sin overflow. Captura nueva bloqueada por ventana de navegador no visible; ver auditoría de Inicio para límites.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.5] - 2026-10-28
 
 - Inicio: reproducir el frame 797:269 y continuar con la experiencia seleccionada

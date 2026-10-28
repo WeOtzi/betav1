@@ -23,7 +23,8 @@ body.wo-app *,body.wo-app *::before,body.wo-app *::after { box-sizing:border-box
 .inicio-card { position:relative; min-width:0; height:670px; background:var(--figma-white); border:1px solid var(--figma-sand-border); border-radius:var(--inicio-card-radius); overflow:hidden; box-shadow:var(--inicio-card-shadow); cursor:pointer; }
 .inicio-card:has(.inicio-radio:checked) { background:var(--inicio-selected-bg); border-color:var(--blue-400); box-shadow:var(--inicio-selected-shadow); transform:translateY(-3px); height:673px; }
 .inicio-radio { position:absolute; width:1px; height:1px; opacity:0; }
-.inicio-card:has(.inicio-radio:focus-visible) { outline:3px solid var(--blue-400); outline-offset:5px; }
+/* Keyboard focus stays visible on the CTA without adding a second card border. */
+.inicio-card:has(.inicio-radio:focus-visible) .inicio-cta { text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:4px; }
 .inicio-selected { display:none; position:absolute; z-index:1; top:22px; right:22px; width:30px; height:30px; align-items:center; justify-content:center; border-radius:var(--radius-circle); background:var(--blue-400); color:var(--text-body); }
 .inicio-selected [data-wo-icon],.inicio-selected svg { width:17px; height:17px; }
 .inicio-card:has(.inicio-radio:checked) .inicio-selected { display:flex; }

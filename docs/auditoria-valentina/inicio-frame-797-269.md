@@ -46,3 +46,13 @@ Flujo: Inicio → elegir Cliente/Artista → CONTINUAR → destino existente de 
 No se prueban autenticación real, persistencia de perfil ni operaciones del marketplace: esta tarea cambia únicamente el selector público. La selección es local a esta pantalla y no escribe preferencias de cuenta. No hay migraciones ni cambios de permisos.
 
 La publicación se comprueba con CI y `/api/release` para la SHA de entrega; no se considera publicada por el solo commit. Para revertir: `git revert <SHA de esta entrega>` y una nueva entrega versionada en la rama permanente. Isaí administra el rollback operativo.
+
+## Corrección del doble borde — versión .6
+
+- Reporte: la tarjeta seleccionada mostraba dos contornos azules, en lugar del borde fino único del frame con sombra abajo/derecha.
+- Causa reproducida en la preview publicada: `.inicio-card:has(.inicio-radio:focus-visible)` añadía un outline azul de 3 px, separado 5 px del borde original. La sombra ya era correcta; no se cambió.
+- Cambio exclusivo en `public/inicio/inicio.css`: sustituir ese outline por subrayado del CTA de la tarjeta enfocada. Se mantiene el indicador accesible de teclado sin otro rectángulo alrededor de la tarjeta. Sin cambios de tipografía, medidas, ilustraciones, selección o destinos.
+- Prueba de regresión en Browser MCP: la aserción `outlineStyle === 'none'` con foco de teclado falló contra .5 y pasó después del cambio. Se verificaron además borde azul CSS de 1 px, sombra `3px 3px 0` en el mismo color oscuro del frame, CTA subrayado y destino correcto.
+- Cliente y Artista probados en iframes del mismo origen a 1440/768/390 px, todos con `:focus-visible` activo y sin overflow. El navegador a DPR 1,5 cuantiza el borde CSS de 1 px a 0,666667 px computados; no es un segundo borde.
+- Límite de evidencia: se intentó captura tras enfocar la pestaña, pero Browser devolvió que la ventana de escritorio no estaba visible. No se presenta una captura anterior como prueba de esta corrección. La validación de este cambio es la aserción ejecutada sobre estilos y estado renderizados en Chromium.
+- Recuperación: revertir el commit de .6 con nueva entrega versionada en la misma rama; no cambia datos ni otras pantallas.
