@@ -135,7 +135,10 @@
     const ready = Promise.all([
         loadScript('/shared/js/wo-demo-postgrest.js', 'WoDemoPostgrest'),
         loadScript('/shared/js/wo-demo-fixtures.js', 'WoDemoFixtures')
-    ]).then(() => {
+    ]).then(() => Promise.all(((window.WoDemoFixtures && window.WoDemoFixtures.EXTENSIONS) || []).map(name =>
+        // Extensiones de fixtures por área; un archivo ausente solo omite esa área.
+        loadScript('/shared/js/demo-fixtures/' + name + '.js', 'WoDemoFixtureExt_' + name).catch(() => null)
+    ))).then(() => {
         const fixtures = window.WoDemoFixtures.build(defaultIdentity);
         seedProfiles(fixtures.tables);
         fixtures.rpcs.get_artist_public_profile_preferences = () => ({ show_reviews: true, show_studio: true, show_availability: true, show_portfolio: true });

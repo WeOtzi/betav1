@@ -148,6 +148,14 @@
         });
         return loaded[src];
     }
+    // Extensiones de fixtures por área (ver EXTENSIONS en wo-demo-fixtures.js).
+    // Un archivo ausente no rompe el demo: solo se omite esa área.
+    function loadFixtureExtensions() {
+        var names = (window.WoDemoFixtures && window.WoDemoFixtures.EXTENSIONS) || [];
+        return Promise.all(names.map(function (name) {
+            return loadScript('/shared/js/demo-fixtures/' + name + '.js?v=' + VERSION).catch(function () { return null; });
+        }));
+    }
     function loadCss(href) {
         if (loaded[href]) return loaded[href];
         loaded[href] = new Promise(function (resolve) {
@@ -374,7 +382,7 @@
     if (enabled) {
         installFetch();
         document.documentElement.classList.add('wo-demo-on');
-        ready = Promise.all([loadScript(ASSETS.postgrest), loadScript(ASSETS.fixtures)]).then(buildStore);
+        ready = Promise.all([loadScript(ASSETS.postgrest), loadScript(ASSETS.fixtures)]).then(loadFixtureExtensions).then(buildStore);
         ready.catch(function (err) { warn('demo no disponible:', err && err.message); });
         api.ready = ready;
         api.tourReady = Promise.all([loadCss(ASSETS.css), loadScript(ASSETS.tour).then(function () { return loadScript(ASSETS.steps); })])
