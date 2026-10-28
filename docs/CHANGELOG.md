@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.7] - 2026-10-28
+
+- Login de artista: ajustar el frame final 801:585 y sus iconos originales
+- Validación: npm test 419/419. Capturas de navegador de escritorio 1440×1024 y adaptación a 390 px; geometría responsive en ocho tamaños de 390 a 1920 px sin overflow horizontal ni textos sociales recortados. Aserciones de medidas primero fallidas y luego correctas. Validaciones requerido/email, avisos Instagram/Facebook, foco con Email, navegación a recuperación y acceso/sesión simulados comprobados. Sin cambios en otras pantallas ni autenticación. Soporte remoto responde 501 en preview, limitación existente; OAuth, correos y Supabase reales no probados. Evidencia en docs/auditoria-valentina/login-frame-801-585.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.6] - 2026-10-28
 
 - Inicio: quitar el segundo contorno azul y conservar borde fino con sombra

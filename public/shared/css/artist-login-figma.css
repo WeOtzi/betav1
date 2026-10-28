@@ -1,4 +1,4 @@
-/* Artist login · Pantallas We Otzi 24:1261. Page-specific dimensions keep
+/* Artist login · Pantallas finales 801:585 (1440 × 1024). Page-specific dimensions keep
    shared auth screens unchanged. Colors and primitives come from the DS. */
 @font-face{font-family:'Archivo Black';src:url('/shared/fonts/artist-login/ArchivoBlack-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:Inter;src:url('/shared/fonts/artist-login/Inter.ttf') format('truetype');font-weight:100 900;font-style:normal;font-display:swap}
@@ -22,10 +22,11 @@
 .artist-login-page .wo-auth-brand .wo-mark-triangle{border-left-width:10.661px;border-right-width:10.661px;border-bottom-width:22.211px}
 .artist-login-page .wo-auth-brand-name{font-size:22.211px;letter-spacing:.8884px}
 .artist-login-page .wo-auth-title{font-size:35.537px;line-height:37.314px;letter-spacing:0}
+.artist-login-page #artist-login-title{font-weight:400}
 .artist-login-page .wo-auth-copy{font-size:16.658px;line-height:normal}
 .artist-login-page #login-anonymous-view{gap:0}
 .artist-login-page #login-anonymous-view .wo-auth-copy{margin-top:4.442px}
-.artist-login-page #login-form{margin-top:23.6px;gap:22.878px}
+.artist-login-page #login-form{margin-top:22.673px;gap:22.878px}
 .artist-login-page #login-form .wo-field{gap:8.884px}
 .artist-login-page #login-form .wo-label{font-size:13.326px;line-height:15.992px;letter-spacing:1.0661px;color:var(--text-muted)}
 .artist-login-page #login-form .wo-input{height:52.417px;min-height:0;border-width:1.111px;padding:0 19.545px 0 48.418px;font-size:17.768px;line-height:normal}
@@ -36,10 +37,10 @@
 .artist-login-page .wo-auth-forgot{min-height:48.863px;padding:0 8px;margin-top:7.77px;font-size:15.547px;line-height:15.547px;letter-spacing:1.2438px}
 .artist-login-page .wo-auth-or{height:17.768px;margin-top:15.55px;gap:13.326px;font-size:13.326px;line-height:normal;letter-spacing:1.0661px}
 .artist-login-page .wo-auth-social{margin-top:14.422px;gap:0}
-.artist-login-page .wo-auth-reco{box-sizing:border-box;height:22.211px;min-height:0;padding:0 4.66px;gap:0;border:0;border-radius:0;font-size:10.622px;line-height:normal;letter-spacing:.6373px;font-weight:600}
+.artist-login-page .wo-auth-reco{box-sizing:border-box;width:101.132px;height:22.211px;min-height:0;padding:0 4.66px;gap:0;border:0;border-radius:0;font-size:10.622px;line-height:normal;letter-spacing:.6373px;font-weight:600}
 .artist-login-page .wo-auth-social-buttons{display:grid;grid-template-columns:151.032fr 113.274fr 131.042fr;gap:13.326px;width:100%}
 .artist-login-page .wo-auth-social-buttons .wo-btn{height:23.543px;min-height:0;padding:0;gap:8.884px;border-width:1.111px;font-size:15.547px;line-height:15.547px;letter-spacing:1.2438px}
-.artist-login-page #login-anonymous-view .wo-auth-links{margin-top:21.75px}
+.artist-login-page #login-anonymous-view .wo-auth-links{margin-top:21.091px}
 .artist-login-page .wo-auth-links .wo-meta{font-size:12.216px;line-height:normal;letter-spacing:.7329px}
 .artist-login-page .wo-auth-links a{color:var(--bauhaus-square)}
 .artist-login-page .wo-auth-links a:hover{color:var(--red-700)}
