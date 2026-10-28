@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.11] - 2026-10-28
+
+- Registro de clientes: restaurar or browse files como en Figma
+- Validación: aserción del texto renderizado primero fallida con «o elegí un archivo» y luego aprobada con «or browse files». Navegador local seguro a 1440, 768 y 390 px: alineación, placeholders, validaciones, avanzar/volver y borrador sin contraseña conservados. Único cambio de interfaz: restaurar la ayuda en inglés como solicita la referencia Figma 801:1120; CSS y lógica intactos. npm test y check:release mediante entrega automática; sin altas ni correos reales.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.10] - 2026-10-28
 
 - Registro de clientes: restaurar o elegí un archivo en la foto de perfil
