@@ -168,6 +168,9 @@
             validateVenue(value) {
                 const visibleValue = text(value);
                 if (state.venueMode === 'place') {
+                    // Figma 801:1077: el lugar/estudio es opcional; si se escribe
+                    // algo, tiene que ser un lugar elegido de Google Maps.
+                    if (!visibleValue) return { valid: true, mode: 'place', reason: '' };
                     const valid = Boolean(
                         selectedPlace
                         && visibleValue

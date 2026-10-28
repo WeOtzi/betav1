@@ -102,12 +102,18 @@ test('Share dialog does not publish on open and supports explicit enable plus re
     assert.match(script, /async function disableShare\(/i);
     assert.match(script, /pendingShareTripId\s*===\s*t\.id[\s\S]*pendingShareSlug[\s\S]*makeSlug\(t\)/i);
     assert.match(script, /urlInput\.disabled\s*=\s*!isEnabled/i);
-    assert.match(script, /isEnabled\s*\?\s*url\s*:\s*'El enlace se activará al copiar'/i);
-    assert.match(script, /\$\('tvs-email'\)\.href\s*=\s*isEnabled\s*\?/i);
+    // Figma final 801:1083: la URL se ve completa desde que se abre el diálogo,
+    // pero el campo sigue deshabilitado hasta que una acción explícita la publica.
+    assert.match(script, /urlInput\.value\s*=\s*url;/i);
+    assert.match(script, /tvs-email[\s\S]*?event\.preventDefault\(\);[\s\S]*?await ensureShareEnabled\(\);[\s\S]*?window\.location\.href/i);
     const copyHelper = script.slice(script.indexOf('async function copyEnabledShareUrl()'), script.indexOf('function wireShareModal()'));
     const shareWiring = script.slice(script.indexOf('function wireShareModal()'), script.indexOf('// ---------- Modal adjuntar archivo'));
     assert.match(script, /function copyShareUrlWithGesture\(url\)[\s\S]*navigator\.clipboard\.writeText\(url\)/i);
     assert.match(copyHelper, /if\s*\([^)]*!t\.share_enabled[\s\S]*await ensureShareEnabled\(\);[\s\S]*return false;/i);
+    // Un solo click cuando el navegador soporta ClipboardItem: el portapapeles
+    // recibe una promesa que se resuelve recién con el enlace ya activo.
+    assert.match(copyHelper, /new ClipboardItemCtor\(\{\s*'text\/plain':\s*blob\s*\}\)/);
+    assert.match(copyHelper, /const activation = ensureShareEnabled\(\);[\s\S]*activation\.then/);
     assert.match(copyHelper, /copyShareUrlWithGesture\(url\)/i);
     assert.doesNotMatch(copyHelper, /await ensureShareEnabled\(\)[\s\S]*navigator\.clipboard\.writeText/i);
     assert.match(shareWiring, /tvs-wa[\s\S]*const\s+popup\s*=\s*window\.open\([^;]+;[\s\S]*await ensureShareEnabled\(\);[\s\S]*popup\.location/i);

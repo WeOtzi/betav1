@@ -62,6 +62,9 @@ body.ai-page > weotzi-product-footer { display: block; flex: none; }
     border: var(--border-hairline) solid var(--neutral-500); border-radius: var(--radius-none);
     background: transparent; color: var(--neutral-500); font-size: 14px; box-shadow: none;
 }
+/* Figma 801:1085 usa #757575 en placeholders; el token más cercano con contraste AA es --neutral-400. */
+body.ai-page .ai-search-input::placeholder,
+body.ai-page .ai-composer-input::placeholder { color: var(--neutral-400); }
 .ai-search-input:focus { padding-left: 41px; border-color: var(--ai-blue); box-shadow: var(--shadow-focus); }
 
 .ai-side-list {
@@ -135,7 +138,8 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
 .ai-row-prev { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .ai-row-preview { min-width: 0; flex: 1; overflow: hidden; color: var(--neutral-400); font: 400 12px/1.25 var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
 .ai-row.is-unread .ai-row-preview { color: var(--ink); font-weight: 700; }
-.ai-row-unread { min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: var(--radius-pill); background: var(--yellow-300); color: var(--figma-white); font: 700 10px/1 var(--font-body); }
+/* Figma 801:1085: círculo amarillo de 18px (99+ ensancha la píldora). */
+.ai-row-unread { box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: var(--radius-pill); background: var(--yellow-300); color: var(--figma-white); font: 700 10px/1 var(--font-body); letter-spacing: 0; }
 .ai-row-status { font: 400 10px/1.2 var(--font-mono); letter-spacing: .04em; }
 .ai-row-status.is-waiting { color: var(--warning-fg); }
 .ai-row-status.is-replied { color: var(--success-fg); }
@@ -178,6 +182,7 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
 .ai-msg--out .ai-bubble { background: var(--ai-blue); color: var(--figma-white); }
 .ai-msg--in .ai-bubble { background: var(--figma-sand); color: var(--ink); }
 .ai-bubble p { margin: 0; }
+.ai-msg-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .ai-bubble time { display: block; margin-top: var(--space-1); font: 400 9px/1 var(--font-mono); opacity: .65; text-align: right; }
 .ai-msg-attachment { width: 100%; margin-top: var(--space-2); padding: var(--space-2); display: flex; align-items: center; gap: var(--space-2); border: var(--border-hairline) solid currentColor; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .ai-msg-attachment span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -202,7 +207,10 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
 .ai-composer-input,
 .ai-send,
 .ai-composer-tools .ai-attach { height: var(--ai-composer-control-h); min-height: var(--ai-composer-control-h); box-sizing: border-box; }
-.ai-composer-tools .ai-attach { flex: none; width: 20px; padding: 0; border: 0; background: transparent; color: var(--neutral-500); }
+.ai-composer-tools .ai-attach { flex: none; width: 20px; min-width: 20px; padding: 0; border: 0; background: transparent; color: var(--neutral-400); }
+/* Figma 801:1085: íconos del composer de ~16px en gris medio. */
+.ai-composer-tools .ai-attach [data-wo-icon],
+.ai-composer-tools .ai-attach svg { width: 16px; height: 16px; display: block; }
 .ai-composer-tools .ai-attach:hover { background: var(--neutral-200); }
 .ai-composer-input { padding: 0 14px; border: var(--border-hairline) solid var(--figma-sand-border); border-radius: 10px; background: var(--figma-white); color: var(--ink); font-size: 14px; box-shadow: none; }
 .ai-composer-input:focus { padding: 0 13px; border-color: var(--ai-blue); box-shadow: var(--shadow-focus); }
@@ -232,6 +240,8 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
 .ai-ctx-value { color: var(--ink); font: 700 14px/1.35 var(--font-body); }
 .ai-ctx-value.wo-mono-num { font-family: var(--font-body); font-weight: 700; }
 .ai-ctx-status { align-self: flex-start; padding: 6px 10px; background: var(--success-bg); color: var(--success-fg); font: 700 9px/1 var(--font-mono); letter-spacing: .11em; text-transform: uppercase; }
+.ai-ctx-status.is-warning { background: var(--warning-bg); color: var(--warning-fg); }
+.ai-ctx-status.is-muted { background: var(--neutral-200); color: var(--neutral-500); }
 .ai-ctx-link { position: absolute; left: 20px; bottom: 20px; opacity: 0; pointer-events: none; transition: opacity var(--duration-fade); }
 .ai-context:hover .ai-ctx-link,
 .ai-ctx-link:focus-visible { opacity: 1; pointer-events: auto; }
@@ -261,14 +271,16 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
     .ai-side-list { flex-direction: column; gap: 0; overflow: visible; }
     button.ai-side-item { width: 100%; min-height: 35px; border-left: var(--border-rule-width) solid transparent; border-bottom: 0; }
     button.ai-side-item.is-active { border-left-color: var(--ai-blue); border-bottom: 0; }
-    .ai-summary { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+    .ai-summary { margin-top: 10px; display: flex; flex-direction: column; gap: 0; }
     .ai-summary-cap { margin: 0 0 7px; color: var(--neutral-300); font: 400 10px/1 var(--font-mono); letter-spacing: .1em; }
-    .ai-summary-row { min-height: 26px; padding: 3px 0; display: flex; align-items: center; justify-content: space-between; color: var(--neutral-500); font: 400 13px/1.2 var(--font-body); }
+    /* Figma 801:1085: filas del resumen cada 25px. */
+    .ai-summary-row { box-sizing: border-box; height: 25px; min-height: 25px; padding: 0; display: flex; align-items: center; justify-content: space-between; color: var(--neutral-500); font: 400 13px/1.2 var(--font-body); }
     .ai-summary-filter { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }
     .ai-summary-filter:hover,
     .ai-summary-filter.is-active { color: var(--blue-300); }
     .ai-sum-n { color: var(--ink); font: 700 10px/1 var(--font-mono); }
     .ai-sum-n.is-waiting { color: var(--warning-fg); }
+    .ai-sum-n.is-unread { color: var(--blue-300); }
     .ai-listcol { grid-column: 2; }
     .ai-threadcol { grid-column: 3; }
 }

@@ -210,7 +210,7 @@
             id: item.id,
             category: item.category,
             name: item.counterparty_name || 'Conversación',
-            initials: item.counterparty_initials || initials(item.counterparty_name),
+            initials: cleanInitials(item.counterparty_initials) || initials(item.counterparty_name),
             subject: item.subject || '',
             preview: item.last_message || item.subject || 'Conversación iniciada',
             lastAt: item.last_message_at,
@@ -601,7 +601,7 @@
                 '<i data-wo-icon="external-link" class="wo-icon-16" aria-hidden="true"></i></button>'
             : '';
         return '<div class="ai-msg' + direction + '"><div class="ai-bubble">' +
-            (message.body ? '<p>' + nl2br(message.body) + '</p>' : '') + attachment +
+            (message.body ? '<p>' + linkify(message.body) + '</p>' : '') + attachment +
             '<time>' + esc(fmtMsgTime(message.at)) + '</time></div></div>';
     }
 
@@ -620,28 +620,33 @@
     function renderContext(row) {
         const context = row.context || {};
         const meta = CATEGORY_META[row.category] || { label: 'Conversación' };
-        const blocks = [];
-        const exactSpotContext = row.category === 'spots' && (context.studio || context.studio_name);
-        if (!exactSpotContext) {
-            blocks.push(ctxBlock('Contacto', row.name));
-            if (row.subject) blocks.push(ctxBlock('Asunto', row.subject));
+        // Figma 801:1085: el panel de seguimiento muestra la categoría y los
+        // datos del dominio (estudio, fechas, estado). Contacto/asunto solo
+        // aparecen cuando la conversación no trae contexto propio.
+        const domainBlocks = [];
+        if (context.client && context.client !== row.name) domainBlocks.push(ctxBlock('Cliente', context.client));
+        // En la categoría Estudios el eyebrow ya dice "ESTUDIO": el nombre va sin etiqueta repetida.
+        if (context.studio || context.studio_name) {
+            domainBlocks.push(ctxBlock(row.category === 'studios' ? '' : 'Estudio', context.studio || context.studio_name));
         }
-        if (context.client) blocks.push(ctxBlock('Cliente', context.client));
-        if (context.studio || context.studio_name) blocks.push(ctxBlock('Estudio', context.studio || context.studio_name));
-        if (context.city || context.country) blocks.push(ctxBlock('Destino', [context.city, context.country].filter(Boolean).join(', ')));
-        if (context.dates) blocks.push(ctxBlock('Fechas', context.dates, true));
-        if (context.start_date || context.end_date) {
-            blocks.push(ctxBlock('Fechas', formatDateRange(context.start_date, context.end_date), true));
-        }
-        if (context.appointment) blocks.push(ctxBlock('Turno', context.appointment));
-        if (context.budget) blocks.push(ctxBlock('Presupuesto', context.budget, true));
-        if (context.style) blocks.push(ctxBlock('Estilo', context.style));
-        if (context.body_part) blocks.push(ctxBlock('Zona', context.body_part));
-        if (context.request_code) blocks.push(ctxBlock('Solicitud', context.request_code, true));
+        if (context.reason_label) domainBlocks.push(ctxBlock('Motivo', context.reason_label));
+        if (context.city || context.country) domainBlocks.push(ctxBlock('Destino', [context.city, context.country].filter(Boolean).join(', ')));
+        const dates = context.start_date || context.end_date
+            ? formatDateRange(context.start_date, context.end_date)
+            : formatLooseDates(context.dates);
+        if (dates) domainBlocks.push(ctxBlock('Fechas', dates));
+        if (context.appointment) domainBlocks.push(ctxBlock('Turno', context.appointment));
+        if (context.budget) domainBlocks.push(ctxBlock('Presupuesto', context.budget, true));
+        if (context.style) domainBlocks.push(ctxBlock('Estilo', context.style));
+        if (context.body_part) domainBlocks.push(ctxBlock('Zona', context.body_part));
+        if (context.request_code) domainBlocks.push(ctxBlock('Solicitud', context.request_code, true));
+        const blocks = domainBlocks.filter(Boolean).length
+            ? domainBlocks
+            : [ctxBlock('Contacto', row.name), row.subject ? ctxBlock('Asunto', row.subject) : ''];
 
         const domainStatus = context.application_status || context.invitation_status || context.membership_status || context.link_status || context.quote_status;
         if (domainStatus) blocks.push(ctxStatus(domainStatus, row.category));
-        if (!exactSpotContext) blocks.push(ctxBlock('Conversación', row.closed ? 'Cerrada' : 'Activa'));
+        else if (row.closed) blocks.push(ctxStatus('closed', row.category));
 
         const link = contextLink(row);
         const host = el('ai-context');
@@ -653,27 +658,70 @@
 
     function ctxBlock(label, value, mono) {
         if (value === null || value === undefined || value === '') return '';
-        return '<div class="ai-ctx-block"><span class="ai-ctx-label">' + esc(label) + '</span><span class="ai-ctx-value' + (mono ? ' wo-mono-num' : '') + '">' + esc(value) + '</span></div>';
+        return '<div class="ai-ctx-block">' + (label ? '<span class="ai-ctx-label">' + esc(label) + '</span>' : '') +
+            '<span class="ai-ctx-value' + (mono ? ' wo-mono-num' : '') + '">' + esc(value) + '</span></div>';
     }
+
+    const STATUS_TONES = {
+        accepted: 'success', confirmada: 'success', confirmed: 'success', active: 'success', completed: 'success',
+        client_approved: 'success', in_progress: 'success', artist_completed: 'success', responded: 'warning',
+        pending: 'warning', pending_acceptance: 'warning', shortlisted: 'warning', esperando_confirmacion: 'warning',
+        viewed: 'warning', open: 'success',
+        closed: 'muted', expired: 'muted', client_rejected: 'muted', rechazada: 'muted', rejected: 'muted', cancelada: 'muted',
+    };
 
     function ctxStatus(status, category) {
-        const label = category === 'spots' && status === 'accepted'
+        const applicationLike = category === 'spots' || category === 'job_board';
+        const label = applicationLike && status === 'accepted'
             ? 'Postulación aceptada'
-            : humanStatus(status);
-        return '<span class="ai-ctx-status">' + esc(label) + '</span>';
+            : applicationLike && status === 'shortlisted'
+                ? 'Postulación preseleccionada'
+                : humanStatus(status);
+        const tone = STATUS_TONES[status] || 'success';
+        return '<span class="ai-ctx-status is-' + tone + '">' + esc(label) + '</span>';
     }
 
+    // Rutas canónicas del flujo de artista (BRIEF). El enlace aparece al
+    // pasar por el panel; no forma parte del estado estático del Figma.
     function contextLink(row) {
-        const id = row.contextId || row.id;
+        const context = row.context || {};
+        const quoteId = row.source === 'quote' ? row.id : (context.quote_id || (row.contextType === 'quotation' ? row.contextId : null));
+        const tripId = context.trip_id || (row.contextType === 'artist_trip' ? row.contextId : null);
+        if (row.category === 'quotations' && quoteId) {
+            return { href: appHref('/my-quotations/detail?id=' + encodeURIComponent(quoteId)), label: 'Ver cotización' };
+        }
+        if (row.category === 'trips' && tripId) {
+            return { href: appHref('/artist/travel/?trip=' + encodeURIComponent(tripId)), label: 'Ver viaje' };
+        }
+        const studioRef = context.studio_slug || context.studio_id || (row.contextType === 'studio_contact' ? row.contextId : null);
+        if (row.category === 'studios' && studioRef) {
+            return { href: appHref('/studio/profile?studio=' + encodeURIComponent(studioRef)), label: 'Ver perfil del estudio' };
+        }
         const links = {
-            quotations: { href: '/my-quotations?quote=' + encodeURIComponent(id), label: 'Ver cotización' },
+            quotations: { href: '/my-quotations', label: 'Ver cotizaciones' },
             invitations: { href: '/artist/invitations', label: 'Ver invitaciones' },
-            spots: { href: '/studio-spots', label: 'Ver Spot' },
-            job_board: { href: '/job-board', label: 'Ver Job Board' },
-            studios: { href: '/artist/studios', label: 'Ver estudio' },
-            trips: { href: '/artist/travel?trip=' + encodeURIComponent(id), label: 'Ver viaje' },
+            spots: { href: '/artist/applications', label: 'Ver postulaciones' },
+            job_board: { href: '/artist/applications', label: 'Ver postulaciones' },
+            studios: { href: '/artist/invitations', label: 'Ver invitaciones' },
+            trips: { href: '/artist/travel/', label: 'Ver Travel' },
         };
-        return links[row.category] || null;
+        const link = links[row.category];
+        return link ? { href: appHref(link.href), label: link.label } : null;
+    }
+
+    // Prefijo de montaje de la app (/beta, preview local) igual que appUrl() de config-manager.
+    function appBasePath() {
+        if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+        const pathname = window.location.pathname || '';
+        const index = pathname.indexOf('/artist/inbox');
+        if (index > 0) return pathname.slice(0, index);
+        return pathname === '/beta' || pathname.startsWith('/beta/') ? '/beta' : '';
+    }
+
+    function appHref(path) {
+        const normalized = String(path || '').startsWith('/') ? String(path || '') : '/' + String(path || '');
+        const base = appBasePath();
+        return base && !normalized.startsWith(base + '/') ? base + normalized : normalized;
     }
 
     function setComposer(placeholder, enabled) {
@@ -878,13 +926,51 @@
         }
     }
 
-    function openFromQuery() {
-        const wanted = new URLSearchParams(window.location.search).get('thread');
-        if (!wanted) return;
-        const row = state.rows.find(function (item) {
-            return item.id === wanted || item.key === wanted || item.contextId === wanted;
+    // Enlaces profundos desde otras áreas (ver resolveDeepLink):
+    //   ?thread=<inbox_thread_id | key | context_id>
+    //   ?quote=<quote_id>                      (detalle de cotización)
+    //   ?opportunity=jobboard|spot&application=<id>[&quote=<quote_id>] (postulaciones)
+    //   ?trip=<trip_id>                         (viaje)
+    //   ?filter=<categoría>                     (abre el inbox filtrado)
+    async function openFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const resolver = window.ArtistInboxDeepLink;
+        const target = resolver ? resolver.resolveDeepLink(state.rows, params) : null;
+        if (!target) return;
+        if (target.filter && target.filter !== state.filter) selectFilter(target.filter);
+        if (!target.key) return;
+        revealActiveRow(target.key);
+        await openThread(target.key);
+        revealActiveRow(target.key);
+    }
+
+    // Enlace profundo: la fila seleccionada queda visible dentro de la lista
+    // (Figma 801:1085 la muestra resaltada en la columna de conversaciones).
+    function revealActiveRow(key) {
+        const list = el('ai-list');
+        if (!list) return;
+        const row = [...list.querySelectorAll('.ai-row')].find(function (node) { return node.dataset.rowKey === key; });
+        if (!row) return;
+        if (list.scrollHeight > list.clientHeight + 1) {
+            const listRect = list.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            if (rowRect.top < listRect.top || rowRect.bottom > listRect.bottom) {
+                list.scrollTop += rowRect.top - listRect.top - Math.max(0, (list.clientHeight - row.offsetHeight) / 2);
+            }
+        } else if (typeof row.scrollIntoView === 'function') {
+            row.scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function selectFilter(filter) {
+        const button = document.querySelector('[data-filter="' + filter + '"]');
+        state.filter = filter;
+        document.querySelectorAll('[data-filter]').forEach(function (item) {
+            const selected = item === button;
+            item.classList.toggle('is-active', selected);
+            item.setAttribute('aria-pressed', String(selected));
         });
-        if (row) openThread(row.key);
+        renderList();
     }
 
     function renderFatal(message) {
@@ -940,10 +1026,39 @@
         return esc(value).replace(/\r?\n/g, '<br>');
     }
 
+    // URLs absolutas y rutas internas de la app (p. ej. "Portfolio: /artist/profile?…")
+    // se muestran como enlaces. El texto se escapa antes de armar cada <a>.
+    const LINK_PATTERN = /(https?:\/\/[^\s<>"']+|\/(?:artist|studio|travel|my-quotations|job-board|studio-spots)\/?[^\s<>"']*)/g;
+
+    function linkify(value) {
+        const text = String(value || '');
+        let html = '';
+        let last = 0;
+        text.replace(LINK_PATTERN, function (match, url, offset) {
+            const clean = match.replace(/[.,;:!?)]+$/, '');
+            html += nl2br(text.slice(last, offset));
+            const external = /^https?:/i.test(clean);
+            const href = external ? clean : appHref(clean);
+            html += '<a class="ai-msg-link" href="' + esc(href) + '"' + (external ? ' target="_blank" rel="noopener noreferrer"' : '') + '>' + esc(clean) + '</a>';
+            last = offset + clean.length;
+            return match;
+        });
+        return html + nl2br(text.slice(last));
+    }
+
+    // Iniciales solo con letras: "Gòtic 13" → "GÒ", "Valentina · Preview" → "VP".
     function initials(name) {
-        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        const parts = String(name || '').trim().split(/\s+/)
+            .map(function (part) { return part.replace(/[^\p{L}]/gu, ''); })
+            .filter(Boolean);
         if (!parts.length) return '—';
-        return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+        if (parts.length === 1) return parts[0].slice(0, 2).toLocaleUpperCase('es');
+        return (parts[0][0] + parts[1][0]).toLocaleUpperCase('es');
+    }
+
+    function cleanInitials(value) {
+        const text = String(value || '').trim();
+        return /^\p{L}{1,3}$/u.test(text) ? text.toLocaleUpperCase('es') : '';
     }
 
     function fmtListTime(value) {
@@ -956,9 +1071,16 @@
         }
         const yesterday = new Date(now);
         yesterday.setDate(now.getDate() - 1);
-        if (date.toDateString() === yesterday.toDateString()) return 'AYER';
-        return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }).replace('.', '').toUpperCase();
+        if (date.toDateString() === yesterday.toDateString()) return 'ayer';
+        // Figma 801:1085: "lun", "vie", "dom" dentro de la última semana.
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const days = Math.round((startOfToday - startOfDate) / 86400000);
+        if (days > 0 && days < 7) return WEEKDAYS_SHORT[date.getDay()];
+        return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }).replace('.', '').toLowerCase();
     }
+
+    const WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
     function fmtMsgTime(value) {
         const date = new Date(value);
@@ -982,14 +1104,41 @@
         return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }).toUpperCase();
     }
 
+    // Figma 801:1085: "1 – 15 de septiembre". Distinto mes: "28 de agosto – 3 de
+    // septiembre"; distinto año agrega el año a cada extremo.
+    const MONTHS_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+        'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+    function parseDay(value) {
+        if (!value) return null;
+        const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const date = match
+            ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+            : new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     function formatDateRange(start, end) {
-        const format = function (value) {
-            if (!value) return '';
-            const date = new Date(value + (String(value).length === 10 ? 'T12:00:00' : ''));
-            if (Number.isNaN(date.getTime())) return value;
-            return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
-        };
-        return [format(start), format(end)].filter(Boolean).join(' — ');
+        const a = parseDay(start);
+        const b = parseDay(end);
+        if (!a && !b) return '';
+        const one = a || b;
+        if (!a || !b) return one.getDate() + ' de ' + MONTHS_LONG[one.getMonth()];
+        if (a.getFullYear() !== b.getFullYear()) {
+            return a.getDate() + ' de ' + MONTHS_LONG[a.getMonth()] + ' de ' + a.getFullYear() + ' – ' +
+                b.getDate() + ' de ' + MONTHS_LONG[b.getMonth()] + ' de ' + b.getFullYear();
+        }
+        if (a.getMonth() !== b.getMonth()) {
+            return a.getDate() + ' de ' + MONTHS_LONG[a.getMonth()] + ' – ' + b.getDate() + ' de ' + MONTHS_LONG[b.getMonth()];
+        }
+        return a.getDate() + ' – ' + b.getDate() + ' de ' + MONTHS_LONG[a.getMonth()];
+    }
+
+    // Contextos heredados guardan "YYYY-MM-DD → YYYY-MM-DD" como texto libre.
+    function formatLooseDates(value) {
+        if (!value) return '';
+        const parts = String(value).match(/(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})/);
+        return parts ? formatDateRange(parts[1], parts[2]) : String(value);
     }
 
     function humanStatus(value) {
@@ -999,6 +1148,8 @@
             client_rejected: 'Rechazada', expired: 'Vencida', open: 'Activa', closed: 'Cerrada',
             esperando_confirmacion: 'Esperando confirmación', confirmada: 'Confirmada',
             rechazada: 'Rechazada', cancelada: 'Cancelada', active: 'Activa',
+            client_approved: 'Acuerdo aprobado', responded: 'Respuesta enviada', in_progress: 'En progreso',
+            artist_completed: 'Lista para cliente', cancelled: 'Cancelada', viewed: 'Vista', rejected: 'Rechazada',
         };
         return labels[value] || String(value).replace(/_/g, ' ');
     }
