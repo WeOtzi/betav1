@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.8] - 2026-10-28
+
+- Replicar el acceso de clientes del frame final 801:1124
+- Validación: npm test 422/422; avisos sociales y foco Email con pruebas primero fallidas y luego correctas. Navegador en preview segura: capturas a 1440×1024, 768 y 390 px; ocho anchos sin overflow ni botones recortados, validación requerido/email, error y acceso simulado al dashboard. Siete SVG idénticos a Figma por SHA256, fuentes locales y geometría comprobadas. Sin cambios en otras pantallas ni contratos Auth. OAuth, correos y persistencia real no probados; soporte remoto 501 es una limitación existente de preview. Evidencia en docs/auditoria-valentina/client-login-frame-801-1124.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.7] - 2026-10-28
 
 - Login de artista: ajustar el frame final 801:585 y sus iconos originales
