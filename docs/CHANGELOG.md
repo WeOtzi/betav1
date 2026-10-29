@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.15] - 2026-10-29
+
+- Pantalla 7: describir y editar la idea según Figma 801:1128
+- Formulario de /job-board/request/: composición desktop, tipografías locales, SVG originales, selector compacto de estilos, zonas vacías de la referencia, calendario, referencias y toggle. CSS aislado al estado formulario; inspiración, revisión y auth conservados. Se inicializan calendario, referencias y listeners después de montar la vista. Las opciones adicionales y los contratos de tamaño/archivos existentes se mantienen; diferencias concretas con el texto de Figma documentadas en docs/auditoria-valentina/pantalla-7-frame-801-1128.md.
+- Validación: npm test 438/438; navegador integrado y Chromium/Playwright a 1920, 1440, 1280, 1024, 768 y 390, sin overflow ni controles recortados ni excepciones JS. Requeridos/foco, rango de presupuesto, selección múltiple/Escape, zona, color, fecha, menú móvil, borrador/recarga, PNG/quitar y avance a revisión comprobados en preview segura. Se conserva el límite de imágenes de 5 MB y el rango mediano vigente, sin prometer PDF/10 MB ni cambiar datos reales. Advertencias de integraciones no simuladas registradas. check:release y repetición de pruebas mediante entrega automática.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.14] - 2026-10-29
 
 - Pantalla 6: replicar Construí tu idea del frame final 801:1129

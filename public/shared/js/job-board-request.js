@@ -229,6 +229,12 @@ function renderView() {
     const container = document.getElementById('jbrq-view');
     if (!container) return;
     setInspirationChrome(view === 'inspiration');
+    const isForm = view === 'form';
+    document.body.classList.toggle('jbrq-is-form', isForm);
+    if (isForm) {
+        document.getElementById('jbrq-client-nav').hidden = true;
+        document.getElementById('jbrq-inspiration-nav').hidden = false;
+    }
     const stepper = document.getElementById('jbrq-stepper');
     const back = document.getElementById('jbrq-back');
 
@@ -241,6 +247,10 @@ function renderView() {
     } else {
         if (stepper) stepper.hidden = false;
         if (back) { back.textContent = '← Volver a mis solicitudes'; back.href = '/client/requests'; }
+        if (isForm && back) {
+            back.innerHTML = '<img src="/shared/assets/job-board-form/arrow-left.svg" alt="" width="14" height="14">Volver a Job Board';
+            back.href = '/client/requests';
+        }
     }
 
     container.innerHTML = '';
@@ -260,6 +270,11 @@ function renderView() {
         renderGalleryChips();
         renderGallery();
         updateSelCount();
+    }
+    if (isForm) {
+        bindFormEvents();
+        renderCalendar();
+        renderRefSlots();
     }
     window.scrollTo({ top: 0 });
 }
@@ -636,8 +651,9 @@ window.useAiReference = async function(btnEl) {
 // ============================================
 
 function zonesList() {
-    if (Array.isArray(bodyPartsData) && bodyPartsData.length > 0) {
-        return bodyPartsData.map((zone, i) => ({
+    const configured = Array.isArray(bodyPartsData) ? bodyPartsData.filter(zone => zone.label || zone.id) : [];
+    if (configured.length > 0) {
+        return configured.map((zone, i) => ({
             label: zone.label || zone.id,
             icon: ZONE_ICONS[i % ZONE_ICONS.length]
         }));
@@ -667,9 +683,8 @@ function renderForm(el) {
         const active = formData.tattoo_body_part === zone.label;
         return `
             <button type="button" class="jbrq-zone ${active ? 'is-active' : ''}" data-zone="${escapeHtml(zone.label)}" onclick="selectZone(this)" aria-pressed="${active}">
-                <span class="jbrq-zone-check" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>
-                <i data-wo-icon="${zone.icon}" aria-hidden="true"></i>
-                <span class="jbrq-zone-label">${escapeHtml(zone.label)}</span>
+                <span class="jbrq-zone-frame" aria-hidden="true"><span class="jbrq-zone-check"><img src="/shared/assets/job-board-form/check.svg" alt=""></span></span>
+                <span class="jbrq-zone-label">${escapeHtml(zone.label === 'Torso (Frente)' ? 'Torso' : zone.label)}</span>
             </button>
         `;
     }).join('');
@@ -707,44 +722,41 @@ function renderForm(el) {
 
         <div class="jbrq-form">
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-description-field">
                 <label class="wo-label" for="jbrq-description">Descripción de la idea</label>
                 <textarea id="jbrq-description" class="wo-textarea jbrq-desc" maxlength="1000" placeholder="Ej: quiero un lobo aullando, estilo blackwork, en el antebrazo. Busco líneas gruesas y buen contraste…">${escapeHtml(descVal)}</textarea>
-                <div class="jbrq-count"><span id="jbrq-desc-count">${descVal.length}</span> / 1000</div>
-                <div class="jbrq-checks">
-                    <label class="wo-check">
-                        <input type="checkbox" id="jbrq-first-tattoo" ${formData.is_first_tattoo ? 'checked' : ''}>
-                        <span>Es mi primer tatuaje</span>
-                    </label>
-                    <label class="wo-check">
-                        <input type="checkbox" id="jbrq-cover-up" ${formData.is_cover_up ? 'checked' : ''}>
-                        <span>Es un cover-up</span>
-                    </label>
-                </div>
+                <div class="jbrq-count" aria-live="off"><span id="jbrq-desc-count">${descVal.length}</span> / 1000</div>
+            </div>
+
+            <div class="jbrq-row jbrq-row--style-size">
+            <div class="wo-field">
+                <span class="wo-label" id="jbrq-style-label">Estilo</span>
+                <details class="jbrq-style-select" id="jbrq-style-select">
+                    <summary aria-labelledby="jbrq-style-label jbrq-style-value"><span id="jbrq-style-value">${escapeHtml(selectedStyles.join(', ') || 'Elegí un estilo')}</span><img src="/shared/assets/job-board-form/chevron-down.svg" alt="" width="18" height="18"></summary>
+                    <div class="jbrq-style-options">
+                        <div class="jbrq-chiprow" id="jbrq-style-chips">${styleChips}</div>
+                        <p class="wo-help">Podés elegir uno o varios · opcional</p>
+                    </div>
+                </details>
             </div>
 
             <div class="wo-field">
-                <span class="wo-label">Estilo</span>
-                <div class="jbrq-chiprow" id="jbrq-style-chips">${styleChips}</div>
-                <p class="wo-help">Podés elegir uno o varios · opcional</p>
-            </div>
-
-            <div class="wo-field jbrq-field-half">
                 <label class="wo-label" for="jbrq-size">Tamaño aproximado</label>
-                <select id="jbrq-size" class="wo-select">${sizeOptions}</select>
+                <div class="jbrq-select-wrap"><select id="jbrq-size" class="wo-select">${sizeOptions}</select><img src="/shared/assets/job-board-form/chevron-down.svg" alt="" width="18" height="18"></div>
+            </div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-zone-field">
                 <span class="wo-label">Parte del cuerpo</span>
                 <div class="jbrq-zones" id="jbrq-zones">${zoneCards}</div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-side-field">
                 <span class="wo-label">¿De qué lado?</span>
                 <div class="jbrq-chiprow" id="jbrq-side-chips">${sideChips}</div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-color-field">
                 <span class="wo-label">Color</span>
                 <div class="jbrq-radios">${colorRadios}</div>
             </div>
@@ -765,28 +777,20 @@ function renderForm(el) {
                     </div>
                 </div>
                 <div class="wo-field">
-                    <label class="wo-label" for="jbrq-currency">Moneda</label>
-                    <select id="jbrq-currency" class="wo-select">${currencyOptions}</select>
-                </div>
-                <div class="wo-field">
                     <label class="wo-label" for="city-input">Ciudad</label>
                     <div class="jbrq-city">
-                        <i data-wo-icon="map-pin" class="wo-icon-18 jbrq-city-icon" aria-hidden="true"></i>
+                        <img src="/shared/assets/job-board-form/map-pin.svg" class="jbrq-city-icon" alt="" width="18" height="18">
                         <input type="text" id="city-input" class="wo-input" placeholder="Tu ciudad" value="${escapeHtml(formData.client_city || '')}" autocomplete="off">
                     </div>
                 </div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-date-field">
                 <span class="wo-label">Fecha aproximada</span>
                 <div class="jbrq-cal" id="jbrq-calendar"></div>
-                <label class="wo-check jbrq-flex-check">
-                    <input type="checkbox" id="jbrq-flexible-dates" ${formData.flexible_dates ? 'checked' : ''}>
-                    <span>Tengo fechas flexibles</span>
-                </label>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-refs-field">
                 <span class="wo-label">Imágenes de referencia</span>
                 <div class="jbrq-refs" id="jbrq-refs"></div>
                 <input type="file" id="jbrq-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple class="wo-hidden" onchange="handleFileSelect(event)">
@@ -797,24 +801,41 @@ function renderForm(el) {
                     <p class="jbrq-toggle-title">Permitir que el artista proponga su propia interpretación</p>
                     <p class="wo-help">El tatuador podrá sugerir cambios creativos manteniendo tu idea base.</p>
                 </div>
-                <label class="wo-toggle">
+                <label class="wo-toggle" aria-label="Permitir interpretación del artista">
                     <input type="checkbox" id="jbrq-open-interp" ${openInterp ? 'checked' : ''}>
                     <span class="knob"></span>
                 </label>
             </div>
 
             <div class="jbrq-form-foot">
-                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="continueToReview()">Continuar →</button>
+                <details class="jbrq-extra-options">
+                    <summary>Opciones adicionales</summary>
+                    <div class="jbrq-extra-fields">
+                        <label class="wo-check"><input type="checkbox" id="jbrq-first-tattoo" ${formData.is_first_tattoo ? 'checked' : ''}><span>Es mi primer tatuaje</span></label>
+                        <label class="wo-check"><input type="checkbox" id="jbrq-cover-up" ${formData.is_cover_up ? 'checked' : ''}><span>Es un cover-up</span></label>
+                        <label class="wo-check"><input type="checkbox" id="jbrq-flexible-dates" ${formData.flexible_dates ? 'checked' : ''}><span>Tengo fechas flexibles</span></label>
+                        <div class="wo-field"><label class="wo-label" for="jbrq-currency">Moneda</label><select id="jbrq-currency" class="wo-select">${currencyOptions}</select></div>
+                    </div>
+                </details>
+                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="continueToReview()">Continuar <img src="/shared/assets/job-board-form/arrow-right.svg" alt="" width="18" height="18"></button>
             </div>
         </div>
     `;
-
-    bindFormEvents();
-    renderCalendar();
-    renderRefSlots();
 }
 
 function bindFormEvents() {
+    const stylePicker = document.getElementById('jbrq-style-select');
+    if (stylePicker) {
+        stylePicker.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && stylePicker.open) {
+                stylePicker.open = false;
+                stylePicker.querySelector('summary').focus();
+            }
+        });
+        stylePicker.addEventListener('focusout', event => {
+            if (event.relatedTarget && !stylePicker.contains(event.relatedTarget)) stylePicker.open = false;
+        });
+    }
     const textarea = document.getElementById('jbrq-description');
     const counter = document.getElementById('jbrq-desc-count');
     if (textarea) {
@@ -918,6 +939,8 @@ window.toggleStyle = function(chip) {
     }
     chip.setAttribute('aria-pressed', chip.classList.contains('is-active') ? 'true' : 'false');
     formData.tattoo_style = selected;
+    const summary = document.getElementById('jbrq-style-value');
+    if (summary) summary.textContent = selected.join(', ') || 'Elegí un estilo';
     saveDraft();
 };
 
@@ -955,6 +978,7 @@ function renderCalendar() {
 
     // Lunes como primer día de la semana
     const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+    wrap.classList.toggle('jbrq-cal--five-weeks', firstDow + new Date(year, month + 1, 0).getDate() <= 35);
     const gridStart = new Date(year, month, 1 - firstDow);
     const sel = selectedDate();
 
@@ -974,9 +998,9 @@ function renderCalendar() {
 
     wrap.innerHTML = `
         <div class="jbrq-cal-head">
-            <button type="button" class="jbrq-cal-nav" onclick="calShift(-1)" ${canGoPrev ? '' : 'disabled'} aria-label="Mes anterior"><i data-wo-icon="chevron-left" class="wo-icon-18"></i></button>
+            <button type="button" class="jbrq-cal-nav" onclick="calShift(-1)" ${canGoPrev ? '' : 'disabled'} aria-label="Mes anterior"><img src="/shared/assets/job-board-form/calendar-left.svg" alt=""></button>
             <span class="jbrq-cal-title">${monthLabel}</span>
-            <button type="button" class="jbrq-cal-nav" onclick="calShift(1)" aria-label="Mes siguiente"><i data-wo-icon="chevron-right" class="wo-icon-18"></i></button>
+            <button type="button" class="jbrq-cal-nav" onclick="calShift(1)" aria-label="Mes siguiente"><img src="/shared/assets/job-board-form/calendar-right.svg" alt=""></button>
         </div>
         <div class="jbrq-cal-grid">
             ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="jbrq-cal-dow" aria-hidden="true">${d}</span>`).join('')}
@@ -1017,8 +1041,8 @@ function renderRefSlots() {
             `;
         } else if (i === uploadedFiles.length) {
             html += `
-                <div class="wo-dropzone jbrq-refslot jbrq-refslot--drop" id="jbrq-dropzone" onclick="triggerFileInput()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" role="button" tabindex="0" aria-label="Subir imagen de referencia">
-                    <i data-wo-icon="arrow-up" aria-hidden="true"></i>
+                <div class="wo-dropzone jbrq-refslot jbrq-refslot--drop" id="jbrq-dropzone" onclick="triggerFileInput()" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); triggerFileInput(); }" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" role="button" tabindex="0" aria-label="Subir imagen de referencia">
+                    <img class="jbrq-upload-icon" src="/shared/assets/job-board-form/upload.svg" alt="" width="28" height="28">
                     <p class="jbrq-drop-title">Arrastrá o hacé click</p>
                     <p class="jbrq-drop-help">PNG, JPG o WebP · máx. 5 MB</p>
                 </div>
@@ -1026,8 +1050,9 @@ function renderRefSlots() {
         } else {
             html += `
                 <button type="button" class="jbrq-refslot is-placeholder" onclick="triggerFileInput()">
-                    <i data-wo-icon="image" aria-hidden="true"></i>
-                    <span class="wo-meta-s">Referencia ${i + 1}</span>
+                    <img src="/shared/assets/job-board-form/image.svg" alt="" width="28" height="29.1">
+                    <span class="jbrq-reference-label">Referencia ${i + 1}</span>
+                    <span class="jbrq-reference-browse">or <u>browse files</u></span>
                 </button>
             `;
         }
