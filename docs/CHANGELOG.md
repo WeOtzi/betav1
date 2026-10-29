@@ -1,5 +1,121 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.16] - 2026-10-29
+
+- Pantalla 8: revisión de publicación según Figma 801:1131
+- Revisión de /job-board/request/: navegación compartida, stepper, fuentes locales, composición, tarjeta, referencias y SVG originales. Estilos exclusivos de jbrq-is-review; no cambia inspiración, formulario, cuenta ni otras rutas. Conserva datos dinámicos, moneda, tamaños y acciones existentes.
+- Validación: npm test 441/441 y check:release aprobados. Browser y Edge/Playwright: anchos 1920, 1440, 1280, 1024, 768 y 390 sin overflow; fuentes/SVG cargados, Editar conserva datos y recarga permite reanudar el borrador. Publicar muestra el error existente de servicio no disponible en local seguro: no se acredita envío real. Diferencias de contrato de tamaño/fecha y advertencias previas documentadas en docs/auditoria-valentina/pantalla-8/design-qa.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.15] - 2026-10-29
+
+- Pantalla 7: describir y editar la idea según Figma 801:1128
+- Formulario de /job-board/request/: composición desktop, tipografías locales, SVG originales, selector compacto de estilos, zonas vacías de la referencia, calendario, referencias y toggle. CSS aislado al estado formulario; inspiración, revisión y auth conservados. Se inicializan calendario, referencias y listeners después de montar la vista. Las opciones adicionales y los contratos de tamaño/archivos existentes se mantienen; diferencias concretas con el texto de Figma documentadas en docs/auditoria-valentina/pantalla-7-frame-801-1128.md.
+- Validación: npm test 438/438; navegador integrado y Chromium/Playwright a 1920, 1440, 1280, 1024, 768 y 390, sin overflow ni controles recortados ni excepciones JS. Requeridos/foco, rango de presupuesto, selección múltiple/Escape, zona, color, fecha, menú móvil, borrador/recarga, PNG/quitar y avance a revisión comprobados en preview segura. Se conserva el límite de imágenes de 5 MB y el rango mediano vigente, sin prometer PDF/10 MB ni cambiar datos reales. Advertencias de integraciones no simuladas registradas. check:release y repetición de pruebas mediante entrega automática.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.14] - 2026-10-29
+
+- Pantalla 6: replicar Construí tu idea del frame final 801:1129
+- Vista de inspiración de /job-board/request/: encabezado compartido con el menú literal confirmado por Valentina, fuentes locales, colores, geometría, textos AI INSPIRATION / INSPIRARME CON AI, SVG originales y quince espacios de carga de Figma. La capa visual se desactiva al pasar al formulario o reanudar un borrador; no se modifican otras rutas ni los contratos de datos. Se corrige el montaje prematuro que dejaba los filtros vacíos.
+- Validación: npm test 432/432, incluidas cinco regresiones de montaje, filtrado, búsqueda, galería real, menú móvil y aislamiento. Navegador Edge/Playwright a 1440×1619 y anchos 1920, 1366, 1280, 1024, 768 y 390, sin scroll horizontal ni excepciones JavaScript; SVG y fuentes locales cargados. Filtros, sin coincidencias, validación del prompt, error de IA no simulada, carga local de PNG y paso al formulario conservando el archivo comprobados. Browser no pudo capturar por ventana no visible. Evidencia y límites en docs/auditoria-valentina/pantalla-6/design-qa.md. IA, Supabase y soporte remotos no probados; el entorno seguro bloquea esas integraciones. check:release y repetición de pruebas mediante entrega automática.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.13] - 2026-10-28
+
+- Pantalla 5: replicar el dashboard de cliente del frame final 801:1126
+- Encabezado literal confirmado por Valentina, fuentes y geometría locales a esta ruta, próxima cita, actividad, contadores, tarjetas, globo original de Figma y footer. Los ejemplos Sophie/Lauu y contadores del frame existen únicamente en la presentación aislada de preview; no se modifican tablas compartidas ni datos de otras pantallas. En runtime normal la cita se obtiene por los IDs numéricos de las cotizaciones del cliente.
+- Validación: npm test 427/427; tests de cita próxima, cancelación/pasado, vacío, error, identidad y aislamiento de fixtures. Navegador Browser en preview segura: referencia de 1440×2694 y siete anchos entre 390 y 1920 px sin scroll horizontal ni botones fuera del área; fuentes e imágenes cargadas. Ver detalle abre y cierra la cotización ficticia, el contador abre Pendientes y Ö abre cuenta. Regresión de fotos reales bajo el placeholder reproducida y corregida. Evidencia y límites en docs/auditoria-valentina/client-dashboard-frame-801-1126.md. check:release y repetición de npm test mediante entrega automática. No prueba Supabase, reservas, mensajes ni correos reales; soporte remoto 501 es una limitación existente de preview.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.12] - 2026-10-28
+
+- Corregir diferencias visuales de las cuatro pantallas finales: etiquetas, títulos y espaciado de Inicio; cartel de ambos accesos; desplazamiento del login cliente; ancho y posición de CONTINUAR en registro. Se conservan las figuras aprobadas por Laura, los placeholders y «or browse files».
+- Validación: navegador seguro a 1440, 768 y 390 px, sin overflow ni excepciones JS; selección por teclado y navegación, validación de ambos accesos, recuperación artista, registro/avanzar/volver/borrador sin contraseña. Aserciones geométricas reproducen los desvíos antes del cambio; medición y capturas posteriores en la auditoría. npm test y check:release mediante entrega automática. Sin autenticación, altas, emails ni persistencia remota reales.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.11] - 2026-10-28
+
+- Registro de clientes: restaurar or browse files como en Figma
+- Validación: aserción del texto renderizado primero fallida con «o elegí un archivo» y luego aprobada con «or browse files». Navegador local seguro a 1440, 768 y 390 px: alineación, placeholders, validaciones, avanzar/volver y borrador sin contraseña conservados. Único cambio de interfaz: restaurar la ayuda en inglés como solicita la referencia Figma 801:1120; CSS y lógica intactos. npm test y check:release mediante entrega automática; sin altas ni correos reales.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.10] - 2026-10-28
+
+- Registro de clientes: restaurar o elegí un archivo en la foto de perfil
+- Validación: aserción del texto renderizado primero fallida con «or browse files» y luego aprobada con «o elegí un archivo». Navegador local seguro a 1440, 768 y 390 px: alineación y placeholders conservados, sin overflow; validaciones, avanzar/volver y borrador sin contraseña aprobados. Único cambio de interfaz: el texto de ayuda de la foto; sin modificar CSS ni lógica. npm test y check:release mediante entrega automática; sin altas ni correos reales.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.9] - 2026-10-28
+
+- Pantalla 4: registro de clientes fiel a Figma y Continuar a la derecha
+- Validación: navegador Chromium/Edge local seguro a 1440×857, 768 y 390 px: botón de 44 px alineado al margen derecho, placeholders vacíos, fuentes cargadas y sin overflow horizontal. Comparación visual con 801:1120; SVG originales locales. Requeridos/foco, avanzar a paso 02, volver y restaurar borrador comprobados; contraseña no persistida. Capturas alternativas con Edge headless porque Browser no tenía ventana visible. Sin crear cuentas ni probar emails/Supabase reales; soporte 501 es una limitación existente de preview. npm test y check:release se ejecutan en la entrega automática. Evidencia en docs/auditoria-valentina/client-register-frame-801-1120.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.8] - 2026-10-28
+
+- Replicar el acceso de clientes del frame final 801:1124
+- Validación: npm test 422/422; avisos sociales y foco Email con pruebas primero fallidas y luego correctas. Navegador en preview segura: capturas a 1440×1024, 768 y 390 px; ocho anchos sin overflow ni botones recortados, validación requerido/email, error y acceso simulado al dashboard. Siete SVG idénticos a Figma por SHA256, fuentes locales y geometría comprobadas. Sin cambios en otras pantallas ni contratos Auth. OAuth, correos y persistencia real no probados; soporte remoto 501 es una limitación existente de preview. Evidencia en docs/auditoria-valentina/client-login-frame-801-1124.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.7] - 2026-10-28
+
+- Login de artista: ajustar el frame final 801:585 y sus iconos originales
+- Validación: npm test 419/419. Capturas de navegador de escritorio 1440×1024 y adaptación a 390 px; geometría responsive en ocho tamaños de 390 a 1920 px sin overflow horizontal ni textos sociales recortados. Aserciones de medidas primero fallidas y luego correctas. Validaciones requerido/email, avisos Instagram/Facebook, foco con Email, navegación a recuperación y acceso/sesión simulados comprobados. Sin cambios en otras pantallas ni autenticación. Soporte remoto responde 501 en preview, limitación existente; OAuth, correos y Supabase reales no probados. Evidencia en docs/auditoria-valentina/login-frame-801-585.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.6] - 2026-10-28
+
+- Inicio: quitar el segundo contorno azul y conservar borde fino con sombra
+- Validación: regresión reproducida en navegador con foco de teclado (outline azul de 3 px separado 5 px). Aserción de borde único primero falló y luego pasó: sin outline adicional, borde CSS de 1 px y sombra oscura 3 px abajo/derecha intactos. Cliente/Artista comprobados a 1440, 768 y 390 px; foco visible por subrayado del CTA, destinos correctos y sin overflow. Captura nueva bloqueada por ventana de navegador no visible; ver auditoría de Inicio para límites.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.5] - 2026-10-28
+
+- Inicio: reproducir el frame 797:269 y continuar con la experiencia seleccionada
+- Validación: npm test 419/419. Navegador en preview local segura: selección por clic y flechas, foco visible, CONTINUAR hacia /artist/login/ y /marketplace/, sin errores de consola en Inicio. Layout renderizado a 1920, 1440, 1280, 1024, 768 y 390 px, sin overflow ni CTA recortados; capturas desktop/móvil. Solo se modifica Inicio y se conservan sus ilustraciones. Evidencia y límites en docs/auditoria-valentina/inicio-frame-797-269.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.4] - 2026-10-27
+
+- Configurar OpenCode de Valen para completar entregas en su rama y verificar CI y preview
+- Validación: npm test 416/416 y check:release. opencode.json validado contra el esquema oficial. Once pruebas de entrega cubren secuencia, identidad, conflictos, cambios concurrentes, política de credenciales, rechazo de push, CI y SHA pública. Ejecución real desde Windows Isaí rechaza publish sin mutar Git. La carga y autenticación de OpenCode en Dev quedan para /verificar-valen desde su sesión RDP. Se corrigió la lectura CRLF de SQL en una prueba para permitir el flujo en Windows.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.3] - 2026-10-27
+
+- Auditar las 51 páginas, restaurar recursos compartidos y agregar ojo de preview arrastrable
+- Validación: npm test 405/405; check:release y sintaxis. Navegador: 51 páginas por dominio, sin iconos visibles ni imágenes estáticas faltantes tras hidratación; 171 recursos HTTP. Ojo: arrastre, clic, flechas, Escape, persistencia y límites a 390x844. Beta sin sesión redirige en 22 rutas; ver docs/auditoria-valentina/preview-recursos-20261027.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.2] - 2026-10-27
+
+- Documentar la comprobación de la rama y los controles locales de publicación de Valen
+- Validación: guardia de rama correcta, push --dry-run, rechazo de destino main (exit 1) y aceptación de rama permanente (exit 0). Mantiene el código probado con 402 tests y comparación DOM contra beta.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
+## [2.2.3-valentina.rediseno-laura.1] - 2026-10-27
+
+- Configurar la rama permanente de Valen, recuperar iconos Feather y convertir la barra de preview en flotante y plegable
+- Validación: npm ci --ignore-scripts; npm test (402/402); npm run check:release; node --check server.js y gateway/bootstrap. Navegador a 1280 px: 10/10 SVG idénticos a beta, geometría de título y tarjetas idéntica; ocultar/mostrar y recarga conservan el layout. La copia de prueba Windows normalizó LF del seed SQL para una aserción sensible a CRLF, sin cambiar su contenido Git.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

@@ -19,6 +19,8 @@ let currentQuotationId = null;
 let chatChannel = null;
 // Total de mensajes del artista sin leer (contador "Mensajes nuevos" del Figma)
 let unreadMessagesTotal = 0;
+// Reference content is explicitly limited to this page in the isolated preview.
+const dashboardReference = window.WEOTZI_PREVIEW === true ? window.ClientDashboardReference : null;
 
 // ============================================
 // Initialization
@@ -135,11 +137,13 @@ async function loadClientProfile() {
         const saludo = hour < 13 ? 'Buen día' : (hour < 20 ? 'Buenas tardes' : 'Buenas noches');
         const firstName = (currentClient.full_name || '').trim().split(/\s+/)[0];
         greetingEl.textContent = firstName ? `${saludo}, ${firstName}` : saludo;
+        if (dashboardReference) greetingEl.textContent = dashboardReference.greeting;
     }
 
     // Tile de perfil en la topbar
     const tileEl = document.getElementById('topbar-avatar');
     if (tileEl) {
+        if (dashboardReference) { tileEl.textContent = 'Ö'; return; }
         if (currentClient.profile_picture) {
             tileEl.innerHTML = `<img src="${currentClient.profile_picture}" alt="">`;
         } else {
@@ -180,6 +184,7 @@ async function loadQuotations() {
         
         // Render quotations
         renderQuotations();
+        loadNextAppointment();
         
         // Load unread message counts
         await loadUnreadCounts();
@@ -209,6 +214,56 @@ function updateStats() {
     if (newMessagesEl) newMessagesEl.textContent = unreadMessagesTotal;
     if (activePostsEl) activePostsEl.textContent = activePosts;
     if (proposalsEl) proposalsEl.textContent = proposals;
+    if (dashboardReference) {
+        [pendingQuotesEl, newMessagesEl, activePostsEl, proposalsEl].forEach((el, i) => {
+            if (el) el.textContent = dashboardReference.counters[i];
+        });
+    }
+}
+
+// Sessions reference quotations_db.id (numeric), not the public quote_id.
+async function loadNextAppointment() {
+    const card = document.getElementById('next-appointment');
+    if (!card) return;
+    card.hidden = true;
+    card.innerHTML = '';
+    try {
+        if (dashboardReference && currentQuotations.length) {
+            renderNextAppointment({ ...currentQuotations[0], ...dashboardReference.appointment }, dashboardReference.appointment.label);
+            return;
+        }
+        const ids = currentQuotations.map(q => q.id).filter(id => id != null);
+        if (!ids.length) return;
+        const sessions = await WeotziData.Sessions.listByQuotationIds(ids);
+        const upcoming = sessions.filter(s =>
+            !['cancelled', 'canceled', 'completed'].includes(s.status) &&
+            new Date(s.session_date).getTime() >= Date.now() &&
+            currentQuotations.some(q => q.id === s.quotation_id)
+        ).sort((a, b) => new Date(a.session_date) - new Date(b.session_date))[0];
+        if (!upcoming) return;
+        const quote = currentQuotations.find(q => q.id === upcoming.quotation_id);
+        const date = new Date(upcoming.session_date);
+        const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'long' }).format(date);
+        const time = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+        renderNextAppointment(quote, `${day} · ${time}${quote.studio_name ? ` — ${quote.studio_name}` : ''}`);
+    } catch (error) {
+        console.error('Error loading next appointment:', error);
+    }
+}
+
+function renderNextAppointment(quote, label) {
+    const card = document.getElementById('next-appointment');
+    card.innerHTML = `
+        <div class="client-appointment-person">
+            <span class="client-appointment-avatar">${quote.artist_profile_picture
+                ? `<img src="${escapeFeedHtml(quote.artist_profile_picture)}" alt="">`
+                : '<span class="client-photo-placeholder client-photo-placeholder--small" aria-hidden="true"><strong>Foto</strong><span>or<br><u>browse<br>files</u></span></span>'}</span>
+            <div class="client-appointment-info"><p class="client-appointment-eyebrow">Próxima cita</p>
+                <h3>${escapeFeedHtml(quote.artist_name || 'Artista')}</h3><p>${escapeFeedHtml(label)}</p></div>
+        </div>
+        <button class="wo-btn client-appointment-detail" type="button" data-quote-id="${escapeFeedHtml(quote.quote_id)}">Ver detalle <i data-wo-icon="arrow-right" class="wo-icon-18"></i></button>`;
+    card.hidden = false;
+    card.querySelector?.('[data-quote-id]')?.addEventListener('click', () => viewQuotationDetail(quote.quote_id));
 }
 
 // ============================================
@@ -416,6 +471,7 @@ const FEED_STATUS_EVENTS = {
 async function loadActivityFeed() {
     const container = document.getElementById('activity-feed');
     if (!container) return;
+    if (dashboardReference) { renderActivityFeed(dashboardReference.events); return; }
 
     try {
         const events = [];
@@ -539,7 +595,9 @@ async function loadSuggestedArtists() {
     if (!section || !grid) return;
 
     try {
-        const { data: artists, error } = await WeotziData.Artists.listPublic(SUGGESTED_SELECT);
+        const { data: artists, error } = dashboardReference
+            ? { data: dashboardReference.artists }
+            : await WeotziData.Artists.listPublic(SUGGESTED_SELECT);
         if (error) throw error;
         if (!artists || artists.length === 0) return;
 
@@ -586,11 +644,13 @@ async function loadSuggestedArtists() {
                 (clientCountry && normalizePlace(artist.country) === clientCountry);
 
             let badge = '';
-            if (isNear) badge = '<span class="client-suggested-badge client-suggested-badge--near">Cerca de vos</span>';
+            if (artist.badge === 'reco') badge = '<span class="client-suggested-badge client-suggested-badge--reco">Recomendado</span>';
+            else if (artist.badge === 'guest') badge = '<span class="client-suggested-badge client-suggested-badge--guest">Guest artist</span>';
+            else if (isNear || artist.badge === 'near') badge = '<span class="client-suggested-badge client-suggested-badge--near">Cerca de vos</span>';
             else if (guestNow.has(artist.user_id)) badge = '<span class="client-suggested-badge client-suggested-badge--guest">Guest artist</span>';
             else if (artist.is_recommended) badge = '<span class="client-suggested-badge client-suggested-badge--reco">Recomendado</span>';
 
-            const summary = ratings[artist.user_id];
+            const summary = ratings[artist.user_id] || (artist.rating ? { average_rating: artist.rating } : null);
             const rating = summary && summary.average_rating
                 ? `<span class="client-suggested-rating"><i data-wo-icon="star"></i>${Number(summary.average_rating).toFixed(1)}</span>`
                 : '';
@@ -598,13 +658,14 @@ async function loadSuggestedArtists() {
             const styles = parseArtistStyles(artist.styles_array).slice(0, 2)
                 .map(s => `<span class="client-suggested-style">${escapeFeedHtml(s)}</span>`).join('');
 
-            const href = `/artist/profile?artist=${encodeURIComponent(artist.username || '')}`;
+            // Reference-only artists use the existing discovery route, not invented profiles.
+            const href = dashboardReference ? '/marketplace/' : `/artist/profile?artist=${encodeURIComponent(artist.username || '')}`;
             const name = escapeFeedHtml(artist.name || artist.username || 'Artista');
 
             return `
                 <a class="client-suggested-card" href="${href}">
                     <div class="client-suggested-media">
-                        <i data-wo-icon="image" class="client-suggested-ph" aria-hidden="true"></i>
+                        <span class="client-photo-placeholder" aria-hidden="true"><img src="/shared/assets/client-dashboard/image-placeholder.svg" width="28" height="29.1" alt=""><strong>Foto</strong><span>or <u>browse files</u></span></span>
                         ${artist.profile_picture ? `<img src="${escapeFeedHtml(artist.profile_picture)}" alt="${name}" loading="lazy" onerror="this.remove();">` : ''}
                         ${badge}
                     </div>

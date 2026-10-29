@@ -284,6 +284,10 @@
         const url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
         const method = String(init && init.method || input && input.method || 'GET').toUpperCase();
         const path = base && url.pathname.startsWith(base + '/') ? url.pathname.slice(base.length) : url.pathname;
+        // Exact pinned UI assets are served locally; external APIs remain blocked.
+        const featherIcon = url.origin === 'https://unpkg.com' && !url.search && !url.hash
+            && url.pathname.match(/^\/feather-icons@4\.29\.2\/dist\/icons\/([a-z0-9-]+)\.svg$/);
+        if (featherIcon && ['GET', 'HEAD'].includes(method)) return nativeFetch(origin + '/__preview/icons/' + featherIcon[1] + '.svg', { method });
         const rest = path.match(/^\/rest\/v1\/(.+)$/);
         if (rest) {
             try {
@@ -320,17 +324,76 @@
     }
     function mountBanner() {
         if (!document || !document.body || document.getElementById('weotzi-preview-bar')) return;
+        if (window.top && window.top !== window) return; // One eye for the page, not one per component iframe.
         banner = document.createElement('aside'); banner.id = 'weotzi-preview-bar'; banner.setAttribute('aria-label', 'Entorno de prueba');
-        banner.style.cssText = 'position:relative;z-index:2147483647;background:#ffdd57;color:#181818;border-bottom:2px solid #181818;padding:8px 12px;font:12px/1.4 sans-serif;display:flex;flex-wrap:wrap;gap:8px;align-items:center';
-        const summary = document.createElement('strong'); summary.dataset.previewSummary = ''; banner.appendChild(summary);
+        banner.style.cssText = 'position:fixed;left:16px;top:16px;width:44px;height:44px;z-index:2147483647;font:12px/1.4 sans-serif;color:#181818';
+        const toggle = document.createElement('button'); toggle.type = 'button'; toggle.id = 'weotzi-preview-eye';
+        toggle.setAttribute('aria-controls', 'weotzi-preview-controls');
+        toggle.title = 'Arrastrá para mover. También podés usar las flechas del teclado.';
+        toggle.style.cssText = 'all:initial;box-sizing:border-box;display:grid;place-items:center;width:44px;height:44px;border:1px solid #181818;border-radius:50%;background:#ffdd57;color:#181818;box-shadow:0 2px 8px #0003;cursor:grab;touch-action:none;user-select:none';
+        toggle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+        const panel = document.createElement('div'); panel.id = 'weotzi-preview-controls';
+        panel.style.cssText = 'position:absolute;box-sizing:border-box;flex-wrap:wrap;gap:8px;align-items:center;width:min(360px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow:auto;padding:12px;background:#ffdd57;border:1px solid #181818;border-radius:8px;box-shadow:0 2px 8px #0003;font:12px/1.4 sans-serif;color:#181818';
+        const positionKey = 'weotzi-preview:eye-position';
+        let position = { x: 16, y: Math.max(8, window.innerHeight - 60) };
+        try { const saved = JSON.parse(window.localStorage.getItem(positionKey)); if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) position = saved; } catch (_) {}
+        let collapsed = true, drag = null, suppressClick = false;
+        function place(save) {
+            position.x = Math.max(8, Math.min(position.x, Math.max(8, window.innerWidth - 52)));
+            position.y = Math.max(8, Math.min(position.y, Math.max(8, window.innerHeight - 52)));
+            banner.style.left = position.x + 'px'; banner.style.top = position.y + 'px';
+            const right = position.x > window.innerWidth / 2, below = position.y < window.innerHeight / 2;
+            const width = Math.min(360, Math.max(120, window.innerWidth - 16));
+            const desiredLeft = right ? position.x + 44 - width : position.x;
+            const panelLeft = Math.max(8, Math.min(desiredLeft, window.innerWidth - width - 8));
+            panel.style.width = width + 'px'; panel.style.left = (panelLeft - position.x) + 'px'; panel.style.right = 'auto';
+            panel.style.maxHeight = Math.max(80, below ? window.innerHeight - position.y - 60 : position.y - 8) + 'px';
+            panel.style.top = below ? '52px' : 'auto'; panel.style.bottom = below ? 'auto' : '52px';
+            if (save) try { window.localStorage.setItem(positionKey, JSON.stringify(position)); } catch (_) {}
+        }
+        function updatePanel() {
+            panel.hidden = collapsed; panel.style.display = collapsed ? 'none' : 'flex';
+            toggle.setAttribute('aria-label', collapsed ? 'Mostrar controles de preview' : 'Ocultar controles de preview');
+            toggle.setAttribute('aria-expanded', String(!collapsed));
+            toggle.style.outline = collapsed ? '' : '2px solid #181818';
+            place(false);
+        }
+        toggle.addEventListener('focus', () => { toggle.style.boxShadow = '0 0 0 3px #0055ff,0 2px 8px #0003'; });
+        toggle.addEventListener('blur', () => { toggle.style.boxShadow = '0 2px 8px #0003'; });
+        toggle.addEventListener('click', () => { if (suppressClick) { suppressClick = false; return; } collapsed = !collapsed; updatePanel(); });
+        toggle.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: position.x, top: position.y, moved: false };
+            suppressClick = false; toggle.setPointerCapture(event.pointerId); toggle.style.cursor = 'grabbing';
+        });
+        toggle.addEventListener('pointermove', event => {
+            if (!drag || drag.id !== event.pointerId) return;
+            const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+            if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+            if (drag.moved) { position = { x: drag.left + dx, y: drag.top + dy }; place(false); }
+        });
+        function endDrag(event) {
+            if (!drag || drag.id !== event.pointerId) return;
+            suppressClick = event.type !== 'pointercancel' && drag.moved; drag = null; toggle.style.cursor = 'grab'; place(true);
+            if (toggle.hasPointerCapture(event.pointerId)) toggle.releasePointerCapture(event.pointerId);
+        }
+        toggle.addEventListener('pointerup', endDrag); toggle.addEventListener('pointercancel', endDrag);
+        toggle.addEventListener('keydown', event => {
+            const shifts = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] };
+            if (shifts[event.key]) { event.preventDefault(); position.x += shifts[event.key][0]; position.y += shifts[event.key][1]; place(true); }
+            if (event.key === 'Escape') { collapsed = true; updatePanel(); }
+        });
+        window.addEventListener('resize', () => place(true));
+        banner.appendChild(toggle); banner.appendChild(panel); updatePanel();
+        const summary = document.createElement('strong'); summary.dataset.previewSummary = ''; panel.appendChild(summary);
         const actions = [
             ['Artista de prueba', () => { publishSession(makeSession(makeUser(defaultEmail)), 'SIGNED_IN'); window.location.href = scoped('/artist/dashboard/'); }],
             ['Cliente de prueba', () => { publishSession(makeSession(makeUser(defaultEmail)), 'SIGNED_IN'); window.location.href = scoped('/client/dashboard/'); }],
             ['Salir de prueba', () => { publishSession(null, 'SIGNED_OUT'); window.location.href = scoped('/artist/login/'); }],
             ['Reiniciar datos', () => { try { window.localStorage.removeItem(key + ':tables'); window.localStorage.removeItem(key + ':session'); } catch (_) {} window.location.reload(); }]
         ];
-        actions.forEach(([text, action]) => { const button = document.createElement('button'); button.type = 'button'; button.textContent = text; button.addEventListener('click', action); banner.appendChild(button); });
-        const warning = document.createElement('span'); warning.dataset.previewError = ''; warning.setAttribute('role', 'status'); banner.appendChild(warning);
+        actions.forEach(([text, action]) => { const button = document.createElement('button'); button.type = 'button'; button.textContent = text; button.style.cssText = 'font:12px/1.4 sans-serif;min-height:32px;color:#181818;background:#fff;border:1px solid #181818;padding:4px 8px;cursor:pointer'; button.addEventListener('click', action); panel.appendChild(button); });
+        const warning = document.createElement('span'); warning.dataset.previewError = ''; warning.setAttribute('role', 'status'); panel.appendChild(warning);
         document.body.insertBefore(banner, document.body.firstChild); renderBanner();
     }
     if (document) { if (document.body) mountBanner(); else document.addEventListener('DOMContentLoaded', mountBanner, { once: true }); }
