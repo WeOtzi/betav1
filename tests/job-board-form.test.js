@@ -37,7 +37,7 @@ function formPage() {
         addEventListener() {}, querySelectorAll() { return []; }
     };
     const context = vm.createContext({
-        document, window: { scrollTo() {} }, console, setTimeout, URL,
+        document, window: { scrollTo() {} }, console, setTimeout, URL, Blob,
         localStorage: { setItem: (key, value) => storage.set(key, value), getItem: key => storage.get(key) || null }
     });
     vm.runInContext(fs.readFileSync('public/shared/js/job-board-request.js', 'utf8'), context);
@@ -114,4 +114,37 @@ test('Escape closes the style picker and returns focus to its summary', () => {
     picker.dispatch('keydown', { key: 'Escape' });
     assert.equal(picker.open, false);
     assert.equal(focused, true);
+});
+
+test('review activates its own visual scope and shared navigation, then releases it on exit', () => {
+    const p = formPage();
+    p.run("view = 'review'; renderView();");
+    assert.equal(p.document.body.classList.contains('jbrq-is-review'), true);
+    assert.equal(p.nodes.get('jbrq-client-nav').hidden, true);
+    assert.equal(p.nodes.get('jbrq-inspiration-nav').hidden, false);
+    assert.match(p.nodes.get('jbrq-back').innerHTML, /Volver a Job Board/);
+    p.run("view = 'form'; renderView();");
+    assert.equal(p.document.body.classList.contains('jbrq-is-review'), false);
+    assert.equal(p.document.body.classList.contains('jbrq-is-form'), true);
+});
+
+test('review shows three reference slots without inventing a second title or replacing the draft', () => {
+    const p = formPage();
+    p.run("view = 'review'; formData = {tattoo_idea_description: 'Mi idea <especial>', client_city: 'Córdoba'}; renderView();");
+    const html = p.nodes.get('jbrq-view').innerHTML;
+    assert.equal((html.match(/class="jbrq-review-reference"/g) || []).length, 3);
+    assert.match(html, /Mi idea &lt;especial&gt;/);
+    assert.match(html, /Córdoba/);
+    assert.doesNotMatch(html, /<h2/);
+    assert.match(html, /onclick="setView\('form'\)"/);
+    assert.match(html, /onclick="startPublish\(\)"/);
+});
+
+test('review renders the uploaded reference in its slot instead of a static design image', () => {
+    const p = formPage();
+    p.run("view = 'review'; uploadedFiles = [new Blob(['image'], {type:'image/png'})]; renderView();");
+    const html = p.nodes.get('jbrq-view').innerHTML;
+    assert.equal((html.match(/class="jbrq-review-reference has-image"/g) || []).length, 1);
+    assert.match(html, /src="blob:[^"]+" alt="Referencia 1"/);
+    assert.equal((html.match(/class="jbrq-review-reference"/g) || []).length, 2);
 });

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.16] - 2026-10-29
+
+- Pantalla 8: revisión de publicación según Figma 801:1131
+- Revisión de /job-board/request/: navegación compartida, stepper, fuentes locales, composición, tarjeta, referencias y SVG originales. Estilos exclusivos de jbrq-is-review; no cambia inspiración, formulario, cuenta ni otras rutas. Conserva datos dinámicos, moneda, tamaños y acciones existentes.
+- Validación: npm test 441/441 y check:release aprobados. Browser y Edge/Playwright: anchos 1920, 1440, 1280, 1024, 768 y 390 sin overflow; fuentes/SVG cargados, Editar conserva datos y recarga permite reanudar el borrador. Publicar muestra el error existente de servicio no disponible en local seguro: no se acredita envío real. Diferencias de contrato de tamaño/fecha y advertencias previas documentadas en docs/auditoria-valentina/pantalla-8/design-qa.md.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.15] - 2026-10-29
 
 - Pantalla 7: describir y editar la idea según Figma 801:1128

@@ -230,8 +230,10 @@ function renderView() {
     if (!container) return;
     setInspirationChrome(view === 'inspiration');
     const isForm = view === 'form';
+    const isReview = view === 'review';
     document.body.classList.toggle('jbrq-is-form', isForm);
-    if (isForm) {
+    document.body.classList.toggle('jbrq-is-review', isReview);
+    if (isForm || isReview) {
         document.getElementById('jbrq-client-nav').hidden = true;
         document.getElementById('jbrq-inspiration-nav').hidden = false;
     }
@@ -249,6 +251,10 @@ function renderView() {
         if (back) { back.textContent = '← Volver a mis solicitudes'; back.href = '/client/requests'; }
         if (isForm && back) {
             back.innerHTML = '<img src="/shared/assets/job-board-form/arrow-left.svg" alt="" width="14" height="14">Volver a Job Board';
+            back.href = '/client/requests';
+        }
+        if (isReview && back) {
+            back.innerHTML = '<img src="/shared/assets/job-board-review/arrow-left.svg" alt="" width="14" height="14">Volver a Job Board';
             back.href = '/client/requests';
         }
     }
@@ -1233,15 +1239,20 @@ function formatDateDisplay() {
 }
 
 function renderReview(el) {
-    const title = deriveRequestTitle(formData.tattoo_idea_description, selectedStylesArray(), formData.tattoo_body_part);
     const zone = [formData.tattoo_body_part, formData.tattoo_body_side ? 'lado ' + String(formData.tattoo_body_side).toLowerCase() : null]
         .filter(Boolean).join(' · ');
     const openInterp = formData.open_interpretation !== false;
 
-    const refsHtml = uploadedFiles.length > 0
-        ? `<div class="jbrq-preview-refs">${uploadedFiles.map((file, i) =>
-            `<img src="${URL.createObjectURL(file)}" alt="Referencia ${i + 1}">`).join('')}</div>`
-        : '';
+    const refsHtml = `<div class="jbrq-preview-refs">${Array.from({ length: Math.max(3, uploadedFiles.length) }, (_, i) => {
+        const file = uploadedFiles[i];
+        return file
+            ? `<div class="jbrq-review-reference has-image"><img src="${URL.createObjectURL(file)}" alt="Referencia ${i + 1}"></div>`
+            : `<div class="jbrq-review-reference">
+                <img src="/shared/assets/job-board-review/reference.svg" alt="" width="28" height="29.1">
+                <span class="jbrq-review-reference-label">Referencia ${i + 1}</span>
+                <span class="jbrq-review-reference-help">or <u>browse files</u></span>
+            </div>`;
+    }).join('')}</div>`;
 
     const cell = (label, value, extraClass) => `
         <div class="jbrq-cell">
@@ -1258,7 +1269,6 @@ function renderReview(el) {
 
         <article class="wo-card wo-card--flat jbrq-preview">
             <span class="wo-eyebrow">Tu idea</span>
-            ${title ? `<h2 class="wo-h3 jbrq-preview-title">${escapeHtml(title)}</h2>` : ''}
             <p class="jbrq-preview-desc">${escapeHtml(formData.tattoo_idea_description || '–')}</p>
             ${refsHtml}
             <hr class="wo-divider">
@@ -1279,8 +1289,8 @@ function renderReview(el) {
         <div class="jbrq-review-actions">
             <p class="wo-meta-s wo-muted jbrq-logged-as" id="jbrq-logged-as"></p>
             <div class="jbrq-review-btns">
-                <button type="button" class="wo-btn wo-btn--secondary" onclick="setView('form')"><i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Editar</button>
-                <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-btn-publish" onclick="startPublish()">Publicar idea →</button>
+                <button type="button" class="wo-btn wo-btn--secondary" onclick="setView('form')"><img src="/shared/assets/job-board-review/edit.svg" alt="" width="18" height="18">Editar</button>
+                <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-btn-publish" onclick="startPublish()">Publicar idea<img src="/shared/assets/job-board-review/arrow-right.svg" alt="" width="18" height="18"></button>
             </div>
         </div>
     `;
