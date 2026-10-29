@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.14] - 2026-10-29
+
+- Pantalla 6: replicar Construí tu idea del frame final 801:1129
+- Vista de inspiración de /job-board/request/: encabezado compartido con el menú literal confirmado por Valentina, fuentes locales, colores, geometría, textos AI INSPIRATION / INSPIRARME CON AI, SVG originales y quince espacios de carga de Figma. La capa visual se desactiva al pasar al formulario o reanudar un borrador; no se modifican otras rutas ni los contratos de datos. Se corrige el montaje prematuro que dejaba los filtros vacíos.
+- Validación: npm test 432/432, incluidas cinco regresiones de montaje, filtrado, búsqueda, galería real, menú móvil y aislamiento. Navegador Edge/Playwright a 1440×1619 y anchos 1920, 1366, 1280, 1024, 768 y 390, sin scroll horizontal ni excepciones JavaScript; SVG y fuentes locales cargados. Filtros, sin coincidencias, validación del prompt, error de IA no simulada, carga local de PNG y paso al formulario conservando el archivo comprobados. Browser no pudo capturar por ventana no visible. Evidencia y límites en docs/auditoria-valentina/pantalla-6/design-qa.md. IA, Supabase y soporte remotos no probados; el entorno seguro bloquea esas integraciones. check:release y repetición de pruebas mediante entrega automática.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.13] - 2026-10-28
 
 - Pantalla 5: replicar el dashboard de cliente del frame final 801:1126

@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await waitForConfigManager();
     _supabase = window.ConfigManager?.getSupabaseClient();
     setupSessionChrome();
+    setupInspirationMenu();
     await loadConfig();
 
     const draft = loadDraft();
@@ -177,6 +178,7 @@ function clearDraft() {
 function renderResumePrompt() {
     const container = document.getElementById('jbrq-view');
     if (!container) return;
+    setInspirationChrome(false);
     const stepper = document.getElementById('jbrq-stepper');
     if (stepper) stepper.hidden = true;
 
@@ -226,12 +228,16 @@ window.setView = function(next) {
 function renderView() {
     const container = document.getElementById('jbrq-view');
     if (!container) return;
+    setInspirationChrome(view === 'inspiration');
     const stepper = document.getElementById('jbrq-stepper');
     const back = document.getElementById('jbrq-back');
 
     if (view === 'inspiration') {
         if (stepper) stepper.hidden = true;
-        if (back) { back.textContent = '← Volver al dashboard'; back.href = '/client/dashboard'; }
+        if (back) {
+            back.innerHTML = '<img src="/shared/assets/job-board-inspiration/arrow-left.svg" alt="" width="14" height="14">Volver al dashboard';
+            back.href = '/client/dashboard';
+        }
     } else {
         if (stepper) stepper.hidden = false;
         if (back) { back.textContent = '← Volver a mis solicitudes'; back.href = '/client/requests'; }
@@ -249,8 +255,53 @@ function renderView() {
     }
 
     container.appendChild(pane);
+    // Los hijos deben estar montados antes de buscarlos por ID.
+    if (view === 'inspiration') {
+        renderGalleryChips();
+        renderGallery();
+        updateSelCount();
+    }
     window.scrollTo({ top: 0 });
 }
+
+function setInspirationChrome(active) {
+    document.body.classList.toggle('jbrq-is-inspiration', active);
+    const clientNav = document.getElementById('jbrq-client-nav');
+    const inspirationNav = document.getElementById('jbrq-inspiration-nav');
+    if (clientNav) clientNav.hidden = active;
+    if (inspirationNav) inspirationNav.hidden = !active;
+}
+
+// El organismo compartido deja el menú móvil a cargo del controlador de página.
+function setupInspirationMenu() {
+    const toggle = document.getElementById('jbrq-inspiration-menu-toggle');
+    const menu = document.getElementById('jbrq-inspiration-menu');
+    if (!toggle || !menu) return;
+    const close = () => {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+    };
+    toggle.addEventListener('click', event => {
+        event.stopPropagation();
+        const open = toggle.getAttribute('aria-expanded') !== 'true';
+        menu.hidden = !open;
+        toggle.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', event => {
+        if (!menu.hidden && !menu.contains(event.target) && !toggle.contains(event.target)) close();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !menu.hidden) {
+            close();
+            toggle.focus();
+        }
+    });
+}
+
+window.logoutInspiration = async function() {
+    if (_supabase) await _supabase.auth.signOut();
+    window.location.href = '/inicio';
+};
 
 // ============================================
 // TÍTULO DERIVADO DE LA PUBLICACIÓN
@@ -286,23 +337,23 @@ function renderInspiration(el) {
 
         <section class="jbrq-ai" aria-label="Inspiración con IA">
             <div class="jbrq-ai-copy">
-                <span class="wo-eyebrow jbrq-ai-eyebrow"><span class="jbrq-ai-mark" aria-hidden="true"></span>Inspiración con IA</span>
+                <span class="wo-eyebrow jbrq-ai-eyebrow"><span class="jbrq-ai-mark" aria-hidden="true"></span>AI INSPIRATION</span>
                 <h2 class="wo-h2 jbrq-ai-title">¿No sabés exactamente qué buscás?</h2>
                 <p>Contanos tu idea y dejá que We Ötzi encuentre referencias y estilos que puedan inspirarte.</p>
             </div>
             <div class="jbrq-ai-form">
-                <label class="wo-label" for="jbrq-ai-prompt">Quiero un tatuaje de…</label>
+                <label class="wo-label" for="jbrq-ai-prompt">"QUIERO UN TATUAJE DE…"</label>
                 <textarea id="jbrq-ai-prompt" class="wo-textarea" rows="3" maxlength="400" placeholder="Ej: olas del mar, minimalista, delicado, para el antebrazo"></textarea>
                 <div class="jbrq-ai-actions">
                     <span class="wo-error-msg wo-hidden" id="jbrq-ai-error">No pudimos generar la imagen. Probá de nuevo en un rato.</span>
-                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">Inspirarme con IA →</button>
+                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18"></button>
                 </div>
                 <div class="jbrq-ai-result wo-hidden" id="jbrq-ai-result"></div>
             </div>
         </section>
 
         <div class="jbrq-search">
-            <i data-wo-icon="search" class="wo-icon-18 jbrq-search-icon" aria-hidden="true"></i>
+            <img src="/shared/assets/job-board-inspiration/search.svg" class="jbrq-search-icon" alt="" width="18" height="18">
             <input type="search" id="jbrq-gallery-search" class="wo-input" placeholder="Buscar estilos, ideas, tatuajes…" value="${escapeHtml(gallerySearch)}" aria-label="Buscar referencias">
         </div>
 
@@ -313,6 +364,7 @@ function renderInspiration(el) {
         <p class="wo-meta-s wo-muted jbrq-selcount wo-hidden" id="jbrq-selcount"></p>
 
         <div class="jbrq-masonry" id="jbrq-gallery"></div>
+        <input type="file" id="jbrq-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple class="wo-hidden" onchange="handleFileSelect(event)">
     `;
 
     const search = el.querySelector('#jbrq-gallery-search');
@@ -323,9 +375,6 @@ function renderInspiration(el) {
         });
     }
 
-    renderGalleryChips();
-    renderGallery();
-    updateSelCount();
 }
 
 function renderGalleryChips() {
@@ -333,7 +382,7 @@ function renderGalleryChips() {
     if (!wrap) return;
     const chips = ['Todos'].concat(INSPIRATION_STYLES);
     wrap.innerHTML = chips.map(name => `
-        <button type="button" class="wo-chip ${galleryFilter === name ? 'is-active' : ''}" data-style="${escapeHtml(name)}" onclick="setGalleryFilter(this)">${escapeHtml(name)}</button>
+        <button type="button" class="wo-chip ${galleryFilter === name ? 'is-active' : ''}" data-style="${escapeHtml(name)}" onclick="setGalleryFilter(this)" aria-pressed="${galleryFilter === name}">${escapeHtml(name)}</button>
     `).join('');
 }
 
@@ -398,6 +447,9 @@ function renderGallery() {
         return;
     }
 
+    // Los espacios de Figma son cargas locales, no artistas ni URLs ficticias.
+    // Si existen trabajos públicos, se conserva siempre la galería real.
+    if (galleryItems.length === 0 && renderInspirationSlots(wrap)) return;
     const visible = galleryItems.filter(galleryMatches);
     if (visible.length === 0) {
         wrap.innerHTML = `
@@ -424,6 +476,32 @@ function renderGallery() {
             </button>
         `;
     }).join('');
+}
+
+function renderInspirationSlots(wrap) {
+    const columns = [
+        ['Blackwork', 'Fine line', 'Japonés', 'Japonés'],
+        ['Realismo', 'Ornamental', 'Blackwork', 'Japonés'],
+        ['Blackwork', 'Minimalista', 'Blackwork'],
+        ['Blackwork', 'Fine line', 'Japonés', 'Japonés']
+    ];
+    let count = 0;
+    const html = columns.map((styles, column) => {
+        const slots = styles.map((style, row) => {
+            if (!galleryMatches({ style, styles: [style], artist: '' })) return '';
+            count++;
+            const tall = (column === 0 && row === 0) || (column === 1 && row === 2) || (column === 2 && row !== 1);
+            return `<button type="button" class="jbrq-upload-slot${tall ? ' jbrq-upload-slot--tall' : ''}" onclick="triggerFileInput()" aria-label="Subir referencia: tatuaje ${escapeHtml(style.toLowerCase())}">
+                <img src="/shared/assets/job-board-inspiration/image.svg" alt="" width="28" height="29.1">
+                <span class="jbrq-upload-title">Tatuaje ${escapeHtml(style.toLowerCase())}</span>
+                <span class="jbrq-upload-browse">or <u>browse files</u></span>
+            </button>`;
+        }).join('');
+        return `<div class="jbrq-gallery-column">${slots}</div>`;
+    }).join('');
+    if (!count) return false;
+    wrap.innerHTML = `<div class="jbrq-slot-grid">${html}</div>`;
+    return true;
 }
 
 window.toggleGalleryRef = function(card) {
@@ -528,7 +606,7 @@ window.generateInspiration = async function() {
         if (errEl) errEl.classList.remove('wo-hidden');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Inspirarme con IA →';
+        btn.innerHTML = 'INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18">';
     }
 };
 
@@ -1014,6 +1092,9 @@ async function addFiles(files) {
     }
 
     renderRefSlots();
+    if (view === 'inspiration' && uploadedFiles.length > 0) {
+        showFormNotice(uploadedFiles.length + ' referencia(s) cargada(s) · continuá con Crear mi idea');
+    }
 }
 
 window.removeFile = function(index) {
