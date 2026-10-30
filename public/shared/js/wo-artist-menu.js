@@ -37,13 +37,18 @@
         counts: { msgs: 0, inv: 0, solic: 0, apps: 0, updates: 0 },
         open: false,
         panelOpen: false,
+        suggestError: false,
     };
     var els = {};
+    var SUGGEST_ERROR = 'No pudimos guardar el cambio. Probá de nuevo.';
+    var SUGGEST_ERROR_MS = 6000;
+    var suggestErrorTimer = 0;
 
     /* ------------------------------ utils ------------------------------ */
     // Rutas absolutas del producto respetando el base path (/beta, preview).
     function appPath(p) {
-        var base = String(window.WEOTZI_BASE_PATH || '').replace(/\/$/, '');
+        var detected = /^\/beta(\/|$)/.test((window.location && window.location.pathname) || '') ? '/beta' : '';
+        var base = String(window.WEOTZI_BASE_PATH || detected).replace(/\/$/, '');
         var s = String(p || '');
         if (!base || s.charAt(0) !== '/' || s.charAt(1) === '/' || s.indexOf(base + '/') === 0) return s;
         return base + s;
@@ -149,8 +154,11 @@
             /* badge del tile (Figma 164:18202) */
             '.wo-oam-host{position:relative;display:inline-flex}',
             '.wo-oam-badge{position:absolute;top:-9px;right:-12px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--neutral-100);background:var(--system-error);color:var(--white);font-family:var(--font-mono);font-size:10px;line-height:1;font-weight:700}',
+            /* Capas: los overlays que abre el artista quedan sobre el dock del
+               modo asistido (marco 1370, panel 1380) y debajo de la bienvenida
+               (1390) y del recorrido (1400). */
             /* menú de cuenta (Figma 164:16683) */
-            '.wo-oam-drop{position:fixed;z-index:1200;width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:var(--figma-white,#fff);border:1px solid var(--neutral-500);box-shadow:5px 5px 0 var(--neutral-500)}',
+            '.wo-oam-drop{position:fixed;z-index:1384;width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:var(--figma-white,#fff);border:1px solid var(--neutral-500);box-shadow:5px 5px 0 var(--neutral-500)}',
             '.wo-oam-head{display:flex;align-items:center;gap:14px;padding:16px 18px 16px 22px;border-bottom:.8px solid var(--neutral-200)}',
             '.wo-oam-avatar{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--yellow-300);color:var(--neutral-500);font-family:var(--font-display);font-size:14.5px;overflow:hidden}',
             '.wo-oam-avatar img{width:100%;height:100%;object-fit:cover}',
@@ -179,9 +187,20 @@
             '.wo-oam-link:hover,.wo-oam-link:focus-visible{background:var(--neutral-100);color:var(--neutral-500);text-decoration:none;outline:none}',
             '.wo-app a.wo-oam-link,.wo-app a.wo-oam-link:hover{color:var(--neutral-500);text-decoration:none}',
             '.wo-app a.wo-oam-row,.wo-app a.wo-oam-row:hover{color:var(--ink);text-decoration:none}',
+            /* accesos del demo / modo asistido que no navegan: <button> con la piel del link */
+            'button.wo-oam-link{width:100%;box-sizing:border-box;margin:0;background:none;border:0;border-radius:0;text-align:left;cursor:pointer;line-height:inherit}',
+            /* switch "Sugerir el modo demo" (role=switch): pista cuadrada, radius 0 */
+            '.wo-oam-switchl{flex:1;min-width:0}',
+            '.wo-oam-switch{position:relative;flex:none;width:30px;height:16px;box-sizing:border-box;border:1.5px solid var(--neutral-500);background:var(--white)}',
+            '.wo-oam-switch::after{content:"";position:absolute;top:2px;left:2px;width:9px;height:9px;background:var(--neutral-300);transition:transform var(--duration-press,.08s) var(--ease-standard,ease)}',
+            '.wo-oam-switchrow[aria-checked="true"] .wo-oam-switch{background:var(--ink);border-color:var(--ink)}',
+            '.wo-oam-switchrow[aria-checked="true"] .wo-oam-switch::after{background:var(--white);transform:translateX(14px)}',
+            '@media (prefers-reduced-motion:reduce){.wo-oam-switch::after{transition:none}}',
+            /* aviso breve cuando el servidor no guardó el switch (alineado con el texto de la fila) */
+            '.wo-oam-err{margin:0;padding:2px 18px 8px 46px;font-family:var(--font-body);font-size:12.5px;line-height:1.35;color:var(--status-error-fg)}',
             /* panel de notificaciones (Figma 167:19997): nace debajo de la topbar */
-            '.wo-oam-scrim{position:fixed;left:0;right:0;bottom:0;top:var(--wo-oam-top,76px);z-index:1290;background:color-mix(in srgb,var(--neutral-500) 42%,transparent)}',
-            '.wo-oam-panel{position:fixed;top:var(--wo-oam-top,76px);right:0;z-index:1300;box-sizing:border-box;width:min(440px,100vw);min-height:min(944px,calc(100vh - var(--wo-oam-top,76px)));max-height:calc(100vh - var(--wo-oam-top,76px));background:var(--figma-white,#fff);border-left:1.6px solid var(--neutral-500);box-shadow:8px 8px 0 var(--neutral-500);display:flex;flex-direction:column}',
+            '.wo-oam-scrim{position:fixed;left:0;right:0;bottom:0;top:var(--wo-oam-top,76px);z-index:1385;background:color-mix(in srgb,var(--neutral-500) 42%,transparent)}',
+            '.wo-oam-panel{position:fixed;top:var(--wo-oam-top,76px);right:0;z-index:1386;box-sizing:border-box;width:min(440px,100vw);min-height:min(944px,calc(100vh - var(--wo-oam-top,76px)));max-height:calc(100vh - var(--wo-oam-top,76px));background:var(--figma-white,#fff);border-left:1.6px solid var(--neutral-500);box-shadow:8px 8px 0 var(--neutral-500);display:flex;flex-direction:column}',
             '.wo-oam-ph{display:flex;flex-direction:column;gap:7px;padding:22px 24px 23.6px;border-bottom:1.6px solid var(--neutral-500)}',
             '.wo-oam-ph-row{display:flex;align-items:center;justify-content:space-between;gap:10px}',
             '.wo-oam-ph-title{display:flex;align-items:center;gap:10px}',
@@ -424,6 +443,86 @@
         return a.username ? '/artist/profile?artist=' + encodeURIComponent(String(a.username).replace(/^@/, '')) : '/artist/account#perfil';
     }
 
+    /* ------------------- accesos del demo y del modo asistido ------------------- */
+    // WoDemo (wo-demo.js) no existe en la preview local: ahí el modo asistido es
+    // un link plano y el switch de la sugerencia no se muestra.
+    function assistActive() {
+        var A = window.WoAssist;
+        try { return !!(A && typeof A.isActive === 'function' && A.isActive()); } catch (e) { return false; }
+    }
+    function suggestionsOn(W) {
+        try { return !!(W && typeof W.suggestionsEnabled === 'function' && W.suggestionsEnabled()); } catch (e) { return true; }
+    }
+    function onboardingLinks(demo) {
+        var W = window.WoDemo;
+        var assistOn = !demo && assistActive();
+        var hasSwitch = !!(W && typeof W.setSuggestions === 'function');
+        var suggestOn = suggestionsOn(W);
+        return '<a class="wo-oam-link" id="wo-oam-assist" href="' + esc(appPath('/artist/account?asistido=1#perfil')) + '"><span class="wo-oam-ic">' + iconEl('check-square') + '</span>'
+            + (assistOn ? 'Modo asistido · ver mis pasos' : 'Modo asistido · configurá tu perfil') + '</a>'
+            // Siempre visible (el final del recorrido remite acá); con el demo
+            // prendido arranca el recorrido sin navegar.
+            + '<a class="wo-oam-link" id="wo-oam-tour" href="' + esc(appPath('/artist/dashboard')) + '?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>'
+            + (demo ? '<button type="button" class="wo-oam-link" id="wo-oam-demo-exit"><span class="wo-oam-ic">' + iconEl('log-out') + '</span>Salir del modo demo</button>' : '')
+            + (hasSwitch ? '<button type="button" class="wo-oam-link wo-oam-switchrow" id="wo-oam-suggest" role="switch" aria-checked="' + (suggestOn ? 'true' : 'false') + '"'
+                + (state.suggestError ? ' aria-describedby="wo-oam-suggest-err"' : '') + '>'
+                + '<span class="wo-oam-ic">' + iconEl('eye') + '</span><span class="wo-oam-switchl">Sugerir el modo demo</span>'
+                + '<span class="wo-oam-switch" aria-hidden="true"></span></button>'
+                + (state.suggestError ? '<p class="wo-oam-err" id="wo-oam-suggest-err" role="alert">' + esc(SUGGEST_ERROR) + '</p>' : '') : '');
+    }
+    // El servidor no guardó el switch: WoDemo ya lo volvió al valor anterior
+    // (el re-render lo lee de suggestionsEnabled()); acá solo se avisa un rato.
+    function setSuggestError(on) {
+        if (suggestErrorTimer) { clearTimeout(suggestErrorTimer); suggestErrorTimer = 0; }
+        if (!on && !state.suggestError) return;
+        state.suggestError = !!on;
+        if (on) suggestErrorTimer = setTimeout(function () { suggestErrorTimer = 0; setSuggestError(false); }, SUGGEST_ERROR_MS);
+        safeRenderDrop();
+    }
+    function bindOnboardingLinks(demo) {
+        var W = window.WoDemo;
+        if (!W) return;
+        var assist = els.drop.querySelector('#wo-oam-assist');
+        if (assist && typeof W.startAssist === 'function') {
+            assist.addEventListener('click', function (e) {
+                e.preventDefault();
+                setDrop(false);
+                var A = window.WoAssist;
+                if (assistActive() && typeof A.open === 'function') { A.open(); return; }
+                W.startAssist();
+            });
+        }
+        var tour = els.drop.querySelector('#wo-oam-tour');
+        if (tour && demo && typeof W.startTour === 'function') {
+            tour.addEventListener('click', function (e) { e.preventDefault(); setDrop(false); W.startTour(); });
+        }
+        var exit = els.drop.querySelector('#wo-oam-demo-exit');
+        if (exit && typeof W.disable === 'function') {
+            exit.addEventListener('click', function () { setDrop(false); W.disable(); });
+        }
+        var sw = els.drop.querySelector('#wo-oam-suggest');
+        if (sw && typeof W.setSuggestions === 'function') {
+            sw.addEventListener('click', function (e) {
+                // Un switch no navega: el menú queda abierto. El re-render del
+                // evento reemplaza el botón, así que el click no sigue al document
+                // (lo tomaría como un click afuera del menú).
+                e.preventDefault();
+                e.stopPropagation();
+                var next = sw.getAttribute('aria-checked') !== 'true';
+                if (state.suggestError) setSuggestError(false);
+                sw.setAttribute('aria-checked', next ? 'true' : 'false');
+                var failed = function (err) {
+                    console.warn('[wo-menu] sugerencia del demo:', err && err.message);
+                    setSuggestError(true);
+                };
+                try {
+                    var p = W.setSuggestions(next);
+                    if (p && typeof p.then === 'function') p.then(null, failed);
+                } catch (err) { failed(err); }
+            });
+        }
+    }
+
     function renderDrop() {
         var a = state.artist || {};
         var mail = (state.user && state.user.email) || '';
@@ -432,7 +531,10 @@
         var initials = raw.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'Ö';
         var pic = a.profile_picture || '';
         var total = unreadTotal();
-        var demo = window.WoDemo && window.WoDemo.enabled;
+        var demo = !!(window.WoDemo && window.WoDemo.enabled);
+        // El re-render reemplaza los nodos: el foco vuelve al control con el mismo id.
+        var focused = document.activeElement;
+        var keepFocus = focused && focused.id && typeof els.drop.contains === 'function' && els.drop.contains(focused) ? focused.id : '';
 
         els.drop.innerHTML =
             '<div class="wo-oam-head">'
@@ -453,14 +555,23 @@
             + '<div class="wo-oam-links">'
             + '<a class="wo-oam-link" href="' + esc(appPath('/artist/account')) + '"><span class="wo-oam-ic">' + iconEl('user') + '</span>Ir al Centro de Cuenta</a>'
             + '<a class="wo-oam-link" href="' + esc(appPath(profileHref())) + '"><span class="wo-oam-ic">' + iconEl('external-link') + '</span>Ver perfil público</a>'
-            + (demo ? '<a class="wo-oam-link" id="wo-oam-tour" href="' + esc(appPath('/artist/dashboard')) + '?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>' : '')
+            + onboardingLinks(demo)
             + '<a class="wo-oam-link" href="' + esc(appPath('/artist/inbox')) + '"><span class="wo-oam-ic">' + iconEl('help-circle') + '</span>Ayuda</a>'
             + '</div>';
 
         var openPanel = function (e) { e.preventDefault(); setDrop(false); setPanel(true); };
         els.drop.querySelector('#wo-oam-notifs').addEventListener('click', openPanel);
         els.drop.querySelector('#wo-oam-upd').addEventListener('click', openPanel);
+        bindOnboardingLinks(demo);
+        if (keepFocus) {
+            var again = els.drop.querySelector('#' + keepFocus);
+            if (again && typeof again.focus === 'function') { try { again.focus(); } catch (e) { /* noop */ } }
+        }
         hydrateIcons(els.drop);
+    }
+
+    function safeRenderDrop() {
+        try { renderDrop(); } catch (e) { console.warn('[wo-menu] render:', e && e.message); }
     }
 
     function renderPanel() {
@@ -560,6 +671,7 @@
         els.drop.hidden = !open;
         els.trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) positionDrop();
+        else if (state.suggestError) setSuggestError(false);
     }
     function setPanel(open) {
         state.panelOpen = open;
@@ -684,6 +796,9 @@
             if (state.open) { setDrop(false); try { els.trigger.focus(); } catch (err) { } }
         });
         els.scrim.addEventListener('click', function () { setPanel(false); });
+        // El demo (switch de la sugerencia) y el modo asistido cambian los accesos.
+        document.addEventListener('wo:demo-suggestions-changed', safeRenderDrop);
+        document.addEventListener('wo:assist-changed', safeRenderDrop);
         window.addEventListener('resize', function () {
             if (state.open) positionDrop();
             if (state.panelOpen) document.documentElement.style.setProperty('--wo-oam-top', topbarBottom() + 'px');
