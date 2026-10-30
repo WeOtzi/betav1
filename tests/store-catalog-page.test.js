@@ -335,21 +335,29 @@ test('vitrina vacía: «Este artista todavía no publicó diseños ni merch. Mir
     assert.doesNotMatch(html, /data-stc-filter/);
 });
 
-test('precios: merch sin price_amount público se deduce solo cuando es exacto', () => {
+// Copia de una ficha pública sin price_amount (payloads anteriores a la proyección con precio base).
+function withoutBasePrice(product) {
+    const copy = Object.assign({}, product);
+    delete copy.price_amount;
+    return copy;
+}
+
+test('precios: la ficha pública trae price_amount; sin él se deduce solo cuando es exacto', () => {
     const m1 = demo.item(P.M1).product;
     const m2 = demo.item(P.M2).product;
-    assert.equal(m1.price_amount, undefined, 'la ficha pública no trae price_amount');
-    assert.deepEqual(C.merchPricing(m1), { base: 28000, exact: true }, 'todas heredan: base = price_from');
-    assert.deepEqual(C.merchPricing(m2), { base: 28, exact: false }, 'A4 con override igual a price_from: la base de A3 es desconocida');
-    assert.deepEqual(C.variantPrice(m2, m2.variants.find((v) => v.id === V.A4)), { amount: 28, approx: false });
-    assert.deepEqual(C.variantPrice(m2, m2.variants.find((v) => v.id === V.A3)), { amount: 28, approx: true });
-    const withBase = Object.assign({}, m2, { price_amount: 40 });
-    assert.deepEqual(C.variantPrice(withBase, withBase.variants.find((v) => v.id === V.A3)), { amount: 40, approx: false });
+    assert.equal(m1.price_amount, 28000, 'la ficha pública trae el precio base');
+    const m1s = withoutBasePrice(m1);
+    const m2s = withoutBasePrice(m2);
+    assert.deepEqual(C.merchPricing(m1s), { base: 28000, exact: true }, 'todas heredan: base = price_from');
+    assert.deepEqual(C.merchPricing(m2s), { base: 28, exact: false }, 'A4 con override igual a price_from: la base de A3 es desconocida');
+    assert.deepEqual(C.variantPrice(m2s, m2s.variants.find((v) => v.id === V.A4)), { amount: 28, approx: false });
+    assert.deepEqual(C.variantPrice(m2s, m2s.variants.find((v) => v.id === V.A3)), { amount: 28, approx: true });
+    assert.deepEqual(C.variantPrice(m2, m2.variants.find((v) => v.id === V.A3)), { amount: m2.price_amount, approx: false });
     assert.equal(C.priceSummary(m1).label, 'ARS 28.000');
     assert.equal(C.priceSummary(m2).label, 'Desde USD 28');
     assert.equal(C.priceSummary(demo.item(P.D1).product).label, 'Desde USD 35');
     assert.equal(C.priceSummary(Object.assign({}, demo.item(P.D1).product, { license_artist_price: null, license_exclusive_price: null })).label, 'USD 35');
-    assert.equal(C.pricedProduct(m1).price_amount, 28000);
+    assert.equal(C.pricedProduct(m1s).price_amount, 28000);
     assert.equal(C.kindLine(demo.item(P.D1).product), 'Diseño · Fine line');
     assert.equal(C.kindLine(m1), 'Merch · Remeras');
 });
@@ -476,9 +484,11 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.equal(toteBuy.mode, 'buy');
 
     const m2 = demo.item(P.M2);
-    const a3 = C.buyState(m2.product, { variantId: V.A3, quantity: 1 }, flagsFor(m2, VIEWERS.client));
+    const a3 = C.buyState(withoutBasePrice(m2.product), { variantId: V.A3, quantity: 1 }, flagsFor(m2, VIEWERS.client));
     assert.equal(a3.amount, 'Desde USD 28', 'precio no exacto: se aclara');
     assert.match(a3.note, /se confirma en el checkout/);
+    const a3Exact = C.buyState(m2.product, { variantId: V.A3, quantity: 1 }, flagsFor(m2, VIEWERS.client));
+    assert.equal(a3Exact.amount, 'USD ' + m2.product.price_amount, 'con el precio base público el monto es exacto');
     const noDelivery = C.buyState(Object.assign({}, m1.product, { shipping_price_amount: null, pickup_available: false }), chosen, flags);
     assert.equal(noDelivery.mode, 'blocked');
     assert.match(noDelivery.hint, /no tiene envío ni retiro/);

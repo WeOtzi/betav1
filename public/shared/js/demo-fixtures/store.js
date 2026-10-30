@@ -445,6 +445,7 @@
             }
             return {
                 id: p.id, kind: p.kind, title: p.title, description: p.description, category: p.category, tags: p.tags || [], currency: p.currency,
+                price_amount: p.price_amount != null ? p.price_amount : null,
                 price_from: priceFrom,
                 license_personal_price: p.license_personal_price, license_artist_price: p.license_artist_price, license_exclusive_price: p.license_exclusive_price,
                 exclusive_available: p.kind === 'design' && p.license_exclusive_price != null && p.reserved_order_id == null

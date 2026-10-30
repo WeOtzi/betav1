@@ -75,7 +75,7 @@ El archivo `server.js` expone los siguientes endpoints API:
 Contrato completo en [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30-store-artista.md) (§7). Handlers en [`services/store-orders.js`](../services/store-orders.js) (testeables con `createHandlers(deps)`), datos en [`lib/repos/store.js`](../lib/repos/store.js) (service role), firma de Storage en [`lib/storage-sign.js`](../lib/storage-sign.js) y adaptadores de pago en [`services/store-payments.js`](../services/store-payments.js). Todas las respuestas son `{ success, error? }` con `Cache-Control: no-store`; los 500 son genéricos (el detalle queda en el log). Los ids de la URL tienen que ser UUID (si no, 400).
 
 *   `POST /api/store/licenses/:licenseId/assets/:assetId/url`: URL firmada para bajar el original o el stencil de una licencia.
-    *   Headers: `Authorization: Bearer <supabase_access_token>`. Rate limit: `authLimiter`.
+    *   Headers: `Authorization: Bearer <supabase_access_token>`. Rate limit: `storeDownloadLimiter` (60 cada 15 min por IP).
     *   Lógica: la licencia tiene que ser del titular (`holder_user_id`) o del comprador del pedido (si no, o si no existe, 403) y no estar revocada (410). El asset tiene que ser del mismo producto (404). Tope de 50 descargas por licencia en una ventana móvil de 24 h (429). Registra `store_download_events` y firma en `store-design-files` por **300 s fijos** con `download = file_name`.
     *   Respuesta: `{ success: true, url, expires_in: 300 }`.
 *   `POST /api/store/orders/:id/checkout`: inicia el pago con el adaptador del pedido (`payment_provider`).

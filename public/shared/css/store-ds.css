@@ -112,6 +112,7 @@ a.sts-card:active,.sts-card--link:active{transform:none;box-shadow:none}
 /* ---------- Skeleton (el shimmer es .wo-skeleton del DS) ---------- */
 .sts-card--skeleton{border-color:var(--border-subtle);pointer-events:none}
 .sts-card--skeleton .sts-card-media{border-bottom-color:var(--border-subtle)}
+.sts-skel-media{position:absolute;inset:0}
 .sts-skel-line{display:block;width:80%;height:var(--space-3)}
 .sts-skel-line--short{width:50%}
 

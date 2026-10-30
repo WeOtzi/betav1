@@ -609,7 +609,7 @@
         var out = '';
         for (var i = 0; i < (n || 6); i++) {
             out += '<div class="sts-card sts-card--skeleton" aria-hidden="true">' +
-                '<div class="sts-card-media wo-skeleton"></div>' +
+                '<div class="sts-card-media"><span class="wo-skeleton sts-skel-media"></span></div>' +
                 '<div class="sts-card-body"><span class="wo-skeleton sts-skel-line"></span><span class="wo-skeleton sts-skel-line sts-skel-line--short"></span></div>' +
                 '</div>';
         }

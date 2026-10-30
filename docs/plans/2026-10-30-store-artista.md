@@ -427,7 +427,7 @@ Las dos confirmaciones comparten el helper interno `store_apply_order_payment(‚Ä
 | `lib/storage-sign.js` | `signStorageObject(bucket, path, {expiresIn, download})`. Firma con service role (`POST /storage/v1/object/sign/<bucket>/<path>`). Centraliza la config y los headers, como `lib/instagram-import.js:392-420`. |
 
 Endpoints:
-- `POST /api/store/licenses/:licenseId/assets/:assetId/url`. Lleva `authLimiter` y Bearer (`resolveBearerUser`).
+- `POST /api/store/licenses/:licenseId/assets/:assetId/url`. Lleva `storeDownloadLimiter` (60 cada 15 min por IP) y Bearer (`resolveBearerUser`).
   1. La licencia tiene que ser del titular o del comprador del pedido, y no estar revocada (si no, 403 o 410).
   2. El asset tiene que pertenecer al producto de la licencia.
   3. Tope de 50 descargas por licencia y por d√≠a (429).

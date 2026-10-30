@@ -283,7 +283,9 @@ test('Store schema: cada función revoca a public, anon y authenticated y lleva 
     for (const fn of fns) {
         const revoke = revokeSignature(sql, fn.name);
         assert.ok(revoke, `revoke all on function public.${fn.name}(`);
-        assert.equal(revoke.from, 'public, anon, authenticated', fn.name);
+        // Las internas también se le revocan a service_role (default ACL de Supabase).
+        const expectedFrom = INTERNAL.includes(fn.name) ? 'public, anon, authenticated, service_role' : 'public, anon, authenticated';
+        assert.equal(revoke.from, expectedFrom, fn.name);
         const grants = [...sql.matchAll(new RegExp(`grant execute on function public\\.${fn.name}\\(([^)]*)\\) to ([^;]+);`, 'g'))];
         if (GRANTS[fn.name]) {
             assert.equal(grants.length, 1, `un único grant para ${fn.name}`);

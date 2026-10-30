@@ -557,7 +557,7 @@ as $$
   );
 $$;
 
-revoke all on function public.store_seller_ready_artist(uuid) from public, anon, authenticated;
+revoke all on function public.store_seller_ready_artist(uuid) from public, anon, authenticated, service_role;
 
 -- ¿La sesión maneja este vendedor? La sesión de estudios puede extender la
 -- rama studio con create or replace (p. ej. para staff).
@@ -618,7 +618,7 @@ as $$
   select '2026-10'::text;
 $$;
 
-revoke all on function public.store_current_terms_version() from public, anon, authenticated;
+revoke all on function public.store_current_terms_version() from public, anon, authenticated, service_role;
 
 -- ===================== helpers internos (sin grants) =====================
 -- Predicado único del wallet (§2).
@@ -635,7 +635,7 @@ as $$
   );
 $$;
 
-revoke all on function public.store_order_uses_wallet(public.store_orders) from public, anon, authenticated;
+revoke all on function public.store_order_uses_wallet(public.store_orders) from public, anon, authenticated, service_role;
 
 create or replace function public.store_app_setting(p_key text)
 returns text
@@ -650,7 +650,7 @@ as $$
    limit 1;
 $$;
 
-revoke all on function public.store_app_setting(text) from public, anon, authenticated;
+revoke all on function public.store_app_setting(text) from public, anon, authenticated, service_role;
 
 -- Comisión de plataforma con cast seguro, acotada a [0, 50].
 create or replace function public.store_platform_fee_pct()
@@ -672,7 +672,7 @@ as $$
   ), 0);
 $$;
 
-revoke all on function public.store_platform_fee_pct() from public, anon, authenticated;
+revoke all on function public.store_platform_fee_pct() from public, anon, authenticated, service_role;
 
 -- ST- + 8 caracteres de gen_random_uuid(), reintentando si ya existe.
 create or replace function public.store_new_order_number()
@@ -698,7 +698,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_new_order_number() from public, anon, authenticated;
+revoke all on function public.store_new_order_number() from public, anon, authenticated, service_role;
 
 -- WOL-XXXX-XXXX desde gen_random_uuid() (sin random() ni pgcrypto).
 create or replace function public.store_new_license_code()
@@ -726,7 +726,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_new_license_code() from public, anon, authenticated;
+revoke all on function public.store_new_license_code() from public, anon, authenticated, service_role;
 
 -- Locks en orden producto → pedido: lee el product_id del ítem sin lock,
 -- lockea el producto y después el pedido. Devuelve el pedido (id null si no existe).
@@ -753,7 +753,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_lock_order(uuid) from public, anon, authenticated;
+revoke all on function public.store_lock_order(uuid) from public, anon, authenticated, service_role;
 
 -- Variante para el mantenimiento: mismo orden, pero con skip locked (nunca
 -- espera). Devuelve false si el producto o el pedido están tomados.
@@ -782,7 +782,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_try_lock_order(uuid) from public, anon, authenticated;
+revoke all on function public.store_try_lock_order(uuid) from public, anon, authenticated, service_role;
 
 -- Cierra un pedido impago (cancelled | expired), restituye el stock y libera
 -- la reserva condicionada a este pedido. El llamador ya tiene los locks.
@@ -831,7 +831,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_close_unpaid_order(uuid, text, text) from public, anon, authenticated;
+revoke all on function public.store_close_unpaid_order(uuid, text, text) from public, anon, authenticated, service_role;
 
 -- Wallet · inserta un movimiento 'completed' idempotente (store:<id>:<sufijo>).
 create or replace function public.store_wallet_insert(
@@ -866,7 +866,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_wallet_insert(public.store_orders, text, numeric, text, text) from public, anon, authenticated;
+revoke all on function public.store_wallet_insert(public.store_orders, text, numeric, text, text) from public, anon, authenticated, service_role;
 
 -- Wallet · crea (o reconstruye) el 'payment' retenido del pedido. Si ya
 -- existe no lo toca (on conflict do nothing).
@@ -914,7 +914,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_wallet_upsert_payment(public.store_orders) from public, anon, authenticated;
+revoke all on function public.store_wallet_upsert_payment(public.store_orders) from public, anon, authenticated, service_role;
 
 -- Entrega del merch (comprador, soporte, vendedor sin wallet o automática).
 -- Si usa wallet: funds_release_at = now() + 72 h y el payment pasa a
@@ -961,7 +961,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_finish_delivery(uuid, text) from public, anon, authenticated;
+revoke all on function public.store_finish_delivery(uuid, text) from public, anon, authenticated, service_role;
 
 -- Proyección pública de un producto (sin campos del servidor sensibles).
 create or replace function public.store_public_product_json(p_product public.store_products)
@@ -979,6 +979,7 @@ as $$
     'category', p_product.category,
     'tags', to_jsonb(p_product.tags),
     'currency', p_product.currency,
+    'price_amount', p_product.price_amount,
     'price_from', case
       when p_product.kind = 'design' then least(
         p_product.license_personal_price, p_product.license_artist_price, p_product.license_exclusive_price
@@ -1037,7 +1038,7 @@ as $$
   );
 $$;
 
-revoke all on function public.store_public_product_json(public.store_products) from public, anon, authenticated;
+revoke all on function public.store_public_product_json(public.store_products) from public, anon, authenticated, service_role;
 
 -- {seller, settings, allow_search_indexing} del vendedor, o null.
 create or replace function public.store_public_seller_bundle(p_seller_type text, p_seller_id uuid)
@@ -1110,7 +1111,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_public_seller_bundle(text, uuid) from public, anon, authenticated;
+revoke all on function public.store_public_seller_bundle(text, uuid) from public, anon, authenticated, service_role;
 
 -- ===================== guard triggers (security invoker) =====================
 -- Solo se aplican a las escrituras directas (PostgREST con authenticated).
@@ -1258,7 +1259,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_products_guard() from public, anon, authenticated;
+revoke all on function public.store_products_guard() from public, anon, authenticated, service_role;
 
 drop trigger if exists trg_store_products_guard on public.store_products;
 create trigger trg_store_products_guard
@@ -1334,7 +1335,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_product_variants_guard() from public, anon, authenticated;
+revoke all on function public.store_product_variants_guard() from public, anon, authenticated, service_role;
 
 drop trigger if exists trg_store_product_variants_guard on public.store_product_variants;
 create trigger trg_store_product_variants_guard
@@ -1417,7 +1418,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_design_assets_guard() from public, anon, authenticated;
+revoke all on function public.store_design_assets_guard() from public, anon, authenticated, service_role;
 
 drop trigger if exists trg_store_design_assets_guard on public.store_design_assets;
 create trigger trg_store_design_assets_guard
@@ -1457,7 +1458,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_seller_settings_guard() from public, anon, authenticated;
+revoke all on function public.store_seller_settings_guard() from public, anon, authenticated, service_role;
 
 drop trigger if exists trg_store_seller_settings_guard on public.store_seller_settings;
 create trigger trg_store_seller_settings_guard
@@ -2304,7 +2305,7 @@ begin
 end;
 $$;
 
-revoke all on function public.store_apply_order_payment(uuid, text, text, text, text, numeric, text, uuid, boolean) from public, anon, authenticated;
+revoke all on function public.store_apply_order_payment(uuid, text, text, text, text, numeric, text, uuid, boolean) from public, anon, authenticated, service_role;
 
 -- ===================== vendedor o soporte =====================
 create or replace function public.confirm_store_order_payment(
