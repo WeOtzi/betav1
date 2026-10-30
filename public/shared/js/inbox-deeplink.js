@@ -8,8 +8,13 @@
  *   ?application=<id> postulación de Job Board o Spot (context_id o context.application_id);
  *                     se acompaña de ?opportunity=jobboard|spot para filtrar si no hay hilo
  *   ?trip=<trip_id>   conversación vinculada a un viaje (context_id o context.trip_id)
+ *   ?contract=<id>    (o ?contrato=) hilo de un contrato de estudio (context_type
+ *                     'studio_contract'); si no hay hilo, abre el filtro Invitaciones
  *   ?filter=<cat>     abre el inbox en una categoría (clients, quotations, invitations, spots,
  *                     job_board, studios, trips, archived, favorites)
+ *
+ * Los hilos 'studio_contract' (trigger inbox_from_studio_contract) llevan a
+ * /artist/invitations?contrato=<id>: contextHref(row) arma ese enlace.
  *
  * Lógica pura: el navegador la expone como window.ArtistInboxDeepLink y los
  * tests la requieren con Node.
@@ -26,6 +31,7 @@
         'studios', 'trips', 'archived', 'favorites'];
     const OPPORTUNITY_FILTERS = { jobboard: 'job_board', job_board: 'job_board', spot: 'spots', spots: 'spots' };
     const QUOTE_CONTEXT_TYPES = ['quotation', 'quote', 'quotations'];
+    const STUDIO_CONTRACT_CONTEXT = 'studio_contract';
 
     function read(params, name) {
         if (!params) return '';
@@ -58,7 +64,28 @@
             return same(ctx(row).trip_id, value)
                 || (String(row.contextType || '') === 'artist_trip' && same(row.contextId, value));
         },
+        contract(row, value) {
+            return String(row.contextType || '') === STUDIO_CONTRACT_CONTEXT
+                && (same(row.contextId, value) || same(ctx(row).contract_id, value));
+        },
     };
+
+    // Id del contrato de un hilo 'studio_contract' (context_id o context.contract_id).
+    function contractIdOf(row) {
+        if (!row || String(row.contextType || row.context_type || '') !== STUDIO_CONTRACT_CONTEXT) return null;
+        const value = row.contextId || row.context_id || ctx(row).contract_id;
+        return value == null || String(value) === '' ? null : String(value);
+    }
+
+    /**
+     * Enlace de contexto de un hilo que se resuelve fuera del Inbox: un contrato
+     * de estudio se revisa y firma en /artist/invitations?contrato=<id>.
+     * Devuelve null para los demás hilos.
+     */
+    function contextHref(row) {
+        const contractId = contractIdOf(row);
+        return contractId ? '/artist/invitations?contrato=' + encodeURIComponent(contractId) : null;
+    }
 
     function findRow(rows, kind, value) {
         if (!value) return null;
@@ -75,19 +102,22 @@
             quote: read(params, 'quote'),
             application: read(params, 'application'),
             trip: read(params, 'trip'),
+            contract: read(params, 'contract') || read(params, 'contrato'),
         };
         const opportunity = OPPORTUNITY_FILTERS[read(params, 'opportunity').toLowerCase()] || null;
         const explicitFilter = FILTERS.includes(read(params, 'filter')) ? read(params, 'filter') : null;
         const anyRequest = Object.values(requested).some(Boolean) || opportunity || explicitFilter;
         if (!anyRequest) return null;
 
-        for (const kind of ['thread', 'quote', 'application', 'trip']) {
+        for (const kind of ['thread', 'quote', 'application', 'trip', 'contract']) {
             const row = findRow(rows, kind, requested[kind]);
             // Un hilo archivado solo aparece en "Archivados": se abre con ese filtro.
             if (row) return { key: row.key, filter: row.archived ? 'archived' : null };
         }
-        return { key: null, filter: explicitFilter || opportunity || null };
+        // Un contrato sin hilo (todavía) deja el Inbox en Invitaciones.
+        const contractFilter = requested.contract ? 'invitations' : null;
+        return { key: null, filter: explicitFilter || opportunity || contractFilter || null };
     }
 
-    return { resolveDeepLink, FILTERS, OPPORTUNITY_FILTERS };
+    return { resolveDeepLink, contextHref, contractIdOf, FILTERS, OPPORTUNITY_FILTERS, STUDIO_CONTRACT_CONTEXT };
 }));

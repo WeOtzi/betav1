@@ -13,13 +13,17 @@
  *   - artist_trips: guest spots y convenciones de Travel, solo lectura.
  *   - artist_reminders: recordatorios del dashboard con fecha, solo lectura
  *     (si reminders-repo.js está cargado).
+ *   - studio_bookings: citas que un estudio le agendó al artista, solo lectura
+ *     y solo las confirmadas (si studios-repo.js expone
+ *     StudioOps.listBookingsForArtist). Las gestiona el estudio.
  *
  * Columnas opcionales (migración 20261028140000_calendar_quote_links, no
  * aplicada todavía): artist_calendar_events.quotation_id y
  * quotation_sessions.location. Si el backend aún no las tiene, las escrituras
  * reintentan sin ellas y la página sigue funcionando.
  *
- * Carga: postgrest-client.js, quotations-repo.js y travel-repo.js primero.
+ * Carga: postgrest-client.js, quotations-repo.js y travel-repo.js primero
+ * (studios-repo.js también, para las citas de estudios; es opcional).
  * Expone window.WeotziData.Calendar.
  */
 (function () {
@@ -227,6 +231,50 @@
         };
     }
 
+    // Cita de un estudio (studio_bookings): la gestiona el estudio desde su
+    // panel. Cuenta como turno confirmado (bloqueante) en la superposición.
+    function normalizeStudioBooking(booking) {
+        if (!booking || booking.status !== 'confirmed') return null;
+        const start = asDate(booking.starts_at);
+        const end = asDate(booking.ends_at);
+        if (!start || !end || end <= start) return null;
+        const studioName = booking.studios?.name || 'un estudio';
+        const clientName = booking.client_name || 'Cliente';
+        return {
+            id: `studio_booking:${booking.id}`,
+            baseId: null,
+            sourceType: 'studio_booking',
+            sourceId: String(booking.id),
+            readonly: true,
+            href: null,
+            type: 'confirmed_session',
+            title: `Cita en ${studioName}: ${clientName}`,
+            clientName,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            allDay: false,
+            location: booking.studios?.name || '',
+            notes: '',
+            status: 'scheduled',
+            recurrenceRule: 'none',
+            recurrenceUntil: null,
+            quotationId: null,
+            raw: booking,
+        };
+    }
+
+    async function listStudioBookingsProjection(artistUserId, rangeStart, rangeEnd) {
+        if (typeof D.StudioOps?.listBookingsForArtist !== 'function') return [];
+        const result = await D.StudioOps.listBookingsForArtist(
+            artistUserId, rangeStart.toISOString(), rangeEnd.toISOString()
+        );
+        if (result?.error) throw result.error;
+        return (result?.data || [])
+            .map(normalizeStudioBooking)
+            .filter((event) => event
+                && overlaps(asDate(event.start), asDate(event.end), rangeStart, rangeEnd));
+    }
+
     async function listRemindersProjection(artistUserId, rangeStart, rangeEnd) {
         if (!D.Reminders || typeof D.Reminders.list !== 'function') return [];
         const reminders = await D.Reminders.list(artistUserId);
@@ -360,6 +408,7 @@
                 listSessionsProjection(artistUserId, rangeStart, rangeEnd),
                 listTripsProjection(artistUserId, rangeStart, rangeEnd),
                 listRemindersProjection(artistUserId, rangeStart, rangeEnd),
+                listStudioBookingsProjection(artistUserId, rangeStart, rangeEnd),
             ]);
             projectionResults.forEach((result, index) => {
                 if (result.status === 'rejected') {
@@ -372,6 +421,7 @@
                 ...(projectionResults[0].status === 'fulfilled' ? projectionResults[0].value : []),
                 ...(projectionResults[1].status === 'fulfilled' ? projectionResults[1].value : []),
                 ...(projectionResults[2].status === 'fulfilled' ? projectionResults[2].value : []),
+                ...(projectionResults[3].status === 'fulfilled' ? projectionResults[3].value : []),
             ];
 
             const unique = new Map();
@@ -468,6 +518,6 @@
         },
     };
 
-    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder };
+    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder, normalizeStudioBooking };
     D.Calendar = Calendar;
 })();

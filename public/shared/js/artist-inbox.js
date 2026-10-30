@@ -684,6 +684,11 @@
     // Rutas canónicas del flujo de artista (BRIEF). El enlace aparece al
     // pasar por el panel; no forma parte del estado estático del Figma.
     function contextLink(row) {
+        // Hilos 'studio_contract': el contrato se revisa y firma en
+        // /artist/invitations?contrato=<id> (inbox-deeplink.js arma el enlace).
+        const deepLink = window.ArtistInboxDeepLink;
+        const contractHref = deepLink && typeof deepLink.contextHref === 'function' ? deepLink.contextHref(row) : null;
+        if (contractHref) return { href: appHref(contractHref), label: 'Ver contrato' };
         const context = row.context || {};
         const quoteId = row.source === 'quote' ? row.id : (context.quote_id || (row.contextType === 'quotation' ? row.contextId : null));
         const tripId = context.trip_id || (row.contextType === 'artist_trip' ? row.contextId : null);

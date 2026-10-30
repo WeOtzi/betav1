@@ -8,7 +8,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+// Fin de línea normalizado: con core.autocrlf=true el checkout en Windows trae
+// CRLF y las regex de abajo esperan \n.
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
 const Model = require('../public/shared/js/data/reminders-repo.js');
 
 /* ------------------------------- modelo ------------------------------- */

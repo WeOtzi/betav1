@@ -1493,3 +1493,7 @@ legend.isc-label { margin-bottom: 10px; }
     .isc-btn,
     .ism-marker { transition: none !important; }
 }
+
+/* Plataforma de Estudios: "Trabajo acá / Solicitar alta" sobre la franja
+   oscura de contacto (2007:5795) mantiene el borde visible. */
+.isd-btn--on-dark { border-color: var(--neutral-100); }

@@ -76,6 +76,14 @@
 .bnv-card.is-selected .bnv-card-go{color:var(--blue-300)}
 .bnv-card.is-selected .bnv-card-go:hover{color:var(--blue-500)}
 
+/* ---------- Cuentas de negocio: Estudio y Supplies (fuera del Figma) ----------
+   Fila propia debajo de cliente/artista; cards compactas sin slot de
+   ilustración, mismo radio group y mismo estado seleccionado. */
+.bnv-cards-group{grid-column:1/-1;margin:var(--space-4) 0 calc(var(--space-4) * -1);font-family:var(--font-mono);font-size:11.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted)}
+.bnv-card--compact .bnv-card-body{padding:30px 72px 0 36px}
+.bnv-card--compact .bnv-card-title{padding-top:2px;font-size:22px;line-height:25px}
+.bnv-card--compact .bnv-features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-4);row-gap:10px;width:100%}
+
 /* ---------- CTA global + nota ---------- */
 .bnv-actions{display:flex;flex-direction:column;align-items:center;gap:var(--space-4);margin-top:39px}
 .bnv-continue{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 29.6px;box-sizing:border-box;background:var(--action-primary);border:var(--border-hairline) solid var(--action-primary);border-radius:var(--radius-none);
@@ -101,6 +109,9 @@
   .bnv-card.is-selected{margin-top:0}
   .bnv-card-media{aspect-ratio:16/9}
   .bnv-card-body{padding:var(--space-6) var(--space-6) 0}
+  .bnv-card--compact .bnv-card-body{padding:var(--space-6) 64px 0 var(--space-6)}
+  .bnv-card--compact .bnv-features{grid-template-columns:minmax(0,1fr)}
+  .bnv-cards-group{margin-bottom:0}
   .bnv-card-go{padding:0 var(--space-6) var(--space-6)}
   .bnv-actions{margin-top:var(--space-8)}
   .bnv-continue{width:100%}

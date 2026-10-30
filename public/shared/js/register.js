@@ -397,6 +397,26 @@ let studioSearchTimeout = null;
 let studioSuggestionsCache = [];
 const STUDIO_SUGGESTIONS_LIMIT = 5;
 let studioLocationsCache = [];
+// ¿El estudio elegido ya tiene cuenta (studios.user_id)? true / false, o null
+// mientras no se sabe. Define el hint de la solicitud de alta del paso 05.
+let selectedStudioHasOwner = null;
+let studioOwnerLookupId = null;
+
+// Plataforma de Estudios: el registro deja una SOLICITUD de alta (membresía
+// `requested`), no un vínculo activo. El estudio la aprueba desde su panel;
+// si todavía no tiene cuenta, la ve cuando la active.
+const STUDIO_MEMBERSHIP_HINTS = {
+    owned: 'Tu alta queda pendiente hasta que el estudio la apruebe',
+    unowned: 'Guardamos tu solicitud; el estudio la verá cuando active su cuenta'
+};
+
+// Copy del hint (lógica pura): '' oculta el hint.
+function studioMembershipHintText(workType, studioResolved, hasOwner) {
+    if (!(workType === 'studio' || workType === 'both') || !studioResolved) return '';
+    if (hasOwner === true) return STUDIO_MEMBERSHIP_HINTS.owned;
+    if (hasOwner === false) return STUDIO_MEMBERSHIP_HINTS.unowned;
+    return '';
+}
 
 // DOM Elements
 const formSteps = document.querySelectorAll('.form-step');
@@ -1710,6 +1730,7 @@ function initStudioAutocomplete() {
         formState.data.studio_id = null;
         formState.data.studio_location_id = null;
         formState.data.studio_location_label = '';
+        selectedStudioHasOwner = null;
         studioLocationsCache = [];
         renderStudioLocationSelect([]);
         updateStudioAddressPreview('');
@@ -1768,7 +1789,8 @@ async function searchStudios(query) {
 
     try {
         const normalizedQuery = query.toUpperCase();
-        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalizedQuery, { columns: 'id, name, normalized_name, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id' });
+        // user_id dice si el estudio ya tiene cuenta (hint de la solicitud de alta).
+        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalizedQuery, { columns: 'id, name, normalized_name, user_id, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id' });
 
         if (error) {
             console.error('Studio search error:', error);
@@ -1925,6 +1947,8 @@ async function selectStudioSuggestion(item) {
         formState.data.studio_id = null;
         formState.data.studio_location_id = null;
         formState.data.studio_location_label = '';
+        // Un estudio creado desde el registro todavía no tiene cuenta.
+        selectedStudioHasOwner = false;
         renderStudioLocationSelect([]);
         updateStudioAddressPreview('');
         // Estudio nuevo: necesita que el artista cargue la dirección.
@@ -1933,6 +1957,9 @@ async function selectStudioSuggestion(item) {
         const cached = studioSuggestionsCache[Number.parseInt(item.dataset.cacheIndex, 10)] || null;
         formState.data.studio_id = item.dataset.id;
         formState.data.studio_name = item.dataset.name;
+        selectedStudioHasOwner = cached && Object.prototype.hasOwnProperty.call(cached, 'user_id')
+            ? Boolean(cached.user_id)
+            : null;
         if (studioInput) studioInput.value = item.dataset.name;
         if (cached) {
             const locations = await loadStudioLocations(item.dataset.id, cached);
@@ -2012,19 +2039,21 @@ async function findOrCreateStudio(studioName) {
     return created.id;
 }
 
-async function persistSelectedStudioLocation(studioIdOverride) {
+// Ubicación actual del artista. Plataforma de Estudios: nunca escribe
+// artist_tattoo_locations.studio_id; el vínculo con el estudio es la solicitud
+// de alta (membresía `requested`) y "tatúa en …" sale de la membresía activa.
+// studio_name es NOT NULL en la tabla: queda el nombre como texto.
+async function persistSelectedStudioLocation() {
     const workType = formState.data.work_type;
     if (!currentUser || workType === 'independent' || !(workType === 'studio' || workType === 'both')) return;
-    const studioId = studioIdOverride || formState.data.studio_id || null;
     const studioName = String(formState.data.studio_name || '').trim();
     if (!studioName) return;
-    const address = formState.data.address || {};
     try {
         const row = {
             artist_user_id: currentUser.id,
             period_type: 'current',
             sort_order: 0,
-            studio_id: studioId,
+            studio_id: null,
             studio_name: studioName.toUpperCase(),
             city: getRegistrationCity() || null,
             agenda_status: 'open'
@@ -2034,6 +2063,74 @@ async function persistSelectedStudioLocation(studioIdOverride) {
     } catch (error) {
         console.warn('[register] Could not persist artist tattoo location:', error);
     }
+}
+
+// ¿El estudio resuelto tiene dueño? Usa lo que trajo la búsqueda y, si no, lo
+// consulta. null = no se pudo saber.
+async function registrationStudioHasOwner(studioId) {
+    if (!studioId) return null;
+    if (formState.data.studio_id === studioId && selectedStudioHasOwner !== null) return selectedStudioHasOwner;
+    try {
+        const { data, error } = await WeotziData.Studios.getById(studioId, 'id, user_id');
+        if (error || !data) return null;
+        return Boolean(data.user_id);
+    } catch (err) {
+        return null;
+    }
+}
+
+// Registro con sesión (sin el finalize del servidor): pide el alta en el
+// estudio y avisa al dueño si tiene. Sin la migración (RPC ausente) vuelve al
+// vínculo legacy: artists_db.studio_id + estudios, como antes. Un error de
+// membresía nunca frena el registro.
+async function requestRegistrationStudioMembership(studioId, estudiosValue) {
+    const repo = window.WeotziData?.StudioMemberships;
+    if (!currentUser || !studioId) return { pending: false, legacy: false };
+    const legacyLink = async () => {
+        try {
+            const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { studio_id: studioId, estudios: estudiosValue || null });
+            if (error) throw error;
+        } catch (legacyError) {
+            console.warn('[register] Legacy studio link not saved:', legacyError);
+        }
+        return { pending: false, legacy: true };
+    };
+    if (!repo || typeof repo.requestMembership !== 'function') return legacyLink();
+    let result;
+    try {
+        result = await repo.requestMembership({
+            studioId,
+            role: 'resident',
+            locationId: formState.data.studio_location_id || null
+        });
+    } catch (err) {
+        result = { data: null, error: err };
+    }
+    const error = result && result.error;
+    if (error) {
+        const code = String(error.code || '');
+        if (['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'].includes(code)) return legacyLink();
+        // 23514: ya hay una solicitud o vínculo abierto con el estudio.
+        if (code !== '23514' && code !== '23505') console.warn('[register] Studio membership request failed:', error);
+        return { pending: false, legacy: false };
+    }
+    const row = (Array.isArray(result.data) ? result.data[0] : result.data) || {};
+    if (row.membership_id && row.studio_has_owner === true) {
+        try {
+            const { data: sessionData } = await _supabase.auth.getSession();
+            const token = sessionData?.session?.access_token || null;
+            const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+            if (token) headers.Authorization = `Bearer ${token}`;
+            fetch(appUrl('/api/artist/studio-notify'), {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ kind: 'membership_request_created', membership_id: row.membership_id })
+            }).catch((notifyError) => console.warn('[register] Studio notify failed:', notifyError));
+        } catch (notifyError) {
+            console.warn('[register] Studio notify failed:', notifyError);
+        }
+    }
+    return { pending: Boolean(row.membership_id), legacy: false };
 }
 
 let studioAutocompleteInitialized = false;
@@ -2209,6 +2306,7 @@ function selectWorkTypeOption(btn) {
             if (studioNameInput) studioNameInput.value = '';
             updateStudioAddressPreview('');
             studioAddressRequired = false;
+            selectedStudioHasOwner = null;
             syncStudioHardState();
         }
     }
@@ -3304,6 +3402,37 @@ function syncTrabajoGateHint() {
     const workType = formState.data.work_type;
     const needsStudio = workType === 'studio' || workType === 'both';
     hint.hidden = !(needsStudio && !formState.data.studio_id && !studioAddressRequired);
+    syncStudioMembershipHint();
+}
+
+// Hint de la solicitud de alta (ra-hint del paso 05): aparece con el estudio
+// ya elegido de la lista o creado ("Crear «x»").
+function syncStudioMembershipHint() {
+    const hint = document.getElementById('studio-membership-hint');
+    if (!hint) return;
+    const workType = formState.data.work_type;
+    const studioResolved = Boolean(formState.data.studio_id) || studioAddressRequired;
+    if (studioResolved && formState.data.studio_id && selectedStudioHasOwner === null) {
+        lookupSelectedStudioOwner(formState.data.studio_id);
+    }
+    const text = studioMembershipHintText(workType, studioResolved, selectedStudioHasOwner);
+    hint.textContent = text;
+    hint.hidden = !text;
+}
+
+// Estudio reanudado de un borrador (sin la fila de la búsqueda): se averigua
+// una sola vez si tiene dueño.
+async function lookupSelectedStudioOwner(studioId) {
+    if (!studioId || studioOwnerLookupId === studioId || !window.WeotziData?.Studios?.getById) return;
+    studioOwnerLookupId = studioId;
+    try {
+        const { data, error } = await WeotziData.Studios.getById(studioId, 'id, user_id');
+        if (error || !data || formState.data.studio_id !== studioId) return;
+        selectedStudioHasOwner = Boolean(data.user_id);
+        syncStudioMembershipHint();
+    } catch (err) {
+        console.warn('[register] Studio owner lookup failed:', err);
+    }
 }
 
 // Estudio resuelto = elegido de la lista (studio_id) o "Crear «x»" con una
@@ -4402,7 +4531,8 @@ async function submitForm() {
                 postRegistrationUrl = loginUrl;
             }
 
-            await persistSelectedStudioLocation(finalizeData.artist?.studio_id || formState.data.studio_id);
+            // La solicitud de alta la creó el finalize del servidor.
+            await persistSelectedStudioLocation();
 
             try {
                 await persistPortfolioMedia();
@@ -4519,11 +4649,17 @@ async function submitForm() {
             estudiosValue = null;
         }
 
+        // Plataforma de Estudios: con estudio, el registro pide el alta
+        // (membresía `requested`) y no escribe artists_db.studio_id ni la
+        // etiqueta "tatúa en …" hasta que el estudio la apruebe. Un estudio con
+        // dueño administra sus propios datos y sedes.
+        const studioHasOwner = resolvedStudioId ? await registrationStudioHasOwner(resolvedStudioId) : null;
+
         // Persist the structured address. For studio/both, write it to the
         // studios row we just resolved. For independent, it belongs on the
         // artist row itself (added to artistData below).
         const pickedAddress = formState.data.address || null;
-        if (resolvedStudioId && pickedAddress && pickedAddress.formatted_address && !formState.data.studio_location_id) {
+        if (resolvedStudioId && studioHasOwner !== true && pickedAddress && pickedAddress.formatted_address && !formState.data.studio_location_id) {
             try {
                 await WeotziData.Studios.updateAddress(resolvedStudioId, {
                     country:           pickedAddress.country || null,
@@ -4595,8 +4731,8 @@ async function submitForm() {
             bio_description: window.BioFormatting
                 ? (window.BioFormatting.sanitizeBioHtml(formState.data.bio) || null)
                 : (formState.data.bio || null),
-            estudios: estudiosValue,
-            studio_id: resolvedStudioId,
+            // Sin studio_id; la etiqueta espera la aprobación del estudio.
+            estudios: resolvedStudioId ? null : estudiosValue,
             work_type: formState.data.work_type || null,
             session_price: sessionPriceFormatted,
             session_price_amount: formState.data.session_price ? parseFloat(formState.data.session_price) || null : null,
@@ -4635,7 +4771,8 @@ async function submitForm() {
 
         console.log('Artist profile saved successfully:', data);
 
-        await persistSelectedStudioLocation(resolvedStudioId);
+        if (resolvedStudioId) await requestRegistrationStudioMembership(resolvedStudioId, estudiosValue);
+        await persistSelectedStudioLocation();
 
         // [CH-15] Update Supabase Auth display_name metadata
         try {

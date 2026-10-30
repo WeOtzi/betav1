@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Bienvenida</title>
-    <meta name="description" content="Elegí cómo querés usar We Ötzi: como cliente para encontrar artistas y pedir cotizaciones, o como tatuador para gestionar tu carrera.">
+    <meta name="description" content="Elegí cómo querés usar We Ötzi: como cliente para encontrar artistas y pedir cotizaciones, como tatuador para gestionar tu carrera, como estudio o como proveedor de insumos.">
 
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
@@ -79,6 +79,50 @@
                         </span>
                     </label>
                     <button type="button" class="bnv-card-go" data-role="artist">Continuar como tatuador <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
+                </div>
+
+                <!-- Cuentas de negocio (plataforma de estudios): fuera del Figma,
+                     cards compactas sin slot de ilustración. -->
+                <p class="bnv-cards-group" id="bnv-business-title">¿Tenés un estudio o vendés insumos?</p>
+
+                <!-- Card ESTUDIO -->
+                <div class="bnv-card bnv-card--compact" data-role="studio" id="bnv-card-studio">
+                    <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
+                    <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-studio" value="studio">
+                    <label class="bnv-card-label" for="bnv-role-studio">
+                        <span class="bnv-card-body">
+                            <span class="bnv-card-tag">Estudio</span>
+                            <span class="bnv-card-title">Tengo un estudio</span>
+                            <span class="bnv-card-copy">Sumá artistas a tu equipo, publicá spots, firmá contratos y llevá la agenda, el inventario y las finanzas del estudio.</span>
+                            <span class="bnv-features" role="list">
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="users" aria-hidden="true"></i>Gestionar el equipo</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="briefcase" aria-hidden="true"></i>Publicar spots</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="calendar" aria-hidden="true"></i>Agenda del estudio</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="package" aria-hidden="true"></i>Reponer insumos</span>
+                            </span>
+                        </span>
+                    </label>
+                    <button type="button" class="bnv-card-go" data-role="studio">Continuar como estudio <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
+                </div>
+
+                <!-- Card SUPPLIES -->
+                <div class="bnv-card bnv-card--compact" data-role="supplies" id="bnv-card-supplies">
+                    <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
+                    <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-supplies" value="supplies">
+                    <label class="bnv-card-label" for="bnv-role-supplies">
+                        <span class="bnv-card-body">
+                            <span class="bnv-card-tag">Supplies</span>
+                            <span class="bnv-card-title">Vendo insumos</span>
+                            <span class="bnv-card-copy">Publicá tu catálogo, ofrecé beneficios a los estudios de We Ötzi y recibí sus pedidos de reposición.</span>
+                            <span class="bnv-features" role="list">
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="grid" aria-hidden="true"></i>Publicar catálogo</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="inbox" aria-hidden="true"></i>Recibir pedidos</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="percent" aria-hidden="true"></i>Beneficios para estudios</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="bar-chart-2" aria-hidden="true"></i>Ver ventas</span>
+                            </span>
+                        </span>
+                    </label>
+                    <button type="button" class="bnv-card-go" data-role="supplies">Continuar como proveedor <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
                 </div>
             </fieldset>
 

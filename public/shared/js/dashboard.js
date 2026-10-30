@@ -2698,6 +2698,72 @@ function initDashboardBioToolbar() {
 // PROFILE SAVE
 // ============================================
 
+// Plataforma de Estudios (docs/plans/2026-10-30-estudios-plataforma.md):
+// el perfil ya no escribe artists_db.studio_id ("tatúa en …" sale de una
+// membresía activa). Elegir un estudio nuevo con dueño pide el alta con
+// request_studio_membership y el estudio la aprueba.
+
+// ¿El estudio tiene dueño? true / false, o null si no se pudo saber.
+async function dashboardStudioOwnership(studioId) {
+    if (!studioId || !window.WeotziData?.Studios?.getById) return { hasOwner: null, name: '' };
+    try {
+        const { data, error } = await WeotziData.Studios.getById(studioId, 'id, name, user_id');
+        if (error || !data) return { hasOwner: null, name: '' };
+        return { hasOwner: Boolean(data.user_id), name: data.name || '' };
+    } catch (err) {
+        return { hasOwner: null, name: '' };
+    }
+}
+
+// Pide el alta en el estudio elegido y avisa al dueño. Nunca lanza ni frena el
+// guardado del perfil. Devuelve 'requested' | 'open' (ya hay una solicitud o
+// vínculo abierto, o pidió hace poco) | 'unavailable' (falta la migración) |
+// 'error'.
+async function dashboardRequestStudioMembership(studioId) {
+    const repo = window.WeotziData?.StudioMemberships;
+    if (!studioId || !repo || typeof repo.requestMembership !== 'function') return 'unavailable';
+    let result;
+    try {
+        result = await repo.requestMembership({ studioId, role: 'resident' });
+    } catch (err) {
+        result = { data: null, error: err };
+    }
+    const error = result && result.error;
+    if (error) {
+        const code = String(error.code || '');
+        if (code === '23514' || code === '23505') return 'open';
+        if (['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'].includes(code)) return 'unavailable';
+        console.warn('[dashboard] Studio membership request failed:', error);
+        return 'error';
+    }
+    const row = (Array.isArray(result.data) ? result.data[0] : result.data) || {};
+    if (row.membership_id && row.studio_has_owner !== false) {
+        dashboardNotifyStudioRequest(row.membership_id);
+    }
+    return 'requested';
+}
+
+// POST /api/artist/studio-notify con el Bearer de la sesión (best-effort).
+async function dashboardNotifyStudioRequest(membershipId) {
+    try {
+        let token = null;
+        if (_supabase?.auth?.getSession) {
+            const { data } = await _supabase.auth.getSession();
+            token = data?.session?.access_token || null;
+        }
+        const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const base = window.WEOTZI_BASE_PATH ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '') : '';
+        await fetch(`${base}/api/artist/studio-notify`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ kind: 'membership_request_created', membership_id: membershipId })
+        });
+    } catch (err) {
+        console.warn('[dashboard] Studio notify failed:', err);
+    }
+}
+
 async function handleProfileSave(e) {
     e.preventDefault();
 
@@ -2754,6 +2820,16 @@ async function handleProfileSave(e) {
             estudios = null;
         }
 
+        // Estudio nuevo (distinto del vínculo actual) con dueño: se pide el alta
+        // después de guardar. Sus datos y su dirección los administra el estudio.
+        const previousStudioId = artistData?.studio_id || null;
+        const studioOwnership = resolvedStudioId
+            ? await dashboardStudioOwnership(resolvedStudioId)
+            : { hasOwner: null, name: '' };
+        const requestStudioMembership = Boolean(resolvedStudioId)
+            && String(resolvedStudioId) !== String(previousStudioId || '')
+            && studioOwnership.hasOwner === true;
+
         // Capitalize full name
         const capitalizedName = capitalizeWords(fullName);
 
@@ -2773,6 +2849,7 @@ async function handleProfileSave(e) {
 
         if ((normalizedWorkType === 'studio' || normalizedWorkType === 'both')
             && resolvedStudioId
+            && studioOwnership.hasOwner !== true
             && pickedAddress
             && pickedAddress.formatted_address) {
             try {
@@ -2809,7 +2886,11 @@ async function handleProfileSave(e) {
             session_price_currency: currency || null,
             portafolio: portfolio || null,
             estudios: estudios,
-            studio_id: resolvedStudioId,
+            // Con dueño, el vínculo es una membresía que aprueba el estudio. Sin
+            // dueño (catálogo) se mantiene el studio_id legado: nadie puede
+            // aprobar, y con la migración aplicada el guard de artists_db solo lo
+            // acepta si hay una membresía activa.
+            ...(studioOwnership.hasOwner === true ? {} : { studio_id: resolvedStudioId || null }),
             work_type: normalizedWorkType,
             birth_date: birthDate || null,
             subscribed_newsletter: newsletter,
@@ -2837,17 +2918,31 @@ async function handleProfileSave(e) {
 
         await saveArtistTattooLocations(tattooLocationsPayload);
 
+        const membershipOutcome = requestStudioMembership
+            ? await dashboardRequestStudioMembership(resolvedStudioId)
+            : null;
+        if (membershipOutcome === 'unavailable') {
+            // Migración de estudios sin aplicar: se conserva el vínculo legado.
+            const legacy = await WeotziData.Artists.updateByUserId(currentUser.id, { studio_id: resolvedStudioId });
+            if (!legacy.error) updateData.studio_id = resolvedStudioId;
+        }
+
         // Update local data
         artistData = { ...artistData, ...updateData };
 
         // Exit edit mode and refresh display
         toggleEditMode();
         populateDashboard();
-        
+
         // Recheck profile completion milestone
         checkProfileCompletion();
 
-        showStatusMessage('Perfil actualizado correctamente.', 'success');
+        if (membershipOutcome === 'requested') {
+            const studioLabel = studioOwnership.name || 'el estudio';
+            showStatusMessage(`Perfil actualizado. Le pediste el alta a ${studioLabel}: tu alta queda pendiente hasta que el estudio la apruebe.`, 'success');
+        } else {
+            showStatusMessage('Perfil actualizado correctamente.', 'success');
+        }
 
     } catch (error) {
         console.error('Error saving profile:', error);

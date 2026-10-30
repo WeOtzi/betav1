@@ -2,9 +2,12 @@
 // WE OTZI - Invitaciones · detalle de estudio ampliado + escribir al estudio
 // Figma 2007:5794 "Invitaciones - Detalle de estudio ampliado" y
 //       2007:5795 "Invitaciones - Escribir al estudio" (archivo w3JA83CcP5ISKjyOu87mx1).
-// Ruta: /artist/invitations?estudio=<studio_id>[&contactar=1]
+// Ruta: /artist/invitations?estudio=<studio_id>[&contactar=1][&solicitar=1]
 // Datos: WeotziData.Invitations (invitations-repo.js). El mensaje viaja por la
 // RPC contact_studio_as_artist y queda como hilo del Inbox unificado.
+// "Trabajo acá / Solicitar alta" (Plataforma de Estudios): drawer con rol,
+// sede, fecha, mensaje y portfolio → StudioMemberships.requestMembership; si
+// el estudio tiene dueño se le avisa por /api/artist/studio-notify.
 // Depende de invitations-model.js y de window.WoInvitationsApp (artist-invitations.js).
 // ================================================================
 
@@ -23,6 +26,8 @@
     function icon(name) { return `<i data-wo-icon="${name}" aria-hidden="true"></i>`; }
     function cssUrl(value) { return app().cssUrl ? app().cssUrl(value) : String(value); }
     function href(next) { return app().hrefFor ? app().hrefFor(next) : '?'; }
+    // href armados con datos del estudio: solo http(s).
+    function safeUrl(value) { return app().safeUrl ? app().safeUrl(value) : M.safeUrl(value); }
 
     function view() { return document.getElementById('inv-studio-view'); }
 
@@ -39,6 +44,7 @@
         }
         render();
         if (options.contact && currentData && currentData.studio) openContact(contactTargetFromData(currentData));
+        else if (options.request && currentData && currentData.studio && canRequest(currentData.studio)) openRequest(null);
     }
 
     function hide() {
@@ -60,9 +66,23 @@
         return {
             studio: studioRes.data,
             location: (locationsRes.data || [])[0] || null,
+            locations: locationsRes.data || [],
             spots: spotsRes.data || [],
             roster: rosterRes.data || [],
         };
+    }
+
+    // Se puede pedir el alta si no hay un vínculo abierto con el estudio
+    // (solicitud enviada, invitación pendiente o membresía activa).
+    function openMembership(studioId) {
+        if (app().openMembershipForStudio) return app().openMembershipForStudio(studioId);
+        const membership = app().membershipForStudio ? app().membershipForStudio(studioId) : null;
+        return membership && ['requested', 'pending', 'active'].includes(membership._state) ? membership : null;
+    }
+
+    function canRequest(studio) {
+        return !!(studio && studio.id && D.StudioMemberships && typeof D.StudioMemberships.requestMembership === 'function'
+            && !openMembership(studio.id));
     }
 
     function contactTargetFromData(data) {
@@ -107,8 +127,14 @@
         // contactado) "Escribir de nuevo": el rótulo sigue al contacto previo.
         const ctaLabel = contact ? 'Escribir de nuevo' : 'Escribir al estudio';
         const website = M.text(studio.website);
+        const websiteUrl = website ? safeUrl(/^https?:\/\//i.test(website) ? website : 'https://' + website) : null;
         const instagram = M.text(studio.instagram).replace(/^@/, '');
         const writeButton = (extra) => `<button type="button" class="isd-btn isd-btn--accent ${extra || ''}" data-isd-contact ${canWrite ? '' : 'disabled aria-describedby="isd-contact-note"'}>${icon('message-circle')} ${esc(ctaLabel)}</button>`;
+        // Alta pedida por el artista: solo sin un vínculo abierto con el estudio.
+        const requestButton = canRequest(studio)
+            ? `<button type="button" class="isd-btn" data-isd-request>${icon('user-plus')} Trabajo acá / Solicitar alta</button>`
+            : '';
+        const isRequestRow = membership && M.initiatedBy(membership) === 'artist';
 
         const workRows = [
             ['Oportunidades', opp.summary || 'Sin oportunidades abiertas por ahora'],
@@ -132,9 +158,10 @@
                         ${opp.resident.open ? '<span class="isd-badge isd-badge--resident">Busca artista residente</span>' : ''}
                     </div>` : ''}
                     ${address ? `<p class="isd-address">${icon('map-pin')}<span>${esc(address)}</span></p>` : ''}
-                    ${membership ? `<div class="isd-invite"><i class="isd-square" aria-hidden="true"></i><span>${esc(M.invitationLine(membership, 'detail'))}</span><a href="${esc(href({ invitacion: membership.id }))}" data-inv-nav="invitation" data-invitation="${esc(membership.id)}">Ver invitación →</a></div>` : ''}
+                    ${membership ? `<div class="isd-invite"><i class="isd-square" aria-hidden="true"></i><span>${esc(M.invitationLine(membership, 'detail'))}</span><a href="${esc(href({ invitacion: membership.id }))}" data-inv-nav="invitation" data-invitation="${esc(membership.id)}">${isRequestRow ? 'Ver solicitud →' : 'Ver invitación →'}</a></div>` : ''}
                     <div class="isd-cta">
                         ${writeButton()}
+                        ${requestButton}
                         <a class="isd-maplink" href="${esc(href({ vista: 'mapa', estudio: studio.id }))}" data-inv-nav-map-studio="${esc(studio.id)}">${icon('map-pin')} Ver en el mapa</a>
                     </div>
                     ${canWrite ? '' : `<p class="isd-note" id="isd-contact-note">${esc(target.acceptsInquiries ? 'Este estudio todavía no tiene cuenta en We Ötzi. Escribile por Instagram o por su web.' : 'Este estudio no recibe consultas por ahora.')}</p>`}
@@ -183,15 +210,122 @@
                     ${contact ? `<p class="isd-contact-sub">${esc(contact.summary)}</p>` : ''}
                 </div>
                 <div class="isd-contact-actions">
-                    ${website ? `<a class="isd-contact-link" href="${esc(/^https?:\/\//.test(website) ? website : 'https://' + website)}" target="_blank" rel="noopener">${esc(website.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, ''))}</a>` : ''}
+                    ${websiteUrl ? `<a class="isd-contact-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener">${esc(website.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, ''))}</a>` : ''}
                     ${instagram ? `<a class="isd-contact-link" href="https://instagram.com/${encodeURIComponent(instagram)}" target="_blank" rel="noopener">${icon('instagram')}@ ${esc(instagram)}</a>` : ''}
                     ${writeButton()}
+                    ${requestButton ? requestButton.replace('class="isd-btn"', 'class="isd-btn isd-btn--on-dark"') : ''}
                 </div>
             </section>`;
         host.querySelectorAll('[data-isd-contact]').forEach((button) => {
             button.addEventListener('click', () => openContact(Object.assign(contactTargetFromData(currentData), { trigger: button })));
         });
+        host.querySelectorAll('[data-isd-request]').forEach((button) => {
+            button.addEventListener('click', () => openRequest(button));
+        });
         wireBack(host);
+    }
+
+    /* ---------------------- trabajo acá / solicitar alta ---------------------- */
+    // Drawer de 380px (mismo patrón que "Solicitar cambios"): rol, sede, fecha
+    // propuesta, mensaje y portfolio. Llama a request_studio_membership.
+    function openRequest(trigger) {
+        if (!currentData || !currentData.studio || !app().openDrawer) return;
+        const studio = currentData.studio;
+        const opp = M.opportunitiesFor(studio, currentData.spots);
+        const defaultRole = opp.guest.open && !opp.resident.open ? 'guest' : 'resident';
+        const locations = (currentData.locations || []).filter((location) => location && location.id);
+        const today = M.isoDate(new Date());
+        app().openDrawer(`
+            <aside class="inv-drawer inv-drawer--request" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
+                <button type="button" class="inv-drawer-close" data-drawer-close aria-label="Cerrar">${icon('x')}</button>
+                <h2 class="inv-drawer-heading" id="inv-drawer-title">Trabajo acá</h2>
+                <p class="inv-change-copy">${esc(`Pedile el alta a ${studio.name || 'este estudio'}. Cuando la apruebe vas a figurar en su equipo.`)}</p>
+                <form class="inv-change-form" id="inv-request-form" novalidate>
+                    <label class="inv-key" for="inv-request-role">Rol</label>
+                    <select class="inv-input" id="inv-request-role" name="role">
+                        ${Object.entries(M.REQUEST_ROLES).map(([value, label]) => `<option value="${esc(value)}"${value === defaultRole ? ' selected' : ''}>${esc(label)}</option>`).join('')}
+                    </select>
+                    <p class="inv-drawer-error" data-error="role" role="alert" hidden></p>
+                    ${locations.length ? `
+                    <label class="inv-key" for="inv-request-location">Sede</label>
+                    <select class="inv-input" id="inv-request-location" name="locationId">
+                        <option value="">Sin preferencia</option>
+                        ${locations.map((location) => `<option value="${esc(location.id)}">${esc([location.label, location.city].filter(Boolean).join(' · ') || 'Sede')}</option>`).join('')}
+                    </select>` : ''}
+                    <label class="inv-key" for="inv-request-date">Fecha de inicio propuesta · opcional</label>
+                    <input class="inv-input" id="inv-request-date" name="proposedStartDate" type="date" min="${esc(today)}">
+                    <p class="inv-drawer-error" data-error="proposedStartDate" role="alert" hidden></p>
+                    <label class="inv-key" for="inv-request-message">Mensaje · opcional</label>
+                    <textarea class="inv-change-textarea" id="inv-request-message" name="message" maxlength="${M.REQUEST_MESSAGE_MAX}" placeholder="Contale al estudio desde cuándo trabajás ahí o por qué querés sumarte."></textarea>
+                    <p class="inv-drawer-error" data-error="message" role="alert" hidden></p>
+                    <label class="inv-key" for="inv-request-portfolio">Portfolio · opcional</label>
+                    <input class="inv-input" id="inv-request-portfolio" name="portfolioUrl" type="url" inputmode="url" placeholder="https://" autocomplete="url">
+                    <p class="inv-drawer-error" data-error="portfolioUrl" role="alert" hidden></p>
+                    <p class="inv-drawer-error" data-error="submit" role="alert" hidden></p>
+                    <div class="inv-change-actions">
+                        <button class="inv-change-submit" type="submit">Solicitar alta ${icon('send')}</button>
+                        <button class="inv-aside-btn" type="button" data-drawer-close>Volver</button>
+                    </div>
+                </form>
+            </aside>`, trigger);
+        const form = document.getElementById('inv-request-form');
+        form?.elements.role.focus();
+        form?.addEventListener('submit', (event) => { event.preventDefault(); submitRequest(form, studio); });
+    }
+
+    function setDrawerError(form, key, message) {
+        const node = form.querySelector(`[data-error="${key}"]`);
+        if (!node) return;
+        node.textContent = message || '';
+        node.hidden = !message;
+    }
+
+    async function submitRequest(form, studio) {
+        const values = {
+            role: form.elements.role.value,
+            locationId: form.elements.locationId ? form.elements.locationId.value : '',
+            proposedStartDate: form.elements.proposedStartDate.value,
+            message: form.elements.message.value,
+            portfolioUrl: form.elements.portfolioUrl.value,
+        };
+        const check = M.validateMembershipRequest(values);
+        ['role', 'proposedStartDate', 'message', 'portfolioUrl', 'submit'].forEach((key) => setDrawerError(form, key, check.errors[key] || ''));
+        if (!check.ok) {
+            const first = ['role', 'proposedStartDate', 'message', 'portfolioUrl'].find((key) => check.errors[key]);
+            if (first && form.elements[first]) form.elements[first].focus();
+            return;
+        }
+        const submit = form.querySelector('[type="submit"]');
+        if (app().setBusy) app().setBusy(submit, true);
+        let result;
+        try {
+            result = await D.StudioMemberships.requestMembership({ studioId: studio.id, ...check.value });
+        } catch (error) {
+            result = { data: null, error };
+        }
+        if (app().setBusy) app().setBusy(submit, false);
+        if (!result || result.error) {
+            setDrawerError(form, 'submit', M.friendlyError(result && result.error, 'No pudimos enviar tu solicitud. Probá de nuevo.'));
+            return;
+        }
+        const data = (Array.isArray(result.data) ? result.data[0] : result.data) || {};
+        const membershipId = data.membership_id || null;
+        const hasOwner = data.studio_has_owner != null ? data.studio_has_owner === true : !!studio.user_id;
+        if (hasOwner && membershipId && app().notifyStudio) {
+            app().notifyStudio('membership_request_created', { membership_id: membershipId });
+        }
+        document.dispatchEvent(new CustomEvent('weotzi:studio-membership-requested', {
+            detail: { membershipId, studioId: studio.id, studioHasOwner: hasOwner },
+        }));
+        const done = hasOwner
+            ? `Le enviamos tu solicitud a ${studio.name || 'el estudio'}. Tu alta queda pendiente hasta que la apruebe.`
+            : 'Este estudio todavía no está en We Ötzi. Guardamos tu solicitud y la va a ver cuando active su cuenta';
+        form.outerHTML = `<div class="inv-drawer-status" role="status">${icon('check-circle')}<div><strong>Solicitud enviada</strong><p>${esc(done)}</p></div></div>
+            <button class="inv-aside-btn inv-aside-btn--outline" type="button" data-drawer-close>Volver al estudio</button>`;
+        document.querySelectorAll('#inv-drawer-layer [data-drawer-close]').forEach((button) => button.addEventListener('click', () => app().closeDrawer()));
+        document.querySelector('#inv-drawer-layer .inv-aside-btn[data-drawer-close]')?.focus();
+        if (app().reload) await app().reload();
+        if (currentStudioId && String(currentStudioId) === String(studio.id)) render();
     }
 
     function wireBack(host) {

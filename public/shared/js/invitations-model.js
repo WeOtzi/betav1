@@ -11,6 +11,11 @@
  * marcadores, proyección del globo (misma matemática que COBE 2.0.1) y
  * validación del formulario "Escribir al estudio".
  *
+ * Plataforma de Estudios (docs/plans/2026-10-30-estudios-plataforma.md):
+ * estados del alta en dos sentidos (requested / pending / active /
+ * rejected_by_studio / rejected_by_artist), validación de "Solicitar alta",
+ * etiquetas y resumen de contratos registrados, firma y materiales entregados.
+ *
  * UMD: `window.WoInvitationsModel` en el navegador, `require` en Node.
  */
 (function (root, factory) {
@@ -135,22 +140,102 @@
     }
 
     /* --------------------------- invitaciones --------------------------- */
-    var STATE_LABELS = { pending: 'pendiente', active: 'aceptada', rejected: 'rechazada', ended: 'finalizada' };
+    var STATE_LABELS = { pending: 'pendiente', active: 'aceptada', rejected: 'rechazada', ended: 'finalizada', requested: 'solicitud enviada' };
 
     function membershipState(membership) {
         var status = text(membership && (membership._state || membership.status));
         if (status === 'pending_invite' || status === 'pending_acceptance' || status === 'pending') return 'pending';
         if (status === 'active' || status === 'paused') return 'active';
-        if (status === 'rejected') return 'rejected';
+        if (status === 'rejected' || status === 'rejected_by_studio' || status === 'rejected_by_artist') return 'rejected';
         if (status === 'ended') return 'ended';
+        if (status === 'requested') return 'requested';
         return status || 'pending';
     }
 
+    /* ------------------- alta en dos sentidos (estados) ------------------- */
+    // Plataforma de Estudios (docs/plans/2026-10-30-estudios-plataforma.md):
+    //   requested           el artista pidió el alta y decide el estudio
+    //   pending             invitó el estudio y decide el artista
+    //   active              vínculo activo (incluye "en pausa")
+    //   rejected_by_studio  el estudio no aprobó la solicitud del artista
+    //   rejected_by_artist  el artista rechazó la invitación del estudio
+    // `initiated_by` llega de listForArtistV2; ausente equivale a 'studio'.
+    var ARTIST_STATES = ['requested', 'pending', 'active', 'rejected_by_studio', 'rejected_by_artist'];
+    var REJECTED_BY_STUDIO_COPY = 'El estudio no aprobó tu solicitud';
+    var REQUEST_STEPS = ['Solicitud enviada', 'En revisión', 'Aprobada'];
+
+    function initiatedBy(membership) {
+        return text(membership && membership.initiated_by) === 'artist' ? 'artist' : 'studio';
+    }
+
+    function artistState(membership) {
+        var status = text(membership && membership.status);
+        if (status === 'requested') return 'requested';
+        if (status === 'pending_invite' || status === 'pending_acceptance') return 'pending';
+        if (status === 'active' || status === 'paused') return 'active';
+        if (status === 'rejected') return initiatedBy(membership) === 'artist' ? 'rejected_by_studio' : 'rejected_by_artist';
+        if (status === 'ended') return 'ended';
+        return 'pending';
+    }
+
+    // Grupo de pestaña/listado: los dos rechazos van a "Rechazadas".
+    function stateGroup(detail) {
+        return detail === 'rejected_by_studio' || detail === 'rejected_by_artist' ? 'rejected' : (detail || 'pending');
+    }
+
+    // Una solicitud abierta espera al estudio; si el estudio no tiene cuenta
+    // (studios.user_id null) espera a que se sume a We Ötzi.
+    function requestWaitingLabel(membership) {
+        var studio = (membership && (membership.studios || membership.studio)) || {};
+        var hasOwner = membership && membership.studio_has_owner != null
+            ? !!membership.studio_has_owner
+            : (studio.user_id === undefined ? true : !!studio.user_id);
+        return hasOwner ? 'Esperando al estudio' : 'Esperando que el estudio se sume';
+    }
+
+    // Stepper de las altas pedidas por el artista:
+    // "Solicitud enviada → En revisión → Aprobada".
+    function requestSteps(detail) {
+        return REQUEST_STEPS.map(function (label, index) {
+            var number = index + 1;
+            if (detail === 'active') return { label: label, done: true, current: false };
+            if (detail === 'rejected_by_studio') {
+                return number < 3 ? { label: label, done: true, current: false } : { label: 'No aprobada', done: false, current: true };
+            }
+            return { label: label, done: number === 1, current: number === 2 };
+        });
+    }
+
+    // Detalles de la solicitud (studio_membership_request_details embebido).
+    function requestDetails(membership) {
+        var raw = membership && membership.studio_membership_request_details;
+        if (Array.isArray(raw)) raw = raw[0];
+        raw = raw || {};
+        return {
+            message: text(raw.message),
+            portfolioUrl: safeUrl(raw.portfolio_url),
+            proposedStartDate: raw.proposed_start_date || null,
+            styles: toList(raw.styles),
+            createdAt: raw.created_at || null
+        };
+    }
+
     // "Te invitó el 08 JUL · aceptada." (mapa) / "Te invitó el 08 JUL · la aceptaste" (detalle)
+    // Altas pedidas por el artista: "Pediste el alta el 08 JUL · esperando al estudio."
     function invitationLine(membership, variant) {
         if (!membership) return '';
         var state = membershipState(membership);
         var when = shortDate(membership.invited_at || membership.created_at).toUpperCase();
+        if (initiatedBy(membership) === 'artist' || state === 'requested') {
+            var requestVerbs = {
+                requested: requestWaitingLabel(membership).toLowerCase(),
+                active: 'aprobada',
+                rejected: 'no aprobada',
+                ended: 'cerrada'
+            };
+            var requestHead = when ? 'Pediste el alta el ' + when : 'Pediste el alta';
+            return requestHead + ' · ' + (requestVerbs[state] || STATE_LABELS[state] || state) + (variant === 'detail' ? '' : '.');
+        }
         var head = when ? 'Te invitó el ' + when : 'Te invitó';
         if (variant === 'detail') {
             var verbs = { pending: 'esperando tu respuesta', active: 'la aceptaste', rejected: 'la rechazaste', ended: 'finalizada' };
@@ -580,7 +665,335 @@
         list.sort(byRecent);
         var feature = options.featured && list.indexOf(options.featured) !== -1 ? options.featured : null;
         var pick = function (stateName) { return list.filter(function (item) { return item._state === stateName && item !== feature; }); };
-        return { feature: feature, items: pick('active').concat(pick('pending'), pick('rejected')) };
+        // Las solicitudes enviadas por el artista van después de las invitaciones
+        // pendientes (esperan al estudio, no a vos).
+        return { feature: feature, items: pick('active').concat(pick('pending'), pick('requested'), pick('rejected')) };
+    }
+
+    /* --------------------------- URLs y errores --------------------------- */
+    // Mismo criterio que WeOtziStudioKit.safeUrl: solo http(s) con host.
+    function safeUrl(value) {
+        var raw = text(value);
+        if (!raw || !/^https?:\/\//i.test(raw) || /[\u0000-\u001f\u007f\s]/.test(raw)) return null;
+        if (typeof URL === 'function') {
+            try {
+                var parsed = new URL(raw);
+                return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname ? parsed.href : null;
+            } catch (_) { return null; }
+        }
+        return /^https?:\/\/[^\s/?#]+/i.test(raw) ? raw : null;
+    }
+
+    // Reglas transversales §5: "falta aplicar una migración".
+    var MISSING_SCHEMA_CODES = ['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'];
+    var MISSING_SCHEMA_MESSAGE = 'Esta función todavía no está disponible (falta aplicar una migración).';
+
+    function errorCode(error) {
+        if (!error) return '';
+        return String(error.code || (error.cause && error.cause.code) || '');
+    }
+
+    function isMissingSchema(error) {
+        return MISSING_SCHEMA_CODES.indexOf(errorCode(error)) !== -1;
+    }
+
+    function friendlyError(error, fallback) {
+        var fb = fallback || 'No pudimos completar la acción. Probá de nuevo.';
+        if (!error) return fb;
+        if (typeof error === 'string') return error.trim() || fb;
+        if (isMissingSchema(error)) return MISSING_SCHEMA_MESSAGE;
+        return text(error.message) || fb;
+    }
+
+    /* ------------------------- solicitar el alta ------------------------- */
+    var REQUEST_ROLES = { resident: 'Artista residente', guest: 'Guest artist', itinerant: 'Artista itinerante' };
+    var REQUEST_MESSAGE_MAX = 1000;
+
+    function validateMembershipRequest(form, now) {
+        form = form || {};
+        var errors = {};
+        var role = text(form.role) || 'resident';
+        if (!REQUEST_ROLES[role]) errors.role = 'Elegí un rol.';
+        var message = text(form.message);
+        if (message.length > REQUEST_MESSAGE_MAX) errors.message = 'El mensaje no puede superar los ' + REQUEST_MESSAGE_MAX + ' caracteres.';
+        var portfolio = text(form.portfolioUrl);
+        var portfolioUrl = portfolio ? safeUrl(portfolio) : null;
+        if (portfolio && !portfolioUrl) errors.portfolioUrl = 'Pegá un link que empiece con http:// o https://.';
+        var start = text(form.proposedStartDate);
+        if (start) {
+            var date = /^\d{4}-\d{2}-\d{2}$/.test(start) ? parseDate(start) : null;
+            if (!date) errors.proposedStartDate = 'Revisá la fecha.';
+            else if (startOfDay(date).getTime() < startOfDay(now || new Date()).getTime()) errors.proposedStartDate = 'Elegí una fecha a partir de hoy.';
+        }
+        return {
+            ok: Object.keys(errors).length === 0,
+            errors: errors,
+            value: {
+                role: role,
+                locationId: text(form.locationId) || null,
+                message: message || null,
+                portfolioUrl: portfolioUrl,
+                proposedStartDate: start || null
+            }
+        };
+    }
+
+    /* ----------------------------- contratos ----------------------------- */
+    var CONTRACT_STATUS_LABELS = {
+        draft: 'Borrador',
+        sent: 'Pendiente de firma',
+        signed: 'Firmado',
+        declined: 'Rechazado',
+        cancelled: 'Cancelado',
+        terminated: 'Rescindido',
+        expired: 'Vencido'
+    };
+    // Tono de cada estado para las clases inv-detail-status--*.
+    var CONTRACT_STATUS_TONES = {
+        draft: 'rejected', sent: 'pending', signed: 'active', declined: 'rejected',
+        cancelled: 'rejected', terminated: 'ended', expired: 'ended'
+    };
+    var CONTRACT_ROLE_LABELS = { resident: 'Artista residente', guest: 'Guest artist', itinerant: 'Artista itinerante', manager: 'Manager' };
+    var COMPENSATION_LABELS = { percentage: 'Porcentaje', fixed: 'Pago fijo', mixed: 'Mixto' };
+    var FIXED_PERIOD_LABELS = { per_session: 'por sesión', daily: 'por día', weekly: 'por semana', monthly: 'por mes', one_time: 'pago único' };
+    var FIXED_PAYER_LABELS = {
+        artist_to_studio: 'Alquiler de puesto: vos le pagás al estudio',
+        studio_to_artist: 'Pago al artista: el estudio te paga'
+    };
+    var CONTRACT_ORIGIN_LABELS = {
+        spot_application: 'Postulación a spot',
+        invitation: 'Invitación del estudio',
+        request: 'Tu solicitud de alta',
+        manual: 'Carga del estudio'
+    };
+    var SIGNER_NAME_MIN = 3;
+
+    // Estado visible: un `sent` con expires_at pasado ya venció aunque la base
+    // todavía no lo haya marcado (expire_studio_contracts corre al listar).
+    function contractState(contract, now) {
+        var status = text(contract && contract.status) || 'draft';
+        if (status === 'sent') {
+            var expires = parseDate(contract.expires_at);
+            if (expires && expires.getTime() < (now || new Date()).getTime()) return 'expired';
+        }
+        return status;
+    }
+
+    function contractStatusLabel(status) { return CONTRACT_STATUS_LABELS[status] || 'Contrato'; }
+    function contractStatusTone(status) { return CONTRACT_STATUS_TONES[status] || 'pending'; }
+
+    // "C-2026-0001" / "C-2026-0001 v2"
+    function contractLabel(contract) {
+        if (!contract) return 'Contrato';
+        var number = text(contract.contract_number) || 'Contrato';
+        var version = Number(contract.version) || 1;
+        return version > 1 ? number + ' v' + version : number;
+    }
+
+    // Dinero con Intl es-AR, nunca sumando monedas: "$ 120.000" / "US$ 450".
+    function formatMoney(amount, currency) {
+        var value = numberOrNull(amount);
+        if (value == null) return '';
+        var code = text(currency).toUpperCase();
+        if (!/^[A-Z]{3}$/.test(code)) code = 'USD';
+        var cents = Math.abs(Math.round(value * 100)) % 100 !== 0;
+        try {
+            return new Intl.NumberFormat('es-AR', {
+                style: 'currency', currency: code,
+                minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0
+            }).format(value);
+        } catch (_) {
+            var fixed = Math.abs(value).toFixed(cents ? 2 : 0).split('.');
+            var grouped = fixed[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return (value < 0 ? '-' : '') + '$ ' + grouped + (fixed[1] ? ',' + fixed[1] : '') + ' ' + code;
+        }
+    }
+
+    // Modalidad de pago en palabras del artista.
+    function compensationLines(contract) {
+        contract = contract || {};
+        var model = text(contract.compensation_model);
+        var lines = [];
+        if (model === 'percentage' || model === 'mixed') {
+            var pct = numberOrNull(contract.artist_percentage);
+            if (pct != null) {
+                var mine = Math.round(pct * 100) / 100;
+                lines.push(mine + '% para vos · ' + (Math.round((100 - mine) * 100) / 100) + '% para el estudio');
+            }
+        }
+        if (model === 'fixed' || model === 'mixed') {
+            var money = formatMoney(contract.fixed_amount, contract.fixed_currency);
+            if (money) {
+                var period = FIXED_PERIOD_LABELS[text(contract.fixed_period)] || '';
+                lines.push([money, period].filter(Boolean).join(' ') + (FIXED_PAYER_LABELS[text(contract.fixed_payer)] ? ' · ' + FIXED_PAYER_LABELS[text(contract.fixed_payer)] : ''));
+            }
+        }
+        return lines;
+    }
+
+    function compensationSummary(contract) {
+        var model = text(contract && contract.compensation_model);
+        var lines = compensationLines(contract);
+        if (!model && !lines.length) return 'A definir con el estudio';
+        return [COMPENSATION_LABELS[model] || ''].concat(lines).filter(Boolean).join(' · ');
+    }
+
+    function contractValidity(contract) {
+        contract = contract || {};
+        var start = longDate(contract.start_date);
+        var end = longDate(contract.end_date);
+        if (start && end) return 'Del ' + start + ' al ' + end;
+        if (start) return 'Desde el ' + start + ' · sin fecha de fin';
+        if (end) return 'Hasta el ' + end;
+        return 'A coordinar con el estudio';
+    }
+
+    function contractNotice(contract) {
+        var days = numberOrNull(contract && contract.cancellation_notice_days);
+        if (days == null) return 'Sin preaviso pactado';
+        if (days === 0) return 'Sin preaviso';
+        return days + (days === 1 ? ' día' : ' días') + ' de preaviso';
+    }
+
+    function contractLocation(contract) {
+        var location = (contract && (contract.studio_locations || contract.location)) || {};
+        return [text(location.label), [text(location.city), text(location.country)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+    }
+
+    // Celdas de la grilla de condiciones (mismo estilo que offerPanel).
+    function contractCells(contract) {
+        contract = contract || {};
+        var spot = contract.studio_spots || {};
+        var cells = [
+            ['Rol', CONTRACT_ROLE_LABELS[text(contract.role)] || 'A coordinar'],
+            ['Sede', contractLocation(contract) || 'A coordinar con el estudio'],
+            ['Modalidad', compensationSummary(contract)],
+            ['Vigencia', contractValidity(contract)],
+            ['Preaviso', contractNotice(contract)],
+            ['Origen', [CONTRACT_ORIGIN_LABELS[text(contract.origin)] || '', text(spot.title)].filter(Boolean).join(' · ') || 'Contrato del estudio']
+        ];
+        return cells;
+    }
+
+    function contractLists(contract) {
+        contract = contract || {};
+        return [
+            ['Qué incluye el spot', toList(contract.includes)],
+            ['Beneficios', toList(contract.perks)],
+            ['Tus obligaciones', toList(contract.artist_obligations)]
+        ].filter(function (entry) { return entry[1].length > 0; });
+    }
+
+    // "Vence hoy" · "Vence mañana" · "Vence en 5 días" · "Venció el 3 de agosto, 2026"
+    function contractExpiryLabel(contract, now) {
+        var expires = parseDate(contract && contract.expires_at);
+        if (!expires) return 'Sin vencimiento';
+        var today = startOfDay(now || new Date());
+        var diff = Math.round((startOfDay(expires).getTime() - today.getTime()) / DAY);
+        if (expires.getTime() < (now || new Date()).getTime()) return 'Venció el ' + longDate(expires);
+        if (diff <= 0) return 'Vence hoy';
+        if (diff === 1) return 'Vence mañana';
+        if (diff <= 14) return 'Vence en ' + diff + ' días';
+        return 'Vence el ' + longDate(expires);
+    }
+
+    function contractDateValue(contract) {
+        return dateValue(contract && (contract.sent_at || contract.created_at));
+    }
+
+    function byNewestContract(a, b) {
+        return (Number(b.version) || 1) - (Number(a.version) || 1) || contractDateValue(b) - contractDateValue(a);
+    }
+
+    // Contratos para firmar: `sent` sin vencer, el que vence antes primero.
+    function contractsToSign(contracts, now) {
+        return (contracts || []).filter(function (contract) { return contract && contractState(contract, now) === 'sent'; })
+            .sort(function (a, b) {
+                var ea = dateValue(a.expires_at) || Infinity;
+                var eb = dateValue(b.expires_at) || Infinity;
+                return ea - eb || contractDateValue(b) - contractDateValue(a);
+            });
+    }
+
+    // Contrato `sent` para firmar de una membresía (reemplaza "Aceptar").
+    function pendingContractFor(contracts, membershipId, now) {
+        if (!membershipId) return null;
+        return contractsToSign(contracts, now).filter(function (contract) {
+            return String(contract.membership_id) === String(membershipId);
+        })[0] || null;
+    }
+
+    // Contrato vigente de una membresía activa: el `signed` apuntado por
+    // current_contract_id o, si no, el `signed` de mayor versión.
+    function currentContractFor(contracts, membership) {
+        if (!membership) return null;
+        var signed = (contracts || []).filter(function (contract) {
+            return contract && contract.status === 'signed'
+                && (String(contract.membership_id) === String(membership.id)
+                    || (membership.current_contract_id && String(contract.id) === String(membership.current_contract_id)));
+        }).sort(byNewestContract);
+        var pointed = membership.current_contract_id
+            ? signed.filter(function (contract) { return String(contract.id) === String(membership.current_contract_id); })[0]
+            : null;
+        return pointed || signed[0] || null;
+    }
+
+    function validateSignature(form) {
+        form = form || {};
+        var errors = {};
+        var name = text(form.name).replace(/\s+/g, ' ');
+        if (name.length < SIGNER_NAME_MIN) errors.name = 'Escribí tu nombre completo (mínimo ' + SIGNER_NAME_MIN + ' caracteres).';
+        if (form.accept !== true) errors.accept = 'Tenés que aceptar los términos para firmar.';
+        return { ok: Object.keys(errors).length === 0, errors: errors, name: name };
+    }
+
+    /* ------------------------ materiales entregados ------------------------ */
+    var MOVEMENT_LABELS = { assignment: 'Entrega', return: 'Devolución' };
+
+    function formatQuantity(quantity, unit) {
+        var value = numberOrNull(quantity);
+        if (value == null) return '';
+        var rounded = Math.round(value * 100) / 100;
+        var number = String(rounded).replace('.', ',');
+        return text(unit) ? number + ' ' + text(unit) : number;
+    }
+
+    // Movimientos del artista (list_my_studio_material_assignments) de un
+    // estudio, del más reciente al más viejo, más el neto entregado por ítem.
+    function materialsForStudio(rows, studioId) {
+        var mine = (rows || []).filter(function (row) {
+            return row && (!studioId || String(row.studio_id) === String(studioId))
+                && (row.kind === 'assignment' || row.kind === 'return');
+        }).sort(function (a, b) { return dateValue(b.performed_at) - dateValue(a.performed_at); });
+        var totals = {};
+        var order = [];
+        mine.forEach(function (row) {
+            var key = normalize(row.item_name) + '|' + normalize(row.unit);
+            if (!totals[key]) {
+                totals[key] = { itemName: text(row.item_name) || 'Material', unit: text(row.unit), delivered: 0, returned: 0, net: 0 };
+                order.push(key);
+            }
+            var qty = numberOrNull(row.quantity) || 0;
+            if (row.kind === 'assignment') totals[key].delivered += qty;
+            else totals[key].returned += qty;
+            totals[key].net = Math.round((totals[key].delivered - totals[key].returned) * 100) / 100;
+        });
+        return {
+            movements: mine.map(function (row) {
+                return {
+                    kind: row.kind,
+                    kindLabel: MOVEMENT_LABELS[row.kind],
+                    itemName: text(row.item_name) || 'Material',
+                    quantity: formatQuantity(row.quantity, row.unit),
+                    date: shortDate(row.performed_at).toUpperCase(),
+                    performedAt: row.performed_at || null
+                };
+            }),
+            items: order.map(function (key) {
+                var item = totals[key];
+                return Object.assign({}, item, { netLabel: formatQuantity(item.net, item.unit) });
+            })
+        };
     }
 
     return {
@@ -604,6 +1017,15 @@
         isoDate: isoDate,
         dateValue: dateValue,
         membershipState: membershipState,
+        ARTIST_STATES: ARTIST_STATES,
+        REJECTED_BY_STUDIO_COPY: REJECTED_BY_STUDIO_COPY,
+        REQUEST_STEPS: REQUEST_STEPS,
+        initiatedBy: initiatedBy,
+        artistState: artistState,
+        stateGroup: stateGroup,
+        requestWaitingLabel: requestWaitingLabel,
+        requestSteps: requestSteps,
+        requestDetails: requestDetails,
         invitationLine: invitationLine,
         reasonLabel: reasonLabel,
         contactSummary: contactSummary,
@@ -628,6 +1050,38 @@
         shortStudioName: shortStudioName,
         featuredInvitation: featuredInvitation,
         indexOrder: indexOrder,
-        listLayout: listLayout
+        listLayout: listLayout,
+        safeUrl: safeUrl,
+        MISSING_SCHEMA_MESSAGE: MISSING_SCHEMA_MESSAGE,
+        isMissingSchema: isMissingSchema,
+        friendlyError: friendlyError,
+        REQUEST_ROLES: REQUEST_ROLES,
+        REQUEST_MESSAGE_MAX: REQUEST_MESSAGE_MAX,
+        validateMembershipRequest: validateMembershipRequest,
+        CONTRACT_STATUS_LABELS: CONTRACT_STATUS_LABELS,
+        CONTRACT_ROLE_LABELS: CONTRACT_ROLE_LABELS,
+        COMPENSATION_LABELS: COMPENSATION_LABELS,
+        FIXED_PERIOD_LABELS: FIXED_PERIOD_LABELS,
+        FIXED_PAYER_LABELS: FIXED_PAYER_LABELS,
+        SIGNER_NAME_MIN: SIGNER_NAME_MIN,
+        contractState: contractState,
+        contractStatusLabel: contractStatusLabel,
+        contractStatusTone: contractStatusTone,
+        contractLabel: contractLabel,
+        formatMoney: formatMoney,
+        compensationLines: compensationLines,
+        compensationSummary: compensationSummary,
+        contractValidity: contractValidity,
+        contractNotice: contractNotice,
+        contractCells: contractCells,
+        contractLists: contractLists,
+        contractExpiryLabel: contractExpiryLabel,
+        contractsToSign: contractsToSign,
+        pendingContractFor: pendingContractFor,
+        currentContractFor: currentContractFor,
+        validateSignature: validateSignature,
+        MOVEMENT_LABELS: MOVEMENT_LABELS,
+        formatQuantity: formatQuantity,
+        materialsForStudio: materialsForStudio
     };
 }));

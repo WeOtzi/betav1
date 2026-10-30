@@ -5,6 +5,10 @@
 // Unifica las propuestas enviadas a solicitudes del Job Board
 // (job_board_applications vía WeotziData.JobBoard) y las postulaciones a spots
 // de estudios (studio_spot_applications vía WeotziData.StudioSpots).
+// Plataforma de Estudios: los contratos del artista (WeotziData.StudioContracts)
+// marcan "Contrato pendiente de firma" (se firma en /artist/invitations?contrato=)
+// y confirman el spot recién con el contrato firmado. Sin la migración, la
+// lista de contratos queda vacía y todo sigue como antes.
 // Requiere sesión de artista; sin sesión se enruta a /artist/login.
 // ============================================
 
@@ -20,13 +24,14 @@
         esperando_respuesta: { label: 'Esperando respuesta', tag: 'wo-tag apx-tag--accent' },
         en_revision: { label: 'En revisión', tag: 'wo-tag wo-tag--soft' },
         contraoferta_recibida: { label: 'Contraoferta recibida', tag: 'wo-tag wo-tag--highlight' },
+        contrato_pendiente: { label: 'Contrato pendiente de firma', tag: 'wo-tag wo-tag--highlight' },
         confirmada: { label: 'Confirmada', tag: 'wo-tag wo-tag--active' },
         rechazada: { label: 'Rechazada', tag: 'wo-tag wo-tag--urgent' },
         expirada: { label: 'Expirada', tag: 'wo-tag wo-tag--archived' },
         retirada: { label: 'Retirada', tag: 'wo-tag wo-tag--archived' }
     };
     const ARROW_ICON = '<i data-wo-icon="arrow-right" class="wo-icon-18 apx-arrow" aria-hidden="true"></i>';
-    const CHIP_ORDER = ['esperando_respuesta', 'en_revision', 'contraoferta_recibida', 'confirmada', 'rechazada', 'expirada', 'retirada'];
+    const CHIP_ORDER = ['esperando_respuesta', 'en_revision', 'contraoferta_recibida', 'contrato_pendiente', 'confirmada', 'rechazada', 'expirada', 'retirada'];
 
     const MONTHS_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     const MONTHS_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -190,11 +195,44 @@
         }
 
         await loadApplicationClientProfiles(jbApps);
+        const contracts = spotApps.length ? await loadSpotContracts(uid) : [];
 
         items = []
             .concat(jbApps.map((app) => buildJbItem(app, offerMap[app.id] || [])))
-            .concat(spotApps.map((app) => buildSpotItem(app, spotOfferMap[app.id] || [])))
+            .concat(spotApps.map((app) => buildSpotItem(app, spotOfferMap[app.id] || [], contractForApplication(contracts, app.id))))
             .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+    }
+
+    // Contratos enviados o firmados del artista (la RLS oculta los borradores).
+    // Sin la migración de contratos: [] y las postulaciones siguen como antes.
+    async function loadSpotContracts(uid) {
+        const repo = window.WeotziData?.StudioContracts;
+        if (!repo || typeof repo.listForArtist !== 'function') return [];
+        try {
+            const { data, error } = await repo.listForArtist(uid, { status: ['sent', 'signed'] });
+            if (error) {
+                console.warn('[applications] contratos:', error);
+                return [];
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.warn('[applications] contratos:', err);
+            return [];
+        }
+    }
+
+    function contractForApplication(contracts, applicationId) {
+        if (window.WoApplicationState && typeof window.WoApplicationState.contractForApplication === 'function') {
+            return window.WoApplicationState.contractForApplication(contracts, applicationId);
+        }
+        return null;
+    }
+
+    function contractUrl(contract) {
+        if (window.WoApplicationState && typeof window.WoApplicationState.contractHref === 'function') {
+            return window.WoApplicationState.contractHref(contract);
+        }
+        return '/artist/invitations?contrato=' + encodeURIComponent(contract.id);
     }
 
     function unwrapRows(result) {
@@ -267,7 +305,7 @@
         };
     }
 
-    function buildSpotItem(app, offers) {
+    function buildSpotItem(app, offers, contract) {
         const spot = app.studio_spots || null;
         const studio = (spot && spot.studios) || null;
         const loc = (spot && spot.location) || null;
@@ -280,7 +318,8 @@
             studio,
             offers: offers || [],
             pendingStudioOffer,
-            state: deriveSpotState(app, spot, !!pendingStudioOffer),
+            contract: contract || null,
+            state: deriveSpotState(app, spot, !!pendingStudioOffer, contract),
             title: (studio && studio.name) || (spot && spot.title) || 'Spot de estudio',
             kindLabel: spot ? (KIND_LABELS[spot.kind] || 'Spot') : 'Spot',
             city: (loc && loc.city) || null,
@@ -302,11 +341,13 @@
         return 'esperando_respuesta';
     }
 
-    function deriveSpotState(app, spot, hasPendingStudioOffer = false) {
-        if (window.WoApplicationState) return window.WoApplicationState.deriveSpot(app, spot, !!hasPendingStudioOffer);
+    function deriveSpotState(app, spot, hasPendingStudioOffer = false, contract = null) {
+        if (window.WoApplicationState) return window.WoApplicationState.deriveSpot(app, spot, !!hasPendingStudioOffer, contract);
         if (app.status === 'withdrawn') return 'retirada';
         if (app.status === 'rejected') return 'rechazada';
         if (app.status === 'accepted') return 'confirmada';
+        if (contract && contract.status === 'signed') return 'confirmada';
+        if (contract && contract.status === 'sent') return 'contrato_pendiente';
         if (hasPendingStudioOffer) return 'contraoferta_recibida';
         if (app.status === 'shortlisted') return 'en_revision';
         if (spot && spot.status && spot.status !== 'open') return 'expirada';
@@ -615,6 +656,9 @@
         if (it.state === 'contraoferta_recibida') {
             actions.push('<button type="button" class="' + btn + '" data-action="detail">' +
                 '<i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Responder contraoferta</button>');
+        } else if (it.state === 'contrato_pendiente' && it.contract) {
+            actions.push('<a href="' + escapeAttr(contractUrl(it.contract)) + '" class="' + btn + '">' +
+                'Contrato pendiente de firma' + ARROW_ICON + '</a>');
         } else if (it.state === 'confirmada') {
             actions.push('<button type="button" class="' + btn + '" data-action="conditions">' +
                 '<i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>Ver condiciones acordadas</button>');
@@ -1027,13 +1071,27 @@
                 '</div>'
             );
         }
+        if (item.state === 'contrato_pendiente' && item.contract) {
+            actions.push(
+                '<div class="apx-offerbox">' +
+                    '<span class="apx-offerbox-title">El estudio te envió el contrato</span>' +
+                    '<p>Firmalo para confirmar el spot. Hasta entonces la postulación sigue abierta.</p>' +
+                    '<a href="' + escapeAttr(contractUrl(item.contract)) + '" class="wo-btn wo-btn--direct wo-btn--block">' +
+                        'Contrato pendiente de firma' + ARROW_ICON + '</a>' +
+                '</div>'
+            );
+        }
         if (item.state === 'confirmada') {
             actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--block" data-action="conditions">' +
                 '<i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>Ver condiciones acordadas</button>');
+            if (item.contract && item.contract.status === 'signed') {
+                actions.push('<a href="' + escapeAttr(contractUrl(item.contract)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
+                    '<i data-wo-icon="file-text" class="wo-icon-18" aria-hidden="true"></i>Ver contrato firmado</a>');
+            }
         }
         actions.push('<a href="' + escapeAttr(conversationUrl(item)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
             '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
-        if (item.state === 'esperando_respuesta' || item.state === 'en_revision' || item.state === 'contraoferta_recibida') {
+        if (item.state === 'esperando_respuesta' || item.state === 'en_revision' || item.state === 'contraoferta_recibida' || item.state === 'contrato_pendiente') {
             actions.push('<button type="button" class="wo-btn wo-btn--ghost" data-action="withdraw">' +
                 '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>Retirar postulación</button>');
         }
@@ -1088,6 +1146,18 @@
                 });
             }
         });
+        const contract = item.contract;
+        if (contract && contract.sent_at) {
+            ev.push({
+                type: 'status',
+                title: 'El estudio te envió el contrato',
+                detail: 'Contrato ' + (contract.contract_number || '') + (Number(contract.version) > 1 ? ' v' + contract.version : '') + ' para firmar.',
+                when: contract.sent_at
+            });
+        }
+        if (contract && contract.status === 'signed' && contract.artist_signed_at) {
+            ev.push({ type: 'ok', title: 'Firmaste el contrato', detail: null, when: contract.artist_signed_at });
+        }
         if (app.decided_at) {
             if (app.status === 'accepted') ev.push({ type: 'ok', title: 'Spot confirmado', detail: 'El estudio aceptó tu solicitud.', when: app.decided_at });
             else if (app.status === 'rejected') ev.push({ type: 'bad', title: 'Solicitud rechazada', detail: null, when: app.decided_at });
@@ -1111,6 +1181,7 @@
         let active = 0;
         if (item.state === 'en_revision') { done = 1; active = 2; }
         else if (item.state === 'contraoferta_recibida') { done = 2; active = 3; }
+        else if (item.state === 'contrato_pendiente') { done = 3; active = 4; }
         else if (item.state === 'confirmada') { done = 4; active = 0; }
         const parts = [];
         labels.forEach((label, i) => {
@@ -1471,8 +1542,11 @@
                 offer.status = status;
                 offer.decided_at = new Date().toISOString();
                 item.pendingStudioOffer = null;
-                if (status === 'accepted') item.app.status = 'accepted';
-                item.state = deriveSpotState(item.app, item.spot, false);
+                // Con contratos, aceptar la contraoferta deja la postulación en
+                // revisión (shortlisted) hasta que el estudio emita el contrato;
+                // sin la migración pasa a accepted. Se relee el estado real.
+                if (status === 'accepted') item.app.status = await refreshedSpotStatus(item, 'accepted');
+                item.state = deriveSpotState(item.app, item.spot, false, item.contract);
                 closeModal();
                 refreshCurrentView(item, true);
             } catch (err) {
@@ -1517,7 +1591,7 @@
                 offer.decided_at = new Date().toISOString();
                 item.pendingStudioOffer = null;
                 item.app.status = 'shortlisted';
-                item.state = deriveSpotState(item.app, item.spot, false);
+                item.state = deriveSpotState(item.app, item.spot, false, item.contract);
                 closeModal();
                 refreshCurrentView(item, true);
             } catch (err) {
@@ -1566,6 +1640,12 @@
                 ((acceptedOffer?.split_pct != null || spot?.revenue_split_pct != null) ? trackRow('Split', '<strong>' + Number(acceptedOffer?.split_pct ?? spot.revenue_split_pct).toFixed(0) + '% para el artista</strong>') : '') +
                 (acceptedOffer?.note ? trackRow('Condiciones', '<strong>' + escapeHtml(acceptedOffer.note) + '</strong>') : '') +
                 (spot && spot.stipend_amount ? trackRow('Stipend', '<strong class="wo-mono-num">' + escapeHtml(fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD')) + '</strong>') : '');
+            // Con contrato firmado, las condiciones que valen son las del contrato.
+            if (item.contract && item.contract.status === 'signed') {
+                rows += trackRow('Contrato', '<strong>' + escapeHtml((item.contract.contract_number || 'Contrato') +
+                    (Number(item.contract.version) > 1 ? ' v' + item.contract.version : '')) + '</strong>');
+                footer = '<a href="' + escapeAttr(contractUrl(item.contract)) + '" class="wo-btn wo-btn--direct wo-btn--block">Ver contrato firmado ' + ARROW_ICON + '</a>';
+            }
         }
 
         const overlay = openModal(
@@ -1577,6 +1657,20 @@
             '</div>'
         );
         overlay.querySelector('[data-modal="close"]').addEventListener('click', closeModal);
+    }
+
+    // Estado persistido de la postulación a spot (getApplication); ante
+    // cualquier error se queda con `fallback`.
+    async function refreshedSpotStatus(item, fallback) {
+        const spotId = item && item.spot && item.spot.id;
+        const repo = window.WeotziData?.StudioSpots;
+        if (!spotId || !repo || typeof repo.getApplication !== 'function' || !session) return fallback;
+        try {
+            const { data, error } = await repo.getApplication(spotId, session.user.id);
+            return !error && data && data.status ? data.status : fallback;
+        } catch (err) {
+            return fallback;
+        }
     }
 
     function refreshCurrentView(item, fromDetail) {

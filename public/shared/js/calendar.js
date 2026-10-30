@@ -864,6 +864,11 @@
         const event = state.events.find((row) => row.id === id);
         if (!event) return;
         if (event.readonly) {
+            // Las citas que agenda un estudio se gestionan desde su panel.
+            if (event.sourceType === 'studio_booking') {
+                showToast(`${event.title} · la gestiona el estudio`);
+                return;
+            }
             // Los viajes se administran en Travel: abrimos su itinerario.
             if (event.href) {
                 window.location.href = appUrl(event.href);

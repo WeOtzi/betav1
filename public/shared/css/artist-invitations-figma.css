@@ -1639,3 +1639,290 @@ body.wo-app .wo-topbar-item:hover { color: var(--neutral-500); }
     .inv-btn,
     .inv-drawer-layer * { transition: none !important; }
 }
+
+/* =================================================================
+   Plataforma de Estudios (docs/plans/2026-10-30-estudios-plataforma.md)
+   Solicitudes de alta del artista, contratos por firmar, contrato
+   vigente, materiales entregados y drawers de firma / solicitud.
+   Solo agregados: no pisa las reglas del Figma final de arriba.
+   ================================================================= */
+
+/* Enlaces con forma de botón: `.wo-app a` les pinta el color heredado. */
+.inv-btn { --text-link: var(--neutral-500); --text-link-hover: var(--neutral-500); }
+.inv-btn--ink { --text-link: var(--neutral-100); --text-link-hover: var(--neutral-100); }
+.inv-aside-btn--primary { --text-link: var(--figma-white); --text-link-hover: var(--figma-white); }
+
+/* Estados nuevos: solicitud enviada (espera al estudio) y finalizado. */
+.inv-dot--requested { background: var(--blue-200); }
+.inv-badge--request { background: var(--blue-100); color: var(--blue-500); }
+.inv-detail-status--requested { background: var(--blue-100); color: var(--blue-500); }
+.inv-detail-status--ended { background: var(--neutral-200); color: var(--neutral-500); }
+
+/* Solicitud enviada en el listado (misma grilla que la fila pendiente). */
+.inv-row--request { border-top-color: var(--blue-300); }
+
+.inv-row-wait {
+    color: var(--neutral-400);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+/* Contratos por firmar (arriba del listado). */
+.inv-contracts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+}
+
+.inv-contracts-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0;
+    padding-bottom: var(--space-2);
+    border-bottom: 1.6px solid var(--neutral-500);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.inv-contracts-count { color: var(--neutral-400); }
+
+.inv-contract {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "number badge"
+        "name name"
+        "meta meta"
+        "expiry expiry"
+        "actions actions";
+    gap: 8px 18px;
+    align-items: center;
+    padding: var(--space-5) var(--space-4);
+    border-top: 5px solid var(--yellow-300);
+    border-bottom: .8px solid var(--figma-sand-border);
+    background: var(--yellow-100);
+    cursor: pointer;
+}
+
+.inv-contract:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+.inv-contract-number,
+.inv-contract-expiry {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.inv-contract-number { grid-area: number; color: var(--neutral-400); }
+.inv-contract-expiry { grid-area: expiry; color: var(--yellow-500); }
+
+.inv-contract-name {
+    grid-area: name;
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: clamp(24px, 6vw, 30px);
+    font-weight: 400;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.inv-contract-meta {
+    grid-area: meta;
+    color: var(--neutral-500);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.inv-contract-badge { grid-area: badge; justify-self: end; }
+
+.inv-contract-actions {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.inv-contract-actions .inv-btn { height: 39px; }
+
+/* Documento del contrato (mismo lenguaje que el panel de condiciones). */
+.inv-contract-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 760px;
+    margin-top: var(--space-6);
+}
+
+.inv-contract-text {
+    margin: 0;
+    color: var(--neutral-500);
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.inv-contract-hash {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: 760px;
+    margin: var(--space-5) 0 0;
+}
+
+.inv-contract-hash code {
+    color: var(--neutral-500);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+/* Contrato vigente de una membresía activa. */
+.inv-contract-current {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 760px;
+    margin-top: var(--space-6);
+}
+
+.inv-contract-current-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+/* Materiales entregados por el estudio. */
+.inv-materials {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 760px;
+    margin-top: var(--space-6);
+}
+
+.inv-materials-empty { margin: 0; color: var(--neutral-400); font-size: 14px; line-height: 1.45; }
+
+.inv-materials-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+    padding: 0;
+    border-top: 1.6px solid var(--neutral-500);
+    list-style: none;
+}
+
+.inv-materials-summary li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: .8px solid var(--neutral-200);
+}
+
+.inv-materials-summary strong { color: var(--ink); font-size: 15px; overflow-wrap: anywhere; }
+.inv-materials-summary span { color: var(--ink); font-family: var(--font-mono); font-size: 12px; text-align: right; }
+.inv-materials-summary small { grid-column: 1 / -1; color: var(--neutral-400); font-size: 13px; }
+
+.inv-materials-scroll { max-width: 100%; overflow-x: auto; }
+
+.inv-materials-table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.inv-materials-table th {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border-bottom: 1.6px solid var(--neutral-500);
+    color: var(--neutral-400);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: .06em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.inv-materials-table td {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border-bottom: .8px solid var(--neutral-200);
+    color: var(--ink);
+}
+
+/* Campos de los drawers de firma y de solicitud de alta. */
+.inv-input {
+    display: block;
+    width: 100%;
+    height: 48px;
+    padding: 0 17px;
+    border: 1px solid var(--neutral-500);
+    border-radius: 0;
+    background: var(--neutral-100);
+    color: var(--neutral-500);
+    font: 16px/1.4 var(--font-body);
+}
+
+.inv-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.inv-input[aria-invalid="true"] { border-color: var(--error-fg); }
+.wo-app .inv-input::placeholder { color: var(--neutral-400); opacity: 1; }
+
+.inv-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: var(--space-2);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.inv-check input {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 1px 0 0;
+    accent-color: var(--blue-400);
+}
+
+.inv-drawer--sign .inv-drawer-heading,
+.inv-drawer--request .inv-drawer-heading { padding-right: 28px; }
+
+@media (min-width: 64.0625rem) {
+    .inv-contract {
+        grid-template-columns: 110px minmax(0, 1fr) minmax(180px, auto) auto auto;
+        grid-template-areas:
+            "number name meta badge actions"
+            "number expiry expiry badge actions";
+        gap: 6px clamp(20px, 3vw, 44px);
+        padding: var(--space-6) 44px;
+    }
+
+    .inv-contract-actions { flex-wrap: nowrap; justify-content: flex-end; }
+
+    .inv-materials-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-6); }
+}
+
+@media print {
+    body.wo-app .wo-topbar,
+    .inv-detail-header,
+    .inv-detail-aside,
+    .inv-drawer-layer { display: none !important; }
+
+    .inv-detail { display: block; width: 100%; margin: 0; }
+}
