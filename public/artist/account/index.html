@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
-    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>WE ÖTZI | Mi cuenta</title>
     <meta name="description" content="Centro de la cuenta del artista: perfil, portafolio, wallet y cobros, disponibilidad por ubicación, notificaciones, seguridad, verificación y configuración.">
 
@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
-    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261028-3">
+    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261030-1">
     <link rel="stylesheet" href="/shared/css/wallet-account.css?v=20261028-3">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
@@ -62,20 +62,20 @@
         <main class="aac-content" id="aac-content">
 
             <!-- ==================== 1 · Mi perfil y redes sociales (801:565) ==================== -->
-            <section class="aac-section aac-section--narrow" id="aac-perfil" aria-labelledby="aac-perfil-title">
+            <section class="aac-section aac-section--narrow" id="aac-perfil" aria-labelledby="aac-perfil-title" data-assist="perfil">
                 <header class="aac-head">
                     <h1 class="aac-title" id="aac-perfil-title">Mi perfil</h1>
                     <p class="aac-sub">Así te van a ver los clientes y estudios en We Ötzi.</p>
                 </header>
 
                 <div class="aac-banner">
-                    <label class="aac-drop aac-banner-drop" id="aac-banner-drop">
+                    <label class="aac-drop aac-banner-drop" id="aac-banner-drop" data-assist="perfil.banner">
                         <i data-wo-icon="image" aria-hidden="true"></i>
                         <span class="aac-drop-title">Banner de perfil (opcional)</span>
                         <span class="aac-drop-hint">o <u>buscá archivos</u></span>
                         <input type="file" id="aac-banner-input" accept="image/*">
                     </label>
-                    <label class="aac-drop aac-photo-drop" id="aac-photo-drop">
+                    <label class="aac-drop aac-photo-drop" id="aac-photo-drop" data-assist="perfil.foto">
                         <span class="aac-drop-title">Foto</span>
                         <span class="aac-drop-hint">o <u>buscá archivos</u></span>
                         <input type="file" id="aac-photo-input" accept="image/*">
@@ -103,7 +103,7 @@
                         <span class="aac-label" id="aac-langs-label">Idiomas</span>
                         <div class="aac-multi" id="aac-langs" data-placeholder="Elegí tus idiomas"></div>
                     </div>
-                    <div class="aac-field aac-field-full">
+                    <div class="aac-field aac-field-full" data-assist="perfil.bio">
                         <label class="aac-label" for="aac-bio">Biografía</label>
                         <textarea class="aac-input aac-textarea" id="aac-bio" rows="4" maxlength="1200"></textarea>
                     </div>
@@ -121,7 +121,7 @@
                 </div>
 
                 <span class="aac-eyebrow">Redes sociales</span>
-                <div class="aac-stack">
+                <div class="aac-stack" data-assist="perfil.redes">
                     <div class="aac-field">
                         <label class="aac-label" for="aac-instagram">Instagram</label>
                         <div class="aac-inputwrap">
@@ -142,13 +142,38 @@
                     </div>
                 </div>
 
+                <!-- Contacto (modo asistido · paso perfil): WhatsApp → artists_db.whatsapp_number
+                     en formato internacional (account-contact-model.js); Email = correo de
+                     acceso, se cambia con auth.updateUser y se aplica al confirmar el enlace. -->
+                <span class="aac-eyebrow">Contacto</span>
+                <div class="aac-stack aac-contact" id="aac-contact">
+                    <div class="aac-field" data-assist="perfil.whatsapp">
+                        <label class="aac-label" for="aac-contact-whatsapp">WhatsApp</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="phone" aria-hidden="true"></i>
+                            <input class="aac-input" id="aac-contact-whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="+54 9 11 1234 5678" spellcheck="false" aria-describedby="aac-contact-whatsapp-help aac-contact-whatsapp-error">
+                        </div>
+                        <p class="aac-help" id="aac-contact-whatsapp-help">Con código de país. Se guarda con “Guardar cambios”.</p>
+                        <p class="aac-error" id="aac-contact-whatsapp-error" role="alert" hidden></p>
+                    </div>
+                    <div class="aac-field" data-assist="perfil.email">
+                        <label class="aac-label" for="aac-contact-email">Email</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="mail" aria-hidden="true"></i>
+                            <input class="aac-input" id="aac-contact-email" type="email" autocomplete="email" spellcheck="false" aria-describedby="aac-contact-email-help aac-contact-email-error">
+                        </div>
+                        <p class="aac-help" id="aac-contact-email-help" aria-live="polite">Es el correo con el que entrás a We Ötzi. Si lo cambiás, te mandamos un enlace para confirmarlo.</p>
+                        <p class="aac-error" id="aac-contact-email-error" role="alert" hidden></p>
+                    </div>
+                </div>
+
                 <div class="aac-actions">
                     <button type="button" class="aac-btn aac-btn--direct" id="aac-profile-save">Guardar cambios <i data-wo-icon="check" aria-hidden="true"></i></button>
                 </div>
 
                 <!-- Oficio y tarifa: NO está en el Figma 801:565. Cubre lo que antes se
-                     editaba en /artist/profile/details (estilos, experiencia, tarifa,
-                     WhatsApp; ruta retirada). Va plegado debajo del formulario para que
+                     editaba en /artist/profile/details (estilos, experiencia y tarifa;
+                     ruta retirada; el WhatsApp pasó a Contacto). Va plegado debajo del formulario para que
                      el frame coincida en reposo; desvío pendiente de aprobación de diseño.
                      QA: ?vista=oficio#perfil lo abre. -->
                 <details class="aac-more" id="aac-oficio">
@@ -176,10 +201,6 @@
                             <select class="aac-input aac-select" id="aac-price-currency" aria-label="Moneda de la tarifa"></select>
                         </div>
                     </div>
-                    <div class="aac-field">
-                        <label class="aac-label" for="aac-whatsapp">WhatsApp</label>
-                        <input class="aac-input" id="aac-whatsapp" type="tel" autocomplete="tel" placeholder="+54 9 11 1234 5678">
-                    </div>
                     <div class="aac-field aac-field-full aac-more-actions">
                         <button type="button" class="aac-btn aac-btn--outline" id="aac-oficio-save">Guardar oficio y tarifa</button>
                     </div>
@@ -188,13 +209,21 @@
             </section>
 
             <!-- ==================== 2 · Gestionar portafolio (801:566) ==================== -->
-            <section class="aac-section aac-section--wide" id="aac-portafolio" aria-labelledby="aac-portafolio-title" hidden>
+            <section class="aac-section aac-section--wide" id="aac-portafolio" aria-labelledby="aac-portafolio-title" data-assist="portafolio" hidden>
                 <header class="aac-head">
                     <h1 class="aac-title" id="aac-portafolio-title">Portafolio</h1>
                     <p class="aac-sub">Los trabajos que se muestran en tu perfil público.</p>
                 </header>
 
-                <div class="aac-works" id="aac-works"></div>
+                <!-- Validación de Instagram (GET/POST /api/artist/instagram-verification):
+                     las fotos importadas se publican cuando la cuenta está validada.
+                     Estados: no disponible · sin validar · pendiente · validado. -->
+                <div class="aac-ig" id="aac-ig-verify" data-assist="portafolio.instagram_validado portafolio.portafolio_validado">
+                    <p class="aac-ig-text">Revisando la validación de tu Instagram…</p>
+                </div>
+                <p class="aac-works-summary" id="aac-works-summary" role="status" hidden></p>
+
+                <div class="aac-works" id="aac-works" data-assist="portafolio.trabajos"></div>
 
                 <div class="aac-actions aac-actions--row">
                     <button type="button" class="aac-btn aac-btn--outline" id="aac-works-add"><i data-wo-icon="plus" aria-hidden="true"></i>Agregar trabajo</button>
@@ -204,7 +233,7 @@
             </section>
 
             <!-- ==================== 3 · Cobros · We Ötzi Wallet (801:568 · 801:569 · 801:570) ==================== -->
-            <section class="aac-section aac-section--wallet" id="aac-cobros" aria-labelledby="aac-cobros-title" hidden>
+            <section class="aac-section aac-section--wallet" id="aac-cobros" aria-labelledby="aac-cobros-title" data-assist="retiro" hidden>
                 <header class="aac-head">
                     <h1 class="aac-title wal-title" id="aac-cobros-title">We Ötzi Wallet</h1>
                     <p class="aac-sub wal-sub">Administrá tus ingresos, liberaciones y retiros dentro de We Ötzi.</p>
@@ -300,7 +329,7 @@
                     </aside>
                 </div>
 
-                <div class="wal-dest">
+                <div class="wal-dest" data-assist="retiro.destino">
                     <div class="wal-dest-head">
                         <div>
                             <h2 class="wal-h2">Destinos de retiro</h2>
@@ -334,7 +363,7 @@
             </section>
 
             <!-- ==================== 4 · Disponibilidad por ubicación (801:571 · 801:1110) ==================== -->
-            <section class="aac-section aac-section--dispo" id="aac-disponibilidad" aria-labelledby="aac-dispo-title" hidden>
+            <section class="aac-section aac-section--dispo" id="aac-disponibilidad" aria-labelledby="aac-dispo-title" data-assist="disponibilidad" hidden>
                 <header class="aac-head aac-head--actions">
                     <div>
                         <h1 class="aac-title" id="aac-dispo-title">Disponibilidad</h1>
@@ -349,6 +378,30 @@
                 <p class="av-saved" id="av-saved" role="status" hidden><span aria-hidden="true">✓</span> Disponibilidad actualizada para <strong id="av-saved-name"></strong>.</p>
                 <p class="aac-error" id="av-error" role="alert" hidden></p>
 
+                <!-- Modalidad de trabajo (artists_db.work_type / estudios / studio_id) y
+                     estudio base (artist_tattoo_locations current · sort_order 0). -->
+                <div class="av-mode" id="aac-modalidad" data-assist="disponibilidad.modalidad">
+                    <span class="aac-eyebrow av-mode-eyebrow" id="aac-modalidad-title">Modalidad de trabajo</span>
+                    <div class="av-mode-options" role="radiogroup" aria-labelledby="aac-modalidad-title" aria-describedby="aac-modalidad-hint">
+                        <label class="av-mode-option"><input type="radio" name="aac-modalidad" value="studio"><span>Estudio</span></label>
+                        <label class="av-mode-option"><input type="radio" name="aac-modalidad" value="independent"><span>Independiente</span></label>
+                        <label class="av-mode-option"><input type="radio" name="aac-modalidad" value="both"><span>Ambos</span></label>
+                    </div>
+                    <p class="aac-help" id="aac-modalidad-hint">Elegí si tatuás en un estudio, en tu propio espacio o en los dos.</p>
+                    <div class="aac-field av-mode-studio" id="aac-modalidad-studio-field" data-assist="disponibilidad.estudio" hidden>
+                        <label class="aac-label" for="aac-modalidad-studio">Estudio</label>
+                        <div class="aac-typeahead">
+                            <input class="aac-input" id="aac-modalidad-studio" type="text" autocomplete="off" spellcheck="false" placeholder="Buscá tu estudio" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="aac-modalidad-studio-list" aria-describedby="aac-modalidad-studio-help">
+                            <ul class="aac-typeahead-list" id="aac-modalidad-studio-list" role="listbox" aria-label="Estudios" hidden></ul>
+                        </div>
+                        <p class="aac-help" id="aac-modalidad-studio-help">Si no aparece en la lista, agregalo con su nombre.</p>
+                    </div>
+                    <p class="aac-error" id="aac-modalidad-error" role="alert" hidden></p>
+                    <div class="av-mode-actions">
+                        <button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-modalidad-save">Guardar modalidad</button>
+                    </div>
+                </div>
+
                 <span class="aac-eyebrow av-eyebrow">Ubicaciones</span>
                 <div class="av-tabs-wrap" id="av-tabs-wrap">
                     <div class="av-tabs" id="av-tabs" role="tablist" aria-label="Ubicaciones"></div>
@@ -359,7 +412,7 @@
                 <div class="av-current" id="av-current"></div>
 
                 <span class="aac-eyebrow av-eyebrow av-eyebrow--days" id="av-days-title">Días laborales</span>
-                <div class="av-days" id="av-days"></div>
+                <div class="av-days" id="av-days" data-assist="disponibilidad.horarios"></div>
 
                 <div class="aac-grid2 av-vac">
                     <div class="aac-field">
@@ -392,7 +445,7 @@
             </section>
 
             <!-- ==================== 5 · Preferencias de notificaciones (801:572) ==================== -->
-            <section class="aac-section aac-section--notif" id="aac-notificaciones" aria-labelledby="aac-notif-title" hidden>
+            <section class="aac-section aac-section--notif" id="aac-notificaciones" aria-labelledby="aac-notif-title" data-assist="notificaciones" hidden>
                 <header class="aac-head">
                     <h1 class="aac-title" id="aac-notif-title">Notificaciones</h1>
                     <p class="aac-sub">Elegí cómo y cuándo querés que te avisemos.</p>
@@ -403,7 +456,7 @@
                     <span class="aac-matrix-col">Push</span>
                     <span class="aac-matrix-col">SMS</span>
                 </div>
-                <div id="aac-notif-rows"></div>
+                <div id="aac-notif-rows" data-assist="notificaciones.preferencias"></div>
             </section>
 
             <!-- ==================== 6 · Seguridad y recuperación (801:575) ==================== -->
@@ -467,26 +520,26 @@
             </section>
 
             <!-- ==================== 7 · Verificación y documentos (801:573) ==================== -->
-            <section class="aac-section aac-section--verif" id="aac-verificacion" aria-labelledby="aac-verif-title" hidden>
+            <section class="aac-section aac-section--verif" id="aac-verificacion" aria-labelledby="aac-verif-title" data-assist="verificacion" hidden>
                 <header class="aac-head">
                     <h1 class="aac-title" id="aac-verif-title">Verificación</h1>
                     <p class="aac-sub">Un perfil verificado genera más confianza y prioridad en el Job Board.</p>
                 </header>
-                <div id="aac-verif-alert"></div>
+                <div id="aac-verif-alert" data-assist="verificacion.solicitud"></div>
                 <span class="aac-eyebrow">Documentos</span>
                 <div class="aac-docs" id="aac-docs"></div>
                 <p class="aac-row-note" id="aac-docs-note" hidden>Todavía no podemos guardar documentos en este entorno. Escribinos por soporte para completar la verificación.</p>
             </section>
 
             <!-- ==================== 8 · Configuración y accesibilidad (801:574) ==================== -->
-            <section class="aac-section aac-section--config" id="aac-configuracion" aria-labelledby="aac-config-title" hidden>
+            <section class="aac-section aac-section--config" id="aac-configuracion" aria-labelledby="aac-config-title" data-assist="configuracion" hidden>
                 <header class="aac-head">
                     <h1 class="aac-title" id="aac-config-title">Configuración</h1>
                     <p class="aac-sub">Preferencias generales de la plataforma.</p>
                 </header>
 
                 <span class="aac-eyebrow">Región</span>
-                <div class="aac-grid2">
+                <div class="aac-grid2" data-assist="configuracion.region">
                     <div class="aac-field">
                         <label class="aac-label" for="aac-setting-country">País</label>
                         <select class="aac-input aac-select" id="aac-setting-country"></select>
@@ -499,7 +552,7 @@
                         <label class="aac-label" for="aac-timezone">Zona horaria</label>
                         <select class="aac-input aac-select" id="aac-timezone"></select>
                     </div>
-                    <div class="aac-field">
+                    <div class="aac-field" data-assist="configuracion.moneda">
                         <label class="aac-label" for="aac-currency">Moneda predeterminada</label>
                         <select class="aac-input aac-select" id="aac-currency"></select>
                     </div>
@@ -817,14 +870,16 @@
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
-    <script src="/shared/js/data/account-repo.js?v=20261028-3"></script>
+    <script src="/shared/js/data/account-repo.js?v=20261030-1"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/gallery-visibility.js?v=20261030-1"></script>
+    <script src="/shared/js/account-contact-model.js?v=20261030-1"></script>
     <script src="/shared/js/wallet-model.js?v=20261028-3"></script>
     <script src="/shared/js/account-availability-model.js?v=20261028-3"></script>
     <script src="/shared/js/instagram-import.js"></script>
-    <script src="/shared/js/wallet-account.js?v=20261028-3"></script>
-    <script src="/shared/js/artist-account.js?v=20261028-3"></script>
+    <script src="/shared/js/wallet-account.js?v=20261030-1"></script>
+    <script src="/shared/js/artist-account.js?v=20261030-1"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
 </html>

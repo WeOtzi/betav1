@@ -11,6 +11,10 @@
 //   ?modal=telefono|pregunta#seguridad.
 // Datos: SOLO via window.WeotziData.* (artists/quotations/account repos);
 // auth y storage directo sobre el cliente supabase-js (excepciones legítimas).
+// Modo asistido (wo-assist.js): las secciones llevan anclas data-assist
+// ("<paso>.<check>") y cada guardado exitoso dispara `wo:assist-refresh`
+// en document con { section }. Validación de Instagram del portafolio vía
+// GET/POST /api/artist/instagram-verification (degrada si no hay backend).
 // ============================================
 
 (function () {
@@ -23,6 +27,8 @@
     const _supabase = window._supabase;
     const D = window.WeotziData;
     const AV = window.WoAccountAvailability;
+    const CM = window.WoAccountContact;        // account-contact-model.js (WhatsApp / email)
+    const GV = window.WoGalleryVisibility;     // gallery-visibility.js (fotos de IG pendientes)
 
     const SECTIONS = ['perfil', 'portafolio', 'cobros', 'disponibilidad', 'notificaciones',
         'seguridad', 'verificacion', 'configuracion'];
@@ -43,13 +49,32 @@
         ['promociones', 'Promociones', false, false, false]
     ];
 
+    // Tipo, nombre y si es obligatorio (identidad y domicilio; bioseguridad
+    // suma confianza pero es opcional). isVerified() sigue mirando identidad.
     const DOC_TYPES = [
-        ['identidad', 'Documento de identidad'],
-        ['bioseguridad', 'Certificado de bioseguridad'],
-        ['domicilio', 'Comprobante de domicilio']
+        ['identidad', 'Documento de identidad', true],
+        ['bioseguridad', 'Certificado de bioseguridad', false],
+        ['domicilio', 'Comprobante de domicilio', true]
     ];
 
     const WORK_CATEGORIES = [['realizados', 'Realizado'], ['flash', 'Flash'], ['proyectos', 'Proyecto']];
+
+    // Validación de Instagram (servicio Express; 503 sin la migración 20261030120000).
+    const IG_ENDPOINT = '/api/artist/instagram-verification';
+    const IG_POLL_MS = 20000;
+    const IG_FOLLOW_URL = 'https://www.instagram.com/weotzi/';
+    const IG_DEMO_CODE = 'WO-DEMO42';
+
+    // Modalidad de trabajo (lib/artist-registration.js ALLOWED_WORK_TYPES) y
+    // valores legacy de artists_db.estudios / artist_tattoo_locations.
+    const WORK_TYPES = ['studio', 'independent', 'both'];
+    const INDEPENDENT_STUDIO = 'Sin estudio/Independiente';
+    const PRIVATE_STUDIO_NAME = 'ESTUDIO PRIVADO';
+    const MODALITY_HINTS = {
+        studio: 'Tatuás en un estudio: queda como tu estudio base en Ubicaciones.',
+        independent: 'Tatuás por tu cuenta, en tu propio espacio o a domicilio.',
+        both: 'Combinás un estudio con tu propio espacio: el estudio queda como tu base.'
+    };
 
     const TIMEZONES = [
         'America/Argentina/Buenos_Aires', 'America/Montevideo', 'America/Santiago',
@@ -90,7 +115,13 @@
     let langsPicker = null;
     let stylesPicker = null;
     const avState = { locations: [], activeId: null, editing: false, drafts: {}, virtual: false };
+    // Id de la ubicación base sin fila en artist_tattoo_locations (avState.virtual).
+    const VIRTUAL_BASE_ID = 'base';
     let phoneStage = 'number';
+    // Estado de la validación de Instagram (objeto `instagram` del endpoint).
+    const igState = { data: null, loading: false, busy: false, signature: '', lastRequest: null, pollTimer: null };
+    // Typeahead del estudio en Modalidad de trabajo.
+    const modeState = { selected: null, results: [], active: -1, token: 0, timer: null };
 
     const $ = (id) => document.getElementById(id);
 
@@ -123,10 +154,13 @@
         applyAppearanceSettings({ ...DEFAULT_APP_SETTINGS, ...appSettings() });
         fillProfile();
         setupProfile();
+        setupContact();
         works = normalizeWorks(artist.gallery_feed_items, artist.gallery_images);
         renderWorks();
         setupWorks();
+        setupIgVerification();
         const availabilityReady = setupAvailability().catch((err) => console.error('[account] disponibilidad:', err));
+        setupModality();
         renderNotifMatrix();
         setupSecurity().catch((err) => console.error('[account] seguridad:', err));
         loadVerifDocs();
@@ -275,6 +309,39 @@
         return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
     }
 
+    // Modo demo (wo-demo.js): auth y la API Express no pasan por el emulador,
+    // así que esas acciones se simulan o se frenan.
+    function isDemo() {
+        return !!(window.WoDemo && window.WoDemo.enabled);
+    }
+
+    // Rutas internas respetando el base path (/beta en producción, preview local).
+    function appPath(path) {
+        if (window.WoDemo && typeof window.WoDemo.appPath === 'function') return window.WoDemo.appPath(path);
+        const base = window.WEOTZI_BASE_PATH
+            ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(String(window.location.pathname || '')) ? '/beta' : '');
+        if (base && (path === base || String(path).indexOf(base + '/') === 0)) return path;
+        return base + path;
+    }
+
+    // Avisa al panel del modo asistido (wo-assist.js) que vuelva a pedir su estado.
+    function assistRefresh(section) {
+        try {
+            document.dispatchEvent(new CustomEvent('wo:assist-refresh', { detail: { section } }));
+        } catch (err) { console.warn('[account] wo:assist-refresh:', err); }
+    }
+
+    // Error en línea de un campo: <id>-error + aria-invalid en el input.
+    function setFieldError(inputId, message) {
+        const input = $(inputId);
+        const el = $(inputId + '-error');
+        if (el) { el.textContent = message || ''; el.hidden = !message; }
+        if (!input) return;
+        if (message) input.setAttribute('aria-invalid', 'true');
+        else input.removeAttribute('aria-invalid');
+    }
+
     function appSettings() {
         return (prefs && prefs.app_settings) || {};
     }
@@ -353,6 +420,18 @@
         if (Number.isNaN(date.getTime())) return '';
         return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
             .format(date).replace('.', '');
+    }
+
+    // "2 nov, 00:57": reloj de 24 h (con 12 h ICU escribe "12:57 a. m." y el
+    // recorte del punto lo dejaba en "a m.."). Solo se le saca el punto al mes,
+    // que algunos ICU escriben "nov.".
+    function formatDateTime(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+            .formatToParts(date)
+            .map((part) => (part.type === 'month' ? part.value.replace(/\.$/, '') : part.value))
+            .join('');
     }
 
     function formatLongDate(value) {
@@ -484,7 +563,7 @@
         if (!PRICE_CURRENCIES.includes(priceCurrency)) $('aac-price-currency').insertAdjacentHTML('beforeend', `<option value="${esc(priceCurrency)}">${esc(priceCurrency)}</option>`);
         $('aac-price-currency').value = priceCurrency;
         $('aac-price').value = extras?.session_price_amount ?? '';
-        $('aac-whatsapp').value = extras?.whatsapp_number || '';
+        $('aac-contact-whatsapp').value = extras?.whatsapp_number || '';
 
         setDropMedia($('aac-photo-drop'), artist.profile_picture, 'Foto de perfil');
         setDropMedia($('aac-banner-drop'), p.banner_url, 'Banner de perfil');
@@ -527,6 +606,7 @@
             await savePrefs('app_settings', { profile: p });
             setDropMedia($('aac-banner-drop'), url, 'Banner de perfil');
             toast('Banner actualizado');
+            assistRefresh('perfil');
         });
         wireDrop($('aac-photo-drop'), $('aac-photo-input'), async (file) => {
             assertImage(file);
@@ -534,6 +614,7 @@
             await updateArtist({ profile_picture: url });
             setDropMedia($('aac-photo-drop'), url, 'Foto de perfil');
             toast('Foto de perfil actualizada');
+            assistRefresh('perfil');
         });
 
         $('aac-profile-save').addEventListener('click', saveProfile);
@@ -585,6 +666,7 @@
         const errEl = $('aac-username-error');
         errEl.hidden = true;
         $('aac-username').removeAttribute('aria-invalid');
+        setFieldError('aac-contact-whatsapp', '');
 
         const username = $('aac-username').value.trim().toLowerCase();
         if (!username || !/^[a-z0-9._-]{3,40}$/.test(username)) {
@@ -592,6 +674,21 @@
             errEl.hidden = false;
             $('aac-username').setAttribute('aria-invalid', 'true');
             $('aac-username').focus();
+            return;
+        }
+        // Un WhatsApp guardado antes del formato internacional (por ejemplo
+        // "11 5555-1234") no frena el resto del perfil: solo se valida si el
+        // artista tocó el campo. Sin cambios, saveWhatsapp no escribe nada.
+        const storedWhatsapp = extras?.whatsapp_number || null;
+        const whatsappUntouched = $('aac-contact-whatsapp').value.trim() === String(storedWhatsapp || '').trim();
+        const whatsapp = whatsappUntouched
+            ? { ok: true, value: storedWhatsapp }
+            : CM
+                ? CM.normalizeWhatsapp($('aac-contact-whatsapp').value)
+                : { ok: true, value: $('aac-contact-whatsapp').value.trim() || null };
+        if (!whatsapp.ok) {
+            setFieldError('aac-contact-whatsapp', whatsapp.error);
+            $('aac-contact-whatsapp').focus();
             return;
         }
         btn.disabled = true;
@@ -627,13 +724,105 @@
 
             $('aac-setting-city').value = artist.city || '';
             setCountrySelect(artist.country || '');
-            toast('Cambios guardados');
+            const whatsappSaved = await saveWhatsapp(whatsapp.value);
+            toast(whatsappSaved ? 'Cambios guardados' : 'Guardamos tu perfil, pero no el WhatsApp', whatsappSaved);
+            renderIgVerify();
+            assistRefresh('perfil');
         } catch (err) {
             console.error('[account] guardar perfil:', err);
             toast('No pudimos guardar los cambios', false);
         } finally {
             btn.disabled = false;
         }
+    }
+
+    // El WhatsApp va en un UPDATE aparte: trigger_sync_artist_to_auth lo copia a
+    // auth.users.phone (único) y un número repetido no tiene que frenar el
+    // resto del perfil. Devuelve false si no se pudo guardar.
+    async function saveWhatsapp(value) {
+        const input = $('aac-contact-whatsapp');
+        if ((value || null) === (extras?.whatsapp_number || null)) {
+            input.value = value || '';
+            return true;
+        }
+        try {
+            await updateArtist({ whatsapp_number: value });
+            extras = { ...(extras || {}), whatsapp_number: value };
+            input.value = value || '';
+            return true;
+        } catch (err) {
+            console.error('[account] whatsapp:', err);
+            setFieldError('aac-contact-whatsapp', CM && CM.isDuplicatePhoneError(err)
+                ? CM.MESSAGES.whatsappDuplicate
+                : 'No pudimos guardar el WhatsApp. Probá de nuevo.');
+            return false;
+        }
+    }
+
+    // ---- Contacto: email de acceso ----
+
+    function setupContact() {
+        const email = $('aac-contact-email');
+        if (!email) return;
+        email.value = user.email || '';
+        renderEmailHelp();
+        email.addEventListener('change', onEmailChange);
+        email.addEventListener('input', () => setFieldError('aac-contact-email', ''));
+        $('aac-contact-whatsapp').addEventListener('input', () => setFieldError('aac-contact-whatsapp', ''));
+        syncArtistEmail();
+    }
+
+    function renderEmailHelp(message) {
+        const help = $('aac-contact-email-help');
+        if (!help) return;
+        const pending = user.new_email && !(CM ? CM.sameEmail(user.new_email, user.email) : user.new_email === user.email);
+        help.textContent = message
+            || (pending ? `Cambio pendiente: confirmá el enlace que te enviamos a ${user.new_email}.`
+                : 'Es el correo con el que entrás a We Ötzi. Si lo cambiás, te mandamos un enlace para confirmarlo.');
+    }
+
+    // El cambio de correo es de auth: Supabase manda un enlace y lo aplica al
+    // confirmarlo. En el demo no se toca (auth no pasa por el emulador).
+    async function onEmailChange() {
+        const input = $('aac-contact-email');
+        setFieldError('aac-contact-email', '');
+        const email = CM ? CM.normalizeEmail(input.value) : input.value.trim().toLowerCase();
+        const unchanged = !email || (CM ? CM.sameEmail(email, user.email) : email === String(user.email || '').toLowerCase());
+        if (unchanged) { input.value = user.email || ''; return; }
+        if (!(CM ? CM.isValidEmail(email) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+            setFieldError('aac-contact-email', CM ? CM.MESSAGES.emailInvalid : 'Ingresá un correo válido.');
+            return;
+        }
+        if (isDemo()) {
+            input.value = user.email || '';
+            toast('En el modo demo no se guardan cambios de correo', false);
+            return;
+        }
+        input.disabled = true;
+        try {
+            const { error } = await _supabase.auth.updateUser({ email });
+            if (error) throw error;
+            user.new_email = email;
+            input.value = user.email || '';
+            renderEmailHelp(`Te enviamos un enlace a ${email}. El cambio se aplica cuando lo confirmes.`);
+            toast('Te enviamos un enlace para confirmar el correo');
+            assistRefresh('perfil');
+        } catch (err) {
+            console.error('[account] cambiar email:', err);
+            setFieldError('aac-contact-email', /already|registered|exists/i.test(err?.message || '')
+                ? 'Ese correo ya está asociado a otra cuenta de We Ötzi.'
+                : 'No pudimos pedir el cambio de correo. Probá de nuevo.');
+        } finally {
+            input.disabled = false;
+        }
+    }
+
+    // artists_db.email sigue al correo de acceso confirmado (por ejemplo después
+    // de confirmar un cambio desde el enlace). En el demo no se escribe nada.
+    async function syncArtistEmail() {
+        if (isDemo() || !CM || !user?.email || CM.sameEmail(user.email, artist.email)) return;
+        try { await updateArtist({ email: CM.normalizeEmail(user.email) }); }
+        catch (err) { console.warn('[account] sincronizar email:', err); }
     }
 
     // Oficio y tarifa (antes en /artist/profile/details; plegado debajo de Mi
@@ -655,14 +844,14 @@
             years_experience: $('aac-experience').value || null,
             session_price_amount: price,
             session_price_currency: price !== null ? currency : null,
-            session_price: price !== null ? `${price} ${currency}` : null,
-            whatsapp_number: $('aac-whatsapp').value.trim() || null
+            session_price: price !== null ? `${price} ${currency}` : null
         };
         btn.disabled = true;
         try {
             await updateArtist(oficio);
             extras = { ...(extras || {}), ...oficio };
             toast('Oficio y tarifa guardados');
+            assistRefresh('perfil');
         } catch (err) {
             console.error('[account] oficio y tarifa:', err);
             toast('No pudimos guardar oficio y tarifa', false);
@@ -722,18 +911,26 @@
         const grid = $('aac-works');
         const total = Math.max(MIN_WORK_SLOTS, Math.ceil((works.length + 1) / 4) * 4);
         const catOptions = (current) => WORK_CATEGORIES.map(([v, l]) => `<option value="${v}" ${v === current ? 'selected' : ''}>${l}</option>`).join('');
-        const cells = works.map((item, i) => `
-            <div class="aac-work">
+        // Fotos de Instagram que el cliente todavía no ve (gallery-visibility.js).
+        const visibility = igVisibilityState();
+        const pendingCount = pendingWorksCount(visibility);
+        const cells = works.map((item, i) => {
+            const pending = isPendingWork(item, visibility);
+            const label = `Trabajo ${i + 1}${pending ? ' · pendiente de validación' : ''}`;
+            return `
+            <div class="aac-work${pending ? ' is-pending' : ''}">
                 ${item.kind === 'video'
-                    ? `<video src="${esc(item.url)}" preload="metadata" muted playsinline aria-label="Trabajo ${i + 1} (video)"></video>`
-                    : `<img src="${esc(item.url)}" alt="Trabajo ${i + 1}" loading="lazy">`}
+                    ? `<video src="${esc(item.url)}" preload="metadata" muted playsinline aria-label="${label} (video)"></video>`
+                    : `<img src="${esc(item.url)}" alt="${label}" loading="lazy">`}
+                ${pending ? '<span class="aac-work-badge">Pendiente de validación</span>' : ''}
                 <div class="aac-work-tools">
                     <select class="aac-work-cat" data-work-cat="${i}" aria-label="Categoría del trabajo ${i + 1}">${catOptions(item.category)}</select>
                     <button type="button" class="aac-work-btn" data-work-up="${i}" aria-label="Mover antes" ${i === 0 ? 'disabled' : ''}><i data-wo-icon="arrow-left" aria-hidden="true"></i></button>
                     <button type="button" class="aac-work-btn" data-work-down="${i}" aria-label="Mover después" ${i === works.length - 1 ? 'disabled' : ''}><i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
                     <button type="button" class="aac-work-btn" data-work-del="${i}" aria-label="Quitar trabajo"><i data-wo-icon="trash-2" aria-hidden="true"></i></button>
                 </div>
-            </div>`);
+            </div>`;
+        });
         for (let i = works.length; i < total; i++) {
             cells.push(`
             <button type="button" class="aac-drop aac-work-drop" data-work-add>
@@ -743,6 +940,16 @@
             </button>`);
         }
         grid.innerHTML = cells.join('');
+
+        const summary = $('aac-works-summary');
+        if (summary) {
+            summary.hidden = !pendingCount;
+            summary.textContent = !pendingCount ? ''
+                : pendingCount === 1
+                    ? '1 foto importada de Instagram está pendiente de validación: los clientes todavía no la ven.'
+                    : `${pendingCount} fotos importadas de Instagram están pendientes de validación: los clientes todavía no las ven.`;
+        }
+        renderIgVerify();
     }
 
     function setupWorks() {
@@ -824,6 +1031,8 @@
                         renderWorks();
                     }
                     toast('Importamos tus publicaciones de Instagram');
+                    loadIgState();
+                    assistRefresh('portafolio');
                 } catch (err) { console.warn('[account] recargar portafolio:', err); }
             }
         });
@@ -834,6 +1043,262 @@
             gallery_feed_items: works,
             gallery_images: works.map((w) => w.url)
         });
+        assistRefresh('portafolio');
+    }
+
+    // ============================================
+    // 2b · Validación de Instagram del portafolio
+    // ============================================
+    // Las fotos importadas de Instagram se publican cuando el artista valida la
+    // cuenta: código WO-XXXXXX por correo + mensaje directo a @weotzi desde esa
+    // cuenta. Sin la migración el endpoint responde 503 y la tarjeta solo avisa.
+
+    function igHandle() {
+        const raw = String(artist?.instagram || '').trim()
+            .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/[/?#].*$/, '');
+        return GV ? GV.normalizeHandle(raw) : raw.replace(/^@+/, '').toLowerCase();
+    }
+
+    // { enforced, verified, handle } para gallery-visibility.js. Sin backend
+    // (available false) no se exige nada: todo se ve como hasta ahora.
+    function igVisibilityState() {
+        const ig = igState.data;
+        if (!GV || !ig) return { enforced: false, verified: false, handle: null };
+        return GV.stateFrom({ ...ig, enforced: ig.available === true, handle: ig.verified_handle || ig.handle || null });
+    }
+
+    function isPendingWork(item, state) {
+        return !!(GV && GV.isPendingValidation(item, state));
+    }
+
+    function pendingWorksCount(state) {
+        return GV ? GV.pendingCount(works, state || igVisibilityState()) : 0;
+    }
+
+    // Endpoints Express del artista: WoDemo.api (fetch nativo + Bearer + base
+    // path) si está; si no, fetch con el token de la sesión. Rechaza si !ok.
+    async function igApi(path, { method = 'GET', body } = {}) {
+        if (window.WoDemo && typeof window.WoDemo.api === 'function') {
+            return window.WoDemo.api(path, body === undefined ? { method } : { method, body });
+        }
+        const { data } = await _supabase.auth.getSession();
+        const token = data?.session?.access_token || '';
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        const res = await fetch(appPath(path), {
+            method, headers, cache: 'no-store',
+            body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        let json = null;
+        try { json = await res.json(); } catch { json = null; }
+        if (!res.ok || json?.success === false) {
+            const error = new Error(json?.error || `HTTP ${res.status}`);
+            error.status = res.status;
+            error.code = json?.code || null;
+            throw error;
+        }
+        return json || {};
+    }
+
+    function setupIgVerification() {
+        const box = $('aac-ig-verify');
+        if (!box) return;
+        box.addEventListener('click', (event) => {
+            const btn = event.target.closest('[data-ig-action="request"]');
+            if (btn && !btn.disabled) requestIgCode();
+        });
+        // El polling se corta con la sección o la pestaña ocultas y retoma al volver.
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollIgSoon(); });
+        window.addEventListener('hashchange', () => setTimeout(pollIgSoon, 0));
+        loadIgState();
+    }
+
+    // Demo: tarjeta pendiente simulada, sin llamadas a la API.
+    function demoIgState() {
+        return {
+            available: true, status: 'pending', simulated: true,
+            handle: igHandle() || 'tu.cuenta', verified_handle: null, verified_at: null,
+            expires_at: new Date(Date.now() + 72 * 3600000).toISOString(),
+            email_masked: CM ? CM.maskEmail(user?.email) || null : null,
+            email_sent: true
+        };
+    }
+
+    async function loadIgState() {
+        if (isDemo()) { applyIgState(demoIgState()); return; }
+        if (igState.loading) return;
+        igState.loading = true;
+        let next;
+        try {
+            const res = await igApi(IG_ENDPOINT);
+            next = { ...res, available: res.available !== false };
+        } catch (err) {
+            // 503 sin migración, 404 sin endpoint, 403 del preview o sin red.
+            console.warn('[account] validación de Instagram no disponible:', err?.status || err?.message || err);
+            next = { available: false, status: 'none' };
+        } finally {
+            igState.loading = false;
+        }
+        applyIgState(next);
+    }
+
+    function applyIgState(next) {
+        const signature = JSON.stringify([next.available, next.status, next.handle, next.verified_handle,
+            next.verified_at, next.expires_at, next.email_masked, next.pending_items, next.email_sent]);
+        igState.data = next;
+        if (signature !== igState.signature) {
+            const changed = !!igState.signature;
+            igState.signature = signature;
+            renderWorks(); // repinta badges, resumen y la tarjeta
+            if (changed) assistRefresh('portafolio');
+        }
+        scheduleIgPoll();
+    }
+
+    function igSectionVisible() {
+        const section = $('aac-portafolio');
+        return !!section && !section.hidden && document.visibilityState !== 'hidden';
+    }
+
+    // Cada 20 s mientras hay un código pendiente y la sección está a la vista.
+    function scheduleIgPoll() {
+        clearTimeout(igState.pollTimer);
+        igState.pollTimer = null;
+        if (isDemo() || igState.data?.status !== 'pending') return;
+        igState.pollTimer = setTimeout(() => {
+            igState.pollTimer = null;
+            if (igSectionVisible()) loadIgState();
+        }, IG_POLL_MS);
+    }
+
+    function pollIgSoon() {
+        if (isDemo() || igState.loading || igState.pollTimer || igState.data?.status !== 'pending' || !igSectionVisible()) return;
+        loadIgState();
+    }
+
+    async function requestIgCode() {
+        if (isDemo()) { toast('En modo demo la validación es simulada.'); return; }
+        const handle = igHandle();
+        if (!handle) { toast('Cargá tu usuario de Instagram en Mi perfil', false); return; }
+        if (igState.busy) return;
+        igState.busy = true;
+        renderIgVerify();
+        try {
+            const res = await igApi(IG_ENDPOINT, { method: 'POST', body: { handle } });
+            const emailSent = res.email_sent !== false;
+            igState.lastRequest = { expires_at: res.expires_at || null, email_sent: emailSent };
+            igState.busy = false;
+            applyIgState({
+                ...(igState.data || {}), available: true, status: res.status || 'pending',
+                handle: res.handle || handle, expires_at: res.expires_at || null,
+                email_masked: res.email_masked || igState.data?.email_masked || null, email_sent: emailSent
+            });
+            toast(emailSent ? 'Te mandamos el código por correo' : 'Generamos el código, pero no pudimos enviarte el correo', emailSent);
+        } catch (err) {
+            console.error('[account] código de Instagram:', err);
+            igState.busy = false;
+            const status = Number(err?.status) || 0;
+            if (status === 409) { toast('Esa cuenta de Instagram ya está validada'); loadIgState(); return; }
+            if (status === 503 || status === 404) {
+                applyIgState({ available: false, status: 'none' });
+                toast('La validación de Instagram todavía no está habilitada', false);
+                return;
+            }
+            renderIgVerify();
+            toast(status === 429 ? 'Pediste varios códigos seguidos. Probá de nuevo en un rato.'
+                : status === 400 ? 'Revisá tu usuario de Instagram en Mi perfil.'
+                : 'No pudimos generar el código. Probá de nuevo.', false);
+        }
+    }
+
+    function igFollowUrl() {
+        const url = igState.data?.instructions?.follow_url;
+        return /^https:\/\/(www\.)?instagram\.com\//.test(String(url || '')) ? url : IG_FOLLOW_URL;
+    }
+
+    function renderIgVerify() {
+        const box = $('aac-ig-verify');
+        if (!box) return;
+        const ig = igState.data;
+        if (!ig) {
+            box.className = 'aac-ig';
+            box.innerHTML = '<p class="aac-ig-text">Revisando la validación de tu Instagram…</p>';
+            return;
+        }
+        const handle = igHandle();
+        const pending = pendingWorksCount();
+        const head = (chip) => `<div class="aac-ig-head"><i data-wo-icon="instagram" aria-hidden="true"></i><span class="aac-ig-eyebrow">Validación de Instagram</span>${chip || ''}</div>`;
+        const requestBtn = (label, cls) => `<button type="button" class="aac-btn ${cls} aac-btn--s" data-ig-action="request" ${handle && !igState.busy ? '' : 'disabled'}>${igState.busy ? 'Generando código…' : label}</button>`;
+        const profileLink = (label) => `<a class="aac-btn aac-btn--text aac-btn--s" href="#perfil">${label}</a>`;
+        let tone = '';
+        let html = '';
+
+        if (ig.available === false) {
+            tone = ' aac-ig--muted';
+            html = head() + '<p class="aac-ig-text">La validación de Instagram se habilita pronto. Mientras tanto tus fotos importadas se muestran como hasta ahora.</p>';
+        } else if (ig.status === 'verified'
+            // Cambió el usuario en Mi perfil: el GET responde status none/expired
+            // para la cuenta nueva, pero la anterior sigue validada y sus fotos
+            // se publican. Mientras no haya un código pendiente para la nueva,
+            // se muestra lo validado y se ofrece validar la nueva.
+            || (ig.status !== 'pending' && ig.verified_handle && (ig.verified === true || ig.verified_at))) {
+            tone = ' aac-ig--ok';
+            const verified = GV ? GV.normalizeHandle(ig.verified_handle || ig.handle) : String(ig.verified_handle || ig.handle || '');
+            const changed = handle && verified && handle !== verified;
+            html = head('<span class="aac-chip-ok">Validado</span>')
+                + `<h2 class="aac-ig-title">Instagram validado · @${esc(verified)}</h2>`
+                + `<p class="aac-ig-text">${!pending ? 'Tu portafolio está validado: tus fotos importadas se muestran en tu perfil público.'
+                    : pending === 1 ? `1 foto de otra cuenta sigue pendiente: solo se publican las de @${esc(verified)}.`
+                    : `${pending} fotos de otra cuenta siguen pendientes: solo se publican las de @${esc(verified)}.`}</p>`
+                + (changed ? `<p class="aac-ig-meta">En Mi perfil tu Instagram ahora es <strong>@${esc(handle)}</strong> y todavía no está validado. ${ig.status === 'expired' ? 'El código que pediste venció: generá uno nuevo para' : 'Validalo para'} publicar lo que importes desde esa cuenta.</p>
+                    <div class="aac-ig-actions">${requestBtn('Validar esta cuenta', 'aac-btn--accent')}</div>` : '');
+        } else if (ig.status === 'pending') {
+            tone = ' aac-ig--pending';
+            const who = esc(GV ? GV.normalizeHandle(ig.handle || handle) : (ig.handle || handle));
+            const mail = ig.email_masked ? `Revisá tu correo <strong>${esc(ig.email_masked)}</strong>` : 'Revisá tu correo';
+            // El GET no trae email_sent: se recuerda el del último POST para ese código.
+            const last = igState.lastRequest;
+            const sameCode = !!(last && last.expires_at && Date.parse(last.expires_at) === Date.parse(ig.expires_at));
+            const emailSent = typeof ig.email_sent === 'boolean' ? ig.email_sent : !(sameCode && last.email_sent === false);
+            const expires = ig.expires_at ? formatDateTime(ig.expires_at) : '';
+            // Si el correo no salió, el paso 1 no puede decir que se mandó: pide
+            // reenviarlo (el aviso de abajo explica qué pasó).
+            const resend = ig.email_masked
+                ? `Tocá “Reenviar código” y revisá tu correo <strong>${esc(ig.email_masked)}</strong>`
+                : 'Tocá “Reenviar código” y revisá tu correo';
+            const steps = [
+                ig.simulated
+                    ? `${mail}: en el demo tu código de ejemplo es <strong class="aac-ig-code">${IG_DEMO_CODE}</strong>.`
+                    : emailSent
+                        ? `${mail}: te mandamos un código que empieza con WO-.`
+                        : `${resend}: el código empieza con WO-.`,
+                `Desde <strong>@${who}</strong>, seguí a <strong>@weotzi</strong> en Instagram.`,
+                'Mandá el código por mensaje directo a <strong>@weotzi</strong>. Cuando lo recibamos, tu portafolio queda validado.'
+            ];
+            html = head('<span class="aac-chip-warn">Pendiente</span>')
+                + `<h2 class="aac-ig-title">Validá @${who}</h2>`
+                + `<ol class="aac-ig-steps">${steps.map((s) => `<li>${s}</li>`).join('')}</ol>`
+                + (expires ? `<p class="aac-ig-meta">El código vence el ${esc(expires)}.</p>` : '')
+                + (emailSent ? '' : '<p class="aac-ig-warn" role="alert">No pudimos enviarte el correo con el código. Tocá “Reenviar código” o escribinos por soporte.</p>')
+                + (ig.simulated ? '<p class="aac-ig-note">En modo demo la validación es simulada.</p>' : '')
+                + `<div class="aac-ig-actions">
+                    <a class="aac-btn aac-btn--outline aac-btn--s" href="${esc(igFollowUrl())}" target="_blank" rel="noopener">Abrir @weotzi →</a>
+                    ${requestBtn('Reenviar código', 'aac-btn--text')}
+                </div>`;
+        } else {
+            const expired = ig.status === 'expired';
+            html = head(`<span class="aac-chip-muted">${expired ? 'Código vencido' : 'Sin validar'}</span>`)
+                + '<h2 class="aac-ig-title">Validá tu cuenta de Instagram</h2>'
+                + (expired ? '<p class="aac-ig-text">Tu código anterior venció. Generá uno nuevo para seguir.</p>' : '')
+                + '<p class="aac-ig-text">Las fotos que importás de Instagram no se muestran en tu perfil público hasta que valides que la cuenta es tuya. Te mandamos un código por correo y nos lo enviás por mensaje directo.</p>'
+                + (pending ? `<p class="aac-ig-meta">${pending === 1 ? '1 foto importada espera' : `${pending} fotos importadas esperan`} la validación.</p>` : '')
+                + (handle ? `<p class="aac-ig-meta">Cuenta a validar: <strong>@${esc(handle)}</strong></p>`
+                    : '<p class="aac-ig-meta">Primero cargá tu usuario de Instagram en Mi perfil.</p>')
+                + `<div class="aac-ig-actions">${requestBtn('Generar código', 'aac-btn--accent')}${profileLink(handle ? 'Cambiar en Mi perfil →' : 'Ir a Mi perfil →')}</div>`;
+        }
+        box.className = 'aac-ig' + tone;
+        box.innerHTML = html;
     }
 
     async function moveWork(index, dir) {
@@ -954,6 +1419,7 @@
             try {
                 await updateArtist({ vacation_start: from, vacation_end: to });
                 toast('Vacaciones guardadas');
+                assistRefresh('disponibilidad');
             } catch (err) {
                 console.error('[account] vacaciones:', err);
                 toast('No pudimos guardar las vacaciones', false);
@@ -974,14 +1440,33 @@
         }
         avState.virtual = !rows.length;
         avState.locations = rows.length ? AV.sortLocations(rows) : [{
-            id: 'base', virtual: true, period_type: 'current', studio_name: null, city: artist.city || '',
+            id: VIRTUAL_BASE_ID, virtual: true, period_type: 'current', studio_name: null, city: artist.city || '',
             country: artist.country || '', agenda_status: 'open', sort_order: 0
         }];
+        carryAvailabilityDrafts();
         if (!avState.locations.some((l) => l.id === avState.activeId)) {
             const def = AV.defaultLocation(avState.locations, new Date().toISOString());
             avState.activeId = def ? def.id : avState.locations[0].id;
         }
         renderAvailability();
+    }
+
+    // Recargar las ubicaciones a mitad de una edición (por ejemplo al guardar la
+    // modalidad, que crea el estudio base) no pierde lo editado: el borrador de
+    // la base virtual pasa a la base real, y los de filas que ya no están se
+    // descartan para que saveAvailability nunca arme un patch sin ubicación.
+    function carryAvailabilityDrafts() {
+        const ids = new Set(avState.locations.map((l) => l.id));
+        const realBase = avState.virtual ? null : baseLocation();
+        if (realBase && avState.activeId === VIRTUAL_BASE_ID) avState.activeId = realBase.id;
+        Object.keys(avState.drafts).forEach((id) => {
+            if (ids.has(id)) return;
+            const draft = avState.drafts[id];
+            delete avState.drafts[id];
+            if (id === VIRTUAL_BASE_ID && realBase) {
+                avState.drafts[realBase.id] = { ...draft, ...(avState.drafts[realBase.id] || {}) };
+            }
+        });
     }
 
     function renderAvailability() {
@@ -1114,10 +1599,23 @@
         $('av-edit').focus();
     }
 
+    // Una ubicación sin horario guardado muestra el horario por defecto (lunes a
+    // viernes). Si se guarda sin tocarlo, se guarda lo que se ve: así el paso
+    // Disponibilidad del modo asistido lo cuenta.
+    function seedVisibleSchedule() {
+        const loc = activeLocation();
+        if (!loc || avState.drafts[loc.id]?.weekly) return;
+        const av = availabilitySettings();
+        const stored = av.locations?.[loc.id]?.weekly || (isBase(loc) && av.weekly);
+        if (stored) return;
+        avState.drafts[loc.id] = { ...(avState.drafts[loc.id] || {}), weekly: scheduleOf(loc) };
+    }
+
     async function saveAvailability() {
         const errEl = $('av-error');
         errEl.hidden = true;
-        const edited = Object.keys(avState.drafts);
+        seedVisibleSchedule();
+        const edited = Object.keys(avState.drafts).filter((id) => avState.locations.some((l) => l.id === id));
         for (const id of edited) {
             const errors = AV.validateWeekly(avState.drafts[id].weekly || []);
             if (errors.length) {
@@ -1156,6 +1654,7 @@
             // El banner nombra la ubicación editada, no la pestaña activa al guardar.
             const editedLoc = edited.length === 1 ? avState.locations.find((l) => l.id === edited[0]) : null;
             showAvailabilitySaved(edited.length > 1 ? null : (editedLoc || activeLocation()), edited.length);
+            assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] disponibilidad:', err);
             errEl.textContent = 'No pudimos guardar la disponibilidad. Probá de nuevo.';
@@ -1201,11 +1700,269 @@
             toast(row?.degraded
                 ? 'Destino agregado sin país ni lista de espera: el servidor todavía no los admite.'
                 : 'Destino Travel agregado. Definí sus horarios con “Editar disponibilidad”.', !row?.degraded);
+            assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] destino travel:', err);
             errEl.textContent = 'No pudimos agregar el destino. Revisá las fechas y probá de nuevo.';
             errEl.hidden = false;
         } finally { if (submit) submit.disabled = false; }
+    }
+
+    // ---- Modalidad de trabajo y estudio base ----
+    // artists_db.work_type ∈ studio | independent | both, estudios (nombre en
+    // mayúsculas o 'Sin estudio/Independiente') y studio_id, como el registro.
+
+    function currentWorkType() {
+        const type = String(extras?.work_type || '').trim().toLowerCase();
+        if (WORK_TYPES.includes(type)) return type;
+        const legacy = String(extras?.estudios || '').trim();
+        if (!legacy) return '';
+        return legacy === INDEPENDENT_STUDIO ? 'independent' : 'studio';
+    }
+
+    function currentStudioName() {
+        const legacy = String(extras?.estudios || '').trim();
+        return legacy && legacy !== INDEPENDENT_STUDIO ? legacy : '';
+    }
+
+    function selectedWorkType() {
+        return document.querySelector('input[name="aac-modalidad"]:checked')?.value || '';
+    }
+
+    function modalityError(message) {
+        const el = $('aac-modalidad-error');
+        if (!el) return;
+        el.textContent = message || '';
+        el.hidden = !message;
+    }
+
+    function setupModality() {
+        const block = $('aac-modalidad');
+        if (!block) return;
+        const type = currentWorkType();
+        const studioName = currentStudioName();
+        block.querySelectorAll('input[name="aac-modalidad"]').forEach((input) => {
+            input.checked = input.value === type;
+            input.addEventListener('change', () => { modalityError(''); renderModality(); });
+        });
+        const input = $('aac-modalidad-studio');
+        const list = $('aac-modalidad-studio-list');
+        input.value = studioName;
+        modeState.selected = extras?.studio_id && studioName ? { id: extras.studio_id, name: studioName } : null;
+        input.addEventListener('input', onStudioInput);
+        input.addEventListener('keydown', onStudioKeydown);
+        input.addEventListener('blur', () => setTimeout(closeStudioList, 150));
+        list.addEventListener('mousedown', (event) => event.preventDefault()); // conserva el foco en el input
+        list.addEventListener('click', (event) => {
+            const option = event.target.closest('[data-studio-index]');
+            if (option) pickStudio(Number(option.dataset.studioIndex));
+        });
+        $('aac-modalidad-save').addEventListener('click', saveModality);
+        renderModality();
+    }
+
+    function renderModality() {
+        const type = selectedWorkType();
+        const field = $('aac-modalidad-studio-field');
+        field.hidden = !(type === 'studio' || type === 'both');
+        $('aac-modalidad-hint').textContent = MODALITY_HINTS[type] || 'Elegí si tatuás en un estudio, en tu propio espacio o en los dos.';
+        if (field.hidden) closeStudioList();
+    }
+
+    function onStudioInput() {
+        modeState.selected = null;
+        modalityError('');
+        const query = $('aac-modalidad-studio').value.trim();
+        clearTimeout(modeState.timer);
+        if (!query) { modeState.token += 1; closeStudioList(); return; }
+        modeState.timer = setTimeout(() => searchStudios(query), 250);
+    }
+
+    async function searchStudios(query) {
+        const token = ++modeState.token;
+        let rows = [];
+        try {
+            if (D.Studios?.searchByNormalizedName) {
+                const { data, error } = await D.Studios.searchByNormalizedName(query.toUpperCase(), {
+                    limit: 8, columns: 'id, name, normalized_name, city, country'
+                });
+                if (error) throw error;
+                rows = data || [];
+            }
+        } catch (err) {
+            console.warn('[account] buscar estudios:', err);
+        }
+        if (token !== modeState.token) return; // llegó una búsqueda más nueva
+        renderStudioList(query, rows);
+    }
+
+    function renderStudioList(query, rows) {
+        const list = $('aac-modalidad-studio-list');
+        const input = $('aac-modalidad-studio');
+        const upper = query.toUpperCase();
+        const exact = rows.some((r) => String(r.normalized_name || r.name || '').trim().toUpperCase() === upper);
+        modeState.results = rows.map((r) => ({ id: r.id, name: r.name || r.normalized_name, meta: [r.city, r.country].filter(Boolean).join(', ') }));
+        if (!exact) modeState.results.push({ id: null, name: query, create: true });
+        modeState.active = -1;
+        list.innerHTML = modeState.results.map((r, i) => `
+            <li class="aac-typeahead-option${r.create ? ' is-new' : ''}" role="option" id="aac-modalidad-opt-${i}" aria-selected="false" data-studio-index="${i}">
+                ${r.create
+                    ? `<span class="aac-typeahead-name">Agregar «${esc(r.name)}»</span>`
+                    : `<span class="aac-typeahead-name">${esc(r.name)}</span>${r.meta ? `<span class="aac-typeahead-meta">${esc(r.meta)}</span>` : ''}`}
+            </li>`).join('');
+        list.hidden = !modeState.results.length;
+        input.setAttribute('aria-expanded', String(!list.hidden));
+        input.removeAttribute('aria-activedescendant');
+    }
+
+    function paintStudioActive() {
+        const input = $('aac-modalidad-studio');
+        $('aac-modalidad-studio-list').querySelectorAll('[data-studio-index]').forEach((option) => {
+            const on = Number(option.dataset.studioIndex) === modeState.active;
+            option.classList.toggle('is-active', on);
+            option.setAttribute('aria-selected', String(on));
+            if (on) { input.setAttribute('aria-activedescendant', option.id); option.scrollIntoView({ block: 'nearest' }); }
+        });
+        if (modeState.active < 0) input.removeAttribute('aria-activedescendant');
+    }
+
+    function onStudioKeydown(event) {
+        const list = $('aac-modalidad-studio-list');
+        if (event.key === 'Escape') {
+            if (!list.hidden) { event.preventDefault(); event.stopPropagation(); closeStudioList(); }
+            return;
+        }
+        const n = modeState.results.length;
+        if (list.hidden || !n) return;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            const down = event.key === 'ArrowDown';
+            modeState.active = modeState.active < 0 ? (down ? 0 : n - 1) : (modeState.active + (down ? 1 : -1) + n) % n;
+            paintStudioActive();
+        } else if (event.key === 'Enter' && modeState.active >= 0) {
+            event.preventDefault();
+            pickStudio(modeState.active);
+        }
+    }
+
+    function pickStudio(index) {
+        const result = modeState.results[index];
+        if (!result) return;
+        $('aac-modalidad-studio').value = result.name;
+        modeState.selected = result.create ? null : { id: result.id, name: result.name };
+        closeStudioList();
+    }
+
+    function closeStudioList() {
+        const list = $('aac-modalidad-studio-list');
+        const input = $('aac-modalidad-studio');
+        if (!list || !input) return;
+        list.hidden = true;
+        modeState.active = -1;
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+    }
+
+    // Mismo find-or-create que el registro (register.js findOrCreateStudio):
+    // busca por normalized_name y, si no existe, crea la fila mínima del
+    // catálogo; ante una carrera (23505) vuelve a leer. null si no se pudo.
+    async function findOrCreateStudio(name) {
+        if (!D.Studios?.findIdByNormalizedName) return null;
+        const normalized = name.toUpperCase().trim();
+        const { data: existing, error: findErr } = await D.Studios.findIdByNormalizedName(normalized);
+        if (findErr) { console.warn('[account] buscar estudio:', findErr); return null; }
+        if (existing) return existing.id;
+        const { data: created, error: createErr } = await D.Studios.createMinimal({ name: name.trim(), normalizedName: normalized });
+        if (createErr) {
+            if (createErr.code === '23505') {
+                const { data: retry } = await D.Studios.findIdByNormalizedName(normalized, { single: true });
+                return retry?.id || null;
+            }
+            console.warn('[account] crear estudio:', createErr);
+            return null;
+        }
+        return created?.id || null;
+    }
+
+    // Estudio base = artist_tattoo_locations current · sort_order 0 (como el
+    // registro). Independiente: si la base apuntaba a un estudio queda como
+    // ESTUDIO PRIVADO sin studio_id; la fila se conserva para no perder los
+    // horarios guardados con su id (availability.locations[<id>]).
+    async function syncBaseLocation(type, studioId, nameUpper) {
+        if (!D.ArtistLocations?.upsertCurrentLocation) return false;
+        let rows;
+        try {
+            rows = D.AvailabilityLocations ? await D.AvailabilityLocations.list(user.id) : [];
+        } catch (err) {
+            console.warn('[account] ubicaciones:', err);
+            rows = avState.locations.filter((l) => !l.virtual);
+        }
+        const base = rows.find((l) => l.period_type === 'current' && Number(l.sort_order) === 0) || null;
+        let row = null;
+        if (type !== 'independent') {
+            row = {
+                artist_user_id: user.id, period_type: 'current', sort_order: 0,
+                studio_id: studioId, studio_name: nameUpper,
+                city: artist.city || base?.city || null,
+                agenda_status: base?.agenda_status || 'open'
+            };
+        } else if (base && base.studio_id) {
+            row = {
+                artist_user_id: user.id, period_type: 'current', sort_order: 0,
+                studio_id: null, studio_name: PRIVATE_STUDIO_NAME,
+                city: base.city || artist.city || null,
+                agenda_status: base.agenda_status || 'open'
+            };
+        }
+        if (!row) return true;
+        try {
+            const { error } = await D.ArtistLocations.upsertCurrentLocation(row);
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.warn('[account] estudio base:', err);
+            return false;
+        }
+    }
+
+    async function saveModality() {
+        modalityError('');
+        const type = selectedWorkType();
+        if (!WORK_TYPES.includes(type)) { modalityError('Elegí cómo trabajás: estudio, independiente o ambos.'); return; }
+        const withStudio = type !== 'independent';
+        const name = $('aac-modalidad-studio').value.trim();
+        if (withStudio && !name) {
+            modalityError('Escribí el nombre de tu estudio o elegilo de la lista.');
+            $('aac-modalidad-studio').focus();
+            return;
+        }
+        const btn = $('aac-modalidad-save');
+        btn.disabled = true;
+        try {
+            const nameUpper = withStudio ? name.toUpperCase() : null;
+            let studioId = null;
+            if (withStudio) {
+                const picked = modeState.selected && String(modeState.selected.name || '').toUpperCase() === nameUpper;
+                studioId = picked ? modeState.selected.id : await findOrCreateStudio(name);
+            }
+            const patch = {
+                work_type: type,
+                estudios: withStudio ? nameUpper : INDEPENDENT_STUDIO,
+                studio_id: studioId
+            };
+            await updateArtist(patch);
+            extras = { ...(extras || {}), ...patch };
+            modeState.selected = withStudio && studioId ? { id: studioId, name } : null;
+            const baseSaved = await syncBaseLocation(type, studioId, nameUpper);
+            await loadLocations();
+            toast(baseSaved ? 'Modalidad guardada' : 'Guardamos la modalidad, pero no pudimos actualizar tu estudio base', baseSaved);
+            assistRefresh('disponibilidad');
+        } catch (err) {
+            console.error('[account] modalidad:', err);
+            modalityError('No pudimos guardar la modalidad. Probá de nuevo.');
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     // Google Calendar (artist_integration_connections) — sincronización externa.
@@ -1318,6 +2075,7 @@
                     await updateArtist({ subscribed_newsletter: input.checked }).catch((err) => console.warn('[account] newsletter:', err));
                 }
                 toast('Preferencia guardada');
+                assistRefresh('notificaciones');
             } catch (err) {
                 console.error('[account] notificaciones:', err);
                 input.checked = !input.checked;
@@ -1713,6 +2471,15 @@
         return artist?.verification_state === 'Yes' || docStatus(identityDoc()) === 'verified';
     }
 
+    // Obligatorios sin cargar: un documento cuenta si existe y no fue rechazado.
+    function missingRequiredDocs() {
+        return DOC_TYPES.filter(([type, , required]) => {
+            if (!required) return false;
+            const status = docStatus(verifDocs.find((d) => d.doc_type === type) || null);
+            return status === 'missing' || status === 'rejected';
+        }).map(([, label]) => label.charAt(0).toLowerCase() + label.slice(1));
+    }
+
     function renderVerification() {
         const state = artist.verification_state || 'No';
         const idDoc = identityDoc();
@@ -1731,12 +2498,12 @@
             } else if (state === 'Denied' || docStatus(idDoc) === 'rejected') {
                 cls = ' aac-verif-box--error'; icon = 'alert-circle';
                 title = 'Verificación denegada';
-                detail = 'Revisá tus documentos y volvé a solicitarla.';
+                detail = 'Revisá tus documentos y volvé a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.';
                 action = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
             } else {
                 cls = ' aac-verif-box--warning'; icon = 'alert-circle';
                 title = 'Todavía no verificaste tu identidad';
-                detail = 'Subí tus documentos y solicitá la verificación para ganar confianza y prioridad en el Job Board.';
+                detail = 'Subí tu documento de identidad y un comprobante de domicilio (obligatorios) y solicitá la verificación. El certificado de bioseguridad es opcional y suma confianza.';
                 action = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
             }
         }
@@ -1748,10 +2515,16 @@
         </div>`;
 
         $('aac-verif-request')?.addEventListener('click', async () => {
+            const missing = verifAvailable ? missingRequiredDocs() : [];
+            if (missing.length) {
+                toast(`Antes de solicitarla, subí tu ${missing.join(' y tu ')}.`, false);
+                return;
+            }
             try {
                 await updateArtist({ verification_state: 'Requested' });
                 renderVerification();
                 toast('Solicitud de verificación enviada');
+                assistRefresh('verificacion');
             } catch (err) {
                 console.error('[account] solicitar verificación:', err);
                 toast('No pudimos enviar la solicitud', false);
@@ -1786,7 +2559,7 @@
         const wrap = $('aac-docs');
         $('aac-docs-note').hidden = verifAvailable;
 
-        wrap.innerHTML = DOC_TYPES.map(([type, label]) => {
+        wrap.innerHTML = DOC_TYPES.map(([type, label, required]) => {
             const doc = verifDocs.find((d) => d.doc_type === type) || null;
             const status = docStatus(doc);
             const nameTag = doc ? 'button' : 'span';
@@ -1795,8 +2568,8 @@
             if (status !== 'verified') actions.push(`<button type="button" class="aac-doc-action" data-doc-upload="${type}" ${verifAvailable ? '' : 'disabled'}>${doc ? 'Reemplazar' : 'Subir'}</button>`);
             if (doc && status !== 'verified') actions.push(`<button type="button" class="aac-doc-action aac-doc-action--danger" data-doc-del="${esc(doc.id)}">Eliminar</button>`);
             return `
-            <div class="aac-doc">
-                <${nameTag} class="aac-doc-name"${nameAttrs}><i data-wo-icon="copy" aria-hidden="true"></i><span>${label}</span></${nameTag}>
+            <div class="aac-doc" data-assist="verificacion.${type}">
+                <${nameTag} class="aac-doc-name"${nameAttrs}><i data-wo-icon="copy" aria-hidden="true"></i><span>${label}</span><span class="aac-doc-req${required ? ' is-required' : ''}">${required ? 'Obligatorio' : 'Opcional'}</span></${nameTag}>
                 <div class="aac-doc-side">
                     ${actions.join('')}
                     ${docBadge(status)}
@@ -1842,6 +2615,7 @@
                     toast(result?.previous
                         ? (cleanupComplete ? 'Documento reemplazado' : 'Documento reemplazado; limpieza anterior pendiente')
                         : 'Documento subido', cleanupComplete);
+                    assistRefresh('verificacion');
                 } catch (err) {
                     console.error('[account] subir documento:', err);
                     if (path) await removeOrQueueVerificationPath(path);
@@ -1874,6 +2648,7 @@
                     renderVerification();
                     renderDocs();
                     toast(cleanupComplete ? 'Documento eliminado' : 'Documento eliminado; limpieza del archivo pendiente', cleanupComplete);
+                    assistRefresh('verificacion');
                 } catch (err) {
                     console.error('[account] eliminar documento:', err);
                     verifDocs = await D.VerificationDocs.list(user.id).catch(() => verifDocs);
@@ -1939,6 +2714,7 @@
             try {
                 await updateArtist({ preferred_display_currency: currencySel.value || null });
                 toast('Moneda predeterminada guardada');
+                assistRefresh('configuracion');
             } catch (err) {
                 console.error('[account] moneda:', err);
                 toast('No pudimos guardar la moneda', false);
@@ -1950,6 +2726,7 @@
                 s = { ...s, ...patch };
                 applyAppearanceSettings(s);
                 toast('Preferencia guardada');
+                assistRefresh('configuracion');
             })
             .catch((err) => {
                 console.error('[account] configuración:', err);
@@ -1976,12 +2753,20 @@
             });
         });
 
+        // Lo que la página muestra es lo que mira el paso Configuración del modo
+        // asistido: la zona horaria del select y, si nunca se eligió una moneda,
+        // la que se ve (la de la tarifa). La moneda va en un UPDATE aparte para
+        // que un error ahí no frene la región; saveSetting avisa al final.
         const saveRegion = async () => {
             const country = $('aac-setting-country').value.trim();
             const city = $('aac-setting-city').value.trim();
             try {
                 await updateArtist({ country: country || null, city: city || null });
-                await saveSetting({ country, city });
+                if (!artist.preferred_display_currency && currencySel.value) {
+                    await updateArtist({ preferred_display_currency: currencySel.value })
+                        .catch((err) => console.warn('[account] moneda mostrada:', err));
+                }
+                await saveSetting({ country, city, timezone: tzSel.value });
                 $('aac-country').value = country;
                 $('aac-city').value = city;
             } catch (error) {

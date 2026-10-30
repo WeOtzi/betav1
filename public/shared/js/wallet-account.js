@@ -43,6 +43,13 @@
     function esc(value) { return ctx.esc(value); }
     function toast(msg, ok) { ctx.toast(msg, ok); }
 
+    // Modo asistido (wo-assist.js): el paso "retiro" se refresca al cambiar destinos.
+    function assistRefresh() {
+        try {
+            document.dispatchEvent(new CustomEvent('wo:assist-refresh', { detail: { section: 'cobros' } }));
+        } catch (err) { console.warn('[wallet] wo:assist-refresh:', err); }
+    }
+
     async function init(context) {
         ctx = context;
         D = ctx.D;
@@ -507,6 +514,7 @@
             await loadDestinations();
             render();
             toast(input.id ? 'Destino actualizado' : 'Destino agregado · lo verificamos antes del primer retiro');
+            assistRefresh();
         } catch (err) {
             console.error('[wallet] destino:', err);
             showError('wal-dest-error', /tarjeta/.test(err && err.message)
@@ -529,6 +537,7 @@
                 state.quickManual = false; // Retiro rápido pasa al nuevo predeterminado
                 render();
                 toast('Destino predeterminado actualizado');
+                assistRefresh();
             } catch (err) {
                 console.error('[wallet] predeterminar:', err);
                 toast('No pudimos actualizar el destino predeterminado', false);
@@ -547,6 +556,7 @@
                 }
                 render();
                 toast('Destino eliminado');
+                assistRefresh();
             } catch (err) {
                 console.error('[wallet] eliminar destino:', err);
                 toast('No pudimos eliminar el destino', false);

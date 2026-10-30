@@ -450,3 +450,71 @@ body[data-aac-theme="dark"] .aac-select{background-image:url("data:image/svg+xml
 .aac-section--config .aac-choice-field + .aac-choice-field{margin-top:var(--space-5)}
 .aac-section--config .aac-grid2 + .aac-togglerow{margin-top:22px}
 .aac-section--config .aac-grid2--narrow{margin-top:var(--space-5)}
+
+/* ============================================================================
+   Modo asistido (oct 2026): bloques nuevos del centro de la cuenta.
+   No están en el Figma 801:56x; siguen los patrones de la página (av-travel,
+   av-badge, aac-segment, aac-chip-*). Mobile first, objetivos de 44px.
+   ========================================================================== */
+
+/* Ayuda debajo de un campo (Contacto, Modalidad). */
+.aac-help{margin:0;font-family:var(--font-body);font-size:12.5px;line-height:1.45;color:var(--text-muted)}
+
+/* ---------- 2 · Portafolio: validación de Instagram ---------- */
+.aac-ig{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);margin:0 0 var(--space-6);padding:var(--space-5);background:var(--neutral-100);border:var(--border-hairline) solid var(--border-subtle);box-sizing:border-box}
+.aac-ig--pending{border-left:var(--border-rule-width) solid var(--yellow-300)}
+.aac-ig--ok{border-color:var(--system-success);background:var(--success-bg)}
+.aac-ig--muted{background:transparent}
+.aac-ig-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.aac-ig-head [data-wo-icon]{width:18px;height:18px;flex:none;color:var(--text-heading)}
+.aac-ig-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted)}
+.aac-ig-title{margin:0;font-family:var(--font-display);font-weight:400;font-size:19px;line-height:1.25;color:var(--text-heading);overflow-wrap:anywhere}
+.aac-ig-text{margin:0;max-width:42rem;font-family:var(--font-body);font-size:var(--body-s-size);line-height:1.5;color:var(--text-body)}
+.aac-ig-meta{margin:0;font-family:var(--font-body);font-size:13px;line-height:1.45;color:var(--text-muted);overflow-wrap:anywhere}
+.aac-ig-meta strong,.aac-ig-steps strong{color:var(--text-heading)}
+.aac-ig-steps{display:grid;gap:var(--space-3);margin:0;padding:0;list-style:none;counter-reset:aac-ig-step}
+.aac-ig-steps li{position:relative;min-height:24px;padding-left:36px;font-family:var(--font-body);font-size:var(--body-s-size);line-height:1.5;color:var(--text-body);overflow-wrap:anywhere;counter-increment:aac-ig-step}
+.aac-ig-steps li::before{content:counter(aac-ig-step);position:absolute;left:0;top:0;display:grid;place-items:center;width:24px;height:24px;background:var(--surface-inverse);font-family:var(--font-mono);font-size:12px;font-weight:var(--weight-bold);color:var(--yellow-300)}
+.aac-ig-code{font-family:var(--font-mono);letter-spacing:0.08em}
+.aac-ig-warn{margin:0;padding:var(--space-3) var(--space-4);background:var(--warning-bg);border-left:var(--border-rule-width) solid var(--system-warning);font-family:var(--font-body);font-size:13px;line-height:1.45;color:var(--text-heading)}
+.aac-ig-note{margin:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.06em;color:var(--text-muted)}
+.aac-ig-actions{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-3);margin-top:var(--space-1)}
+.aac-works-summary{display:flex;align-items:baseline;gap:var(--space-2);margin:0 0 var(--space-4);font-family:var(--font-body);font-size:13.5px;line-height:1.45;color:var(--text-body)}
+.aac-works-summary::before{content:"";flex:none;width:8px;height:8px;background:var(--yellow-300);border:var(--border-hairline) solid var(--border-strong)}
+.aac-works-summary[hidden]{display:none}
+/* Foto importada que el cliente todavía no ve: misma insignia que av-badge. */
+.aac-work.is-pending{outline:2px solid var(--yellow-300);outline-offset:-2px}
+.aac-work-badge{position:absolute;top:var(--space-2);left:var(--space-2);z-index:1;display:inline-flex;align-items:center;max-width:calc(100% - var(--space-4));padding:4px 8px;background:var(--yellow-300);font-family:var(--font-mono);font-size:9.5px;line-height:1.3;letter-spacing:0.12em;text-transform:uppercase;color:var(--neutral-500);pointer-events:none}
+
+/* ---------- 4 · Disponibilidad: modalidad de trabajo ---------- */
+.av-mode{display:flex;flex-direction:column;align-items:stretch;gap:var(--space-3);margin-top:var(--space-6);padding-bottom:var(--space-6);border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.av-mode .av-mode-eyebrow{margin:0;letter-spacing:0.14em}
+.av-mode-options{display:flex;flex-wrap:wrap;gap:2px}
+.av-mode-option{position:relative;display:flex;flex:1 1 auto;cursor:pointer}
+.av-mode-option input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.av-mode-option span{display:flex;align-items:center;justify-content:center;flex:1;box-sizing:border-box;min-height:var(--control-h-md);padding:0 18px;border:var(--border-hairline) solid var(--border-muted);background:var(--figma-white);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:0.05em;color:var(--text-body);text-align:center}
+.av-mode-option:hover span{background:var(--neutral-200)}
+.av-mode-option input:checked + span{background:var(--surface-inverse);border-color:var(--border-strong);color:var(--figma-white)}
+.av-mode-option input:focus-visible + span{box-shadow:var(--shadow-focus)}
+.av-mode-studio{max-width:32rem}
+.av-mode-studio[hidden]{display:none}
+.av-mode-actions{display:flex;flex-wrap:wrap;gap:var(--space-3)}
+/* Typeahead del estudio (combobox + listbox). */
+.aac-typeahead{position:relative}
+.aac-typeahead-list{position:absolute;z-index:30;top:calc(100% + var(--space-1));left:0;right:0;max-height:16rem;overflow:auto;margin:0;padding:var(--space-1) 0;list-style:none;background:var(--surface-card);border:var(--border-hairline) solid var(--border-strong)}
+.aac-typeahead-list[hidden]{display:none}
+.aac-typeahead-option{display:flex;flex-direction:column;justify-content:center;gap:2px;box-sizing:border-box;min-height:var(--control-h-md);padding:var(--space-2) var(--space-4);font-family:var(--font-body);font-size:var(--body-s-size);color:var(--text-body);cursor:pointer}
+.aac-typeahead-option:hover,.aac-typeahead-option.is-active{background:var(--neutral-100)}
+.aac-typeahead-option.is-new .aac-typeahead-name{font-weight:var(--weight-bold);color:var(--text-heading)}
+.aac-typeahead-name{overflow-wrap:anywhere}
+.aac-typeahead-meta{font-family:var(--font-mono);font-size:11px;color:var(--text-muted)}
+
+/* ---------- 7 · Verificación: obligatorio / opcional ---------- */
+.aac-doc-req{display:inline-flex;align-items:center;padding:2px 6px;border:var(--border-hairline) solid var(--border-muted);font-family:var(--font-mono);font-size:10px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
+.aac-doc-req.is-required{border-color:var(--border-strong);color:var(--text-heading)}
+
+@media (min-width:48rem){
+  .aac-ig{padding:21px 23px}
+  .av-mode-option{flex:0 0 auto}
+  .av-mode-option span{min-width:9.5rem}
+}
