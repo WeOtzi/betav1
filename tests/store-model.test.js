@@ -17,6 +17,8 @@ const W = require('../public/shared/js/store-watermark.js');
 const SELLER = '6f1c2a9e-0000-4000-8000-000000000001';
 const PRODUCT = '9a7b3c1d-0000-4000-8000-000000000002';
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Objetos de otro realm (vm) o con prototipo propio: se comparan como JSON.
+const plainObj = (value) => JSON.parse(JSON.stringify(value));
 
 function design(extra) {
     return Object.assign({
@@ -128,6 +130,47 @@ test('priceFrom: price_from de la RPC o mínimo de niveles / variantes activas',
     assert.equal(M.priceFrom(design({ license_personal_price: null, license_artist_price: null, license_exclusive_price: null })), null);
 });
 
+test('priceLabel: «Desde» solo con varios precios o un precio aproximado (precio base del merch y overrides)', () => {
+    const label = (p) => M.priceLabel(p).label;
+    assert.deepEqual(plainObj(M.priceLabel({ kind: 'merch', currency: 'ARS', price_amount: 3000, variants: [] })), { amount: 3000, from: false, label: 'ARS 3.000' });
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_amount: 25, variants: [{ id: 'a' }, { id: 'b' }] }), 'USD 25', 'todas heredan el base');
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_amount: 25, variants: [{ id: 'a' }, { id: 'b', price_amount: 30 }] }), 'Desde USD 25');
+    // Ficha pública sin price_amount: el base se deduce de price_from.
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_from: 20, variants: [{ id: 'a', price_amount: 30 }, { id: 'b' }] }), 'Desde USD 20');
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_from: 15, variants: [{ id: 'a', price_amount: 15 }, { id: 'b' }] }), 'Desde USD 15', 'aproximado: el override iguala a price_from');
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_from: 20, variants: [{ id: 'a' }] }), 'USD 20', 'exacto: ningún override por debajo');
+    assert.deepEqual(plainObj(M.priceLabel({ kind: 'merch', currency: 'USD', variants: [] })), { amount: null, from: false, label: '' });
+    assert.equal(label({ kind: 'design', currency: 'USD', license_personal_price: 50 }), 'USD 50', 'una sola licencia');
+    assert.equal(label({ kind: 'design', currency: 'USD', license_personal_price: 50, license_artist_price: 120 }), 'Desde USD 50');
+    assert.equal(label({ kind: 'design', currency: 'USD', price_from: 80 }), 'Desde USD 80', 'sin precios: price_from');
+    assert.equal(label({ kind: 'design', price_from: 80 }), 'Desde USD 80', 'sin moneda: USD');
+    assert.deepEqual(plainObj(M.merchPricing({ kind: 'merch', price_from: 20, variants: [{ id: 'a', price_amount: 30 }, { id: 'b' }] })), { base: 20, exact: true });
+});
+
+test('priceLabel ≡ priceSummary de la vitrina (store-catalog.js) para que catálogo y perfil la reutilicen', () => {
+    const box = { window: { WeotziStoreModel: M }, console };
+    vm.runInNewContext(read('public/shared/js/store-catalog.js'), box, { filename: 'store-catalog.js' });
+    const C = box.window.WeotziStoreCatalog;
+    const cases = [
+        { kind: 'merch', currency: 'ARS', price_amount: 3000, price_from: 3000, variants: [] },
+        { kind: 'merch', currency: 'USD', price_amount: 25, price_from: 25, variants: [{ id: 'v1' }, { id: 'v2' }] },
+        { kind: 'merch', currency: 'USD', price_amount: 25, price_from: 25, variants: [{ id: 'v1' }, { id: 'v2', price_amount: 30 }] },
+        { kind: 'merch', currency: 'USD', price_from: 20, variants: [{ id: 'v1', price_amount: 30 }, { id: 'v2' }] },
+        { kind: 'merch', currency: 'USD', price_from: 15, variants: [{ id: 'v1', price_amount: 15 }, { id: 'v2' }] },
+        { kind: 'merch', currency: 'USD', price_from: 18, variants: [{ id: 'v1', price_amount: 18 }, { id: 'v2', price_amount: 18 }] },
+        { kind: 'merch', currency: 'USD', price_amount: '0', price_from: null, variants: [{ id: 'v1', price_amount: '0' }] },
+        { kind: 'merch', currency: 'usd', variants: [] },
+        { kind: 'design', currency: 'USD', price_from: 50, license_personal_price: 50 },
+        { kind: 'design', currency: 'USD', price_from: 50, license_personal_price: 50, license_artist_price: 120 },
+        { kind: 'design', currency: 'USD', license_personal_price: 50, license_artist_price: 50, license_exclusive_price: 50 },
+        { kind: 'design', currency: 'ARS', price_from: 80 },
+        { kind: 'design', currency: 'usd', license_exclusive_price: '400' },
+        { kind: 'design', currency: 'USD' },
+        null
+    ];
+    for (const p of cases) assert.deepEqual(plainObj(M.priceLabel(p)), plainObj(C.priceSummary(p)), JSON.stringify(p));
+});
+
 /* --------------------------------- niveles -------------------------------- */
 
 test('availableTiers: siempre los tres niveles, con motivo y código', () => {
@@ -156,13 +199,24 @@ test('availableTiers: exclusiva no disponible con licencias emitidas o exclusive
 test('availableTiers: un diseño reservado bloquea todos los niveles (product_reserved)', () => {
     const reserved = M.availableTiers(design({ reserved: true }), { viewerIsArtist: true });
     assert.ok(reserved.every((r) => !r.available && r.code === 'product_reserved'));
-    // Fila del vendedor: reserva vigente o vencida.
+    // Fila del vendedor: reservado mientras haya reserved_order_id, aunque
+    // reserved_until haya pasado (la reserva se libera al cerrar el pedido).
     const now = Date.parse('2026-10-30T12:00:00Z');
     const live = design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: '2026-10-31T00:00:00Z' });
     const stale = design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: '2026-10-29T00:00:00Z' });
     assert.equal(M.availableTiers(live, { now })[0].code, 'product_reserved');
-    assert.equal(M.availableTiers(stale, { now })[0].available, true);
-    assert.equal(M.isReserved(design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: null }), now), false, 'igual que la RPC pública');
+    assert.equal(M.availableTiers(stale, { now })[0].code, 'product_reserved', 'create_store_order rechaza igual');
+    assert.equal(M.availableTiers(design({ reserved: undefined, reserved_order_id: null, reserved_until: null }), { now })[0].available, true);
+});
+
+test('isReserved ≡ store_public_product_json: reserved_order_id is not null (sin mirar reserved_until)', () => {
+    assert.equal(M.isReserved(design({ reserved: true })), true, 'ficha pública');
+    assert.equal(M.isReserved(design({ reserved: false })), false);
+    assert.equal(M.isReserved(design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: null })), true);
+    assert.equal(M.isReserved(design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: '2020-01-01T00:00:00Z' })), true);
+    assert.equal(M.isReserved(design({ reserved: undefined, reserved_order_id: null, reserved_until: '2099-01-01T00:00:00Z' })), false);
+    assert.equal(M.isReserved(null), false);
+    assert.deepEqual(M.productBadges(design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: '2020-01-01T00:00:00Z' })).map((b) => b.key), ['reserved']);
 });
 
 test('availableTiers: niveles sin precio, producto inactivo y producto propio', () => {
@@ -264,11 +318,27 @@ test('publishChecklist de diseño: espejo del guard (precio, imagen, original, s
 });
 
 test('publishChecklist de merch: precio base, variante activa, imagen y ajustes, sin autoría', () => {
-    const ok = M.publishChecklist(merch({ images: [{ path: 'a/b/1-0.jpg' }] }), { settings: { payment_instructions: 'x', contact_channel: 'y' } });
+    const ok = M.publishChecklist(merch({ images: [{ path: 'a/b/1-0.jpg' }], pickup_available: false }), { settings: { payment_instructions: 'x', contact_channel: 'y' } });
     assert.deepEqual(ok.map((i) => i.key), ['price', 'variants', 'images', 'payment_instructions', 'contact_channel']);
     assert.equal(M.checklistComplete(ok), true);
-    const bad = M.publishChecklist(merch({ price_amount: null, images: [], variants: [{ id: 'v', active: false }] }), { settings: {} });
+    const bad = M.publishChecklist(merch({ price_amount: null, images: [], variants: [{ id: 'v', active: false }], pickup_available: false }), { settings: {} });
     assert.deepEqual(bad.filter((i) => !i.ok).map((i) => i.key), ['price', 'variants', 'images', 'payment_instructions', 'contact_channel']);
+});
+
+test('publishChecklist de merch con retiro: «Dirección de retiro en Ajustes» es requisito (create_store_order la exige)', () => {
+    const settings = { payment_instructions: 'x', contact_channel: 'y' };
+    const product = merch({ images: [{ path: 'a/b/1-0.jpg' }], pickup_available: true });
+    const without = M.publishChecklist(product, { settings: Object.assign({}, settings, { pickup_address: '   ' }) });
+    assert.deepEqual(without.map((i) => i.key), ['price', 'variants', 'images', 'payment_instructions', 'contact_channel', 'pickup_address']);
+    const item = without.find((i) => i.key === 'pickup_address');
+    assert.deepEqual([item.ok, item.label, item.scope], [false, 'Dirección de retiro en Ajustes', 'pickup']);
+    assert.match(item.hint, /cargá la dirección en Ajustes o desactivá el retiro/);
+    assert.equal(M.checklistComplete(without), false, 'sin dirección no se publica con retiro');
+    const withAddress = M.publishChecklist(product, { settings: Object.assign({}, settings, { pickup_address: 'Palermo, CABA' }) });
+    assert.equal(M.checklistComplete(withAddress), true);
+    // Un diseño nunca pide dirección de retiro.
+    const d = M.publishChecklist(design({ images: [{ path: 'a/b/1-0.webp' }], pickup_available: true }), { assets: [{ kind: 'original' }, { kind: 'stencil' }], settings: READY_SETTINGS });
+    assert.ok(!d.some((i) => i.key === 'pickup_address'));
 });
 
 test('validateProductDraft limpia el patch y respeta los checks de forma', () => {
@@ -316,6 +386,39 @@ test('validateShippingAddress: campos obligatorios, ISO-2 y ships_to_countries',
 
     const anywhere = M.validateShippingAddress({ recipient: 'Ana', line1: 'Calle 1', city: 'Madrid', country: 'ES' }, merch({ ships_to_countries: [] }));
     assert.equal(anywhere.ok, true, 'lista vacía = sin restricción');
+});
+
+test('COUNTRY_CODES: los 249 ISO 3166-1 alfa-2, iguales a la lista del checkout, con nombres en español', () => {
+    assert.equal(M.COUNTRY_CODES.length, 249);
+    assert.equal(new Set(M.COUNTRY_CODES).size, 249, 'sin repetidos');
+    assert.ok(M.COUNTRY_CODES.every((c) => /^[A-Z]{2}$/.test(c)));
+    assert.deepEqual(M.COUNTRY_CODES.slice(), M.COUNTRY_CODES.slice().sort(), 'ordenados');
+    for (const code of ['AR', 'UY', 'MX', 'ES', 'US', 'BR', 'CL', 'AQ']) assert.ok(M.COUNTRY_CODES.includes(code), code);
+    for (const code of ['EU', 'UN', 'ZZ', 'UK', 'XK', 'QO']) assert.ok(!M.COUNTRY_CODES.includes(code), code + ' no es un país asignado');
+    const checkout = read('public/shared/js/store-checkout.js');
+    const match = /var COUNTRY_CODES = (\[[\s\S]*?\]);/.exec(checkout);
+    if (match) assert.deepEqual(plainObj(M.COUNTRY_CODES), plainObj(vm.runInNewContext(match[1])), 'misma lista que store-checkout.js');
+
+    assert.equal(M.countryName('ar'), 'Argentina');
+    assert.equal(M.countryName(' UY '), 'Uruguay');
+    assert.equal(M.countryName('MX'), 'México');
+    assert.equal(M.countryName('A1'), 'A1', 'código inválido: tal cual');
+    assert.equal(M.countryName(''), '');
+    assert.equal(M.countryName(null), '');
+    const all = M.countryOptions();
+    assert.equal(all.length, 249);
+    assert.deepEqual(plainObj(all.find((o) => o.code === 'AR')), { code: 'AR', label: 'Argentina' });
+    assert.ok(all.every((o, i) => i === 0 || all[i - 1].label.localeCompare(o.label, 'es') <= 0), 'ordenadas por nombre');
+    assert.deepEqual(plainObj(M.countryOptions(['uy', 'AR', 'AR', 'x'])), [{ code: 'AR', label: 'Argentina' }, { code: 'UY', label: 'Uruguay' }]);
+    assert.equal(M.countryOptions([]).length, 249, 'lista vacía = todos');
+});
+
+test('countryName sin Intl.DisplayNames devuelve el código', () => {
+    const box = { console, Intl: { DateTimeFormat: Intl.DateTimeFormat } };
+    box.window = box;
+    vm.runInNewContext(read('public/shared/js/store-model.js'), box, { filename: 'store-model.js' });
+    assert.equal(box.WeotziStoreModel.countryName('AR'), 'AR');
+    assert.deepEqual(plainObj(box.WeotziStoreModel.countryOptions(['UY', 'AR'])), [{ code: 'AR', label: 'AR' }, { code: 'UY', label: 'UY' }]);
 });
 
 test('isHttpsUrl y validateTracking', () => {
@@ -615,6 +718,41 @@ test('orderView: vencido sin pago informado no ofrece confirmar el pago (la RPC 
     // La reapertura de soporte sigue siendo solo para `expired`.
     const expiredSupport = M.orderView(order({ status: 'expired' }), { role: 'support', now: late });
     assert.deepEqual(expiredSupport.actions.filter((a) => a.key === 'confirm_payment').map((a) => a.label), ['Reabrir y confirmar pago']);
+});
+
+test('orderView del comprador: vencido, «Ya pagué →» no se ofrece (report_store_payment da order_not_payable)', () => {
+    const late = '2026-11-01T12:00:00Z';
+    const v = M.orderView(order(), { role: 'buyer', now: late });
+    assert.equal(v.overdue, true);
+    assert.ok(!v.actions.some((a) => a.key === 'report_payment'), 'sin informar el pago');
+    assert.notEqual(v.nextAction.key, 'report_payment');
+    assert.deepEqual([v.nextAction.key, v.nextAction.kind, v.nextAction.label], ['payment_overdue', 'info', 'Venció el plazo para pagar este pedido.']);
+    assert.ok(v.actions.some((a) => a.key === 'cancel'), 'sin pago informado lo puede cancelar');
+
+    // Con pago informado y vencido: tampoco se actualiza el comprobante; espera a quien cobra.
+    const reported = M.orderView(order({ buyer_payment_reported_at: '2026-10-31T09:00:00Z' }), { role: 'buyer', now: late });
+    assert.ok(!reported.actions.some((a) => a.key === 'report_payment' || a.key === 'cancel'));
+    assert.equal(reported.nextAction.key, 'awaiting_confirmation');
+
+    // En plazo sigue igual.
+    const onTime = M.orderView(order({ buyer_payment_reported_at: '2026-10-30T11:00:00Z' }), { role: 'buyer', now: NOW });
+    assert.deepEqual(onTime.actions.filter((a) => a.key === 'report_payment').map((a) => a.label), ['Actualizar comprobante →']);
+});
+
+test('orderView del vendedor: con pago informado y plazo vencido puede cancelar («No recibí el pago») si cobra directo', () => {
+    const late = '2026-11-01T12:00:00Z';
+    const reported = order({ buyer_payment_reported_at: '2026-10-31T09:00:00Z' });
+    const v = M.orderView(reported, { role: 'seller', now: late });
+    const cancel = v.actions.filter((a) => a.key === 'cancel');
+    assert.deepEqual(cancel.map((a) => [a.label, a.reason, a.tone]), [['No recibí el pago', 'payment_not_received', 'ghost']]);
+    assert.equal(v.nextAction.key, 'confirm_payment', 'confirmar sigue primero');
+    // En plazo, con pago informado: solo soporte cancela.
+    assert.ok(!M.orderView(reported, { role: 'seller', now: NOW }).actions.some((a) => a.key === 'cancel'));
+    // Cobra la plataforma: el vendedor no cancela un pago informado.
+    assert.ok(!M.orderView(order({ buyer_payment_reported_at: '2026-10-31T09:00:00Z', expected_collector: 'platform' }), { role: 'seller', now: late })
+        .actions.some((a) => a.key === 'cancel'));
+    // Soporte, siempre «Cancelar pedido».
+    assert.deepEqual(M.orderView(reported, { role: 'support', now: late }).actions.filter((a) => a.key === 'cancel').map((a) => a.label), ['Cancelar pedido']);
 });
 
 test('orderView de un pedido cancelado marca el paso terminal y los saltados', () => {

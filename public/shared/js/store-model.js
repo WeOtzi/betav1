@@ -7,7 +7,10 @@
  * §6 RPCs y §8.1 lógica pura).
  *
  * Reglas que espeja de la migración 20261030150000_store_core.sql:
- *   - publishChecklist ≡ guard store_products_guard al pasar a `active`;
+ *   - publishChecklist ≡ guard store_products_guard al pasar a `active`, más
+ *     la dirección de retiro que exige create_store_order (merch con retiro);
+ *   - isReserved ≡ `reserved` de store_public_product_json
+ *     (reserved_order_id is not null, la condición de product_reserved);
  *   - canTransitionFulfillment ≡ update_store_order_fulfillment +
  *     confirm_store_order_received + run_store_maintenance;
  *   - usesWallet ≡ store_order_uses_wallet(o);
@@ -538,14 +541,81 @@
         return prices.length ? Math.min.apply(null, prices) : null;
     }
 
-    // Reserva vigente: `reserved` de la RPC pública o reserved_order_id con
-    // reserved_until futuro en la fila del vendedor.
-    function isReserved(product, now) {
+    // Precio base del merch. La ficha pública trae price_from y el override de
+    // cada variante, pero no siempre price_amount: si falta, se deduce cuando
+    // es exacto (ninguna variante con override por debajo de price_from).
+    // exact = false → el precio de las variantes que heredan es «desde».
+    function merchPricing(product) {
+        var p = product || {};
+        var base = num(p.price_amount);
+        if (base > 0) return { base: round2(base), exact: true };
+        var variants = asArray(p.variants);
+        var overrides = [];
+        var inherits = !variants.length;
+        variants.forEach(function (v) {
+            var o = num(v && v.price_amount);
+            if (o > 0) overrides.push(o);
+            else inherits = true;
+        });
+        if (!inherits) return { base: null, exact: true };
+        var from = num(p.price_from);
+        if (!(from > 0)) return { base: null, exact: false };
+        var minOverride = overrides.length ? Math.min.apply(null, overrides) : Infinity;
+        return { base: round2(from), exact: minOverride > from };
+    }
+
+    function currencyOf(product) { return text(product && product.currency).toUpperCase() || 'USD'; }
+
+    // Precio de cards y bandas: { amount, from, label }. «Desde USD 35» solo si
+    // hay varios precios posibles (niveles o variantes) o alguno es aproximado;
+    // si no, el precio solo («USD 400»). Sin precios: «Desde» + priceFrom.
+    // Misma lógica que la vitrina (store-catalog priceSummary).
+    function priceLabel(product) {
+        var p = product || {};
+        var prices = [];
+        var approx = false;
+        if (p.kind === 'design') {
+            LICENSE_TIERS.forEach(function (tier) {
+                var v = num(p[tier.priceField]);
+                if (v > 0) prices.push(round2(v));
+            });
+        } else {
+            var variants = asArray(p.variants);
+            if (variants.length) {
+                var pricing = null;
+                variants.forEach(function (v) {
+                    var o = num(v && v.price_amount);
+                    if (o > 0) { prices.push(round2(o)); return; }
+                    pricing = pricing || merchPricing(p);
+                    if (pricing.base == null) return;
+                    prices.push(pricing.base);
+                    if (!pricing.exact) approx = true;
+                });
+            } else {
+                var base = merchPricing(p).base;
+                if (base != null) prices.push(base);
+            }
+        }
+        if (!prices.length) {
+            var from = priceFrom(p);
+            return from == null
+                ? { amount: null, from: false, label: '' }
+                : { amount: from, from: true, label: 'Desde ' + formatMoney(from, currencyOf(p)) };
+        }
+        var min = Math.min.apply(null, prices);
+        var several = approx || prices.some(function (x) { return x !== min; });
+        return { amount: min, from: several, label: (several ? 'Desde ' : '') + formatMoney(min, currencyOf(p)) };
+    }
+
+    // Reservado: `reserved` de la RPC pública o reserved_order_id en la fila
+    // del vendedor. Misma condición que frena la compra (create_store_order →
+    // product_reserved): la reserva se libera al cerrar o confirmar el pedido,
+    // no al pasar reserved_until (un pago informado la extiende). Un segundo
+    // argumento (el `now` de antes) se ignora.
+    function isReserved(product) {
         if (!product) return false;
         if (product.reserved === true) return true;
-        if (!product.reserved_order_id) return false;
-        var until = time(product.reserved_until);
-        return until != null && until > nowMs(now);
+        return product.reserved_order_id != null && product.reserved_order_id !== '';
     }
 
     // Niveles para la ficha: siempre los tres, en orden, con motivo si no se
@@ -554,7 +624,7 @@
         opts = opts || {};
         var p = product || {};
         var inactive = p.status && p.status !== 'active';
-        var reserved = isReserved(p, opts.now);
+        var reserved = isReserved(p);
         var licensed = num(p.licenses_issued) > 0;
         return LICENSE_TIERS.map(function (tier) {
             var price = tierPrice(p, tier.id);
@@ -579,7 +649,7 @@
         var p = product || {};
         var out = [];
         if (p.kind === 'design') {
-            if (isReserved(p, opts && opts.now)) out.push({ key: 'reserved', label: 'Reservado', tag: 'wo-tag wo-tag--highlight' });
+            if (isReserved(p)) out.push({ key: 'reserved', label: 'Reservado', tag: 'wo-tag wo-tag--highlight' });
             else if (p.exclusive_available === true || (p.exclusive_available == null && tierPrice(p, 'exclusive') != null && !(num(p.licenses_issued) > 0))) {
                 out.push({ key: 'exclusive', label: 'Exclusiva disponible', tag: 'wo-tag wo-tag--filled' });
             }
@@ -718,10 +788,66 @@
                 { key: 'variants', ok: variants.some(function (v) { return v && v.active !== false; }), label: 'Al menos una variante activa' },
                 { key: 'images', ok: images.length > 0, label: 'Al menos una imagen' }
             ].concat(sellerItems);
+            // Retiro: create_store_order exige pickup_address (pickup_unavailable)
+            // y la ficha pública no ofrece retiro sin dirección. Es requisito para
+            // publicar con retiro: se resuelve cargando la dirección o
+            // desactivando el retiro.
+            if (p.pickup_available === true) {
+                list.push({
+                    key: 'pickup_address', ok: hasText(settings.pickup_address), label: 'Dirección de retiro en Ajustes',
+                    scope: 'pickup', hint: 'Ofrecés retiro en el estudio: cargá la dirección en Ajustes o desactivá el retiro.'
+                });
+            }
         }
         return list;
     }
     function checklistComplete(list) { return asArray(list).length > 0 && asArray(list).every(function (i) { return i.ok; }); }
+
+    /* ------------------------------ países ------------------------------ */
+
+    // Todos los códigos ISO 3166-1 alfa-2 asignados (249). Se usan cuando el
+    // vendedor no restringe la lista (ships_to_countries vacío = todos) y en el
+    // editor para restringirla. Los nombres salen de Intl.DisplayNames('es').
+    var COUNTRY_CODES = [
+        'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
+        'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ',
+        'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ',
+        'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR',
+        'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY',
+        'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP',
+        'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY',
+        'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ',
+        'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM',
+        'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW',
+        'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ',
+        'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ',
+        'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW'
+    ];
+
+    // ISO-2 → nombre en español («AR» → «Argentina»). Sin Intl.DisplayNames
+    // o con un código que no resuelve, devuelve el código.
+    var regionNames = null;
+    function countryName(code) {
+        var c = text(code).toUpperCase();
+        if (!/^[A-Z]{2}$/.test(c)) return c;
+        try {
+            if (!regionNames && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+                regionNames = new Intl.DisplayNames(['es'], { type: 'region' });
+            }
+            var name = regionNames ? regionNames.of(c) : '';
+            return name && name !== c ? name : c;
+        } catch (e) {
+            return c;
+        }
+    }
+
+    // Opciones para un <select> o una lista de casillas: [{ code, label }]
+    // ordenadas por nombre. Sin códigos (o con una lista vacía), los 249.
+    function countryOptions(codes) {
+        var list = normalizeCountries(codes || []).filter(function (c) { return /^[A-Z]{2}$/.test(c); });
+        return (list.length ? list : COUNTRY_CODES.slice()).map(function (c) { return { code: c, label: countryName(c) }; })
+            .sort(function (a, b) { return a.label.localeCompare(b.label, 'es'); });
+    }
 
     function normalizeCountries(value) {
         var list = Array.isArray(value) ? value : String(value == null ? '' : value).split(/[\s,;]+/);
@@ -1032,7 +1158,9 @@
 
         if (role === 'buyer') {
             if (pending) {
-                actions.push(action('report_payment', reported ? 'Actualizar comprobante →' : 'Ya pagué →'));
+                // report_store_payment rechaza un pedido vencido (order_not_payable),
+                // con o sin pago informado: no se ofrece informar ni actualizar.
+                if (!view.overdue) actions.push(action('report_payment', reported ? 'Actualizar comprobante →' : 'Ya pagué →'));
                 if (!reported) actions.push(action('cancel', 'Cancelar pedido', { tone: 'ghost' }));
             }
             steps.forEach(function (s) { if (s.status === 'delivered') actions.push(action('confirm_received', 'Ya lo recibí →')); });
@@ -1040,7 +1168,8 @@
                 actions.push(action('view_license', 'Ver certificado →', { tone: 'ghost' }));
                 if (view.license.canMarkUsed) actions.push(action('mark_license_used', 'Marcar licencia como usada', { tone: 'ghost' }));
             }
-            if (pending && !reported) view.nextAction = actions[0];
+            if (pending && !reported && view.overdue) view.nextAction = info('payment_overdue', 'Venció el plazo para pagar este pedido.');
+            else if (pending && !reported) view.nextAction = actions[0];
             else if (pending) view.nextAction = info('awaiting_confirmation', collector === 'seller' ? 'Informaste el pago. El vendedor lo tiene que confirmar.' : 'Informaste el pago. We Ötzi lo tiene que confirmar.');
             else if (paid && steps.length) view.nextAction = actions.filter(function (a) { return a.key === 'confirm_received'; })[0] || null;
             else if (paid && method !== 'digital') view.nextAction = info('preparing', 'El vendedor está preparando tu pedido.');
@@ -1052,6 +1181,11 @@
             if (canConfirm) actions.push(action('confirm_payment', 'Confirmar pago recibido'));
             if (role === 'support' && o.status === 'expired' && collector !== 'provider') actions.push(action('confirm_payment', 'Reabrir y confirmar pago', { tone: 'ghost' }));
             if (pending && (!reported || role === 'support')) actions.push(action('cancel', 'Cancelar pedido', { tone: 'ghost' }));
+            // cancel_store_order: con pago informado, el vendedor que cobra directo
+            // puede cancelar cuando venció el plazo («no recibí el pago»).
+            else if (pending && role === 'seller' && collector === 'seller' && view.overdue) {
+                actions.push(action('cancel', 'No recibí el pago', { tone: 'ghost', reason: 'payment_not_received' }));
+            }
             steps.forEach(function (s) { actions.push(action('fulfillment', s.actionLabel, { status: s.status, requiresTracking: s.requiresTracking })); });
             // La RPC acepta repetir `shipped` para corregir el seguimiento.
             if (paid && method === 'shipping' && fulfillment === 'shipped') actions.push(action('edit_tracking', 'Editar seguimiento', { tone: 'ghost', status: 'shipped' }));
@@ -1307,6 +1441,7 @@
         ERROR_CODES: ERROR_CODES,
         DEFAULT_ERROR: DEFAULT_ERROR,
         LICENSE_CODE_RE: LICENSE_CODE_RE,
+        COUNTRY_CODES: COUNTRY_CODES,
 
         statusLabel: statusLabel,
         statusTag: statusTag,
@@ -1318,6 +1453,8 @@
         unitPriceFor: unitPriceFor,
         orderTotals: orderTotals,
         priceFrom: priceFrom,
+        merchPricing: merchPricing,
+        priceLabel: priceLabel,
         isReserved: isReserved,
         availableTiers: availableTiers,
         productBadges: productBadges,
@@ -1331,6 +1468,8 @@
         validateShippingAddress: validateShippingAddress,
         validateTracking: validateTracking,
         isHttpsUrl: isHttpsUrl,
+        countryName: countryName,
+        countryOptions: countryOptions,
         orderView: orderView,
         licenseView: licenseView,
         termsFor: termsFor,

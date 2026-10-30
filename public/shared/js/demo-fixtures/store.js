@@ -17,9 +17,14 @@
  *     códigos: throw new Error('store:<código>'), que el emulador responde como
  *     400 P0001. Validan todo antes de mutar y mutan con store.update/insert
  *     (así el demo persiste los cambios entre páginas).
+ *   - Lo interno de soporte (nota y autor de la retención, autor del reembolso
+ *     y de la reapertura, marca resuelta) va a store_order_support_notes, como
+ *     en el SQL; metadata_json del pedido lo ven comprador y vendedor.
  *   - Simplificaciones: cobra siempre el vendedor (manual), así que ningún
  *     pedido toca el wallet; el email se da por confirmado; soporte solo con
- *     rpcCtx.isSupport (lo usan los tests).
+ *     rpcCtx.isSupport (lo usan los tests); no hay run_store_maintenance: el
+ *     vencimiento (con 7 días de gracia si hay pago informado) se aplica al
+ *     tomar una reserva exclusiva vencida en create_store_order.
  *
  * Montos en USD y ARS; fechas relativas a "hoy"; ids estables con el prefijo
  * 0000c0de-0000-4000-8000-57.
@@ -48,7 +53,8 @@
         function myHandle() { return identity.username || 'artista.wo'; }
 
         ['store_products', 'store_product_variants', 'store_design_assets', 'store_seller_settings', 'store_orders',
-            'store_order_items', 'store_payments', 'store_licenses', 'store_download_events', 'store_demo_sellers'
+            'store_order_items', 'store_payments', 'store_licenses', 'store_download_events', 'store_order_support_notes',
+            'store_demo_sellers'
         ].forEach(function (t) { if (ctx.TABLES.indexOf(t) === -1) ctx.TABLES.push(t); });
 
         /* ------------------------------ relaciones ------------------------------ */
@@ -268,12 +274,14 @@
                 seller_message: 'Salió hoy por correo. Te llega en 5 a 7 días hábiles.',
                 paid_at: daysAgo(4), payment_collected_by: 'seller', payment_confirmed_by: artistId, shipped_at: daysAgo(2), expires_at: daysAgo(4),
                 idempotency_key: 'demo-o3', created_at: daysAgo(5), updated_at: daysAgo(2) })),
-            // Digital completado: exclusiva de D3 con licencia emitida.
+            // Digital completado: exclusiva de D3 con licencia emitida. Una segunda
+            // confirmación quedó como pago duplicado y soporte ya la revisó.
             order(mine({ id: O4, order_number: 'ST-3FA8B6D1', buyer_user_id: sofia.id, buyer_name: sofia.name, buyer_email: sofia.email,
                 status: 'fulfilled', fulfillment_status: 'delivered', currency: 'USD', subtotal_amount: 420, total_amount: 420,
                 paid_at: daysAgo(12), payment_collected_by: 'seller', payment_confirmed_by: artistId, delivered_at: daysAgo(12), delivered_by: 'auto',
                 buyer_payment_reference: 'Transferencia 88213', buyer_payment_reported_at: daysAgo(12), expires_at: daysAgo(11),
-                idempotency_key: 'demo-o4', created_at: daysAgo(13), updated_at: daysAgo(12) })),
+                metadata_json: { needs_support_reason: 'duplicate_payment', needs_support_at: daysAgo(12), needs_support_resolved_at: daysAgo(11) },
+                idempotency_key: 'demo-o4', created_at: daysAgo(13), updated_at: daysAgo(11) })),
             // Cancelado por el comprador (el stock ya se restituyó).
             order(mine({ id: O5, order_number: 'ST-C04E7A55', buyer_user_id: mateo.id, buyer_name: mateo.name, buyer_email: mateo.email,
                 status: 'cancelled', fulfillment_method: 'shipping', currency: 'ARS', subtotal_amount: 12000, shipping_amount: 2500, total_amount: 14500,
@@ -324,6 +332,8 @@
             payment({ id: id(601), order_id: O2, amount: 34500, currency: 'ARS', reference: 'Transferencia 77410', confirmed_by: artistId, created_at: daysAgo(1) }),
             payment({ id: id(602), order_id: O3, amount: 55, currency: 'USD', reference: 'Transferencia 77102', confirmed_by: artistId, created_at: daysAgo(4) }),
             payment({ id: id(603), order_id: O4, amount: 420, currency: 'USD', reference: 'Transferencia 88213', confirmed_by: artistId, created_at: daysAgo(12) }),
+            payment({ id: id(605), order_id: O4, status: 'duplicate', amount: 420, currency: 'USD', reference: 'Transferencia 88213 (reenvío)',
+                confirmed_by: artistId, created_at: daysAgo(12) }),
             payment({ id: id(604), order_id: O6, amount: 6000, currency: 'ARS', reference: 'Efectivo en el estudio', confirmed_by: artistId, created_at: daysAgo(2) }),
             payment({ id: id(651), order_id: P1, amount: 30, currency: 'USD', reference: 'Transferencia 55120', confirmed_by: MARA, created_at: daysAgo(9) }),
             payment({ id: id(652), order_id: P2, amount: 22000, currency: 'ARS', reference: 'Transferencia 55388', confirmed_by: MARA, created_at: daysAgo(3) })
@@ -338,6 +348,11 @@
                 verification_code: 'WOL-0D9E-4B7C', issued_at: daysAgo(9), created_at: daysAgo(9) })
         ];
         tables.store_download_events = [];
+        // Notas internas de soporte (store_order_support_notes): solo las lee soporte.
+        tables.store_order_support_notes = [
+            { id: id(801), order_id: O4, kind: 'flag_resolved', actor_id: null, created_at: daysAgo(11),
+                note: 'Revisado con la vendedora: la segunda confirmación era el mismo comprobante reenviado. No hubo doble cobro.' }
+        ];
 
         /* ------------------------------ helpers de RPC ------------------------------ */
         function fail(code) { throw new Error('store:' + code); }
@@ -379,6 +394,27 @@
             return rowsOf(store, 'store_seller_settings').find(function (s) { return s.seller_type === sellerType && same(s.seller_id, sellerId); }) || null;
         }
         function usesWallet(o) { return o.seller_type === 'artist' && (o.payment_collected_by === 'platform' || o.payment_collected_by === 'provider'); }
+        // store_order_lapsed: pendiente que ya se puede cerrar como vencido. Sin
+        // pago informado, al pasar expires_at; con pago informado, 7 días después.
+        function lapsed(o) {
+            if (!o || o.status !== 'pending_payment' || !expired(o.expires_at)) return false;
+            return !o.buyer_payment_reported_at || ms(o.expires_at) < Date.now() - 7 * DAY;
+        }
+        function hasPickupAddress(settings) { return !!(settings && text(settings.pickup_address)); }
+        // Nota interna de soporte (la escriben solo las RPC, como en el SQL).
+        function addNote(store, orderId, kind, note, actor) {
+            store.insert('store_order_support_notes', [{ order_id: orderId, kind: kind, note: text(note, 500), actor_id: actor || null, created_at: isoNow() }]);
+        }
+        // metadata_json sin la marca needs_support y con needs_support_resolved_at
+        // (needs_support_reason y needs_support_at quedan como historial).
+        function resolvedMeta(meta, extra) {
+            var out = Object.assign({}, meta || {});
+            if (Object.prototype.hasOwnProperty.call(out, 'needs_support')) {
+                delete out.needs_support;
+                out.needs_support_resolved_at = isoNow();
+            }
+            return Object.assign(out, extra || {});
+        }
         function randomHex(n) {
             var out = '';
             for (var i = 0; i < n; i++) out += '0123456789ABCDEF'[Math.floor(Math.random() * 16)];
@@ -450,12 +486,14 @@
                 license_personal_price: p.license_personal_price, license_artist_price: p.license_artist_price, license_exclusive_price: p.license_exclusive_price,
                 exclusive_available: p.kind === 'design' && p.license_exclusive_price != null && p.reserved_order_id == null
                     && !(Number(p.licenses_issued) > 0) && !p.exclusive_sold_at && !pendingOfProduct(store, p.id, null).length,
-                reserved: p.reserved_order_id != null && !expired(p.reserved_until) && p.reserved_until != null,
+                // Misma condición que frena la compra (product_reserved).
+                reserved: p.reserved_order_id != null,
                 licenses_issued: p.licenses_issued || 0,
                 design_width_cm: p.design_width_cm, design_height_cm: p.design_height_cm, design_style: p.design_style, placement_suggestion: p.placement_suggestion,
                 images: (p.images || []).map(function (i) { return { path: i.path, alt: i.alt == null ? null : i.alt }; }),
                 shipping_price_amount: p.shipping_price_amount, ships_to_countries: p.ships_to_countries || [], ships_to_note: p.ships_to_note,
-                pickup_available: !!p.pickup_available, pickup_note: p.pickup_note,
+                // Retiro solo si el vendedor cargó la dirección (create_store_order la exige).
+                pickup_available: !!p.pickup_available && hasPickupAddress(settingsOf(store, p.seller_type, p.seller_id)), pickup_note: p.pickup_note,
                 variants: variants.map(function (v) {
                     return { id: v.id, label: v.label, size: v.size, color: v.color, price_amount: v.price_amount,
                         in_stock: v.stock == null || v.stock > 0, low_stock: v.stock != null && v.stock <= 5 ? v.stock : null };
@@ -478,12 +516,22 @@
         }
 
         // store_close_unpaid_order: cierra un pending_payment, restituye stock y
-        // libera la reserva condicionada a este pedido.
+        // libera la reserva condicionada a este pedido. Un vencido con pago
+        // informado queda marcado needs_support (soporte decide si lo reabre).
         function closeUnpaid(store, order, status, reason) {
             if (!order || order.status !== 'pending_payment') return false;
-            patch(store, 'store_orders', order.id, status === 'cancelled'
-                ? { status: 'cancelled', cancelled_at: isoNow(), cancel_reason: text(reason, 300) }
-                : { status: 'expired' });
+            var values;
+            if (status === 'cancelled') {
+                values = { status: 'cancelled', cancelled_at: isoNow(), cancel_reason: text(reason, 300) };
+            } else {
+                values = { status: 'expired' };
+                var meta = order.metadata_json || {};
+                if (order.buyer_payment_reported_at && meta.needs_support !== true) {
+                    values.metadata_json = Object.assign({}, meta,
+                        { needs_support: true, needs_support_reason: 'payment_reported_expired', needs_support_at: isoNow() });
+                }
+            }
+            patch(store, 'store_orders', order.id, values);
             itemsOf(store, order.id).forEach(function (i) {
                 var v = find(store, 'store_product_variants', i.variant_id);
                 if (v && v.stock != null) patch(store, 'store_product_variants', v.id, { stock: Number(v.stock) + Number(i.quantity || 0) });
@@ -516,11 +564,15 @@
                 return patch(store, 'store_orders', order.id, { metadata_json: Object.assign({}, order.metadata_json,
                     { needs_support: true, needs_support_reason: 'duplicate_payment', needs_support_at: isoNow() }) });
             }
-            var reopen = null;
+            // Reapertura de un vencido: reopening marca que se reabre (cualquier
+            // tipo) y reopen es el efecto sobre stock o reserva, si lo hay.
+            var reopening = false, reopen = null;
             if (order.status === 'pending_payment') {
                 if (expired(order.expires_at) && !order.buyer_payment_reported_at && collectedBy !== 'provider') fail('order_not_payable');
             } else if (order.status === 'expired') {
-                if (!support) fail('order_not_payable');
+                // Soporte reabre; el proveedor también (un webhook tardío trae un cobro real).
+                if (!(support || collectedBy === 'provider')) fail('order_not_payable');
+                reopening = true;
                 if (it.kind === 'merch') {
                     var v = find(store, 'store_product_variants', it.variant_id);
                     if (!v || (v.stock != null && v.stock < it.quantity)) fail('cannot_reopen');
@@ -545,21 +597,29 @@
                 }
             }
             // Validado: a partir de acá se muta.
-            if (reopen) {
-                reopen();
+            if (reopening) {
+                if (reopen) reopen();
                 order = patch(store, 'store_orders', order.id, { status: 'pending_payment',
-                    metadata_json: Object.assign({}, order.metadata_json, { reopened_at: isoNow(), reopened_by: actor }) });
+                    metadata_json: Object.assign({}, order.metadata_json, { reopened_at: isoNow() }) });
+                // Quién reabrió queda para soporte.
+                addNote(store, order.id, 'reopen', collectedBy === 'provider' ? 'Webhook de ' + provider : null, actor);
             }
             var at = isoNow();
             store.insert('store_payments', [payment({ order_id: order.id, provider: provider, status: 'succeeded', amount: order.total_amount,
                 currency: order.currency, collected_by: collectedBy, reference: ref, note: note, confirmed_by: actor })]);
             if (it.kind === 'design') {
                 var seller = sellerInfo(store, order.seller_type, order.seller_id) || {};
+                // Las medidas quedan en la licencia (jsonb_strip_nulls): «Imprimir a
+                // escala real» anda aunque el producto ya no esté activo.
+                var size = {};
+                if (p.design_width_cm != null) size.design_width_cm = p.design_width_cm;
+                if (p.design_height_cm != null) size.design_height_cm = p.design_height_cm;
                 store.insert('store_licenses', [license({
                     order_id: order.id, order_item_id: it.id, product_id: p.id, tier: it.license_tier, holder_user_id: order.buyer_user_id,
                     holder_name: (text(it.license_holder_name, 120) || order.buyer_name).slice(0, 120), seller_type: order.seller_type,
                     seller_id: order.seller_id, seller_display_name: seller.name || seller.handle || null, seller_username: seller.handle || null,
-                    design_title: it.title, terms_version: it.terms_version || termsVersion(), verification_code: newLicenseCode(store), issued_at: at
+                    design_title: it.title, terms_version: it.terms_version || termsVersion(), verification_code: newLicenseCode(store), issued_at: at,
+                    metadata_json: size
                 })]);
                 var productPatch = { licenses_issued: (Number(p.licenses_issued) || 0) + 1, sales_count: (Number(p.sales_count) || 0) + it.quantity };
                 if (it.license_tier === 'exclusive') {
@@ -569,14 +629,16 @@
                 if (it.license_tier === 'exclusive') {
                     pendingOfProduct(store, p.id, order.id).forEach(function (other) { closeUnpaid(store, other, 'cancelled', 'exclusive_sold'); });
                 }
+                // Confirmar resuelve la marca de soporte (pago informado y vencido).
                 var done = { status: 'fulfilled', fulfillment_status: 'delivered', delivered_at: at, delivered_by: 'auto', paid_at: at,
-                    payment_collected_by: collectedBy, payment_confirmed_by: actor };
+                    payment_collected_by: collectedBy, payment_confirmed_by: actor, metadata_json: resolvedMeta(order.metadata_json) };
                 if (usesWallet(Object.assign({}, order, done))) done.funds_release_at = new Date(Date.now() + 72 * HOUR).toISOString();
                 return patch(store, 'store_orders', order.id, done);
             }
             if (p) patch(store, 'store_products', p.id, { sales_count: (Number(p.sales_count) || 0) + it.quantity });
             var settings = settingsOf(store, order.seller_type, order.seller_id) || {};
-            var paid = { status: 'paid', paid_at: at, payment_collected_by: collectedBy, payment_confirmed_by: actor };
+            var paid = { status: 'paid', paid_at: at, payment_collected_by: collectedBy, payment_confirmed_by: actor,
+                metadata_json: resolvedMeta(order.metadata_json) };
             if (order.fulfillment_method === 'pickup') paid.pickup_details = text(settings.pickup_address, 300);
             return patch(store, 'store_orders', order.id, paid);
         }
@@ -596,13 +658,15 @@
             }
             // 2. Términos vigentes (el email se da por confirmado en el demo).
             if (args.p_terms_version !== termsVersion()) fail('terms_version_mismatch');
-            // 3. Producto activo; una reserva exclusiva vencida se vence acá.
+            // 3. Producto activo; una reserva exclusiva vencida se vence acá (sin
+            // pago informado, o con el aviso vencido hace más de 7 días).
             var p = find(store, 'store_products', args.p_product_id);
             if (!p || p.status !== 'active') fail('product_unavailable');
             if (p.reserved_order_id != null && expired(p.reserved_until)) {
                 var old = find(store, 'store_orders', p.reserved_order_id);
                 if (!old || old.status !== 'pending_payment') patch(store, 'store_products', p.id, { reserved_order_id: null, reserved_until: null });
-                else if (!old.buyer_payment_reported_at && expired(old.expires_at)) closeUnpaid(store, old, 'expired', null);
+                else if (lapsed(old)) closeUnpaid(store, old, 'expired', null);
+                p = find(store, 'store_products', p.id);
             }
             // 4. Vendedor.
             if (canManage(store, p.seller_type, p.seller_id, uid)) fail('own_product');
@@ -659,7 +723,8 @@
                 if (variantRow.stock != null && variantRow.stock < qty) fail('out_of_stock');
                 method = text(args.p_fulfillment_method) ? String(args.p_fulfillment_method).trim().toLowerCase() : '';
                 if (method === 'pickup') {
-                    if (!p.pickup_available) fail('pickup_unavailable');
+                    // Sin dirección cargada no hay retiro: el pedido pagado quedaría sin pickup_details.
+                    if (!p.pickup_available || !hasPickupAddress(settings)) fail('pickup_unavailable');
                 } else if (method === 'shipping') {
                     var a = args.p_shipping_address;
                     if (!a || typeof a !== 'object' || Array.isArray(a)) fail('shipping_address_invalid');
@@ -722,11 +787,19 @@
             var uid = userOf(rpcCtx);
             var o = lockedOrder(store, args.p_order_id);
             var support = isSupport(rpcCtx);
-            if (!(same(o.buyer_user_id, uid) || canManage(store, o.seller_type, o.seller_id, uid) || support)) fail('not_found');
+            var seller = canManage(store, o.seller_type, o.seller_id, uid);
+            if (!(same(o.buyer_user_id, uid) || seller || support)) fail('not_found');
             if (o.status !== 'pending_payment') fail('invalid_status');
-            if (o.buyer_payment_reported_at && !support) fail('payment_reported');
+            // Con pago informado cancela soporte, o el vendedor que cobra directo
+            // cuando venció el plazo del aviso («no recibí el pago»).
+            if (o.buyer_payment_reported_at && !support && !(seller && o.expected_collector === 'seller' && expired(o.expires_at))) fail('payment_reported');
             closeUnpaid(store, o, 'cancelled', args.p_reason);
-            return find(store, 'store_orders', o.id);
+            // El cierre resuelve la marca de soporte.
+            var closed = find(store, 'store_orders', o.id);
+            if (closed.metadata_json && Object.prototype.hasOwnProperty.call(closed.metadata_json, 'needs_support')) {
+                closed = patch(store, 'store_orders', o.id, { metadata_json: resolvedMeta(closed.metadata_json) });
+            }
+            return closed;
         };
 
         rpcs.confirm_store_order_payment = function (args, store, rpcCtx) {
@@ -794,8 +867,13 @@
             var it = itemOf(store, o.id);
             var dispatched = o.fulfillment_method !== 'digital' && (o.fulfillment_status === 'shipped' || o.fulfillment_status === 'delivered');
             var at = isoNow();
+            // El motivo lo ven comprador y vendedor; quién reembolsó va a las notas
+            // de soporte. Si reembolsa soporte, resuelve la marca needs_support; si
+            // reembolsa el vendedor, la marca (pago duplicado) sigue a la vista.
             o = patch(store, 'store_orders', o.id, { status: 'refunded', refunded_at: at,
-                metadata_json: Object.assign({}, o.metadata_json, { refund_reason: reason, refunded_by: uid }) });
+                metadata_json: support ? resolvedMeta(o.metadata_json, { refund_reason: reason })
+                    : Object.assign({}, o.metadata_json, { refund_reason: reason }) });
+            addNote(store, o.id, 'refund', reason, uid);
             rowsOf(store, 'store_licenses').filter(function (l) { return same(l.order_id, o.id) && !l.revoked_at; })
                 .forEach(function (l) { patch(store, 'store_licenses', l.id, { revoked_at: at, revoke_reason: reason || 'Reembolso' }); });
             var p = it && find(store, 'store_products', it.product_id);
@@ -872,8 +950,24 @@
             var uid = userOf(rpcCtx);
             if (!isSupport(rpcCtx)) fail('forbidden');
             var o = lockedOrder(store, args.p_order_id);
-            return patch(store, 'store_orders', o.id, { funds_hold: !!args.p_hold, metadata_json: Object.assign({}, o.metadata_json,
-                { funds_hold_note: text(args.p_note, 500), funds_hold_by: uid, funds_hold_at: isoNow() }) });
+            // La nota y el autor son internos: van a store_order_support_notes.
+            // En el pedido (lo ven comprador y vendedor) queda solo la fecha.
+            o = patch(store, 'store_orders', o.id, { funds_hold: !!args.p_hold,
+                metadata_json: Object.assign({}, o.metadata_json, { funds_hold_at: isoNow() }) });
+            addNote(store, o.id, o.funds_hold ? 'funds_hold' : 'funds_release', args.p_note, uid);
+            return o;
+        };
+
+        // Soporte da por revisada la marca needs_support. Idempotente: sin
+        // marca, devuelve el pedido sin cambios.
+        rpcs.resolve_store_order_flag = function (args, store, rpcCtx) {
+            var uid = userOf(rpcCtx);
+            if (!isSupport(rpcCtx)) fail('forbidden');
+            var o = lockedOrder(store, args.p_order_id);
+            if (!o.metadata_json || o.metadata_json.needs_support !== true) return o;
+            o = patch(store, 'store_orders', o.id, { metadata_json: resolvedMeta(o.metadata_json) });
+            addNote(store, o.id, 'flag_resolved', args.p_note, uid);
+            return o;
         };
 
         // Vitrina: solo el handle de la identidad y los de store_demo_sellers.

@@ -44,6 +44,7 @@
     const PREVIEW_IMAGE_MAX_SIDE = 900;
     const DEMO_ASSETS = '/shared/assets/demo/store/';
     const RASTER_MIME = ['image/png', 'image/jpeg', 'image/webp'];
+    const DAY_MS = 86400000;
 
     /* ------------------------------ columnas ------------------------------ */
     // Espejo de §5. store_payments solo con las columnas del grant a authenticated.
@@ -72,7 +73,9 @@
         payment: 'id, order_id, provider, status, amount, currency, collected_by, reference, created_at',
         license: 'id, order_id, order_item_id, product_id, tier, holder_user_id, holder_name, seller_type, seller_id, ' +
             'seller_display_name, seller_username, design_title, terms_version, verification_code, used_at, used_note, ' +
-            'issued_at, revoked_at, revoke_reason, metadata_json, created_at'
+            'issued_at, revoked_at, revoke_reason, metadata_json, created_at',
+        // Notas internas (RLS: solo soporte). Las escriben las RPC.
+        supportNote: 'id, order_id, kind, note, actor_id, created_at'
     };
     const STORE_SELECTS = Object.freeze({
         product: COLS.product,
@@ -85,14 +88,15 @@
         item: COLS.item,
         payment: COLS.payment,
         license: COLS.license,
-        licenseWithOrder: `${COLS.license}, store_orders(${COLS.orderBrief})`
+        licenseWithOrder: `${COLS.license}, store_orders(${COLS.orderBrief})`,
+        supportNote: COLS.supportNote
     });
     // Tabla de cada select (la usa el test que las corre contra el emulador).
     const STORE_SELECT_TABLES = Object.freeze({
         product: 'store_products', productWithChildren: 'store_products', variant: 'store_product_variants',
         asset: 'store_design_assets', settings: 'store_seller_settings', order: 'store_orders',
         orderFull: 'store_orders', item: 'store_order_items', payment: 'store_payments',
-        license: 'store_licenses', licenseWithOrder: 'store_licenses'
+        license: 'store_licenses', licenseWithOrder: 'store_licenses', supportNote: 'store_order_support_notes'
     });
     const SEL = STORE_SELECTS;
 
@@ -902,6 +906,47 @@
                 p_order_id: orderId, p_hold: !!hold, p_note: textOrNull(note, 500)
             });
             return firstRow(data);
+        },
+
+        // Da por revisada la marca needs_support (pago duplicado, o informado y
+        // vencido): el pedido sale de la cola. Idempotente; solo soporte
+        // (store:forbidden). La nota queda en store_order_support_notes.
+        async resolveOrderFlag(orderId, note) {
+            if (!orderId) throw validationError('store.resolveOrderFlag: falta el pedido');
+            const data = await rpc('store.resolveOrderFlag', 'resolve_store_order_flag', {
+                p_order_id: orderId, p_note: textOrNull(note, 500)
+            });
+            return firstRow(data);
+        },
+
+        // Notas internas de un pedido (retención, reembolso, reapertura, marca
+        // resuelta, error del mantenimiento), la más reciente primero. Solo las
+        // lee soporte: ante cualquier error devuelve [] y deja un warning.
+        async listSupportNotes(orderId) {
+            if (!orderId) return [];
+            try {
+                const { data } = await run('store.listSupportNotes', (c) =>
+                    c.from('store_order_support_notes').select(SEL.supportNote).eq('order_id', orderId)
+                        .order('created_at', { ascending: false }).limit(100)
+                );
+                return asList(data);
+            } catch (error) {
+                console.warn('[store-repo] store.listSupportNotes:', error && error.message);
+                return [];
+            }
+        },
+
+        // Vencidos de los últimos `days` días (1 a 90; por defecto 7), para que
+        // soporte los reabra. El más reciente primero.
+        async listRecentExpiredOrders({ days = 7 } = {}) {
+            const n = Number(days);
+            const span = isFinite(n) && n > 0 ? Math.min(n, 90) : 7;
+            const since = new Date(Date.now() - span * DAY_MS).toISOString();
+            const { data } = await run('store.listRecentExpiredOrders', (c) =>
+                c.from('store_orders').select(SEL.orderFull).eq('status', 'expired').gte('expires_at', since)
+                    .order('expires_at', { ascending: false }).limit(300)
+            );
+            return asList(data).map(normalizeOrder);
         }
     };
 

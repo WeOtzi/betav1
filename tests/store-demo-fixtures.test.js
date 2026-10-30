@@ -30,7 +30,7 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 const IDENTITY = { userId: '11111111-1111-4111-8111-111111111111', username: 'demo.wo', name: 'Demo Artist', email: 'demo@weotzi.test' };
 const ME = IDENTITY.userId;
 const STORE_TABLES = ['store_products', 'store_product_variants', 'store_design_assets', 'store_seller_settings', 'store_orders',
-    'store_order_items', 'store_payments', 'store_licenses', 'store_download_events', 'store_demo_sellers'];
+    'store_order_items', 'store_payments', 'store_licenses', 'store_download_events', 'store_order_support_notes', 'store_demo_sellers'];
 const sid = (n) => '0000c0de-0000-4000-8000-57' + String(n).padStart(10, '0');
 const P = { D1: sid(101), D2: sid(102), D3: sid(103), M1: sid(104), M2: sid(105), M3: sid(106), MD1: sid(151), MD2: sid(152), MM1: sid(153) };
 const O = { O1: sid(401), O2: sid(402), O3: sid(403), O4: sid(404), O5: sid(405), O6: sid(406), P1: sid(451), P2: sid(452) };
@@ -60,6 +60,14 @@ function fails(res, code) {
     assert.equal(M.errorCode({ message: '[x] ' + res.body.message, cause: res.body }), code);
 }
 function row(store, table, id) { return store.rows(table).find((r) => r.id === id); }
+// Notas internas de un pedido, en orden de alta.
+function notesOf(store, orderId) {
+    return store.rows('store_order_support_notes').filter((n) => n.order_id === orderId)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+}
+const INTERNAL_KEYS = ['funds_hold_note', 'funds_hold_by', 'refunded_by', 'reopened_by', 'maintenance_error'];
+const DAY = 86400000;
+const ago = (days) => new Date(Date.now() - days * DAY).toISOString();
 function orderArgs(extra) {
     return Object.assign({
         p_product_id: null, p_variant_id: null, p_quantity: 1, p_license_tier: null, p_license_holder_name: null,
@@ -71,7 +79,7 @@ const ADDRESS_AR = { recipient: 'Franco Medina', line1: 'Calle 1', city: 'Rosari
 
 /* ------------------------------ registro y forma ------------------------------ */
 
-test('la extensión store está registrada y declara sus 9 tablas + store_demo_sellers con fixtures, ids estables y dump chico', () => {
+test('la extensión store está registrada y declara sus 10 tablas + store_demo_sellers con fixtures, ids estables y dump chico', () => {
     assert.ok(Fixtures.EXTENSIONS.includes('store'), "wo-demo-fixtures.js carga la extensión 'store'");
     const { fx, store } = makeStore();
     for (const t of STORE_TABLES) {
@@ -216,6 +224,7 @@ test('compra de licencia personal: idempotencia, pago informado, confirmación, 
     assert.equal(lic.holder_name, 'Ana Regalo');
     assert.equal(lic.seller_username, 'demo.wo');
     assert.match(lic.verification_code, M.LICENSE_CODE_RE);
+    assert.deepEqual(plain(lic.metadata_json), { design_width_cm: 9, design_height_cm: 7 }, 'las medidas quedan en la licencia');
     assert.equal(row(store, 'store_products', P.D1).licenses_issued, 1);
     assert.equal(row(store, 'store_products', P.D1).sales_count, 1);
     assert.deepEqual(store.rows('store_payments').filter((p) => p.order_id === order.id).map((p) => p.status), ['succeeded']);
@@ -413,9 +422,164 @@ test('reporte de ventas por producto, mes y moneda; solo para el vendedor o sopo
     fails(rpc(store, 'get_store_sales_report', { p_seller_type: 'artist', p_seller_id: MARA, p_from: null, p_to: null }), 'forbidden');
 
     fails(rpc(store, 'set_store_order_funds_hold', { p_order_id: O.O2, p_hold: true, p_note: 'x' }), 'forbidden');
-    const held = ok(rpc(store, 'set_store_order_funds_hold', { p_order_id: O.O2, p_hold: true, p_note: 'Disputa abierta' }, { userId: client(12), isSupport: true }));
+    const support = { userId: client(12), isSupport: true };
+    const held = ok(rpc(store, 'set_store_order_funds_hold', { p_order_id: O.O2, p_hold: true, p_note: 'Disputa abierta' }, support));
     assert.equal(held.funds_hold, true);
-    assert.equal(held.metadata_json.funds_hold_note, 'Disputa abierta');
+    // La nota y el autor son internos (store_order_support_notes); el pedido lo ven comprador y vendedor.
+    assert.ok(held.metadata_json.funds_hold_at);
+    for (const key of ['funds_hold_note', 'funds_hold_by']) assert.ok(!(key in held.metadata_json), key + ' fuera de metadata_json');
+    const released = ok(rpc(store, 'set_store_order_funds_hold', { p_order_id: O.O2, p_hold: false, p_note: '  ' }, support));
+    assert.equal(released.funds_hold, false);
+    assert.deepEqual(notesOf(store, O.O2).map((n) => [n.kind, n.note, n.actor_id]),
+        [['funds_hold', 'Disputa abierta', support.userId], ['funds_release', null, support.userId]]);
+});
+
+/* ------------------------------ soporte y pago informado ------------------------------ */
+
+const confirmArgs = (orderId, ref) => ({ p_order_id: orderId, p_collected_by: 'seller', p_reference: ref, p_note: null });
+
+test('soporte: resolve_store_order_flag saca la marca needs_support (idempotente), deja la nota y es solo para soporte', () => {
+    const { store, client } = makeStore();
+    const support = { userId: client(12), isSupport: true };
+    // Otra referencia sobre un pedido ya pagado: duplicado para soporte.
+    const dup = ok(rpc(store, 'confirm_store_order_payment', confirmArgs(O.O2, 'TR-OTRA')));
+    assert.deepEqual([dup.metadata_json.needs_support, dup.metadata_json.needs_support_reason], [true, 'duplicate_payment']);
+
+    fails(rpc(store, 'resolve_store_order_flag', { p_order_id: O.O2, p_note: 'x' }, {}), 'not_authenticated');
+    fails(rpc(store, 'resolve_store_order_flag', { p_order_id: O.O2, p_note: 'x' }), 'forbidden');
+    fails(rpc(store, 'resolve_store_order_flag', { p_order_id: sid(999), p_note: 'x' }, support), 'not_found');
+    const resolved = ok(rpc(store, 'resolve_store_order_flag', { p_order_id: O.O2, p_note: '  Mismo pago, otra referencia.  ' }, support));
+    assert.ok(!('needs_support' in resolved.metadata_json), 'sale de la cola');
+    assert.ok(resolved.metadata_json.needs_support_resolved_at);
+    assert.equal(resolved.metadata_json.needs_support_reason, 'duplicate_payment', 'el motivo queda como historial');
+    assert.equal(M.orderView(resolved, { role: 'support' }).needsSupport, false);
+    assert.deepEqual(notesOf(store, O.O2).map((n) => [n.kind, n.note, n.actor_id]), [['flag_resolved', 'Mismo pago, otra referencia.', support.userId]]);
+
+    // Idempotente: sin marca devuelve el pedido sin cambios ni nota nueva.
+    const again = ok(rpc(store, 'resolve_store_order_flag', { p_order_id: O.O2, p_note: 'otra vez' }, support));
+    assert.equal(again.metadata_json.needs_support_resolved_at, resolved.metadata_json.needs_support_resolved_at);
+    assert.equal(notesOf(store, O.O2).length, 1);
+    assert.equal(ok(rpc(store, 'resolve_store_order_flag', { p_order_id: O.O6, p_note: null }, support)).id, O.O6, 'un pedido sin marca');
+    assert.equal(notesOf(store, O.O6).length, 0);
+});
+
+test('reembolso: quién reembolsó va a las notas; soporte resuelve la marca y el vendedor no', () => {
+    const { store, client } = makeStore();
+    const support = { userId: client(12), isSupport: true };
+    ok(rpc(store, 'confirm_store_order_payment', confirmArgs(O.O2, 'TR-OTRA')));
+    const bySeller = ok(rpc(store, 'refund_store_order', { p_order_id: O.O2, p_reason: 'Sin talle' }));
+    assert.deepEqual([bySeller.metadata_json.refund_reason, bySeller.metadata_json.needs_support], ['Sin talle', true], 'el duplicado sigue a la vista de soporte');
+    assert.deepEqual(notesOf(store, O.O2).map((n) => [n.kind, n.note, n.actor_id]), [['refund', 'Sin talle', ME]]);
+
+    ok(rpc(store, 'confirm_store_order_payment', confirmArgs(O.O3, 'TR-OTRA')));
+    const bySupport = ok(rpc(store, 'refund_store_order', { p_order_id: O.O3, p_reason: 'Llegó dañado' }, support));
+    assert.ok(!('needs_support' in bySupport.metadata_json));
+    assert.ok(bySupport.metadata_json.needs_support_resolved_at);
+    assert.deepEqual(notesOf(store, O.O3).map((n) => [n.kind, n.actor_id]), [['refund', support.userId]]);
+    for (const o of store.rows('store_orders')) {
+        for (const key of INTERNAL_KEYS) assert.ok(!(key in (o.metadata_json || {})), o.order_number + ': ' + key + ' fuera de metadata_json');
+    }
+});
+
+test('pago informado: la reserva sigue 7 días después del plazo; recién ahí se vence y queda marcado para soporte', () => {
+    const { store, client } = makeStore();
+    const other = { userId: client(9) };
+    // O1 (pago informado) reserva D2. Vence el plazo, pero dentro de la gracia.
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: O.O1, negated: false }], { expires_at: ago(1) });
+    store.update('store_products', [{ col: 'id', op: 'eq', value: P.D2, negated: false }], { reserved_until: ago(1) });
+    assert.equal(ok(rpc(store, 'get_public_store_product', { p_product_id: P.D2 })).product.reserved, true, 'reserved = reserved_order_id, aunque reserved_until pasó');
+    assert.equal(M.isReserved(row(store, 'store_products', P.D2)), true);
+    fails(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.D2, p_license_tier: 'personal' }), other), 'product_reserved');
+    assert.equal(row(store, 'store_orders', O.O1).status, 'pending_payment');
+
+    // Pasaron más de 7 días desde el plazo: la próxima compra la vence.
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: O.O1, negated: false }], { expires_at: ago(8) });
+    const created = ok(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.D2, p_license_tier: 'personal' }), other));
+    assert.equal(created.status, 'pending_payment');
+    const o1 = row(store, 'store_orders', O.O1);
+    assert.equal(o1.status, 'expired');
+    assert.deepEqual([o1.metadata_json.needs_support, o1.metadata_json.needs_support_reason], [true, 'payment_reported_expired']);
+    assert.equal(row(store, 'store_products', P.D2).reserved_order_id, null, 'libera la reserva');
+    assert.equal(ok(rpc(store, 'get_public_store_product', { p_product_id: P.D2 })).product.reserved, false);
+
+    // Sin pago informado se vence apenas pasa el plazo, sin marca.
+    const a = { userId: client(8) };
+    const excl = ok(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.MD2, p_license_tier: 'exclusive' }), a));
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: excl.id, negated: false }], { expires_at: ago(0.01) });
+    store.update('store_products', [{ col: 'id', op: 'eq', value: P.MD2, negated: false }], { reserved_until: ago(0.01) });
+    ok(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.MD2, p_license_tier: 'personal' }), { userId: client(7) }));
+    const lapsedOrder = row(store, 'store_orders', excl.id);
+    assert.equal(lapsedOrder.status, 'expired');
+    assert.ok(!lapsedOrder.metadata_json.needs_support);
+});
+
+test('cancelar con pago informado: el vendedor que cobra directo puede cuando venció el plazo («no recibí el pago»)', () => {
+    const { store, client } = makeStore();
+    const camila = { userId: client(0) };
+    fails(rpc(store, 'cancel_store_order', { p_order_id: O.O1, p_reason: 'x' }), 'payment_reported');
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: O.O1, negated: false }], {
+        expires_at: ago(1), metadata_json: { needs_support: true, needs_support_reason: 'payment_reported_expired', needs_support_at: ago(1) }
+    });
+    fails(rpc(store, 'cancel_store_order', { p_order_id: O.O1, p_reason: 'x' }, camila), 'payment_reported');
+    // Cobra la plataforma: solo soporte.
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: O.O1, negated: false }], { expected_collector: 'platform' });
+    fails(rpc(store, 'cancel_store_order', { p_order_id: O.O1, p_reason: 'x' }), 'payment_reported');
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: O.O1, negated: false }], { expected_collector: 'seller' });
+
+    const view = M.orderView(row(store, 'store_orders', O.O1), { role: 'seller' });
+    assert.ok(view.actions.some((a) => a.key === 'cancel' && a.label === 'No recibí el pago'), 'el modelo lo ofrece');
+    const cancelled = ok(rpc(store, 'cancel_store_order', { p_order_id: O.O1, p_reason: 'No recibí el pago.' }));
+    assert.deepEqual([cancelled.status, cancelled.cancel_reason], ['cancelled', 'No recibí el pago.']);
+    assert.ok(!('needs_support' in cancelled.metadata_json), 'el cierre resuelve la marca');
+    assert.ok(cancelled.metadata_json.needs_support_resolved_at);
+    assert.equal(row(store, 'store_products', P.D2).reserved_order_id, null, 'libera la exclusiva');
+});
+
+test('reabrir un vencido: soporte confirma y la reapertura queda en las notas (no en metadata_json); la licencia guarda las medidas', () => {
+    const { store, client } = makeStore();
+    const buyer = { userId: client(10) };
+    const support = { userId: client(12), isSupport: true };
+    const order = ok(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.MD2, p_license_tier: 'personal' }), buyer));
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: order.id, negated: false }], { status: 'expired', expires_at: ago(2) });
+    const maraCtx = { userId: MARA };
+    fails(rpc(store, 'confirm_store_order_payment', confirmArgs(order.id, 'TR-1'), maraCtx), 'order_not_payable');
+    const reopened = ok(rpc(store, 'confirm_store_order_payment', confirmArgs(order.id, 'TR-1'), support));
+    assert.deepEqual([reopened.status, reopened.payment_confirmed_by], ['fulfilled', support.userId]);
+    assert.ok(reopened.metadata_json.reopened_at);
+    assert.ok(!('reopened_by' in reopened.metadata_json));
+    assert.deepEqual(notesOf(store, order.id).map((n) => [n.kind, n.note, n.actor_id]), [['reopen', null, support.userId]]);
+    const lic = store.rows('store_licenses').find((l) => l.order_id === order.id);
+    assert.deepEqual(plain(lic.metadata_json), { design_width_cm: 10, design_height_cm: 12 });
+
+    // Merch: recupera el stock al reabrir.
+    const tote = ok(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.MM1, p_variant_id: V.TOTE, p_quantity: 2, p_fulfillment_method: 'shipping', p_shipping_address: ADDRESS_AR }), buyer));
+    assert.equal(row(store, 'store_product_variants', V.TOTE).stock, 5);
+    ok(rpc(store, 'cancel_store_order', { p_order_id: tote.id, p_reason: null }, buyer));
+    store.update('store_orders', [{ col: 'id', op: 'eq', value: tote.id, negated: false }], { status: 'expired' });
+    assert.equal(row(store, 'store_product_variants', V.TOTE).stock, 7);
+    assert.equal(ok(rpc(store, 'confirm_store_order_payment', confirmArgs(tote.id, 'TR-2'), support)).status, 'paid');
+    assert.equal(row(store, 'store_product_variants', V.TOTE).stock, 5);
+});
+
+test('retiro: sin dirección en Ajustes la ficha no ofrece retiro y create_store_order da pickup_unavailable', () => {
+    const { store, client } = makeStore();
+    const buyer = { userId: client(10) };
+    const pickup = orderArgs({ p_product_id: P.M3, p_variant_id: V.STK, p_fulfillment_method: 'pickup' });
+    assert.equal(ok(rpc(store, 'get_public_store_product', { p_product_id: P.M3 })).product.pickup_available, true);
+    for (const address of [null, '   ']) {
+        store.update('store_seller_settings', [{ col: 'seller_id', op: 'eq', value: ME, negated: false }], { pickup_address: address });
+        assert.equal(ok(rpc(store, 'get_public_store_product', { p_product_id: P.M3 })).product.pickup_available, false, 'sin dirección: ' + JSON.stringify(address));
+        assert.ok(ok(rpc(store, 'get_public_storefront', { p_seller_type: 'artist', p_handle: 'demo.wo' })).products.filter((p) => p.kind === 'merch').every((p) => p.pickup_available === false));
+        fails(rpc(store, 'create_store_order', pickup, buyer), 'pickup_unavailable');
+    }
+    assert.equal(row(store, 'store_product_variants', V.STK).stock, 3, 'el rechazo no toca el stock');
+    // El checklist del vendedor lo pide para publicar con retiro.
+    const settings = store.rows('store_seller_settings').find((s) => s.seller_id === ME);
+    const list = M.publishChecklist(Object.assign({}, row(store, 'store_products', P.M3), { variants: store.rows('store_product_variants').filter((v) => v.product_id === P.M3) }), { settings });
+    assert.equal(list.find((i) => i.key === 'pickup_address').ok, false);
+    store.update('store_seller_settings', [{ col: 'seller_id', op: 'eq', value: ME, negated: false }], { pickup_address: 'Palermo' });
+    const order = ok(rpc(store, 'create_store_order', pickup, buyer));
+    assert.equal(order.fulfillment_method, 'pickup');
 });
 
 test('vitrina y ficha públicas: la identidad y Mara Ink resuelven; el resto devuelve null', () => {
@@ -488,7 +652,10 @@ test('las selects del repo (STORE_SELECTS) resuelven contra el emulador con las 
     const orders = call(store, 'GET', 'store_orders', `?select=${enc(selects.orderFull)}&seller_type=eq.artist&seller_id=eq.${ME}&order=created_at.desc&limit=300`).body;
     assert.equal(orders.length, 6);
     const o4 = orders.find((o) => o.id === O.O4);
-    assert.deepEqual([o4.store_order_items.length, o4.store_licenses.length, o4.store_payments.length], [1, 1, 1]);
+    assert.deepEqual([o4.store_order_items.length, o4.store_licenses.length, o4.store_payments.length], [1, 1, 2]);
+    assert.deepEqual(o4.store_payments.map((p) => p.status).sort(), ['duplicate', 'succeeded']);
+    const notes = call(store, 'GET', 'store_order_support_notes', `?select=${enc(selects.supportNote)}&order_id=eq.${O.O4}&order=created_at.desc`).body;
+    assert.deepEqual(notes.map((n) => n.kind), ['flag_resolved']);
     assert.equal(M.orderView(o4, { role: 'seller' }).license.status, 'used');
     const purchases = call(store, 'GET', 'store_orders', `?select=${enc(selects.orderFull)}&buyer_user_id=eq.${ME}&order=created_at.desc`).body;
     assert.deepEqual(purchases.map((o) => o.id), [O.P2, O.P1]);

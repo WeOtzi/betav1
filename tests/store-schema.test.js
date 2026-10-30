@@ -664,6 +664,9 @@ test('Store schema: el nombre de descarga del archivo licenciado se sanea y term
     }
     assert.match(guard, /if v_exts is null then\s+raise exception using errcode = 'P0001', message = 'store:invalid_image_path';/);
     assert.ok(guard.includes(`regexp_replace(coalesce(new.file_name, ''), '[[:cntrl:]/\\\\"`), 'saca barras, comillas y caracteres de control');
+    // Controles bidi como escapes del regex, nunca literales invisibles en el fuente.
+    assert.ok(guard.includes(String.raw`\x200E\x200F\x202A-\x202E\x2066-\x2069]+', '-', 'g')`), 'controles bidi escapados');
+    assert.doesNotMatch(sql, /[\u{200E}\u{200F}\u{202A}-\u{202E}\u{2066}-\u{2069}]/u, 'sin controles bidi literales en la migración');
     assert.match(guard, /if v_ext = any \(v_exts\) then[\s\S]*else\s+v_name := left\(v_name, 199 - char_length\(v_exts\[1\]\)\) \|\| '\.' \|\| v_exts\[1\];/);
     assert.match(guard, /new\.file_name := v_name;/);
     // Se normaliza después de tomar el MIME del objeto en Storage.
@@ -706,4 +709,14 @@ test('Store schema: app_settings de la Store privados y migración con lock_time
     assert.deepEqual([...keys].sort(), rows.map((r) => r[0]).sort());
     // El rollback no toca app_settings (soporte pudo configurarlas).
     assert.doesNotMatch(stripComments(read(ROLLBACK)), /app_settings/);
+});
+
+test('Store schema: la licencia guarda las medidas del diseño para imprimir a escala aunque el producto ya no esté activo', () => {
+    const apply = parseFunctions(readStoreMigration()).find((f) => f.name === 'store_apply_order_payment').body;
+    const insert = apply.match(/insert into public\.store_licenses \(([\s\S]*?)\) values \(([\s\S]*?)\n\s*\);/);
+    assert.ok(insert, 'insert de la licencia en store_apply_order_payment');
+    const cols = insert[1].split(',').map((c) => c.trim());
+    assert.equal(cols[cols.length - 1], 'metadata_json', 'metadata_json es la última columna del insert');
+    // Solo las medidas que no son null (jsonb_strip_nulls), tomadas del producto al emitir.
+    assert.match(insert[2], /jsonb_strip_nulls\(jsonb_build_object\(\s*'design_width_cm', v_product\.design_width_cm,\s*'design_height_cm', v_product\.design_height_cm\s*\)\)\s*$/);
 });

@@ -239,6 +239,40 @@ test('preview: el repo completo corre sobre el emulador (vendedor, comprador y p
     assert.deepEqual(fetches, [], 'cero fetch al servidor');
 });
 
+test('preview: soporte lee los vencidos recientes y las notas internas; marcar revisado exige soporte', async () => {
+    const { Store, runtime, storage, fetches, M } = await previewRepo();
+    const st = runtime.getStore();
+    const DAY = 86400000;
+    const base = st.rows('store_orders').find((o) => o.id === sid(405));
+    const expired = (n, days) => Object.assign({}, base, {
+        id: sid(970 + n), order_number: 'ST-EXP0000' + n, status: 'expired', cancelled_at: null, cancel_reason: null,
+        expires_at: new Date(Date.now() - days * DAY).toISOString(), idempotency_key: 'exp-' + n
+    });
+    st.insert('store_orders', [expired(1, 2), expired(2, 10), expired(3, 0.5)]);
+    const item = st.rows('store_order_items').find((i) => i.order_id === sid(405));
+    st.insert('store_order_items', [Object.assign({}, item, { id: sid(975), order_id: sid(971) })]);
+
+    const recent = await Store.listRecentExpiredOrders({ days: 7 });
+    assert.deepEqual(recent.map((o) => o.id), [sid(973), sid(971)], 'solo los de 7 días, el más reciente primero');
+    assert.ok(recent.every((o) => o.status === 'expired' && Array.isArray(o.items) && o.items === o.store_order_items && Array.isArray(o.payments)));
+    assert.equal(recent[1].items[0].product_id, sid(106), 'con ítems embebidos');
+    assert.deepEqual((await Store.listRecentExpiredOrders()).map((o) => o.id), [sid(973), sid(971)], 'por defecto 7 días');
+    assert.deepEqual((await Store.listRecentExpiredOrders({ days: 30 })).map((o) => o.id), [sid(973), sid(971), sid(972)]);
+
+    const notes = await Store.listSupportNotes(sid(404));
+    assert.deepEqual(notes.map((n) => [n.order_id, n.kind]), [[sid(404), 'flag_resolved']]);
+    assert.deepEqual(Object.keys(notes[0]).sort(), ['actor_id', 'created_at', 'id', 'kind', 'note', 'order_id']);
+    assert.equal((await Store.listSupportNotes(sid(402))).length, 0);
+    assert.equal((await Store.listSupportNotes(null)).length, 0);
+
+    // El usuario del preview no es soporte.
+    await assert.rejects(Store.resolveOrderFlag(sid(404), 'Revisado'), (err) => M.errorCode(err) === 'forbidden');
+    await assert.rejects(Store.resolveOrderFlag(null, 'x'), (err) => err.validation === true);
+
+    assert.deepEqual(storage, [], 'cero llamadas a Storage');
+    assert.deepEqual(fetches, [], 'cero fetch al servidor');
+});
+
 test('preview también con el modo demo (WoDemo.enabled) y gate por features.store fuera del preview', () => {
     const demo = loadRepo({ WoDemo: { enabled: true }, location: { pathname: '/artist/store/' } });
     assert.equal(demo.isPreviewEnv(), true);
@@ -262,7 +296,7 @@ function fakeClient(respond) {
     function builder(table) {
         const state = { table, ops: [] };
         const b = {};
-        ['select', 'eq', 'neq', 'order', 'limit', 'insert', 'update', 'delete', 'upsert', 'maybeSingle', 'single', 'in', 'is'].forEach((m) => {
+        ['select', 'eq', 'neq', 'gte', 'order', 'limit', 'insert', 'update', 'delete', 'upsert', 'maybeSingle', 'single', 'in', 'is'].forEach((m) => {
             b[m] = (...args) => { state.ops.push([m].concat(args)); return b; };
         });
         b.then = (resolve, reject) => { calls.queries.push(state); return Promise.resolve(respond(state)).then(resolve, reject); };
@@ -347,6 +381,57 @@ test('producción: isAvailable solo apaga la Store si la tabla no existe (404, 2
     assert.equal(await probe({ data: null, error: { code: 'PGRST205', message: 'Could not find the table' }, status: 404 }), false);
     assert.equal(await probe({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' }, status: 404 }), false);
     assert.equal(await probe({ data: null, error: { message: '' }, status: 401 }), true, 'anon sin grants: la tabla existe');
+});
+
+test('producción: soporte (resolveOrderFlag, listSupportNotes y listRecentExpiredOrders) arma la RPC y las queries del contrato', async () => {
+    let notesReply = { data: [{ id: 'n1', order_id: 'o-1', kind: 'funds_hold', note: 'Disputa', actor_id: 'u', created_at: '2026-10-30T10:00:00Z' }], error: null };
+    const { client, calls } = fakeClient((state) => {
+        if (state.table === 'rpc/resolve_store_order_flag') return { data: { id: 'o-1', metadata_json: { needs_support_resolved_at: 'x' } }, error: null };
+        if (state.table === 'store_order_support_notes') return notesReply;
+        return { data: [{ id: 'o-9', status: 'expired', store_order_items: { id: 'i-1' }, store_licenses: null, store_payments: [] }], error: null };
+    });
+    const Store = loadRepo({ _supabase: client, location: { pathname: '/' } });
+    const opsOf = (table) => calls.queries.filter((q) => q.table === table).pop().ops;
+
+    const resolved = await Store.resolveOrderFlag('o-1', '  Mismo pago, otra referencia.  ');
+    assert.equal(resolved.id, 'o-1');
+    assert.deepEqual(JSON.parse(JSON.stringify(opsOf('rpc/resolve_store_order_flag'))),
+        [['insert', { p_order_id: 'o-1', p_note: 'Mismo pago, otra referencia.' }]]);
+    await Store.resolveOrderFlag('o-1', '   ');
+    assert.equal(opsOf('rpc/resolve_store_order_flag')[0][1].p_note, null, 'nota vacía → null');
+
+    const notes = await Store.listSupportNotes('o-1');
+    assert.equal(notes[0].kind, 'funds_hold');
+    assert.deepEqual(JSON.parse(JSON.stringify(opsOf('store_order_support_notes'))), [
+        ['select', 'id, order_id, kind, note, actor_id, created_at'], ['eq', 'order_id', 'o-1'],
+        ['order', 'created_at', { ascending: false }], ['limit', 100]
+    ]);
+    // RLS: quien no es soporte no la lee. Nunca lanza.
+    notesReply = { data: null, error: { code: '42501', message: 'permission denied for table store_order_support_notes' } };
+    const warn = console.warn;
+    const warnings = [];
+    console.warn = (...args) => warnings.push(args.join(' '));
+    try {
+        assert.deepEqual(JSON.parse(JSON.stringify(await Store.listSupportNotes('o-1'))), []);
+    } finally {
+        console.warn = warn;
+    }
+    assert.equal(warnings.length, 1);
+
+    const before = Date.now();
+    const expiredOrders = await Store.listRecentExpiredOrders({ days: 7 });
+    assert.deepEqual(expiredOrders.map((o) => [o.id, o.items.length, o.licenses.length]), [['o-9', 1, 0]], 'normalizado');
+    const ops = opsOf('store_orders');
+    assert.deepEqual(JSON.parse(JSON.stringify(ops.filter((op) => op[0] !== 'gte'))), [
+        ['select', Store.STORE_SELECTS.orderFull], ['eq', 'status', 'expired'], ['order', 'expires_at', { ascending: false }], ['limit', 300]
+    ]);
+    const since = Date.parse(ops.find((op) => op[0] === 'gte' && op[1] === 'expires_at')[2]);
+    assert.ok(Math.abs(since - (before - 7 * 86400000)) < 5000, 'expires_at >= ahora - 7 días');
+    const sinceFor = async (days) => { await Store.listRecentExpiredOrders(days); return Date.parse(opsOf('store_orders').find((op) => op[0] === 'gte')[2]); };
+    assert.ok(Math.abs(await sinceFor({}) - (Date.now() - 7 * 86400000)) < 5000, 'por defecto 7');
+    assert.ok(Math.abs(await sinceFor({ days: 'x' }) - (Date.now() - 7 * 86400000)) < 5000, 'inválido → 7');
+    assert.ok(Math.abs(await sinceFor({ days: 500 }) - (Date.now() - 90 * 86400000)) < 5000, 'tope de 90 días');
+    assert.deepEqual(calls.storage, []);
 });
 
 test('las lecturas públicas no lanzan y las escrituras validan antes de tocar PostgREST', async () => {

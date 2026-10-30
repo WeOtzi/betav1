@@ -1515,7 +1515,9 @@ begin
   if v_exts is null then
     raise exception using errcode = 'P0001', message = 'store:invalid_image_path';
   end if;
-  v_name := regexp_replace(coalesce(new.file_name, ''), '[[:cntrl:]/\\"‎‏‪-‮⁦-⁩]+', '-', 'g');
+  -- Controles bidi (U+200E/F, U+202A-E, U+2066-9) como escapes hex del regex:
+  -- nada invisible en el fuente.
+  v_name := regexp_replace(coalesce(new.file_name, ''), '[[:cntrl:]/\\"\x200E\x200F\x202A-\x202E\x2066-\x2069]+', '-', 'g');
   v_name := regexp_replace(btrim(v_name), '^[.[:space:]-]+', '');
   if v_name = '' then
     v_name := new.kind;
@@ -2329,17 +2331,24 @@ begin
       select s.name into v_seller_name from public.studios s where s.id = v_order.seller_id limit 1;
     end if;
 
+    -- Las medidas del diseño quedan en la licencia: «Imprimir a escala real»
+    -- tiene que andar aunque el producto ya no esté activo (exclusiva vendida,
+    -- pausado). Solo las que no son null.
     insert into public.store_licenses (
       order_id, order_item_id, product_id, tier, holder_user_id, holder_name,
       seller_type, seller_id, seller_display_name, seller_username,
-      design_title, terms_version, verification_code
+      design_title, terms_version, verification_code, metadata_json
     ) values (
       v_order.id, v_item.id, v_product.id, v_item.license_tier, v_order.buyer_user_id,
       left(coalesce(nullif(btrim(coalesce(v_item.license_holder_name, '')), ''), v_order.buyer_name), 120),
       v_order.seller_type, v_order.seller_id,
       left(coalesce(nullif(btrim(coalesce(v_seller_name, '')), ''), v_seller_username), 120), v_seller_username,
       v_item.title, coalesce(v_item.terms_version, public.store_current_terms_version()),
-      public.store_new_license_code()
+      public.store_new_license_code(),
+      jsonb_strip_nulls(jsonb_build_object(
+        'design_width_cm', v_product.design_width_cm,
+        'design_height_cm', v_product.design_height_cm
+      ))
     );
 
     update public.store_products
