@@ -2859,3 +2859,177 @@
         padding-inline: var(--space-4);
     }
 }
+
+/* ==========================================================================
+   Store (banda 09b): hasta 6 productos y «Ver la Store →». Nace [hidden] y
+   la muestra artist-profile.js solo con features.store y productos activos.
+   Mobile-first: 2 columnas, 3 desde 769px. Solo tokens del DS.
+   ========================================================================== */
+.store-band-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.store-band-head .store-band-link {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--blue-400);
+    text-decoration: none;
+}
+
+.store-band-head .store-band-link:hover {
+    color: var(--blue-500);
+    text-decoration: underline;
+}
+
+.store-band-sub {
+    margin: 0 0 var(--space-8);
+    font-size: var(--body-m-size);
+    color: var(--text-muted);
+}
+
+.store-band-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.store-band-cell {
+    min-width: 0;
+}
+
+.store-band a.store-band-item {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    background: var(--surface-card);
+    border: var(--border-strong-width) solid var(--border-strong);
+    color: var(--ink);
+    text-decoration: none;
+    transition: transform var(--duration-press), box-shadow var(--duration-press);
+}
+
+.store-band a.store-band-item:hover {
+    color: var(--ink);
+    text-decoration: none;
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+
+.store-band-head .store-band-link:focus-visible,
+.store-band a.store-band-item:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+.store-band-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: var(--sand-150);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
+}
+
+.store-band-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.store-band-media-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neutral-300);
+}
+
+.store-band-media-empty [data-wo-icon] {
+    width: 24px;
+    height: 24px;
+}
+
+.store-band-badges {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    right: var(--space-2);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.store-band-badges .store-band-tag {
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+}
+
+.store-band-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: var(--space-3);
+}
+
+.store-band-kind {
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.store-band-title {
+    font-family: var(--font-body);
+    font-size: var(--body-m-size);
+    font-weight: var(--weight-bold);
+    line-height: 1.25;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.store-band-price {
+    margin-top: auto;
+    padding-top: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    color: var(--ink);
+}
+
+@media (min-width: 769px) {
+    .store-band-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-6);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .store-band a.store-band-item {
+        transition: none;
+    }
+
+    .store-band a.store-band-item:hover {
+        transform: none;
+    }
+}

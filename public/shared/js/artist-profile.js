@@ -332,6 +332,7 @@ async function loadArtistData(username) {
         hideLoading();
         showContent();
         void renderArtistReviews().then(applyProfileUrlState);
+        void loadStoreBand();
 
         // Structured funnel telemetry (fire-and-forget, one event/hour).
         trackProfileEvent('profile_view').catch(() => { /* noop */ });
@@ -1019,6 +1020,92 @@ function renderPresence() {
             </div>
         `;
     }).join('');
+}
+
+/**
+ * Store (contrato docs/plans/2026-10-30-store-artista.md §8.5): banda con hasta
+ * 6 productos públicos y «Ver la Store →». Solo con el gate (features.store y
+ * tablas disponibles) y vía WeotziData.Store.getStorefront. Sin productos o ante
+ * cualquier falla queda oculta: la Store nunca rompe el perfil.
+ *
+ * La vitrina se busca por username, que en artists_db todavía no es único: la
+ * banda se muestra solo si el vendedor que resolvió la RPC (seller.id) es el
+ * artista de este perfil (user_id). Si no coincide, queda oculta.
+ */
+const STORE_BAND_MAX_ITEMS = 6;
+
+async function isStoreGateOpen() {
+    const Store = window.WeotziData?.Store;
+    if (!Store || typeof Store.featureEnabled !== 'function' || typeof Store.isAvailable !== 'function') return false;
+    if (typeof window.ConfigManager?.ready === 'function') {
+        try { await window.ConfigManager.ready(); } catch (_) { /* sigue con la config por defecto */ }
+    }
+    if (!Store.featureEnabled()) return false;
+    return (await Store.isAvailable()) === true;
+}
+
+async function loadStoreBand() {
+    const band = document.getElementById('store-band');
+    const grid = document.getElementById('store-band-grid');
+    if (!band || !grid) return;
+    band.hidden = true;
+    try {
+        if (!artistData?.username || !artistData?.user_id || !(await isStoreGateOpen())) return;
+        const storefront = await window.WeotziData.Store.getStorefront('artist', artistData.username);
+        const sellerId = storefront?.seller?.id;
+        const sameArtist = sellerId != null && String(sellerId) === String(artistData.user_id);
+        const products = sameArtist && Array.isArray(storefront?.products) ? storefront.products : [];
+        if (!products.length) {
+            grid.innerHTML = '';
+            return;
+        }
+        renderStoreBand(products.slice(0, STORE_BAND_MAX_ITEMS), storefront);
+        band.hidden = false;
+    } catch (error) {
+        console.warn('Store band unavailable:', error);
+        band.hidden = true;
+        grid.innerHTML = '';
+    }
+}
+
+function renderStoreBand(products, storefront) {
+    const grid = document.getElementById('store-band-grid');
+    const link = document.getElementById('store-band-link');
+    const M = window.WeotziStoreModel;
+    const Store = window.WeotziData.Store;
+    const handle = storefront?.seller?.handle || artistData.username;
+    if (link) link.href = M ? M.storeUrl(handle) : `/store/?artist=${encodeURIComponent(handle)}`;
+
+    grid.innerHTML = products.map((product) => {
+        const image = Array.isArray(product.images) ? product.images.find((img) => img && img.path) : null;
+        const src = image ? Store.previewUrl(image.path) : '';
+        // Mismo precio que la vitrina (WeotziStoreModel.priceLabel): «Desde …»
+        // solo con varios precios posibles o uno aproximado.
+        const price = typeof M?.priceLabel === 'function' ? M.priceLabel(product).label : '';
+        const kind = M?.KIND_LABELS?.[product.kind] || (product.kind === 'design' ? 'Diseño' : 'Merch');
+        const badges = M ? M.productBadges(product) : [];
+        const href = M ? M.itemUrl(product.id) : `/store/item/?id=${encodeURIComponent(product.id)}`;
+        // Miniatura decorativa: el título del link ya nombra el producto.
+        const media = src
+            ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" width="600" height="750">`
+            : '<span class="store-band-media-empty"><i data-wo-icon="image" aria-hidden="true"></i></span>';
+        const badgeHtml = badges.length
+            ? `<span class="store-band-badges">${badges.map((b) => `<span class="${escapeHtml(b.tag)} store-band-tag">${escapeHtml(b.label)}</span>`).join('')}</span>`
+            : '';
+        return `
+            <li class="store-band-cell">
+                <a class="store-band-item" href="${escapeHtml(href)}">
+                    <span class="store-band-media">${media}${badgeHtml}</span>
+                    <span class="store-band-body">
+                        <span class="store-band-kind">${escapeHtml(kind)}</span>
+                        <span class="store-band-title">${escapeHtml(product.title)}</span>
+                        ${price ? `<span class="store-band-price">${escapeHtml(price)}</span>` : ''}
+                    </span>
+                </a>
+            </li>
+        `;
+    }).join('');
+    window.WoIcons?.hydrate?.(grid);
 }
 
 /**

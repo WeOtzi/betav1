@@ -26,7 +26,7 @@ function call(store, method, p, search, headers, body) {
 const ARTIST_PAGES = [
     'public/artist/dashboard/index.html', 'public/artist/account/index.html', 'public/artist/applications/index.html',
     'public/artist/inbox/index.html', 'public/artist/invitations/index.html', 'public/artist/profile/index.html',
-    'public/artist/travel/index.html',
+    'public/artist/travel/index.html', 'public/artist/store/index.html',
     'public/calendar/index.html', 'public/job-board/index.html', 'public/my-quotations/index.html',
     'public/my-quotations/detail/index.html', 'public/my-quotations/new/index.html', 'public/my-quotations/statistics/index.html',
     'public/studio-spots/index.html',
@@ -274,4 +274,28 @@ test('cada selector del guion existe en el markup o en el script que lo pinta', 
             assert.ok(found, ch.id + '/' + st.id + ': ningún selector resuelve (' + targets.join(' | ') + ')');
         }
     }
+});
+
+test('un throw en un handler de RPC responde 400 P0001 como PostgREST (el demo ya no cae al backend real)', () => {
+    const store = Postgrest.createStore({
+        tables: { t: [{ id: 1, v: 1 }] },
+        rpcs: {
+            reservar: (args, st) => {
+                if (!args.p_ok) throw new Error('store:out_of_stock');
+                st.update('t', [{ col: 'id', op: 'eq', value: '1', negated: false }], { v: 2 });
+                return { ok: true };
+            },
+            rara: () => { throw 'sin Error'; } // eslint-disable-line no-throw-literal
+        }
+    });
+    const bad = call(store, 'POST', 'rpc/reservar', '', {}, JSON.stringify({}));
+    assert.equal(bad.status, 400);
+    assert.deepEqual(bad.body, { code: 'P0001', message: 'store:out_of_stock', details: null, hint: null });
+    assert.equal(store.rows('t')[0].v, 1, 'el handler que lanza no muta');
+    const odd = call(store, 'POST', 'rpc/rara', '', {}, '{}');
+    assert.deepEqual([odd.status, odd.body.code, odd.body.message], [400, 'P0001', 'sin Error']);
+    const good = call(store, 'POST', 'rpc/reservar', '', {}, JSON.stringify({ p_ok: true }));
+    assert.equal(good.status, 200);
+    assert.deepEqual(good.body, { ok: true });
+    assert.equal(store.rows('t')[0].v, 2);
 });
