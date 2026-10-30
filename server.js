@@ -30,6 +30,8 @@ const { CurrenciesRepo } = require('./lib/repos/currencies');
 const { InstagramRepo } = require('./lib/repos/instagram');
 const { AnalyticsRepo } = require('./lib/repos/analytics');
 const { summarizeArtistPublicProfileMetrics } = require('./lib/artist-public-profile-metrics');
+// Store: descargas firmadas, checkout, mantenimiento y webhook de pagos (docs/plans/2026-10-30-store-artista.md §7)
+const storeOrders = require('./services/store-orders');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -202,7 +204,19 @@ const apiLimiter = rateLimit({
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
+    // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter).
+    skip: (req) => storeOrders.isStoreWebhookRequest(req),
     message: { success: false, error: 'Too many requests, please try again later.' }
+});
+
+// Rate limiting: webhook de pagos de la Store. Los proveedores mandan ráfagas
+// y reintentos desde pocas IPs; no comparte bucket con el resto de /api/.
+const storeWebhookLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Demasiados avisos de pago. Probá de nuevo en un minuto.' }
 });
 
 // Rate limiting: Sensitive endpoints that create or modify auth credentials.
@@ -228,10 +242,19 @@ app.use('/api/email/events', authLimiter);
 // here because that one actually creates the auth.users entry.
 app.use('/api/register/artist-finalize', authLimiter);
 
+// Store: webhook de pagos con body crudo (la firma HMAC se calcula sobre los
+// bytes exactos). Tiene que quedar ANTES de express.json para que el parser
+// JSON no consuma el cuerpo. Lo fija tests/store-server.test.js.
+app.post('/api/store/payments/webhook/:provider', storeWebhookLimiter, express.raw({ type: '*/*', limit: '1mb' }), storeOrders.handleWebhook);
+
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.post('/api/quotations/intake', require('./services/quotation-intake').handleIntake);
+// Store: descarga firmada de archivos de licencia, checkout y mantenimiento por cron.
+app.post('/api/store/licenses/:licenseId/assets/:assetId/url', authLimiter, storeOrders.handleDownloadUrl);
+app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
+app.post('/api/store/maintenance', storeOrders.handleMaintenance);
 const accountModes = require('./services/account-modes');
 app.get('/api/account/testing', (req, res) => res.json({ registrationOpen: accountModes.testingEnabled() }));
 app.post('/api/account/mode', accountModes.activate);

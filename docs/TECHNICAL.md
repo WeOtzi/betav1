@@ -71,6 +71,23 @@ El archivo `server.js` expone los siguientes endpoints API:
 *   `GET /api/client-info`: Retorna IP y timestamp del cliente.
 *   `POST /api/session-log`: Endpoint para `sendBeacon` (logs de sesión al cerrar pestaña).
 
+### Store
+Contrato completo en [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30-store-artista.md) (§7). Handlers en [`services/store-orders.js`](../services/store-orders.js) (testeables con `createHandlers(deps)`), datos en [`lib/repos/store.js`](../lib/repos/store.js) (service role), firma de Storage en [`lib/storage-sign.js`](../lib/storage-sign.js) y adaptadores de pago en [`services/store-payments.js`](../services/store-payments.js). Todas las respuestas son `{ success, error? }` con `Cache-Control: no-store`; los 500 son genéricos (el detalle queda en el log). Los ids de la URL tienen que ser UUID (si no, 400).
+
+*   `POST /api/store/licenses/:licenseId/assets/:assetId/url`: URL firmada para bajar el original o el stencil de una licencia.
+    *   Headers: `Authorization: Bearer <supabase_access_token>`. Rate limit: `authLimiter`.
+    *   Lógica: la licencia tiene que ser del titular (`holder_user_id`) o del comprador del pedido (si no, o si no existe, 403) y no estar revocada (410). El asset tiene que ser del mismo producto (404). Tope de 50 descargas por licencia en una ventana móvil de 24 h (429). Registra `store_download_events` y firma en `store-design-files` por **300 s fijos** con `download = file_name`.
+    *   Respuesta: `{ success: true, url, expires_in: 300 }`.
+*   `POST /api/store/orders/:id/checkout`: inicia el pago con el adaptador del pedido (`payment_provider`).
+    *   Headers: `Authorization: Bearer <supabase_access_token>`. Solo el comprador dueño (si no, 404) y con el pedido `pending_payment` y sin vencer (409). Adaptador no registrado o sin configurar: 503.
+    *   Respuesta: `{ success: true, checkout: { mode, instructions?, redirectUrl? } }`. `redirectUrl` siempre es `https://`. En modo `manual` el front no lo llama: pinta las instrucciones desde la fila.
+*   `POST /api/store/maintenance`: corre `run_store_maintenance()` (vencimientos, pagos informados vencidos, entregas automáticas y liberación de fondos). Lo dispara un job de n8n cada hora.
+    *   Headers: `X-Cron-Token: <CRON_API_TOKEN>` (comparación en tiempo constante). Token ausente o distinto: 401; sin `CRON_API_TOKEN` en el servidor: 503.
+    *   Respuesta: `{ success: true, result: { expired, flagged, delivered, released, failed: [ids] } }`.
+*   `POST /api/store/payments/webhook/:provider`: aviso de pago de un proveedor real (Stripe, Mercado Pago; hoy ninguno registrado, así que responde 404).
+    *   Body crudo (`express.raw({ type: '*/*', limit: '1mb' })`), registrado **antes** de `app.use(express.json(...))` para que la firma se calcule sobre los bytes exactos. `apiLimiter` lo saltea (`skip`) y tiene su propio limiter (120/min).
+    *   Lógica: sin adaptador con `parseWebhook` → 404. Con adaptador: `verifyWebhook(rawBody, headers)` (HMAC con `crypto.timingSafeEqual`; si falla, 401) → `parseWebhook` (`null` o un evento que no es `payment_succeeded` → 200 `{ ignored: true }`; ilegible o inválido → 400) → RPC `confirm_store_order_payment_as_provider` → 200. Un error `store:<código>` de la RPC responde 422; cualquier otro, 500 (el proveedor reintenta).
+
 ## 4. Flujos de Datos Críticos
 
 ### Creación de Cotización

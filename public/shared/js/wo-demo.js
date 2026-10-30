@@ -26,7 +26,7 @@
 (function () {
     'use strict';
 
-    var VERSION = '20260903-1';
+    var VERSION = '20261030-1';
     var KEYS = {
         mode: 'wo_demo_mode',
         store: 'wo_demo_store',

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800" role="img" aria-label="Stencil · demo">
+<rect width="800" height="800" fill="#FFFFFF"/>
+<ellipse cx="400" cy="350" rx="150" ry="52" transform="rotate(-14 400 350)" fill="none" stroke="#001125" stroke-width="4"/>
+<circle cx="540" cy="312" r="44" fill="none" stroke="#001125" stroke-width="4"/>
+<polygon points="578,300 640,296 582,326" fill="none" stroke="#001125" stroke-width="4"/>
+<polygon points="370,330 300,130 470,316" fill="none" stroke="#001125" stroke-width="4"/>
+<polygon points="390,380 270,520 480,392" fill="none" stroke="#001125" stroke-width="4"/>
+<polygon points="275,382 110,320 210,410" fill="none" stroke="#001125" stroke-width="4"/>
+<polygon points="275,398 130,470 236,420" fill="none" stroke="#001125" stroke-width="4"/>
+<circle cx="552" cy="302" r="7" fill="none" stroke="#001125" stroke-width="3"/>
+<line x1="56" y1="640" x2="356" y2="640" stroke="#001125" stroke-width="3"/><line x1="56" y1="628" x2="56" y2="652" stroke="#001125" stroke-width="3"/><line x1="356" y1="628" x2="356" y2="652" stroke="#001125" stroke-width="3"/>
+<path d="M40 40 h40 M40 40 v40 M760 40 h-40 M760 40 v40" stroke="#001125" stroke-width="3" fill="none"/>
+<text x="56" y="712" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="16" letter-spacing="3" fill="#24211D">ARCHIVO DE EJEMPLO · 10 CM</text>
+<text x="56" y="754" font-family="'Archivo Black', Impact, sans-serif" font-size="34" fill="#001125">Stencil · demo</text>
+</svg>
