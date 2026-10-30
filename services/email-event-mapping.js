@@ -23,6 +23,32 @@
  * verifies that every eventId used via emailService.sendEmail exists in this map.
  */
 
+// Plataforma de estudios + Supplies: todos usan la plantilla 'studio-notification'
+// (variables recipient_name, studio_name, subject, body_text, dashboard_url).
+// El servidor arma el payload con el destinatario ya resuelto desde auth.users
+// (dueño del estudio / del vendor o el artista), nunca desde studios.email,
+// supply_vendors.contact_email ni client_email. Son eventos internos: POST
+// /api/email/:eventId los rechaza (services/email-request-context.js).
+function studioNotificationAttribs(p) {
+    return {
+        recipient_name: p.recipient_name,
+        studio_name: p.studio_name,
+        subject: p.subject,
+        body_text: p.body_text,
+        dashboard_url: p.dashboard_url
+    };
+}
+
+function studioPlatformEvent(name, description) {
+    return {
+        name,
+        templateHint: 'studio-notification',
+        description,
+        recipient: p => p.recipient_email || p.to,
+        attribs: studioNotificationAttribs
+    };
+}
+
 const EVENTS = {
     studio_roster_invite: {
         name: 'Estudio: invitación al equipo',
@@ -36,6 +62,50 @@ const EVENTS = {
         recipient: p => p.artist_email || p.to,
         attribs: p => ({ ...p })
     },
+    studio_membership_request_created: studioPlatformEvent(
+        'Estudio: solicitud de alta de un artista',
+        'Aviso al dueño del estudio cuando un artista pide sumarse al equipo.'
+    ),
+    studio_membership_request_decision: studioPlatformEvent(
+        'Estudio: respuesta a la solicitud de alta',
+        'Aviso al artista cuando el estudio aprueba o rechaza su solicitud.'
+    ),
+    studio_contract_issued: studioPlatformEvent(
+        'Estudio: contrato enviado para firmar',
+        'Aviso al artista cuando el estudio emite un contrato.'
+    ),
+    studio_contract_signed: studioPlatformEvent(
+        'Estudio: contrato firmado',
+        'Aviso al dueño del estudio cuando el artista firma el contrato.'
+    ),
+    studio_contract_declined: studioPlatformEvent(
+        'Estudio: contrato rechazado',
+        'Aviso al dueño del estudio cuando el artista rechaza el contrato.'
+    ),
+    studio_contract_terminated: studioPlatformEvent(
+        'Estudio: contrato rescindido',
+        'Aviso a la otra parte cuando el estudio o el artista rescinde el contrato.'
+    ),
+    studio_booking_created: studioPlatformEvent(
+        'Estudio: cita agendada',
+        'Aviso al artista cuando el estudio le agenda una cita (nunca al cliente).'
+    ),
+    studio_booking_cancelled: studioPlatformEvent(
+        'Estudio: cita cancelada',
+        'Aviso al artista cuando el estudio cancela una cita (nunca al cliente).'
+    ),
+    studio_claim_decision: studioPlatformEvent(
+        'Estudio: respuesta al reclamo de ficha',
+        'Aviso al usuario que reclamó un estudio del catálogo cuando soporte decide.'
+    ),
+    supply_order_submitted: studioPlatformEvent(
+        'Supplies: pedido nuevo',
+        'Aviso al dueño del vendor cuando un estudio le envía un pedido.'
+    ),
+    supply_order_status: studioPlatformEvent(
+        'Supplies: cambio de estado del pedido',
+        'Aviso a la otra parte cuando un pedido se confirma, rechaza, despacha, entrega, cancela o recibe.'
+    ),
     // ===== Registration =====
     artist_registration_completed: {
         name: 'Artista: registro completado',

@@ -23,12 +23,14 @@ const { startLocalNgrok } = require('./lib/local-ngrok');
 const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
-const { resolveBearerUser } = require('./lib/auth/supabase-auth');
+const { resolveBearerUser, bearerToken } = require('./lib/auth/supabase-auth');
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
 const { CurrenciesRepo } = require('./lib/repos/currencies');
 const { InstagramRepo } = require('./lib/repos/instagram');
 const { AnalyticsRepo } = require('./lib/repos/analytics');
+const { StudiosRepo, pgErrorCode, isMissingSchemaError } = require('./lib/repos/studios');
+const { SuppliesRepo } = require('./lib/repos/supplies');
 const { summarizeArtistPublicProfileMetrics } = require('./lib/artist-public-profile-metrics');
 
 function ensureCronApiToken() {
@@ -382,9 +384,17 @@ async function _supabaseFetch(path, { method = 'GET', body, prefer } = {}) {
 
 // Delega en lib/auth/supabase-auth.resolveBearerUser; devuelve el objeto de
 // usuario crudo de Supabase Auth (con .id/.email) para conservar el contrato.
+// Se memoiza por request: el rate limit de avisos (studioNotifyLimiter) y el
+// handler resuelven el mismo Bearer una sola vez.
+const _authUserByRequest = new WeakMap();
 async function _getAuthUserFromBearer(req) {
+    if (req && typeof req === 'object' && _authUserByRequest.has(req)) {
+        return _authUserByRequest.get(req);
+    }
     const user = await resolveBearerUser(req);
-    return user ? user.raw : null;
+    const raw = user ? user.raw : null;
+    if (req && typeof req === 'object') _authUserByRequest.set(req, raw);
+    return raw;
 }
 
 async function _detectUserRole(userId, email) {
@@ -414,7 +424,31 @@ async function _detectUserRole(userId, email) {
             console.warn('[support-chat] support role lookup failed:', err.message);
         }
     }
+    // Cuenta de estudio: dueño de una fila de `studios` (studios.user_id).
+    try {
+        const studio = await StudiosRepo.getOwnedStudioByUserId(userId);
+        if (studio) return { role: 'studio', profile: studio };
+    } catch (err) {
+        console.warn('[support-chat] studio role lookup failed:', err.message);
+    }
+    // Cuenta Supplies: dueño de un vendor (supply_vendors.user_id). La tabla
+    // nace en una migración que puede no estar aplicada: ahí no se loguea.
+    try {
+        const vendor = await SuppliesRepo.getVendorByUserId(userId);
+        if (vendor) return { role: 'supplies', profile: { id: vendor.id, name: vendor.name, slug: vendor.slug } };
+    } catch (err) {
+        if (!isMissingSchemaError(err) && err.status !== 404) {
+            console.warn('[support-chat] supplies role lookup failed:', err.message);
+        }
+    }
     return { role: 'anonymous', profile: null };
+}
+
+// support_conversations.user_role tiene un CHECK vivo (artist, client, support,
+// anonymous): studio y supplies se guardan como 'anonymous' hasta extenderlo.
+const SUPPORT_STORED_ROLES = new Set(['artist', 'client', 'support', 'anonymous']);
+function _storedSupportRole(role) {
+    return SUPPORT_STORED_ROLES.has(role) ? role : 'anonymous';
 }
 
 async function _getActiveSupportAgent(req) {
@@ -619,6 +653,8 @@ function _buildSystemPrompt({ role, profile, pageContext, conversation }) {
     const name = profile?.name || profile?.username || '';
     const greeting = role === 'artist' ? `Estás hablando con un tatuador${name ? ` (${name})` : ''}.`
         : role === 'client' ? `Estás hablando con un cliente${name ? ` (${name})` : ''}.`
+        : role === 'studio' ? `Estás hablando con un estudio de tatuaje${name ? ` (${name})` : ''}.`
+        : role === 'supplies' ? `Estás hablando con un proveedor de insumos (Supplies)${name ? ` (${name})` : ''}.`
         : role === 'support' ? 'Estás hablando con un miembro del equipo de soporte.'
         : 'Estás hablando con un visitante no autenticado.';
     return [
@@ -656,7 +692,7 @@ app.post('/api/support-chat/conversation', async (req, res) => {
                         method: 'PATCH',
                         body: {
                             user_id: authUser.id,
-                            user_role: roleInfo?.role || 'anonymous',
+                            user_role: _storedSupportRole(roleInfo?.role),
                             updated_at: new Date().toISOString()
                         },
                         prefer: 'return=minimal'
@@ -692,7 +728,7 @@ app.post('/api/support-chat/conversation', async (req, res) => {
         const payload = [{
             anonymous_id: authUser?.id ? null : anonymousId,
             user_id: authUser?.id || null,
-            user_role: roleInfo?.role || 'anonymous',
+            user_role: _storedSupportRole(roleInfo?.role),
             status: 'bot',
             page_context: page_context || null
         }];
@@ -1079,7 +1115,7 @@ app.post('/api/support-chat/link-anonymous', async (req, res) => {
         const roleInfo = await _detectUserRole(authUser.id, authUser.email);
         await _supabaseFetch(`support_conversations?anonymous_id=eq.${anonymous_id}&user_id=is.null`, {
             method: 'PATCH',
-            body: { user_id: authUser.id, user_role: roleInfo.role, updated_at: new Date().toISOString() },
+            body: { user_id: authUser.id, user_role: _storedSupportRole(roleInfo.role), updated_at: new Date().toISOString() },
             prefer: 'return=minimal'
         });
         return res.json({ success: true });
@@ -1762,10 +1798,10 @@ app.post('/api/auth/reset-temp-password', async (req, res) => {
         });
     }
     
-    if (!['artist', 'client', 'studio'].includes(userType)) {
+    if (!['artist', 'client', 'studio', 'supplies'].includes(userType)) {
         return res.status(400).json({
             success: false,
-            error: 'userType debe ser "artist", "client" o "studio"'
+            error: 'userType debe ser "artist", "client", "studio" o "supplies"'
         });
     }
     
@@ -1793,16 +1829,21 @@ app.post('/api/auth/reset-temp-password', async (req, res) => {
         const tableName = (
             userType === 'artist' ? 'artists_db'
           : userType === 'studio' ? 'studios'
+          : userType === 'supplies' ? 'supply_vendors'
           : 'clients_db'
         );
-        
+
         // Step 1: Lookup user by email
         let users;
         try {
-            users = await pgrest(tableName)
-                .select('user_id,email')
-                .eq('email', email)
-                .execute();
+            users = userType === 'supplies'
+                // supply_vendors.email es el email de LOGIN (lo fija el registro
+                // desde auth.users, unico en minusculas), no el de contacto.
+                ? await SuppliesRepo.listVendorsByLoginEmail(email)
+                : await pgrest(tableName)
+                    .select('user_id,email')
+                    .eq('email', email)
+                    .execute();
         } catch (lookupErr) {
             console.error('[Auth] Error looking up user:', lookupErr.message);
             throw new Error('Error al buscar usuario');
@@ -1810,12 +1851,30 @@ app.post('/api/auth/reset-temp-password', async (req, res) => {
 
         if (!users || users.length === 0) {
             console.log(`[Auth] User not found: ${email} (type: ${userType})`);
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Usuario no encontrado' 
+            return res.status(404).json({
+                success: false,
+                error: 'Usuario no encontrado'
             });
         }
-        
+
+        if (userType === 'supplies') {
+            // El vendor tiene que tener dueño y ese usuario de Auth tiene que
+            // ser el mismo email de login: si no coinciden, no se toca nada.
+            const vendor = users.length === 1 ? users[0] : null;
+            const authUser = vendor && vendor.user_id
+                ? await StudiosRepo.getAuthUserContact(vendor.user_id).catch(() => null)
+                : null;
+            const sameLogin = authUser && authUser.email
+                && authUser.email === String(email).trim().toLowerCase();
+            if (!vendor || !vendor.user_id || !sameLogin) {
+                console.log(`[Auth] Supplies login mismatch for: ${email}`);
+                return res.status(404).json({
+                    success: false,
+                    error: 'Usuario no encontrado'
+                });
+            }
+        }
+
         const userId = users[0].user_id;
         console.log(`[Auth] Found user ${email} with user_id: ${userId}`);
         
@@ -2105,6 +2164,22 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'studio_sponsors', description: 'Patrocinadores' },
     { name: 'studio_sponsor_artists', description: 'Patrocinios a artistas' },
     { name: 'studio_documents', description: 'Documentos del estudio' },
+    { name: 'studio_bookings', description: 'Agenda del estudio (citas)' },
+    // Studios platform (migraciones 20261030200000–204000). `readonly: true`:
+    // solo cambian por RPC (contratos, pedidos, reclamos, gastos ligados).
+    { name: 'studio_membership_request_details', description: 'Detalle de solicitudes de alta de artistas', readonly: true },
+    { name: 'studio_claim_requests', description: 'Reclamos de fichas de estudio', readonly: true },
+    { name: 'studio_contracts', description: 'Contratos registrados estudio-artista', readonly: true },
+    { name: 'studio_finance_entries', description: 'Gastos e ingresos del estudio', readonly: true },
+    // Supplies (tiendas de insumos)
+    { name: 'supply_vendors', description: 'Vendors Supplies' },
+    { name: 'supply_vendor_private', description: 'Datos fiscales de vendors Supplies' },
+    { name: 'supply_vendor_counters', description: 'Numeracion de pedidos por vendor', readonly: true },
+    { name: 'supply_products', description: 'Catalogo de productos Supplies' },
+    { name: 'supply_discount_tiers', description: 'Escalas de descuento Supplies' },
+    { name: 'supply_orders', description: 'Pedidos de reposicion a Supplies', readonly: true },
+    { name: 'supply_order_items', description: 'Lineas de pedidos Supplies', readonly: true },
+    { name: 'supply_order_events', description: 'Historial de estados de pedidos Supplies', readonly: true },
     // Quotations domain
     { name: 'quotations_db', description: 'Cotizaciones' },
     { name: 'quotations_attachments', description: 'Adjuntos de cotizaciones' },
@@ -2170,14 +2245,34 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'studio_artist_performance_view', description: 'Rendimiento de artistas (vista)', kind: 'view' },
     { name: 'studio_inventory_health_view', description: 'Salud de inventario (vista)', kind: 'view' },
     { name: 'studio_public_sponsors_view', description: 'Patrocinadores publicos (vista)', kind: 'view' },
+    { name: 'studio_monthly_metrics_by_currency', description: 'Metricas mensuales por moneda (vista)', kind: 'view' },
+    { name: 'studio_artist_metrics_by_currency', description: 'Metricas por artista y moneda (vista)', kind: 'view' },
+    { name: 'studio_inventory_health_by_currency', description: 'Salud de inventario por moneda (vista)', kind: 'view' },
+    { name: 'studio_public_roster', description: 'Roster publico de estudios (vista)', kind: 'view' },
+    { name: 'studio_artist_material_balance', description: 'Materiales entregados por artista (vista)', kind: 'view' },
+    { name: 'studio_material_assignment_monthly', description: 'Entregas de materiales por mes (vista)', kind: 'view' },
+    { name: 'studio_finance_monthly_by_category', description: 'Finanzas mensuales por categoria (vista)', kind: 'view' },
+    { name: 'supply_vendor_sales_monthly', description: 'Ventas mensuales de vendors Supplies (vista)', kind: 'view' },
+    { name: 'supply_vendor_customers', description: 'Clientes de vendors Supplies (vista)', kind: 'view' },
     { name: 'chat_threads', description: 'Hilos consolidados del inbox (vista)', kind: 'view' }
 ];
 const ADMIN_DATABASE_TABLE_NAMES = new Set(ADMIN_DATABASE_TABLES.map(table => table.name));
-// Only base tables are writable through the generic row editor. Views and any
-// name not in the catalog above are rejected by the PATCH/DELETE endpoints.
+// Only base tables without `readonly` are writable through the generic row
+// editor. Views, readonly tables (state machines that only change through
+// RPCs) and any name not in the catalog above are rejected by POST/PATCH/DELETE.
 const ADMIN_DATABASE_WRITABLE = new Set(
-    ADMIN_DATABASE_TABLES.filter(table => table.kind !== 'view').map(table => table.name)
+    ADMIN_DATABASE_TABLES.filter(table => !(table.kind === 'view' || table.readonly)).map(table => table.name)
 );
+const ADMIN_DATABASE_READONLY_TABLES = new Set(
+    ADMIN_DATABASE_TABLES.filter(table => table.kind !== 'view' && table.readonly).map(table => table.name)
+);
+// Mensaje para una tabla del catalogo que no admite escritura generica.
+function adminReadonlyMessage(tableName, verb = 'editarse') {
+    if (ADMIN_DATABASE_READONLY_TABLES.has(tableName)) {
+        return `Esta tabla es de solo lectura: solo cambia desde la plataforma y no puede ${verb} acá.`;
+    }
+    return `Esta es una vista de solo lectura y no puede ${verb}.`;
+}
 // Column-name guard for the generic row editor: PostgREST identifiers are
 // lowercase snake_case, so anything else is rejected before building a filter.
 const SAFE_COLUMN_RE = /^[a-z_][a-z0-9_]*$/;
@@ -2312,7 +2407,7 @@ app.post('/api/admin/database/tables/:tableName/row', async (req, res) => {
         const isView = ADMIN_DATABASE_TABLE_NAMES.has(tableName);
         return res.status(400).json({
             success: false,
-            error: isView ? 'Esta es una vista de solo lectura.' : 'Tabla no permitida.'
+            error: isView ? adminReadonlyMessage(tableName, 'recibir filas') : 'Tabla no permitida.'
         });
     }
     const values = req.body && req.body.values;
@@ -2352,7 +2447,7 @@ function validateRowTarget(tableName, idColumn, idValue) {
             ok: false,
             status: 400,
             error: isView
-                ? 'Esta es una vista de solo lectura y no puede editarse.'
+                ? adminReadonlyMessage(tableName, 'editarse')
                 : 'Tabla no permitida.'
         };
     }
@@ -2638,6 +2733,248 @@ app.post('/api/admin/delete-studio', async (req, res) => {
         return res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// ============================================
+// BACKOFFICE - RECLAMOS DE ESTUDIOS, VENDORS SUPPLIES Y POSTULACIONES
+// ============================================
+// Superadmin (verifyAdminCaller) o agente de soporte activo (support_users_db).
+// Las decisiones que pasan por una RPC (decide_studio_claim,
+// decide_studio_spot_application) viajan con el JWT del caller: la RPC exige
+// is_support_user() y registra quién decidió. Los listados y los flags de
+// vendors usan service-role (la autorización ya se hizo acá).
+
+async function _verifyBackofficeOrSupport(req) {
+    const admin = await appSettings.verifyAdminCaller(req);
+    if (admin.ok) return { ok: true, role: 'superadmin', userId: admin.userId, email: admin.email };
+    if (admin.status === 401) return admin;
+
+    const agent = await _getActiveSupportAgent(req);
+    if (agent.ok) {
+        return { ok: true, role: 'support', userId: agent.authUser.id, email: agent.authUser.email || null };
+    }
+    if (agent.status && agent.status >= 500) {
+        return { ok: false, status: agent.status, error: agent.error || 'Could not verify support access' };
+    }
+    return { ok: false, status: 403, error: 'Esta acción requiere el superadmin o un agente de soporte activo.' };
+}
+
+// Traduce el error de una RPC (errcodes del contrato) a una respuesta HTTP.
+function _respondRpcFailure(res, err, label) {
+    const code = pgErrorCode(err);
+    const dbMessage = err && err.dbMessage ? String(err.dbMessage).slice(0, 300) : '';
+    if (code === 'PGRST202' || isMissingSchemaError(err)) {
+        return res.status(503).json({ success: false, migration_pending: true, error: NOTIFY_MIGRATION_PENDING });
+    }
+    if (code === '42501') {
+        return res.status(403).json({ success: false, error: dbMessage || 'No tenés permiso para esta acción.' });
+    }
+    if (code === '22023' || code === '22P02') {
+        return res.status(400).json({ success: false, error: dbMessage || 'Datos inválidos.' });
+    }
+    if (code === '23514' || code === 'P0001' || code === 'P0002') {
+        return res.status(409).json({ success: false, error: dbMessage || 'El estado cambió. Recargá y probá de nuevo.' });
+    }
+    console.error(`[Admin API] ${label} failed:`, err && err.message);
+    return res.status(502).json({ success: false, error: 'No se pudo completar la acción.' });
+}
+
+// Aviso best-effort al usuario que reclamó la ficha (email de auth.users).
+async function _notifyStudioClaimDecision(req, claimId) {
+    const claim = await StudiosRepo.getClaimWithParties(claimId);
+    if (!claim || !['approved', 'rejected'].includes(claim.status)) return { sent: false, delivery_status: 'skipped' };
+    const user = claim.user;
+    if (!user || !user.email) return { sent: false, delivery_status: 'no_recipient' };
+
+    const base = applicationBase(req);
+    const studioName = _notifyText(claim.studios?.name, 120) || 'tu estudio';
+    const approved = claim.status === 'approved';
+    const note = _notifyText(claim.decision_note, 300);
+    const ctaUrl = approved ? `${base}/studio/dashboard` : `${base}/studio/register`;
+    const result = await _sendStudioPlatformEmail({
+        eventId: 'studio_claim_decision',
+        recipient: { email: user.email, name: claim.contact_name || user.full_name || '' },
+        fromName: 'We Ötzi',
+        subject: approved ? `Aprobamos tu reclamo de ${studioName}` : `Tu reclamo de ${studioName} no fue aprobado`,
+        bodyText: approved
+            ? `${_notifyGreeting(claim.contact_name || user.full_name)}Revisamos tu reclamo y ya sos el dueño de ${studioName} en We Ötzi.\n\n`
+                + `Completá el perfil del estudio desde ${ctaUrl}.`
+            : `${_notifyGreeting(claim.contact_name || user.full_name)}Revisamos tu reclamo de ${studioName} y no pudimos aprobarlo.${note ? ` Motivo: ${note}.` : ''}\n\n`
+                + `Si querés, podés registrar un estudio nuevo desde ${ctaUrl}.`,
+        ctaUrl,
+        meta: { claim_id: claim.id, studio_id: claim.studio_id, status: claim.status },
+        idempotencyKey: `claim_decision:${claim.id}:${claim.status}`
+    });
+    return { sent: Boolean(result && result.ok), delivery_status: result && result.delivery_status };
+}
+
+/**
+ * GET /api/admin/studio-claims
+ * Reclamos `pending` con su estudio y el usuario reclamante.
+ */
+app.get('/api/admin/studio-claims', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    try {
+        const claims = await StudiosRepo.listPendingClaims();
+        return res.json({ success: true, claims });
+    } catch (err) {
+        if (isMissingSchemaError(err)) {
+            return res.json({ success: true, claims: [], migration_pending: true });
+        }
+        console.error('[Admin API] studio-claims list failed:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudieron cargar los reclamos.' });
+    }
+});
+
+/**
+ * POST /api/admin/studio-claims/:id/decide
+ * Body: { decision: 'approve' | 'reject', note? }
+ * Llama a decide_studio_claim con el JWT del caller (debe ser soporte).
+ */
+app.post('/api/admin/studio-claims/:id/decide', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    const id = req.params.id;
+    if (!UUID_RE.test(String(id))) {
+        return res.status(400).json({ success: false, error: 'ID de reclamo inválido (se espera UUID).' });
+    }
+    const { decision, note } = req.body || {};
+    if (!['approve', 'reject'].includes(decision)) {
+        return res.status(400).json({ success: false, error: 'decision invalida (esperado: approve | reject)' });
+    }
+    const cleanNote = note == null ? null : (String(note).trim().slice(0, 1000) || null);
+
+    let result;
+    try {
+        result = await StudiosRepo.decideClaimAsCaller(id, decision, cleanNote, bearerToken(req));
+    } catch (err) {
+        return _respondRpcFailure(res, err, 'decide_studio_claim');
+    }
+
+    let email = { sent: false, delivery_status: 'skipped' };
+    try {
+        email = await _notifyStudioClaimDecision(req, id);
+    } catch (notifyErr) {
+        console.warn('[Admin API] studio claim decision email not sent:', notifyErr.message);
+        email = { sent: false, delivery_status: 'failed' };
+    }
+
+    console.log(`[Admin API] Studio claim ${id} decided (${decision}) by ${auth.role} ${auth.email || auth.userId}`);
+    return res.json({ success: true, result, email_sent: Boolean(email.sent), delivery_status: email.delivery_status || null });
+});
+
+/**
+ * GET /api/admin/supply-vendors
+ * Vendors Supplies (los más nuevos primero).
+ */
+app.get('/api/admin/supply-vendors', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    try {
+        const vendors = await SuppliesRepo.listVendors();
+        return res.json({ success: true, vendors: Array.isArray(vendors) ? vendors : [] });
+    } catch (err) {
+        if (isMissingSchemaError(err)) {
+            return res.json({ success: true, vendors: [], migration_pending: true });
+        }
+        console.error('[Admin API] supply-vendors list failed:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudieron cargar los vendors.' });
+    }
+});
+
+/**
+ * PATCH /api/admin/supply-vendors/:id
+ * Body: { is_verified?: boolean, is_active?: boolean } (nada más).
+ */
+app.patch('/api/admin/supply-vendors/:id', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    const id = req.params.id;
+    if (!UUID_RE.test(String(id))) {
+        return res.status(400).json({ success: false, error: 'ID de vendor inválido (se espera UUID).' });
+    }
+    const body = req.body || {};
+    const patch = {};
+    for (const key of ['is_verified', 'is_active']) {
+        if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
+        if (typeof body[key] !== 'boolean') {
+            return res.status(400).json({ success: false, error: `${key} debe ser true o false.` });
+        }
+        patch[key] = body[key];
+    }
+    if (Object.keys(patch).length === 0) {
+        return res.status(400).json({ success: false, error: 'No hay cambios válidos para guardar (is_verified, is_active).' });
+    }
+
+    try {
+        const vendor = await SuppliesRepo.updateVendorFlags(id, patch);
+        if (!vendor) return res.status(404).json({ success: false, error: 'No se encontró el vendor.' });
+        console.log(`[Admin API] Supply vendor ${id} updated by ${auth.role} ${auth.email || auth.userId}: ${JSON.stringify(patch)}`);
+        return res.json({ success: true, vendor });
+    } catch (err) {
+        if (isMissingSchemaError(err)) {
+            return res.status(503).json({ success: false, migration_pending: true, error: NOTIFY_MIGRATION_PENDING });
+        }
+        console.error('[Admin API] supply-vendor update failed:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudo actualizar el vendor.' });
+    }
+});
+
+/**
+ * POST /api/admin/studio-spot-applications/:id/decide
+ * Body: { status: 'accepted' | 'rejected' }
+ * El backoffice decide una postulación por la RPC (máquina spot → contrato),
+ * nunca escribiendo `status` directo en la tabla.
+ */
+app.post('/api/admin/studio-spot-applications/:id/decide', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    const id = req.params.id;
+    if (!UUID_RE.test(String(id))) {
+        return res.status(400).json({ success: false, error: 'ID de postulación inválido (se espera UUID).' });
+    }
+    const status = req.body && req.body.status;
+    if (!['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, error: 'status invalido (esperado: accepted | rejected)' });
+    }
+
+    try {
+        const application = await StudiosRepo.decideSpotApplicationAsCaller(id, status, bearerToken(req));
+        console.log(`[Admin API] Spot application ${id} decided (${status}) by ${auth.role} ${auth.email || auth.userId}`);
+        return res.json({ success: true, application });
+    } catch (err) {
+        // Sin la migración de contratos (M2) la RPC viva solo admite al dueño del
+        // estudio: el backoffice vuelve a su escritura previa con service-role.
+        if (pgErrorCode(err) === '42501' && await _contractsMigrationMissing()) {
+            try {
+                const rows = await _supabaseFetch(
+                    `studio_spot_applications?id=eq.${encodeURIComponent(id)}&status=in.(pending,viewed,shortlisted)`,
+                    { method: 'PATCH', prefer: 'return=representation', body: { status, decided_at: new Date().toISOString(), decided_by_user_id: auth.userId || null } }
+                );
+                if (!rows || !rows.length) return res.status(409).json({ success: false, error: 'La postulación ya fue decidida o no existe.' });
+                console.log(`[Admin API] Spot application ${id} decided (${status}, legacy) by ${auth.role} ${auth.email || auth.userId}`);
+                return res.json({ success: true, application: rows[0], legacy: true });
+            } catch (legacyErr) {
+                return _respondRpcFailure(res, legacyErr, 'decide_studio_spot_application');
+            }
+        }
+        return _respondRpcFailure(res, err, 'decide_studio_spot_application');
+    }
+});
+
+async function _contractsMigrationMissing() {
+    try {
+        await _supabaseFetch('studio_contracts?select=id&limit=1');
+        return false;
+    } catch (probeErr) {
+        return isMissingSchemaError(probeErr);
+    }
+}
 
 app.get('/api/admin/support-users', async (req, res) => {
     const auth = await appSettings.verifyAdminCaller(req);
@@ -4327,31 +4664,218 @@ app.get('/api/artist/public-profile-metrics', async (req, res) => {
     }
 });
 
+// ============================================
+// PLATAFORMA DE ESTUDIOS + SUPPLIES: AVISOS POR EMAIL
+// ============================================
+// Tres endpoints con el mismo contrato (docs/plans/2026-10-30-estudios-plataforma.md
+// §Servidor):
+//   POST /api/studio/notify         dueño del estudio o soporte
+//   POST /api/artist/studio-notify  el artista de la fila
+//   POST /api/supplies/notify       dueño del estudio o del vendor (o soporte)
+// Body { kind, <id> } -> { success, sent, delivery_status }.
+//   1. Bearer obligatorio (401) antes de leer nada.
+//   2. La fila se lee en el servidor y se verifican la pertenencia del caller y
+//      el ESTADO PERSISTIDO que corresponde al kind (409 si no coincide).
+//   3. El destinatario es SIEMPRE el email de auth.users del dueño (estudio o
+//      vendor) o del artista. Nunca studios.email, contact_email ni
+//      client_email. Sin dueño no se envía nada (sent:false, 'no_recipient').
+//   4. Idempotencia `${kind}:${id}:${estado}` en el ledger de entregas.
+//   5. Si el envío falla, la acción ya guardada NO se revierte.
+
+// 60 avisos cada 15 min por usuario autenticado (fallback IP), en los 3
+// endpoints. El Bearer se resuelve una vez por request (_getAuthUserFromBearer
+// memoiza), asi que el handler no paga una segunda consulta a Auth.
+async function _studioNotifyRateLimitKey(req) {
+    let authUser = null;
+    try { authUser = await _getAuthUserFromBearer(req); } catch (_) { authUser = null; }
+    if (authUser && authUser.id) return `user:${authUser.id}`;
+    return `ip:${rateLimit.ipKeyGenerator(req.ip || '')}`;
+}
+
+const studioNotifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: _studioNotifyRateLimitKey,
+    message: { success: false, error: 'Demasiados avisos seguidos. Probá de nuevo en unos minutos.' }
+});
+
+const STUDIO_NOTIFY_KINDS = [
+    'spot_decision', 'roster_invite', 'membership_request_decision',
+    'contract_issued', 'contract_terminated', 'booking_created', 'booking_cancelled'
+];
+const ARTIST_STUDIO_NOTIFY_KINDS = ['membership_request_created', 'contract_signed', 'contract_declined', 'contract_terminated'];
+// kind -> estado persistido del pedido que habilita el aviso.
+const SUPPLY_NOTIFY_STATUS = {
+    order_submitted: 'submitted',
+    order_cancelled: 'cancelled',
+    order_received: 'received',
+    order_confirmed: 'confirmed',
+    order_rejected: 'rejected',
+    order_shipped: 'shipped',
+    order_delivered: 'delivered'
+};
+// Quien dispara cada kind. order_cancelled puede venir de cualquiera de los dos
+// lados (cancel_supply_order del estudio o 'cancel' del vendor): el lado sale
+// del evento guardado y el aviso va a la contraparte.
+const SUPPLY_STUDIO_SIDE_KINDS = new Set(['order_submitted', 'order_cancelled', 'order_received']);
+const SUPPLY_VENDOR_SIDE_KINDS = new Set(['order_confirmed', 'order_rejected', 'order_shipped', 'order_delivered', 'order_cancelled']);
+
+const NOTIFY_TIMEZONE = process.env.STUDIO_NOTIFY_TIMEZONE || 'America/Argentina/Buenos_Aires';
+const NOTIFY_MIGRATION_PENDING = 'Esta función todavía no está disponible (falta aplicar una migración).';
+const NOTIFY_SAVED_BUT_UNCONFIRMED = 'El cambio quedó guardado, pero no se pudo confirmar el correo.';
+
+// Texto que viene de datos de usuario (nombres, motivos, notas) dentro del
+// cuerpo del correo: sin caracteres de control ni < >, recortado.
+function _notifyText(value, max = 160) {
+    return String(value == null ? '' : value)
+        .replace(/[\u0000-\u001f\u007f<>]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, max);
+}
+
+function _notifyGreeting(name) {
+    const clean = _notifyText(name, 80);
+    return `Hola${clean ? ' ' + clean : ''},\n\n`;
+}
+
+function _notifyDateTime(value) {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return '';
+    try {
+        return new Intl.DateTimeFormat('es-AR', { dateStyle: 'full', timeStyle: 'short', timeZone: NOTIFY_TIMEZONE }).format(date);
+    } catch (_) {
+        return date.toISOString();
+    }
+}
+
+function _notifyDate(value) {
+    if (!value) return '';
+    const text = String(value);
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(text);
+    const date = new Date(dateOnly ? `${text}T12:00:00Z` : text);
+    if (Number.isNaN(date.getTime())) return '';
+    try {
+        return new Intl.DateTimeFormat('es-AR', {
+            day: 'numeric', month: 'long', year: 'numeric', timeZone: dateOnly ? 'UTC' : NOTIFY_TIMEZONE
+        }).format(date);
+    } catch (_) {
+        return text.slice(0, 10);
+    }
+}
+
+// Montos siempre con su moneda ("12.345,50 ARS"): nunca se mezclan monedas.
+function _notifyMoney(amount, currency) {
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return '';
+    const code = /^[A-Z]{3}$/.test(String(currency || '')) ? String(currency) : '';
+    let formatted;
+    try {
+        formatted = new Intl.NumberFormat('es-AR', {
+            minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+            maximumFractionDigits: 2
+        }).format(n);
+    } catch (_) {
+        formatted = n.toFixed(2);
+    }
+    return code ? `${formatted} ${code}` : formatted;
+}
+
+function _notifyRespond(res, result, extra = {}) {
+    const ok = Boolean(result && result.ok);
+    return res.status(ok ? 200 : 502).json({
+        success: ok,
+        sent: ok,
+        delivery_status: (result && result.delivery_status)
+            || (ok ? 'accepted' : (result && result.uncertain ? 'uncertain' : 'failed')),
+        deduplicated: result ? result.deduplicated : undefined,
+        uncertain: result ? result.uncertain : undefined,
+        error: ok ? undefined : (result && result.error) || NOTIFY_SAVED_BUT_UNCONFIRMED,
+        ...extra
+    });
+}
+
+// Nada que enviar (estudio/vendor sin dueño, usuario sin email): la acción
+// guardada queda y la respuesta lo dice sin simular un envío.
+function _notifyNoRecipient(res, reason, extra = {}) {
+    return res.status(200).json({ success: true, sent: false, delivery_status: 'no_recipient', reason, ...extra });
+}
+
+function _notifyLoadFailure(res, err, label) {
+    if (isMissingSchemaError(err)) {
+        return res.status(503).json({ success: false, sent: false, migration_pending: true, error: NOTIFY_MIGRATION_PENDING });
+    }
+    console.error(`[StudioNotify] could not load ${label}:`, err.message);
+    return res.status(503).json({ success: false, sent: false, error: NOTIFY_SAVED_BUT_UNCONFIRMED });
+}
+
+// Envía un aviso con la plantilla 'studio-notification'. `recipient` viene de
+// StudiosRepo/SuppliesRepo (email de auth.users), nunca del body del caller.
+function _sendStudioPlatformEmail({ eventId, recipient, fromName, subject, bodyText, ctaUrl, meta, idempotencyKey }) {
+    return emailService.sendEmail(eventId, {
+        to: recipient.email,
+        recipient_email: recipient.email,
+        recipient_name: _notifyText(recipient.name, 120),
+        studio_name: _notifyText(fromName, 120) || 'We Ötzi',
+        subject: _notifyText(subject, 200),
+        body_text: bodyText,
+        dashboard_url: ctaUrl,
+        meta: meta || {}
+    }, { idempotencyKey });
+}
+
+// Aviso al dueño del estudio de una solicitud de alta (`requested`). Lo usan
+// /api/artist/studio-notify y el registro de artista. Sin dueño: nada.
+async function _notifyMembershipRequestCreated(req, membership) {
+    const owner = await StudiosRepo.getStudioOwnerContact(membership.studio_id);
+    if (!owner) return { skipped: true, reason: 'studio_without_owner' };
+    const studio = membership.studios || {};
+    const artist = membership.artists_db || {};
+    const base = applicationBase(req);
+    const studioName = _notifyText(studio.name || owner.studio_name, 120) || 'tu estudio';
+    const artistName = _notifyText(artist.name || artist.username, 120) || 'Un artista';
+    const handle = artist.username ? ` (@${_notifyText(artist.username, 60)})` : '';
+    const ctaUrl = `${base}/studio/dashboard#solicitudes`;
+    const result = await _sendStudioPlatformEmail({
+        eventId: 'studio_membership_request_created',
+        recipient: owner,
+        fromName: studioName,
+        subject: `${artistName} quiere sumarse a ${studioName}`,
+        bodyText: `${_notifyGreeting(owner.name)}${artistName}${handle} pidió sumarse a ${studioName} como ${roleFromKind(membership.role)}.\n\n`
+            + `Revisá la solicitud y aprobala o rechazala en ${ctaUrl}.`,
+        ctaUrl,
+        meta: { membership_id: membership.id, studio_id: membership.studio_id, artist_user_id: membership.artist_user_id },
+        idempotencyKey: `membership_request_created:${membership.studio_id}:${membership.artist_user_id}:${new Date().toISOString().slice(0, 10)}`
+    });
+    return { skipped: false, result };
+}
+
 /**
  * POST /api/studio/notify
  *
- * Sends an email notification when a studio acts on an artist's application
- * or invites them to the roster.
+ * Avisos que dispara el estudio (dueño) o soporte.
  *
- * Body: { kind: 'spot_decision'|'roster_invite', application_id?, membership_id?, decision? }
+ * Body: { kind, application_id?, membership_id?, contract_id?, booking_id?, decision? }
+ *   spot_decision                     { application_id, decision }  -> artista
+ *   roster_invite                     { membership_id }             -> artista
+ *   membership_request_decision       { membership_id }             -> artista
+ *   contract_issued | contract_terminated   { contract_id }         -> artista
+ *   booking_created | booking_cancelled     { booking_id }          -> SOLO el artista (nunca client_email)
  *
- * Caller must be authenticated. The endpoint:
- *   1. Validates the caller owns the studio originating the notification.
- *   2. Builds the email payload server-side (subject + body) with verified
- *      data (artist email, studio name, role).
- *   3. Uses the centralized dispatcher and persistent delivery claim.
- *   4. Reports mail acceptance/failure separately from the saved studio action.
+ * Cada kind llama a _verifyStudioNotifyAccess y verifica el estado guardado.
  */
-app.post('/api/studio/notify', authLimiter, async (req, res) => {
+app.post('/api/studio/notify', studioNotifyLimiter, async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceRoleKey) {
         return res.status(500).json({ success: false, error: 'Server misconfigured: missing SUPABASE creds.' });
     }
 
-    const { kind, application_id, membership_id, decision } = req.body || {};
-    if (!kind || !['spot_decision', 'roster_invite'].includes(kind)) {
-        return res.status(400).json({ success: false, error: 'kind invalido (esperado: spot_decision | roster_invite)' });
+    const { kind, application_id, membership_id, contract_id, booking_id, decision } = req.body || {};
+    if (!kind || !STUDIO_NOTIFY_KINDS.includes(kind)) {
+        return res.status(400).json({ success: false, error: `kind invalido (esperado: ${STUDIO_NOTIFY_KINDS.join(' | ')})` });
     }
     if (kind === 'spot_decision' && !['accepted', 'rejected'].includes(decision)) {
         return res.status(400).json({ success: false, error: 'decision invalida (esperado: accepted | rejected)' });
@@ -4365,128 +4889,246 @@ app.post('/api/studio/notify', authLimiter, async (req, res) => {
 
         let payload = null;
         const mailBase = applicationBase(req);
+        const invitationsUrl = `${mailBase}/artist/invitations`;
 
         if (kind === 'spot_decision') {
-            if (!application_id) {
+            if (!UUID_RE.test(String(application_id || ''))) {
                 return res.status(400).json({ success: false, error: 'application_id y decision son requeridos.' });
             }
-            // Pull the application + spot + studio + artist in one go.
             let app;
             try {
-                app = await pgrest('studio_spot_applications')
-                    .select(
-                        'id,status,artist_user_id,artists_db(user_id,email,name,username),'
-                        + 'studio_spots(id,title,kind,studios(id,name,slug,user_id,email))'
-                    )
-                    .eq('id', application_id)
-                    .single()
-                    .execute();
+                app = await StudiosRepo.getSpotApplicationWithParties(application_id);
             } catch (loadErr) {
-                throw new Error(`Could not load application: ${loadErr.status || loadErr.message}`);
+                return _notifyLoadFailure(res, loadErr, 'application');
             }
             if (!app) return res.status(404).json({ success: false, error: 'Application not found.' });
-            if (app.status !== decision) return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
 
-            const studio = app.studio_spots?.studios || {};
-            const artist = app.artists_db || {};
-            const spot   = app.studio_spots || {};
+            const spot = app.studio_spots || {};
+            const studio = spot.studios || {};
             const access = await _verifyStudioNotifyAccess(req, studio, authUser);
             if (!access.ok) {
                 return res.status(access.status).json({ success: false, error: access.error });
             }
+            // Con contratos, "aceptar" deja la postulación en `shortlisted` hasta
+            // que el artista firma; sin la migración queda `accepted`.
+            const persisted = decision === 'accepted'
+                ? ['accepted', 'shortlisted'].includes(app.status)
+                : app.status === 'rejected';
+            if (!persisted) {
+                return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
+            }
 
+            const artist = await StudiosRepo.getArtistContact(app.artist_user_id);
+            if (!artist) return _notifyNoRecipient(res, 'artist_without_email');
+            const studioName = _notifyText(studio.name, 120) || 'El estudio';
+            const spotTitle = _notifyText(spot.title, 160);
             payload = {
-                kind: 'studio_spot_decision',
-                decision,                                            // 'accepted' | 'rejected'
-                to:   artist.email,
-                to_name: artist.name || artist.username || '',
-                from_name: studio.name || 'Estudio',
+                eventId: 'studio_spot_decision',
+                recipient: artist,
+                fromName: studioName,
                 subject: decision === 'accepted'
-                    ? `¡Te aceptaron en ${studio.name}!`
-                    : `Actualización de tu postulación a ${studio.name}`,
-                body_text: decision === 'accepted'
-                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}". Ya formás parte del roster como ${roleFromKind(spot.kind)}.\n\nVas a ver el estudio bajo tus memberships activas en /artist/invitations. Mucha suerte y buena tinta.`
-                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
-                links: {
-                    studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
-                    invitations:      `${mailBase}/artist/invitations`,
-                    spots_directory:  `${mailBase}/studio-spots`
-                },
-                meta: {
-                    application_id: app.id,
-                    artist_user_id: artist.user_id,
-                    studio_id: studio.id,
-                    spot_id:   spot.id,
-                    spot_kind: spot.kind
-                }
+                    ? `Tu postulación a ${studioName} avanzó`
+                    : `Actualización de tu postulación a ${studioName}`,
+                bodyText: decision === 'accepted'
+                    ? `${_notifyGreeting(artist.name)}${studioName} eligió tu postulación al spot "${spotTitle}" como ${roleFromKind(spot.kind)}.\n\n`
+                        + `Tu postulación avanzó; el estudio te va a enviar el contrato para firmar en ${invitationsUrl}.`
+                    : `${_notifyGreeting(artist.name)}Gracias por postularte al spot "${spotTitle}" en ${studioName}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
+                ctaUrl: invitationsUrl,
+                meta: { application_id: app.id, artist_user_id: app.artist_user_id, studio_id: studio.id, spot_id: spot.id, spot_kind: spot.kind },
+                idempotencyKey: `spot_decision:${app.id}:${app.status}`
             };
         }
 
         if (kind === 'roster_invite') {
-            if (!membership_id) {
+            if (!UUID_RE.test(String(membership_id || ''))) {
                 return res.status(400).json({ success: false, error: 'membership_id requerido.' });
             }
             let m;
             try {
-                m = await pgrest('studio_artist_memberships')
-                    .select(
-                        'id,role,status,artist_user_id,artists_db(user_id,email,name,username),'
-                        + 'studios(id,name,slug,user_id,email)'
-                    )
-                    .eq('id', membership_id)
-                    .single()
-                    .execute();
+                m = await StudiosRepo.getMembershipWithParties(membership_id);
             } catch (loadErr) {
-                throw new Error(`Could not load membership: ${loadErr.status || loadErr.message}`);
+                return _notifyLoadFailure(res, loadErr, 'membership');
             }
             if (!m) return res.status(404).json({ success: false, error: 'Membership not found.' });
-            if (!['pending_invite', 'pending_acceptance'].includes(m.status)) return res.status(409).json({ success: false, sent: false, error: 'La invitación ya no está pendiente.' });
 
             const studio = m.studios || {};
-            const artist = m.artists_db || {};
             const access = await _verifyStudioNotifyAccess(req, studio, authUser);
             if (!access.ok) {
                 return res.status(access.status).json({ success: false, error: access.error });
             }
+            // `initiated_by` ausente (migración sin aplicar) equivale a 'studio'.
+            if (!['pending_invite', 'pending_acceptance'].includes(m.status) || (m.initiated_by || 'studio') !== 'studio') {
+                return res.status(409).json({ success: false, sent: false, error: 'La invitación ya no está pendiente.' });
+            }
 
+            const artist = await StudiosRepo.getArtistContact(m.artist_user_id);
+            if (!artist) return _notifyNoRecipient(res, 'artist_without_email');
+            const studioName = _notifyText(studio.name, 120) || 'Un estudio';
             payload = {
-                kind: 'studio_roster_invite',
-                to: artist.email,
-                to_name: artist.name || artist.username || '',
-                from_name: studio.name || 'Estudio',
-                subject: `${studio.name} te invitó a su roster`,
-                body_text:
-                    `Hola${artist.name ? ' ' + artist.name : ''},\n\n`
-                    + `${studio.name} te invitó como ${roleFromKind(m.role)} a su roster en We Ötzi.\n\n`
-                    + `Para aceptar o rechazar la invitación, ingresá a ${mailBase}/artist/invitations.`,
-                links: {
-                    invitations: `${mailBase}/artist/invitations`,
-                    studio_profile: `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`
-                },
-                meta: {
-                    membership_id: m.id,
-                    artist_user_id: artist.user_id,
-                    studio_id: studio.id,
-                    role: m.role
-                }
+                eventId: 'studio_roster_invite',
+                recipient: artist,
+                fromName: studioName,
+                subject: `${studioName} te invitó a su roster`,
+                bodyText: `${_notifyGreeting(artist.name)}${studioName} te invitó como ${roleFromKind(m.role)} a su roster en We Ötzi.\n\n`
+                    + `Para aceptar o rechazar la invitación, ingresá a ${invitationsUrl}.`,
+                ctaUrl: invitationsUrl,
+                meta: { membership_id: m.id, artist_user_id: m.artist_user_id, studio_id: studio.id, role: m.role },
+                idempotencyKey: `roster_invite:${m.id}:${m.status}`
             };
         }
 
-        const result = await emailService.sendEmail(payload.kind, {
-            ...payload,
-            artist_email: payload.to,
-            recipient_name: payload.to_name,
-            studio_name: payload.from_name,
-            dashboard_url: payload.links.invitations
-        }, { idempotencyKey: `${payload.meta.application_id || payload.meta.membership_id}:${decision || 'invite'}` });
-        return res.status(result.ok ? 200 : 502).json({ success: !!result.ok, sent: !!result.ok,
-            payload_kind: payload.kind, delivery_status: result.delivery_status,
-            deduplicated: result.deduplicated, uncertain: result.uncertain, error: result.error });
+        if (kind === 'membership_request_decision') {
+            if (!UUID_RE.test(String(membership_id || ''))) {
+                return res.status(400).json({ success: false, error: 'membership_id requerido.' });
+            }
+            let m;
+            try {
+                m = await StudiosRepo.getMembershipWithParties(membership_id);
+            } catch (loadErr) {
+                return _notifyLoadFailure(res, loadErr, 'membership');
+            }
+            if (!m) return res.status(404).json({ success: false, error: 'Membership not found.' });
+
+            const studio = m.studios || {};
+            const access = await _verifyStudioNotifyAccess(req, studio, authUser);
+            if (!access.ok) {
+                return res.status(access.status).json({ success: false, error: access.error });
+            }
+            if ((m.initiated_by || 'studio') !== 'artist') {
+                return res.status(409).json({ success: false, sent: false, error: 'Esta membresía no es una solicitud del artista.' });
+            }
+            if (!['active', 'rejected'].includes(m.status)) {
+                return res.status(409).json({ success: false, sent: false, error: 'La solicitud todavía no tiene una respuesta guardada.' });
+            }
+
+            const artist = await StudiosRepo.getArtistContact(m.artist_user_id);
+            if (!artist) return _notifyNoRecipient(res, 'artist_without_email');
+            const studioName = _notifyText(studio.name, 120) || 'El estudio';
+            const approved = m.status === 'active';
+            payload = {
+                eventId: 'studio_membership_request_decision',
+                recipient: artist,
+                fromName: studioName,
+                subject: approved ? `${studioName} aprobó tu solicitud` : `${studioName} no aprobó tu solicitud`,
+                bodyText: approved
+                    ? `${_notifyGreeting(artist.name)}${studioName} aprobó tu solicitud: ya figurás en su equipo como ${roleFromKind(m.role)}.\n\nVas a ver el vínculo en ${invitationsUrl}.`
+                    : `${_notifyGreeting(artist.name)}${studioName} no aprobó tu solicitud en esta oportunidad.\n\nSeguí explorando estudios y spots en ${mailBase}/studio-spots.`,
+                ctaUrl: invitationsUrl,
+                meta: { membership_id: m.id, artist_user_id: m.artist_user_id, studio_id: studio.id, status: m.status },
+                idempotencyKey: `membership_request_decision:${m.id}:${m.status}`
+            };
+        }
+
+        if (kind === 'contract_issued' || kind === 'contract_terminated') {
+            if (!UUID_RE.test(String(contract_id || ''))) {
+                return res.status(400).json({ success: false, error: 'contract_id requerido.' });
+            }
+            let c;
+            try {
+                c = await StudiosRepo.getContractWithParties(contract_id);
+            } catch (loadErr) {
+                return _notifyLoadFailure(res, loadErr, 'contract');
+            }
+            if (!c) return res.status(404).json({ success: false, error: 'Contrato no encontrado.' });
+
+            const studio = c.studios || {};
+            const access = await _verifyStudioNotifyAccess(req, studio, authUser);
+            if (!access.ok) {
+                return res.status(access.status).json({ success: false, error: access.error });
+            }
+            const issued = kind === 'contract_issued';
+            // Rescisión del lado del estudio: si la hizo el artista, el aviso
+            // va al estudio por /api/artist/studio-notify.
+            const persisted = issued
+                ? c.status === 'sent'
+                : c.status === 'terminated' && String(c.terminated_by || '') !== String(c.artist_user_id || '');
+            if (!persisted) {
+                return res.status(409).json({ success: false, sent: false, error: 'El estado del contrato cambió. No se envió el aviso.' });
+            }
+
+            const artist = c.artist_user_id ? await StudiosRepo.getArtistContact(c.artist_user_id) : null;
+            if (!artist) return _notifyNoRecipient(res, 'artist_without_email');
+            const studioName = _notifyText(studio.name, 120) || 'El estudio';
+            const number = _notifyText(c.contract_number, 40);
+            const contractUrl = `${invitationsUrl}?contrato=${encodeURIComponent(c.id)}`;
+            const expires = _notifyDate(c.expires_at);
+            const reason = _notifyText(c.termination_reason, 300);
+            payload = {
+                eventId: issued ? 'studio_contract_issued' : 'studio_contract_terminated',
+                recipient: artist,
+                fromName: studioName,
+                subject: issued ? `${studioName} te envió un contrato para firmar` : `Tu contrato con ${studioName} terminó`,
+                bodyText: issued
+                    ? `${_notifyGreeting(artist.name)}${studioName} te envió el contrato ${number} (versión ${Number(c.version) || 1}) como ${roleFromKind(c.role)}.\n\n`
+                        + `Revisalo y firmalo${expires ? ` antes del ${expires}` : ''} en ${contractUrl}.`
+                    : `${_notifyGreeting(artist.name)}${studioName} rescindió el contrato ${number}.${reason ? ` Motivo: ${reason}.` : ''}\n\n`
+                        + `El historial queda en ${invitationsUrl}.`,
+                ctaUrl: issued ? contractUrl : invitationsUrl,
+                meta: { contract_id: c.id, membership_id: c.membership_id || null, artist_user_id: c.artist_user_id, studio_id: studio.id, status: c.status },
+                idempotencyKey: `${kind}:${c.id}:${c.status}`
+            };
+        }
+
+        if (kind === 'booking_created' || kind === 'booking_cancelled') {
+            if (!UUID_RE.test(String(booking_id || ''))) {
+                return res.status(400).json({ success: false, error: 'booking_id requerido.' });
+            }
+            let b;
+            try {
+                b = await StudiosRepo.getBookingWithParties(booking_id);
+            } catch (loadErr) {
+                return _notifyLoadFailure(res, loadErr, 'booking');
+            }
+            if (!b) return res.status(404).json({ success: false, error: 'Cita no encontrada.' });
+
+            const studio = b.studios || {};
+            const access = await _verifyStudioNotifyAccess(req, studio, authUser);
+            if (!access.ok) {
+                return res.status(access.status).json({ success: false, error: access.error });
+            }
+            const created = kind === 'booking_created';
+            if (b.status !== (created ? 'confirmed' : 'cancelled')) {
+                return res.status(409).json({ success: false, sent: false, error: 'El estado de la cita cambió. No se envió el aviso.' });
+            }
+
+            // El aviso de agenda va SOLO al artista: el estudio gestiona al cliente.
+            const artist = await StudiosRepo.getArtistContact(b.artist_user_id);
+            if (!artist) return _notifyNoRecipient(res, 'artist_without_email');
+            const studioName = _notifyText(studio.name, 120) || 'El estudio';
+            const when = _notifyDateTime(b.starts_at);
+            const location = b.studio_locations || {};
+            const place = _notifyText(location.label || location.city, 120);
+            const client = _notifyText(b.client_name, 120);
+            const calendarUrl = `${mailBase}/calendar`;
+            payload = {
+                eventId: created ? 'studio_booking_created' : 'studio_booking_cancelled',
+                recipient: artist,
+                fromName: studioName,
+                subject: created ? `${studioName} te agendó una cita` : `${studioName} canceló una cita`,
+                bodyText: `${_notifyGreeting(artist.name)}${studioName} ${created ? 'te agendó una cita' : 'canceló la cita'}`
+                    + `${when ? (created ? ` para el ${when}` : ` del ${when}`) : ''}${place ? ` en ${place}` : ''}${client ? ` (cliente: ${client})` : ''}.\n\n`
+                    + `${created ? 'La ves en tu calendario' : 'Tu calendario ya está actualizado'}: ${calendarUrl}.`,
+                ctaUrl: calendarUrl,
+                meta: { booking_id: b.id, artist_user_id: b.artist_user_id, studio_id: studio.id, status: b.status },
+                idempotencyKey: `${kind}:${b.id}:${b.status}`
+            };
+        }
+
+        const result = await _sendStudioPlatformEmail(payload);
+        return _notifyRespond(res, result, { payload_kind: payload.eventId });
     } catch (err) {
         console.error('[StudioNotify] notification failed:', err.message);
-        return res.status(503).json({ success: false, sent: false, error: 'El cambio quedó guardado, pero no se pudo confirmar el correo.' });
+        return res.status(503).json({ success: false, sent: false, error: NOTIFY_SAVED_BUT_UNCONFIRMED });
     }
 });
+
+function roleFromKind(kindOrRole) {
+    const map = {
+        resident: 'residente', itinerant: 'itinerante', guest: 'guest',
+        guest_spot: 'guest', manager: 'manager'
+    };
+    return map[kindOrRole] || (kindOrRole || 'miembro');
+}
 
 async function _verifyStudioNotifyAccess(req, studio, authUser) {
     const ownerUserId = studio?.user_id ? String(studio.user_id) : '';
@@ -4510,13 +5152,255 @@ async function _verifyStudioNotifyAccess(req, studio, authUser) {
     return { ok: false, status: 403, error: 'Studio ownership required' };
 }
 
-function roleFromKind(kindOrRole) {
-    const map = {
-        resident: 'residente', itinerant: 'itinerante', guest: 'guest',
-        guest_spot: 'guest', manager: 'manager'
-    };
-    return map[kindOrRole] || (kindOrRole || 'miembro');
-}
+/**
+ * POST /api/artist/studio-notify
+ *
+ * Avisos que dispara el artista de la fila; el destinatario es el dueño del
+ * estudio (email de auth.users). Si el estudio no tiene dueño, no se envía.
+ *
+ * Body: { kind, membership_id?, contract_id? }
+ *   membership_request_created                          { membership_id }
+ *   contract_signed | contract_declined | contract_terminated   { contract_id }
+ */
+app.post('/api/artist/studio-notify', studioNotifyLimiter, async (req, res) => {
+    const { kind, membership_id, contract_id } = req.body || {};
+    if (!kind || !ARTIST_STUDIO_NOTIFY_KINDS.includes(kind)) {
+        return res.status(400).json({ success: false, error: `kind invalido (esperado: ${ARTIST_STUDIO_NOTIFY_KINDS.join(' | ')})` });
+    }
+
+    try {
+        const authUser = await _getAuthUserFromBearer(req);
+        if (!authUser?.id) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        if (kind === 'membership_request_created') {
+            if (!UUID_RE.test(String(membership_id || ''))) {
+                return res.status(400).json({ success: false, error: 'membership_id requerido.' });
+            }
+            let m;
+            try {
+                m = await StudiosRepo.getMembershipWithParties(membership_id);
+            } catch (loadErr) {
+                return _notifyLoadFailure(res, loadErr, 'membership');
+            }
+            if (!m) return res.status(404).json({ success: false, error: 'Solicitud no encontrada.' });
+            if (String(m.artist_user_id || '') !== String(authUser.id)) {
+                return res.status(403).json({ success: false, error: 'Esta solicitud no corresponde a tu cuenta.' });
+            }
+            if (m.status !== 'requested' || (m.initiated_by || 'studio') !== 'artist') {
+                return res.status(409).json({ success: false, sent: false, error: 'La solicitud ya no está pendiente.' });
+            }
+            const outcome = await _notifyMembershipRequestCreated(req, m);
+            if (outcome.skipped) return _notifyNoRecipient(res, outcome.reason, { studio_has_owner: false });
+            return _notifyRespond(res, outcome.result, { payload_kind: 'studio_membership_request_created', studio_has_owner: true });
+        }
+
+        if (!UUID_RE.test(String(contract_id || ''))) {
+            return res.status(400).json({ success: false, error: 'contract_id requerido.' });
+        }
+        let c;
+        try {
+            c = await StudiosRepo.getContractWithParties(contract_id);
+        } catch (loadErr) {
+            return _notifyLoadFailure(res, loadErr, 'contract');
+        }
+        if (!c) return res.status(404).json({ success: false, error: 'Contrato no encontrado.' });
+        if (String(c.artist_user_id || '') !== String(authUser.id)) {
+            return res.status(403).json({ success: false, error: 'Este contrato no corresponde a tu cuenta.' });
+        }
+        const expectedStatus = { contract_signed: 'signed', contract_declined: 'declined', contract_terminated: 'terminated' }[kind];
+        const persisted = c.status === expectedStatus
+            && (kind !== 'contract_terminated' || String(c.terminated_by || '') === String(authUser.id));
+        if (!persisted) {
+            return res.status(409).json({ success: false, sent: false, error: 'El estado del contrato cambió. No se envió el aviso.' });
+        }
+
+        const owner = await StudiosRepo.getStudioOwnerContact(c.studio_id);
+        if (!owner) return _notifyNoRecipient(res, 'studio_without_owner', { studio_has_owner: false });
+
+        const studio = c.studios || {};
+        const artistRow = c.artists_db || {};
+        const mailBase = applicationBase(req);
+        const studioName = _notifyText(studio.name || owner.studio_name, 120) || 'tu estudio';
+        const artistName = _notifyText(artistRow.name || artistRow.username, 120) || 'El artista';
+        const number = _notifyText(c.contract_number, 40);
+        const contractsUrl = `${mailBase}/studio/dashboard#contratos`;
+        const declineReason = _notifyText(c.decline_reason, 300);
+        const terminationReason = _notifyText(c.termination_reason, 300);
+        const copy = {
+            contract_signed: {
+                eventId: 'studio_contract_signed',
+                subject: `${artistName} firmó el contrato ${number}`,
+                body: `${artistName} firmó el contrato ${number} y ya forma parte de ${studioName} como ${roleFromKind(c.role)}.`
+            },
+            contract_declined: {
+                eventId: 'studio_contract_declined',
+                subject: `${artistName} rechazó el contrato ${number}`,
+                body: `${artistName} rechazó el contrato ${number}.${declineReason ? ` Motivo: ${declineReason}.` : ''} Podés preparar una nueva versión desde el panel.`
+            },
+            contract_terminated: {
+                eventId: 'studio_contract_terminated',
+                subject: `${artistName} rescindió el contrato ${number}`,
+                body: `${artistName} rescindió el contrato ${number} con ${studioName}.${terminationReason ? ` Motivo: ${terminationReason}.` : ''}`
+            }
+        }[kind];
+
+        const result = await _sendStudioPlatformEmail({
+            eventId: copy.eventId,
+            recipient: owner,
+            fromName: studioName,
+            subject: copy.subject,
+            bodyText: `${_notifyGreeting(owner.name)}${copy.body}\n\nLo ves en ${contractsUrl}.`,
+            ctaUrl: contractsUrl,
+            meta: { contract_id: c.id, membership_id: c.membership_id || null, artist_user_id: c.artist_user_id, studio_id: c.studio_id, status: c.status },
+            idempotencyKey: `${kind}:${c.id}:${c.status}`
+        });
+        return _notifyRespond(res, result, { payload_kind: copy.eventId, studio_has_owner: true });
+    } catch (err) {
+        console.error('[ArtistStudioNotify] notification failed:', err.message);
+        return res.status(503).json({ success: false, sent: false, error: NOTIFY_SAVED_BUT_UNCONFIRMED });
+    }
+});
+
+/**
+ * POST /api/supplies/notify
+ *
+ * Avisos de pedidos de reposición a usuarios Supplies.
+ *
+ * Body: { kind, order_id }
+ *   dueño del estudio:  order_submitted | order_cancelled | order_received  -> dueño del vendor
+ *   dueño del vendor:   order_confirmed | order_rejected | order_shipped | order_delivered
+ *                       (y order_cancelled cuando cancela el vendor)        -> dueño del estudio
+ * Soporte puede disparar cualquiera de los dos lados. Los destinatarios son
+ * siempre emails de auth.users (nunca supply_vendors.contact_email).
+ */
+app.post('/api/supplies/notify', studioNotifyLimiter, async (req, res) => {
+    const { kind, order_id } = req.body || {};
+    if (!kind || !Object.prototype.hasOwnProperty.call(SUPPLY_NOTIFY_STATUS, kind)) {
+        return res.status(400).json({ success: false, error: `kind invalido (esperado: ${Object.keys(SUPPLY_NOTIFY_STATUS).join(' | ')})` });
+    }
+    if (!UUID_RE.test(String(order_id || ''))) {
+        return res.status(400).json({ success: false, error: 'order_id requerido.' });
+    }
+
+    try {
+        const authUser = await _getAuthUserFromBearer(req);
+        if (!authUser?.id) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        let order;
+        try {
+            order = await SuppliesRepo.getOrderWithParties(order_id);
+        } catch (loadErr) {
+            return _notifyLoadFailure(res, loadErr, 'supply order');
+        }
+        if (!order) return res.status(404).json({ success: false, error: 'Pedido no encontrado.' });
+
+        const studio = order.studios || {};
+        const vendor = order.supply_vendors || {};
+        const isStudioOwner = Boolean(studio.user_id) && String(studio.user_id) === String(authUser.id);
+        const isVendorOwner = Boolean(vendor.user_id) && String(vendor.user_id) === String(authUser.id);
+        let isSupport = false;
+        if (!isStudioOwner && !isVendorOwner) {
+            const agent = await _getActiveSupportAgent(req);
+            if (agent.ok) isSupport = true;
+            else if (agent.status && agent.status >= 500) {
+                return res.status(agent.status).json({ success: false, error: agent.error || 'Could not verify access' });
+            }
+        }
+
+        // Lado que dispara el aviso (el destinatario es la contraparte).
+        let side;
+        if (SUPPLY_STUDIO_SIDE_KINDS.has(kind) && !SUPPLY_VENDOR_SIDE_KINDS.has(kind)) side = 'studio';
+        else if (SUPPLY_VENDOR_SIDE_KINDS.has(kind) && !SUPPLY_STUDIO_SIDE_KINDS.has(kind)) side = 'vendor';
+        else {
+            let cancelEvent = null;
+            try { cancelEvent = await SuppliesRepo.getLatestOrderEvent(order.id, 'cancelled'); } catch (_) { cancelEvent = null; }
+            if (cancelEvent && ['studio', 'vendor'].includes(cancelEvent.actor_role)) side = cancelEvent.actor_role;
+            else side = isVendorOwner && !isStudioOwner ? 'vendor' : 'studio';
+        }
+
+        const allowed = isSupport || (side === 'studio' ? isStudioOwner : isVendorOwner);
+        if (!allowed) {
+            return res.status(403).json({
+                success: false,
+                error: side === 'studio' ? 'Este pedido no corresponde a tu estudio.' : 'Este pedido no corresponde a tu cuenta de Supplies.'
+            });
+        }
+        if (order.status !== SUPPLY_NOTIFY_STATUS[kind]) {
+            return res.status(409).json({ success: false, sent: false, error: 'El estado del pedido cambió. No se envió el aviso.' });
+        }
+
+        const recipient = side === 'studio'
+            ? await SuppliesRepo.getVendorOwnerContact(order.vendor_id)
+            : await StudiosRepo.getStudioOwnerContact(order.studio_id);
+        if (!recipient) return _notifyNoRecipient(res, side === 'studio' ? 'vendor_without_owner' : 'studio_without_owner');
+
+        const mailBase = applicationBase(req);
+        const studioUrl = `${mailBase}/studio/dashboard#reposicion`;
+        // Deep link: el panel de Supplies abre el drawer del pedido desde ?pedido=<uuid>.
+        const vendorUrl = `${mailBase}/supplies/dashboard?pedido=${encodeURIComponent(order.id)}`;
+        const studioName = _notifyText(studio.name, 120) || 'El estudio';
+        const vendorName = _notifyText(vendor.name, 120) || 'El proveedor';
+        const number = _notifyText(order.order_number, 40);
+        const total = _notifyMoney(order.total, order.currency);
+        const shipping = _notifyMoney(order.shipping_amount || 0, order.currency);
+        const itemCount = Array.isArray(order.supply_order_items) ? order.supply_order_items.length : 0;
+        const vendorNote = _notifyText(order.vendor_note, 300);
+        const tracking = _notifyText(order.tracking_code, 120);
+        const eta = _notifyDate(order.estimated_delivery);
+
+        let subject;
+        let body;
+        if (kind === 'order_submitted') {
+            subject = `Nuevo pedido ${number} de ${studioName}`;
+            body = `${studioName} te envió el pedido ${number} (${itemCount} ${itemCount === 1 ? 'producto' : 'productos'}) por ${total}.\n\n`
+                + `Confirmalo o rechazalo desde ${vendorUrl}.`;
+        } else if (kind === 'order_cancelled' && side === 'studio') {
+            subject = `${studioName} canceló el pedido ${number}`;
+            body = `${studioName} canceló el pedido ${number}. Si ya lo habías confirmado, el stock reservado vuelve a tu catálogo.\n\nLo ves en ${vendorUrl}.`;
+        } else if (kind === 'order_cancelled') {
+            subject = `${vendorName} canceló tu pedido ${number}`;
+            body = `${vendorName} canceló el pedido ${number}.${vendorNote ? ` Nota del proveedor: ${vendorNote}.` : ''}\n\nLo ves en ${studioUrl}.`;
+        } else if (kind === 'order_received') {
+            subject = `${studioName} recibió el pedido ${number}`;
+            body = `${studioName} confirmó la recepción del pedido ${number}.\n\nEl detalle queda en ${vendorUrl}.`;
+        } else if (kind === 'order_confirmed') {
+            subject = `${vendorName} confirmó tu pedido ${number}`;
+            body = `${vendorName} confirmó el pedido ${number}. Total actualizado por el proveedor: ${total} (envío ${shipping}).`
+                + `${eta ? ` Entrega estimada: ${eta}.` : ''}\n\nSeguilo en ${studioUrl}.`;
+        } else if (kind === 'order_rejected') {
+            subject = `${vendorName} rechazó tu pedido ${number}`;
+            body = `${vendorName} rechazó el pedido ${number}.${vendorNote ? ` Nota del proveedor: ${vendorNote}.` : ''}\n\nPodés armar otro pedido desde ${studioUrl}.`;
+        } else if (kind === 'order_shipped') {
+            subject = `${vendorName} despachó tu pedido ${number}`;
+            body = `${vendorName} despachó el pedido ${number}.${tracking ? ` Código de seguimiento: ${tracking}.` : ''}`
+                + `${eta ? ` Entrega estimada: ${eta}.` : ''}\n\nSeguilo en ${studioUrl}.`;
+        } else {
+            subject = `${vendorName} entregó tu pedido ${number}`;
+            body = `${vendorName} marcó el pedido ${number} como entregado.\n\n`
+                + `Confirmá la recepción en ${studioUrl} para sumar el stock al inventario y registrar el gasto.`;
+        }
+
+        const eventId = kind === 'order_submitted' ? 'supply_order_submitted' : 'supply_order_status';
+        const result = await _sendStudioPlatformEmail({
+            eventId,
+            recipient,
+            fromName: side === 'studio' ? studioName : vendorName,
+            subject,
+            bodyText: `${_notifyGreeting(recipient.name)}${body}`,
+            ctaUrl: side === 'studio' ? vendorUrl : studioUrl,
+            meta: { order_id: order.id, order_number: order.order_number, studio_id: order.studio_id, vendor_id: order.vendor_id, status: order.status },
+            idempotencyKey: `${kind}:${order.id}:${order.status}`
+        });
+        return _notifyRespond(res, result, { payload_kind: eventId });
+    } catch (err) {
+        console.error('[SuppliesNotify] notification failed:', err.message);
+        return res.status(503).json({ success: false, sent: false, error: NOTIFY_SAVED_BUT_UNCONFIRMED });
+    }
+});
 
 /**
  * POST /api/pre-quote/estimate
@@ -5146,7 +6030,7 @@ function studioNameForStorage(studioName) {
 async function getStudioRecord(studioId) {
     if (!studioId) return null;
     const rows = await _supabaseFetch(
-        `studios?id=eq.${encodeURIComponent(studioId)}&select=id,primary_location_id&limit=1`
+        `studios?id=eq.${encodeURIComponent(studioId)}&select=id,primary_location_id,user_id&limit=1`
     );
     return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
@@ -5222,15 +6106,22 @@ async function createStudioLocation({ studioId, address, isPrimary, label }) {
     }
 }
 
+// Sede del estudio para la membresía del registro. Si el estudio TIENE dueño,
+// sus sedes las administra él: el registro de un artista solo puede apuntar a
+// una sede existente (la elegida o la que coincide con la dirección), nunca
+// crearla ni tocar `primary_location_id`. Los estudios del catálogo sin dueño
+// conservan el comportamiento anterior (se crea la sede si falta).
 async function ensureStudioLocationForRegistration(formData, studioId) {
     if (!studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
         return { locationId: null };
     }
 
+    const studio = await getStudioRecord(studioId);
+    const studioHasOwner = Boolean(studio?.user_id);
+
     const selectedLocation = await getStudioLocationById(studioId, formData?.studio_location_id);
     if (selectedLocation) {
-        const studio = await getStudioRecord(studioId);
-        if (!studio?.primary_location_id) {
+        if (!studioHasOwner && !studio?.primary_location_id) {
             await setStudioPrimaryLocation(studioId, selectedLocation.id, buildStudioAddressPatch(selectedLocation));
         }
         return { locationId: selectedLocation.id };
@@ -5240,13 +6131,14 @@ async function ensureStudioLocationForRegistration(formData, studioId) {
     if (!addressPatch) return { locationId: null };
 
     const matchingLocation = await findMatchingStudioLocation(studioId, addressPatch);
-    const studio = await getStudioRecord(studioId);
     if (matchingLocation) {
-        if (!studio?.primary_location_id && matchingLocation.id) {
+        if (!studioHasOwner && !studio?.primary_location_id && matchingLocation.id) {
             await setStudioPrimaryLocation(studioId, matchingLocation.id, addressPatch);
         }
         return { locationId: matchingLocation.id };
     }
+
+    if (studioHasOwner) return { locationId: null };
 
     const shouldBePrimary = !studio?.primary_location_id;
     const createdLocation = await createStudioLocation({
@@ -5263,89 +6155,196 @@ async function ensureStudioLocationForRegistration(formData, studioId) {
     return { locationId: createdLocation?.id || null };
 }
 
-async function persistRegistrationStudioAssociations({ formData, artistUserId, studioId, studioName }) {
-    if (!artistUserId || !studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
-        return { locationId: null };
-    }
+// Códigos con los que el alta `requested` falla mientras la migración de
+// afiliaciones (20261030200000) no está aplicada: status fuera del CHECK
+// (23514) o columna `initiated_by` inexistente (PGRST204 / 42703).
+const LEGACY_MEMBERSHIP_FALLBACK_CODES = new Set(['23514', 'PGRST204', '42703']);
 
-    const { locationId } = await ensureStudioLocationForRegistration(formData, studioId);
-    const address = formData?.address && typeof formData.address === 'object' ? formData.address : {};
-    const normalizedStudioName = studioNameForStorage(studioName || formData?.studio_name);
-
-    await _supabaseFetch('artist_tattoo_locations?on_conflict=artist_user_id,period_type,sort_order', {
-        method: 'POST',
-        prefer: 'resolution=merge-duplicates,return=representation',
-        body: {
-            artist_user_id: artistUserId,
-            period_type: 'current',
-            sort_order: 0,
-            studio_id: studioId,
-            studio_name: normalizedStudioName,
-            city: address.city || address.locality || formData?.location_city || formData?.city || null,
-            agenda_status: 'open'
-        }
-    });
-
-    const membership = artistRegistration.buildStudioMembershipPayload({
+// Solicitud de alta del registro, sin on_conflict:
+//   1. Si ya hay una fila abierta del par, se respeta (no se duplica).
+//   2. Si no, POST simple `requested` + `initiated_by:'artist'` y su detalle.
+//   3. Un 23505 (otra fila abierta en paralelo) cuenta como éxito.
+//   4. Sin la migración, se reintenta con el payload legacy (`active`) y warn.
+async function persistRegistrationMembership({ formData, artistUserId, studioId, locationId }) {
+    const requested = artistRegistration.buildStudioMembershipPayload({
         artistUserId,
         studioId,
         locationId,
         workType: formData.work_type
     });
-    if (membership) {
-        await _supabaseFetch('studio_artist_memberships?on_conflict=studio_id,artist_user_id,role,status', {
-            method: 'POST',
-            prefer: 'resolution=merge-duplicates,return=representation',
-            body: membership
+    if (!requested) return { membership: null, pending: false, legacy: false };
+
+    const open = await StudiosRepo.findOpenMembership(studioId, artistUserId);
+    if (open) return { membership: open, pending: open.status === 'requested', legacy: false };
+
+    const afterDuplicate = async (legacy) => {
+        const row = await StudiosRepo.findOpenMembership(studioId, artistUserId).catch(() => null);
+        return { membership: row, pending: row ? row.status === 'requested' : !legacy, legacy };
+    };
+
+    let created;
+    try {
+        created = await StudiosRepo.insertMembership(requested);
+    } catch (error) {
+        const code = pgErrorCode(error);
+        if (code === '23505') return afterDuplicate(false);
+        if (!LEGACY_MEMBERSHIP_FALLBACK_CODES.has(code)) throw error;
+
+        console.warn('[register finalize] studio membership request schema not applied; using legacy active membership:', error.message);
+        const legacyPayload = artistRegistration.buildStudioMembershipPayload({
+            artistUserId,
+            studioId,
+            locationId,
+            workType: formData.work_type,
+            legacy: true
+        });
+        try {
+            const legacyRow = await StudiosRepo.insertMembership(legacyPayload);
+            return { membership: legacyRow, pending: false, legacy: true };
+        } catch (legacyError) {
+            if (pgErrorCode(legacyError) === '23505') return afterDuplicate(true);
+            throw legacyError;
+        }
+    }
+
+    const details = artistRegistration.buildStudioMembershipRequestDetails({
+        membershipId: created?.id,
+        formData
+    });
+    if (details) {
+        await StudiosRepo.insertMembershipRequestDetails(details).catch((detailsError) => {
+            console.warn('[register finalize] membership request details not saved:', detailsError.message);
         });
     }
 
-    return { locationId };
+    return { membership: created, pending: true, legacy: false };
 }
 
+async function persistRegistrationStudioAssociations({ formData, artistUserId, studioId, studioName }) {
+    const empty = { locationId: null, membership: null, membershipPending: false, membershipLegacy: false };
+    if (!artistUserId || !studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
+        return empty;
+    }
+
+    const { locationId } = await ensureStudioLocationForRegistration(formData, studioId);
+    const address = formData?.address && typeof formData.address === 'object' ? formData.address : {};
+
+    // El vínculo (studio_id) no se escribe en la ubicación del artista mientras
+    // la solicitud está pendiente: "Tatúa en …" sale de una membresía activa.
+    // studio_name es NOT NULL + CHECK no vacío en vivo, así que queda el nombre
+    // como texto (igual que register.js). Best-effort: un error acá no revierte
+    // el registro.
+    const tattooLocationLabel = studioNameForStorage(studioName || formData?.studio_name);
+    if (tattooLocationLabel) {
+        try {
+            await _supabaseFetch('artist_tattoo_locations?on_conflict=artist_user_id,period_type,sort_order', {
+                method: 'POST',
+                prefer: 'resolution=merge-duplicates,return=representation',
+                body: {
+                    artist_user_id: artistUserId,
+                    period_type: 'current',
+                    sort_order: 0,
+                    studio_id: null,
+                    studio_name: tattooLocationLabel,
+                    city: address.city || address.locality || formData?.location_city || formData?.city || null,
+                    agenda_status: 'open'
+                }
+            });
+        } catch (locationError) {
+            console.warn('[register finalize] artist tattoo location not saved (registration kept):', locationError.message);
+        }
+    }
+
+    // Un error de membresía NO revierte el registro: se loguea y la respuesta
+    // dice membership_pending: false.
+    let membershipResult = { membership: null, pending: false, legacy: false };
+    try {
+        membershipResult = await persistRegistrationMembership({ formData, artistUserId, studioId, locationId });
+    } catch (error) {
+        console.error('[register finalize] studio membership request failed (registration kept):', error.message);
+    }
+
+    // Fallback legacy: la membresía quedó activa como antes, así que el
+    // artista sí figura en el estudio.
+    if (membershipResult.legacy && membershipResult.membership?.status === 'active') {
+        const label = studioNameForStorage(studioName || formData?.studio_name);
+        if (label) {
+            await StudiosRepo.setArtistStudioLabel(artistUserId, label).catch((labelError) => {
+                console.warn('[register finalize] legacy studio label not saved:', labelError.message);
+            });
+        }
+    }
+
+    return {
+        locationId,
+        membership: membershipResult.membership || null,
+        membershipPending: Boolean(membershipResult.pending && membershipResult.membership),
+        membershipLegacy: Boolean(membershipResult.legacy)
+    };
+}
+
+// Estudio del registro: un `studio_id` del wizard se verifica contra la base
+// (si no existe se resuelve por nombre) y se informa si el estudio tiene dueño.
 async function resolveRegistrationStudio(formData) {
     const workType = artistRegistration.normalizeWorkType(formData?.work_type);
     if (workType === 'independent') {
-        return { studioId: null, estudiosValue: 'Sin estudio/Independiente' };
+        return { studioId: null, estudiosValue: 'Sin estudio/Independiente', studioHasOwner: false };
     }
 
     if (!artistRegistration.isStudioWorkType(workType)) {
-        return { studioId: null, estudiosValue: null };
+        return { studioId: null, estudiosValue: null, studioHasOwner: false };
     }
 
     const studioName = String(formData?.studio_name || '').trim();
     if (!studioName) {
-        return { studioId: null, estudiosValue: null };
+        return { studioId: null, estudiosValue: null, studioHasOwner: false };
     }
 
     if (formData?.studio_id) {
-        return { studioId: formData.studio_id, estudiosValue: studioNameForStorage(studioName), studioName };
+        const known = await StudiosRepo.getStudioById(formData.studio_id, { select: 'id,name,user_id' }).catch(() => null);
+        if (known) {
+            return {
+                studioId: known.id,
+                estudiosValue: studioNameForStorage(studioName),
+                studioName,
+                studioHasOwner: Boolean(known.user_id)
+            };
+        }
     }
 
     const normalized = studioName.toUpperCase();
-    let rows = await _supabaseFetch(
-        `studios?normalized_name=eq.${encodeURIComponent(normalized)}&select=id,name&limit=1`
-    );
-
-    let studioId = Array.isArray(rows) && rows[0] ? rows[0].id : null;
-    if (!studioId) {
+    let studio = await StudiosRepo.findStudioByNormalizedName(normalized);
+    if (!studio) {
         try {
             const created = await _supabaseFetch('studios', {
                 method: 'POST',
                 prefer: 'return=representation',
                 body: { name: studioName, normalized_name: normalized }
             });
-            studioId = Array.isArray(created) && created[0] ? created[0].id : null;
+            studio = Array.isArray(created) && created[0] ? created[0] : null;
         } catch (error) {
-            rows = await _supabaseFetch(
-                `studios?normalized_name=eq.${encodeURIComponent(normalized)}&select=id,name&limit=1`
-            );
-            studioId = Array.isArray(rows) && rows[0] ? rows[0].id : null;
-            if (!studioId) throw error;
+            studio = await StudiosRepo.findStudioByNormalizedName(normalized);
+            if (!studio) throw error;
         }
     }
 
-    return { studioId, estudiosValue: studioNameForStorage(studioName), studioName };
+    return {
+        studioId: studio ? studio.id : null,
+        estudiosValue: studioNameForStorage(studioName),
+        studioName,
+        studioHasOwner: Boolean(studio && studio.user_id)
+    };
+}
+
+// Aviso best-effort al dueño del estudio de la solicitud que dejó el registro
+// (no bloquea la respuesta del finalize).
+function _notifyRegistrationMembershipRequest(req, membershipId) {
+    if (!membershipId) return;
+    StudiosRepo.getMembershipWithParties(membershipId)
+        .then((membership) => (membership && membership.status === 'requested'
+            ? _notifyMembershipRequestCreated(req, membership)
+            : null))
+        .catch((error) => console.warn('[register finalize] studio owner not notified:', error.message));
 }
 
 async function createArtistAuthUser({ email, password, fullName, username, draftId, source }) {
@@ -5571,7 +6570,13 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             return res.status(409).json({ success: false, error: 'Datos ya registrados', conflicts: blocking });
         }
 
-        const { studioId, estudiosValue, studioName } = await resolveRegistrationStudio(formData);
+        const { studioId, estudiosValue, studioName, studioHasOwner } = await resolveRegistrationStudio(formData);
+        const joinsStudio = Boolean(studioId) && artistRegistration.isStudioWorkType(formData.work_type);
+        // Sede elegida, verificada contra el estudio: sus coordenadas dejan al
+        // artista en el mapa mientras la solicitud al estudio está pendiente.
+        const selectedStudioLocation = joinsStudio && formData.studio_location_id
+            ? await getStudioLocationById(studioId, formData.studio_location_id).catch(() => null)
+            : null;
         const fullName = artistRegistration.capitalizeWords(formData.full_name);
         let authUser = ownAuthUser;
         let createdAuthUserId = null;
@@ -5600,7 +6605,10 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             source,
             step: 12,
             studioId,
-            estudiosValue,
+            // Con estudio, "tatúa en …" espera a que el estudio apruebe la
+            // solicitud: no se escribe la etiqueta ni artists_db.studio_id.
+            estudiosValue: joinsStudio ? null : estudiosValue,
+            studioLocation: selectedStudioLocation,
             status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             submitted: true
         });
@@ -5610,18 +6618,24 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             { method: 'PATCH', prefer: 'return=representation', body: finalPatch }
         );
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : null;
-        await persistRegistrationStudioAssociations({
+        const studioLink = await persistRegistrationStudioAssociations({
             formData,
             artistUserId: authUser.id,
             studioId,
             studioName: studioName || estudiosValue
         });
+        if (studioLink.membershipPending && studioHasOwner) {
+            _notifyRegistrationMembershipRequest(req, studioLink.membership?.id);
+        }
 
         return res.json({
             success: true,
             user_id: authUser.id,
             draft_id: draftId,
             registration_status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
+            membership_pending: Boolean(studioLink.membershipPending),
+            membership_status: studioLink.membership?.status || null,
+            studio_has_owner: joinsStudio ? Boolean(studioHasOwner) : null,
             artist: artistRegistration.publicArtistDraft(artist),
             dashboard_url: requestAbsoluteUrl(req, '/artist/dashboard'),
             login_url: requestAbsoluteUrl(req, '/registerclosedbeta'),
@@ -6196,6 +7210,9 @@ const routeDescriptions = {
     '/studio/login': 'Studio login',
     '/studio/profile': 'Studio profile',
     '/studio/register': 'Studio registration',
+    '/supplies/dashboard': 'Supplies vendor dashboard',
+    '/supplies/login': 'Supplies vendor login',
+    '/supplies/register': 'Supplies vendor registration',
     '/studio-spots': 'Studio spots',
     '/support/dashboard': 'Support dashboard',
     '/support/login': 'Support login',
