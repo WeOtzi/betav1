@@ -26,7 +26,7 @@ function call(store, method, p, search, headers, body) {
 const ARTIST_PAGES = [
     'public/artist/dashboard/index.html', 'public/artist/account/index.html', 'public/artist/applications/index.html',
     'public/artist/inbox/index.html', 'public/artist/invitations/index.html', 'public/artist/profile/index.html',
-    'public/artist/travel/index.html',
+    'public/artist/travel/index.html', 'public/artist/store/index.html',
     'public/calendar/index.html', 'public/job-board/index.html', 'public/my-quotations/index.html',
     'public/my-quotations/detail/index.html', 'public/my-quotations/new/index.html', 'public/my-quotations/statistics/index.html',
     'public/studio-spots/index.html',

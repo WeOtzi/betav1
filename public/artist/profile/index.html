@@ -46,6 +46,8 @@
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/profile-public-repo.js"></script>
+    <script src="/shared/js/store-model.js"></script>
+    <script src="/shared/js/data/store-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -271,6 +273,18 @@
                 <div class="gallery-chips" id="gallery-chips" role="group" aria-label="Filtrar el portafolio" hidden></div>
                 <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
                 <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Los espacios están reservados para su próxima colección.</p>
+            </div>
+        </section>
+
+        <!-- 09b · Store: diseños con licencia y merch (oculta sin features.store o sin productos) -->
+        <section class="profile-band store-band reveal-block" id="store-band" aria-labelledby="store-band-title" hidden>
+            <div class="profile-shell">
+                <div class="store-band-head">
+                    <h2 class="section-title" id="store-band-title">Store</h2>
+                    <a class="store-band-link" id="store-band-link" href="/store/">Ver la Store →</a>
+                </div>
+                <p class="store-band-sub">Diseños con licencia de uso y merch del artista.</p>
+                <ul class="store-band-grid" id="store-band-grid" aria-label="Productos de la Store"></ul>
             </div>
         </section>
 

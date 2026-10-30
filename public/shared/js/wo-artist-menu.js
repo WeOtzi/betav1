@@ -16,6 +16,9 @@
  *   - postulaciones       → studio_spot_applications decididas (7 días) y
  *                           pendientes (job board + spots) para el contador
  *   - actualizaciones     → /shared/platform-updates.json (editable por deploy)
+ *   - Store               → pedidos del vendedor (WeotziData.Store): pago
+ *                           informado por confirmar y merch pagado sin despachar.
+ *                           Solo con el gate de la Store (features.store).
  * Estado de lectura: el chat usa su is_read real; el resto persiste recibos en
  * user_notification_reads y conserva localStorage como respaldo offline. Sin
  * sesión de artista el tile conserva su comportamiento original (link).
@@ -34,7 +37,8 @@
         threads: [],
         feed: [],
         seen: null,
-        counts: { msgs: 0, inv: 0, solic: 0, apps: 0, updates: 0 },
+        counts: { msgs: 0, inv: 0, solic: 0, apps: 0, updates: 0, store: 0 },
+        storeOn: false,
         open: false,
         panelOpen: false,
     };
@@ -136,6 +140,31 @@
         return isNaN(dt.getTime()) ? '' : dt.getDate() + ' de ' + MONTHS[dt.getMonth()];
     }
 
+    /* ------------------------------ Store ------------------------------ */
+    // Gate de la Store (§8.5). Con data/store-repo.js cargado: flag + tablas
+    // disponibles; sin el repo, solo features.store o el preview/demo.
+    function storeFlag() {
+        if (window.WEOTZI_PREVIEW === true || (window.WoDemo && window.WoDemo.enabled)) return true;
+        var CM = window.ConfigManager;
+        try { return !!(CM && typeof CM.getValue === 'function' && CM.getValue('features.store', false) === true); }
+        catch (e) { return false; }
+    }
+    async function storeGate() {
+        var S = window.WeotziData && window.WeotziData.Store;
+        if (S && typeof S.featureEnabled === 'function' && typeof S.isAvailable === 'function') {
+            try { return S.featureEnabled() && (await S.isAvailable()) === true; }
+            catch (e) { return false; }
+        }
+        return storeFlag();
+    }
+    function storeOrderNumber(o) {
+        var n = String((o && o.order_number) || '').replace(/^#/, '');
+        return n || String((o && o.id) || '').slice(0, 8).toUpperCase();
+    }
+    function storeOrderHref(o) {
+        return '/artist/store?tab=pedidos&pedido=' + encodeURIComponent(o.id);
+    }
+
     /* ------------------------------ estilos ------------------------------ */
     function ensureStyles() {
         if (document.getElementById('wo-artist-menu-styles')) return;
@@ -229,7 +258,7 @@
         var uid = state.user.id;
         state.feed = [];
         state.threads = [];
-        state.counts = { msgs: 0, inv: 0, solic: 0, apps: 0, updates: 0 };
+        state.counts = { msgs: 0, inv: 0, solic: 0, apps: 0, updates: 0, store: 0 };
         var seen = await loadRemoteSeen(D, uid);
         var jobs = [];
         var weekAgo = Date.now() - 7 * 86400000;
@@ -377,6 +406,41 @@
             }).catch(function (e) { console.warn('[wo-menu] postulaciones:', e && e.message); }));
         }
 
+        // Store: pagos informados por confirmar y merch pagado sin despachar.
+        if (state.storeOn && D && D.Store && typeof D.Store.listSellerOrders === 'function') {
+            jobs.push(D.Store.listSellerOrders('artist', uid).then(function (orders) {
+                var list = orders || [];
+                var reported = list.filter(function (o) { return o.status === 'pending_payment' && o.buyer_payment_reported_at; });
+                var toShip = list.filter(function (o) {
+                    return o.status === 'paid' && o.fulfillment_method !== 'digital'
+                        && (o.fulfillment_status === 'unfulfilled' || o.fulfillment_status === 'preparing');
+                });
+                state.counts.store = reported.length + toShip.length;
+                pushFeed(reported.map(function (o) {
+                    var key = 'sto:pay:' + o.id + ':' + o.buyer_payment_reported_at;
+                    var due = longDate(o.expires_at);
+                    return {
+                        key: key, type: 'store', icon: 'shopping-bag',
+                        title: 'Pago informado',
+                        desc: 'Pedido #' + storeOrderNumber(o) + ' · ' + (due ? 'Confirmalo antes del ' + due + '.' : 'Confirmalo desde tu Store.'),
+                        ts: o.buyer_payment_reported_at, unread: !seen.has(key), href: storeOrderHref(o),
+                    };
+                }));
+                pushFeed(toShip.map(function (o) {
+                    var key = 'sto:ship:' + o.id;
+                    var item = (o.items && o.items[0]) || {};
+                    var who = o.buyer_name || 'tu cliente';
+                    return {
+                        key: key, type: 'store', icon: 'package',
+                        title: 'Pedido por preparar',
+                        desc: 'Pedido #' + storeOrderNumber(o) + ' · ' + (item.title ? item.title + ' para ' + who : 'Compra de ' + who) + '. '
+                            + (o.fulfillment_method === 'pickup' ? 'Avisale cuando esté listo para retirar.' : 'Preparalo y cargá el seguimiento.'),
+                        ts: o.paid_at || o.updated_at || o.created_at, unread: !seen.has(key), href: storeOrderHref(o),
+                    };
+                }));
+            }).catch(function (e) { console.warn('[wo-menu] store:', e && e.message); }));
+        }
+
         jobs.push(fetch(appPath('/shared/platform-updates.json'), { cache: 'no-cache' }).then(function (r) {
             return r.ok ? r.json() : [];
         }).then(function (updates) {
@@ -447,12 +511,17 @@
             + activityRow('wo-oam-msgs', 'message-circle', 'Mensajes sin leer', state.counts.msgs, true, '/artist/inbox')
             + activityRow('wo-oam-inv', 'star', 'Invitaciones pendientes', state.counts.inv, false, '/artist/invitations')
             + activityRow('wo-oam-apps', 'inbox', 'Postulaciones', state.counts.apps, false, '/artist/applications')
+            + (state.storeOn ? activityRow('wo-oam-store', 'shopping-bag', 'Pedidos de la Store', state.counts.store, false, '/artist/store?tab=pedidos') : '')
             + activityRow('wo-oam-upd', 'zap', 'Actualizaciones de la plataforma', state.counts.updates, true, '#notificaciones')
             + '</div></div>'
             + '<hr class="wo-oam-sep">'
             + '<div class="wo-oam-links">'
             + '<a class="wo-oam-link" href="' + esc(appPath('/artist/account')) + '"><span class="wo-oam-ic">' + iconEl('user') + '</span>Ir al Centro de Cuenta</a>'
             + '<a class="wo-oam-link" href="' + esc(appPath(profileHref())) + '"><span class="wo-oam-ic">' + iconEl('external-link') + '</span>Ver perfil público</a>'
+            + (state.storeOn
+                ? '<a class="wo-oam-link" id="wo-oam-my-store" href="' + esc(appPath('/artist/store')) + '"><span class="wo-oam-ic">' + iconEl('shopping-bag') + '</span>Mi Store</a>'
+                + '<a class="wo-oam-link" id="wo-oam-purchases" href="' + esc(appPath('/store/purchases/')) + '"><span class="wo-oam-ic">' + iconEl('package') + '</span>Mis compras</a>'
+                : '')
             + (demo ? '<a class="wo-oam-link" id="wo-oam-tour" href="' + esc(appPath('/artist/dashboard')) + '?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>' : '')
             + '<a class="wo-oam-link" href="' + esc(appPath('/artist/inbox')) + '"><span class="wo-oam-ic">' + iconEl('help-circle') + '</span>Ayuda</a>'
             + '</div>';
@@ -623,6 +692,15 @@
                 var D = window.WeotziData;
                 return Boolean(D && D.Reminders);
             }).catch(function (e) { console.warn('[wo-menu] recordatorios:', e && e.message); }),
+            // La Store solo se carga con el flag encendido (o en el preview/demo).
+            storeFlag() ? loadCounterRepository('/shared/js/store-model.js', function () {
+                return Boolean(window.WeotziStoreModel);
+            }).then(function () {
+                return loadCounterRepository('/shared/js/data/store-repo.js', function () {
+                    var D = window.WeotziData;
+                    return Boolean(D && D.Store);
+                });
+            }).catch(function (e) { console.warn('[wo-menu] store:', e && e.message); }) : Promise.resolve(),
         ]);
     }
 
@@ -732,6 +810,7 @@
 
         try { await ensureCounterRepositories(); }
         catch (e) { console.warn('[wo-menu] repositorios de conteo:', e && e.message); }
+        state.storeOn = await storeGate();
 
         // La identidad es "mejor esfuerzo": si el perfil no resuelve, el menú
         // igual funciona con el email de la sesión.

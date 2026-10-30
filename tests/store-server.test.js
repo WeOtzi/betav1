@@ -581,7 +581,7 @@ test('server.js: el webhook va con body crudo antes de express.json y las rutas 
 
     assert.match(source, /const storeOrders = require\('\.\/services\/store-orders'\);/);
     assert.match(source, /skip: \(req\) => storeOrders\.isStoreWebhookRequest\(req\)/);
-    assert.match(source, /app\.post\('\/api\/store\/licenses\/:licenseId\/assets\/:assetId\/url', authLimiter, storeOrders\.handleDownloadUrl\);/);
+    assert.match(source, /app\.post\('\/api\/store\/licenses\/:licenseId\/assets\/:assetId\/url', storeDownloadLimiter, storeOrders\.handleDownloadUrl\);/);
     assert.match(source, /app\.post\('\/api\/store\/orders\/:id\/checkout', storeOrders\.handleCheckout\);/);
     assert.match(source, /app\.post\('\/api\/store\/maintenance', storeOrders\.handleMaintenance\);/);
 

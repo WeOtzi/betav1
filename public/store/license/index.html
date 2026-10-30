@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <title>Licencias · Store · We Ötzi</title>
+    <meta name="description" content="Certificados y verificación de licencias de uso de diseños comprados en la Store de We Ötzi.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus + Store -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/store-ds.css">
+    <link rel="stylesheet" href="/shared/css/store-buyer.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app sts-page">
+    <div id="store-topbar"></div>
+
+    <main class="sts-shell" id="stb-main">
+        <!-- Cargando -->
+        <section class="stb-state" id="stb-loading" aria-live="polite">
+            <div class="stb-loading-box"><span class="wo-spinner" aria-hidden="true"></span> Cargando la licencia</div>
+        </section>
+
+        <!-- Mensajes: Store apagada, sin sesión, certificado no encontrado -->
+        <section class="stb-state" id="stb-message" hidden aria-live="polite"></section>
+
+        <!-- Certificado imprimible (?id=<licencia>) -->
+        <section class="stb-state stb-printable" id="stb-cert" hidden aria-labelledby="stb-cert-title"></section>
+
+        <!-- Verificación pública (?verificar=WOL-XXXX-XXXX) -->
+        <section class="stb-state stb-printable" id="stb-verify" hidden aria-labelledby="stb-verify-title">
+            <header class="sts-header">
+                <p class="sts-eyebrow">Store · Licencias</p>
+                <h1 class="sts-title" id="stb-verify-title" tabindex="-1">Verificá una licencia</h1>
+                <p class="sts-sub">Cada diseño que se compra en la Store de un artista de We Ötzi trae una licencia de uso con un código WOL-XXXX-XXXX. Ingresalo para ver si es válida.</p>
+            </header>
+            <div class="sts-panel" id="stb-verify-result" hidden></div>
+            <div class="sts-panel sts-no-print">
+                <form class="stb-verify-form" id="stb-verify-form" method="get" action="" novalidate>
+                    <div class="wo-field">
+                        <label class="wo-label" for="stb-verify-code" id="stb-verify-label">Código de la licencia</label>
+                        <input class="wo-input" id="stb-verify-code" name="verificar" type="text" placeholder="WOL-XXXX-XXXX" maxlength="20"
+                            autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="stb-verify-code-help">
+                        <p class="wo-help" id="stb-verify-code-help">Está en el certificado de la licencia, junto al nombre del titular.</p>
+                        <p class="wo-error-msg" id="stb-verify-code-error" hidden></p>
+                    </div>
+                    <button class="wo-btn wo-btn--hard" type="submit" id="stb-verify-submit">Verificar código</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/store-model.js"></script>
+    <script src="/shared/js/data/store-repo.js"></script>
+    <script src="/shared/js/store-shell.js"></script>
+    <script src="/shared/js/store-license.js"></script>
+</body>
+</html>

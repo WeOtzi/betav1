@@ -7,7 +7,9 @@
  *
  * Movimiento normalizado:
  *   { id, kind, status, amount (>0), currency, title, counterparty, booking,
- *     quoteId, destinationId, serviceDate, releaseAt, occurredAt }
+ *     quoteId, destinationId, serviceDate, releaseAt, occurredAt, detail,
+ *     source, orderNumber }   source: metadata_json.source ('store' en ventas
+ *     de la Store; orderNumber = ST-… tomado de booking_reference)
  *   kind:   payment | release | withdrawal | fee | dispute | refund | adjustment
  *   status: pending_service | awaiting_release | blocked | processing |
  *           completed | failed | cancelled
@@ -79,6 +81,10 @@
         raw = raw || {};
         var kind = KINDS.indexOf(raw.kind) !== -1 ? raw.kind : 'adjustment';
         var status = STATUSES.indexOf(raw.status) !== -1 ? raw.status : 'completed';
+        // Origen del movimiento (metadata_json.source). Las ventas de la Store
+        // guardan el número de pedido (ST-…) en booking_reference.
+        var meta = raw.metadata_json && typeof raw.metadata_json === 'object' ? raw.metadata_json : {};
+        var source = meta.source || raw.source || null;
         return {
             id: raw.id != null ? String(raw.id) : null,
             kind: kind,
@@ -93,7 +99,9 @@
             serviceDate: raw.service_date || raw.serviceDate || null,
             releaseAt: raw.release_at || raw.releaseAt || null,
             occurredAt: raw.occurred_at || raw.occurredAt || raw.created_at || null,
-            detail: (raw.metadata_json && raw.metadata_json.detail) || raw.detail || null
+            detail: (raw.metadata_json && raw.metadata_json.detail) || raw.detail || null,
+            source: source ? String(source) : null,
+            orderNumber: source === 'store' ? (raw.booking_reference || meta.order_number || raw.orderNumber || null) : null
         };
     }
 

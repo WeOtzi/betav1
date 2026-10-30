@@ -175,7 +175,7 @@
         wrap.innerHTML = visible.map((m, i) => {
             const view = M.releaseView(m);
             const tone = AVATAR_TONES[i % AVATAR_TONES.length];
-            const ref = m.booking ? `Reserva ${m.booking.startsWith('#') ? m.booking : '#' + m.booking}` : (m.quoteId ? `Reserva ${m.quoteId}` : 'Reserva');
+            const ref = m.source === 'store' && m.orderNumber ? storeOrderRef(m) : m.booking ? `Reserva ${m.booking.startsWith('#') ? m.booking : '#' + m.booking}` : (m.quoteId ? `Reserva ${m.quoteId}` : 'Reserva');
             const toneCls = view.tone === 'info' ? ' is-info' : view.tone === 'danger' ? ' is-danger' : '';
             return `<div class="wal-release">
                 <span class="wal-avatar wal-avatar--${tone}" aria-hidden="true">${esc(M.initials(m.counterparty || m.title))}</span>
@@ -186,12 +186,20 @@
         }).join('');
     }
 
+    // Ventas de la Store: «Pedido #ST-…» en lugar de «Reserva #…».
+    function storeOrderRef(m) {
+        const n = String(m.orderNumber || '');
+        return `Pedido ${n.startsWith('#') ? n : '#' + n}`;
+    }
+
     function movementMeta(m) {
         const date = M.formatShortDate(m.occurredAt);
         let extra = '';
         if (m.kind === 'withdrawal') {
             const dest = state.destinations.find((d) => d.id === m.destinationId);
             extra = dest ? `${dest.label} ${M.maskIdentifier(dest.account_identifier)}` : 'Transferencia a tu destino';
+        } else if (m.source === 'store' && m.orderNumber) {
+            extra = storeOrderRef(m);
         } else if (m.kind === 'fee') {
             extra = m.detail || 'Comisión por servicio';
         } else if (m.booking || m.quoteId) {

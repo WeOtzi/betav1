@@ -189,7 +189,8 @@
     "features": {
         "demoMode": false,
         "emailNotifications": true,
-        "imageUpload": true
+        "imageUpload": true,
+        "store": false
     },
     "routes": {
         "quotation": "/quotation",

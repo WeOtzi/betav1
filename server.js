@@ -231,6 +231,17 @@ const authLimiter = rateLimit({
     message: { success: false, error: 'Too many authentication attempts, please try again later.' }
 });
 
+// Rate limiting: descargas firmadas de la Store (original, stencil). Bucket
+// propio para no consumir la cuota de authLimiter (reset de contraseña y
+// alta de cuentas); el tope de 50 por licencia y por día lo aplica el handler.
+const storeDownloadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Demasiadas descargas seguidas. Probá de nuevo en unos minutos.' }
+});
+
 // Apply rate limits
 app.use('/api/', apiLimiter);
 app.use('/api/admin/update-user-password', authLimiter);
@@ -252,7 +263,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.post('/api/quotations/intake', require('./services/quotation-intake').handleIntake);
 // Store: descarga firmada de archivos de licencia, checkout y mantenimiento por cron.
-app.post('/api/store/licenses/:licenseId/assets/:assetId/url', authLimiter, storeOrders.handleDownloadUrl);
+app.post('/api/store/licenses/:licenseId/assets/:assetId/url', storeDownloadLimiter, storeOrders.handleDownloadUrl);
 app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
 app.post('/api/store/maintenance', storeOrders.handleMaintenance);
 const accountModes = require('./services/account-modes');
