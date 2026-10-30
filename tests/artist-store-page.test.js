@@ -141,6 +141,18 @@ test('HTML: drawers y diálogos con role, aria-modal y título existente; arranc
     assert.match(js, /function wireLayers\(\)[\s\S]*?event\.key === 'Escape'[\s\S]*?event\.key !== 'Tab'/, 'focus trap con Escape y Tab');
 });
 
+test('HTML y JS: las grillas de productos no son aria-live; el contador de pedidos solo se reescribe si cambia', () => {
+    for (const id of ['ast-list-disenos', 'ast-list-merch']) {
+        const grid = html.match(new RegExp('<div[^>]*id="' + id + '"[^>]*>'));
+        assert.ok(grid, id);
+        assert.doesNotMatch(grid[0], /aria-live/, id + ' se repinta entera: el resultado de cada acción lo anuncia el toast');
+    }
+    assert.match(html, /id="ast-order-count" aria-live="polite"/);
+    assert.match(html, /id="ast-toast" role="status" aria-live="polite"/);
+    assert.doesNotMatch(jsNoComments, /setText\('ast-order-count'/, 'el contador usa setLiveText');
+    assert.match(js, /function setLiveText\(id, text\)[\s\S]*?el\.textContent !== next/);
+});
+
 test('HTML: todo control con id tiene un label real (o es un checkbox dentro de su label)', () => {
     const controls = html.match(/<(input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/g) || [];
     assert.ok(controls.length > 20);
@@ -355,14 +367,33 @@ async function bootPage() {
     const settle = async () => { for (let i = 0; i < 40; i += 1) await new Promise((r) => setImmediate(r)); };
     const $ = (id) => document.getElementById(id);
     const page = {
-        $, location, errors, runtime, settle,
+        $, location, errors, runtime, settle, win: sandbox,
         text: (id) => $(id).innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
         async start() { for (const fn of docListeners.DOMContentLoaded || []) await fn(); await settle(); },
         async go(search) { location.search = search; for (const fn of winListeners.popstate || []) await fn(); await settle(); },
         async key(key) { for (const fn of docListeners.keydown || []) await fn({ key, shiftKey: false, preventDefault() {}, stopPropagation() {} }); await settle(); },
-        async submit(id) { for (const fn of $(id).listeners.submit || []) await fn({ preventDefault() {} }); await settle(); }
+        async submit(id) { for (const fn of $(id).listeners.submit || []) await fn({ preventDefault() {} }); await settle(); },
+        async click(id, event) { for (const fn of $(id).listeners.click || []) await fn(event); await settle(); }
     };
     return page;
+}
+
+// Cuenta las escrituras de textContent de un stub (cada una se anuncia si es aria-live).
+function countWrites(el) {
+    let text = el.textContent;
+    const counter = { writes: 0 };
+    Object.defineProperty(el, 'textContent', {
+        configurable: true,
+        get: () => text,
+        set: (value) => { counter.writes += 1; text = String(value); }
+    });
+    return counter;
+}
+
+// Click en un botón de imagen del editor ([data-img-act]) sin DOM real.
+function imageAction(act, index) {
+    const button = { dataset: { imgAct: act, index: String(index) } };
+    return { target: { closest: (selector) => (selector === '[data-img-act]' ? button : null) } };
 }
 
 const sid = (n) => '0000c0de-0000-4000-8000-57' + String(n).padStart(10, '0');
@@ -440,5 +471,68 @@ test('ejecución: carga la Store del preview, el editor y los pedidos sin errore
     const settings = page.runtime.getStore().rows('store_seller_settings').find((s) => s.contact_channel === 'WhatsApp de prueba');
     assert.ok(settings && settings.authorship_attested_at, 'guarda los ajustes con autoría');
 
+    assert.deepEqual(page.errors, [], 'sin errores en consola');
+});
+
+test('ejecución: «Ventas del mes» pide el reporte desde el 1 del mes local y sin tope', async () => {
+    const page = await bootPage();
+    const Store = page.win.WeotziData.Store;
+    const calls = [];
+    const original = Store.getSalesReport;
+    Store.getSalesReport = function (...args) { calls.push(args); return original.apply(this, args); };
+    await page.start();
+    assert.equal(calls.length, 1, 'un pedido de reporte al cargar');
+    const [sellerType, , from, to] = calls[0];
+    assert.equal(sellerType, 'artist');
+    const now = new Date();
+    assert.equal(Object.prototype.toString.call(from), '[object Date]');
+    assert.deepEqual([from.getFullYear(), from.getMonth(), from.getDate(), from.getHours(), from.getMinutes()],
+        [now.getFullYear(), now.getMonth(), 1, 0, 0], 'desde la medianoche local del 1');
+    // Con tope, la RPC corta el día en medianoche UTC y deja afuera la noche local.
+    assert.equal(to, null, 'el mes en curso va sin p_to');
+    assert.deepEqual(page.errors, [], 'sin errores en consola');
+});
+
+test('ejecución: quitar una imagen que un pedido usa de miniatura no borra el objeto', async () => {
+    const page = await bootPage();
+    const { $ } = page;
+    await page.start();
+    const Store = page.win.WeotziData.Store;
+    const removed = [];
+    Store.removePreviewImage = async (p) => { removed.push(p); return true; };
+    const orderCount = countWrites($('ast-order-count'));
+    const stats = countWrites($('ast-stat-sales'));
+    const countText = $('ast-order-count').textContent;
+    assert.match(countText, /pedido/, 'el contador arranca con texto');
+
+    // Remera Golondrina: la portada es la miniatura del pedido O2. Se le suma una
+    // vista sin pedidos para poder quitar dos y que siga publicada.
+    const FRONT = 'demo/store/remera-golondrina.svg';
+    const BACK = 'demo/store/remera-golondrina-espalda.svg';
+    const row = () => page.runtime.getStore().rows('store_products').find((p) => p.id === sid(104));
+    row().images.push({ path: 'demo/store/remera-golondrina-detalle.svg', alt: 'Detalle del estampado' });
+    assert.ok(page.runtime.getStore().rows('store_order_items').some((i) => i.image_path === FRONT), 'fixture: un pedido usa la portada');
+    assert.ok(!page.runtime.getStore().rows('store_order_items').some((i) => i.image_path === BACK), 'fixture: ningún pedido usa la espalda');
+
+    await page.go('?editar=' + sid(104));
+    assert.equal($('ast-editor').hidden, false);
+
+    // 1) La portada: se quita del producto, pero el objeto queda para el pedido.
+    await page.click('ast-ed-form', imageAction('remove', 0));
+    assert.equal($('ast-dlg-confirm').hidden, false, 'pide confirmación');
+    await page.submit('ast-confirm-form');
+    assert.deepEqual(row().images.map((i) => i.path), [BACK, 'demo/store/remera-golondrina-detalle.svg'], 'la portada sale del producto');
+    assert.deepEqual(removed, [], 'no borra un objeto que usa un pedido');
+
+    // 2) La espalda no está en ningún pedido: se borra.
+    await page.click('ast-ed-form', imageAction('remove', 0));
+    await page.submit('ast-confirm-form');
+    assert.deepEqual(row().images.map((i) => i.path), ['demo/store/remera-golondrina-detalle.svg']);
+    assert.deepEqual(removed, [BACK], 'borra el objeto sin pedidos');
+
+    // Cada baja repinta todo (renderAll), pero el contador aria-live no cambió de texto.
+    assert.ok(stats.writes >= 2, 'renderAll corrió después de cada baja');
+    assert.equal(orderCount.writes, 0, 'el contador de pedidos no se reescribe con el mismo texto');
+    assert.equal($('ast-order-count').textContent, countText);
     assert.deepEqual(page.errors, [], 'sin errores en consola');
 });

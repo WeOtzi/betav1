@@ -343,3 +343,366 @@ test('client-auth: normalizeReturnTo coincide con el de WeotziStoreShell', () =>
     const rt = new URLSearchParams(links.client.split('?')[1]).get('returnTo');
     assert.equal(context.normalizeReturnTo(rt), '/store/checkout/?item=1&license=artist');
 });
+
+/* ------------------------------------------------------------------ */
+/* Páginas corriendo con un DOM mínimo                                 */
+/* ------------------------------------------------------------------ */
+
+// DOM de juguete: los ids del HTML estático existen desde el arranque y cada
+// innerHTML crea los ids que trae (con hidden/checked). querySelectorAll
+// devuelve lo que el test cargue en `el.queryFn`.
+function fakeDocument(staticHtml) {
+    const byId = new Map();
+    const doc = { readyState: 'complete', activeElement: null, title: '', listeners: {} };
+    function makeEl(tag, id) {
+        const attrs = {};
+        const classes = new Set();
+        let html = '';
+        const el = {
+            tagName: String(tag || 'div').toUpperCase(),
+            hidden: false, textContent: '', value: '', disabled: false, checked: false,
+            children: [], listeners: {}, adjacent: '', queryFn: null,
+            classList: {
+                add: (...c) => c.forEach((x) => classes.add(x)),
+                remove: (...c) => c.forEach((x) => classes.delete(x)),
+                toggle: (c, on) => { const v = on === undefined ? !classes.has(c) : !!on; if (v) classes.add(c); else classes.delete(c); return v; },
+                contains: (c) => classes.has(c)
+            },
+            get className() { return [...classes].join(' '); },
+            set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
+            get id() { return attrs.id || ''; },
+            set id(v) { attrs.id = String(v); byId.set(String(v), el); },
+            get innerHTML() { return html; },
+            set innerHTML(v) { html = String(v); registerIds(html); },
+            setAttribute(k, v) { if (k === 'id') el.id = v; else attrs[k] = String(v); },
+            getAttribute(k) { return k in attrs ? attrs[k] : null; },
+            hasAttribute(k) { return k in attrs; },
+            removeAttribute(k) { delete attrs[k]; },
+            addEventListener(type, fn) { (el.listeners[type] = el.listeners[type] || []).push(fn); },
+            focus() { doc.activeElement = el; },
+            appendChild(child) { el.children.push(child); return child; },
+            insertBefore(child) { el.children.unshift(child); return child; },
+            insertAdjacentHTML(_pos, more) { el.adjacent += more; registerIds(more); },
+            querySelector(sel) { return (el.queryFn ? el.queryFn(sel) : [])[0] || null; },
+            querySelectorAll(sel) { return el.queryFn ? el.queryFn(sel) : []; },
+            matches: () => false,
+            closest: () => null,
+            getClientRects: () => [1]
+        };
+        if (id) el.id = id;
+        return el;
+    }
+    function registerIds(markup) {
+        for (const m of String(markup).matchAll(/<([a-z][\w-]*)\b([^>]*)>/gi)) {
+            const id = /\sid="([^"]+)"/.exec(m[2]);
+            if (!id) continue;
+            const el = makeEl(m[1], id[1]);
+            el.hidden = /\shidden(?=[\s=>]|$)/.test(m[2]);
+            el.checked = /\schecked(?=[\s=>]|$)/.test(m[2]);
+        }
+    }
+    Object.assign(doc, {
+        body: makeEl('body'),
+        head: makeEl('head'),
+        createElement: (tag) => makeEl(tag),
+        getElementById: (id) => byId.get(id) || null,
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        addEventListener(type, fn) { (doc.listeners[type] = doc.listeners[type] || []).push(fn); }
+    });
+    registerIds(staticHtml || '');
+    return doc;
+}
+
+const flush = async () => { for (let i = 0; i < 40; i++) await new Promise((r) => setImmediate(r)); };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Corre store-model, store-shell y el JS de la página en un contexto con el
+// DOM de juguete. `shell` reemplaza las partes del shell que tocan red o sesión.
+function runPage(name, opts = {}) {
+    const html = name ? read(PAGES[name].html) : '<body></body>';
+    const doc = fakeDocument(html.slice(html.indexOf('<body')));
+    const storage = new Map();
+    const delays = [];
+    const window = {
+        document: doc,
+        location: Object.assign({ origin: 'https://beta.weotzi.com', pathname: '/store/' + (name || '') + '/', search: '', hash: '',
+            reload() { window.reloaded = true; } }, opts.location || {}),
+        history: { replaceState() {}, pushState() {} },
+        sessionStorage: { getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, String(v)), removeItem: (k) => storage.delete(k) },
+        crypto: { randomUUID: () => '00000000-0000-4000-8000-000000000001' },
+        URL, URLSearchParams, console, clearTimeout,
+        setTimeout: (fn, ms) => { delays.push(ms); const t = setTimeout(fn, ms); if (t.unref) t.unref(); return t; },
+        addEventListener() {},
+        open: () => null,
+        WeotziData: { Store: opts.store || {} }
+    };
+    window.location.href = window.location.origin + window.location.pathname + window.location.search;
+    window.window = window;
+    const ctx = vm.createContext(window);
+    vm.runInContext(read('public/shared/js/store-model.js'), ctx, { filename: 'store-model.js' });
+    vm.runInContext(read('public/shared/js/store-shell.js'), ctx, { filename: 'store-shell.js' });
+    const S = window.WeotziStoreShell;
+    let current = opts.viewer || { role: 'anon', session: null, user: null, artist: null, artistReady: false };
+    Object.assign(S, {
+        mountStoreTopbar: () => Promise.resolve(current),
+        isStoreEnabled: () => Promise.resolve(true),
+        viewer: () => Promise.resolve(current),
+        requireSession: () => Promise.resolve(current.session || null),
+        setViewer: (v) => { current = v; }
+    }, opts.shell || {});
+    if (name) vm.runInContext(read(PAGES[name].js), ctx, { filename: PAGES[name].js });
+    return { window, doc, S, delays };
+}
+
+const BUYER = { role: 'client', session: {}, user: { id: 'buyer-1', user_metadata: { full_name: 'Ana Pérez' } }, artist: null, artistReady: false };
+const SELLER = { role: 'artist', session: {}, user: { id: 'seller-1' }, artist: { name: 'Mara Ink' }, artistReady: true };
+const SUPPORT = { role: 'client', session: {}, user: { id: 'support-1' }, artist: null, artistReady: false };
+const SELLER_INFO = { type: 'artist', id: 'seller-1', name: 'Mara Ink', handle: 'mara-ink.wo' };
+const DESIGN = {
+    id: 'p1', kind: 'design', status: 'active', title: 'Golondrina', currency: 'USD', licenses_issued: 0, exclusive_available: true,
+    license_personal_price: 25, license_artist_price: 60, license_exclusive_price: 300,
+    images: [{ path: 's/p1/1-0.webp', alt: 'Golondrina en línea fina' }]
+};
+const MERCH = {
+    id: 'm1', kind: 'merch', status: 'active', title: 'Remera Ö', currency: 'ARS', price_amount: 18000, shipping_price_amount: 2000,
+    ships_to_countries: [], pickup_available: false, images: [],
+    variants: [{ id: 'v1', label: 'Talle M', price_amount: null, in_stock: true, active: true }]
+};
+const storeFor = (product, extra) => Object.assign({
+    previewUrl: (p) => 'https://cdn.test/' + p,
+    getPublicProduct: async () => ({ seller: SELLER_INFO, settings: {}, product })
+}, extra || {});
+
+test('shell: notify anuncia por regiones vivas fijas y el toast es solo visual', async () => {
+    const { doc, S, delays } = runPage(null);
+    const status = doc.getElementById('sts-live-status');
+    const alert = doc.getElementById('sts-live-alert');
+    assert.ok(status && alert, 'las regiones existen desde que carga el shell');
+    assert.ok(doc.body.children.includes(status) && doc.body.children.includes(alert));
+    assert.equal(status.getAttribute('role'), 'status');
+    assert.equal(status.getAttribute('aria-live'), 'polite');
+    assert.equal(alert.getAttribute('role'), 'alert');
+    assert.equal(alert.getAttribute('aria-live'), 'assertive');
+    assert.match(status.className, /wo-sr-only/);
+    assert.equal(status.hidden, false);
+
+    const toast = S.notify('Pago informado. El vendedor lo va a confirmar.', 'success');
+    assert.equal(toast.getAttribute('aria-hidden'), 'true');
+    assert.equal(toast.getAttribute('role'), null, 'el toast no es región viva');
+    assert.equal(status.textContent, '', 'se vacía antes de escribir');
+    await wait(80);
+    assert.equal(status.textContent, 'Pago informado. El vendedor lo va a confirmar.');
+    assert.equal(status.hidden, false, 'la región nunca se oculta');
+
+    const errorToast = S.notify('No pudimos cancelar el pedido.', 'error');
+    await wait(80);
+    assert.equal(alert.textContent, 'No pudimos cancelar el pedido.');
+    assert.equal(errorToast.className, 'sts-toast is-error');
+    assert.equal(errorToast.getAttribute('aria-hidden'), 'true');
+    assert.ok(Math.max(...delays) >= 8000, 'los errores quedan más tiempo en pantalla');
+
+    // Mismo texto dos veces: se vuelve a anunciar (vacía y escribe).
+    S.announce('Sesión iniciada.');
+    await wait(80);
+    S.announce('Sesión iniciada.');
+    assert.equal(status.textContent, '');
+    await wait(80);
+    assert.equal(status.textContent, 'Sesión iniciada.');
+});
+
+test('shell: previewImg con alt "" deja el placeholder fuera del lector', () => {
+    const { S } = runPage(null);
+    assert.match(S.previewImg('', { alt: '' }), /^<span class="sts-media-ph" aria-hidden="true">/);
+    assert.match(S.previewImg('', { alt: 'Golondrina' }), /role="img" aria-label="Golondrina"/);
+});
+
+test('checkout: tras el ingreso inline el foco va al título del pedido; el total se anuncia; miniatura con alt ""', async () => {
+    const page = runPage('checkout', {
+        location: { pathname: '/store/checkout/', search: '?item=p1&license=personal' },
+        store: storeFor(DESIGN),
+        shell: {
+            getClient: () => ({ auth: { signInWithPassword: async () => { page.S.setViewer(BUYER); return { data: {}, error: null }; } } })
+        }
+    });
+    const { doc } = page;
+    await flush();
+    assert.equal(doc.getElementById('stb-auth').hidden, false, 'sin sesión: ingreso inline');
+    assert.equal(doc.activeElement, null, 'la carga no mueve el foco');
+    doc.getElementById('stb-login-email').value = 'ana@test.com';
+    doc.getElementById('stb-login-password').value = 'secreta';
+    doc.getElementById('stb-login-form').listeners.submit[0]({ preventDefault() {} });
+    await flush();
+    assert.equal(doc.getElementById('stb-checkout').hidden, false);
+    assert.equal(doc.getElementById('stb-auth').hidden, true);
+    assert.equal(doc.activeElement, doc.getElementById('stb-title'), 'el foco no queda en el body');
+    assert.equal(doc.getElementById('stb-title').textContent, 'Confirmá tu compra');
+
+    const live = doc.getElementById('stb-total-live');
+    assert.equal(live.textContent, 'Licencia Personal. Total: USD 25.');
+    const summary = doc.getElementById('stb-summary').innerHTML;
+    assert.match(summary, /<img class="sts-img" src="https:\/\/cdn\.test\/s\/p1\/1-0\.webp" alt=""/, 'la miniatura no repite el título');
+    assert.doesNotMatch(summary, /alt="Golondrina/);
+
+    // Cambiar de nivel con los términos aceptados: aviso visible y anunciado.
+    doc.getElementById('stb-terms-accept').checked = true;
+    doc.getElementById('stb-fields').listeners.change[0]({ target: { name: 'tier', value: 'exclusive' } });
+    const terms = doc.getElementById('stb-terms').innerHTML;
+    assert.match(terms, /<p class="wo-help" id="stb-terms-notice">Cambiaste a la licencia Exclusiva: leé y aceptá sus términos\.<\/p>/);
+    assert.match(terms, /aria-describedby="stb-terms-notice stb-terms-accept-error"/);
+    assert.equal(doc.getElementById('stb-terms-accept').checked, false, 'los términos nuevos se aceptan de nuevo');
+    assert.equal(live.textContent, 'Licencia Exclusiva. Total: USD 300.');
+    await wait(80);
+    assert.equal(doc.getElementById('sts-live-status').textContent, 'Cambiaste a la licencia Exclusiva: leé y aceptá sus términos.');
+    // Al aceptarlos, el aviso se va.
+    doc.getElementById('stb-terms-accept').checked = true;
+    doc.getElementById('stb-fields').listeners.change[0]({ target: { name: 'terms', checked: true } });
+    assert.equal(doc.getElementById('stb-terms-notice').hidden, true);
+
+    // Sin términos aceptados antes, no hay aviso.
+    doc.getElementById('stb-terms-accept').checked = false;
+    doc.getElementById('stb-fields').listeners.change[0]({ target: { name: 'tier', value: 'personal' } });
+    assert.doesNotMatch(doc.getElementById('stb-terms').innerHTML, /stb-terms-notice/);
+});
+
+test('checkout: sin países restringidos ofrece todos los ISO-2; con restricción, solo esos', async () => {
+    const src = read(PAGES.checkout.js);
+    const codes = vm.runInNewContext(/var COUNTRY_CODES = (\[[\s\S]*?\]);/.exec(src)[1]);
+    assert.equal(codes.length, 249, 'ISO 3166-1 alfa-2 completo');
+    assert.equal(new Set(codes).size, codes.length);
+    for (const c of ['TR', 'RO', 'PH', 'SG', 'AR', 'ES', 'MX', 'US']) assert.ok(codes.includes(c), c);
+    for (const c of ['EU', 'UN', 'ZZ', 'UK', 'XK']) assert.ok(!codes.includes(c), c + ' no es un país ISO asignado');
+
+    const open = runPage('checkout', { location: { pathname: '/store/checkout/', search: '?item=m1&variant=v1&qty=1' }, store: storeFor(MERCH), viewer: BUYER });
+    await flush();
+    const fields = open.doc.getElementById('stb-fields').innerHTML;
+    assert.equal((fields.match(/<option value="[A-Z]{2}">/g) || []).length, 249);
+    assert.match(fields, /<option value="TR">Turquía<\/option>/);
+    assert.match(fields, /<option value="SG">Singapur<\/option>/);
+    assert.doesNotMatch(fields, /stb-country-help/, 'sin restricción no hay lista de países en la ayuda');
+    assert.equal(open.doc.getElementById('stb-total-live').textContent, 'Total: ARS 20.000, con envío de ARS 2.000.');
+    assert.match(open.doc.getElementById('stb-summary').innerHTML, /<span class="sts-media-ph" aria-hidden="true">/);
+
+    const closed = runPage('checkout', {
+        location: { pathname: '/store/checkout/', search: '?item=m1&variant=v1&qty=1' },
+        store: storeFor(Object.assign({}, MERCH, { ships_to_countries: ['ES', 'PT'] })), viewer: BUYER
+    });
+    await flush();
+    const only = closed.doc.getElementById('stb-fields').innerHTML;
+    assert.equal((only.match(/<option value="[A-Z]{2}">/g) || []).length, 2);
+    assert.match(only, /El vendedor envía a: España, Portugal\./);
+});
+
+test('checkout: «Olvidé mi contraseña →» termina en flecha y el total tiene su región viva', () => {
+    const html = read(PAGES.checkout.html);
+    assert.match(html, /id="stb-link-recover" href="\/recover\?from=client">Olvidé mi contraseña →<\/a>/);
+    assert.match(html, /<p class="wo-sr-only" id="stb-total-live" aria-live="polite" aria-atomic="true"><\/p>/);
+});
+
+const LICENSE_BASE = {
+    id: 'l1', order_id: 'o1', order_item_id: 'i1', product_id: 'p1', tier: 'exclusive', holder_user_id: 'buyer-1', holder_name: 'Ana Pérez',
+    seller_type: 'artist', seller_id: 'seller-1', seller_display_name: 'Mara Ink', seller_username: 'mara-ink.wo', design_title: 'Golondrina',
+    terms_version: Model.TERMS_VERSION, verification_code: 'WOL-ABCD-1234', issued_at: '2026-10-20T13:00:00Z', used_at: null, revoked_at: null,
+    metadata_json: {}
+};
+function paidDesignOrder(licenseExtra) {
+    return {
+        id: 'o1', order_number: 1042, status: 'paid', fulfillment_method: 'digital', currency: 'USD', buyer_user_id: 'buyer-1',
+        subtotal_amount: 300, shipping_amount: 0, total_amount: 300, created_at: '2026-10-20T12:00:00Z', paid_at: '2026-10-20T13:00:00Z',
+        store_order_items: [{ id: 'i1', order_id: 'o1', product_id: 'p1', kind: 'design', title: 'Golondrina', license_tier: 'exclusive',
+            unit_price: 300, quantity: 1, line_total: 300, image_path: null }],
+        store_licenses: [Object.assign({}, LICENSE_BASE, licenseExtra || {})]
+    };
+}
+const ASSETS = [
+    { id: 'a1', product_id: 'p1', kind: 'original', mime_type: 'image/png', file_name: 'golondrina.png' },
+    { id: 'a2', product_id: 'p1', kind: 'stencil', mime_type: 'image/png', file_name: 'golondrina-stencil.png' }
+];
+async function purchasesDetail(order, publicProduct, extraStore) {
+    const page = runPage('purchases', {
+        location: { pathname: '/store/purchases/', search: '?pedido=' + order.id },
+        viewer: BUYER,
+        store: Object.assign({
+            listMyPurchases: async () => [order],
+            getMyOrder: async () => order,
+            getPublicProduct: async () => (publicProduct ? { seller: SELLER_INFO, settings: {}, product: publicProduct } : null),
+            listLicenseAssets: async () => ASSETS.slice()
+        }, extraStore || {})
+    });
+    await flush();
+    return page;
+}
+
+test('purchases: «Imprimir a escala real» usa las medidas de la licencia aunque la exclusiva ya no sea pública', async () => {
+    // Exclusiva vendida: get_public_store_product devuelve null (producto retirado).
+    const withMeta = await purchasesDetail(paidDesignOrder({ metadata_json: { design_width_cm: 9, design_height_cm: 7 } }), null);
+    const html = withMeta.doc.getElementById('stb-detail').innerHTML;
+    assert.match(html, /data-stb-action="print-scale"/);
+    assert.match(html, /El stencil se imprime a 9 × 7 cm\./);
+    assert.match(html, /<div class="stb-thumb"><span class="sts-media-ph" aria-hidden="true">/, 'aside: miniatura decorativa');
+
+    // Sin medidas en la licencia, se usan las de la ficha pública si está activa.
+    const fromProduct = await purchasesDetail(paidDesignOrder(), Object.assign({}, DESIGN, { design_width_cm: 12.5, design_height_cm: 10 }));
+    assert.match(fromProduct.doc.getElementById('stb-detail').innerHTML, /El stencil se imprime a 12,5 × 10 cm\./);
+
+    // Sin medidas en ningún lado: no se ofrece.
+    const none = await purchasesDetail(paidDesignOrder(), null);
+    const plainHtml = none.doc.getElementById('stb-detail').innerHTML;
+    assert.doesNotMatch(plainHtml, /print-scale/);
+    assert.match(plainHtml, /Bajar stencil/, 'las descargas siguen');
+});
+
+test('purchases: si falla el refresco después de una acción, avisa y deshabilita las acciones del detalle', async () => {
+    const order = {
+        id: 'o2', order_number: 1043, status: 'pending_payment', fulfillment_method: 'digital', currency: 'USD', buyer_user_id: 'buyer-1',
+        subtotal_amount: 25, shipping_amount: 0, total_amount: 25, created_at: '2026-10-30T12:00:00Z',
+        expires_at: new Date(Date.now() + 20 * 3600000).toISOString(), payment_provider: 'manual', expected_collector: 'seller',
+        store_order_items: [{ id: 'i2', order_id: 'o2', product_id: 'p1', kind: 'design', title: 'Golondrina', license_tier: 'personal',
+            unit_price: 25, quantity: 1, line_total: 25, image_path: null }],
+        store_licenses: []
+    };
+    let cancelled = 0;
+    const page = await purchasesDetail(order, DESIGN, {
+        cancelOrder: async () => { cancelled++; return {}; },
+        getMyOrder: async () => { throw new Error('network'); }
+    });
+    const { doc, S } = page;
+    assert.match(doc.getElementById('stb-detail').innerHTML, /data-stb-action="cancel"/);
+    S.confirmDialog = () => Promise.resolve({ confirmed: true, value: null });
+    const buttons = [{ disabled: false }, { disabled: false }].map((b) => Object.assign(b, {
+        removeAttribute() {}, getAttribute: () => null, setAttribute() {}
+    }));
+    doc.getElementById('stb-detail').queryFn = (sel) => (/data-stb-action="cancel"/.test(sel) ? buttons : []);
+    const cancelBtn = { getAttribute: (k) => (k === 'data-stb-action' ? 'cancel' : null) };
+    doc.listeners.click[0]({ button: 0, target: { closest: (sel) => (sel === '[data-stb-action]' ? cancelBtn : null) } });
+    await flush();
+    assert.equal(cancelled, 1);
+    assert.ok(buttons.every((b) => b.disabled), 'acciones deshabilitadas hasta recargar');
+    await wait(80);
+    assert.equal(doc.getElementById('sts-live-alert').textContent, 'Actualizamos tu pedido, pero no pudimos recargar la vista. Recargá la página.');
+    assert.equal(doc.getElementById('sts-live-status').textContent, 'Cancelaste el pedido.');
+});
+
+test('license: la salida del certificado depende de quién lo mira', async () => {
+    const license = Object.assign({}, LICENSE_BASE, { store_orders: { id: 'o1', order_number: 1042, status: 'paid', buyer_user_id: 'buyer-1' } });
+    const certFor = async (viewer) => {
+        const page = runPage('license', { location: { pathname: '/store/license/', search: '?id=l1' }, viewer, store: { getLicense: async () => license } });
+        await flush();
+        const html = page.doc.getElementById('stb-cert').innerHTML;
+        return html.slice(0, html.indexOf('<article'));
+    };
+    assert.match(await certFor(SELLER), /<a class="stb-back" href="\/artist\/store\/\?tab=pedidos&amp;pedido=o1">← Pedido en tu Store<\/a>/);
+    assert.match(await certFor(BUYER), /<a class="stb-back" href="\/store\/purchases\/\?pedido=o1">← Mis compras<\/a>/);
+    const other = await certFor(SUPPORT);
+    assert.match(other, /<a class="stb-link" href="\/store\/license\/">Verificá un código →<\/a>/);
+    assert.doesNotMatch(other, /Mis compras/);
+});
+
+test('store-buyer.css: el nivel deshabilitado no usa opacity y el motivo va a contraste pleno', () => {
+    const css = read(CSS_PATH).replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of css.matchAll(/([^{}]*\.stb-option\.is-disabled[^{}]*)\{([^}]*)\}/g)) {
+        assert.doesNotMatch(m[2], /opacity/, m[1].trim());
+    }
+    assert.match(css, /\.stb-option-reason\{[^}]*color:var\(--text-danger\)/);
+    assert.match(css, /\.stb-option\.is-disabled \.stb-option-title,\.stb-option\.is-disabled \.stb-option-price\{color:var\(--text-muted\)\}/);
+});

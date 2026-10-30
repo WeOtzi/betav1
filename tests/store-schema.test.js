@@ -29,6 +29,7 @@ const STORE_TABLES = [
     'store_payments',
     'store_licenses',
     'store_download_events',
+    'store_order_support_notes',
 ];
 
 // Grant esperado por función (contrato §4): usuario → authenticated,
@@ -49,6 +50,7 @@ const GRANTS = {
     get_store_sales_report: 'authenticated',
     // soporte
     set_store_order_funds_hold: 'authenticated',
+    resolve_store_order_flag: 'authenticated',
     // helpers que usan las policies
     store_can_manage_seller: 'authenticated',
     store_can_manage_storage_folder: 'authenticated',
@@ -65,6 +67,7 @@ const INTERNAL = [
     'store_seller_ready_artist',
     'store_current_terms_version',
     'store_order_uses_wallet',
+    'store_order_lapsed',
     'store_app_setting',
     'store_platform_fee_pct',
     'store_new_order_number',
@@ -100,6 +103,7 @@ const RPC_PARAMS = {
     adjust_store_variant_stock: ['p_variant_id', 'p_new_stock', 'p_expected_stock'],
     get_store_sales_report: ['p_seller_type', 'p_seller_id', 'p_from', 'p_to'],
     set_store_order_funds_hold: ['p_order_id', 'p_hold', 'p_note'],
+    resolve_store_order_flag: ['p_order_id', 'p_note'],
     get_public_storefront: ['p_seller_type', 'p_handle'],
     get_public_store_product: ['p_product_id'],
     verify_store_license: ['p_code'],
@@ -200,7 +204,7 @@ test('Store schema: un único archivo store_core, transaccional, idempotente y q
     assert.equal((active.match(/on conflict \(id\) do update set/g) || []).length, 2);
 });
 
-test('Store schema: RLS en las 9 tablas, sin grants a anon y DML mínimo para authenticated', () => {
+test('Store schema: RLS en las tablas de la Store, sin grants a anon y DML mínimo para authenticated', () => {
     const sql = readStoreMigration();
     const statements = stripComments(sql).split(';').map((s) => s.trim());
     for (const table of STORE_TABLES) {
@@ -214,7 +218,8 @@ test('Store schema: RLS en las 9 tablas, sin grants a anon y DML mínimo para au
         assert.doesNotMatch(g, /\b(truncate|trigger|references|all)\b/i, `sin truncate/trigger/references/all: ${g}`);
     }
     // Pedidos, ítems, pagos, licencias, descargas y wallet: authenticated solo lee.
-    for (const table of ['store_orders', 'store_order_items', 'store_payments', 'store_licenses', 'store_download_events', 'artist_wallet_movements']) {
+    for (const table of ['store_orders', 'store_order_items', 'store_payments', 'store_licenses', 'store_download_events',
+        'store_order_support_notes', 'artist_wallet_movements']) {
         const writes = statements.filter((s) => /^grant\b/i.test(s)
             && new RegExp(`\\bon table public\\.${table}\\b`, 'i').test(s)
             && /\bto\s+[^;]*\bauthenticated\b/i.test(s)
@@ -232,6 +237,7 @@ test('Store schema: RLS en las 9 tablas, sin grants a anon y DML mínimo para au
         store_order_items: 'select',
         store_licenses: 'select',
         store_download_events: 'select',
+        store_order_support_notes: 'select',
     };
     for (const [table, privs] of Object.entries(expected)) {
         assert.match(sql, new RegExp(`grant ${privs} on table public\\.${table} to authenticated;`), table);
@@ -260,17 +266,22 @@ test('Store schema: policies con los nombres del contrato y (select auth.uid())'
         'store_payments_buyer_read', 'store_payments_seller_read', 'store_payments_support_read',
         'store_licenses_holder_read', 'store_licenses_buyer_read', 'store_licenses_seller_read', 'store_licenses_support_read',
         'store_download_events_seller_read', 'store_download_events_support_read',
+        'store_order_support_notes_support_read',
     ];
     for (const p of policies) assert.match(sql, new RegExp(`create policy ${p} on public\\.`), p);
     // Sin update en assets; pedidos, ítems, pagos, licencias y descargas solo select.
     assert.doesNotMatch(sql, /create policy store_design_assets_owner_update/);
-    for (const m of sql.matchAll(/create policy (store_(?:orders|order_items|payments|licenses|download_events)_[a-z_]+) on public\.[a-z_]+\s+for (\w+)/g)) {
+    for (const m of sql.matchAll(/create policy (store_(?:orders|order_items|payments|licenses|download_events|order_support_notes)_[a-z_]+) on public\.[a-z_]+\s+for (\w+)/g)) {
         assert.equal(m[2], 'select', m[1]);
     }
     assert.match(sql, /store_design_assets_licensee_read[\s\S]*?l\.revoked_at is null[\s\S]*?l\.holder_user_id = \(select auth\.uid\(\)\)/);
     assert.match(sql, /store_orders_buyer_read[\s\S]*?using \(buyer_user_id = \(select auth\.uid\(\)\)\)/);
     assert.match(sql, /store_products_support_all[\s\S]*?using \(public\.is_support_user\(\)\)/);
     assert.doesNotMatch(sql, /using \([^;]*\bauth\.uid\(\) =/, 'las policies usan (select auth.uid())');
+    // Notas internas: solo soporte, sin policy para comprador ni vendedor.
+    const notePolicies = [...sql.matchAll(/create policy ([a-z_]+) on public\.store_order_support_notes\s+for (\w+) to (\w+)\s+using \(([^;]*)\);/g)];
+    assert.deepEqual(notePolicies.map((m) => [m[1], m[2], m[3], m[4]]),
+        [['store_order_support_notes_support_read', 'select', 'authenticated', 'public.is_support_user()']]);
 });
 
 test('Store schema: cada función revoca a public, anon y authenticated y lleva el grant del contrato', () => {
@@ -306,7 +317,7 @@ test('Store schema: cada función revoca a public, anon y authenticated y lleva 
     assert.match(sql, /returns table \(\s*product_id uuid,\s*title text,\s*kind text,\s*month date,\s*currency text,\s*units bigint,\s*gross_amount numeric,\s*orders bigint\s*\)/);
     for (const name of ['create_store_order', 'report_store_payment', 'confirm_store_order_received', 'cancel_store_order',
         'confirm_store_order_payment', 'update_store_order_fulfillment', 'refund_store_order', 'set_store_order_funds_hold',
-        'confirm_store_order_payment_as_provider', 'store_apply_order_payment']) {
+        'confirm_store_order_payment_as_provider', 'store_apply_order_payment', 'resolve_store_order_flag']) {
         assert.match(fns.find((f) => f.name === name).header, /^returns public\.store_orders\b/, name);
     }
 });
@@ -396,6 +407,11 @@ test('Store schema: wallet siempre dinámico, condicionado a to_regclass y sin %
     assert.match(release, /status in \('awaiting_release', 'pending_service'\)[\s\S]*get diagnostics v_rows = row_count/);
     assert.match(release, /perform public\.store_wallet_upsert_payment\(v_order\)/, 'reconstruye el payment si falta');
     assert.match(release, /set funds_released_at = now\(\)/);
+    // La entrega fija release_at también si el payment está retenido (blocked por
+    // funds_hold): al levantar la retención no queda awaiting_release sin fecha.
+    const delivery = fns.find((f) => f.name === 'store_finish_delivery').body;
+    assert.match(delivery, /release_at = \$3\s+where artist_user_id = \$1 and external_reference = \$2 and status in \('pending_service', 'blocked'\)/);
+    assert.match(delivery, /status = case when status = 'pending_service' then 'awaiting_release' else status end/);
 });
 
 test('Store schema: locks producto → pedido, re-chequeo de estado y mantenimiento con skip locked', () => {
@@ -406,7 +422,8 @@ test('Store schema: locks producto → pedido, re-chequeo de estado y mantenimie
     assert.ok(lock.indexOf('from public.store_order_items') < lock.indexOf('from public.store_products p where p.id = v_product_id for update'));
     assert.ok(lock.indexOf('store_products p where p.id = v_product_id for update') < lock.indexOf('store_orders o where o.id = p_order_id for update'));
     for (const name of ['report_store_payment', 'confirm_store_order_received', 'cancel_store_order', 'update_store_order_fulfillment',
-        'refund_store_order', 'set_store_order_funds_hold', 'store_apply_order_payment', 'release_store_order_funds']) {
+        'refund_store_order', 'set_store_order_funds_hold', 'resolve_store_order_flag', 'store_apply_order_payment',
+        'release_store_order_funds']) {
         assert.match(body(name), /public\.store_lock_order\(p_order_id\)/, name);
     }
     assert.match(body('create_store_order'), /from public\.store_products p where p\.id = p_product_id for update/);
@@ -420,7 +437,10 @@ test('Store schema: locks producto → pedido, re-chequeo de estado y mantenimie
     assert.match(body('store_try_lock_order'), /for update skip locked[\s\S]*for update skip locked/);
     assert.equal((maint.match(/public\.store_try_lock_order\(v_id\)/g) || []).length, 4);
     assert.equal((maint.match(/exception when others then/g) || []).length >= 4, true);
-    assert.match(maint, /'maintenance_error', v_error/);
+    // El error crudo va a las notas de soporte; en metadata_json, solo la fecha.
+    assert.equal((maint.match(/insert into public\.store_order_support_notes \(order_id, kind, note\)\s+values \(v_id, 'maintenance_error', v_error\);/g) || []).length, 4);
+    assert.doesNotMatch(maint, /jsonb_build_object\('maintenance_error', v_error/);
+    assert.match(maint, /jsonb_build_object\('maintenance_error_at', now\(\)\)/);
     assert.match(maint, /'expired', v_expired,\s*'flagged', v_flagged,\s*'delivered', v_delivered,\s*'released', v_released,\s*'failed', v_failed/);
     assert.match(maint, /shipped_at < now\(\) - interval '14 days'/);
     assert.match(maint, /ready_at < now\(\) - interval '7 days'/);
@@ -505,7 +525,7 @@ test('Store schema: buckets, MIME y policies de Storage (sin SVG, sin update en 
     assert.match(sql, /\(v_meta ->> 'size'\)::bigint/);
 });
 
-test('Store schema: el rollback dropea policies, buckets vacíos, cada función con su firma, triggers y las 9 tablas', () => {
+test('Store schema: el rollback dropea policies, buckets vacíos, cada función con su firma, triggers y las tablas', () => {
     const sql = readStoreMigration();
     const down = read(ROLLBACK);
     const active = stripComments(down).trim();
@@ -558,4 +578,132 @@ test('Store schema: MIME y límites de la migración iguales a WeotziStoreModel.
     if (Array.isArray(F.STENCIL_MIME)) {
         assert.deepEqual([...F.STENCIL_MIME].sort(), readStencilMime().sort());
     }
+});
+
+test('Store schema: un pago informado falso no retiene la exclusiva ni el stock para siempre', () => {
+    const sql = readStoreMigration();
+    const fns = parseFunctions(sql);
+    const body = (name) => fns.find((f) => f.name === name).body;
+    // Vencible: sin aviso al pasar expires_at; con aviso, 7 días después.
+    const lapsed = fns.find((f) => f.name === 'store_order_lapsed');
+    assert.match(lapsed.header, /^returns boolean\s+language sql\s+stable\s+set search_path = ''/);
+    assert.match(lapsed.body, /p_order\.status = 'pending_payment'\s+and p_order\.expires_at < now\(\)\s+and \(p_order\.buyer_payment_reported_at is null or p_order\.expires_at < now\(\) - interval '7 days'\)/);
+    // El mantenimiento (a) y la toma de reserva de create_store_order usan el mismo predicado.
+    const maint = body('run_store_maintenance');
+    assert.match(maint, /and o\.expires_at < now\(\)\s+and public\.store_order_lapsed\(o\)/);
+    assert.match(maint, /if public\.store_order_lapsed\(v_order\) then\s+if public\.store_close_unpaid_order\(v_id, 'expired', null\)/);
+    assert.match(body('create_store_order'), /elsif public\.store_order_lapsed\(v_old\) then\s+perform public\.store_close_unpaid_order\(v_old\.id, 'expired', null\)/);
+    // Al vencer un pedido con aviso, queda marcado para soporte.
+    assert.match(body('store_close_unpaid_order'), /when p_status = 'expired' and buyer_payment_reported_at is not null[\s\S]*'needs_support_reason', 'payment_reported_expired'/);
+    // Cancelación: soporte siempre; el vendedor que cobra directo, con el plazo del aviso vencido.
+    assert.match(body('cancel_store_order'), /if v_order\.buyer_payment_reported_at is not null and not v_support\s+and not \(v_seller and v_order\.expected_collector = 'seller' and v_order\.expires_at < now\(\)\) then\s+raise exception using errcode = 'P0001', message = 'store:payment_reported';/);
+});
+
+test('Store schema: needs_support se resuelve al confirmar, cancelar, reembolsar (soporte) o con resolve_store_order_flag', () => {
+    const sql = readStoreMigration();
+    const fns = parseFunctions(sql);
+    const body = (name) => fns.find((f) => f.name === name).body;
+    const clear = /\(metadata_json - 'needs_support'\) \|\| jsonb_build_object\('needs_support_resolved_at', now\(\)\)/;
+    const apply = body('store_apply_order_payment');
+    // Las dos ramas de éxito (digital → fulfilled, merch → paid) limpian la marca.
+    assert.equal((apply.match(/when metadata_json \? 'needs_support'\s+then \(metadata_json - 'needs_support'\) \|\| jsonb_build_object\('needs_support_resolved_at', now\(\)\)/g) || []).length, 2);
+    assert.match(body('cancel_store_order'), clear);
+    // Reembolso: limpia solo soporte (si reembolsa el vendedor, el duplicado sigue a la vista).
+    assert.match(body('refund_store_order'), /when v_support and metadata_json \? 'needs_support'\s+then \(metadata_json - 'needs_support'\)/);
+    const resolve = body('resolve_store_order_flag');
+    assert.match(resolve, /if not coalesce\(public\.is_support_user\(\), false\) then\s+raise exception using errcode = 'P0001', message = 'store:forbidden';/);
+    assert.match(resolve, clear);
+    assert.match(resolve, /'flag_resolved'/);
+    // El duplicado sigue marcando para soporte.
+    assert.match(apply, /'needs_support', true, 'needs_support_reason', 'duplicate_payment'/);
+});
+
+test('Store schema: las notas internas de soporte no van a metadata_json (lo leen comprador y vendedor)', () => {
+    const sql = readStoreMigration();
+    const fns = parseFunctions(sql);
+    const body = (name) => fns.find((f) => f.name === name).body;
+    assert.match(sql, /create table if not exists public\.store_order_support_notes \(/);
+    assert.match(sql, /check \(kind in \('funds_hold', 'funds_release', 'refund', 'reopen', 'flag_resolved', 'maintenance_error'\)\)/);
+    for (const key of ['funds_hold_note', 'funds_hold_by', 'refunded_by', 'reopened_by']) {
+        assert.doesNotMatch(stripComments(sql), new RegExp(`'${key}'`), `${key} fuera de metadata_json`);
+    }
+    const writers = [
+        ['set_store_order_funds_hold', "case when v_order\\.funds_hold then 'funds_hold' else 'funds_release' end"],
+        ['refund_store_order', "'refund'"],
+        ['store_apply_order_payment', "'reopen'"],
+        ['resolve_store_order_flag', "'flag_resolved'"],
+    ];
+    for (const [name, kind] of writers) {
+        assert.match(body(name), new RegExp(`insert into public\\.store_order_support_notes \\(order_id, kind, note, actor_id\\)\\s+values \\(v_order\\.id, ${kind}`), name);
+    }
+    assert.match(body('set_store_order_funds_hold'), /metadata_json = metadata_json \|\| jsonb_build_object\('funds_hold_at', now\(\)\)/);
+    const down = read(ROLLBACK);
+    assert.ok(down.indexOf('drop table if exists public.store_order_support_notes;') > -1);
+    assert.ok(down.indexOf('drop table if exists public.store_order_support_notes;') < down.indexOf('drop table if exists public.store_orders;'));
+});
+
+test('Store schema: el nombre de descarga del archivo licenciado se sanea y termina en la extensión del MIME real', () => {
+    const sql = readStoreMigration();
+    const guard = parseFunctions(sql).find((f) => f.name === 'store_design_assets_guard').body;
+    const map = {};
+    for (const m of guard.matchAll(/when '([a-z/.+-]+)' then array\[([^\]]+)\]/g)) {
+        map[m[1]] = [...m[2].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+    }
+    // Cubre cada MIME del bucket de archivos de diseño.
+    assert.deepEqual(Object.keys(map).sort(), [...readStoreBucketContract(sql)['store-design-files'].mime].sort());
+    // Mismo mapeo que WeotziStoreModel.FILES.EXTENSION_MIME (si existe).
+    const modelPath = path.join(root, MODEL);
+    if (fs.existsSync(modelPath)) {
+        const F = require(modelPath).FILES;
+        if (F && F.EXTENSION_MIME) {
+            for (const [mime, exts] of Object.entries(map)) {
+                const fromModel = Object.keys(F.EXTENSION_MIME).filter((e) => F.EXTENSION_MIME[e] === mime).sort();
+                assert.deepEqual([...exts].sort(), fromModel, mime);
+            }
+        }
+    }
+    assert.match(guard, /if v_exts is null then\s+raise exception using errcode = 'P0001', message = 'store:invalid_image_path';/);
+    assert.ok(guard.includes(`regexp_replace(coalesce(new.file_name, ''), '[[:cntrl:]/\\\\"`), 'saca barras, comillas y caracteres de control');
+    assert.match(guard, /if v_ext = any \(v_exts\) then[\s\S]*else\s+v_name := left\(v_name, 199 - char_length\(v_exts\[1\]\)\) \|\| '\.' \|\| v_exts\[1\];/);
+    assert.match(guard, /new\.file_name := v_name;/);
+    // Se normaliza después de tomar el MIME del objeto en Storage.
+    assert.ok(guard.indexOf("new.mime_type := nullif(v_meta ->> 'mimetype', '')") < guard.indexOf('v_exts := case new.mime_type'));
+});
+
+test('Store schema: la ficha pública refleja lo que acepta create_store_order (reserva y retiro)', () => {
+    const fns = parseFunctions(readStoreMigration());
+    const pub = fns.find((f) => f.name === 'store_public_product_json').body;
+    assert.match(pub, /'reserved', p_product\.reserved_order_id is not null,/);
+    assert.doesNotMatch(pub, /reserved_until > now\(\)/);
+    assert.match(pub, /'pickup_available', p_product\.pickup_available and exists \([\s\S]*?nullif\(btrim\(coalesce\(s\.pickup_address, ''\)\), ''\) is not null\s+\)/);
+    // Retiro sin dirección → pickup_unavailable.
+    assert.match(fns.find((f) => f.name === 'create_store_order').body,
+        /if not v_product\.pickup_available\s+or nullif\(btrim\(coalesce\(v_settings\.pickup_address, ''\)\), ''\) is null then\s+raise exception using errcode = 'P0001', message = 'store:pickup_unavailable';/);
+});
+
+test('Store schema: un webhook tardío del proveedor reabre el pedido vencido (cobro real)', () => {
+    const apply = parseFunctions(readStoreMigration()).find((f) => f.name === 'store_apply_order_payment').body;
+    assert.match(apply, /elsif v_order\.status = 'expired' then[\s\S]*?if not \(coalesce\(p_is_support, false\) or p_collected_by = 'provider'\) then\s+raise exception using errcode = 'P0001', message = 'store:order_not_payable';/);
+});
+
+test('Store schema: app_settings de la Store privados y migración con lock_timeout corto', () => {
+    const sql = readStoreMigration();
+    const active = stripComments(sql).trim();
+    assert.match(active, /^begin\s*;\s*set local lock_timeout = '5s';/i);
+    const seed = active.match(/insert into public\.app_settings \(setting_key, setting_value, setting_type, description, is_public\) values([\s\S]*?)on conflict \(setting_key\) do update set is_public = false;/);
+    assert.ok(seed, 'siembra con on conflict que solo vuelve privadas las claves');
+    const rows = [...seed[1].matchAll(/\('(store_[a-z_]+)', (null|'[^']*'), 'text',\s*'[^']*', (true|false)\)/g)]
+        .map((m) => [m[1], m[2], m[3]]);
+    assert.deepEqual(rows, [
+        ['store_payment_provider', "'manual'", 'false'],
+        ['store_manual_collector', "'seller'", 'false'],
+        ['store_platform_payment_instructions', 'null', 'false'],
+        ['store_platform_fee_pct', "'0'", 'false'],
+    ]);
+    // Las claves que lee la migración son exactamente las sembradas.
+    const keys = new Set([...sql.matchAll(/store_app_setting\('(store_[a-z_]+)'\)/g)].map((m) => m[1]));
+    keys.add('store_platform_fee_pct');
+    assert.deepEqual([...keys].sort(), rows.map((r) => r[0]).sort());
+    // El rollback no toca app_settings (soporte pudo configurarlas).
+    assert.doesNotMatch(stripComments(read(ROLLBACK)), /app_settings/);
 });

@@ -42,7 +42,7 @@ function fakeRes() {
 const silentLogger = { error() {}, warn() {}, log() {} };
 
 function fakeRepo(overrides = {}) {
-    const calls = { inserted: [], counted: [], maintenance: 0, confirmed: [] };
+    const calls = { inserted: [], deleted: [], counted: [], maintenance: 0, confirmed: [] };
     const repo = {
         calls,
         async getLicenseForHolder(licenseId, userId) {
@@ -56,7 +56,8 @@ function fakeRepo(overrides = {}) {
                 : null;
         },
         async countDownloadsToday(licenseId, opts) { calls.counted.push({ licenseId, opts }); return 3; },
-        async insertDownloadEvent(event) { calls.inserted.push(event); },
+        async insertDownloadEvent(event) { calls.inserted.push(event); return { id: 'ev-' + calls.inserted.length }; },
+        async deleteDownloadEvent(id) { calls.deleted.push(id); },
         async runMaintenance() { calls.maintenance += 1; return { expired: 1, flagged: 0, delivered: 2, released: 0, failed: [] }; },
         async confirmProviderPayment(args) { calls.confirmed.push(args); return { id: args.orderId, status: 'fulfilled' }; },
         async getOrderWithItems(id) {
@@ -217,6 +218,28 @@ test('repo: countDownloadsToday filtra por licencia y ventana y lee el total de 
     }
 });
 
+test('repo: insertDownloadEvent devuelve el id insertado y deleteDownloadEvent borra solo esa fila', async () => {
+    const mock = mockFetch((url, opts) => (opts.method === 'POST'
+        ? { status: 201, body: '[{"id":"ev-1"}]' }
+        : { status: 204, body: '' }));
+    try {
+        const event = await StoreRepo.insertDownloadEvent({ licenseId: LICENSE_ID, assetId: ASSET_ID, userId: USER_ID });
+        assert.deepEqual(event, { id: 'ev-1' });
+        const insert = mock.calls[0];
+        assert.equal(insert.opts.method, 'POST');
+        assert.match(insert.url, /\/rest\/v1\/store_download_events\?select=id$/);
+        assert.match(insert.opts.headers.Prefer, /return=representation/);
+        assert.deepEqual(JSON.parse(insert.opts.body), { license_id: LICENSE_ID, asset_id: ASSET_ID, user_id: USER_ID });
+
+        await StoreRepo.deleteDownloadEvent('ev-1');
+        const del = mock.calls[1];
+        assert.equal(del.opts.method, 'DELETE');
+        assert.match(del.url, /\/rest\/v1\/store_download_events\?id=eq\.ev-1$/);
+    } finally {
+        mock.restore();
+    }
+});
+
 test('storeErrorCode extrae el código store:* del error de PostgREST', () => {
     assert.equal(storeErrorCode(new Error('PostgREST POST rpc/x failed (400): {"code":"P0001","message":"store:order_not_payable"}')), 'order_not_payable');
     assert.equal(storeErrorCode(new Error('boom')), null);
@@ -323,6 +346,54 @@ test('descarga: 429 al llegar a 50 descargas en 24 h (y si el conteo no es núme
         assert.equal(repo.calls.inserted.length, 0);
         assert.equal(signCalls.length, 0);
     }
+});
+
+test('descarga: si al recontar con la fila propia se pasa del tope, la borra y responde 429 sin firmar', async () => {
+    const counts = [49, 51];
+    const repo = fakeRepo({ countDownloadsToday: async () => counts.shift() });
+    const { handlers, signCalls } = handlersWith({ repo });
+    const res = fakeRes();
+    await handlers.handleDownloadUrl(downloadReq(), res);
+    assert.equal(res.statusCode, 429);
+    assert.match(res.body.error, /50 descargas/);
+    assert.equal(repo.calls.inserted.length, 1);
+    assert.deepEqual(repo.calls.deleted, ['ev-1']);
+    assert.equal(signCalls.length, 0);
+});
+
+test('descarga: con requests en paralelo nunca se emiten más de 50 URLs por licencia', async () => {
+    // Log compartido en memoria con un tick entre cada lectura y escritura,
+    // para que las requests se intercalen como en PostgREST.
+    const tick = () => new Promise((resolve) => setImmediate(resolve));
+    const rows = Array.from({ length: 45 }, (_, i) => ({ id: 'old-' + i }));
+    let seq = 0;
+    const repo = fakeRepo({
+        async countDownloadsToday() { await tick(); const n = rows.length; await tick(); return n; },
+        async insertDownloadEvent() { await tick(); const row = { id: 'new-' + (++seq) }; rows.push(row); return { id: row.id }; },
+        async deleteDownloadEvent(id) { await tick(); const i = rows.findIndex((r) => r.id === id); if (i > -1) rows.splice(i, 1); },
+    });
+    const { handlers, signCalls } = handlersWith({ repo });
+
+    const burst = await Promise.all(Array.from({ length: 12 }, async () => {
+        const res = fakeRes();
+        await handlers.handleDownloadUrl(downloadReq(), res);
+        return res.statusCode;
+    }));
+    const ok = burst.filter((s) => s === 200).length;
+    assert.ok(burst.every((s) => s === 200 || s === 429), burst.join(','));
+    assert.ok(45 + ok <= 50, `se emitieron ${ok} URLs con 45 ya usadas`);
+    assert.equal(rows.length, 45 + ok, 'las filas rechazadas se borran');
+    assert.equal(signCalls.length, ok);
+
+    // En serie se llega exactamente al tope y la siguiente es 429.
+    const statuses = [];
+    for (let i = 0; i < 6; i++) {
+        const res = fakeRes();
+        await handlers.handleDownloadUrl(downloadReq(), res);
+        statuses.push(res.statusCode);
+    }
+    assert.equal(rows.length, 50);
+    assert.equal(statuses[statuses.length - 1], 429);
 });
 
 test('descarga: 200 registra el evento y firma 300 s fijos con download = file_name', async () => {

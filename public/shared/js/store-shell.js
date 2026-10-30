@@ -5,6 +5,10 @@
  * ingreso con returnTo, más helpers de UI que comparten vitrina, ficha,
  * checkout, compras y licencias. Estilos en shared/css/store-ds.css (.sts-*).
  *
+ *   notify(msg, tone) / announce(msg, tone): los avisos se anuncian por dos
+ *   regiones vivas que viven en el body desde la carga (#sts-live-status y
+ *   #sts-live-alert); el toast (.sts-toast) es solo visual, con aria-hidden.
+ *
  * Carga: después de config-manager.js, postgrest-client.js, artists-repo.js y
  * (si está) data/store-repo.js. wo-demo.js va primero en el <head>. Las
  * páginas /store/* no cargan client-auth.js (salvo el checkout).
@@ -37,6 +41,9 @@
         '[tabindex]:not([tabindex="-1"])'
     ].join(',');
     var TOAST_MS = 4200;
+    var TOAST_ERROR_MS = 9000;
+    var ANNOUNCE_DELAY_MS = 50;
+    var LIVE_IDS = { status: 'sts-live-status', alert: 'sts-live-alert' };
     var DESKTOP_NAV_QUERY = '(min-width: 64rem)';
     var DEFAULT_RETURN = '/store/purchases/';
 
@@ -333,11 +340,48 @@
     /* Toasts                                                              */
     /* ------------------------------------------------------------------ */
 
-    // Aviso breve. tone: info | success | error (los errores se anuncian con
-    // role=alert). Devuelve el nodo del toast.
+    // Dos regiones vivas que nunca se ocultan (status y alert). Se crean al
+    // cargar el script, así ya están en el DOM cuando llega el primer aviso:
+    // un role=status que aparece con el texto puesto no se anuncia seguro.
+    function liveRegion(kind) {
+        var doc = root && root.document;
+        if (!doc || !doc.body || typeof doc.createElement !== 'function') return null;
+        var isAlert = kind === 'alert';
+        var id = isAlert ? LIVE_IDS.alert : LIVE_IDS.status;
+        var el = doc.getElementById(id);
+        if (el) return el;
+        el = doc.createElement('div');
+        el.id = id;
+        el.className = 'wo-sr-only sts-live';
+        el.setAttribute('role', isAlert ? 'alert' : 'status');
+        el.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
+        el.setAttribute('aria-atomic', 'true');
+        doc.body.appendChild(el);
+        return el;
+    }
+    function ensureLiveRegions() { liveRegion('status'); liveRegion('alert'); }
+
+    // Anuncia un texto al lector de pantalla sin mostrar nada. Vacía la región
+    // y escribe el texto un instante después, así se anuncia aunque se repita.
+    // tone 'error' usa la región role=alert.
+    function announce(message, tone) {
+        var region = liveRegion(tone === 'error' ? 'alert' : 'status');
+        if (!region) return null;
+        var text = String(message == null ? '' : message);
+        clearTimeout(region._stsTimer);
+        region.textContent = '';
+        region._stsTimer = setTimeout(function () { region.textContent = text; }, ANNOUNCE_DELAY_MS);
+        return region;
+    }
+
+    // Aviso breve. tone: info | success | error. El texto se anuncia por las
+    // regiones vivas (los errores con role=alert); el toast es solo visual
+    // (aria-hidden) y los errores duran más en pantalla. Devuelve el toast.
     function notify(message, tone, opts) {
         var doc = root.document;
         var kind = tone === 'error' || tone === 'success' ? tone : 'info';
+        var text = String(message == null ? '' : message);
+        announce(text, kind);
         var toast = doc.querySelector('.sts-toast');
         if (!toast) {
             toast = doc.createElement('div');
@@ -345,13 +389,14 @@
             toast.hidden = true;
             doc.body.appendChild(toast);
         }
-        toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
-        toast.setAttribute('aria-live', kind === 'error' ? 'assertive' : 'polite');
+        toast.removeAttribute('role');
+        toast.removeAttribute('aria-live');
+        toast.setAttribute('aria-hidden', 'true');
         toast.className = 'sts-toast is-' + kind;
-        toast.textContent = String(message == null ? '' : message);
+        toast.textContent = text;
         toast.hidden = false;
         clearTimeout(toast._stsTimer);
-        toast._stsTimer = setTimeout(function () { toast.hidden = true; }, (opts && opts.duration) || TOAST_MS);
+        toast._stsTimer = setTimeout(function () { toast.hidden = true; }, (opts && opts.duration) || (kind === 'error' ? TOAST_ERROR_MS : TOAST_MS));
         return toast;
     }
 
@@ -584,6 +629,11 @@
         var src = previewUrl(path);
         var cls = opts.className ? ' ' + esc(opts.className) : '';
         if (!src) {
+            // alt '' = imagen decorativa (la acompaña un título visible): el
+            // placeholder tampoco se anuncia.
+            if (opts.alt === '') {
+                return '<span class="sts-media-ph' + cls + '" aria-hidden="true"><i data-wo-icon="image" aria-hidden="true"></i></span>';
+            }
             return '<span class="sts-media-ph' + cls + '" role="img" aria-label="' + esc(opts.alt || 'Sin imagen') + '">' +
                 '<i data-wo-icon="image" aria-hidden="true"></i></span>';
         }
@@ -677,6 +727,12 @@
         });
     }
 
+    // Las regiones vivas quedan en el body desde que carga la página.
+    if (root && root.document && typeof root.document.addEventListener === 'function') {
+        if (root.document.body) ensureLiveRegions();
+        else root.document.addEventListener('DOMContentLoaded', ensureLiveRegions);
+    }
+
     return {
         FOCUSABLE: FOCUSABLE,
         appPath: appPath,
@@ -692,6 +748,7 @@
         normalizeReturnTo: normalizeReturnTo,
         loginLinks: loginLinks,
         mountStoreTopbar: mountStoreTopbar,
+        announce: announce,
         notify: notify,
         notifyError: notifyError,
         errorMessage: errorMessage,

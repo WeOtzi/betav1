@@ -28,6 +28,8 @@
     const KIND_NEW_PARAM = { design: 'diseno', merch: 'merch' };
     const MAX_IMAGES = 8;
     const CONFIG_TIMEOUT_MS = 6000;
+    // Tope de filas de WeotziData.Store.listSellerOrders.
+    const SELLER_ORDERS_LIMIT = 300;
 
     // Monedas del catálogo de currency-utils (la base valida contra currencies).
     const CURRENCIES = [
@@ -151,6 +153,14 @@
     function setText(id, text) {
         const el = $(id);
         if (el) el.textContent = text == null ? '' : String(text);
+    }
+
+    // Para regiones aria-live: cada escritura se anuncia aunque el texto sea
+    // el mismo, así que solo se escribe cuando cambia.
+    function setLiveText(id, text) {
+        const el = $(id);
+        const next = text == null ? '' : String(text);
+        if (el && el.textContent !== next) el.textContent = next;
     }
 
     function toInput(value) {
@@ -584,9 +594,12 @@
     // ============================================
     // DATOS
     // ============================================
+    // Mes en curso: sin tope (to = null). Un tope de hoy viaja como fecha y la
+    // RPC lo corta a medianoche UTC, lo que deja afuera las ventas de la noche
+    // local (21 a 24 h en UTC-3). El inicio todavía viaja como fecha.
     function monthRange() {
         const now = new Date();
-        return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now };
+        return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: null };
     }
 
     async function refresh(parts) {
@@ -1682,6 +1695,33 @@
         }
     }
 
+    // Cada pedido guarda el path de la portada como miniatura
+    // (store_order_items.image_path): Mis compras, el checkout y el detalle del
+    // pedido la pintan desde ese objeto. Por eso el objeto se borra solo si
+    // ningún pedido lo usa. Los pedidos se leen después de guardar las
+    // imágenes, así entra cualquier pedido creado con la portada anterior. Si
+    // no se pueden leer, o la lista llega al tope de listSellerOrders y puede
+    // estar cortada, el objeto se conserva.
+    async function releasePreviewImage(path) {
+        if (!path) return;
+        let orders;
+        try {
+            orders = await Store.listSellerOrders(SELLER_TYPE, state.uid);
+        } catch (err) {
+            console.warn('[store] no se pudo revisar si un pedido usa la imagen:', err);
+            return;
+        }
+        const list = Array.isArray(orders) ? orders : [];
+        if (list.length >= SELLER_ORDERS_LIMIT) return;
+        const used = list.some((order) => (order.items || order.store_order_items || []).some((item) => item && item.image_path === path));
+        if (used) return;
+        try {
+            await Store.removePreviewImage(path);
+        } catch (err) {
+            console.warn('[store] no se pudo borrar la imagen:', err);
+        }
+    }
+
     async function removeImage(index) {
         const ed = state.editor;
         if (!ed || !ed.images[index] || ed.uploading) return;
@@ -1702,7 +1742,7 @@
             renderImages();
             state.checklistSignature = '';
             updateEditorFooter();
-            Store.removePreviewImage(image.path).catch((err) => console.warn('[store] no se pudo borrar la imagen:', err));
+            releasePreviewImage(image.path);
             notify('Quitaste la imagen.', 'success');
             refresh({ products: true }).then(() => renderAll());
             requestAnimationFrame(() => $('ast-ed-images-input').focus());
@@ -1884,7 +1924,7 @@
         const list = $('ast-order-list');
         if (state.errors.orders) {
             chips.innerHTML = '';
-            setText('ast-order-count', '');
+            setLiveText('ast-order-count', '');
             list.innerHTML = '<div class="wo-alert wo-alert--error ast-panel-error" role="alert"><i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i>' +
                 '<span>No pudimos cargar tus pedidos. <button type="button" class="ast-linkbtn" data-act="reload">Volver a intentar →</button></span></div>';
             return;
@@ -1901,7 +1941,7 @@
         }).join(''));
 
         if (!state.orders.length) {
-            setText('ast-order-count', '');
+            setLiveText('ast-order-count', '');
             list.innerHTML = '<div class="wo-empty ast-empty">' +
                 '<i data-wo-icon="shopping-bag" aria-hidden="true"></i>' +
                 '<p class="wo-empty-title">Todavía no recibiste pedidos</p>' +
@@ -1912,7 +1952,7 @@
         }
         const filter = ORDER_FILTERS.find((f) => f.key === state.orderFilter) || ORDER_FILTERS[0];
         const rows = state.orders.filter(filter.match);
-        setText('ast-order-count', rows.length + ' ' + plural(rows.length, 'pedido', 'pedidos') + ' · ' + filter.label.toLowerCase());
+        setLiveText('ast-order-count', rows.length + ' ' + plural(rows.length, 'pedido', 'pedidos') + ' · ' + filter.label.toLowerCase());
         if (!rows.length) {
             setHtml(list, '<p class="ast-order-empty">' + esc(filter.empty) + '</p>');
             return;

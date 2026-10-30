@@ -157,12 +157,26 @@ function createHandlers(deps = {}) {
 
             // Ventana móvil de 24 h. Si el conteo no es un número, se corta (falla cerrado).
             const since = new Date(nowMs() - DOWNLOAD_WINDOW_MS).toISOString();
-            const used = Number(await repo.countDownloadsToday(licenseId, { since, cap: DOWNLOAD_DAILY_LIMIT }));
-            if (!(used < DOWNLOAD_DAILY_LIMIT)) {
-                return fail(res, 429, `Llegaste al tope de ${DOWNLOAD_DAILY_LIMIT} descargas por día para esta licencia. Probá de nuevo mañana.`);
+            const countOpts = { since, cap: DOWNLOAD_DAILY_LIMIT };
+            const limitReached = () => fail(res, 429, `Llegaste al tope de ${DOWNLOAD_DAILY_LIMIT} descargas por día para esta licencia. Probá de nuevo mañana.`);
+            const used = Number(await repo.countDownloadsToday(licenseId, countOpts));
+            if (!(used < DOWNLOAD_DAILY_LIMIT)) return limitReached();
+
+            // Registro primero y recuento después, incluyendo la fila propia: con
+            // requests en paralelo cada una ve las que se insertaron antes que
+            // ella, así que nunca pasan más de 50. Si se pasa, borra su fila y
+            // responde 429 (ante una ráfaga justo en el tope puede rechazar de
+            // más, nunca de menos).
+            const event = await repo.insertDownloadEvent({ licenseId, assetId, userId: user.id });
+            const total = Number(await repo.countDownloadsToday(licenseId, countOpts));
+            if (!(total <= DOWNLOAD_DAILY_LIMIT)) {
+                if (event && event.id) {
+                    try { await repo.deleteDownloadEvent(event.id); }
+                    catch (e) { log.error('[store] download event rollback failed:', e && e.message); }
+                }
+                return limitReached();
             }
 
-            await repo.insertDownloadEvent({ licenseId, assetId, userId: user.id });
             const url = await sign(DOWNLOAD_BUCKET, asset.storage_path, {
                 expiresIn: DOWNLOAD_EXPIRES_IN,
                 download: asset.file_name || true,

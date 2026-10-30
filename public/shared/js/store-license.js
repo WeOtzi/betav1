@@ -7,6 +7,9 @@
  *                       (licenseView): nivel, titular, diseño, autor, fecha,
  *                       código, estado de uso y los términos completos de su
  *                       versión. Botón «Imprimir» y estilos @media print.
+ *                       La salida depende de quién mira: el vendedor vuelve
+ *                       al pedido en su Store, quien compró a Mis compras y
+ *                       el resto a «Verificá un código →».
  *   ?verificar=<código> público, sin sesión: verifyLicense → válida, usada,
  *                       revocada o no encontrada, con iniciales del titular.
  *                       Form para verificar otro código.
@@ -66,9 +69,27 @@
     /* Certificado                                                         */
     /* ------------------------------------------------------------------ */
 
-    function renderCertificate(license) {
+    // Link de salida según quién mira el certificado: el vendedor vuelve al
+    // pedido en su Store, quien compró a Mis compras y cualquier otra persona
+    // (soporte, el titular de un regalo) va a la verificación pública.
+    function certificateNav(license, viewer) {
+        var uid = viewer && viewer.user && viewer.user.id != null ? String(viewer.user.id) : null;
+        var order = license.store_orders || null;
+        var orderId = (order && order.id) || license.order_id || null;
+        if (uid && license.seller_type === 'artist' && String(license.seller_id) === uid) {
+            return { label: '← Pedido en tu Store', className: 'stb-back',
+                href: S.appPath('/artist/store/?tab=pedidos' + (orderId ? '&pedido=' + encodeURIComponent(orderId) : '')) };
+        }
+        if (uid && order && String(order.buyer_user_id) === uid) {
+            return { label: '← Mis compras', className: 'stb-back', href: orderId ? M.purchasesUrl(orderId) : M.purchasesUrl() };
+        }
+        return { label: 'Verificá un código →', className: 'stb-link', href: S.appPath('/store/license/') };
+    }
+
+    function renderCertificate(license, viewer) {
         var view = M.licenseView(license);
         var order = license.store_orders || null;
+        var nav = certificateNav(license, viewer);
         var terms = view.terms;
         var verifyAbs = view.verifyUrl ? window.location.origin + view.verifyUrl : '';
         var revoked = view.revoked
@@ -84,7 +105,7 @@
             : '';
         $('stb-cert').innerHTML =
             '<div class="stb-inline-actions sts-no-print">' +
-                '<a class="stb-back" href="' + esc(order && order.id ? M.purchasesUrl(order.id) : M.purchasesUrl()) + '">← Mis compras</a>' +
+                '<a class="' + nav.className + '" href="' + esc(nav.href) + '">' + esc(nav.label) + '</a>' +
                 '<button class="wo-btn wo-btn--hard wo-btn--s" type="button" data-stb-print><i data-wo-icon="printer" class="wo-icon-18" aria-hidden="true"></i>Imprimir</button>' +
             '</div>' +
             revoked +
@@ -134,14 +155,15 @@
                         { label: 'Verificá un código →', href: S.appPath('/store/license/') }] });
                 return null;
             }
-            return Store.getLicense(id).then(function (license) {
+            return Promise.all([Store.getLicense(id), S.viewer()]).then(function (res) {
+                var license = res[0];
                 if (!license) {
                     showMessage({ icon: 'search', heading: 'Certificado de licencia', title: 'No encontramos este certificado.',
                         text: 'Puede que sea de otra cuenta o que el enlace esté incompleto. Si tenés el código, verificalo.',
                         actionLabel: 'Verificá un código →', actionHref: '/store/license/' });
                     return null;
                 }
-                renderCertificate(license);
+                renderCertificate(license, res[1]);
             });
         });
     }

@@ -8,8 +8,9 @@
  * Movimiento normalizado:
  *   { id, kind, status, amount (>0), currency, title, counterparty, booking,
  *     quoteId, destinationId, serviceDate, releaseAt, occurredAt, detail,
- *     source, orderNumber }   source: metadata_json.source ('store' en ventas
- *     de la Store; orderNumber = ST-… tomado de booking_reference)
+ *     source, orderNumber, storeHold }   source: metadata_json.source ('store'
+ *     en ventas de la Store; orderNumber = ST-… tomado de booking_reference;
+ *     storeHold = metadata_json.store_hold, retención de soporte)
  *   kind:   payment | release | withdrawal | fee | dispute | refund | adjustment
  *   status: pending_service | awaiting_release | blocked | processing |
  *           completed | failed | cancelled
@@ -101,7 +102,10 @@
             occurredAt: raw.occurred_at || raw.occurredAt || raw.created_at || null,
             detail: (raw.metadata_json && raw.metadata_json.detail) || raw.detail || null,
             source: source ? String(source) : null,
-            orderNumber: source === 'store' ? (raw.booking_reference || meta.order_number || raw.orderNumber || null) : null
+            orderNumber: source === 'store' ? (raw.booking_reference || meta.order_number || raw.orderNumber || null) : null,
+            // Retención de soporte sobre una venta de la Store
+            // (set_store_order_funds_hold marca metadata_json.store_hold).
+            storeHold: meta.store_hold === true || raw.storeHold === true
         };
     }
 
@@ -200,6 +204,7 @@
             var h = hoursUntil(m.releaseAt, now);
             return { label: 'Esperando confirmación del cliente', tone: 'info', meta: h == null ? 'Liberación automática pendiente' : 'Liberación automática en ' + formatHours(h) };
         }
+        if (m.storeHold) return { label: 'Retenido por soporte', tone: 'danger', meta: 'We Ötzi está revisando el pedido' };
         return { label: 'Bloqueado por disputa', tone: 'danger', meta: 'Disputa activa' };
     }
 

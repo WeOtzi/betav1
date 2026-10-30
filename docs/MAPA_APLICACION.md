@@ -210,7 +210,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Ver cotizaciones propias, ocultarlas del dashboard, chatear y responder estados desde `/client/dashboard`.
 - Publicar solicitudes abiertas en `/job-board/request`.
 - Revisar postulaciones de artistas y aceptar una; la aceptacion crea una fila en `quotations_db`.
-- Comprar en la Store de un artista (`/store/*`, detrás de `features.store`): licencias de diseños y merch, informar el pago, bajar archivos, verificar licencias y seguir envíos desde `/store/purchases/` (link «Compras» en la topbar de cliente).
+- Comprar en la Store de un artista (`/store/*`, detrás de `features.store`): licencias de diseños y merch, informar el pago, bajar archivos, verificar licencias y seguir envíos desde `/store/purchases/` (link «Compras» en la topbar de cliente y, como esa nav no se ve en el celular, «Mis compras» en «Tu actividad» del dashboard).
 
 ### Artista
 
@@ -247,7 +247,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Actualizar campos operativos de artistas, cotizaciones y tickets.
 - Asignar, liberar, cerrar y responder conversaciones de soporte.
 - Acceder a vistas de actividad/errores/sesiones para diagnostico.
-- Pestaña STORE (`support-dashboard-store.js`, detrás de `features.store`): pedidos que cobra We Ötzi por confirmar, marcados `needs_support` o con fondos retenidos; confirmar pago, reembolsar y retener o liberar fondos.
+- Pestaña STORE (`support-dashboard-store.js`, detrás de `features.store`): pedidos que cobra We Ötzi por confirmar, marcados `needs_support` o con fondos retenidos (y los vencidos de los últimos 7 días, filtro «Vencidos», cuando el repo expone `listRecentExpiredOrders`); confirmar pago (o reabrir un vencido), cancelar un pendiente aunque tenga pago informado, reembolsar y retener o liberar fondos (retener solo en pedidos que pasan por el wallet).
 
 ### Admin / Backoffice
 
@@ -325,6 +325,8 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 ### Store del artista
 
 > **Migración NO aplicada**: `supabase/migrations/20261030150000_store_core.sql` (reversa en `supabase/rollbacks/20261030150000_store_core.down.sql`). Orden previsto: primero `20261028150000_artist_wallet.sql` (tampoco aplicada) y después esta; sin el wallet, las RPC no acreditan nada y el mantenimiento reintenta. La UI queda apagada con `features.store: false` en `public/shared/js/app-config.json` (el preview y el demo la encienden siempre) y además verifica que `store_products` exista (`WeotziData.Store.isAvailable()`). Contrato: [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30-store-artista.md).
+>
+> **`features.store` es solo un gate de UI**: ninguna RPC ni policy lo consulta. Con la migración aplicada, cualquier artista con registro completo puede publicar productos por PostgREST, `get_public_storefront` / `get_public_store_product` responden a `anon` y `create_store_order` acepta pedidos (con las instrucciones de pago del vendedor) aunque la UI diga que la Store no está disponible. Hasta que el SQL tenga su propio gate, **la migración se aplica recién en la ventana de lanzamiento, junto con el flag**, nunca antes.
 
 | Entidad | Proposito |
 | --- | --- |

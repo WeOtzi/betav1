@@ -7,6 +7,8 @@
 -- metadata_json.source = 'store' quedan en artist_wallet_movements.
 -- Los archivos quedan en los buckets hasta que se vacíen a mano (Storage no
 -- permite borrar un bucket con objetos).
+-- Las claves store_* sembradas en app_settings (privadas, valores neutros)
+-- quedan: puede que soporte ya las haya configurado.
 
 begin;
 
@@ -32,6 +34,7 @@ drop function if exists public.release_store_order_funds(uuid);
 drop function if exists public.verify_store_license(text);
 drop function if exists public.get_public_store_product(uuid);
 drop function if exists public.get_public_storefront(text, text);
+drop function if exists public.resolve_store_order_flag(uuid, text);
 drop function if exists public.set_store_order_funds_hold(uuid, boolean, text);
 drop function if exists public.get_store_sales_report(text, uuid, date, date);
 drop function if exists public.adjust_store_variant_stock(uuid, integer, integer);
@@ -58,6 +61,7 @@ drop function if exists public.store_new_license_code();
 drop function if exists public.store_new_order_number();
 drop function if exists public.store_platform_fee_pct();
 drop function if exists public.store_app_setting(text);
+drop function if exists public.store_order_lapsed(public.store_orders);
 drop function if exists public.store_order_uses_wallet(public.store_orders);
 
 -- ===================== triggers =====================
@@ -73,6 +77,7 @@ drop function if exists public.store_product_variants_guard();
 drop function if exists public.store_products_guard();
 
 -- ===================== tablas =====================
+drop table if exists public.store_order_support_notes;
 drop table if exists public.store_download_events;
 drop table if exists public.store_licenses;
 drop table if exists public.store_payments;

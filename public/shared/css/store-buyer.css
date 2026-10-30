@@ -87,7 +87,9 @@
 .stb-option input:checked::before{content:"";width:var(--space-2);height:var(--space-2);border-radius:var(--radius-circle);background:var(--neutral-500)}
 .stb-option input:focus-visible{outline:none}
 .stb-option.is-disabled{cursor:not-allowed;background:var(--surface-page);border-color:var(--border-subtle)}
-.stb-option.is-disabled .stb-option-body{opacity:var(--opacity-muted)}
+/* Sin opacity: el motivo (.stb-option-reason) explica por qué no se puede
+   comprar y va a contraste pleno; título y precio bajan a texto atenuado. */
+.stb-option.is-disabled .stb-option-title,.stb-option.is-disabled .stb-option-price{color:var(--text-muted)}
 .stb-option.is-disabled input{cursor:not-allowed;border-color:var(--border-muted)}
 .stb-option-body{display:flex;flex-direction:column;gap:var(--space-1);min-width:0}
 .stb-option-title{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-500)}

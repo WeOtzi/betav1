@@ -407,10 +407,15 @@
         }
 
         // Store: pagos informados por confirmar y merch pagado sin despachar.
+        // Solo los que cobra el vendedor: los de We Ötzi o de un proveedor los
+        // confirma la plataforma y el artista no puede hacerlo.
         if (state.storeOn && D && D.Store && typeof D.Store.listSellerOrders === 'function') {
             jobs.push(D.Store.listSellerOrders('artist', uid).then(function (orders) {
                 var list = orders || [];
-                var reported = list.filter(function (o) { return o.status === 'pending_payment' && o.buyer_payment_reported_at; });
+                var reported = list.filter(function (o) {
+                    return o.status === 'pending_payment' && o.buyer_payment_reported_at
+                        && (o.expected_collector || 'seller') === 'seller';
+                });
                 var toShip = list.filter(function (o) {
                     return o.status === 'paid' && o.fulfillment_method !== 'digital'
                         && (o.fulfillment_status === 'unfulfilled' || o.fulfillment_status === 'preparing');

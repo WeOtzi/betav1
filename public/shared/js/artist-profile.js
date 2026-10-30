@@ -1062,6 +1062,58 @@ async function loadStoreBand() {
     }
 }
 
+/**
+ * Precio de la banda con el mismo criterio que la vitrina (priceSummary de
+ * store-catalog.js, que el perfil no carga): «Desde …» solo si hay varios
+ * precios posibles; con uno solo, el precio a secas.
+ */
+function storeBandPrice(product, M) {
+    if (!M || !product) return '';
+    const amount = (value) => {
+        const n = Number(value);
+        return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+    };
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const prices = [];
+    let approx = false;
+    if (product.kind === 'design') {
+        (Array.isArray(M.LICENSE_TIERS) ? M.LICENSE_TIERS : []).forEach((tier) => {
+            const v = amount(product[tier.priceField]);
+            if (v != null) prices.push(v);
+        });
+    } else {
+        // Precio base del merch: price_amount o, si falta, price_from cuando
+        // alguna variante lo hereda (exacto si ningún override queda por debajo).
+        let base = amount(product.price_amount);
+        let exact = true;
+        if (base == null) {
+            const overrides = variants.map((v) => amount(v && v.price_amount)).filter((v) => v != null);
+            if (!variants.length || overrides.length < variants.length) {
+                base = amount(product.price_from);
+                exact = base != null && (!overrides.length || Math.min(...overrides) > base);
+            }
+        }
+        if (variants.length) {
+            variants.forEach((v) => {
+                const own = amount(v && v.price_amount);
+                if (own != null) { prices.push(own); return; }
+                if (base == null) return;
+                prices.push(base);
+                if (!exact) approx = true;
+            });
+        } else if (base != null) {
+            prices.push(base);
+        }
+    }
+    if (!prices.length) {
+        const from = typeof M.priceFrom === 'function' ? M.priceFrom(product) : null;
+        return from == null ? '' : `Desde ${M.formatMoney(from, product.currency)}`;
+    }
+    const min = Math.min(...prices);
+    const several = approx || prices.some((p) => p !== min);
+    return `${several ? 'Desde ' : ''}${M.formatMoney(min, product.currency)}`;
+}
+
 function renderStoreBand(products, storefront) {
     const grid = document.getElementById('store-band-grid');
     const link = document.getElementById('store-band-link');
@@ -1073,8 +1125,7 @@ function renderStoreBand(products, storefront) {
     grid.innerHTML = products.map((product) => {
         const image = Array.isArray(product.images) ? product.images.find((img) => img && img.path) : null;
         const src = image ? Store.previewUrl(image.path) : '';
-        const from = M ? M.priceFrom(product) : null;
-        const price = from != null && M ? `Desde ${M.formatMoney(from, product.currency)}` : '';
+        const price = storeBandPrice(product, M);
         const kind = M?.KIND_LABELS?.[product.kind] || (product.kind === 'design' ? 'Diseño' : 'Merch');
         const badges = M ? M.productBadges(product) : [];
         const href = M ? M.itemUrl(product.id) : `/store/item/?id=${encodeURIComponent(product.id)}`;

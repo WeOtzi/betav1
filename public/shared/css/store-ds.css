@@ -138,6 +138,8 @@ a.sts-card:active,.sts-card--link:active{transform:none;box-shadow:none}
 .sts-toast:not([hidden]){animation:om-fade-in var(--duration-fade) var(--ease-standard)}
 .sts-toast.is-success{border-left-color:var(--system-success)}
 .sts-toast.is-error{border-left-color:var(--system-error)}
+/* Regiones vivas de los avisos (nunca se ocultan; el toast es solo visual) */
+.sts-live{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);overflow:hidden;white-space:nowrap}
 
 /* ---------- Diálogos (hoja inferior en móvil, modal centrado desde 768px) ---------- */
 body.sts-dialog-open{overflow:hidden}

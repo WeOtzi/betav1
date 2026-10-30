@@ -70,7 +70,7 @@
                             <ul class="stb-auth-links">
                                 <li>¿No tenés cuenta? <a class="stb-link" id="stb-link-register" href="/client/register">Creá tu cuenta →</a></li>
                                 <li><a class="stb-link" id="stb-link-artist" href="/artist/login">¿Sos artista? Ingresá →</a></li>
-                                <li><a class="stb-link" id="stb-link-recover" href="/recover?from=client">Olvidé mi contraseña</a></li>
+                                <li><a class="stb-link" id="stb-link-recover" href="/recover?from=client">Olvidé mi contraseña →</a></li>
                             </ul>
                         </div>
                     </div>
@@ -93,6 +93,8 @@
                         <button class="wo-btn wo-btn--accent wo-btn--hard" type="submit" id="stb-submit">Confirmar pedido →</button>
                     </div>
                     <p class="stb-text stb-text--s stb-muted" id="stb-submit-help">Al confirmar se crea el pedido y lo reservamos 24 horas mientras pagás.</p>
+                    <!-- Anuncia el total cuando cambia el nivel, la opción, la cantidad o la entrega -->
+                    <p class="wo-sr-only" id="stb-total-live" aria-live="polite" aria-atomic="true"></p>
                 </div>
             </form>
         </section>

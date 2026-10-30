@@ -593,6 +593,30 @@ test('orderView del vendedor y soporte: confirmar pago, envío, reembolso y rete
     assert.ok(!M.orderView(shipped, { role: 'seller', now: NOW }).actions.some((a) => a.key === 'refund'), 'merch despachado no se reembolsa desde el vendedor');
 });
 
+test('orderView: vencido sin pago informado no ofrece confirmar el pago (la RPC lo rechaza)', () => {
+    const late = '2026-11-01T12:00:00Z';
+    ['seller', 'support'].forEach((role) => {
+        const v = M.orderView(order(), { role: role, now: late });
+        assert.equal(v.overdue, true);
+        assert.ok(!v.actions.some((a) => a.key === 'confirm_payment'), role + ': sin confirmar en un vencido impago');
+        assert.ok(!v.nextAction || v.nextAction.key !== 'confirm_payment', role + ': la próxima acción no es confirmar');
+        assert.ok(v.actions.some((a) => a.key === 'cancel'), role + ': puede cerrarlo cancelando');
+    });
+    const platformSupport = M.orderView(order({ expected_collector: 'platform' }), { role: 'support', now: late });
+    assert.ok(!platformSupport.actions.some((a) => a.key === 'confirm_payment'));
+
+    // Con pago informado la RPC sí lo acepta aunque haya vencido.
+    const reported = order({ buyer_payment_reported_at: '2026-10-31T09:00:00Z' });
+    const sellerReported = M.orderView(reported, { role: 'seller', now: late });
+    assert.equal(sellerReported.overdue, true);
+    assert.equal(sellerReported.nextAction.key, 'confirm_payment');
+    assert.ok(M.orderView(reported, { role: 'support', now: late }).actions.some((a) => a.key === 'confirm_payment'));
+
+    // La reapertura de soporte sigue siendo solo para `expired`.
+    const expiredSupport = M.orderView(order({ status: 'expired' }), { role: 'support', now: late });
+    assert.deepEqual(expiredSupport.actions.filter((a) => a.key === 'confirm_payment').map((a) => a.label), ['Reabrir y confirmar pago']);
+});
+
 test('orderView de un pedido cancelado marca el paso terminal y los saltados', () => {
     const v = M.orderView(order({ status: 'cancelled', cancelled_at: NOW }), { role: 'buyer', now: NOW });
     const last = v.timeline[v.timeline.length - 1];

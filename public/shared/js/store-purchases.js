@@ -10,7 +10,8 @@
  *     (reportPayment) mientras esté pendiente, cancelar (sin pago informado),
  *     descargas del diseño pagado (listLicenseAssets + getDownloadUrl con la
  *     ventana abierta ANTES del await), «Imprimir a escala real» (stencil
- *     PNG/JPEG/WebP con medidas), certificado, «Marcar licencia como usada»,
+ *     PNG/JPEG/WebP con medidas: las de la licencia o, si no están, las de la
+ *     ficha pública), certificado, «Marcar licencia como usada»,
  *     seguimiento del envío y «Ya lo recibí →» (confirmReceived).
  *
  * Datos: SOLO WeotziData.Store y WeotziStoreShell (nada de /rest/v1 inline).
@@ -263,18 +264,40 @@
 
     function assetLabel(kind) { return kind === 'stencil' ? 'Bajar stencil' : 'Bajar original'; }
 
+    function sizeFrom(src) {
+        if (!src) return null;
+        var w = Number(src.design_width_cm);
+        var h = Number(src.design_height_cm);
+        return w > 0 && h > 0 ? { width: w, height: h } : null;
+    }
+
+    // Medidas del diseño para imprimir a escala. Primero las que quedaron en la
+    // licencia (metadata_json) o en el ítem al emitirla: siguen ahí aunque el
+    // producto ya no sea público (una exclusiva vendida se retira, un diseño
+    // pausado no sale en get_public_store_product). Si no están, las de la
+    // ficha pública.
+    function designSize(order) {
+        var raw = rawLicense(order);
+        var items = order.items || order.store_order_items || [];
+        var pid = productIdOf(order);
+        var bundle = pid ? state.bundles[pid] : null;
+        return sizeFrom(raw && raw.metadata_json) || sizeFrom(items[0]) || sizeFrom(bundle && bundle.product);
+    }
+
     function printableStencil(order) {
         var pid = productIdOf(order);
         var bundle = pid ? state.bundles[pid] : null;
         var product = bundle && bundle.product;
+        var raw = rawLicense(order);
+        var items = order.items || order.store_order_items || [];
         var assets = (pid && state.assets[pid]) || [];
-        var w = product && Number(product.design_width_cm);
-        var h = product && Number(product.design_height_cm);
-        if (!(w > 0 && h > 0)) return null;
+        var size = designSize(order);
+        if (!size) return null;
         var stencil = assets.filter(function (a) {
             return a.kind === 'stencil' && M.FILES.PRINTABLE_MIME.indexOf(String(a.mime_type || '').toLowerCase()) !== -1;
         })[0];
-        return stencil ? { asset: stencil, width: w, height: h, title: product.title } : null;
+        var title = (product && product.title) || (raw && raw.design_title) || (items[0] && items[0].title) || 'tu diseño';
+        return stencil ? { asset: stencil, width: size.width, height: size.height, title: title } : null;
     }
 
     function licensePanelHtml(order, view) {
@@ -419,7 +442,7 @@
         rows += '<div class="stb-total-row stb-total-row--grand"><dt>Total</dt><dd>' + esc(view.totals.totalLabel) + '</dd></div>';
         return '<div class="sts-panel">' +
             '<div class="stb-block"><div class="stb-summary">' +
-                '<div class="stb-thumb">' + S.previewImg(item.imagePath, { alt: item.title || '' }) + '</div>' +
+                '<div class="stb-thumb">' + S.previewImg(item.imagePath, { alt: '' }) + '</div>' +
                 '<div class="stb-summary-body"><p class="stb-meta">' + esc(itemLine(view)) + '</p>' +
                     '<p class="stb-summary-title">' + esc(item.title || view.numberLabel) + '</p>' +
                     (sellerName ? '<p class="stb-summary-line">De ' + esc(sellerName) + (handle ? ' · <a class="stb-link" href="' + esc(M.storeUrl(handle)) + '">Ver su Store →</a>' : '') + '</p>' : '') +
@@ -481,13 +504,39 @@
         });
     }
 
+    // Acciones que cambian el estado del pedido: con la vista desactualizada,
+    // un segundo clic daría un error del servidor (invalid_status).
+    var STALE_ACTIONS = '[data-stb-action="cancel"],[data-stb-action="confirm-received"],[data-stb-action="mark-used"],#stb-report-submit,#stb-report-ref';
+    var STALE_COPY = 'Actualizamos tu pedido, pero no pudimos recargar la vista. Recargá la página.';
+
+    function markDetailStale() {
+        var box = $('stb-detail');
+        if (!box) return;
+        Array.prototype.forEach.call(box.querySelectorAll(STALE_ACTIONS), function (el) {
+            el.disabled = true;
+            el.removeAttribute('aria-busy');
+            var label = el.getAttribute('data-sts-label');
+            if (label != null) { el.textContent = label; el.removeAttribute('data-sts-label'); }
+        });
+        if (!$('stb-detail-stale')) {
+            var head = box.querySelector('.stb-detail-head');
+            var html = '<p class="wo-alert wo-alert--warning" id="stb-detail-stale">' + esc(STALE_COPY) +
+                ' <button type="button" class="stb-linkbtn" data-stb-action="reload">Recargar la página</button></p>';
+            if (head && typeof head.insertAdjacentHTML === 'function') head.insertAdjacentHTML('afterend', html);
+        }
+        S.notify(STALE_COPY, 'error');
+    }
+
     function refreshCurrent() {
         var id = state.currentId;
         if (!id) return Promise.resolve();
         return Store.getMyOrder(id).then(function (order) {
-            if (order) { replaceOrder(order); return loadExtras(order).then(function () { renderDetail(order); }); }
+            if (!order) throw new Error('Pedido sin datos');
+            replaceOrder(order);
+            return loadExtras(order).then(function () { renderDetail(order); });
         }).catch(function (err) {
             if (window.console) console.warn('[store-purchases] getMyOrder:', err && err.message);
+            if (String(state.currentId) === String(id)) markDetailStale();
         });
     }
 
@@ -721,6 +770,7 @@
         else if (act === 'download') onDownload(btn.getAttribute('data-asset'));
         else if (act === 'print-scale') onPrintScale();
         else if (act === 'support') openSupport();
+        else if (act === 'reload') window.location.reload();
     }
 
     function init() {

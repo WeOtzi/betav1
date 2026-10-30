@@ -30,10 +30,25 @@
     var PARAMS_TTL_MS = 24 * 3600000;
     var MAX_QTY = 20;
 
-    // Países ISO-2 para el envío cuando el vendedor no restringe la lista.
-    var COUNTRY_CODES = ['AR', 'BO', 'BR', 'CL', 'CO', 'CR', 'CU', 'DO', 'EC', 'SV', 'GT', 'HN', 'MX', 'NI', 'PA', 'PY', 'PE', 'PR',
-        'UY', 'VE', 'ES', 'PT', 'US', 'CA', 'GB', 'IE', 'FR', 'DE', 'IT', 'NL', 'BE', 'CH', 'AT', 'SE', 'NO', 'DK', 'FI', 'PL', 'CZ',
-        'GR', 'AU', 'NZ', 'JP', 'KR', 'CN', 'IN', 'IL', 'ZA', 'AE'];
+    // Todos los códigos ISO 3166-1 alfa-2 asignados. Se usan cuando el
+    // vendedor no restringe la lista: la ficha promete «Hace envíos a todos
+    // los países» y el modelo acepta cualquier ISO-2. Los nombres salen de
+    // Intl.DisplayNames en español.
+    var COUNTRY_CODES = [
+        'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
+        'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ',
+        'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ',
+        'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR',
+        'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY',
+        'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP',
+        'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY',
+        'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ',
+        'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM',
+        'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW',
+        'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ',
+        'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ',
+        'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW'
+    ];
 
     var state = {
         params: { item: null, license: null, variant: null, qty: null },
@@ -239,8 +254,9 @@
         if (p.kind === 'design' && opts.tier && tierMeta(opts.tier)) line += ' · Licencia ' + tierMeta(opts.tier).label;
         if (p.kind === 'merch' && opts.variantLabel) line += ' · ' + opts.variantLabel;
         var by = s.name ? '<p class="stb-summary-line">De ' + esc(s.name) + (s.handle ? ' · <a class="stb-link" href="' + esc(M.storeUrl(s.handle)) + '">Ver su Store →</a>' : '') + '</p>' : '';
+        // Miniatura decorativa: el título visible de al lado ya nombra el producto.
         return '<div class="stb-summary">' +
-            '<div class="stb-thumb">' + S.previewImg(img && img.path, { alt: (img && img.alt) || p.title, loading: 'eager' }) + '</div>' +
+            '<div class="stb-thumb">' + S.previewImg(img && img.path, { alt: '', loading: 'eager' }) + '</div>' +
             '<div class="stb-summary-body">' +
                 '<p class="stb-meta">' + esc(line) + '</p>' +
                 '<p class="stb-summary-title">' + esc(p.title) + '</p>' + by +
@@ -281,6 +297,29 @@
             '<div class="stb-block">' + productSummaryHtml(p, { tier: state.tier, variantLabel: v && v.label }) + '</div>' +
             '<div class="stb-block"><dl class="stb-totals">' + rowsHtml + grand + '</dl>' + hint +
             '<p class="stb-text stb-text--s stb-muted">El precio está en ' + esc(t.currency) + ' y no se convierte a otra moneda.</p></div>';
+        setTotalLive(totalLiveText(t, needsMethod));
+    }
+
+    // El resumen no es región viva (y en escritorio va antes del formulario):
+    // el total se anuncia aparte, en #stb-total-live, solo cuando cambia.
+    function totalLiveText(t, needsMethod) {
+        var p = state.product;
+        if (needsMethod) return 'Elegí cómo querés recibirlo para ver el total.';
+        if (!t.valid && t.error) return summaryHint(t.error);
+        if (t.total == null) return '';
+        var total = 'Total: ' + M.formatMoney(t.total, t.currency);
+        if (p.kind === 'design') {
+            var meta = tierMeta(state.tier);
+            return (meta ? 'Licencia ' + meta.label + '. ' : '') + total + '.';
+        }
+        if (state.method === 'shipping') return total + (t.shipping > 0 ? ', con envío de ' + M.formatMoney(t.shipping, t.currency) : ', con envío sin cargo') + '.';
+        if (state.method === 'pickup') return total + ', con retiro en el estudio.';
+        return total + '.';
+    }
+    function setTotalLive(text) {
+        var live = $('stb-total-live');
+        if (!live || live.textContent === text) return;
+        live.textContent = text;
     }
 
     function summaryHint(code) {
@@ -462,7 +501,14 @@
         ];
     }
 
-    function termsInnerHtml() {
+    // Aviso cuando un cambio de nivel desmarca los términos que ya se habían aceptado.
+    function termsChangedCopy() {
+        var meta = tierMeta(state.tier);
+        return 'Cambiaste a la licencia ' + (meta ? meta.label : '') + ': leé y aceptá sus términos.';
+    }
+
+    function termsInnerHtml(opts) {
+        opts = opts || {};
         var p = state.product;
         var version = M.TERMS_VERSION;
         var body;
@@ -490,11 +536,14 @@
                 (st.return_policy ? '<h3>Cambios y devoluciones</h3><p class="stb-pre">' + esc(st.return_policy) + '</p>' : '') +
             '</div></details>';
         }
+        var notice = opts.reaccept && p.kind === 'design'
+            ? '<p class="wo-help" id="stb-terms-notice">' + esc(termsChangedCopy()) + '</p>'
+            : '';
         return '<details class="stb-terms"><summary>' + esc(summary) + '</summary><div class="stb-terms-body">' + body + '</div></details>' + policies +
             '<label class="stb-check" for="stb-terms-accept">' +
-                '<input type="checkbox" id="stb-terms-accept" name="terms" required aria-describedby="stb-terms-accept-error">' +
+                '<input type="checkbox" id="stb-terms-accept" name="terms" required aria-describedby="' + (notice ? 'stb-terms-notice ' : '') + 'stb-terms-accept-error">' +
                 '<span>' + esc(label) + '</span>' +
-            '</label>' + errorSlot('stb-terms-accept');
+            '</label>' + notice + errorSlot('stb-terms-accept');
     }
 
     function termsFieldset() {
@@ -563,8 +612,13 @@
         var t = e.target;
         if (!t || !t.name) return;
         if (t.name === 'tier') {
+            var accepted = $('stb-terms-accept');
+            var wasAccepted = !!(accepted && accepted.checked);
             state.tier = t.value;
-            $('stb-terms').innerHTML = termsInnerHtml(); // términos nuevos: hay que volver a aceptarlos
+            // Términos nuevos: hay que volver a aceptarlos. Si ya estaban
+            // aceptados, se avisa en pantalla y al lector.
+            $('stb-terms').innerHTML = termsInnerHtml({ reaccept: wasAccepted });
+            if (wasAccepted) S.announce(termsChangedCopy());
             clearFieldError('stb-tier');
             syncParams();
         } else if (t.name === 'variant') {
@@ -583,6 +637,8 @@
             clearFieldError('stb-method');
         } else if (t.name === 'terms' && t.checked) {
             clearFieldError('stb-terms-accept');
+            var notice = $('stb-terms-notice');
+            if (notice) notice.hidden = true;
         }
         refreshDynamic();
     }
@@ -762,7 +818,7 @@
         if (view.method === 'pickup') rows += '<div class="stb-total-row"><dt>Retiro en el estudio</dt><dd>Sin cargo</dd></div>';
         rows += '<div class="stb-total-row stb-total-row--grand"><dt>Total</dt><dd>' + esc(view.totals.totalLabel) + '</dd></div>';
         return '<div class="stb-block"><div class="stb-summary">' +
-                '<div class="stb-thumb">' + S.previewImg(imagePath, { alt: title }) + '</div>' +
+                '<div class="stb-thumb">' + S.previewImg(imagePath, { alt: '' }) + '</div>' +
                 '<div class="stb-summary-body"><p class="stb-meta">' + esc(line) + '</p><p class="stb-summary-title">' + esc(title) + '</p>' +
                 '<p class="stb-summary-line">' + esc(view.methodLabel) + '</p></div>' +
             '</div></div>' +
@@ -924,7 +980,9 @@
             state.viewer = v;
             S.mountStoreTopbar('store-topbar', {});
             S.notify('Sesión iniciada.', 'success');
-            startCheckout();
+            // El botón donde estaba el foco queda oculto con #stb-auth: el foco
+            // pasa al título del formulario del pedido.
+            startCheckout({ focus: true });
         }).catch(function (err) {
             errorEl.textContent = loginErrorCopy(err);
             errorEl.hidden = false;
@@ -936,7 +994,9 @@
     /* Arranque                                                            */
     /* ------------------------------------------------------------------ */
 
-    function startCheckout() {
+    // opts.focus: mover el foco al título (después del ingreso inline). En la
+    // carga normal de la página no se mueve.
+    function startCheckout(opts) {
         var p = state.product;
         if (viewerIsSeller()) {
             showMessage({ icon: 'slash', title: 'No podés comprar tus propios productos.', text: 'Este producto es de tu Store. Lo podés editar desde Mi Store.',
@@ -985,7 +1045,7 @@
         setHeader('Store · Checkout', 'Confirmá tu compra', 'Revisá el pedido y confirmalo. Después vas a ver cómo pagarlo.');
         S.setTitle('Checkout');
         renderFields();
-        showState('stb-checkout');
+        showState('stb-checkout', { focus: !!(opts && opts.focus) });
     }
 
     function showAuth() {

@@ -22,6 +22,10 @@
 --   store_payments          confirmaciones, duplicados y reembolsos.
 --   store_licenses          licencia emitida por ítem de diseño (WOL-XXXX-XXXX).
 --   store_download_events   descargas firmadas por el servidor (service role).
+--   store_order_support_notes  notas internas de soporte por pedido (retención,
+--                           reembolso, reapertura, marca resuelta, error del
+--                           mantenimiento). Solo las lee soporte: metadata_json
+--                           del pedido lo ven comprador y vendedor.
 --   Buckets store-previews (público, previews con marca de agua) y
 --   store-design-files (privado; el comprador baja con URL firmada).
 --
@@ -52,8 +56,23 @@
 --   Predicado único: store_order_uses_wallet(o) = seller_type 'artist' y
 --   payment_collected_by in ('platform','provider'). Con la configuración por
 --   defecto las ventas NO acreditan el wallet.
+--   Las claves store_* de app_settings se siembran privadas (is_public=false)
+--   con valores neutros. store_payment_provider se cambia solo cuando el
+--   adaptador está registrado en el servidor.
+--
+-- Pago informado (report_store_payment): el pedido sigue pendiente 7 días
+-- más. Al vencer, el mantenimiento lo marca needs_support; el vendedor que
+-- cobra directo ya puede cancelarlo («no recibí el pago»). Si nadie lo
+-- resuelve en otros 7 días, se vence: restituye stock y libera la reserva
+-- (store_order_lapsed). Soporte puede reabrir un vencido.
+--
+-- Aplicar en una ventana de poco tráfico: crea policies sobre storage.objects
+-- y FKs a auth.users y currencies. Con lock_timeout corto, si hay espera por
+-- locks falla (y se reintenta) en lugar de bloquear a producción.
 
 begin;
+
+set local lock_timeout = '5s';
 
 -- ===================== productos =====================
 create table if not exists public.store_products (
@@ -540,6 +559,26 @@ create table if not exists public.store_download_events (
 create index if not exists store_download_events_license_idx
   on public.store_download_events (license_id, created_at desc);
 
+-- ===================== notas internas de soporte =====================
+-- Lo que no tiene que ver el comprador ni el vendedor (metadata_json del
+-- pedido sí lo ven): nota y autor de la retención, autor del reembolso y de
+-- la reapertura, marca resuelta y el error crudo del mantenimiento. Las
+-- escriben solo las RPC; lee soporte.
+create table if not exists public.store_order_support_notes (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.store_orders (id) on delete cascade,
+  kind text not null,
+  note text,
+  actor_id uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint store_order_support_notes_kind_check
+    check (kind in ('funds_hold', 'funds_release', 'refund', 'reopen', 'flag_resolved', 'maintenance_error')),
+  constraint store_order_support_notes_note_check check (note is null or char_length(note) <= 500)
+);
+
+create index if not exists store_order_support_notes_order_idx
+  on public.store_order_support_notes (order_id, created_at desc);
+
 -- ===================== helpers (policies) =====================
 -- Artista con registro completo (condición de vendedor y del nivel 'artist').
 create or replace function public.store_seller_ready_artist(p_user uuid)
@@ -636,6 +675,26 @@ as $$
 $$;
 
 revoke all on function public.store_order_uses_wallet(public.store_orders) from public, anon, authenticated, service_role;
+
+-- Pendiente que ya se puede cerrar como vencido: sin pago informado, al pasar
+-- expires_at; con pago informado, 7 días después (en ese plazo soporte lo ve
+-- marcado needs_support y el vendedor que cobra directo lo puede cancelar).
+-- Lo usan el mantenimiento y create_store_order (toma de reserva vencida).
+create or replace function public.store_order_lapsed(p_order public.store_orders)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select coalesce(
+    p_order.status = 'pending_payment'
+      and p_order.expires_at < now()
+      and (p_order.buyer_payment_reported_at is null or p_order.expires_at < now() - interval '7 days'),
+    false
+  );
+$$;
+
+revoke all on function public.store_order_lapsed(public.store_orders) from public, anon, authenticated, service_role;
 
 create or replace function public.store_app_setting(p_key text)
 returns text
@@ -786,6 +845,8 @@ revoke all on function public.store_try_lock_order(uuid) from public, anon, auth
 
 -- Cierra un pedido impago (cancelled | expired), restituye el stock y libera
 -- la reserva condicionada a este pedido. El llamador ya tiene los locks.
+-- Un vencido con pago informado queda marcado needs_support: soporte decide
+-- si lo reabre (el comprador dice que pagó).
 create or replace function public.store_close_unpaid_order(p_order_id uuid, p_status text, p_reason text)
 returns boolean
 language plpgsql
@@ -803,6 +864,13 @@ begin
          cancel_reason = case
            when p_status = 'cancelled' then nullif(left(btrim(coalesce(p_reason, '')), 300), '')
            else cancel_reason
+         end,
+         metadata_json = case
+           when p_status = 'expired' and buyer_payment_reported_at is not null
+                and coalesce(metadata_json ->> 'needs_support', '') <> 'true'
+             then metadata_json || jsonb_build_object(
+               'needs_support', true, 'needs_support_reason', 'payment_reported_expired', 'needs_support_at', now())
+           else metadata_json
          end
    where id = p_order_id
      and status = 'pending_payment';
@@ -918,7 +986,9 @@ revoke all on function public.store_wallet_upsert_payment(public.store_orders) f
 
 -- Entrega del merch (comprador, soporte, vendedor sin wallet o automática).
 -- Si usa wallet: funds_release_at = now() + 72 h y el payment pasa a
--- awaiting_release. El llamador ya tiene los locks y validó el estado.
+-- awaiting_release. Si está retenido (blocked por funds_hold) sigue blocked,
+-- pero con su release_at, para que al levantar la retención no quede sin
+-- fecha. El llamador ya tiene los locks y validó el estado.
 create or replace function public.store_finish_delivery(p_order_id uuid, p_by text)
 returns public.store_orders
 language plpgsql
@@ -950,8 +1020,9 @@ begin
       perform public.store_wallet_upsert_payment(v_order);
       execute format($q$
         update public.artist_wallet_movements
-           set status = 'awaiting_release', release_at = $3
-         where artist_user_id = $1 and external_reference = $2 and status = 'pending_service'
+           set status = case when status = 'pending_service' then 'awaiting_release' else status end,
+               release_at = $3
+         where artist_user_id = $1 and external_reference = $2 and status in ('pending_service', 'blocked')
       $q$)
       using v_order.seller_id, 'store:' || v_order.id::text || ':payment', v_order.funds_release_at;
     end if;
@@ -1006,7 +1077,10 @@ as $$
          where i.product_id = p_product.id and o.status = 'pending_payment'
       )
     ),
-    'reserved', coalesce(p_product.reserved_order_id is not null and p_product.reserved_until > now(), false),
+    -- Misma condición que frena la compra (create_store_order → product_reserved):
+    -- la reserva se libera al cerrar o confirmar el pedido, no al pasar
+    -- reserved_until (un pago informado la extiende).
+    'reserved', p_product.reserved_order_id is not null,
     'licenses_issued', p_product.licenses_issued,
     'design_width_cm', p_product.design_width_cm,
     'design_height_cm', p_product.design_height_cm,
@@ -1019,7 +1093,14 @@ as $$
     'shipping_price_amount', p_product.shipping_price_amount,
     'ships_to_countries', to_jsonb(p_product.ships_to_countries),
     'ships_to_note', p_product.ships_to_note,
-    'pickup_available', p_product.pickup_available,
+    -- Retiro solo si el vendedor cargó la dirección (create_store_order la exige).
+    'pickup_available', p_product.pickup_available and exists (
+      select 1
+        from public.store_seller_settings s
+       where s.seller_type = p_product.seller_type
+         and s.seller_id = p_product.seller_id
+         and nullif(btrim(coalesce(s.pickup_address, '')), '') is not null
+    ),
     'pickup_note', p_product.pickup_note,
     'variants', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -1354,6 +1435,9 @@ declare
   v_product public.store_products;
   v_found boolean;
   v_meta jsonb;
+  v_exts text[];
+  v_name text;
+  v_ext text;
 begin
   if tg_op = 'UPDATE' then
     if v_bypass then
@@ -1413,6 +1497,36 @@ begin
      and coalesce(new.mime_type, '') not in ('image/png', 'image/jpeg', 'image/webp', 'application/pdf') then
     raise exception using errcode = 'P0001', message = 'store:invalid_image_path';
   end if;
+
+  -- Nombre de descarga (el servidor firma con download = file_name): sin
+  -- barras, comillas ni caracteres de control o de dirección, y terminado en
+  -- una extensión del MIME real (EXTENSION_MIME de store-model). Si no
+  -- coincide, se le agrega la correcta: «x.png.exe» → «x.png.exe.png».
+  v_exts := case new.mime_type
+    when 'image/png' then array['png']
+    when 'image/jpeg' then array['jpg', 'jpeg', 'jfif']
+    when 'image/webp' then array['webp']
+    when 'image/tiff' then array['tiff', 'tif']
+    when 'application/pdf' then array['pdf']
+    when 'image/vnd.adobe.photoshop' then array['psd', 'psb']
+    when 'application/postscript' then array['eps', 'ai', 'ps']
+    when 'application/zip' then array['zip', 'procreate']
+  end;
+  if v_exts is null then
+    raise exception using errcode = 'P0001', message = 'store:invalid_image_path';
+  end if;
+  v_name := regexp_replace(coalesce(new.file_name, ''), '[[:cntrl:]/\\"‎‏‪-‮⁦-⁩]+', '-', 'g');
+  v_name := regexp_replace(btrim(v_name), '^[.[:space:]-]+', '');
+  if v_name = '' then
+    v_name := new.kind;
+  end if;
+  v_ext := lower(coalesce(substring(v_name from '\.([A-Za-z0-9]+)$'), ''));
+  if v_ext = any (v_exts) then
+    v_name := left(left(v_name, char_length(v_name) - char_length(v_ext) - 1), 199 - char_length(v_ext)) || '.' || v_ext;
+  else
+    v_name := left(v_name, 199 - char_length(v_exts[1])) || '.' || v_exts[1];
+  end if;
+  new.file_name := v_name;
   new.created_at := now();
   return new;
 end;
@@ -1556,14 +1670,15 @@ begin
   end if;
 
   -- Reserva exclusiva vencida: se vence en esta transacción el pedido que la
-  -- tenía (sin pago informado), con stock y reserva condicionados a su id.
+  -- tenía (sin pago informado, o con el aviso vencido hace más de 7 días),
+  -- con stock y reserva condicionados a su id.
   if v_product.reserved_order_id is not null and v_product.reserved_until < now() then
     select * into v_old from public.store_orders o where o.id = v_product.reserved_order_id for update;
     if not found or v_old.status <> 'pending_payment' then
       update public.store_products
          set reserved_order_id = null, reserved_until = null
        where id = v_product.id and reserved_order_id = v_product.reserved_order_id;
-    elsif v_old.buyer_payment_reported_at is null and v_old.expires_at < now() then
+    elsif public.store_order_lapsed(v_old) then
       perform public.store_close_unpaid_order(v_old.id, 'expired', null);
     end if;
     select * into v_product from public.store_products p where p.id = p_product_id;
@@ -1751,7 +1866,10 @@ begin
 
     v_method := lower(btrim(coalesce(p_fulfillment_method, '')));
     if v_method = 'pickup' then
-      if not v_product.pickup_available then
+      -- Sin dirección cargada no hay retiro: el pedido pagado quedaría sin
+      -- pickup_details.
+      if not v_product.pickup_available
+         or nullif(btrim(coalesce(v_settings.pickup_address, '')), '') is null then
         raise exception using errcode = 'P0001', message = 'store:pickup_unavailable';
       end if;
     elsif v_method = 'shipping' then
@@ -1999,6 +2117,7 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_support boolean;
+  v_seller boolean;
   v_order public.store_orders;
 begin
   if v_uid is null then
@@ -2009,23 +2128,28 @@ begin
     raise exception using errcode = 'P0001', message = 'store:not_found';
   end if;
   v_support := coalesce(public.is_support_user(), false);
-  if not (
-    v_order.buyer_user_id is not distinct from v_uid
-    or coalesce(public.store_can_manage_seller(v_order.seller_type, v_order.seller_id), false)
-    or v_support
-  ) then
+  v_seller := coalesce(public.store_can_manage_seller(v_order.seller_type, v_order.seller_id), false);
+  if not (v_order.buyer_user_id is not distinct from v_uid or v_seller or v_support) then
     raise exception using errcode = 'P0001', message = 'store:not_found';
   end if;
   if v_order.status <> 'pending_payment' then
     raise exception using errcode = 'P0001', message = 'store:invalid_status';
   end if;
-  -- Con un pago informado solo cancela soporte.
-  if v_order.buyer_payment_reported_at is not null and not v_support then
+  -- Con un pago informado cancela soporte. También el vendedor que cobra
+  -- directo, cuando venció el plazo del aviso sin recibir el pago: si no, un
+  -- aviso falso retiene la exclusiva o el stock hasta que intervenga soporte.
+  if v_order.buyer_payment_reported_at is not null and not v_support
+     and not (v_seller and v_order.expected_collector = 'seller' and v_order.expires_at < now()) then
     raise exception using errcode = 'P0001', message = 'store:payment_reported';
   end if;
   if not public.store_close_unpaid_order(v_order.id, 'cancelled', p_reason) then
     raise exception using errcode = 'P0001', message = 'store:invalid_status';
   end if;
+  -- El cierre resuelve la marca de soporte (pago informado y vencido).
+  update public.store_orders
+     set metadata_json = (metadata_json - 'needs_support') || jsonb_build_object('needs_support_resolved_at', now())
+   where id = v_order.id
+     and metadata_json ? 'needs_support';
   select * into v_order from public.store_orders o where o.id = p_order_id;
   return v_order;
 end;
@@ -2117,8 +2241,10 @@ begin
       raise exception using errcode = 'P0001', message = 'store:order_not_payable';
     end if;
   elsif v_order.status = 'expired' then
-    -- Soporte reabre si recupera stock y reserva con lock.
-    if not coalesce(p_is_support, false) then
+    -- Soporte reabre si recupera stock y reserva con lock. El proveedor
+    -- también: un webhook tardío trae un cobro real (si no se puede reabrir,
+    -- cannot_reopen y el servidor tiene que avisar a soporte).
+    if not (coalesce(p_is_support, false) or p_collected_by = 'provider') then
       raise exception using errcode = 'P0001', message = 'store:order_not_payable';
     end if;
     if v_item.kind = 'merch' then
@@ -2160,12 +2286,15 @@ begin
     end if;
     update public.store_orders
        set status = 'pending_payment',
-           metadata_json = metadata_json || jsonb_build_object('reopened_at', now(), 'reopened_by', p_actor)
+           metadata_json = metadata_json || jsonb_build_object('reopened_at', now())
      where id = v_order.id and status = 'expired'
     returning * into v_order;
     if not found then
       raise exception using errcode = 'P0001', message = 'store:invalid_status';
     end if;
+    -- Quién reabrió queda para soporte (metadata_json lo ven comprador y vendedor).
+    insert into public.store_order_support_notes (order_id, kind, note, actor_id)
+    values (v_order.id, 'reopen', case when p_collected_by = 'provider' then 'Webhook de ' || p_provider end, p_actor);
   else
     raise exception using errcode = 'P0001', message = 'store:order_not_payable';
   end if;
@@ -2244,7 +2373,8 @@ begin
       end loop;
     end if;
 
-    -- Digital: se completa en el acto.
+    -- Digital: se completa en el acto. Confirmar resuelve la marca de soporte
+    -- (pago informado y vencido).
     update public.store_orders
        set status = 'fulfilled',
            fulfillment_status = 'delivered',
@@ -2252,7 +2382,12 @@ begin
            delivered_by = 'auto',
            paid_at = now(),
            payment_collected_by = p_collected_by,
-           payment_confirmed_by = p_actor
+           payment_confirmed_by = p_actor,
+           metadata_json = case
+             when metadata_json ? 'needs_support'
+               then (metadata_json - 'needs_support') || jsonb_build_object('needs_support_resolved_at', now())
+             else metadata_json
+           end
      where id = v_order.id
        and status = 'pending_payment'
     returning * into v_order;
@@ -2284,6 +2419,11 @@ begin
              when fulfillment_method = 'pickup'
                then nullif(left(btrim(coalesce(v_settings.pickup_address, '')), 300), '')
              else pickup_details
+           end,
+           metadata_json = case
+             when metadata_json ? 'needs_support'
+               then (metadata_json - 'needs_support') || jsonb_build_object('needs_support_resolved_at', now())
+             else metadata_json
            end
      where id = v_order.id
        and status = 'pending_payment'
@@ -2512,16 +2652,27 @@ begin
     and v_order.fulfillment_status in ('shipped', 'delivered');
   v_wallet := public.store_order_uses_wallet(v_order);
 
+  -- El motivo lo ven comprador y vendedor (también va en revoke_reason); quién
+  -- reembolsó queda en las notas de soporte. Si reembolsa soporte, resuelve la
+  -- marca needs_support; si reembolsa el vendedor, la marca (pago duplicado)
+  -- sigue a la vista de soporte.
   update public.store_orders
      set status = 'refunded',
          refunded_at = now(),
-         metadata_json = metadata_json || jsonb_build_object('refund_reason', v_reason, 'refunded_by', v_uid)
+         metadata_json = case
+           when v_support and metadata_json ? 'needs_support'
+             then (metadata_json - 'needs_support')
+               || jsonb_build_object('refund_reason', v_reason, 'needs_support_resolved_at', now())
+           else metadata_json || jsonb_build_object('refund_reason', v_reason)
+         end
    where id = v_order.id
      and status in ('paid', 'fulfilled')
   returning * into v_order;
   if not found then
     raise exception using errcode = 'P0001', message = 'store:invalid_status';
   end if;
+  insert into public.store_order_support_notes (order_id, kind, note, actor_id)
+  values (v_order.id, 'refund', v_reason, v_uid);
 
   update public.store_licenses
      set revoked_at = now(),
@@ -2738,15 +2889,16 @@ begin
     raise exception using errcode = 'P0001', message = 'store:not_found';
   end if;
 
+  -- La nota y el autor son internos: van a store_order_support_notes. En el
+  -- pedido (lo ven comprador y vendedor) queda solo la fecha.
   update public.store_orders
      set funds_hold = coalesce(p_hold, false),
-         metadata_json = metadata_json || jsonb_build_object(
-           'funds_hold_note', nullif(left(btrim(coalesce(p_note, '')), 500), ''),
-           'funds_hold_by', v_uid,
-           'funds_hold_at', now()
-         )
+         metadata_json = metadata_json || jsonb_build_object('funds_hold_at', now())
    where id = v_order.id
   returning * into v_order;
+  insert into public.store_order_support_notes (order_id, kind, note, actor_id)
+  values (v_order.id, case when v_order.funds_hold then 'funds_hold' else 'funds_release' end,
+          nullif(left(btrim(coalesce(p_note, '')), 500), ''), v_uid);
 
   -- El payment retenido refleja la retención en el wallet del artista.
   if public.store_order_uses_wallet(v_order) and v_order.funds_released_at is null then
@@ -2780,6 +2932,46 @@ $$;
 
 revoke all on function public.set_store_order_funds_hold(uuid, boolean, text) from public, anon, authenticated;
 grant execute on function public.set_store_order_funds_hold(uuid, boolean, text) to authenticated;
+
+-- Soporte da por revisada la marca needs_support (pago duplicado, o informado
+-- y vencido) y el pedido sale de la cola. Idempotente: sin marca, devuelve el
+-- pedido sin cambios. La nota va a store_order_support_notes.
+create or replace function public.resolve_store_order_flag(p_order_id uuid, p_note text)
+returns public.store_orders
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_order public.store_orders;
+begin
+  if v_uid is null then
+    raise exception using errcode = 'P0001', message = 'store:not_authenticated';
+  end if;
+  if not coalesce(public.is_support_user(), false) then
+    raise exception using errcode = 'P0001', message = 'store:forbidden';
+  end if;
+  v_order := public.store_lock_order(p_order_id);
+  if v_order.id is null then
+    raise exception using errcode = 'P0001', message = 'store:not_found';
+  end if;
+  if coalesce(v_order.metadata_json ->> 'needs_support', '') <> 'true' then
+    return v_order;
+  end if;
+
+  update public.store_orders
+     set metadata_json = (metadata_json - 'needs_support') || jsonb_build_object('needs_support_resolved_at', now())
+   where id = v_order.id
+  returning * into v_order;
+  insert into public.store_order_support_notes (order_id, kind, note, actor_id)
+  values (v_order.id, 'flag_resolved', nullif(left(btrim(coalesce(p_note, '')), 500), ''), v_uid);
+  return v_order;
+end;
+$$;
+
+revoke all on function public.resolve_store_order_flag(uuid, text) from public, anon, authenticated;
+grant execute on function public.resolve_store_order_flag(uuid, text) to authenticated;
 
 -- ===================== públicas =====================
 -- Vitrina del vendedor. Rama artist: username exacto (lower) y registro
@@ -2989,8 +3181,9 @@ revoke all on function public.release_store_order_funds(uuid) from public, anon,
 grant execute on function public.release_store_order_funds(uuid) to service_role;
 
 -- Job horario (n8n → POST /api/store/maintenance). Cada pedido se procesa en
--- su propio bloque: un error se registra en metadata_json.maintenance_error y
--- el resto sigue. Los locks son skip locked (nunca espera a una RPC).
+-- su propio bloque: un error se registra (texto crudo en
+-- store_order_support_notes, solo la fecha en metadata_json.maintenance_error_at)
+-- y el resto sigue. Los locks son skip locked (nunca espera a una RPC).
 create or replace function public.run_store_maintenance()
 returns jsonb
 language plpgsql
@@ -3013,13 +3206,15 @@ begin
 
   perform set_config('lock_timeout', '5s', true);
 
-  -- (a) Vencidos sin pago informado: restituye stock y libera la reserva.
+  -- (a) Vencidos (store_order_lapsed): sin pago informado, o con el aviso
+  -- vencido hace más de 7 días sin que nadie lo confirme ni lo cancele.
+  -- Restituye stock y libera la reserva; el informado queda needs_support.
   for v_id in
     select o.id
       from public.store_orders o
      where o.status = 'pending_payment'
        and o.expires_at < now()
-       and o.buyer_payment_reported_at is null
+       and public.store_order_lapsed(o)
      order by o.expires_at
      limit 500
   loop
@@ -3028,8 +3223,7 @@ begin
         continue;
       end if;
       select * into v_order from public.store_orders o where o.id = v_id;
-      if v_order.status = 'pending_payment' and v_order.expires_at < now()
-         and v_order.buyer_payment_reported_at is null then
+      if public.store_order_lapsed(v_order) then
         if public.store_close_unpaid_order(v_id, 'expired', null) then
           v_expired := v_expired + 1;
         end if;
@@ -3039,15 +3233,18 @@ begin
       v_failed := v_failed || jsonb_build_array(v_id);
       begin
         update public.store_orders
-           set metadata_json = metadata_json || jsonb_build_object('maintenance_error', v_error, 'maintenance_error_at', now())
+           set metadata_json = metadata_json || jsonb_build_object('maintenance_error_at', now())
          where id = v_id;
+        insert into public.store_order_support_notes (order_id, kind, note)
+        values (v_id, 'maintenance_error', v_error);
       exception when others then
         null;
       end;
     end;
   end loop;
 
-  -- (b) Vencidos con pago informado: se marcan para soporte, una sola vez.
+  -- (b) Vencidos con pago informado: se marcan para soporte, una sola vez
+  -- (7 días después, si siguen así, los vence el paso (a)).
   for v_id in
     select o.id
       from public.store_orders o
@@ -3080,8 +3277,10 @@ begin
       v_failed := v_failed || jsonb_build_array(v_id);
       begin
         update public.store_orders
-           set metadata_json = metadata_json || jsonb_build_object('maintenance_error', v_error, 'maintenance_error_at', now())
+           set metadata_json = metadata_json || jsonb_build_object('maintenance_error_at', now())
          where id = v_id;
+        insert into public.store_order_support_notes (order_id, kind, note)
+        values (v_id, 'maintenance_error', v_error);
       exception when others then
         null;
       end;
@@ -3117,8 +3316,10 @@ begin
       v_failed := v_failed || jsonb_build_array(v_id);
       begin
         update public.store_orders
-           set metadata_json = metadata_json || jsonb_build_object('maintenance_error', v_error, 'maintenance_error_at', now())
+           set metadata_json = metadata_json || jsonb_build_object('maintenance_error_at', now())
          where id = v_id;
+        insert into public.store_order_support_notes (order_id, kind, note)
+        values (v_id, 'maintenance_error', v_error);
       exception when others then
         null;
       end;
@@ -3150,8 +3351,10 @@ begin
       v_failed := v_failed || jsonb_build_array(v_id);
       begin
         update public.store_orders
-           set metadata_json = metadata_json || jsonb_build_object('maintenance_error', v_error, 'maintenance_error_at', now())
+           set metadata_json = metadata_json || jsonb_build_object('maintenance_error_at', now())
          where id = v_id;
+        insert into public.store_order_support_notes (order_id, kind, note)
+        values (v_id, 'maintenance_error', v_error);
       exception when others then
         null;
       end;
@@ -3226,6 +3429,7 @@ alter table public.store_order_items enable row level security;
 alter table public.store_payments enable row level security;
 alter table public.store_licenses enable row level security;
 alter table public.store_download_events enable row level security;
+alter table public.store_order_support_notes enable row level security;
 
 -- Productos
 drop policy if exists store_products_owner_select on public.store_products;
@@ -3450,6 +3654,12 @@ create policy store_download_events_support_read on public.store_download_events
   for select to authenticated
   using (public.is_support_user());
 
+-- Notas internas (escriben las RPC; lee solo soporte)
+drop policy if exists store_order_support_notes_support_read on public.store_order_support_notes;
+create policy store_order_support_notes_support_read on public.store_order_support_notes
+  for select to authenticated
+  using (public.is_support_user());
+
 -- ===================== grants de tablas =====================
 -- Sin grants a anon. authenticated: solo el DML que usa la UI (nunca
 -- truncate, trigger ni references). El resto va por RPC.
@@ -3462,6 +3672,7 @@ revoke all on table public.store_order_items from public, anon, authenticated;
 revoke all on table public.store_payments from public, anon, authenticated;
 revoke all on table public.store_licenses from public, anon, authenticated;
 revoke all on table public.store_download_events from public, anon, authenticated;
+revoke all on table public.store_order_support_notes from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.store_products to authenticated;
 grant select, insert, update, delete on table public.store_product_variants to authenticated;
@@ -3473,6 +3684,7 @@ grant select (id, order_id, provider, status, amount, currency, collected_by, re
   on table public.store_payments to authenticated;
 grant select on table public.store_licenses to authenticated;
 grant select on table public.store_download_events to authenticated;
+grant select on table public.store_order_support_notes to authenticated;
 
 -- Servidor (lib/repos/store.js con service role).
 grant select, insert, update, delete on table public.store_products to service_role;
@@ -3484,6 +3696,22 @@ grant select, insert, update, delete on table public.store_order_items to servic
 grant select, insert, update, delete on table public.store_payments to service_role;
 grant select, insert, update, delete on table public.store_licenses to service_role;
 grant select, insert, update, delete on table public.store_download_events to service_role;
+grant select, insert, update, delete on table public.store_order_support_notes to service_role;
+
+-- ===================== app_settings de la Store (privadas) =====================
+-- app_settings.is_public tiene default true y anon lee las públicas. Estas
+-- claves se siembran con valores neutros (equivalen a no tenerlas) y siempre
+-- privadas: si ya existen, solo se vuelven privadas, sin pisar el valor.
+insert into public.app_settings (setting_key, setting_value, setting_type, description, is_public) values
+  ('store_payment_provider', 'manual', 'text',
+   'Store: proveedor de pagos (manual, stripe o mercado_pago). Cambiarlo solo cuando el adaptador esté registrado en el servidor.', false),
+  ('store_manual_collector', 'seller', 'text',
+   'Store: quién cobra en modo manual (seller o platform).', false),
+  ('store_platform_payment_instructions', null, 'text',
+   'Store: instrucciones de pago de We Ötzi cuando cobra la plataforma.', false),
+  ('store_platform_fee_pct', '0', 'text',
+   'Store: comisión de plataforma en porcentaje (0 a 50).', false)
+on conflict (setting_key) do update set is_public = false;
 
 -- ===================== Storage =====================
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

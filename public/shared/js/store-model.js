@@ -1046,7 +1046,9 @@
             else if (paid && method !== 'digital') view.nextAction = info('preparing', 'El vendedor está preparando tu pedido.');
             else if (o.status === 'fulfilled' && license && view.license.canMarkUsed) view.nextAction = actions.filter(function (a) { return a.key === 'view_license'; })[0] || null;
         } else {
-            var canConfirm = pending && (role === 'support' ? collector !== 'provider' : collector === 'seller');
+            // Vencido sin pago informado: store_apply_order_payment lo rechaza
+            // (order_not_payable), así que no se ofrece confirmar; queda cancelar.
+            var canConfirm = pending && !(view.overdue && !reported) && (role === 'support' ? collector !== 'provider' : collector === 'seller');
             if (canConfirm) actions.push(action('confirm_payment', 'Confirmar pago recibido'));
             if (role === 'support' && o.status === 'expired' && collector !== 'provider') actions.push(action('confirm_payment', 'Reabrir y confirmar pago', { tone: 'ghost' }));
             if (pending && (!reported || role === 'support')) actions.push(action('cancel', 'Cancelar pedido', { tone: 'ghost' }));

@@ -5,10 +5,12 @@
  * artista. Contrato: docs/plans/2026-10-30-store-artista.md §8.5.
  *
  *   Lista: pedidos que cobra We Ötzi por confirmar (expected_collector
- *   'platform', WeotziData.Store.listPendingPlatformOrders) y pedidos marcados
- *   needs_support o con fondos retenidos (listFlaggedOrders).
+ *   'platform', WeotziData.Store.listPendingPlatformOrders), pedidos marcados
+ *   needs_support o con fondos retenidos (listFlaggedOrders) y, si el repo lo
+ *   ofrece, los vencidos recientes (listRecentExpiredOrders) para reabrirlos.
  *   Drawer: detalle del pedido con confirmar pago (collectedBy = el
- *   expected_collector), reembolsar y retener / liberar fondos.
+ *   expected_collector), cancelar (también con pago informado), reembolsar y
+ *   retener / liberar fondos (solo en pedidos que pasan por el wallet).
  *
  * Se activa solo con el gate de la Store:
  *   WeotziData.Store.featureEnabled() && await WeotziData.Store.isAvailable()
@@ -27,8 +29,13 @@
     var REASONS = {
         platform: { label: 'Cobra We Ötzi', badge: 'requested' },
         support: { label: 'Necesita soporte', badge: 'open' },
-        hold: { label: 'Fondos retenidos', badge: 'in-progress' }
+        hold: { label: 'Fondos retenidos', badge: 'in-progress' },
+        expired: { label: 'Vencido', badge: 'closed' }
     };
+    // Los vencidos no son trabajo pendiente: no suman al contador ni entran en
+    // «Todos los motivos»; se ven con el filtro «Vencidos».
+    var PASSIVE_REASONS = ['expired'];
+    var EXPIRED_DAYS = 7;
     var SUPPORT_REASONS = {
         duplicate_payment: 'Pago duplicado',
         payment_reported_expired: 'Pago informado y vencido'
@@ -145,8 +152,11 @@
         }).catch(function () { return false; });
     }
 
-    // Une las dos listas sin repetir pedidos y anota por qué está cada uno.
-    function mergeRows(pending, flagged) {
+    // Une las listas sin repetir pedidos y anota por qué está cada uno. La marca
+    // «pago informado y vencido» deja de contar cuando el pedido salió de
+    // pending_payment (soporte lo confirmó o lo canceló). Los vencidos de
+    // proveedor no se reabren desde acá (los confirma el webhook).
+    function mergeRows(pending, flagged, expired) {
         var map = new Map();
         function add(o, reason) {
             if (!o || !o.id) return;
@@ -157,18 +167,43 @@
         }
         (pending || []).forEach(function (o) { add(o, 'platform'); });
         (flagged || []).forEach(function (o) {
-            if (meta(o).needs_support === true) add(o, 'support');
+            var m = meta(o);
+            var stale = m.needs_support_reason === 'payment_reported_expired' && o.status !== 'pending_payment';
+            if (m.needs_support === true && !stale) add(o, 'support');
             if (o.funds_hold === true) add(o, 'hold');
         });
+        (expired || []).forEach(function (o) {
+            if (o && o.status === 'expired' && o.expected_collector !== 'provider') add(o, 'expired');
+        });
         return Array.from(map.values());
+    }
+
+    function isActionable(row) {
+        return row.reasons.some(function (r) { return PASSIVE_REASONS.indexOf(r) === -1; });
+    }
+
+    function hasExpiredList() {
+        var S = repo();
+        return !!S && typeof S.listRecentExpiredOrders === 'function';
+    }
+
+    // Si la lista de vencidos falla, la pestaña sigue con el resto.
+    function loadExpired(S) {
+        if (!hasExpiredList()) return Promise.resolve([]);
+        return Promise.resolve().then(function () {
+            return S.listRecentExpiredOrders({ days: EXPIRED_DAYS });
+        }).catch(function (err) {
+            console.warn('[support-store] vencidos:', err && err.message);
+            return [];
+        });
     }
 
     function load(force) {
         if (state.loading && !force) return state.loading;
         var S = repo();
         state.error = null;
-        state.loading = Promise.all([S.listPendingPlatformOrders(), S.listFlaggedOrders()]).then(function (res) {
-            state.rows = mergeRows(res[0], res[1]);
+        state.loading = Promise.all([S.listPendingPlatformOrders(), S.listFlaggedOrders(), loadExpired(S)]).then(function (res) {
+            state.rows = mergeRows(res[0], res[1], res[2]);
             state.loaded = true;
         }).catch(function (err) {
             console.warn('[support-store] pedidos:', err && err.message);
@@ -207,7 +242,7 @@
     }
 
     function updateBadges() {
-        var n = state.rows.length;
+        var n = state.rows.filter(isActionable).length;
         ['tab-store-badge', 'nav-store-badge'].forEach(function (id) {
             var el = byId(id);
             if (!el) return;
@@ -273,6 +308,7 @@
         var box = byId('toolbar-filters');
         if (!box) return;
         var opts = [['all', 'TODOS LOS MOTIVOS'], ['platform', 'COBRA WE ÖTZI'], ['support', 'NECESITA SOPORTE'], ['hold', 'FONDOS RETENIDOS']];
+        if (hasExpiredList()) opts.push(['expired', 'VENCIDOS (' + EXPIRED_DAYS + ' DÍAS)']);
         box.innerHTML =
             '<label class="sds-sr" for="sds-reason-filter">Motivo</label>'
             + '<select id="sds-reason-filter" class="toolbar-select">'
@@ -292,7 +328,7 @@
     function visibleRows() {
         var term = searchTerm().toLowerCase();
         return state.rows.filter(function (row) {
-            if (state.reason !== 'all' && row.reasons.indexOf(state.reason) === -1) return false;
+            if (state.reason === 'all' ? !isActionable(row) : row.reasons.indexOf(state.reason) === -1) return false;
             if (!term) return true;
             var o = row.order;
             var haystack = [o.order_number, o.buyer_name, o.buyer_email, o.status, sellerLabel(o), itemLabel(o), o.buyer_payment_reference].join(' ').toLowerCase();
@@ -334,7 +370,9 @@
         var rows = visibleRows();
         if (!rows.length) {
             body.innerHTML = '<div class="empty-state">'
-                + (state.rows.length ? 'Ningún pedido coincide con el filtro.' : 'No hay pedidos de la Store para revisar. Cuando uno necesite soporte, aparece acá.')
+                + (state.reason === 'expired'
+                    ? 'No hay pedidos vencidos en los últimos ' + EXPIRED_DAYS + ' días.'
+                    : state.rows.some(isActionable) ? 'Ningún pedido coincide con el filtro.' : 'No hay pedidos de la Store para revisar. Cuando uno necesite soporte, aparece acá.')
                 + '</div>';
             return;
         }
@@ -359,6 +397,16 @@
         return state.rows.find(function (r) { return r.order && String(r.order.id) === String(id); }) || null;
     }
 
+    // store_order_uses_wallet(o): vendedor artista y cobro de We Ötzi o de un
+    // proveedor (el modelo es la fuente; el fallback repite el predicado).
+    function usesWallet(o) {
+        var M = model();
+        if (M && typeof M.usesWallet === 'function') return M.usesWallet(o);
+        if (!o || o.seller_type !== 'artist') return false;
+        var c = o.payment_collected_by || o.expected_collector;
+        return c === 'platform' || c === 'provider';
+    }
+
     function capabilities(o) {
         var collector = o.expected_collector || 'platform';
         var paid = o.status === 'paid' || o.status === 'fulfilled';
@@ -368,8 +416,13 @@
             // proveedor los confirma el webhook. Un vencido se puede reabrir
             // (la RPC devuelve cannot_reopen si ya no hay stock o reserva).
             confirm: collector !== 'provider' && (o.status === 'pending_payment' || o.status === 'expired'),
+            // Solo soporte cancela con un pago informado (cancel_store_order):
+            // es la salida de un pago que nunca llegó, para liberar stock y reserva.
+            cancel: o.status === 'pending_payment',
             refund: paid,
-            hold: paid || o.funds_hold === true
+            // Retener solo frena algo si el pedido pasa por el wallet y los
+            // fondos no se liberaron; una retención puesta siempre se puede levantar.
+            hold: o.funds_hold === true || (paid && usesWallet(o) && !o.funds_released_at)
         };
     }
 
@@ -401,14 +454,27 @@
         var actions = '';
         if (can.confirm) {
             var who = can.collector === 'platform' ? 'We Ötzi recibió' : 'el vendedor recibió';
+            var reopen = o.status === 'expired';
             actions += '<form class="sds-form" data-sds-form="confirm">'
-                + '<p class="sds-form-title">Confirmar pago</p>'
-                + '<p class="sds-help">Confirmalo solo si ' + esc(who) + ' ' + esc(money(o.total_amount, o.currency)) + '. Se emite la licencia o el pedido pasa a preparación.</p>'
+                + '<p class="sds-form-title">' + (reopen ? 'Reabrir y confirmar pago' : 'Confirmar pago') + '</p>'
+                + '<p class="sds-help">Confirmalo solo si ' + esc(who) + ' ' + esc(money(o.total_amount, o.currency)) + '. Se emite la licencia o el pedido pasa a preparación.'
+                + (reopen ? ' Si ya no hay stock o el diseño se reservó para otro pedido, no se puede reabrir.' : '') + '</p>'
                 + '<div class="form-group"><label for="sds-confirm-ref">Referencia del pago</label>'
                 + '<input type="text" id="sds-confirm-ref" name="reference" maxlength="200" value="' + esc(o.buyer_payment_reference || '') + '"></div>'
                 + '<div class="form-group"><label for="sds-confirm-note">Nota interna (opcional)</label>'
                 + '<textarea id="sds-confirm-note" name="note" rows="2" maxlength="500"></textarea></div>'
                 + '<button type="submit" class="action-btn save-btn">Confirmar pago recibido</button>'
+                + '</form>';
+        }
+        if (can.cancel) {
+            actions += '<form class="sds-form" data-sds-form="cancel">'
+                + '<p class="sds-form-title">Cancelar pedido</p>'
+                + '<p class="sds-help">' + (o.buyer_payment_reported_at
+                    ? 'El comprador informó un pago. Cancelalo solo si verificaste que no llegó: se devuelve el stock y se libera la reserva del diseño.'
+                    : 'Se devuelve el stock y se libera la reserva del diseño.') + '</p>'
+                + '<div class="form-group"><label for="sds-cancel-reason">Motivo de la cancelación</label>'
+                + '<textarea id="sds-cancel-reason" name="reason" rows="2" maxlength="300" required></textarea></div>'
+                + '<button type="submit" class="action-btn danger-btn">Cancelar pedido</button>'
                 + '</form>';
         }
         if (can.refund) {
@@ -445,7 +511,7 @@
             + kv('Comprador', [o.buyer_name, o.buyer_email].filter(Boolean).join(' · '))
             + kv('Vendedor', sellerLabel(o))
             + kv('Creado', dateTime(o.created_at))
-            + kv('Vence', o.status === 'pending_payment' ? dateTime(o.expires_at) : '—')
+            + kv(o.status === 'expired' ? 'Venció' : 'Vence', o.status === 'pending_payment' || o.status === 'expired' ? dateTime(o.expires_at) : '—')
             + '</div>'
             + (item && item.license_holder_name ? kv('Titular de la licencia', item.license_holder_name) : '')
             + '</div>'
@@ -532,6 +598,12 @@
             if (!window.confirm('¿Confirmás el pago de ' + money(o.total_amount, o.currency) + ' del pedido ' + number + '?')) return;
             task = function () { return S.confirmPayment(o.id, { collectedBy: can.collector, reference: value('reference'), note: value('note') }); };
             done = 'Pago confirmado.';
+        } else if (kind === 'cancel' && can.cancel) {
+            var cancelReason = value('reason');
+            if (!cancelReason) { feedback('Contá el motivo de la cancelación.', 'error'); return; }
+            if (!window.confirm('¿Cancelar el pedido ' + number + '? Se devuelve el stock y se libera la reserva.')) return;
+            task = function () { return S.cancelOrder(o.id, cancelReason); };
+            done = 'Pedido cancelado.';
         } else if (kind === 'refund' && can.refund) {
             var reason = value('reason');
             if (!reason) { feedback('Contá el motivo del reembolso.', 'error'); return; }
@@ -576,6 +648,7 @@
     window.WeotziSupportStore = {
         mergeRows: mergeRows,
         capabilities: capabilities,
+        isActionable: isActionable,
         refresh: function () { return state.enabled ? load(true) : Promise.resolve(); }
     };
 
