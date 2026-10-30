@@ -181,6 +181,8 @@ grant execute on function public.decide_studio_spot_application(uuid, text) to a
 
 -- 3. Guard de membresías ------------------------------------------------
 
+drop trigger if exists trg_guard_studio_membership_delete on public.studio_artist_memberships;
+drop function if exists private.guard_studio_membership_delete();
 drop trigger if exists trg_guard_studio_membership_write on public.studio_artist_memberships;
 drop function if exists private.guard_studio_membership_write();
 

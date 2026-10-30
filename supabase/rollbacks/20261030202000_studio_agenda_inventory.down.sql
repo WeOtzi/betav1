@@ -156,5 +156,24 @@ alter table public.studio_bookings
   drop column if exists service_description,
   drop column if exists client_phone;
 
+-- Costos unitarios: vuelven a numeric(10,2) (redondea los valores con más
+-- decimales) y se recrea la vista dependiente como estaba.
+drop view if exists public.studio_inventory_health_by_currency;
+alter table public.studio_inventory_movements alter column unit_cost type numeric(10,2);
+alter table public.studio_inventory_items alter column cost_per_unit type numeric(10,2);
+create view public.studio_inventory_health_by_currency with (security_invoker = true) as
+ SELECT studio_inventory_items.id,
+    studio_inventory_items.studio_id,
+    studio_inventory_items.name,
+    studio_inventory_items.quantity_on_hand,
+    studio_inventory_items.reorder_level,
+    studio_inventory_items.currency,
+    studio_inventory_items.reorder_level IS NOT NULL AND studio_inventory_items.quantity_on_hand <= studio_inventory_items.reorder_level AS needs_reorder,
+    (studio_inventory_items.quantity_on_hand * COALESCE(studio_inventory_items.cost_per_unit, 0::numeric))::numeric(14,2) AS stock_value
+   FROM public.studio_inventory_items
+  WHERE studio_inventory_items.is_active = true;
+revoke all on public.studio_inventory_health_by_currency from public, anon;
+grant all on public.studio_inventory_health_by_currency to authenticated, service_role;
+
 notify pgrst, 'reload schema';
 commit;

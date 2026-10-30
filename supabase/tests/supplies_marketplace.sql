@@ -621,11 +621,11 @@ begin
   end if;
   select * into gloves_item from public.studio_inventory_items where studio_id = sid_a and supply_product_id = p_gloves;
   if gloves_item.id is null or gloves_item.quantity_on_hand is distinct from 200 or gloves_item.unit is distinct from 'unidad'
-     or gloves_item.cost_per_unit is distinct from 0.43 or gloves_item.currency is distinct from 'ARS'
+     or gloves_item.cost_per_unit is distinct from 0.425 or gloves_item.currency is distinct from 'ARS'
      or gloves_item.sku is distinct from current_setting('test.glv_sku') then
     raise exception 'FAIL: created inventory item from pack_size %', to_jsonb(gloves_item);
   end if;
-  if not exists (select 1 from public.studio_inventory_movements where item_id = gloves_item.id and kind = 'restock' and quantity = 200 and unit_cost = 0.43) then
+  if not exists (select 1 from public.studio_inventory_movements where item_id = gloves_item.id and kind = 'restock' and quantity = 200 and unit_cost = 0.425) then
     raise exception 'FAIL: pack_size restock movement';
   end if;
   select id into supplier from public.studio_suppliers where studio_id = sid_a and vendor_id = v1;

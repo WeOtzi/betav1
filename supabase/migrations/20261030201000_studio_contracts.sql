@@ -542,7 +542,9 @@ create trigger trg_guard_spot_application_write
   before insert or update on public.studio_spot_applications
   for each row execute function private.guard_spot_application_write();
 
--- Si el artista retira la postulación, sus contratos abiertos se cancelan.
+-- Si el artista retira la postulación, o el estudio la rechaza por escritura
+-- directa (el guard lo permite), sus contratos abiertos se cancelan: un
+-- contrato ya enviado no puede firmarse sobre una postulación cerrada.
 create or replace function private.cancel_contracts_on_application_withdrawn()
 returns trigger
 language plpgsql
@@ -552,6 +554,8 @@ as $$
 begin
   if new.status = 'withdrawn' and old.status is distinct from 'withdrawn' then
     perform private.close_open_studio_contracts(null, new.id, 'cancelled', 'El artista retiró la postulación');
+  elsif new.status = 'rejected' and old.status is distinct from 'rejected' then
+    perform private.close_open_studio_contracts(null, new.id, 'cancelled', 'La postulación fue rechazada');
   end if;
   return null;
 end;

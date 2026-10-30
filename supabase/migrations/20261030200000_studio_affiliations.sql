@@ -203,6 +203,34 @@ create trigger trg_guard_studio_membership_write
   before insert or update on public.studio_artist_memberships
   for each row execute function private.guard_studio_membership_write();
 
+-- Borrado directo: solo invitaciones pendientes (cancelar una invitación).
+-- Un vínculo activo, pausado o con historial se cierra con
+-- end_studio_membership, que también rescinde su contrato.
+create or replace function private.guard_studio_membership_delete()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if current_user in ('postgres', 'supabase_admin', 'service_role')
+     or coalesce(auth.role(), '') = 'service_role'
+     or public.is_support_user() then
+    return old;
+  end if;
+  if old.status not in ('pending_acceptance', 'pending_invite') then
+    raise exception 'Para desvincular a un artista usá «Desvincular»: el vínculo queda en el historial.' using errcode = '42501';
+  end if;
+  return old;
+end;
+$$;
+
+revoke all on function private.guard_studio_membership_delete() from public, anon, authenticated;
+
+drop trigger if exists trg_guard_studio_membership_delete on public.studio_artist_memberships;
+create trigger trg_guard_studio_membership_delete
+  before delete on public.studio_artist_memberships
+  for each row execute function private.guard_studio_membership_delete();
+
 -- ---------------------------------------------------------------------
 -- 4. Puente de decide_studio_spot_application
 -- ---------------------------------------------------------------------

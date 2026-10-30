@@ -1340,7 +1340,7 @@ declare
   v_created boolean;
   v_mismatch boolean;
   v_units numeric;
-  v_unit_cost numeric(12,2);
+  v_unit_cost numeric;
   v_movement_id uuid;
   v_expense numeric(12,2) := 0;
   v_entry_id uuid;
@@ -1449,7 +1449,7 @@ begin
 
     if v_qty_received > 0 then
       -- Costo efectivo por unidad (con descuento, sin envío).
-      v_unit_cost := round(r.line_total / (r.quantity * coalesce(r.pack_size, 1)), 2);
+      v_unit_cost := round(r.line_total / (r.quantity * coalesce(r.pack_size, 1)), 6);
 
       -- 1. Ítem destino: vínculo explícito → producto Supplies → SKU → nuevo.
       if r.inventory_item_id is not null then

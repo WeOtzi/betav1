@@ -812,6 +812,8 @@
     function hasSpotV2Values(payload) {
         return SPOT_V2_COLUMNS.some(col => {
             const v = payload[col];
+            // El porcentaje ya vive en revenue_split_pct (columna previa).
+            if (col === 'compensation_model' && v === 'percentage') return false;
             return Array.isArray(v) ? v.length > 0 : (v !== null && v !== undefined && v !== '');
         });
     }
