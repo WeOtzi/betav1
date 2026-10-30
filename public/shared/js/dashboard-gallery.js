@@ -5,7 +5,8 @@
    Pinta la grilla de #gallery-admin-grid y maneja sus acciones:
      · mosaico con leyenda (nombre del trabajo) + papelera por celda
      · primer trabajo = destacado (bandera ★, ocupa 2×2) · ★ en hover destaca
-     · insignias VIDEO · 0:24 y NUEVO · IG (borde amarillo) arriba a la derecha
+     · insignias VIDEO · 0:24, NUEVO · IG (borde amarillo) y PENDIENTE · IG
+       arriba a la derecha
      · dropzone punteada "SUBIR MÁS · N LIBRES" (click o soltar archivos)
      · reordenar arrastrando (o Alt + flechas con el teclado)
      · renombrar tocando el nombre (Enter guarda, Escape cancela)
@@ -21,6 +22,13 @@
      duration     segundos del video
      source       'instagram' cuando lo sumó el importador
      imported_at  ISO de la importación (marca NUEVO · IG durante 7 días)
+     ig_handle    cuenta de IG de la que vino (la escribe el importador)
+     ig_legacy    importado antes de la validación de IG: sigue público
+
+   PENDIENTE · IG: foto de Instagram que el perfil público todavía oculta
+   porque la cuenta no está validada. La regla vive en gallery-visibility.js
+   (window.WoGalleryVisibility) y el estado lo deja dashboard.js en
+   window.WoIgValidationState; sin alguno de los dos no se marca nada.
 
    Módulo UMD: las funciones puras se prueban en tests/figma-final-dashboard.
    ============================================================================ */
@@ -32,6 +40,7 @@
 
   var NEW_IMPORT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
   var TITLE_MAX = 60;
+  var PENDING_HINT = 'Se muestra en tu perfil público cuando valides tu Instagram';
 
   /* ---------------------------------------------------------------- puras --- */
   function esc(s) {
@@ -104,6 +113,15 @@
     return ref - at >= 0 && ref - at < NEW_IMPORT_WINDOW_MS;
   }
 
+  // PENDIENTE · IG: el artista la ve, los clientes todavía no.
+  function isPendingImport(item) {
+    var w = typeof window !== 'undefined' ? window : null;
+    var visibility = w && w.WoGalleryVisibility;
+    var state = w && w.WoIgValidationState;
+    if (!visibility || !state || typeof visibility.isPendingValidation !== 'function') return false;
+    return visibility.isPendingValidation(item, state);
+  }
+
   function counts(feed, max, maxVideos) {
     var list = Array.isArray(feed) ? feed : [];
     var videos = list.filter(isVideo).length;
@@ -135,7 +153,9 @@
   }
 
   // Campos extra que la normalización del feed tiene que conservar.
-  var EXTRA_FIELDS = ['id', 'title', 'caption', 'permalink', 'source', 'imported_at', 'duration', 'is_featured'];
+  // ig_handle / ig_legacy deciden la visibilidad pública: si se pierden al
+  // guardar, una foto ya publicada pasaría a quedar oculta.
+  var EXTRA_FIELDS = ['id', 'title', 'caption', 'permalink', 'source', 'imported_at', 'ig_handle', 'ig_legacy', 'duration', 'is_featured'];
   function pickExtras(raw) {
     var out = {};
     if (!raw || typeof raw !== 'object') return out;
@@ -164,22 +184,26 @@
     var shown = featured ? (name ? name + ' — destacado' : 'Trabajo destacado') : (name || 'Sin título');
     var label = name || 'Trabajo ' + (index + 1);
     var video = isVideo(item);
-    var fresh = isNewImport(item, now);
+    // Pendiente de validación le gana a NUEVO: es lo que el artista tiene que resolver.
+    var pending = isPendingImport(item);
+    var fresh = !pending && isNewImport(item, now);
     var dur = formatDuration(item.duration);
     var media = video && isPlayable(item)
       ? '<video src="' + esc(item.url) + '" preload="metadata" muted playsinline tabindex="-1" aria-hidden="true"></video>'
       : '<img src="' + esc(item.url) + '" alt="" loading="lazy">';
     var tags = '';
-    if (fresh) tags += '<span class="wod-gal-tag is-new">NUEVO · IG</span>';
+    if (pending) tags += '<span class="wod-gal-tag is-pending" title="' + PENDING_HINT + '">PENDIENTE · IG</span>';
+    else if (fresh) tags += '<span class="wod-gal-tag is-new">NUEVO · IG</span>';
     if (video) tags += '<span class="wod-gal-tag is-video" data-gal-duration>' + (dur ? 'VIDEO · ' + esc(dur) : 'VIDEO') + '</span>';
 
     return '<div class="gallery-item wod-gal-cell' + (featured ? ' is-featured' : '') + (video ? ' is-video' : '') +
-        (fresh ? ' is-new' : '') + (name ? '' : ' is-untitled') + '" data-index="' + index + '" draggable="true" role="listitem">' +
+        (fresh ? ' is-new' : '') + (pending ? ' is-pending' : '') + (name ? '' : ' is-untitled') + '" data-index="' + index + '" draggable="true" role="listitem">' +
       media +
       // Botón transparente sobre la imagen: abre el visor (dashboard.js) y
       // es el punto de foco para reordenar con Alt + flechas.
       '<button type="button" class="wod-gal-open" aria-label="Ver ' + esc(label) + ' (' + (index + 1) + ' de ' + total +
-        '). Alt + flechas para reordenar.">' + (video ? '<span class="wod-gal-eye">' + icon('eye') + '</span>' : '') + '</button>' +
+        ').' + (pending ? ' Pendiente: ' + PENDING_HINT.charAt(0).toLowerCase() + PENDING_HINT.slice(1) + '.' : '') +
+        ' Alt + flechas para reordenar.">' + (video ? '<span class="wod-gal-eye">' + icon('eye') + '</span>' : '') + '</button>' +
       (tags ? '<div class="wod-gal-tags">' + tags + '</div>' : '') +
       (featured
         ? '<span class="wod-gal-flag" aria-hidden="true"><b>★</b></span>'
@@ -396,6 +420,8 @@
     isVideoUrl: isVideoUrl,
     isPlayable: isPlayable,
     isNewImport: isNewImport,
+    isPendingImport: isPendingImport,
+    PENDING_HINT: PENDING_HINT,
     counts: counts,
     quotaLabel: quotaLabel,
     freeLabel: freeLabel,

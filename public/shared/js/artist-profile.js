@@ -104,6 +104,10 @@ let publicProfileMetrics = {
     responseTimeLabel: '—'
 };
 let galleryItems = [];
+// Estado de validación de Instagram del artista ({ enforced, verified, handle },
+// ver gallery-visibility.js). null = sin helper o sin la clave del RPC: la
+// galería se muestra completa, como antes de la validación.
+let igValidationState = null;
 let galleryFilter = GALLERY_ALL_FILTER;
 let currentLightboxIndex = 0;
 let reviewsWidgetMounted = false;
@@ -327,6 +331,8 @@ async function loadArtistData(username) {
             loadPublicProfilePreferences(artist.user_id),
             loadPublicProfileMetrics(searchUsername)
         ]);
+        // La galería se pinta recién en populateProfile, con el estado ya resuelto.
+        igValidationState = resolveIgValidationState(publicProfilePreferences);
 
         populateProfile();
         hideLoading();
@@ -377,12 +383,26 @@ async function loadPublicProfilePreferences(artistUserId) {
         return {
             privacy: { ...fallback.privacy, ...(data.privacy || {}) },
             profile: data.profile && typeof data.profile === 'object' ? data.profile : {},
-            availability: data.availability && typeof data.availability === 'object' ? data.availability : {}
+            availability: data.availability && typeof data.availability === 'object' ? data.availability : {},
+            // Migración 20261030120000: { enforced, verified, handle }. Sin la
+            // clave (migración no aplicada) queda null y no se filtra la galería.
+            instagram_validation: data.instagram_validation && typeof data.instagram_validation === 'object'
+                ? data.instagram_validation
+                : null
         };
     } catch (error) {
         console.warn('Public profile preferences unavailable:', error);
         return fallback;
     }
+}
+
+// Fotos importadas de Instagram: ocultas al público hasta que el artista valida
+// su cuenta (regla única en gallery-visibility.js, espejada en SQL).
+function resolveIgValidationState(preferences) {
+    const visibility = window.WoGalleryVisibility;
+    const validation = preferences && preferences.instagram_validation;
+    if (!visibility || typeof visibility.stateFrom !== 'function' || !validation) return null;
+    return visibility.stateFrom(validation);
 }
 
 /**
@@ -847,8 +867,18 @@ function galleryStylesOf(raw) {
 function normalizeGalleryItems() {
     const items = [];
     const seen = new Set();
+    const visibility = igValidationState && typeof window.WoGalleryVisibility?.isPubliclyVisible === 'function'
+        ? window.WoGalleryVisibility
+        : null;
+    let hiddenCount = 0;
 
     for (const raw of parseJsonArray(artistData?.gallery_feed_items)) {
+        // Se filtra sobre el ítem crudo: el mapeo de abajo descarta source,
+        // ig_handle e ig_legacy, que son los que deciden la visibilidad.
+        if (visibility && !visibility.isPubliclyVisible(raw, igValidationState)) {
+            hiddenCount += 1;
+            continue;
+        }
         const url = String(raw?.url || '').trim();
         if (!url || seen.has(url)) continue;
         const category = GALLERY_CATEGORY_LABELS[String(raw?.category || '').toLowerCase()]
@@ -862,7 +892,9 @@ function normalizeGalleryItems() {
         seen.add(url);
     }
 
-    if (!items.length) {
+    // El respaldo legacy es para artistas sin feed: si el feed tenía fotos y
+    // todas quedaron ocultas, no se las vuelve a mostrar desde gallery_images.
+    if (!items.length && !hiddenCount) {
         for (const entry of parseJsonArray(artistData?.gallery_images)) {
             const url = typeof entry === 'string' ? entry.trim() : String(entry?.url || '').trim();
             if (!url || seen.has(url)) continue;

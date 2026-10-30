@@ -657,6 +657,7 @@ function applyDashboardArtistData(artist) {
     runDashboardStep('update milestones UI', updateMilestonesUI);
     runDashboardStep('check profile completion', checkProfileCompletion);
     runDashboardStep('render gallery admin', renderGalleryAdmin);
+    runDashboardStep('load instagram validation state', loadInstagramValidationStateOnce);
     runDashboardStep('mount instagram import', mountInstagramImportInDashboard);
 
     return true;
@@ -801,6 +802,69 @@ function mountInstagramImportInDashboard() {
         }
     });
     _igImportDashboardMounted = true;
+}
+
+// ============================================
+// Validación de Instagram (galería)
+// Las fotos importadas de Instagram quedan ocultas en el perfil público hasta
+// que el artista valida su cuenta (regla en gallery-visibility.js). Después
+// del primer render de la galería con fotos de IG se consulta el estado una
+// sola vez y se repinta la grilla para marcarlas PENDIENTE · IG
+// (dashboard-gallery.js lee window.WoIgValidationState). En modo demo no se
+// consulta; cualquier falla deja la galería como estaba.
+// ============================================
+let _igValidationStateRequested = false;
+
+function dashboardAppPath(path) {
+    if (typeof window.WoDemo?.appPath === 'function') return window.WoDemo.appPath(path);
+    const base = window.WEOTZI_BASE_PATH
+        ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+        : (/^\/beta(?:\/|$)/.test(String(window.location?.pathname || '')) ? '/beta' : '');
+    return base + path;
+}
+
+async function getDashboardAccessToken() {
+    try {
+        if (_supabase?.auth?.getSession) {
+            const { data } = await _supabase.auth.getSession();
+            if (data?.session?.access_token) return data.session.access_token;
+        }
+    } catch (_) { /* sin sesión en el cliente: se prueba con la guardada */ }
+    return readStoredDashboardSession()?.access_token || null;
+}
+
+async function fetchInstagramValidationState() {
+    const path = '/api/artist/instagram-verification';
+    if (typeof window.WoDemo?.api === 'function') return window.WoDemo.api(path);
+    const token = await getDashboardAccessToken();
+    if (!token) return null;
+    const response = await fetch(dashboardAppPath(path), { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return null;
+    return response.json();
+}
+
+function loadInstagramValidationStateOnce() {
+    if (_igValidationStateRequested || !currentUser) return;
+    if (window.WoDemo && window.WoDemo.enabled) return;
+    const visibility = window.WoGalleryVisibility;
+    if (typeof visibility?.stateFrom !== 'function' || typeof visibility.isInstagramItem !== 'function') return;
+    // Sin fotos de IG no hace falta preguntar; si después se importan, el
+    // render que sigue a la importación vuelve a pasar por acá.
+    if (!parseJsonArraySafe(artistData?.gallery_feed_items).some((item) => visibility.isInstagramItem(item))) return;
+    _igValidationStateRequested = true;
+    fetchInstagramValidationState()
+        .then((data) => {
+            if (!data || typeof data !== 'object' || data.success === false) return;
+            // El endpoint informa `available` (validación disponible en el
+            // backend) y la regla lo lee como `enforced`. Se compara contra la
+            // cuenta validada, igual que el RPC del perfil público.
+            window.WoIgValidationState = visibility.stateFrom(Object.assign({}, data, {
+                enforced: data.available === true,
+                handle: data.verified_handle || data.handle || null
+            }));
+            renderGalleryAdmin();
+        })
+        .catch(() => { /* sin estado: la galería queda sin marcas de pendiente */ });
 }
 
 async function loadArtistTattooLocations() {
