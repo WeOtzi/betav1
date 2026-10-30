@@ -17,7 +17,9 @@ We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje, posicio
 *   [**ARTIST_SIGNUP_FLOW.md**](docs/ARTIST_SIGNUP_FLOW.md): Flujo de registro de artista (auth + artists_db) y runbook local de validacion.
 *   [**TRAVEL-FIGMA-20260830.md**](docs/TRAVEL-FIGMA-20260830.md): Guia operativa de Travel, contrato seguro de datos, fixture Figma y rollback.
 *   [**STATISTICS-FIGMA-20260830.md**](docs/STATISTICS-FIGMA-20260830.md): Guia de Estadisticas, fuentes agregadas, filtros, exportacion, fixture Figma y rollback.
-*   [**MODO-DEMO-TOUR.md**](docs/MODO-DEMO-TOUR.md): Modo demo del artista (`?demo=1`, datos de ejemplo sin escribir en Supabase) y recorrido guiado narrado por voz (`?tour=1`).
+*   [**MODO-DEMO-TOUR.md**](docs/MODO-DEMO-TOUR.md): Modo demo del artista (`?demo=1`, automático para cuentas nuevas, datos de ejemplo sin escribir en Supabase) y recorrido guiado narrado por voz (`?tour=1`).
+*   [**MODO-ASISTIDO.md**](docs/MODO-ASISTIDO.md): Modo asistido que guía al tatuador por la configuración de su perfil en ocho pasos.
+*   [**VALIDACION-INSTAGRAM.md**](docs/VALIDACION-INSTAGRAM.md): Validación de la cuenta de Instagram (código por email + DM a @weotzi), visibilidad de fotos importadas y puesta en marcha.
 *   [**DEPLOYMENT.md**](docs/DEPLOYMENT.md): Guia paso a paso para desplegar en nuevos servidores.
 *   [**EASYPANEL_DEPLOYMENT.md**](docs/EASYPANEL_DEPLOYMENT.md): Guia de despliegue en Easypanel (VPS con Docker).
 *   [**GOOGLE_OAUTH_SETUP.md**](docs/GOOGLE_OAUTH_SETUP.md): Configuracion de Google OAuth y Drive API.

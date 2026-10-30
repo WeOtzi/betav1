@@ -176,6 +176,10 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `GET` | `/api/instagram/proxy-thumb` | Proxy seguro para thumbnails de Instagram/Facebook CDN. | Allowlist CDN |
 | `POST` | `/api/instagram/preview` | Preview de perfil Instagram via Apify. En dashboard requiere auth; en signup permite modo limitado. | Apify, cache en memoria |
 | `POST` | `/api/instagram/commit` | Importa media seleccionada a Storage y actualiza artista/estudio. | Apify payload, Supabase Storage/REST |
+| `GET`/`POST` | `/api/artist/onboarding` | Estado del onboarding del artista (sugerencia del demo, demo automático, modo asistido y sus 8 pasos). | Bearer de artista, `user_preferences`, `artists_db` |
+| `GET`/`POST` | `/api/artist/instagram-verification` | Estado de la validación de Instagram y generación del código por email (POST máx. 5/hora). | Bearer de artista, `artist_instagram_verifications`, email `instagram_verification_code` |
+| `POST` | `/api/instagram-verification/inbound` | Webhook de la automatización de DMs de @weotzi que valida el código. | Header `X-Weotzi-Webhook-Token` (`IG_VERIFY_WEBHOOK_SECRET`) |
+| `GET`/`POST` | `/api/support/instagram-verifications` (+ `/:id/confirm`, `/:id/reject`) | Cola de validaciones de Instagram para soporte. | Agente activo en `support_users_db` |
 
 ### APIs referenciadas por frontend pero no implementadas en `server.js`
 
@@ -421,7 +425,9 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `public/shared/js/data/travel-repo.js` | Acceso de dominio a viajes, satélites, Passport y RPCs de Travel. |
 | `public/shared/js/travel-share.js` | Vista pública de solo lectura por slug. |
 | `public/shared/js/wo-demo.js` + `wo-demo-postgrest.js` + `wo-demo-fixtures.js` | **Modo demo del artista:** con `?demo=1` parchea `fetch` y resuelve `/rest/v1/*` en memoria con datos de ejemplo (emulador PostgREST + fixtures), sin escribir en Supabase. Ver `docs/MODO-DEMO-TOUR.md`. |
-| `public/shared/js/wo-tour.js` + `wo-tour-steps.js` | **Recorrido guiado** narrado por voz sobre el modo demo: trece capítulos (una página cada uno) con velo + marco sobre la sección enfocada. |
+| `public/shared/js/wo-tour.js` + `wo-tour-steps.js` | **Recorrido guiado** narrado por voz sobre el modo demo: trece capítulos (una página cada uno) con velo + marco sobre la sección enfocada; narrador robusto con control de velocidad (`WoTour.narrator`). |
+| `public/shared/js/wo-assist.js` + `services/artist-onboarding.js` | **Modo asistido:** panel que guía la configuración del perfil en ocho pasos con datos reales y cierra con una bienvenida. Ver `docs/MODO-ASISTIDO.md`. |
+| `public/shared/js/gallery-visibility.js` + `services/instagram-verification.js` + `support-dashboard-instagram.js` | **Validación de Instagram:** regla de visibilidad pública de fotos importadas, código por email + DM a @weotzi, webhook y cola de soporte. Ver `docs/VALIDACION-INSTAGRAM.md`. |
 
 ## Notas de alcance y riesgos
 
