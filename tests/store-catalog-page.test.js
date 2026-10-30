@@ -203,7 +203,9 @@ test('store-catalog.js solo llama métodos que existen en WeotziData.Store, Weot
     const Model = require('../public/shared/js/store-model.js');
     const modelUsed = usedMembers('Model');
     for (const name of modelUsed) assert.notEqual(Model[name], undefined, 'WeotziStoreModel.' + name);
-    for (const name of ['availableTiers', 'orderTotals', 'formatMoney', 'checkoutUrl', 'productBadges', 'termsFor', 'LICENSE_TIERS', 'DESIGN_INCLUDES']) {
+    // Precios y países salen del modelo compartido (priceLabel ≡ perfil).
+    for (const name of ['availableTiers', 'orderTotals', 'formatMoney', 'checkoutUrl', 'productBadges', 'termsFor', 'DESIGN_INCLUDES',
+        'priceLabel', 'merchPricing', 'countryName']) {
         assert.ok(modelUsed.includes(name), 'usa Model.' + name);
     }
 });
@@ -360,6 +362,34 @@ test('precios: la ficha pública trae price_amount; sin él se deduce solo cuand
     assert.equal(C.pricedProduct(m1s).price_amount, 28000);
     assert.equal(C.kindLine(demo.item(P.D1).product), 'Diseño · Fine line');
     assert.equal(C.kindLine(m1), 'Merch · Remeras');
+});
+
+test('precios: la vitrina delega en Model.priceLabel / Model.merchPricing (sin copia local)', () => {
+    // Sin lógica duplicada: los wrappers llaman al modelo y no recorren niveles ni variantes.
+    assert.match(catalogCode, /function priceSummary\(product\) \{ return Model\.priceLabel\(product\); \}/);
+    assert.match(catalogCode, /function merchPricing\(product\) \{ return Model\.merchPricing\(product\); \}/);
+    assert.doesNotMatch(catalogCode, /Model\.priceFrom|Model\.LICENSE_TIERS/, 'el «Desde» y los niveles los resuelve priceLabel');
+    // Mismo resultado que el modelo con todas las fichas públicas del demo y sus copias sin precio base.
+    const products = [P.D1, P.D2, P.M1, P.M2, P.M3, P.MD1, P.MD2, P.MM1].map((id) => demo.item(id)).filter(Boolean).map((b) => b.product);
+    assert.ok(products.length >= 6, 'fichas del demo');
+    for (const p of products.concat(products.map(withoutBasePrice))) {
+        assert.deepEqual(plain(C.priceSummary(p)), plain(M.priceLabel(p)), p.title);
+        assert.deepEqual(plain(C.merchPricing(p)), plain(M.merchPricing(p)), p.title);
+    }
+    // Fila del vendedor (vista previa): una variante pausada no se vende y no abre un «Desde».
+    const sellerRow = { kind: 'merch', currency: 'USD', price_amount: 25, variants: [{ id: 'a', active: true }, { id: 'b', active: false, price_amount: 40 }] };
+    assert.equal(C.priceSummary(sellerRow).label, 'USD 25');
+    assert.deepEqual(plain(C.merchPricing({ kind: 'merch', price_from: 20, variants: [{ id: 'a', active: false }, { id: 'b', price_amount: 30 }] })),
+        { base: null, exact: true }, 'solo cuentan las activas: la única activa tiene override');
+    assert.deepEqual(plain(C.priceSummary(null)), { amount: null, from: false, label: '' });
+});
+
+test('países: la vitrina usa Model.countryName (solo países asignados)', () => {
+    assert.match(catalogCode, /function countryName\(code\) \{ return Model\.countryName\(code\); \}/);
+    assert.doesNotMatch(catalogCode, /Intl\.DisplayNames/, 'sin Intl propio');
+    assert.equal(C.countryName('ar'), 'Argentina');
+    for (const code of ['ZZ', 'EU', 'XK']) assert.equal(C.countryName(code), code, code + ' no es un país asignado');
+    assert.equal(C.countryList(['UY', 'ZZ']), 'Uruguay y ZZ');
 });
 
 test('niveles de licencia: radio group con motivo para los no disponibles', () => {

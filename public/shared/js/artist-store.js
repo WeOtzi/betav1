@@ -6,6 +6,9 @@
 // envío con tracking, cancelar, reembolsar) y ajustes del vendedor.
 // Datos SOLO vía window.WeotziData.Store y WeotziData.Artists; lógica pura en
 // WeotziStoreModel y marca de agua en WeotziStoreWatermark.
+// Avisos por regiones vivas persistentes (#ast-live-status / #ast-live-alert)
+// con toast solo visual. heic2any y heic-converter.js se cargan a demanda con
+// el primer HEIC/HEIF que se elige.
 //
 // Estados direccionables:
 //   ?tab=disenos|merch|pedidos|ajustes
@@ -38,15 +41,25 @@
         ['BRL', 'Real brasileño']
     ];
 
-    // Países de envío (ISO-2): Latinoamérica, España y Estados Unidos.
-    const COUNTRIES = [
-        ['AR', 'Argentina'], ['BO', 'Bolivia'], ['BR', 'Brasil'], ['CL', 'Chile'], ['CO', 'Colombia'],
-        ['CR', 'Costa Rica'], ['CU', 'Cuba'], ['EC', 'Ecuador'], ['SV', 'El Salvador'], ['GT', 'Guatemala'],
-        ['HN', 'Honduras'], ['MX', 'México'], ['NI', 'Nicaragua'], ['PA', 'Panamá'], ['PY', 'Paraguay'],
-        ['PE', 'Perú'], ['PR', 'Puerto Rico'], ['DO', 'República Dominicana'], ['UY', 'Uruguay'],
-        ['VE', 'Venezuela'], ['ES', 'España'], ['US', 'Estados Unidos']
+    // Países de envío: los 249 de WeotziStoreModel.COUNTRY_CODES. Primero los
+    // más elegidos (Latinoamérica, España y Estados Unidos) y el resto debajo.
+    const COMMON_COUNTRIES = [
+        'AR', 'BO', 'BR', 'CL', 'CO', 'CR', 'CU', 'DO', 'EC', 'ES', 'GT', 'HN',
+        'MX', 'NI', 'PA', 'PE', 'PR', 'PY', 'SV', 'US', 'UY', 'VE'
     ];
-    const COUNTRY_NAMES = Object.fromEntries(COUNTRIES);
+
+    // Avisos: duración del toast visual y demora del anuncio (store-shell.js).
+    const TOAST_MS = 4200;
+    const TOAST_ERROR_MS = 9000;
+    const ANNOUNCE_DELAY_MS = 50;
+
+    // HEIC/HEIF: heic2any arma un worker (blob:) apenas carga, que el CSP del
+    // preview bloquea, y casi nunca hace falta. Los dos scripts se inyectan, en
+    // orden, la primera vez que se elige un archivo HEIC/HEIF.
+    const HEIC_SCRIPTS = [
+        'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js',
+        '/shared/js/heic-converter.js'
+    ];
 
     const ORDER_FILTERS = [
         { key: 'por_confirmar', label: 'Por confirmar pago', empty: 'No tenés pagos por confirmar.', match: (o) => o.status === 'pending_payment' },
@@ -123,6 +136,8 @@
     const layers = [];
     let confirmResolver = null;
     let variantSeq = 0;
+    let countryGroupsCache = null;
+    const lazyScripts = {};
 
     // ---------- Utilidades ----------
     const $ = (id) => document.getElementById(id);
@@ -192,15 +207,46 @@
         return M ? M.errorMessage(err, fallback) : (fallback || 'No pudimos completar la acción.');
     }
 
-    // Aviso breve y accesible (role=status) para el resultado de una acción.
+    // Anuncia un texto por las regiones vivas de la página (#ast-live-status y
+    // #ast-live-alert): están en el HTML desde la carga y nunca se ocultan, así
+    // el primer aviso ya se anuncia. Se vacía la región y el texto se escribe
+    // un instante después, para que se anuncie aunque se repita. Los errores
+    // van por la región role=alert. Mismo patrón que WeotziStoreShell.announce.
+    function announce(message, tone) {
+        const region = $(tone === 'error' ? 'ast-live-alert' : 'ast-live-status');
+        if (!region) return;
+        const text = String(message == null ? '' : message);
+        clearTimeout(region._astTimer);
+        region.textContent = '';
+        region._astTimer = setTimeout(() => { region.textContent = text; }, ANNOUNCE_DELAY_MS);
+    }
+
+    // Aviso breve con el resultado de una acción. El texto se anuncia por las
+    // regiones vivas; el toast es solo visual (aria-hidden) y los errores
+    // duran más en pantalla.
     function notify(message, tone = 'info') {
+        if (!message) return;
+        const kind = tone === 'error' || tone === 'success' ? tone : 'info';
+        announce(message, kind);
         const toast = $('ast-toast');
-        if (!toast || !message) return;
-        toast.className = 'ast-toast is-' + tone;
-        toast.textContent = message;
+        if (!toast) return;
+        toast.removeAttribute('role');
+        toast.removeAttribute('aria-live');
+        toast.setAttribute('aria-hidden', 'true');
+        toast.className = 'ast-toast is-' + kind;
+        toast.textContent = String(message);
         toast.hidden = false;
         clearTimeout(toast._timer);
-        toast._timer = setTimeout(() => { toast.hidden = true; }, tone === 'error' ? 6500 : 4200);
+        toast._timer = setTimeout(() => { toast.hidden = true; }, kind === 'error' ? TOAST_ERROR_MS : TOAST_MS);
+    }
+
+    function countryName(code) {
+        return M && typeof M.countryName === 'function' ? M.countryName(code) : String(code || '');
+    }
+
+    // Texto para comparar en el buscador: sin tildes ni mayúsculas.
+    function foldText(value) {
+        return String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     }
 
     function setBusy(button, busy, label) {
@@ -341,6 +387,15 @@
             const top = topLayer();
             if (!top) return;
             if (event.key === 'Escape') {
+                // En el buscador de países con texto, Escape lo vacía y no cierra el editor.
+                const target = event.target;
+                if (target && target.id === 'ast-ed-countries-search' && target.value) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    target.value = '';
+                    renderCountries({ announceCount: true });
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
                 top.onRequestClose();
@@ -779,7 +834,8 @@
     function productMedia(product) {
         const image = (product.images || [])[0];
         const url = image ? Store.previewUrl(image.path) : '';
-        if (url) return '<img src="' + esc(url) + '" alt="' + esc(image.alt || product.title) + '" loading="lazy">';
+        // Decorativa: el título del producto está al lado, en la misma card.
+        if (url) return '<img src="' + esc(url) + '" alt="" loading="lazy">';
         return '<span class="ast-media-ph" aria-hidden="true"><i data-wo-icon="' + (product.kind === 'design' ? 'pen-tool' : 'package') + '"></i></span>';
     }
 
@@ -1023,6 +1079,7 @@
             images: (product && Array.isArray(product.images) ? product.images : []).map((img) => ({ path: img.path, alt: img.alt || '' })),
             assets: product ? (product.assets || []).slice() : [],
             variants: product ? (product.variants || []).map(newVariantRow) : [],
+            countries: normalizeCountryList(product && product.ships_to_countries),
             dirty: false,
             busy: false,
             uploading: 0
@@ -1072,7 +1129,8 @@
         $('ast-ed-f-ship-note').value = p.ships_to_note || '';
         $('ast-ed-pickup-on').checked = !!p.pickup_available;
         $('ast-ed-f-pickup-note').value = p.pickup_note || '';
-        renderCountries(Array.isArray(p.ships_to_countries) ? p.ships_to_countries : []);
+        $('ast-ed-countries-search').value = '';
+        renderCountries();
         syncDeliveryFields();
 
         renderFiles();
@@ -1119,14 +1177,86 @@
         }).join('');
     }
 
-    function renderCountries(selected) {
-        const chosen = (selected || []).map((c) => String(c).toUpperCase());
-        const list = COUNTRIES.slice();
-        chosen.forEach((code) => { if (!COUNTRY_NAMES[code]) list.push([code, code]); });
-        $('ast-ed-countries').innerHTML = list.map((c) =>
-            '<label class="wo-check ast-country"><input type="checkbox" value="' + esc(c[0]) + '" data-country' +
-            (chosen.includes(c[0]) ? ' checked' : '') + ' aria-describedby="ast-ed-countries-help"><span>' + esc(c[1]) + '</span></label>'
-        ).join('');
+    // ---------- Países de envío ----------
+    function normalizeCountryList(list) {
+        const out = [];
+        (Array.isArray(list) ? list : []).forEach((c) => {
+            const code = String(c == null ? '' : c).trim().toUpperCase();
+            if (code && !out.includes(code)) out.push(code);
+        });
+        return out;
+    }
+
+    // Dos grupos ordenados por nombre en español: los más elegidos y el resto
+    // de los 249 códigos ISO 3166-1 de WeotziStoreModel.
+    function countryGroups() {
+        if (countryGroupsCache) return countryGroupsCache;
+        const option = (code) => {
+            const label = countryName(code);
+            return { code, label, fold: foldText(label) };
+        };
+        const byName = (a, b) => a.label.localeCompare(b.label, 'es');
+        const codes = Array.isArray(M.COUNTRY_CODES) ? M.COUNTRY_CODES : [];
+        countryGroupsCache = [
+            { key: 'common', label: 'Latinoamérica, España y Estados Unidos', items: codes.filter((c) => COMMON_COUNTRIES.includes(c)).map(option).sort(byName) },
+            { key: 'rest', label: 'Resto del mundo', items: codes.filter((c) => !COMMON_COUNTRIES.includes(c)).map(option).sort(byName) }
+        ];
+        return countryGroupsCache;
+    }
+
+    function renderCountrySummary() {
+        const ed = state.editor;
+        const chosen = ed ? ed.countries : [];
+        setText('ast-ed-countries-summary', chosen.length
+            ? 'Marcaste ' + chosen.length + ' ' + plural(chosen.length, 'país', 'países') + ': ' + chosen.map(countryName).join(', ') + '.'
+            : 'Sin países marcados: enviás a cualquier país.');
+        const clear = $('ast-ed-countries-clear');
+        if (clear) clear.hidden = !chosen.length;
+    }
+
+    // Pinta las casillas que coinciden con el buscador (todas si está vacío).
+    // Lo marcado vive en state.editor.countries, así una búsqueda no lo pierde.
+    function renderCountries({ announceCount = false } = {}) {
+        const ed = state.editor;
+        const box = $('ast-ed-countries');
+        if (!ed || !box) return;
+        const raw = val('ast-ed-countries-search').trim();
+        const query = foldText(raw);
+        const chosen = ed.countries;
+        const groups = countryGroups().slice();
+        // Códigos guardados que no están en la lista ISO: se muestran para poder desmarcarlos.
+        const known = new Set(M.COUNTRY_CODES || []);
+        const unknown = chosen.filter((c) => !known.has(c));
+        if (unknown.length) groups.unshift({ key: 'saved', label: 'Otros códigos guardados', items: unknown.map((c) => ({ code: c, label: c, fold: foldText(c) })) });
+        const matches = (item) => !query || item.fold.includes(query) || item.code.toLowerCase() === query;
+        let shown = 0;
+        box.innerHTML = groups.map((group) => {
+            const items = group.items.filter(matches);
+            if (!items.length) return '';
+            shown += items.length;
+            return '<fieldset class="ast-country-group" data-group="' + esc(group.key) + '">' +
+                '<legend class="ast-country-group-title">' + esc(group.label) + '</legend>' +
+                '<div class="ast-country-list">' + items.map((item) =>
+                    '<label class="wo-check ast-country"><input type="checkbox" value="' + esc(item.code) + '" data-country' +
+                    (chosen.includes(item.code) ? ' checked' : '') + '><span>' + esc(item.label) + '</span></label>'
+                ).join('') + '</div></fieldset>';
+        }).join('');
+        // El resultado de la búsqueda se anuncia solo cuando cambia la búsqueda.
+        const count = !query ? '' : shown
+            ? shown + ' ' + plural(shown, 'país coincide', 'países coinciden') + ' con «' + raw + '».'
+            : 'Ningún país coincide con «' + raw + '».';
+        if (announceCount) setLiveText('ast-ed-countries-count', count);
+        else setText('ast-ed-countries-count', count);
+        renderCountrySummary();
+    }
+
+    function toggleCountry(code, on) {
+        const ed = state.editor;
+        const c = String(code || '').trim().toUpperCase();
+        if (!ed || !c) return;
+        if (on && !ed.countries.includes(c)) ed.countries = ed.countries.concat(c);
+        if (!on) ed.countries = ed.countries.filter((x) => x !== c);
+        renderCountrySummary();
     }
 
     function syncDeliveryFields() {
@@ -1347,7 +1477,7 @@
         } else {
             form.price_amount = val('ast-ed-f-price');
             form.shipping_price_amount = shipOn ? val('ast-ed-f-ship-price') : '';
-            form.ships_to_countries = shipOn ? Array.from(document.querySelectorAll('#ast-ed-countries [data-country]:checked')).map((el) => el.value) : [];
+            form.ships_to_countries = shipOn ? ed.countries.slice() : [];
             form.ships_to_note = shipOn ? val('ast-ed-f-ship-note') : '';
             form.pickup_available = pickupOn;
             form.pickup_note = pickupOn ? val('ast-ed-f-pickup-note') : '';
@@ -1413,6 +1543,8 @@
         syncImageAlts();
         const toggles = readTierToggles();
         const draft = { kind: ed.kind, images: ed.images, price_amount: M.parseAmount(val('ast-ed-f-price')) };
+        // Merch con retiro: el checklist pide la dirección de retiro en Ajustes.
+        if (ed.kind === 'merch') draft.pickup_available = $('ast-ed-pickup-on').checked === true;
         M.LICENSE_TIERS.forEach((tier) => {
             draft[tier.priceField] = ed.kind === 'design' && toggles[tier.id] ? M.parseAmount(val('ast-ed-tier-' + tier.id + '-price')) : null;
         });
@@ -1424,19 +1556,27 @@
         return M.publishChecklist(draft, { variants, assets: ed.assets, settings: state.settings || {} });
     }
 
-    const SETTINGS_KEYS = ['payment_instructions', 'contact_channel', 'authorship'];
+    // Ítems del checklist que se resuelven en Ajustes → campo que los completa.
+    const SETTINGS_FIELDS = {
+        payment_instructions: 'ast-set-payment',
+        contact_channel: 'ast-set-contact',
+        authorship: 'ast-set-authorship',
+        pickup_address: 'ast-set-pickup'
+    };
 
     function renderChecklist(list) {
         const signature = JSON.stringify(list.map((i) => [i.key, i.ok]));
         if (signature === state.checklistSignature) return;
         state.checklistSignature = signature;
-        $('ast-ed-checklist').innerHTML = list.map((item) =>
-            '<li class="ast-check' + (item.ok ? ' is-ok' : '') + '">' +
-            '<i data-wo-icon="' + (item.ok ? 'check-square' : 'square') + '" class="wo-icon-18" aria-hidden="true"></i>' +
-            '<span class="ast-check-label">' + esc(item.label) + '<span class="wo-sr-only">' + (item.ok ? ' · listo' : ' · pendiente') + '</span></span>' +
-            (!item.ok && SETTINGS_KEYS.includes(item.key) ? '<button type="button" class="ast-linkbtn" data-goto="ajustes">Ir a Ajustes →</button>' : '') +
-            '</li>'
-        ).join('');
+        $('ast-ed-checklist').innerHTML = list.map((item) => {
+            const labelId = 'ast-ed-check-' + esc(item.key);
+            return '<li class="ast-check' + (item.ok ? ' is-ok' : '') + '" data-check="' + esc(item.key) + '">' +
+                '<i data-wo-icon="' + (item.ok ? 'check-square' : 'square') + '" class="wo-icon-18" aria-hidden="true"></i>' +
+                '<span class="ast-check-label" id="' + labelId + '">' + esc(item.label) + '<span class="wo-sr-only">' + (item.ok ? ' · listo' : ' · pendiente') + '</span></span>' +
+                (!item.ok && SETTINGS_FIELDS[item.key] ? '<button type="button" class="ast-linkbtn" data-goto="ajustes" data-field="' + esc(item.key) + '" aria-describedby="' + labelId + '">Ir a Ajustes →</button>' : '') +
+                (!item.ok && item.hint ? '<p class="ast-check-hint">' + esc(item.hint) + '</p>' : '') +
+                '</li>';
+        }).join('');
         hydrateIcons($('ast-ed-checklist'));
     }
 
@@ -1605,12 +1745,52 @@
         ed.images = ((saved && saved.images) || nextImages).map((img) => ({ path: img.path, alt: img.alt || '' }));
     }
 
+    // ---------- HEIC a demanda ----------
+    function isHeicFile(file) {
+        const name = String((file && file.name) || '').toLowerCase();
+        const type = String((file && file.type) || '').toLowerCase();
+        return /\.(heic|heif)$/.test(name) || type === 'image/heic' || type === 'image/heif';
+    }
+
+    // Inyecta un <script> una sola vez (si falla, el próximo intento lo reintenta).
+    function loadScriptOnce(src) {
+        if (lazyScripts[src]) return lazyScripts[src];
+        lazyScripts[src] = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = false;
+            script.dataset.astLazy = 'heic';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('No pudimos cargar ' + src));
+            (document.head || document.body).appendChild(script);
+        }).catch((err) => {
+            delete lazyScripts[src];
+            throw err;
+        });
+        return lazyScripts[src];
+    }
+
+    // Carga heic2any y heic-converter.js en orden y devuelve convertIfHEIC, o
+    // null si no se pudieron cargar: la imagen sigue sin convertir (Safari
+    // abre HEIC igual; si no, la marca de agua avisa que no la pudo leer).
+    function loadHeicSupport() {
+        if (typeof window.convertIfHEIC === 'function') return Promise.resolve(window.convertIfHEIC);
+        return HEIC_SCRIPTS.reduce((chain, src) => chain.then(() => loadScriptOnce(appPath(src))), Promise.resolve())
+            .then(() => (typeof window.convertIfHEIC === 'function' ? window.convertIfHEIC : null))
+            .catch((err) => {
+                console.warn('[store] no pudimos cargar la conversión de HEIC:', err);
+                return null;
+            });
+    }
+
     async function renderImage(file) {
         try {
             if (!Watermark) throw new Error('No pudimos preparar la imagen.');
+            const convertHeic = isHeicFile(file) ? await loadHeicSupport() : null;
+            const extra = convertHeic ? { convertHeic } : {};
             return state.editor.kind === 'design'
-                ? await Watermark.renderPreview(file, { handle: state.username })
-                : await Watermark.renderPlain(file);
+                ? await Watermark.renderPreview(file, Object.assign({ handle: state.username }, extra))
+                : await Watermark.renderPlain(file, extra);
         } catch (err) {
             const error = new Error((err && err.message) || 'No pudimos leer la imagen. Probá con otra.');
             error.validation = true;
@@ -1626,6 +1806,8 @@
         if (!ed || !files.length) return;
         const room = MAX_IMAGES - ed.images.length;
         if (room <= 0) { notify('Ya tenés ' + MAX_IMAGES + ' imágenes. Quitá alguna para agregar otra.', 'error'); return; }
+        // Con un HEIC/HEIF, la conversión empieza a cargar mientras se guarda el borrador.
+        if (files.slice(0, room).some(isHeicFile)) loadHeicSupport();
         const id = await ensureSaved();
         if (!id || state.editor !== ed) return;
         const queue = files.slice(0, room);
@@ -1643,8 +1825,8 @@
                 const rendered = await renderImage(file);
                 syncImageAlts();
                 const upload = await Store.uploadPreviewImage(state.uid, id, rendered.blob, ed.images.length, rendered.contentType);
-                const title = val('ast-ed-f-title').trim();
-                const next = ed.images.concat({ path: upload.path, alt: title ? title.slice(0, 200) : '' });
+                // La descripción arranca vacía: la escribe el artista (el título ya acompaña la imagen).
+                const next = ed.images.concat({ path: upload.path, alt: '' });
                 try {
                     await persistImages(next);
                 } catch (err) {
@@ -1825,12 +2007,15 @@
         const form = $('ast-ed-form');
         form.addEventListener('submit', (event) => { event.preventDefault(); saveEditor(); });
         form.addEventListener('input', (event) => {
-            if (event.target.matches('input[type="file"]')) return;
+            // El buscador de países filtra la lista: no es un cambio del producto.
+            if (event.target.matches('input[type="file"], #ast-ed-countries-search')) return;
             markDirty();
         });
         form.addEventListener('change', (event) => {
             const target = event.target;
+            if (target.matches('#ast-ed-countries-search')) return;
             if (target.matches('#ast-ed-images-input')) { addImages(target.files); return; }
+            if (target.matches('[data-country]')) toggleCountry(target.value, target.checked);
             if (target.matches('[data-file-kind]')) { uploadAsset(target.dataset.fileKind, target); return; }
             if (target.matches('[data-tier-toggle]')) {
                 syncTierInputs();
@@ -1866,7 +2051,17 @@
                 return;
             }
             const goto = event.target.closest('[data-goto="ajustes"]');
-            if (goto) gotoSettingsFromEditor();
+            if (goto) gotoSettingsFromEditor(goto.dataset.field);
+        });
+        $('ast-ed-countries-search').addEventListener('input', () => renderCountries({ announceCount: true }));
+        $('ast-ed-countries-clear').addEventListener('click', () => {
+            const ed = state.editor;
+            if (!ed || !ed.countries.length) return;
+            ed.countries = [];
+            renderCountries();
+            markDirty();
+            announce('Desmarcaste todos los países: enviás a cualquier país.');
+            $('ast-ed-countries-search').focus();
         });
         $('ast-ed-variant-add').addEventListener('click', () => {
             const ed = state.editor;
@@ -1884,7 +2079,7 @@
         $('ast-ed-publish').addEventListener('click', () => saveEditor({ publish: true }));
     }
 
-    async function gotoSettingsFromEditor() {
+    async function gotoSettingsFromEditor(field) {
         const ed = state.editor;
         if (ed && ed.dirty) {
             const { confirmed } = await confirmDialog({
@@ -1899,8 +2094,11 @@
         closeEditor();
         selectTab('ajustes');
         requestAnimationFrame(() => {
-            const missing = !String((state.settings || {}).payment_instructions || '').trim() ? $('ast-set-payment')
-                : !String((state.settings || {}).contact_channel || '').trim() ? $('ast-set-contact') : $('ast-set-authorship');
+            // El foco va al campo del ítem elegido; sin ítem, al primero que falta.
+            const s = state.settings || {};
+            const missing = SETTINGS_FIELDS[field] ? $(SETTINGS_FIELDS[field])
+                : !String(s.payment_instructions || '').trim() ? $('ast-set-payment')
+                    : !String(s.contact_channel || '').trim() ? $('ast-set-contact') : $('ast-set-authorship');
             if (missing) missing.focus();
         });
     }
@@ -2052,7 +2250,7 @@
             a.line2,
             [a.postal_code, a.city].filter(Boolean).join(' '),
             a.region,
-            a.country ? (COUNTRY_NAMES[String(a.country).toUpperCase()] || a.country) : '',
+            a.country ? countryName(a.country) : '',
             a.phone ? 'Tel. ' + a.phone : ''
         ].filter((line) => String(line || '').trim());
         return lines.map((line) => esc(line)).join('<br>');
@@ -2062,6 +2260,7 @@
         const tone = action.tone === 'danger' ? ' wo-btn--danger' : action.tone === 'ghost' ? ' wo-btn--ghost' : ' wo-btn--direct';
         return '<button type="button" class="wo-btn wo-btn--s' + tone + (extraClass ? ' ' + extraClass : '') + '" data-or-act="' + esc(action.key) + '"' +
             (action.status ? ' data-status="' + esc(action.status) + '"' : '') +
+            (action.reason ? ' data-reason="' + esc(action.reason) + '"' : '') +
             (action.requiresTracking ? ' data-tracking="1"' : '') + '>' + esc(action.label) + '</button>';
     }
 
@@ -2115,7 +2314,10 @@
         // platform_confirms y awaiting_delivery se explican dentro de Pago y Envío.
         const contextual = ['platform_confirms', 'awaiting_delivery'];
         if (v.nextAction && v.nextAction.kind === 'info' && !contextual.includes(v.nextAction.key)) alerts.push('<div class="wo-alert wo-alert--info"><i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i><span>' + esc(v.nextAction.label) + '</span></div>');
-        if (v.overdue) alerts.push('<div class="wo-alert wo-alert--warning"><i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i><span>' + esc(v.paymentReported ? 'Venció el plazo de pago, pero quien compra informó un pago. Si lo recibiste, confirmalo.' : 'Venció el plazo de pago y no hay pago informado. El pedido se va a cerrar solo.') + '</span></div>');
+        // Vencido: no se promete un cierre automático (depende del mantenimiento).
+        if (v.overdue) alerts.push('<div class="wo-alert wo-alert--warning"><i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i><span>' + esc(v.paymentReported
+            ? 'Venció el plazo de pago, pero quien compra informó un pago. Si lo recibiste, confirmalo. Si no llegó, usá «No recibí el pago».'
+            : 'Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancelá el pedido.') + '</span></div>');
         if (v.needsSupport) alerts.push('<div class="wo-alert wo-alert--warning"><i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i><span>Soporte está revisando este pedido.</span></div>');
         if (alerts.length) sections.push('<div class="ast-or-alerts">' + alerts.join('') + '</div>');
 
@@ -2226,7 +2428,9 @@
         // Otras acciones
         const other = byKey('cancel').concat(byKey('refund'));
         if (other.length) {
+            const notReceived = byKey('cancel').some((a) => a.reason === 'payment_not_received');
             sections.push('<section class="ast-or-section" aria-labelledby="ast-or-more-h"><h3 class="ast-or-h" id="ast-or-more-h" tabindex="-1">Otras acciones</h3>' +
+                (notReceived ? '<p class="wo-help">Si revisaste tu cuenta y el pago no llegó, cancelá el pedido con «No recibí el pago»: el stock o la reserva vuelven a quedar disponibles.</p>' : '') +
                 (byKey('refund').length ? '<p class="wo-help">Reembolsá solo si ya le devolviste el dinero a quien compra' + (v.kind === 'design' ? ': la licencia se revoca.' : '.') + '</p>' : '') +
                 '<div class="ast-or-actions">' + other.map((a) => actionButton(a)).join('') + '</div></section>');
         }
@@ -2337,7 +2541,19 @@
     }
 
     async function cancelOrder(order) {
-        const { confirmed, value } = await confirmDialog({
+        // Con pago informado y plazo vencido, el vendedor que cobra directo
+        // cancela con «No recibí el pago» (cancel_store_order lo permite).
+        const view = M.orderView(order, { role: 'seller' });
+        const action = (view.actions || []).find((a) => a.key === 'cancel') || {};
+        const notReceived = action.reason === 'payment_not_received';
+        const { confirmed, value } = await confirmDialog(notReceived ? {
+            title: 'No recibí el pago',
+            message: 'Quien compra informó un pago, pero venció el plazo. Cancelá solo si revisaste tu cuenta y el dinero no llegó: el pedido se cancela y el stock o la reserva vuelven a quedar disponibles.',
+            confirmLabel: 'Cancelar pedido',
+            cancelLabel: 'Volver',
+            tone: 'danger',
+            input: { label: 'Motivo (lo ve quien compra)', maxLength: 300, value: 'No recibí el pago.' }
+        } : {
             title: 'Cancelar el pedido',
             message: 'El pedido se cancela y el stock o la reserva vuelven a quedar disponibles. Contale a quien compra el motivo.',
             confirmLabel: 'Cancelar pedido',
@@ -2388,6 +2604,12 @@
             return;
         }
         const view = M.orderView(order, { role: 'seller' });
+        // Vencido sin pago informado: la RPC ya no acepta confirmarlo.
+        if (!(view.actions || []).some((a) => a.key === 'confirm_payment')) {
+            notify('Venció el plazo de pago y no hay pago informado: ya no se puede confirmar. Si no vas a recibirlo, cancelá el pedido.', 'info');
+            setParams({ modal: null });
+            return;
+        }
         state.paymentOrderId = order.id;
         $('ast-pay-summary').innerHTML =
             kv('Pedido', esc(view.numberLabel)) +

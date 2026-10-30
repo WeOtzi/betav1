@@ -156,7 +156,7 @@ test('perfil público: banda #store-band oculta entre Portafolio y Residencias, 
 });
 
 // Bloque de la banda de artist-profile.js en un sandbox con DOM y repo falsos.
-function loadStoreBand({ gate = true, storefront = null, fail = false } = {}) {
+function loadStoreBand({ gate = true, storefront = null, fail = false, artist = null } = {}) {
     const js = read('public/shared/js/artist-profile.js');
     const start = js.indexOf('const STORE_BAND_MAX_ITEMS');
     const end = js.indexOf('/**\n * "Dónde tatué"');
@@ -193,13 +193,17 @@ function loadStoreBand({ gate = true, storefront = null, fail = false } = {}) {
         artistData: { username: 'valen.wo', user_id: 'u1' },
         Promise
     };
+    if (artist) sandbox.artistData = artist;
     vm.runInNewContext(
-        'var artistData = this.artistData;\n' + js.slice(escStart, escEnd) + js.slice(start, end) + '\nthis.loadStoreBand = loadStoreBand;\nthis.storeBandPrice = storeBandPrice;',
+        'var artistData = this.artistData;\n' + js.slice(escStart, escEnd) + js.slice(start, end) + '\nthis.loadStoreBand = loadStoreBand;',
         sandbox,
         { filename: 'artist-profile.store-band.js' }
     );
-    return { run: () => sandbox.loadStoreBand(), price: (p) => sandbox.storeBandPrice(p, M), els, calls, warnings };
+    return { run: () => sandbox.loadStoreBand(), els, calls, warnings };
 }
+
+// La vitrina del artista del perfil (seller.id = artistData.user_id).
+const SELLER = { id: 'u1', handle: 'valen.wo' };
 
 function product(n, extra = {}) {
     return Object.assign({
@@ -216,7 +220,7 @@ test('perfil público: sin el gate la banda queda oculta y no se consulta la Sto
 });
 
 test('perfil público: sin productos la banda queda oculta en silencio', async () => {
-    const band = loadStoreBand({ storefront: { seller: { handle: 'valen.wo' }, products: [] } });
+    const band = loadStoreBand({ storefront: { seller: SELLER, products: [] } });
     await band.run();
     assert.equal(band.els['store-band'].hidden, true);
     assert.deepEqual(band.calls, [['artist', 'valen.wo']]);
@@ -227,7 +231,7 @@ test('perfil público: pinta hasta 6 ítems escapados con «Desde …», badges 
     products[0].title = '<img src=x onerror=alert(1)>';
     products[0].license_exclusive_price = 400;
     products[0].exclusive_available = true;
-    const band = loadStoreBand({ storefront: { seller: { handle: 'valen.wo' }, products } });
+    const band = loadStoreBand({ storefront: { seller: SELLER, products } });
     await band.run();
     const html = band.els['store-band-grid'].innerHTML;
     assert.equal(band.els['store-band'].hidden, false);
@@ -243,8 +247,42 @@ test('perfil público: pinta hasta 6 ítems escapados con «Desde …», badges 
     assert.equal(band.els['store-band-link'].href, '/store/?artist=valen.wo');
 });
 
-test('perfil público: el precio de la banda sigue a la vitrina («Desde» solo con varios precios)', () => {
-    const band = loadStoreBand();
+test('perfil público: las miniaturas son decorativas (alt="") y el título nombra el producto', async () => {
+    const products = [1, 2].map((n) => product(n));
+    products[0].images = [{ path: 'demo/store/p1.svg', alt: 'Texto que repite el título <b>' }];
+    const band = loadStoreBand({ storefront: { seller: SELLER, products } });
+    await band.run();
+    const html = band.els['store-band-grid'].innerHTML;
+    const imgs = html.match(/<img [^>]*>/g) || [];
+    assert.equal(imgs.length, 2);
+    assert.ok(imgs.every((img) => /\salt=""/.test(img)), imgs.join('\n'));
+    assert.doesNotMatch(html, /Texto que repite el título/);
+    assert.match(html, /<span class="store-band-title">Producto 1<\/span>/);
+});
+
+test('perfil público: con un username duplicado, la banda solo aparece si seller.id es el artista del perfil', async () => {
+    const products = [product(1)];
+    for (const seller of [{ id: 'otro-user', handle: 'valen.wo' }, { handle: 'valen.wo' }, null]) {
+        const band = loadStoreBand({ storefront: { seller, products } });
+        await band.run();
+        assert.equal(band.els['store-band'].hidden, true, JSON.stringify(seller));
+        assert.equal(band.els['store-band-grid'].innerHTML, '', 'no pinta productos de otro vendedor');
+    }
+    // Sin user_id en el perfil no hay con qué comparar: ni consulta la Store.
+    const noId = loadStoreBand({ storefront: { seller: SELLER, products }, artist: { username: 'valen.wo' } });
+    await noId.run();
+    assert.equal(noId.els['store-band'].hidden, true);
+    assert.equal(noId.calls.length, 0);
+
+    const own = loadStoreBand({ storefront: { seller: SELLER, products } });
+    await own.run();
+    assert.equal(own.els['store-band'].hidden, false);
+});
+
+test('perfil público: el precio de la banda es WeotziStoreModel.priceLabel, igual que la vitrina', () => {
+    const js = read('public/shared/js/artist-profile.js');
+    assert.match(js, /M\.priceLabel\(product\)\.label/);
+    assert.doesNotMatch(js, /function storeBandPrice/, 'sin copia local del cálculo');
     const catalogBox = { window: { WeotziStoreModel: M }, console };
     vm.runInNewContext(read('public/shared/js/store-catalog.js'), catalogBox, { filename: 'store-catalog.js' });
     const C = catalogBox.window.WeotziStoreCatalog;
@@ -260,10 +298,18 @@ test('perfil público: el precio de la banda sigue a la vitrina («Desde» solo 
         { kind: 'design', title: 'Sol', currency: 'USD', price_from: 50, license_personal_price: 50, license_artist_price: 120 },
         { kind: 'design', title: 'Ola', currency: 'USD', price_from: 80 }
     ];
-    for (const p of cases) assert.equal(band.price(p), C.priceSummary(p).label, p.title);
-    assert.equal(band.price(cases[0]), M.formatMoney(3000, 'ARS'), 'un solo precio, sin «Desde»');
-    assert.equal(band.price(cases[6]), 'USD 50', 'una sola licencia, sin «Desde»');
-    assert.equal(band.price(cases[7]), 'Desde USD 50');
+    for (const p of cases) assert.equal(M.priceLabel(p).label, C.priceSummary(p).label, p.title);
+    assert.equal(M.priceLabel(cases[0]).label, M.formatMoney(3000, 'ARS'), 'un solo precio, sin «Desde»');
+    assert.equal(M.priceLabel(cases[6]).label, 'USD 50', 'una sola licencia, sin «Desde»');
+    assert.equal(M.priceLabel(cases[7]).label, 'Desde USD 50');
+
+    // La banda pinta exactamente ese label (y nada si no hay precio).
+    const band = loadStoreBand({ storefront: { seller: SELLER, products: cases.slice(0, 6).map((p, i) => Object.assign({ id: 'c' + i, images: [] }, p)) } });
+    return band.run().then(() => {
+        const prices = (band.els['store-band-grid'].innerHTML.match(/<span class="store-band-price">([^<]*)<\/span>/g) || [])
+            .map((s) => s.replace(/<[^>]+>/g, ''));
+        assert.deepEqual(prices, cases.slice(0, 6).map((p) => M.priceLabel(p).label).filter(Boolean));
+    });
 });
 
 test('perfil público: si la Store falla, la banda se oculta y solo deja un warning', async () => {
@@ -316,9 +362,12 @@ test('soporte: la página carga el plugin STORE después del dashboard y la capa
     assert.match(html, /<link rel="stylesheet" href="\/shared\/css\/support-dashboard-store\.css">/);
 
     const js = read('public/shared/js/support-dashboard-store.js');
-    for (const method of ['listPendingPlatformOrders', 'listFlaggedOrders', 'confirmPayment', 'cancelOrder', 'refundOrder', 'setFundsHold', 'featureEnabled', 'isAvailable']) {
+    for (const method of ['listPendingPlatformOrders', 'listFlaggedOrders', 'listRecentExpiredOrders', 'confirmPayment', 'cancelOrder', 'refundOrder', 'setFundsHold', 'resolveOrderFlag', 'listSupportNotes', 'featureEnabled', 'isAvailable']) {
         assert.ok(js.includes(method), method);
     }
+    // Las notas internas salen de store_order_support_notes, no de metadata_json.
+    assert.doesNotMatch(js, /funds_hold_note|m\.maintenance_error\b/);
+    assert.match(js, /S\.resolveOrderFlag\(o\.id, value\('note'\)\)/);
     assert.match(js, /collectedBy: can\.collector/);
     // Cancelar con motivo obligatorio y window.confirm, igual que reembolsar.
     assert.match(js, /data-sds-form="cancel"/);
@@ -377,8 +426,9 @@ test('soporte: une pedidos por confirmar y marcados sin repetir, y decide las ac
     const rows = JSON.parse(JSON.stringify(api.mergeRows([pending], flagged)));
     assert.deepEqual(rows.map((r) => [r.order.id, r.reasons.join('+')]), [['o1', 'platform+support'], ['o2', 'hold'], ['o3', 'support']]);
 
-    assert.deepEqual(JSON.parse(JSON.stringify(api.capabilities(flagged[0]))), { collector: 'platform', confirm: true, cancel: true, refund: false, hold: false });
-    assert.deepEqual(JSON.parse(JSON.stringify(api.capabilities(flagged[1]))), { collector: 'platform', confirm: false, cancel: false, refund: true, hold: true });
+    assert.deepEqual(JSON.parse(JSON.stringify(api.capabilities(flagged[0]))), { collector: 'platform', confirm: true, cancel: true, refund: false, hold: false, resolve: false });
+    assert.deepEqual(JSON.parse(JSON.stringify(api.capabilities(flagged[1]))), { collector: 'platform', confirm: false, cancel: false, refund: true, hold: true, resolve: false });
+    assert.equal(api.capabilities(flagged[2]).resolve, true, 'pago duplicado: marcar como revisado');
     assert.equal(api.capabilities({ id: 'o4', status: 'pending_payment', expected_collector: 'provider' }).confirm, false, 'los de proveedor los confirma el webhook');
     assert.equal(api.capabilities({ id: 'o5', status: 'pending_payment', expected_collector: 'seller' }).collector, 'seller');
 });
@@ -390,14 +440,225 @@ test('soporte: cancela pedidos pendientes aunque tengan pago informado (stock y 
     for (const status of ['paid', 'fulfilled', 'cancelled', 'expired', 'refunded']) {
         assert.equal(api.capabilities({ id: 'x', status, expected_collector: 'seller' }).cancel, false, status);
     }
-    // Ya resuelto (confirmado o cancelado), la marca «pago informado y vencido» sale de la cola.
+    // Ya resuelto (confirmado o cancelado), la marca «pago informado y vencido» sale de la cola;
+    // vencido con la marca puesta (lo venció el mantenimiento), sigue: soporte decide si lo reabre.
     const rows = JSON.parse(JSON.stringify(api.mergeRows([], [
         reported,
         Object.assign({}, reported, { id: 'o2', status: 'cancelled' }),
         Object.assign({}, reported, { id: 'o3', status: 'paid' }),
-        { id: 'o4', status: 'fulfilled', metadata_json: { needs_support: true, needs_support_reason: 'duplicate_payment' } }
-    ])));
-    assert.deepEqual(rows.map((r) => [r.order.id, r.reasons.join('+')]), [['o1', 'support'], ['o4', 'support']]);
+        { id: 'o4', status: 'fulfilled', metadata_json: { needs_support: true, needs_support_reason: 'duplicate_payment' } },
+        Object.assign({}, reported, { id: 'o5', status: 'expired' })
+    ], [Object.assign({}, reported, { id: 'o5', status: 'expired' })])));
+    assert.deepEqual(rows.map((r) => [r.order.id, r.reasons.join('+')]), [['o1', 'support'], ['o4', 'support'], ['o5', 'support+expired']]);
+    assert.equal(api.isActionable(rows[2]), true, 'el vencido con pago informado suma al contador');
+});
+
+test('soporte: «Marcar como revisado» solo con needs_support y fuera de pending_payment', () => {
+    const { api } = loadSupportPlugin();
+    const flag = (status, reason, extra = {}) => Object.assign({ id: 'x', status, expected_collector: 'seller', metadata_json: { needs_support: true, needs_support_reason: reason } }, extra);
+    assert.equal(api.capabilities(flag('paid', 'duplicate_payment')).resolve, true);
+    assert.equal(api.capabilities(flag('fulfilled', 'duplicate_payment')).resolve, true);
+    assert.equal(api.capabilities(flag('refunded', 'duplicate_payment')).resolve, true, 'reembolsó el vendedor: la marca sigue');
+    assert.equal(api.capabilities(flag('expired', 'payment_reported_expired')).resolve, true, 'vencido con pago informado');
+    // Pendiente: la salida es confirmar o cancelar (el mantenimiento lo volvería a marcar).
+    const pending = api.capabilities(flag('pending_payment', 'payment_reported_expired'));
+    assert.equal(pending.resolve, false);
+    assert.equal(pending.confirm, true);
+    assert.equal(pending.cancel, true);
+    // Sin marca (o ya resuelta) no hay nada que revisar.
+    assert.equal(api.capabilities({ id: 'x', status: 'paid', metadata_json: { needs_support_resolved_at: '2026-10-30T10:00:00Z' } }).resolve, false);
+    assert.equal(api.capabilities({ id: 'x', status: 'paid' }).resolve, false);
+});
+
+/* DOM falso del dashboard de soporte: los nodos del drawer existen si su id está en el HTML pintado. */
+function supportDom() {
+    const els = {};
+    const listeners = {};
+    const ROOTS = ['table-body', 'drawer-content', 'drawer-toggle', 'toolbar-filters'];
+    function make(id) {
+        const el = {
+            id, textContent: '', checked: false, dataset: {}, attributes: {}, style: {}, _html: '',
+            setAttribute(n, v) { this.attributes[n] = String(v); },
+            getAttribute(n) { return Object.prototype.hasOwnProperty.call(this.attributes, n) ? this.attributes[n] : null; },
+            addEventListener(type, fn) { (listeners[id + ':' + type] = listeners[id + ':' + type] || []).push(fn); },
+            focus() {}
+        };
+        Object.defineProperty(el, 'innerHTML', {
+            get() { return this._html; },
+            set(v) {
+                this._html = String(v);
+                // Pintar el drawer reemplaza sus nodos internos.
+                if (id === 'drawer-content') Object.keys(els).forEach((k) => { if (!ROOTS.includes(k)) delete els[k]; });
+            }
+        });
+        return el;
+    }
+    const get = (id) => (els[id] = els[id] || make(id));
+    const document = {
+        readyState: 'complete',
+        addEventListener() {},
+        getElementById(id) {
+            if (ROOTS.includes(id)) return get(id);
+            const drawer = els['drawer-content'];
+            return drawer && drawer.innerHTML.includes(`id="${id}"`) ? get(id) : null;
+        },
+        querySelector: () => null,
+        querySelectorAll: () => []
+    };
+    return { document, els, listeners };
+}
+
+function loadSupportPage({ store = {}, currentUser = null, confirm = () => true } = {}) {
+    const dom = supportDom();
+    const calls = { resolve: [], notes: [], confirms: [] };
+    const window = {
+        switchTab() {},
+        confirm: (msg) => { calls.confirms.push(msg); return confirm(msg); },
+        WeotziStoreModel: M,
+        WeotziData: { Store: Object.assign({
+            featureEnabled: () => true,
+            isAvailable: () => Promise.resolve(true),
+            listPendingPlatformOrders: () => Promise.resolve([]),
+            listFlaggedOrders: () => Promise.resolve([]),
+            listRecentExpiredOrders: () => Promise.resolve([])
+        }, typeof store === 'function' ? store(calls) : store) }
+    };
+    function FormData(form) { return { get: (k) => (form.values || {})[k] }; }
+    vm.runInNewContext(read('public/shared/js/support-dashboard-store.js'),
+        { window, document: dom.document, console: { warn() {}, log() {}, error() {} }, setTimeout, Promise, Map, FormData, currentUser },
+        { filename: 'support-dashboard-store.js' });
+    const open = (id) => dom.listeners['table-body:click'][0]({ target: { closest: () => ({ getAttribute: () => id }) } });
+    const submit = (kind, values) => dom.listeners['drawer-content:submit'][0]({
+        target: { closest: () => ({ values, getAttribute: (n) => (n === 'data-sds-form' ? kind : null), setAttribute() {} }) },
+        preventDefault() {}
+    });
+    return { dom, calls, window, open, submit, drawer: () => dom.els['drawer-content'].innerHTML, notes: () => (dom.els['sds-notes'] || {}).innerHTML };
+}
+
+test('soporte: el drawer muestra las notas internas (listSupportNotes) y no lee notas de metadata_json', async () => {
+    const order = {
+        id: 'o1', order_number: 'ST-AAAA1111', status: 'paid', seller_type: 'artist', expected_collector: 'platform', payment_collected_by: 'platform',
+        funds_hold: true, total_amount: 50, currency: 'USD', items: [], payments: [],
+        metadata_json: { funds_hold_at: '2026-10-29T10:00:00Z', funds_hold_note: 'NO-DEBE-VERSE', maintenance_error: 'NO-DEBE-VERSE', maintenance_error_at: '2026-10-29T11:00:00Z' }
+    };
+    const notes = [
+        { id: 'n2', order_id: 'o1', kind: 'maintenance_error', note: '40P01 deadlock <detectado>', actor_id: null, created_at: '2026-10-29T11:00:00Z' },
+        { id: 'n1', order_id: 'o1', kind: 'funds_hold', note: 'Contracargo en revisión', actor_id: 'agent-1', created_at: '2026-10-29T10:00:00Z' },
+        { id: 'n0', order_id: 'o1', kind: 'refund', note: null, actor_id: 'agent-2', created_at: '2026-10-28T10:00:00Z' }
+    ];
+    const page = loadSupportPage({
+        currentUser: { id: 'agent-1' },
+        store: (calls) => ({
+            listFlaggedOrders: () => Promise.resolve([order]),
+            listSupportNotes: (id) => { calls.notes.push(id); return Promise.resolve(notes); }
+        })
+    });
+    await settle();
+    await page.open('o1');
+    await settle();
+    assert.deepEqual(page.calls.notes, ['o1']);
+    const drawer = page.drawer();
+    assert.match(drawer, /Notas internas/);
+    assert.doesNotMatch(drawer, /NO-DEBE-VERSE/, 'ni la nota de la retención ni el error crudo salen de metadata_json');
+    assert.match(drawer, /El detalle está en las notas internas/);
+    const html = page.notes();
+    assert.equal((html.match(/class="sds-note"/g) || []).length, 3, 'una por nota, en el orden del repo');
+    assert.ok(html.indexOf('Error del mantenimiento') < html.indexOf('Retención de fondos'), 'la más reciente primero');
+    assert.match(html, /40P01 deadlock &lt;detectado&gt;/, 'escapado');
+    assert.match(html, /Contracargo en revisión/);
+    assert.match(html, /Retención de fondos<\/span> · [^<]+ · Vos<\/p>/, 'la nota propia dice «Vos»');
+    assert.match(html, /Reembolso<\/span> · [^<]+ · Soporte<\/p>/);
+    assert.match(html, /Error del mantenimiento<\/span> · [^<]+ · Automático<\/p>/);
+    assert.equal(page.dom.els['sds-notes'].getAttribute('aria-busy'), 'false');
+});
+
+test('soporte: sin notas (o si el repo devuelve []) el drawer lo dice; una respuesta vieja no pisa otro pedido', async () => {
+    const orders = [
+        { id: 'o1', status: 'paid', funds_hold: true, items: [], payments: [], metadata_json: {} },
+        { id: 'o2', status: 'paid', funds_hold: true, items: [], payments: [], metadata_json: {} }
+    ];
+    let releaseFirst;
+    const page = loadSupportPage({
+        store: () => ({
+            listFlaggedOrders: () => Promise.resolve(orders),
+            listSupportNotes: (id) => (id === 'o1'
+                ? new Promise((resolve) => { releaseFirst = () => resolve([{ id: 'n', kind: 'refund', note: 'DE-O1', created_at: '2026-10-29T10:00:00Z' }]); })
+                : Promise.resolve([]))
+        })
+    });
+    await settle();
+    const first = page.open('o1');
+    await page.open('o2');
+    await settle();
+    assert.match(page.notes(), /Este pedido todavía no tiene notas internas\./);
+    releaseFirst();
+    await first;
+    await settle();
+    assert.doesNotMatch(page.notes(), /DE-O1/, 'la respuesta de o1 llegó tarde y se descarta');
+});
+
+test('soporte: «Marcar como revisado» llama a resolveOrderFlag con la nota y saca el pedido de la cola', async () => {
+    let flagged = [{ id: 'o3', order_number: 'ST-BBBB2222', status: 'fulfilled', expected_collector: 'seller', items: [], payments: [],
+        metadata_json: { needs_support: true, needs_support_reason: 'duplicate_payment', needs_support_at: '2026-10-29T10:00:00Z' } }];
+    const page = loadSupportPage({
+        store: (calls) => ({
+            listFlaggedOrders: () => Promise.resolve(flagged),
+            listSupportNotes: () => Promise.resolve([]),
+            resolveOrderFlag: (id, note) => {
+                calls.resolve.push([id, note]);
+                flagged = [];
+                return Promise.resolve({ id, metadata_json: { needs_support_resolved_at: '2026-10-30T10:00:00Z' } });
+            }
+        })
+    });
+    await settle();
+    await page.open('o3');
+    const drawer = page.drawer();
+    assert.match(drawer, /data-sds-form="resolve"/);
+    assert.match(drawer, /Marcar como revisado/);
+    assert.match(drawer, /Llegó un segundo pago con otra referencia/);
+    page.submit('resolve', { note: '  Devuelto el pago de más.  ' });
+    await settle(10);
+    assert.deepEqual(page.calls.resolve, [['o3', 'Devuelto el pago de más.']]);
+    assert.match(page.calls.confirms[0], /¿Marcar el pedido #ST-BBBB2222 como revisado\?/);
+    assert.match(page.drawer(), /El pedido ya no necesita acciones de soporte\./);
+    assert.equal(page.dom.els['sds-feedback'].textContent, 'Pedido marcado como revisado.');
+
+    // Si se cancela el window.confirm no se llama al repo.
+    const declined = loadSupportPage({
+        confirm: () => false,
+        store: (calls) => ({
+            listFlaggedOrders: () => Promise.resolve([{ id: 'o4', status: 'expired', items: [], payments: [], metadata_json: { needs_support: true, needs_support_reason: 'payment_reported_expired' } }]),
+            resolveOrderFlag: (id) => { calls.resolve.push(id); return Promise.resolve({}); }
+        })
+    });
+    await settle();
+    await declined.open('o4');
+    assert.match(declined.drawer(), /El comprador informó un pago que nadie confirmó y el pedido venció/);
+    declined.submit('resolve', { note: '' });
+    await settle();
+    assert.deepEqual(declined.calls.resolve, []);
+});
+
+test('soporte: un pendiente con pago informado vencido no ofrece «Marcar como revisado» (confirmar o cancelar)', async () => {
+    const page = loadSupportPage({
+        store: (calls) => ({
+            listFlaggedOrders: () => Promise.resolve([{ id: 'o5', status: 'pending_payment', expected_collector: 'seller', buyer_payment_reported_at: '2026-10-20T10:00:00Z', items: [], payments: [],
+                metadata_json: { needs_support: true, needs_support_reason: 'payment_reported_expired' } }]),
+            resolveOrderFlag: (id) => { calls.resolve.push(id); return Promise.resolve({}); }
+        })
+    });
+    await settle();
+    await page.open('o5');
+    const drawer = page.drawer();
+    assert.doesNotMatch(drawer, /data-sds-form="resolve"/);
+    assert.match(drawer, /Confirmá el pago o cancelá el pedido: cualquiera de las dos lo saca de la cola\./);
+    assert.match(drawer, /data-sds-form="confirm"/);
+    assert.match(drawer, /data-sds-form="cancel"/);
+    // Aunque llegue un submit forzado, sin la capacidad no se llama al repo.
+    page.submit('resolve', { note: 'x' });
+    await settle();
+    assert.deepEqual(page.calls.resolve, []);
 });
 
 test('soporte: retener fondos solo en pedidos con wallet sin liberar; una retención puesta siempre se levanta', () => {
@@ -499,13 +760,52 @@ test('docs: el mapa lista las rutas de la Store, las tablas store_* y la migraci
     for (const route of ['/artist/store/', '/store/?artist=', '/store/item/', '/store/checkout/', '/store/purchases/', '/store/license/']) {
         assert.ok(doc.includes('`' + route), route);
     }
-    for (const table of ['store_products', 'store_product_variants', 'store_design_assets', 'store_seller_settings', 'store_orders', 'store_order_items', 'store_payments', 'store_licenses', 'store_download_events']) {
+    for (const table of ['store_products', 'store_product_variants', 'store_design_assets', 'store_seller_settings', 'store_orders', 'store_order_items', 'store_payments', 'store_licenses', 'store_download_events', 'store_order_support_notes']) {
         assert.ok(doc.includes('`' + table + '`'), table);
     }
+    assert.ok(doc.includes('`resolve_store_order_flag`'), 'RPC de soporte en el mapa');
     assert.match(doc, /Migración NO aplicada/);
     assert.match(doc, /features\.store: false/);
     // El flag no protege la API: la migración va recién con el lanzamiento.
     assert.match(doc, /`features\.store` es solo un gate de UI/);
     assert.match(doc, /la migración se aplica recién en la ventana de lanzamiento, junto con el flag/);
     assert.match(read('docs/TECHNICAL.md'), /`features\.store` es solo un gate de UI/);
+});
+
+test('docs: el contrato refleja notas internas, gracia de 7 días, reaperturas y pendientes de lanzamiento', () => {
+    const plan = read('docs/plans/2026-10-30-store-artista.md');
+    const section = (n) => {
+        const start = plan.indexOf(`\n## ${n}. `);
+        const next = plan.indexOf('\n## ', start + 1);
+        assert.ok(start > -1, `§${n}`);
+        return plan.slice(start, next === -1 ? plan.length : next);
+    };
+    const s4 = section(4);
+    assert.match(s4, /lock_timeout = '5s'/);
+    assert.match(s4, /`store_order_support_notes` con `kind = 'maintenance_error'`/);
+    assert.match(s4, /metadata_json\.maintenance_error_at/);
+    const s5 = section(5);
+    assert.match(s5, /\*\*`store_order_support_notes`\*\*/);
+    assert.match(s5, /`app_settings`/);
+    assert.match(s5, /is_public = false/);
+    assert.match(s5, /design_width_cm, design_height_cm\}` con `jsonb_strip_nulls`/);
+    const s6 = section(6);
+    assert.match(s6, /`resolve_store_order_flag\(p_order_id, p_note text\)`/);
+    assert.match(s6, /\*\*el vendedor que cobra directo\*\*/);
+    assert.match(s6, /gracia de 7 días/);
+    assert.match(s6, /`reserved`: `reserved_order_id is not null`/);
+    assert.match(s6, /`pickup` exige `pickup_available` \*\*y\*\* una `pickup_address`/);
+    assert.match(s6, /\*\*El proveedor también reabre un `expired`\*\*/);
+    const s85 = plan.slice(plan.indexOf('### 8.5'), plan.indexOf('### 8.6'));
+    assert.match(s85, /«Marcar como revisado»/);
+    assert.match(s85, /listSupportNotes\(orderId\)/);
+    assert.match(s85, /listRecentExpiredOrders\(\{ days: 7 \}\)/);
+    assert.match(s85, /\*\*que cobra el vendedor\*\*/);
+    assert.match(s85, /«Mis compras →» en «Tu actividad»/);
+    assert.match(s85, /`storefront\.seller\.id` es el `user_id`/);
+    const s9 = section(9);
+    assert.match(s9, /junto con `features\.store`, en la ventana de lanzamiento/);
+    assert.match(s9, /\*\*`features\.store` es solo un gate de UI\*\*/);
+    assert.match(s9, /\*\*Endurecer `artists_db`\*\* \(pendiente\)/);
+    assert.match(s9, /`get_store_sales_report` con límites `timestamptz`/);
 });

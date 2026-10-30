@@ -142,6 +142,42 @@
     border-color: var(--bauhaus-red);
 }
 
+/* Notas internas (store_order_support_notes), la más reciente primero. */
+.sds-notes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sds-note {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--fg);
+}
+
+.sds-note:last-child {
+    border-bottom: 0;
+}
+
+.sds-note-head {
+    margin: 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    overflow-wrap: anywhere;
+}
+
+.sds-note-kind {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.sds-note-text {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
 .sds-form {
     padding: 0.75rem 0 1rem;
     border-bottom: 1px solid var(--fg);

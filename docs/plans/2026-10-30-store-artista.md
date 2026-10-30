@@ -55,7 +55,7 @@ Los dos archivos se bajan con URLs firmadas que emite el servidor.
 
 ## 4. Reglas transversales del SQL
 
-- **Migración**: `supabase/migrations/20261030150000_store_core.sql`, NO aplicada. Reversa en `supabase/rollbacks/20261030150000_store_core.down.sql`. Usa `begin`/`commit` y `create table if not exists`, y termina con `notify pgrst, 'reload schema'`.
+- **Migración**: `supabase/migrations/20261030150000_store_core.sql`, NO aplicada (se aplica junto con `features.store` en la ventana de lanzamiento, §9). Reversa en `supabase/rollbacks/20261030150000_store_core.down.sql`. Usa `begin`/`commit` y `create table if not exists`, y termina con `notify pgrst, 'reload schema'`. Arranca con `set local lock_timeout = '5s'`: crea policies sobre `storage.objects` y FKs a `auth.users` y `currencies`, así que si tiene que esperar por un lock falla (y se reintenta) en lugar de bloquear a producción. Igual conviene aplicarla en una ventana de poco tráfico.
 - **Grants de tablas**: `revoke all on table … from public, anon, authenticated;` y después solo el DML que necesita la UI. Nunca truncate, trigger ni references. Las policies usan `(select auth.uid())`.
 - **Grants de funciones**: cada función empieza con `revoke all on function public.f(<firma>) from public, anon, authenticated;` y después lleva **un** grant explícito:
   - usuario → `to authenticated`;
@@ -74,7 +74,8 @@ Los dos archivos se bajan con URLs firmadas que emite el servidor.
   4. Vuelve a validar el estado.
 
   Los updates llevan `where status = '<esperado>'` y verifican `found`. Las liberaciones de reserva siempre van condicionadas: `update store_products set reserved_order_id = null, reserved_until = null where id = $1 and reserved_order_id = <este pedido>`.
-- **Mantenimiento**: itera con `for update skip locked` y envuelve cada pedido en `begin … exception when others then` (registra el error en `metadata_json.maintenance_error` y sigue). Devuelve `{expired, flagged, delivered, released, failed:[ids]}`.
+- **Mantenimiento**: fija `lock_timeout = '5s'` local (`set_config(…, true)`), itera con `for update skip locked` (nunca espera a una RPC) y envuelve cada pedido en `begin … exception when others then`: el error crudo (`sqlstate` + mensaje, ≤500) va a `store_order_support_notes` con `kind = 'maintenance_error'`, en el pedido queda solo la fecha (`metadata_json.maintenance_error_at`) y sigue con el resto. Devuelve `{expired, flagged, delivered, released, failed:[ids]}`.
+- **Notas internas**: lo que no tienen que ver el comprador ni el vendedor (los dos leen `metadata_json` del pedido) va a `store_order_support_notes` (§5), que escriben solo las RPC: nota y autor de la retención o liberación de fondos, autor del reembolso, autor de la reapertura, marca revisada y el error del mantenimiento. En `metadata_json` quedan solo fechas (`funds_hold_at`, `reopened_at`, `needs_support_resolved_at`, `maintenance_error_at`) y `refund_reason`.
 - **Wallet**: todas las sentencias contra `artist_wallet_movements` se ejecutan con `execute format(…) using …`, dentro de `if to_regclass('public.artist_wallet_movements') is not null`. No se declaran variables `%rowtype` de tablas del wallet. Si el wallet no está aplicado, `release` devuelve false **sin** marcar `funds_released_at`, y el mantenimiento reintenta. Antes de completar un `payment`, se hace un insert `on conflict (artist_user_id, external_reference) do nothing` para reconstruirlo si falta.
 - **Dinero**: `numeric(12,2)` con `check (x = round(x, 2))`. Precios > 0, envío ≥ 0. La moneda va como `^[A-Z]{3}$` y, si `public.currencies(code)` es único, como FK.
   - `platform_fee_pct` se lee de `app_settings.store_platform_fee_pct` con cast seguro: `case when setting_value ~ '^\d+(\.\d+)?$' then least(greatest(setting_value::numeric, 0), 50) else 0 end`, con coalesce a 0.
@@ -104,7 +105,20 @@ Son `security definer` y `stable`, con `search_path = ''`. Ninguno lleva grant, 
 - **`public.store_can_manage_storage_folder(p_folder text)`**: misma lógica, comparando como texto (`auth.uid()::text`, `s.id::text`). Nunca castea el path a uuid.
 - **`public.store_current_terms_version()`**: devuelve `'2026-10'`.
 
-> **Nota de seguridad**: el nivel `artist` y la condición de vendedor dependen de `artists_db`, y esa tabla hoy acepta autoinsert y no tiene `username` único. No son una frontera fuerte hasta endurecer `artists_db` (pendiente).
+> **Nota de seguridad**: el nivel `artist` y la condición de vendedor dependen de `artists_db`, y esa tabla hoy acepta autoinsert y no tiene `username` único. No son una frontera fuerte hasta endurecer `artists_db` (pendiente, §9). Mientras tanto, `get_public_storefront` devuelve null si el handle resuelve a más de un artista, y la banda del perfil público solo se muestra si `seller.id` es el `user_id` del perfil (§8.5).
+
+### Ajustes de la plataforma (`app_settings`)
+
+La migración siembra las cuatro claves de la Store **privadas** (`is_public = false`; la columna tiene default `true` y `anon` lee las públicas) y con valores neutros, que equivalen a no tenerlas:
+
+| Clave | Valor sembrado | Uso |
+| --- | --- | --- |
+| `store_payment_provider` | `manual` | §2. Se cambia solo cuando el adaptador está registrado en el servidor. |
+| `store_manual_collector` | `seller` | §2: `platform` hace que cobre We Ötzi. |
+| `store_platform_payment_instructions` | null | §2: sin texto, `platform` no se activa. |
+| `store_platform_fee_pct` | `0` | §4: comisión (0 a 50). |
+
+Es un upsert `on conflict (setting_key) do update set is_public = false`: si la clave ya existe, solo se vuelve privada y **no** se pisa el valor. Las RPC las leen con el helper interno `store_app_setting(p_key)`.
 
 ### Tablas
 
@@ -137,7 +151,7 @@ Son `security definer` y `stable`, con `search_path = ''`. Ninguno lleva grant, 
   - `retired` es final para el usuario;
   - **pasar a `active`** exige el checklist, el mismo que `WeotziStoreModel.publishChecklist`:
     - diseño: ≥1 precio de licencia, ≥1 imagen, assets `original` y `stencil`, ajustes del vendedor con `payment_instructions` y `contact_channel` no vacíos, y `authorship_attested_at` no null;
-    - merch: `price_amount`, ≥1 variante activa, ≥1 imagen y los mismos ajustes, sin la autoría;
+    - merch: `price_amount`, ≥1 variante activa, ≥1 imagen y los mismos ajustes, sin la autoría. `publishChecklist` además pide «Dirección de retiro en Ajustes» si el merch ofrece retiro (el guard no la exige, pero sin ella `create_store_order` rechaza el retiro, §6);
     - fija `published_at` la primera vez;
   - pasar a `retired` fija `retired_at`.
 - Delete: solo `draft` y sin ítems de pedido.
@@ -166,7 +180,7 @@ Son `security definer` y `stable`, con `search_path = ''`. Ninguno lleva grant, 
 - Columnas:
   - `store_tagline` (≤160), `contact_channel` (≤200; por ejemplo «WhatsApp +54 9 11…» o «@usuario en Instagram»), `payment_instructions` (≤2000);
   - `shipping_policy`, `return_policy` (≤2000 cada una);
-  - `pickup_address` (≤300, privada), `authorship_attested_at`, timestamps.
+  - `pickup_address` (≤300, privada; se copia a `store_orders.pickup_details` al confirmar el pago y sin ella no hay retiro), `authorship_attested_at`, timestamps.
 
 **`store_orders`**
 - Identidad:
@@ -235,11 +249,18 @@ Son `security definer` y `stable`, con `search_path = ''`. Ninguno lleva grant, 
 - Términos: `terms_version`, `verification_code` (unique, `WOL-XXXX-XXXX`).
 - Uso: `used_at`, `used_note` (≤160).
 - Ciclo de vida: `issued_at`, `revoked_at`, `revoke_reason`.
-- `metadata_json`, `created_at`.
+- `metadata_json`: al emitirla guarda las medidas del diseño en ese momento, `{design_width_cm, design_height_cm}` con `jsonb_strip_nulls` (con una sola medida queda solo esa clave; sin medidas, `{}`). «Imprimir a escala real» en `/store/purchases/` usa primero esas medidas y, si no están las dos, las de la ficha pública: así sigue andando aunque el diseño se retire (exclusiva vendida) o se pause. `store_order_items` no guarda medidas.
+- `created_at`.
 
 **`store_download_events`**
 - Columnas: `id`, `license_id` (cascade), `asset_id` (set null), `user_id`, `created_at`.
 - Escribe solo el servidor (service role). Lectura: vendedor y soporte.
+
+**`store_order_support_notes`** (notas internas de soporte por pedido)
+- Columnas: `id`, `order_id` (→ `store_orders`, cascade), `kind`, `note` (≤500, nullable), `actor_id` (→ `auth.users`, set null; null cuando escribe el mantenimiento o un webhook), `created_at`.
+- `kind`: `funds_hold` | `funds_release` (`set_store_order_funds_hold`), `refund` (`refund_store_order`, el motivo), `reopen` (reapertura de un vencido; «Webhook de <proveedor>» si reabrió el proveedor), `flag_resolved` (`resolve_store_order_flag`) y `maintenance_error` (`run_store_maintenance`, el error crudo).
+- Índice `(order_id, created_at desc)`.
+- Escriben solo las RPC (definer); authenticated tiene solo `select` y la policy `store_order_support_notes_support_read` lo limita a `is_support_user()`. El comprador y el vendedor no las ven.
 
 ### RLS (resumen)
 
@@ -261,6 +282,9 @@ Son `security definer` y `stable`, con `search_path = ''`. Ninguno lleva grant, 
   - el titular (`holder_user_id`);
   - el comprador del pedido (`exists store_orders o where o.id = order_id and o.buyer_user_id = auth.uid()`);
   - el vendedor y soporte.
+
+**Notas internas** (`store_order_support_notes`)
+- Select solo para soporte (`is_support_user()`). Sin insert, update ni delete para authenticated.
 
 ### Buckets
 
@@ -288,7 +312,7 @@ Policies de `storage.objects`:
 Valida en este orden:
 1. **Idempotencia**: misma `(buyer_user_id, idempotency_key)` devuelve el pedido existente.
 2. **Comprador**: email confirmado (`auth.users.email_confirmed_at`) y `p_terms_version` igual a `store_current_terms_version()`.
-3. **Producto**: lock `for update`; tiene que estar `active` (`product_unavailable`). Si la reserva del exclusivo venció, **se vence en la misma transacción el pedido que la tenía** (stock y reserva incluidos, condicionado al id).
+3. **Producto**: lock `for update`; tiene que estar `active` (`product_unavailable`). Si la reserva del exclusivo venció (`reserved_until < now()`), **se vence en la misma transacción el pedido que la tenía** (stock y reserva incluidos, condicionado al id), pero solo si ya caducó según `store_order_lapsed`: sin pago informado, o con el aviso vencido hace más de 7 días. Durante esa gracia de 7 días la reserva se respeta (`product_reserved`). Si el pedido que la tenía ya no está pendiente, solo se limpia la reserva.
 4. **Vendedor**:
    - comprarse a uno mismo da `own_product` (incluye al dueño del estudio);
    - el vendedor tiene que estar listo: ajustes con `payment_instructions` (cuando el cobrador es `seller`) y `contact_channel` (`seller_not_ready`).
@@ -307,7 +331,7 @@ Valida en este orden:
 8. **Si es merch**:
    - variante activa del producto (`variant_required` o `variant_unavailable`), cantidad entre 1 y 20, y hasta 20 unidades pendientes por comprador y variante;
    - stock suficiente (`out_of_stock`); **se descuenta acá**;
-   - `pickup` exige `pickup_available`;
+   - `pickup` exige `pickup_available` **y** una `pickup_address` cargada en los ajustes del vendedor (si no, `pickup_unavailable`: el pedido pagado quedaría sin `pickup_details`). Por eso la ficha pública dice `pickup_available = false` sin dirección, y el checklist del editor (`publishChecklist`) pide «Dirección de retiro en Ajustes» para un merch con retiro;
    - `shipping` exige `recipient`, `line1`, `city` y `country` ISO-2, y que el país esté en `ships_to_countries` si la lista no está vacía (`ships_to_unsupported`).
 9. **Precios desde la base**: precio unitario por nivel o variante (override o base), envío solo si el método es `shipping`.
 10. **Cobro**:
@@ -320,7 +344,7 @@ Valida en este orden:
 
 | RPC | Qué hace |
 | --- | --- |
-| `report_store_payment(p_order_id, p_reference)` | Solo con `pending_payment`. Guarda la referencia, fija `buyer_payment_reported_at` y extiende `expires_at` (y `reserved_until`) a `greatest(actual, now() + 7 días)`. |
+| `report_store_payment(p_order_id, p_reference)` | Solo con `pending_payment`, sin vencer y si no cobra un proveedor (`collector_mismatch`). Guarda la referencia, fija `buyer_payment_reported_at` y, la primera vez, extiende `expires_at` (y `reserved_until`) a `greatest(actual, now() + 7 días)`. Al vencer ese plazo empieza la gracia de 7 días del mantenimiento (`run_store_maintenance`): `needs_support`, cancelación del vendedor que cobra directo y, al final, vencimiento. |
 | `confirm_store_order_received(p_order_id)` | Merch `paid` con `shipped` o `ready_for_pickup` → `delivered` / `fulfilled`, con `delivered_by = 'buyer'`. Si usa wallet: `funds_release_at = now() + 72 h` y el `payment` pasa a `awaiting_release` con `release_at`. |
 | `mark_store_license_used(p_license_id, p_note)` | Solo el titular, con la licencia no revocada y sin uso previo (`license_used`). |
 
@@ -328,7 +352,7 @@ Valida en este orden:
 
 | RPC | Qué hace |
 | --- | --- |
-| `cancel_store_order(p_order_id, p_reason)` | Solo con `pending_payment` → `cancelled`. Restituye el stock (`stock = stock + qty where stock is not null`) y libera la reserva condicionada. **Si ya hay un pago informado, solo puede cancelar soporte** (`payment_reported`). |
+| `cancel_store_order(p_order_id, p_reason)` | Solo con `pending_payment` → `cancelled`. Restituye el stock (`stock = stock + qty where stock is not null`) y libera la reserva condicionada. **Con un pago informado cancela soporte**, y también **el vendedor que cobra directo** (`expected_collector = 'seller'`) cuando ya venció el plazo (`expires_at < now()`): es el «No recibí el pago» de la UI, para que un aviso falso no le retenga la exclusiva o el stock hasta que intervenga soporte. Cualquier otro caso con pago informado da `payment_reported`. Cerrar resuelve la marca `needs_support` (`needs_support_resolved_at`). |
 
 **Vendedor o soporte**
 
@@ -343,9 +367,10 @@ Valida en este orden:
 `confirm_store_order_payment`:
 - **Permisos**: `p_collected_by` tiene que ser igual a `expected_collector` (`collector_mismatch`). Si es `seller`, confirman el vendedor o soporte. Si es `platform`, solo soporte.
 - **Estado**:
-  - Acepta `pending_payment`. Si `expires_at` ya pasó, solo lo acepta cuando hay un pago informado.
-  - **Soporte** puede reabrir un `expired` si, con lock, recupera el stock y la reserva; si no puede, devuelve `cannot_reopen`.
-  - Un pedido ya pagado con la misma referencia devuelve el pedido sin cambios (idempotente). Con otra referencia: inserta `store_payments` con estado `duplicate`, marca `metadata_json.needs_support` y devuelve el pedido.
+  - Acepta `pending_payment`. Si `expires_at` ya pasó, solo lo acepta cuando hay un pago informado (el proveedor siempre: su cobro es real).
+  - **Soporte** puede reabrir un `expired` si, con lock, recupera el stock y la reserva; si no puede, devuelve `cannot_reopen`. **El proveedor también reabre un `expired`** (un webhook tardío trae un cobro real); si no se puede, `cannot_reopen` y el servidor deja un log de «cobro huérfano» (§7). Quién reabrió queda en `store_order_support_notes` (`reopen`) y en el pedido solo `metadata_json.reopened_at`.
+  - Un pedido ya pagado con la misma referencia devuelve el pedido sin cambios (idempotente). Con otra referencia: inserta `store_payments` con estado `duplicate`, marca `metadata_json.needs_support` (`needs_support_reason = 'duplicate_payment'`) y devuelve el pedido.
+  - Confirmar resuelve una marca `needs_support` previa (pago informado y vencido).
 - **Validación del diseño**:
   - para `exclusive`: `reserved_order_id = order.id and exclusive_sold_at is null`;
   - para el resto: `exclusive_sold_at is null`, si no `design_no_longer_available`.
@@ -367,7 +392,8 @@ Valida en este orden:
   - revoca las licencias;
   - `sales_count -= qty`;
   - restituye el stock si no se despachó;
-  - si fue exclusivo: limpia `exclusive_sold_at`, el producto pasa a `paused` y `licenses_issued` se recalcula.
+  - si fue exclusivo: limpia `exclusive_sold_at`, el producto pasa a `paused` y `licenses_issued` se recalcula;
+  - el motivo queda en `metadata_json.refund_reason` y, con el autor, en `store_order_support_notes` (`refund`). Si reembolsa soporte, resuelve `needs_support`; si reembolsa el vendedor, la marca (pago duplicado) sigue a la vista de soporte.
 - **Wallet** (solo con el predicado):
   - si los fondos no se liberaron, el `payment` pasa a `cancelled`;
   - si ya se liberaron, inserta `refund/completed` por el monto del `release` (`:refund`) y, si hubo comisión, `adjustment/completed` por la comisión (`:fee_reversal`);
@@ -377,7 +403,8 @@ Valida en este orden:
 
 | RPC | Qué hace |
 | --- | --- |
-| `set_store_order_funds_hold(p_order_id, p_hold boolean, p_note text)` | Retiene o libera los fondos del pedido. |
+| `set_store_order_funds_hold(p_order_id, p_hold boolean, p_note text)` | Retiene o libera los fondos del pedido (en el wallet, el `payment` pasa a `blocked` con `store_hold` y vuelve al soltarlo). La nota y el autor van a `store_order_support_notes` (`funds_hold` / `funds_release`); en el pedido queda solo `metadata_json.funds_hold_at`. |
+| `resolve_store_order_flag(p_order_id, p_note text)` | Da por revisada la marca `needs_support` (pago duplicado, o informado y vencido): la saca, fija `needs_support_resolved_at` y deja una nota `flag_resolved` con el autor. El pedido no cambia de estado. **Idempotente**: sin marca devuelve el pedido sin cambios ni nota. Quien no es soporte recibe `forbidden`. Ojo: con el pedido todavía `pending_payment`, la corrida siguiente del mantenimiento lo vuelve a marcar (paso b), así que la UI no lo ofrece ahí: la salida es confirmar o cancelar. |
 
 **Públicas (`to anon, authenticated`)**
 
@@ -393,11 +420,12 @@ Valida en este orden:
   - `price_from`: mínimo entre niveles o variantes activas;
   - `license_personal_price`, `license_artist_price`, `license_exclusive_price`;
   - `exclusive_available`: precio no null, sin reserva, `licenses_issued = 0` y sin pendientes;
-  - `reserved`: hay una reserva vigente;
+  - `reserved`: `reserved_order_id is not null`, la misma condición que frena la compra (`product_reserved`). La reserva se libera al cerrar o confirmar el pedido, no al pasar `reserved_until` (un pago informado la extiende); `WeotziStoreModel.isReserved` espeja esta regla;
   - `licenses_issued`;
   - `design_width_cm, design_height_cm, design_style, placement_suggestion`;
   - `images [{path, alt}]`;
-  - `shipping_price_amount, ships_to_countries, ships_to_note, pickup_available, pickup_note`;
+  - `shipping_price_amount, ships_to_countries, ships_to_note, pickup_note`;
+  - `pickup_available`: el del producto **y** que el vendedor tenga `pickup_address` cargada;
   - `variants [{id, label, size, color, price_amount, in_stock, low_stock}]`. `low_stock` vale el stock si es ≤5 y null en otro caso;
   - `published_at`.
 - Solo productos `active`.
@@ -412,7 +440,7 @@ Valida en este orden:
 | RPC | Qué hace |
 | --- | --- |
 | `release_store_order_funds(p_order_id) → boolean` | Exige el predicado del wallet, `fulfilled`, `not funds_hold`, `funds_release_at <= now()` y `funds_released_at` null. En el wallet: reconstruye el `payment` si falta, lo lockea, lo pasa a `completed` (`where status in ('awaiting_release','pending_service')` y `found`) e inserta `release/completed` por el monto del `payment` (`:release`) y `fee/completed` por `platform_fee_amount` si es > 0 (`:fee`). Fija `funds_released_at`. Si falta el wallet, devuelve false. |
-| `run_store_maintenance() → jsonb` | (a) Vence los `pending_payment` con `expires_at < now()` y **sin** pago informado: restituye y libera. (b) Los que tienen pago informado y ya vencieron se marcan `metadata_json.needs_support = true`, una sola vez, y no se vencen. (c) Marca `delivered` (`delivered_by = 'auto'`) los `shipped` con `shipped_at + 14 días` y los `ready_for_pickup` con `ready_at + 7 días`. (d) Libera los fondos vencidos. |
+| `run_store_maintenance() → jsonb` | (a) Vence los `pending_payment` que caducaron según `store_order_lapsed`: `expires_at < now()` **sin** pago informado, o con el aviso vencido hace más de 7 días sin que nadie lo confirme ni lo cancele (gracia de 7 días). Restituye y libera; un vencido con pago informado queda marcado `needs_support` para que soporte decida si lo reabre. (b) Los que tienen pago informado y ya vencieron (dentro de la gracia) se marcan `metadata_json.needs_support = true` (`payment_reported_expired`) si la marca no está puesta, y no se vencen. Es una sola vez, salvo que soporte la resuelva con el pedido todavía pendiente: entonces la corrida siguiente la vuelve a poner. (c) Marca `delivered` (`delivered_by = 'auto'`) los `shipped` con `shipped_at + 14 días` y los `ready_for_pickup` con `ready_at + 7 días`. (d) Libera los fondos vencidos. Con `lock_timeout = 5s` y `skip locked`; los errores van a `store_order_support_notes` (§4). |
 | `confirm_store_order_payment_as_provider(p_order_id, p_provider, p_reference, p_amount, p_currency)` | Monto y moneda tienen que coincidir. Efectos iguales a la confirmación con `collected_by = 'provider'`. |
 
 Las dos confirmaciones comparten el helper interno `store_apply_order_payment(…)`, que no tiene grants.
@@ -422,8 +450,8 @@ Las dos confirmaciones comparten el helper interno `store_apply_order_payment(�
 | Archivo | Rol |
 | --- | --- |
 | `services/store-payments.js` | Registro de adaptadores `{ id, label, isConfigured(), createCheckout(order) → {mode, instructions?, redirectUrl?}, parseWebhook?, verifyWebhook? }`. `registerProvider` valida la interfaz y exige `verifyWebhook(rawBody, headers)` (HMAC con `crypto.timingSafeEqual`) si hay `parseWebhook`. También exporta `getProvider` y `listProviders`. Solo trae `manual`. |
-| `services/store-orders.js` | Handlers con `deps` inyectables (`resolveUser`, `repo`, `providers`, `now`, `env`), testeables sin red. Devuelven `{ success, error }`, con mensajes en español. |
-| `lib/repos/store.js` | Service role sobre `pgrest`: `getOrderWithItems(id)`, `getLicenseForHolder(licenseId, userId)`, `getAsset(assetId)`, `countDownloadsToday(licenseId)`, `insertDownloadEvent(...)`, `runMaintenance()` y `confirmProviderPayment(...)` (estos dos con `pgrest.raw('rpc/…')`). |
+| `services/store-orders.js` | Handlers con `deps` inyectables (`resolveUser`, `repo`, `providers`, `now`, `env`, `sign`, `logger`), testeables sin red. Devuelven `{ success, error }`, con mensajes en español. Exporta también `downloadFileName(asset)` y `DOWNLOAD_EXTENSIONS`; usa `sanitizeFilename` y `FILES.EXTENSION_MIME` del modelo UMD (`public/shared/js/store-model.js`). |
+| `lib/repos/store.js` | Service role sobre `pgrest`: `getOrderWithItems(id)`, `getLicenseForHolder(licenseId, userId)`, `getAsset(assetId)` (con `file_name` y `mime_type`), `countDownloadsToday(licenseId, {since, cap})`, `insertDownloadEvent(...)`, `deleteDownloadEvent(id)`, `runMaintenance()` y `confirmProviderPayment(...)` (estos dos con `pgrest.raw('rpc/…')`). `storeErrorCode(err)` extrae el `store:<código>`. |
 | `lib/storage-sign.js` | `signStorageObject(bucket, path, {expiresIn, download})`. Firma con service role (`POST /storage/v1/object/sign/<bucket>/<path>`). Centraliza la config y los headers, como `lib/instagram-import.js:392-420`. |
 
 Endpoints:
@@ -432,10 +460,10 @@ Endpoints:
   2. El asset tiene que pertenecer al producto de la licencia.
   3. Tope de 50 descargas por licencia y por día (429).
   4. Registra el evento.
-  5. Firma por **300 s fijos** con `download = file_name` y devuelve `{ success, url, expires_in }`.
+  5. Firma por **300 s fijos** y devuelve `{ success, url, expires_in }`. El nombre de descarga (`download = …`) lo arma `downloadFileName(asset)`, como defensa en profundidad además del guard SQL que ya normaliza `file_name`: `sanitizeFilename` (del modelo) sobre la base sin su extensión, más la extensión que corresponde al `mime_type` real del objeto (`DOWNLOAD_EXTENSIONS`, igual a `v_exts` de `store_design_assets_guard` y a `EXTENSION_MIME` del modelo). Se conserva la extensión propia si es de ese MIME («foto.jpeg»); otra conocida se reemplaza («scan.png» en JPEG → «scan.jpg»); una desconocida queda en la base («x.exe» → «x.exe.png»); un MIME fuera del bucket baja como `.bin`.
 - `POST /api/store/orders/:id/checkout`. Bearer; tiene que ser el comprador dueño y el pedido estar `pending_payment`. Delega en el adaptador. En modo `manual`, el front **no lo llama**: pinta las instrucciones desde la fila.
 - `POST /api/store/maintenance`. Exige `X-Cron-Token === CRON_API_TOKEN` y llama a `run_store_maintenance`. Lo dispara un job de n8n cada hora (pendiente de crear).
-- `POST /api/store/payments/webhook/:provider`. Usa `express.raw({ type: '*/*', limit: '1mb' })` y va registrado **justo antes** de `app.use(express.json(...))`. `apiLimiter` lo saltea (`skip`), y tiene un limiter propio. Sin adaptador con `parseWebhook`, responde 404. Hay un test de fuente que verifica el orden.
+- `POST /api/store/payments/webhook/:provider`. Usa `express.raw({ type: '*/*', limit: '1mb' })` y va registrado **justo antes** de `app.use(express.json(...))`. `apiLimiter` lo saltea (`skip`), y tiene un limiter propio. Sin adaptador con `parseWebhook`, responde 404. Hay un test de fuente que verifica el orden. Un error `store:*` de la RPC responde 422; si es `store:cannot_reopen` (el proveedor cobró un pedido vencido que ya no se puede reabrir), además deja un `log.error` «COBRO HUÉRFANO» con pedido, proveedor, referencia y monto, para que soporte devuelva el pago o lo resuelva a mano.
 
 ## 8. Frontend
 
@@ -507,7 +535,10 @@ Funciones:
   - Acciones: `reportPayment(orderId, reference)`, `confirmReceived(orderId)`, `cancelOrder` (compartido).
   - Licencias: `getLicense(id)`, `markLicenseUsed(id, note)`, `listLicenseAssets(productId)`.
   - Descargas: `getDownloadUrl(licenseId, asset)` hace POST al endpoint del servidor con Bearer y `WEOTZI_BASE_PATH`.
-- **Soporte**: `listPendingPlatformOrders()`, `listFlaggedOrders()` y `setFundsHold(...)`.
+- **Soporte**:
+  - listas: `listPendingPlatformOrders()`, `listFlaggedOrders()` (`needs_support` o `funds_hold`) y `listRecentExpiredOrders({ days = 7 })` (vencidos con `expires_at` en los últimos `days` días, de 1 a 90, el más reciente primero);
+  - acciones: `setFundsHold(orderId, hold, note)` y `resolveOrderFlag(orderId, note)` (RPC `resolve_store_order_flag`; sin pedido lanza un error de validación);
+  - notas: `listSupportNotes(orderId)` lee `store_order_support_notes` (la más reciente primero, hasta 100) y devuelve `[]` sin pedido, ante cualquier error o para quien no es soporte.
 - **En el preview o el demo** (`isPreviewEnv`), **ningún método llama a Storage ni al servidor**:
   - `uploadPreviewImage` reduce la imagen a ≤900 px como data URL y devuelve `{path: 'data:…'}`;
   - `uploadDesignAsset` inserta la fila con `storage_path = 'demo/<productId>/<kind>/<ts>-<nombre>'`;
@@ -589,14 +620,20 @@ Son cambios mínimos en archivos compartidos y todos quedan detrás del gate.
 
 - **Gate común**: `WeotziData.Store.featureEnabled() && await WeotziData.Store.isAvailable()`. Agregar `features.store: false` en `public/shared/js/app-config.json`.
 - **Perfil público** (`public/artist/profile/index.html`, `artist-profile.js`): banda `#store-band` entre Portafolio y Residencias, que nace `hidden`. Muestra hasta 6 ítems y «Ver la Store →», y se oculta en silencio si no hay productos.
+  - Como `username` todavía no es único en `artists_db`, la banda se muestra **solo si `storefront.seller.id` es el `user_id` del artista del perfil**; si no coincide (o falta alguno de los dos), queda oculta.
+  - Las miniaturas van con `alt=""` (son decorativas: el título del link ya nombra el producto).
+  - El precio es `WeotziStoreModel.priceLabel(product).label`, el mismo que la vitrina.
 - **Menú Ö** (`wo-artist-menu.js`):
   - en `renderDrop`, los links «Mi Store» y «Mis compras» con `appPath()`;
   - una fuente `store` en `loadAll` con dos tipos de ítem:
-    - pedidos `pending_payment` con pago informado: «Pago informado · Pedido #ST-… · Confirmalo antes del {fecha}»;
+    - pedidos `pending_payment` con pago informado **que cobra el vendedor** (`expected_collector = 'seller'`): «Pago informado · Pedido #ST-… · Confirmalo antes del {fecha}». Los que cobra We Ötzi o un proveedor no avisan, porque el vendedor no los puede confirmar;
     - merch `paid` sin despachar;
   - un `activityRow` «Pedidos de la Store» con contador, que alimenta el badge.
-- **Topbars de cliente** (`public/client/dashboard|chats|requests|profile/index.html`): un link «Compras» a `/store/purchases/`, oculto por defecto y mostrado por el gate.
-- **Soporte** (`public/shared/js/support-dashboard-store.js` y `public/support/dashboard/index.html`): pestaña STORE con el patrón de `support-dashboard-tickets.js`. Lista los pedidos `platform` por confirmar, los marcados `needs_support` y los que tienen `funds_hold`. Acciones: confirmar, reembolsar y retener.
+- **Topbars de cliente** (`public/client/dashboard|chats|requests|profile/index.html`): un link «Compras» a `/store/purchases/`, oculto por defecto y mostrado por el gate. Como esa nav no se ve por debajo de 769 px, el dashboard de cliente suma «Mis compras →» en «Tu actividad» (también `data-store-entry` y `hidden`), así la entrada existe en el celular.
+- **Soporte** (`public/shared/js/support-dashboard-store.js`, `support-dashboard-store.css` y `public/support/dashboard/index.html`): pestaña STORE con el patrón de `support-dashboard-tickets.js`.
+  - Lista los pedidos `platform` por confirmar, los marcados `needs_support` (incluidos los vencidos con pago informado: el mantenimiento los vence con la marca puesta), los que tienen `funds_hold` y, con el filtro «Vencidos (7 días)», los vencidos recientes (`listRecentExpiredOrders({ days: 7 })`). Los vencidos sin otra marca no suman al contador.
+  - Acciones del drawer: confirmar el pago (o «Reabrir y confirmar» un vencido; los de proveedor los confirma el webhook), **cancelar** un pendiente aunque tenga pago informado (motivo obligatorio), reembolsar, retener o liberar fondos (solo si el pedido pasa por el wallet) y **«Marcar como revisado»** (`resolveOrderFlag`, con nota opcional) cuando hay `needs_support` y el pedido ya no está pendiente: un duplicado ya pagado o un informado que venció. Con el pedido pendiente no se ofrece (el mantenimiento lo volvería a marcar): la salida es confirmar o cancelar.
+  - **Notas internas**: el drawer las pide con `listSupportNotes(orderId)` (retención y liberación con su nota, reembolso, reapertura, marca revisada y errores del mantenimiento), con fecha y autor («Vos», «Soporte» o «Automático»). No lee notas de `metadata_json`: de ahí solo salen las fechas.
 - **Wallet**: `wallet-model.js` `normalizeMovement` agrega `source` y `orderNumber`, y `wallet-account.js` `movementMeta` muestra «Pedido #ST-…» cuando `source === 'store'`.
 - **Docs**: `docs/MAPA_APLICACION.md` (rutas y esquema) y `docs/TECHNICAL.md` (endpoints).
 
@@ -643,7 +680,8 @@ Son cambios mínimos en archivos compartidos y todos quedan detrás del gate.
 - **Carrito con varios ítems.**
 - **Disputas de la Store en el centro de soporte**: hoy hay `funds_hold` y reembolso.
 - **Modo «Diseños» en `/marketplace`.**
-- **Endurecer `artists_db`**: `username` único (`lower`) y policy de insert.
-- **Aplicar las migraciones en Supabase vivo**: primero `20261028150000_artist_wallet.sql`, después `store_core`. Activar `features.store` y crear el job de n8n de mantenimiento.
+- **Endurecer `artists_db`** (pendiente): `username` único (`lower`) y policy de insert. Hasta entonces el nivel `artist` y la condición de vendedor no son una frontera fuerte (§5) y la banda del perfil compara `seller.id` con el `user_id` del perfil (§8.5).
+- **Aplicar las migraciones en Supabase vivo, junto con `features.store`, en la ventana de lanzamiento** (nunca antes): primero `20261028150000_artist_wallet.sql`, después `store_core`, y en la misma ventana activar `features.store` y crear el job de n8n de mantenimiento. **`features.store` es solo un gate de UI**: ninguna RPC, policy ni endpoint lo consulta, así que con la migración aplicada la Store se puede operar por API (publicar productos, crear pedidos, leer la vitrina pública como `anon`) aunque el flag esté en `false`. Un gate propio en el SQL queda pendiente.
+- **`get_store_sales_report` con límites `timestamptz`** (pendiente): hoy recibe `p_from date` y `p_to date`, que se castean a `timestamptz` en la zona de la sesión (UTC), y agrupa con `date_trunc('month', paid_at)` también en UTC. Para un artista en otra zona horaria, las ventas cerca de la medianoche caen en el día o el mes vecino. Tiene que aceptar los límites del mes local que arma el front (`monthRange()` de `artist-store.js`) como `timestamptz`.
 - **Wallet**: mostrar el saldo negativo como «Saldo adeudado», porque hoy `summarize` lo recorta a 0, y tomar el disponible desde la RPC.
 - **Revisión legal** de los textos de licencia.

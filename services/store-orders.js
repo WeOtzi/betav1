@@ -19,6 +19,9 @@ const crypto = require('node:crypto');
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const { StoreRepo, storeErrorCode } = require('../lib/repos/store');
 const { signStorageObject } = require('../lib/storage-sign');
+// Modelo UMD de la Store (sin DOM ni red): la misma sanitizeFilename y el
+// mismo EXTENSION_MIME que usa el front al subir los archivos.
+const StoreModel = require('../public/shared/js/store-model.js');
 const storePayments = require('./store-payments');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,8 +31,45 @@ const DOWNLOAD_DAILY_LIMIT = 50;
 const DOWNLOAD_WINDOW_MS = 24 * 60 * 60 * 1000;
 const STORE_WEBHOOK_PREFIX = '/api/store/payments/webhook/';
 
+// MIME admitidos en store-design-files → extensiones válidas, en el mismo
+// orden que store_design_assets_guard (v_exts): la primera es la que se usa si
+// el nombre no termina en una extensión de su MIME. Cada par coincide con
+// FILES.EXTENSION_MIME del modelo (lo fija tests/store-server.test.js).
+const DOWNLOAD_EXTENSIONS = Object.freeze({
+    'image/png': Object.freeze(['png']),
+    'image/jpeg': Object.freeze(['jpg', 'jpeg', 'jfif']),
+    'image/webp': Object.freeze(['webp']),
+    'image/tiff': Object.freeze(['tiff', 'tif']),
+    'application/pdf': Object.freeze(['pdf']),
+    'image/vnd.adobe.photoshop': Object.freeze(['psd', 'psb']),
+    'application/postscript': Object.freeze(['eps', 'ai', 'ps']),
+    'application/zip': Object.freeze(['zip', 'procreate']),
+});
+const DOWNLOAD_FALLBACK_EXT = 'bin';
+
 function isUuid(value) {
     return typeof value === 'string' && UUID_RE.test(value);
+}
+
+// Nombre con el que se baja el archivo (download = … de la URL firmada).
+// Defensa en profundidad además del guard SQL, que ya normaliza file_name:
+// la base pasa por sanitizeFilename sin su extensión y la extensión sale del
+// MIME real del objeto (mime_type, que el guard copia de Storage). Se conserva
+// la extensión propia solo si es una de ese MIME («foto.jpeg» sigue .jpeg);
+// otra extensión conocida se reemplaza («scan.png» con JPEG → «scan.jpg») y una
+// desconocida queda en la base, sin efecto («x.exe» → «x.exe.png»). Un MIME
+// fuera de la lista (fila que no pasó por el guard) baja como .bin.
+function downloadFileName(asset) {
+    const raw = String((asset && asset.file_name) || '').trim();
+    const mime = String((asset && asset.mime_type) || '').trim().toLowerCase().split(';')[0];
+    const allowed = Object.prototype.hasOwnProperty.call(DOWNLOAD_EXTENSIONS, mime) ? DOWNLOAD_EXTENSIONS[mime] : null;
+    const match = /\.([A-Za-z0-9]+)$/.exec(raw);
+    const own = match ? match[1].toLowerCase() : '';
+    const knownExt = own && Object.prototype.hasOwnProperty.call(StoreModel.FILES.EXTENSION_MIME, own);
+    const base = knownExt ? raw.slice(0, -(own.length + 1)) : raw;
+    const ext = allowed ? (allowed.includes(own) ? own : allowed[0]) : DOWNLOAD_FALLBACK_EXT;
+    const fallbackBase = asset && (asset.kind === 'original' || asset.kind === 'stencil') ? asset.kind : 'archivo';
+    return `${StoreModel.sanitizeFilename(base.trim() || fallbackBase)}.${ext}`;
 }
 
 function send(res, status, body) {
@@ -179,7 +219,7 @@ function createHandlers(deps = {}) {
 
             const url = await sign(DOWNLOAD_BUCKET, asset.storage_path, {
                 expiresIn: DOWNLOAD_EXPIRES_IN,
-                download: asset.file_name || true,
+                download: downloadFileName(asset),
             });
             return send(res, 200, { success: true, url, expires_in: DOWNLOAD_EXPIRES_IN });
         } catch (e) {
@@ -281,7 +321,15 @@ function createHandlers(deps = {}) {
             return send(res, 200, { success: true });
         } catch (e) {
             const code = storeErrorCode(e);
-            log.error('[store] webhook confirm failed:', provider.id, code || (e && e.message));
+            if (code === 'cannot_reopen') {
+                // El proveedor cobró, pero el pedido ya había vencido y no se
+                // pudo reabrir (sin stock, o el diseño se reservó o vendió para
+                // otro pedido). Es plata del comprador sin pedido: soporte la
+                // tiene que devolver o resolver a mano.
+                log.error(`[store] webhook: COBRO HUÉRFANO (store:cannot_reopen) · pedido ${payment.orderId} · proveedor ${provider.id} · referencia ${payment.reference} · ${payment.currency} ${payment.amount}. El pedido venció y no se pudo reabrir: hay que devolver el pago o resolverlo desde soporte.`);
+            } else {
+                log.error('[store] webhook confirm failed:', provider.id, code || (e && e.message));
+            }
             if (code) return fail(res, 422, 'No pudimos aplicar el pago a ese pedido.');
             return fail(res, 500, 'No pudimos procesar el aviso de pago.');
         }
@@ -302,6 +350,8 @@ module.exports = {
     safeTokenEqual,
     normalizeCheckout,
     normalizePaymentEvent,
+    downloadFileName,
+    DOWNLOAD_EXTENSIONS,
     STORE_WEBHOOK_PREFIX,
     DOWNLOAD_BUCKET,
     DOWNLOAD_EXPIRES_IN,

@@ -342,10 +342,12 @@
         tables.store_licenses = [
             license({ id: id(701), order_id: O4, order_item_id: id(504), product_id: D3, tier: 'exclusive', holder_user_id: sofia.id, holder_name: sofia.name,
                 seller_display_name: myName(), seller_username: myHandle(), design_title: 'Polilla lunar', verification_code: 'WOL-3F8A-B6D1',
-                used_at: daysAgo(4), used_note: 'Tatuada en el estudio, sesión de 3 h.', issued_at: daysAgo(12), created_at: daysAgo(12) }),
+                used_at: daysAgo(4), used_note: 'Tatuada en el estudio, sesión de 3 h.', issued_at: daysAgo(12), created_at: daysAgo(12),
+                metadata_json: { design_width_cm: 12, design_height_cm: 10 } }),
             license({ id: id(751), order_id: P1, order_item_id: id(551), product_id: MD1, tier: 'personal', holder_user_id: artistId, holder_name: myName(),
                 seller_id: MARA, seller_display_name: 'Mara Ink', seller_username: 'mara-ink.wo', design_title: 'Ojo que todo lo ve',
-                verification_code: 'WOL-0D9E-4B7C', issued_at: daysAgo(9), created_at: daysAgo(9) })
+                verification_code: 'WOL-0D9E-4B7C', issued_at: daysAgo(9), created_at: daysAgo(9),
+                metadata_json: { design_width_cm: 8, design_height_cm: 8 } })
         ];
         tables.store_download_events = [];
         // Notas internas de soporte (store_order_support_notes): solo las lee soporte.

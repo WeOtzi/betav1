@@ -7,7 +7,9 @@
  *   - listMyPurchases(userId) → cards con orderView(order, { role: 'buyer' }).
  *   - ?pedido=<id> abre el detalle (sección con historial del navegador):
  *     timeline, instrucciones y contacto (snapshots del pedido), «Ya pagué →»
- *     (reportPayment) mientras esté pendiente, cancelar (sin pago informado),
+ *     (reportPayment) mientras esté pendiente y en plazo (vencido: sin
+ *     instrucciones ni form), cancelar (sin pago informado), retiro con la
+ *     dirección del pedido o «Coordiná el retiro con el vendedor»,
  *     descargas del diseño pagado (listLicenseAssets + getDownloadUrl con la
  *     ventana abierta ANTES del await), «Imprimir a escala real» (stencil
  *     PNG/JPEG/WebP con medidas: las de la licencia o, si no están, las de la
@@ -207,9 +209,10 @@
         var blocks = [];
         var reportAction = view.actions.filter(function (a) { return a.key === 'report_payment'; })[0];
         var cancelAction = view.actions.filter(function (a) { return a.key === 'cancel'; })[0];
-        var head = '<h2 class="stb-block-title">' + (view.paymentReported ? 'Pago informado' : 'Pagá tu pedido') + '</h2>';
+        var head = '<h2 class="stb-block-title">' + (view.paymentReported ? 'Pago informado' : (view.overdue ? 'Venció el plazo para pagar' : 'Pagá tu pedido')) + '</h2>';
         if (view.overdue && view.paymentReported) {
-            head += '<p class="wo-alert wo-alert--warning">Informaste el pago, pero el vendedor no lo confirmó a tiempo. Soporte va a revisar el pedido; si querés, escribile.</p>';
+            head += '<p class="wo-alert wo-alert--warning">' + esc('Informaste el pago, pero ' + (view.collector === 'seller' ? 'el vendedor' : 'We Ötzi') +
+                ' no lo confirmó a tiempo. Soporte va a revisar el pedido; si querés, escribile.') + '</p>';
         } else if (view.overdue) {
             head += '<p class="wo-alert wo-alert--warning">Venció el plazo para pagar este pedido. Si ya pagaste, escribile al vendedor con el número de pedido.</p>';
         } else if (view.paymentReported) {
@@ -221,13 +224,17 @@
         }
         blocks.push('<div class="stb-block">' + head + '</div>');
 
-        if (!manual) {
+        // Vencido: report_store_payment y store_apply_order_payment lo rechazan
+        // (order_not_payable), así que no hay instrucciones para pagar ni form
+        // de «Ya pagué →»; queda el contacto (y cancelar, si no informó pago).
+        var payable = !view.overdue;
+        if (payable && !manual) {
             // TODO(store-pagos): con un proveedor real (Stripe, Mercado Pago) hay
             // que llamar a POST /api/store/orders/:id/checkout con Bearer y seguir
             // el redirectUrl o las instrucciones del adaptador. WeotziData.Store
             // todavía no expone ese método; mientras tanto, mensaje genérico.
             blocks.push('<div class="stb-block"><p class="stb-text">Estamos preparando el pago de este pedido. Volvé a mirarlo en unos minutos.</p></div>');
-        } else {
+        } else if (payable) {
             var payTo = view.collector === 'platform' ? 'Le pagás a We Ötzi' : 'Le pagás directo al vendedor';
             blocks.push('<div class="stb-block"><h3 class="stb-block-title">Cómo pagar</h3>' +
                 '<p class="stb-block-sub">' + esc(payTo) + '. Pagá el monto exacto: ' + esc(view.totals.totalLabel) + '.</p>' +
@@ -237,7 +244,7 @@
         }
         blocks.push(sellerContactHtml(order));
 
-        if (manual && reportAction && !view.overdue && view.collector !== 'provider') {
+        if (manual && reportAction && payable && view.collector !== 'provider') {
             blocks.push('<div class="stb-block">' +
                 '<h3 class="stb-block-title">' + (view.paymentReported ? 'Actualizá el comprobante' : 'Informá tu pago') + '</h3>' +
                 '<p class="stb-block-sub">Dejá la referencia del comprobante para que el vendedor encuentre tu pago rápido.</p>' +
@@ -271,17 +278,18 @@
         return w > 0 && h > 0 ? { width: w, height: h } : null;
     }
 
-    // Medidas del diseño para imprimir a escala. Primero las que quedaron en la
-    // licencia (metadata_json) o en el ítem al emitirla: siguen ahí aunque el
-    // producto ya no sea público (una exclusiva vendida se retira, un diseño
-    // pausado no sale en get_public_store_product). Si no están, las de la
-    // ficha pública.
+    // Medidas del diseño para imprimir a escala. Primero las de la licencia:
+    // store_apply_order_payment las copia del producto al emitirla, en
+    // metadata_json { design_width_cm, design_height_cm } (jsonb_strip_nulls:
+    // falta la que era null), y siguen ahí aunque el producto ya no sea público
+    // (una exclusiva vendida se retira, un diseño pausado no sale en
+    // get_public_store_product). Si no están las dos, las de la ficha pública.
+    // store_order_items no guarda medidas.
     function designSize(order) {
         var raw = rawLicense(order);
-        var items = order.items || order.store_order_items || [];
         var pid = productIdOf(order);
         var bundle = pid ? state.bundles[pid] : null;
-        return sizeFrom(raw && raw.metadata_json) || sizeFrom(items[0]) || sizeFrom(bundle && bundle.product);
+        return sizeFrom(raw && raw.metadata_json) || sizeFrom(bundle && bundle.product);
     }
 
     function printableStencil(order) {
@@ -363,9 +371,16 @@
 
     function addressHtml(a) {
         if (!a) return '';
-        var lines = [a.recipient, [a.line1, a.line2].filter(Boolean).join(', '), [a.city, a.region, a.postal_code].filter(Boolean).join(', '), a.country, a.phone ? 'Tel. ' + a.phone : null]
+        var lines = [a.recipient, [a.line1, a.line2].filter(Boolean).join(', '), [a.city, a.region, a.postal_code].filter(Boolean).join(', '),
+            a.country ? M.countryName(a.country) : null, a.phone ? 'Tel. ' + a.phone : null]
             .filter(Boolean);
         return '<address class="stb-address">' + lines.map(esc).join('<br>') + '</address>';
+    }
+
+    // «Coordiná el retiro con el vendedor (Instagram @mara).»
+    function pickupCoordinationText(order) {
+        var contact = String(order.seller_contact || '').trim();
+        return 'Coordiná el retiro con el vendedor' + (contact ? ' (' + contact + ')' : '') + '.';
     }
 
     function deliveryPanelHtml(order, view) {
@@ -378,7 +393,11 @@
             body += order.shipping_address ? addressHtml(order.shipping_address) : '';
         } else if (order.pickup_details) {
             body += '<p class="stb-text stb-text--s stb-muted">Dirección de retiro</p><p class="stb-pre">' + esc(order.pickup_details) + '</p>';
-        } else {
+        } else if (view.status === 'paid' || view.status === 'fulfilled') {
+            // Pagado sin dirección (el vendedor la borró de Ajustes antes de
+            // confirmar): ya no va a llegar sola, se coordina con el vendedor.
+            body += '<p class="stb-text">' + esc(pickupCoordinationText(order)) + '</p>';
+        } else if (view.status === 'pending_payment') {
             body += '<p class="stb-text">La dirección exacta del estudio te llega cuando el vendedor confirme el pago.</p>';
         }
         blocks.push('<div class="stb-block"><div class="stb-inline-actions"><h2 class="stb-block-title">' + esc(title) + '</h2>' + status + '</div>' + body + '</div>');
@@ -414,7 +433,13 @@
         var text = null;
         if (view.status === 'cancelled') text = 'Cancelaste este pedido' + (order.cancel_reason ? ' · Motivo: ' + order.cancel_reason : '') + '.';
         if (view.status === 'cancelled' && order.cancel_reason === 'exclusive_sold') text = 'Este pedido se canceló porque el diseño se vendió con licencia exclusiva.';
-        if (view.status === 'expired') text = 'Este pedido venció porque no se informó el pago a tiempo.';
+        // Con pago informado, el pedido vence 7 días después del plazo si nadie
+        // lo confirmó (store_order_lapsed): no fue por falta de aviso.
+        if (view.status === 'expired') {
+            text = order.buyer_payment_reported_at
+                ? 'Este pedido venció porque nadie confirmó el pago a tiempo. Si pagaste, escribile a soporte con el número de pedido.'
+                : 'Este pedido venció porque no se informó el pago a tiempo.';
+        }
         if (view.status === 'refunded') text = 'Este pedido se reembolsó' + (order.refunded_at ? ' el ' + M.formatDate(order.refunded_at) : '') + '.';
         if (!text) return '';
         return '<div class="sts-panel"><div class="stb-block"><p class="stb-text">' + esc(text) + '</p></div></div>';

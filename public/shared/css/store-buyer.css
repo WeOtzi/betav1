@@ -26,7 +26,7 @@
 .stb-text{margin:0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-body);overflow-wrap:anywhere}
 .stb-text--s{font-size:var(--body-s-size);line-height:var(--body-s-lh)}
 .stb-muted{color:var(--text-muted)}
-.stb-meta{margin:0;font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-muted)}
+.stb-meta{margin:0;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
 .stb-strong{font-weight:var(--weight-bold);color:var(--text-heading)}
 /* Instrucciones de pago y notas: respetan los saltos de línea del vendedor */
 .stb-pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-body);
@@ -184,7 +184,7 @@ a.stb-order-card:active{transform:none;box-shadow:none}
 .stb-verify-status{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3)}
 .stb-verify-title{margin:0;font-family:var(--font-display);font-size:var(--h3-size);line-height:var(--h3-lh);color:var(--text-heading);overflow-wrap:anywhere}
 .stb-verify-form{display:flex;flex-direction:column;gap:var(--space-3);min-width:0}
-.stb-verify-form .wo-input{font-family:var(--font-mono);letter-spacing:var(--meta-s-track);text-transform:uppercase}
+.stb-verify-form .wo-input{font-family:var(--font-mono);letter-spacing:var(--meta-m-track);text-transform:uppercase}
 
 /* ---------- Breakpoints ---------- */
 @media (min-width:30.0625rem){

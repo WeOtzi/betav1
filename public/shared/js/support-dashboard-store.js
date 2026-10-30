@@ -6,11 +6,15 @@
  *
  *   Lista: pedidos que cobra We Ötzi por confirmar (expected_collector
  *   'platform', WeotziData.Store.listPendingPlatformOrders), pedidos marcados
- *   needs_support o con fondos retenidos (listFlaggedOrders) y, si el repo lo
- *   ofrece, los vencidos recientes (listRecentExpiredOrders) para reabrirlos.
+ *   needs_support o con fondos retenidos (listFlaggedOrders) y los vencidos de
+ *   los últimos 7 días (listRecentExpiredOrders) para reabrirlos.
  *   Drawer: detalle del pedido con confirmar pago (collectedBy = el
- *   expected_collector), cancelar (también con pago informado), reembolsar y
- *   retener / liberar fondos (solo en pedidos que pasan por el wallet).
+ *   expected_collector), cancelar (también con pago informado), reembolsar,
+ *   retener / liberar fondos (solo en pedidos que pasan por el wallet), marcar
+ *   como revisado (resolveOrderFlag) y las notas internas del pedido
+ *   (listSupportNotes: retención, reembolso, reapertura, marca revisada y
+ *   errores del mantenimiento). Nada de eso se lee de metadata_json, que
+ *   también ven el comprador y el vendedor.
  *
  * Se activa solo con el gate de la Store:
  *   WeotziData.Store.featureEnabled() && await WeotziData.Store.isAvailable()
@@ -50,6 +54,15 @@
     };
     var COLLECTOR_LABELS = { seller: 'El vendedor', platform: 'We Ötzi', provider: 'Proveedor de pagos' };
     var PAYMENT_STATUS = { pending: 'Pendiente', succeeded: 'Confirmado', failed: 'Fallido', refunded: 'Reembolsado', duplicate: 'Duplicado' };
+    // store_order_support_notes.kind
+    var NOTE_KINDS = {
+        funds_hold: 'Retención de fondos',
+        funds_release: 'Liberación de fondos',
+        refund: 'Reembolso',
+        reopen: 'Reapertura',
+        flag_resolved: 'Marcado como revisado',
+        maintenance_error: 'Error del mantenimiento'
+    };
     var BAG_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">'
         + '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>';
 
@@ -62,7 +75,8 @@
         reason: 'all',
         sort: 'desc',
         openId: null,
-        busy: false
+        busy: false,
+        notesSeq: 0
     };
 
     /* ------------------------------ utilidades ------------------------------ */
@@ -153,8 +167,10 @@
     }
 
     // Une las listas sin repetir pedidos y anota por qué está cada uno. La marca
-    // «pago informado y vencido» deja de contar cuando el pedido salió de
-    // pending_payment (soporte lo confirmó o lo canceló). Los vencidos de
+    // «pago informado y vencido» sigue en la cola mientras el pedido esté
+    // pendiente o vencido (el mantenimiento lo vence con la marca puesta para
+    // que soporte decida si lo reabre); confirmar, cancelar o reembolsar ya la
+    // resuelven en el SQL, así que en otro estado se descarta. Los vencidos de
     // proveedor no se reabren desde acá (los confirma el webhook).
     function mergeRows(pending, flagged, expired) {
         var map = new Map();
@@ -168,7 +184,8 @@
         (pending || []).forEach(function (o) { add(o, 'platform'); });
         (flagged || []).forEach(function (o) {
             var m = meta(o);
-            var stale = m.needs_support_reason === 'payment_reported_expired' && o.status !== 'pending_payment';
+            var stale = m.needs_support_reason === 'payment_reported_expired'
+                && o.status !== 'pending_payment' && o.status !== 'expired';
             if (m.needs_support === true && !stale) add(o, 'support');
             if (o.funds_hold === true) add(o, 'hold');
         });
@@ -422,8 +439,69 @@
             refund: paid,
             // Retener solo frena algo si el pedido pasa por el wallet y los
             // fondos no se liberaron; una retención puesta siempre se puede levantar.
-            hold: o.funds_hold === true || (paid && usesWallet(o) && !o.funds_released_at)
+            hold: o.funds_hold === true || (paid && usesWallet(o) && !o.funds_released_at),
+            // «Marcar como revisado» (resolve_store_order_flag) saca de la cola un
+            // duplicado o un informado que venció. Con el pedido pendiente no se
+            // ofrece: la salida es confirmar o cancelar, y el mantenimiento
+            // volvería a marcar un pago informado vencido en la corrida siguiente.
+            resolve: meta(o).needs_support === true && o.status !== 'pending_payment'
         };
+    }
+
+    function resolveHelp(o) {
+        var reason = meta(o).needs_support_reason;
+        if (reason === 'duplicate_payment') {
+            return 'Llegó un segundo pago con otra referencia. Cuando lo resuelvas (por ejemplo, devolviendo el pago de más), marcalo como revisado: el pedido sale de la cola y no cambia de estado.';
+        }
+        if (reason === 'payment_reported_expired' && o.status === 'expired') {
+            return 'El comprador informó un pago que nadie confirmó y el pedido venció. Si el pago llegó, reabrilo y confirmalo; si no, marcalo como revisado: sale de la cola y sigue vencido.';
+        }
+        return 'El pedido sale de la cola de soporte y no cambia de estado.';
+    }
+
+    /* ------------------------------ notas internas ------------------------------ */
+    function hasNotes() {
+        var S = repo();
+        return !!S && typeof S.listSupportNotes === 'function';
+    }
+
+    function noteAuthor(n) {
+        if (!n || !n.actor_id) return 'Automático';
+        var me = null;
+        try { me = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null; } catch (e) { me = null; }
+        return me && String(me) === String(n.actor_id) ? 'Vos' : 'Soporte';
+    }
+
+    function renderNotes(notes) {
+        var list = Array.isArray(notes) ? notes.filter(Boolean) : [];
+        if (!list.length) return '<p class="sds-help">Este pedido todavía no tiene notas internas.</p>';
+        return '<ol class="sds-notes">' + list.map(function (n) {
+            return '<li class="sds-note">'
+                + '<p class="sds-note-head"><span class="sds-note-kind">' + esc(NOTE_KINDS[n.kind] || n.kind || 'Nota') + '</span>'
+                + ' · ' + esc(dateTime(n.created_at)) + ' · ' + esc(noteAuthor(n)) + '</p>'
+                + (n.note ? '<p class="sds-note-text">' + esc(n.note) + '</p>' : '')
+                + '</li>';
+        }).join('') + '</ol>';
+    }
+
+    // Las notas se piden al abrir el drawer. Si mientras tanto se abrió otro
+    // pedido (o el mismo de nuevo), la respuesta vieja se descarta.
+    function loadNotes(id) {
+        var S = repo();
+        if (!hasNotes() || !byId('sds-notes')) return Promise.resolve();
+        var seq = ++state.notesSeq;
+        return Promise.resolve().then(function () {
+            return S.listSupportNotes(id);
+        }).catch(function (err) {
+            console.warn('[support-store] notas:', err && err.message);
+            return [];
+        }).then(function (notes) {
+            if (seq !== state.notesSeq || String(state.openId) !== String(id)) return;
+            var box = byId('sds-notes');
+            if (!box) return;
+            box.innerHTML = renderNotes(notes);
+            box.setAttribute('aria-busy', 'false');
+        });
     }
 
     function kv(label, value) {
@@ -441,17 +519,37 @@
             return '<li>' + esc([PAYMENT_STATUS[p.status] || p.status, money(p.amount, p.currency), COLLECTOR_LABELS[p.collected_by] || p.collected_by, p.reference, dateTime(p.created_at)].filter(Boolean).join(' · ')) + '</li>';
         }).join('');
 
+        // metadata_json solo trae las fechas: la nota de la retención y el
+        // error crudo del mantenimiento están en las notas internas.
         var flags = '';
-        if (m.needs_support === true || o.funds_hold === true || m.maintenance_error) {
+        if (m.needs_support === true || o.funds_hold === true || m.maintenance_error_at) {
             flags = '<div class="drawer-section sds-flags">'
                 + '<div class="drawer-section-title">Marcas de soporte</div>'
                 + (m.needs_support === true ? kv('Necesita soporte', (SUPPORT_REASONS[m.needs_support_reason] || 'Revisar el pedido') + (m.needs_support_at ? ' · ' + dateTime(m.needs_support_at) : '')) : '')
-                + (o.funds_hold === true ? kv('Fondos retenidos', (m.funds_hold_note || 'Sin nota') + (m.funds_hold_at ? ' · ' + dateTime(m.funds_hold_at) : '')) : '')
-                + (m.maintenance_error ? kv('Error del mantenimiento', m.maintenance_error) : '')
+                + (m.needs_support === true && o.status === 'pending_payment'
+                    ? '<p class="sds-help">Confirmá el pago o cancelá el pedido: cualquiera de las dos lo saca de la cola.</p>' : '')
+                + (o.funds_hold === true ? kv('Fondos retenidos', m.funds_hold_at ? 'Desde el ' + dateTime(m.funds_hold_at) : 'Sí') : '')
+                + (m.maintenance_error_at ? kv('Error del mantenimiento', 'El ' + dateTime(m.maintenance_error_at) + '. El detalle está en las notas internas.') : '')
                 + '</div>';
         }
 
+        var notes = hasNotes()
+            ? '<div class="drawer-section">'
+                + '<div class="drawer-section-title">Notas internas</div>'
+                + '<div class="sds-notes-box" id="sds-notes" aria-live="polite" aria-busy="true"><p class="sds-help">Cargando notas…</p></div>'
+                + '</div>'
+            : '';
+
         var actions = '';
+        if (can.resolve) {
+            actions += '<form class="sds-form" data-sds-form="resolve">'
+                + '<p class="sds-form-title">Marcar como revisado</p>'
+                + '<p class="sds-help">' + esc(resolveHelp(o)) + '</p>'
+                + '<div class="form-group"><label for="sds-resolve-note">Nota interna (opcional)</label>'
+                + '<textarea id="sds-resolve-note" name="note" rows="2" maxlength="500"></textarea></div>'
+                + '<button type="submit" class="action-btn">Marcar como revisado</button>'
+                + '</form>';
+        }
         if (can.confirm) {
             var who = can.collector === 'platform' ? 'We Ötzi recibió' : 'el vendedor recibió';
             var reopen = o.status === 'expired';
@@ -535,6 +633,7 @@
             + (payments ? '<p class="sds-sub">Registros de pago</p><ul class="sds-payments">' + payments + '</ul>' : '')
             + '</div>'
             + flags
+            + notes
             + '<div class="drawer-section sds-actions">'
             + '<div class="drawer-section-title">Acciones</div>'
             + actions
@@ -559,6 +658,7 @@
         if (toggle) toggle.checked = true;
         var title = byId('sds-drawer-title');
         if (title) setTimeout(function () { try { title.focus(); } catch (e) { /* sin foco */ } }, 50);
+        return row ? loadNotes(id) : Promise.resolve();
     }
 
     function feedback(text, tone) {
@@ -594,7 +694,11 @@
         var task = null;
         var done = '';
 
-        if (kind === 'confirm' && can.confirm) {
+        if (kind === 'resolve' && can.resolve) {
+            if (!window.confirm('¿Marcar el pedido ' + number + ' como revisado? Sale de la cola de soporte y no cambia de estado.')) return;
+            task = function () { return S.resolveOrderFlag(o.id, value('note')); };
+            done = 'Pedido marcado como revisado.';
+        } else if (kind === 'confirm' && can.confirm) {
             if (!window.confirm('¿Confirmás el pago de ' + money(o.total_amount, o.currency) + ' del pedido ' + number + '?')) return;
             task = function () { return S.confirmPayment(o.id, { collectedBy: can.collector, reference: value('reference'), note: value('note') }); };
             done = 'Pago confirmado.';
@@ -649,6 +753,7 @@
         mergeRows: mergeRows,
         capabilities: capabilities,
         isActionable: isActionable,
+        renderNotes: renderNotes,
         refresh: function () { return state.enabled ? load(true) : Promise.resolve(); }
     };
 

@@ -193,7 +193,7 @@
                         <div class="wo-field">
                             <label class="wo-label" for="ast-set-pickup">Dirección de retiro</label>
                             <input type="text" class="wo-input" id="ast-set-pickup" maxlength="300" placeholder="Ej: Av. Corrientes 1234, piso 2 · CABA" aria-describedby="ast-set-pickup-help">
-                            <p class="wo-help" id="ast-set-pickup-help">Privada: solo la ve quien compra con retiro en el estudio, después de que confirmás el pago.</p>
+                            <p class="wo-help" id="ast-set-pickup-help">Privada: solo la ve quien compra con retiro en el estudio, después de que confirmás el pago. Es obligatoria para publicar productos con retiro.</p>
                         </div>
                     </fieldset>
 
@@ -349,9 +349,18 @@
                             <p class="wo-help" id="ast-ed-f-ship-price-help">Por pedido, en la moneda del producto.</p>
                             <p class="wo-error-msg" id="ast-ed-f-ship-price-err" hidden></p>
                         </div>
-                        <fieldset class="ast-countries-box">
+                        <fieldset class="ast-countries-box" aria-describedby="ast-ed-countries-help ast-ed-countries-summary">
                             <legend class="wo-label">Países a los que enviás</legend>
-                            <p class="wo-help" id="ast-ed-countries-help">Si no marcás ninguno, enviás a cualquier país.</p>
+                            <p class="wo-help" id="ast-ed-countries-help">Si no marcás ninguno, enviás a cualquier país. Primero van Latinoamérica, España y Estados Unidos; el resto del mundo, debajo.</p>
+                            <div class="ast-countries-status">
+                                <p class="wo-meta-s ast-countries-summary" id="ast-ed-countries-summary">Sin países marcados: enviás a cualquier país.</p>
+                                <button type="button" class="ast-linkbtn" id="ast-ed-countries-clear" hidden>Desmarcar todos</button>
+                            </div>
+                            <div class="wo-field ast-countries-search">
+                                <label class="wo-label" for="ast-ed-countries-search">Buscar país</label>
+                                <input type="search" class="wo-input" id="ast-ed-countries-search" placeholder="Ej: Chile o Japón" autocomplete="off" spellcheck="false" aria-controls="ast-ed-countries" aria-describedby="ast-ed-countries-count">
+                                <p class="wo-meta-s wo-muted ast-countries-count" id="ast-ed-countries-count" aria-live="polite"></p>
+                            </div>
                             <div class="ast-countries" id="ast-ed-countries"></div>
                             <p class="wo-error-msg" id="ast-ed-countries-err" hidden></p>
                         </fieldset>
@@ -453,8 +462,12 @@
         </div>
     </div>
 
-    <!-- Aviso breve (resultado de acciones) -->
-    <div class="ast-toast" id="ast-toast" role="status" aria-live="polite" hidden></div>
+    <!-- Avisos (resultado de acciones): el texto se anuncia por dos regiones
+         vivas que están desde la carga y nunca se ocultan (los errores, por la
+         de role=alert). El toast es solo visual. -->
+    <div class="wo-sr-only" id="ast-live-status" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="wo-sr-only" id="ast-live-alert" role="alert" aria-live="assertive" aria-atomic="true"></div>
+    <div class="ast-toast" id="ast-toast" aria-hidden="true" hidden></div>
 
     <!-- ============================ SCRIPTS ============================ -->
     <script src="/shared/js/config-manager.js"></script>
@@ -463,8 +476,7 @@
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/store-model.js"></script>
     <script src="/shared/js/store-watermark.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js" async></script>
-    <script src="/shared/js/heic-converter.js" async></script>
+    <!-- La conversión de HEIC/HEIF se carga a demanda desde artist-store.js. -->
     <script src="/shared/js/data/store-repo.js"></script>
     <script src="/shared/js/artist-store.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>

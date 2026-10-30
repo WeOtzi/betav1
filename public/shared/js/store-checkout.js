@@ -30,26 +30,6 @@
     var PARAMS_TTL_MS = 24 * 3600000;
     var MAX_QTY = 20;
 
-    // Todos los códigos ISO 3166-1 alfa-2 asignados. Se usan cuando el
-    // vendedor no restringe la lista: la ficha promete «Hace envíos a todos
-    // los países» y el modelo acepta cualquier ISO-2. Los nombres salen de
-    // Intl.DisplayNames en español.
-    var COUNTRY_CODES = [
-        'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
-        'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ',
-        'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ',
-        'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR',
-        'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY',
-        'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP',
-        'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY',
-        'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ',
-        'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM',
-        'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW',
-        'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ',
-        'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ',
-        'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW'
-    ];
-
     var state = {
         params: { item: null, license: null, variant: null, qty: null },
         viewer: null,
@@ -227,19 +207,12 @@
         });
     }
 
-    var countryNames = null;
-    function countryLabel(code) {
-        try {
-            if (!countryNames && window.Intl && typeof Intl.DisplayNames === 'function') countryNames = new Intl.DisplayNames(['es'], { type: 'region' });
-            return (countryNames && countryNames.of(code)) || code;
-        } catch (e) { return code; }
-    }
+    // Países del select: los que restringe el vendedor o, sin restricción, los
+    // 249 ISO 3166-1 alfa-2 del modelo (M.COUNTRY_CODES): la ficha promete
+    // «Hace envíos a todos los países». Nombres en español con M.countryName,
+    // sin repetidos y ordenados por nombre (M.countryOptions).
     function countryOptions(p) {
-        var allowed = (p && Array.isArray(p.ships_to_countries) ? p.ships_to_countries : []).map(function (c) { return String(c).toUpperCase(); })
-            .filter(function (c) { return /^[A-Z]{2}$/.test(c); });
-        var codes = allowed.length ? allowed : COUNTRY_CODES.slice();
-        return codes.map(function (c) { return { code: c, label: countryLabel(c) }; })
-            .sort(function (a, b) { return a.label.localeCompare(b.label, 'es'); });
+        return M.countryOptions(p && Array.isArray(p.ships_to_countries) ? p.ships_to_countries : []);
     }
 
     /* ------------------------------------------------------------------ */
@@ -827,6 +800,13 @@
 
     function paymentBlockHtml(order, view) {
         var manual = !order.payment_provider || order.payment_provider === 'manual';
+        var contact = order.seller_contact
+            ? '<div class="stb-block"><h3 class="stb-block-title">Contacto del vendedor</h3><p class="stb-text">' + esc(order.seller_contact) + '</p>' +
+              '<p class="stb-text stb-text--s stb-muted">Escribile con el número de pedido si tenés dudas sobre el pago o la entrega.</p></div>'
+            : '';
+        // Vencido: ya no se puede pagar (store_apply_order_payment lo rechaza
+        // sin pago informado), así que no se muestran las instrucciones.
+        if (view.overdue) return contact;
         if (!manual) {
             // TODO(store-pagos): con un proveedor real (Stripe, Mercado Pago) hay
             // que llamar a POST /api/store/orders/:id/checkout con Bearer y seguir
@@ -840,18 +820,26 @@
         var instructions = order.payment_instructions
             ? '<p class="stb-pre">' + esc(order.payment_instructions) + '</p>'
             : '<p class="stb-text">El vendedor todavía no cargó las instrucciones. Escribile por el contacto de abajo.</p>';
-        var contact = order.seller_contact
-            ? '<div class="stb-block"><h3 class="stb-block-title">Contacto del vendedor</h3><p class="stb-text">' + esc(order.seller_contact) + '</p>' +
-              '<p class="stb-text stb-text--s stb-muted">Escribile con el número de pedido si tenés dudas sobre el pago o la entrega.</p></div>'
-            : '';
         return '<div class="stb-block"><h2 class="stb-block-title">Cómo pagar</h2>' +
                 '<p class="stb-block-sub">' + esc(payTo) + '. Pagá el monto exacto: ' + esc(view.totals.totalLabel) + '.</p>' + instructions +
             '</div>' + contact;
     }
 
+    // Aviso de plazo vencido (con o sin pago informado). Va antes del contacto.
+    function overdueBlockHtml(view) {
+        if (!view.overdue) return '';
+        var text = view.paymentReported
+            ? 'Informaste el pago, pero ' + (view.collector === 'seller' ? 'el vendedor' : 'We Ötzi') + ' no lo confirmó a tiempo. Soporte va a revisar el pedido; si querés, escribile.'
+            : 'Venció el plazo para pagar este pedido. Si ya pagaste, escribile al vendedor con el número de pedido.';
+        return '<div class="stb-block" id="stb-report-block"><p class="wo-alert wo-alert--warning">' + esc(text) + '</p></div>';
+    }
+
     function reportBlockHtml(order, view) {
         var manual = !order.payment_provider || order.payment_provider === 'manual';
-        if (!manual || view.collector === 'provider' || view.status !== 'pending_payment') return '';
+        // Vencido: report_store_payment lo rechaza (order_not_payable), así que
+        // no se ofrece informar ni actualizar el comprobante (lo avisa
+        // overdueBlockHtml).
+        if (!manual || view.collector === 'provider' || view.status !== 'pending_payment' || view.overdue) return '';
         if (view.paymentReported) {
             var next = view.nextAction && view.nextAction.kind === 'info' ? view.nextAction.label : 'Informaste el pago.';
             return '<div class="stb-block" id="stb-report-block"><h2 class="stb-block-title">Pago informado</h2>' +
@@ -859,9 +847,6 @@
                 (view.paymentReference ? '<p class="stb-text stb-text--s stb-muted">Referencia: ' + esc(view.paymentReference) + '</p>' : '') +
                 (order.expires_at ? '<p class="stb-text stb-text--s stb-muted">El pedido queda reservado hasta el ' + esc(view.expiresLabel) + '.</p>' : '') +
             '</div>';
-        }
-        if (view.overdue) {
-            return '<div class="stb-block" id="stb-report-block"><p class="wo-alert wo-alert--warning">Venció el plazo para pagar este pedido.</p></div>';
         }
         return '<div class="stb-block" id="stb-report-block">' +
             '<h2 class="stb-block-title">Informá tu pago</h2>' +
@@ -882,13 +867,16 @@
         state.order = order;
         var view = M.orderView(order, { role: 'buyer' });
         var pending = view.status === 'pending_payment';
+        // Vencido (?pedido= de un pedido viejo): sin plazo, sin instrucciones
+        // para pagar y sin «Ya pagué →»; solo el aviso y el contacto.
+        var payable = pending && !view.overdue;
         setHeader('Store · ' + view.numberLabel, 'Pedido creado',
-            pending ? 'Pagalo con las instrucciones de abajo y, cuando lo hagas, informá el comprobante.' : null);
+            payable && !view.paymentReported ? 'Pagalo con las instrucciones de abajo y, cuando lo hagas, informá el comprobante.' : null);
         var head = '<div class="stb-block"><div class="stb-done-head">' +
                 '<span class="wo-marks stb-done-marks" aria-hidden="true"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>' +
                 '<p class="stb-meta">' + esc(view.numberLabel) + ' · <span class="' + esc(view.statusTag) + ' sts-tag-s">' + esc(view.statusLabel) + '</span></p>' +
                 '<p class="stb-text">Total del pedido: <span class="stb-strong">' + esc(view.totals.totalLabel) + '</span></p>' +
-                (pending && view.deadlineLabel && !view.paymentReported ? '<p class="stb-deadline">' + esc(view.deadlineLabel) + '</p>' : '') +
+                (payable && view.deadlineLabel && !view.paymentReported ? '<p class="stb-deadline">' + esc(view.deadlineLabel) + '</p>' : '') +
             '</div></div>';
         var links = '<div class="stb-block"><div class="stb-inline-actions">' +
                 '<a class="wo-btn wo-btn--ghost wo-btn--hard" href="' + esc(M.purchasesUrl(order.id)) + '">Ver mis compras →</a>' +
@@ -896,7 +884,7 @@
             '</div></div>';
         var html = '<div class="stb-layout">' +
             '<aside class="stb-aside" aria-label="Resumen del pedido"><div class="sts-panel">' + orderSummaryHtml(order, view) + '</div></aside>' +
-            '<div class="stb-main"><div class="sts-panel">' + head + (pending ? paymentBlockHtml(order, view) + reportBlockHtml(order, view) : '') + links + '</div></div>' +
+            '<div class="stb-main"><div class="sts-panel">' + head + (pending ? overdueBlockHtml(view) + paymentBlockHtml(order, view) + reportBlockHtml(order, view) : '') + links + '</div></div>' +
         '</div>';
         $('stb-done').innerHTML = html;
         S.setTitle('Pedido creado');

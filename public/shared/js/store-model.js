@@ -545,11 +545,16 @@
     // cada variante, pero no siempre price_amount: si falta, se deduce cuando
     // es exacto (ninguna variante con override por debajo de price_from).
     // exact = false → el precio de las variantes que heredan es «desde».
+    // Variantes vendibles: la ficha pública solo trae activas; en la fila del
+    // vendedor se descartan las que tienen active = false (como priceFrom).
+    function activeVariants(p) {
+        return asArray(p && p.variants).filter(function (v) { return v && v.active !== false; });
+    }
     function merchPricing(product) {
         var p = product || {};
         var base = num(p.price_amount);
         if (base > 0) return { base: round2(base), exact: true };
-        var variants = asArray(p.variants);
+        var variants = activeVariants(p);
         var overrides = [];
         var inherits = !variants.length;
         variants.forEach(function (v) {
@@ -580,7 +585,7 @@
                 if (v > 0) prices.push(round2(v));
             });
         } else {
-            var variants = asArray(p.variants);
+            var variants = activeVariants(p);
             if (variants.length) {
                 var pricing = null;
                 variants.forEach(function (v) {
@@ -824,12 +829,16 @@
         'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW'
     ];
 
-    // ISO-2 → nombre en español («AR» → «Argentina»). Sin Intl.DisplayNames
-    // o con un código que no resuelve, devuelve el código.
+    var COUNTRY_INDEX = {};
+    COUNTRY_CODES.forEach(function (c) { COUNTRY_INDEX[c] = true; });
+
+    // ISO-2 → nombre en español («AR» → «Argentina»). Sin Intl.DisplayNames,
+    // con un código que no resuelve o que no es un país asignado (Intl también
+    // nombra ZZ «Región desconocida», EU, UN, XA…), devuelve el código.
     var regionNames = null;
     function countryName(code) {
         var c = text(code).toUpperCase();
-        if (!/^[A-Z]{2}$/.test(c)) return c;
+        if (!COUNTRY_INDEX[c]) return c;
         try {
             if (!regionNames && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
                 regionNames = new Intl.DisplayNames(['es'], { type: 'region' });

@@ -79,21 +79,9 @@
         return [text(s.city), text(s.country)].filter(Boolean).join(', ');
     }
 
-    // ISO-2 → nombre en español («AR» → «Argentina»); si no se puede, el código.
-    var regionNames = null;
-    function countryName(code) {
-        var c = text(code).toUpperCase();
-        if (!/^[A-Z]{2}$/.test(c)) return c;
-        try {
-            if (!regionNames && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
-                regionNames = new Intl.DisplayNames(['es'], { type: 'region' });
-            }
-            var name = regionNames ? regionNames.of(c) : '';
-            return name && name !== c ? name : c;
-        } catch (e) {
-            return c;
-        }
-    }
+    // ISO-2 → nombre en español («AR» → «Argentina»): el del modelo, que solo
+    // nombra países asignados; con cualquier otro código devuelve el código.
+    function countryName(code) { return Model.countryName(code); }
     // «Argentina», «Argentina y Uruguay», «Chile, España e Italia».
     function joinList(items) {
         var xs = list(items).filter(Boolean);
@@ -158,28 +146,11 @@
     /* Precios                                                             */
     /* ------------------------------------------------------------------ */
 
-    // Precio base del merch. La ficha pública trae price_from y el override de
-    // cada variante, pero no siempre price_amount: si falta, se deduce cuando
-    // es exacto (ninguna variante con override por debajo de price_from).
-    // exact = false → el precio de las variantes que heredan es «desde».
-    function merchPricing(product) {
-        var p = product || {};
-        var base = num(p.price_amount);
-        if (base > 0) return { base: round2(base), exact: true };
-        var variants = list(p.variants);
-        var overrides = [];
-        var inherits = !variants.length;
-        variants.forEach(function (v) {
-            var o = num(v && v.price_amount);
-            if (o > 0) overrides.push(o);
-            else inherits = true;
-        });
-        if (!inherits) return { base: null, exact: true };
-        var from = num(p.price_from);
-        if (!(from > 0)) return { base: null, exact: false };
-        var minOverride = overrides.length ? Math.min.apply(null, overrides) : Infinity;
-        return { base: round2(from), exact: minOverride > from };
-    }
+    // Precio base del merch: { base, exact } del modelo (Model.merchPricing).
+    // La ficha pública trae price_from y el override de cada variante, pero no
+    // siempre price_amount: si falta, se deduce cuando es exacto. exact = false
+    // → el precio de las variantes que heredan es «desde».
+    function merchPricing(product) { return Model.merchPricing(product); }
 
     // Copia del producto con price_amount resuelto, para orderTotals.
     function pricedProduct(product) {
@@ -196,40 +167,10 @@
         return { amount: pricing.base, approx: pricing.base != null && !pricing.exact };
     }
 
-    // «Desde USD 35» si hay varios precios posibles; si no, el precio solo.
-    function priceSummary(product) {
-        var p = product || {};
-        var prices = [];
-        var approx = false;
-        if (p.kind === 'design') {
-            list(Model.LICENSE_TIERS).forEach(function (tier) {
-                var v = num(p[tier.priceField]);
-                if (v > 0) prices.push(round2(v));
-            });
-        } else {
-            var variants = list(p.variants);
-            if (variants.length) {
-                variants.forEach(function (v) {
-                    var vp = variantPrice(p, v);
-                    if (vp.amount == null) return;
-                    prices.push(vp.amount);
-                    if (vp.approx) approx = true;
-                });
-            } else {
-                var base = merchPricing(p).base;
-                if (base != null) prices.push(base);
-            }
-        }
-        if (!prices.length) {
-            var from = Model.priceFrom(p);
-            return from == null
-                ? { amount: null, from: false, label: '' }
-                : { amount: from, from: true, label: 'Desde ' + money(from, currencyOf(p)) };
-        }
-        var min = Math.min.apply(null, prices);
-        var several = approx || prices.some(function (x) { return x !== min; });
-        return { amount: min, from: several, label: (several ? 'Desde ' : '') + money(min, currencyOf(p)) };
-    }
+    // Precio de cards y del panel de compra: { amount, from, label } del modelo
+    // (Model.priceLabel, el mismo del perfil). «Desde USD 35» solo con varios
+    // precios posibles o uno aproximado; si no, el precio solo.
+    function priceSummary(product) { return Model.priceLabel(product); }
 
     // «Diseño · Fine line» / «Merch · Remeras».
     function kindLine(product) {

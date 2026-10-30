@@ -396,7 +396,7 @@ test('descarga: con requests en paralelo nunca se emiten más de 50 URLs por lic
     assert.equal(statuses[statuses.length - 1], 429);
 });
 
-test('descarga: 200 registra el evento y firma 300 s fijos con download = file_name', async () => {
+test('descarga: 200 registra el evento y firma 300 s fijos con el nombre de descarga', async () => {
     const { handlers, repo, signCalls } = handlersWith();
     const res = fakeRes();
     await handlers.handleDownloadUrl({ ...downloadReq(), body: { expiresIn: 99999 } }, res);
@@ -408,6 +408,60 @@ test('descarga: 200 registra el evento y firma 300 s fijos con download = file_n
     assert.deepEqual(repo.calls.inserted, [{ licenseId: LICENSE_ID, assetId: ASSET_ID, userId: USER_ID }]);
     assert.deepEqual(signCalls, [{ bucket: 'store-design-files', objectPath: `seller/${PRODUCT_ID}/original/1700000000000-luna.png`, opts: { expiresIn: 300, download: 'luna.png' } }]);
     assert.equal(repo.calls.counted[0].opts.since, '2026-10-29T12:00:00.000Z');
+});
+
+test('descarga: el nombre de descarga es la base sanitizada + la extensión del MIME real', async () => {
+    const { downloadFileName } = storeOrders;
+    const name = (file_name, mime_type, kind = 'original') => downloadFileName({ file_name, mime_type, kind });
+    assert.equal(name('luna.png', 'image/png'), 'luna.png');
+    assert.equal(name('Mi Diseño Final (v2).PNG', 'image/png'), 'Mi-Diseno-Final-v2.png', 'base con sanitizeFilename y extensión en minúscula');
+    assert.equal(name('foto.jpeg', 'image/jpeg'), 'foto.jpeg', 'conserva una extensión propia del MIME');
+    assert.equal(name('Capa.PSB', 'image/vnd.adobe.photoshop'), 'Capa.psb');
+    assert.equal(name('arte.procreate', 'application/zip'), 'arte.procreate');
+    assert.equal(name('scan.png', 'image/jpeg'), 'scan.jpg', 'otra extensión conocida se reemplaza por la del MIME');
+    assert.equal(name('x.png.exe', 'image/png'), 'x.png.exe.png', 'una extensión desconocida no manda');
+    assert.equal(name('"../evil\r\n.pdf', 'application/pdf'), 'evil.pdf', 'sin comillas, barras ni controles');
+    assert.equal(name('mi diseño & co.png', 'image/png'), 'mi-diseno-co.png');
+    assert.equal(name('x.png', 'IMAGE/PNG; charset=binary'), 'x.png', 'MIME normalizado');
+    assert.equal(name('', 'image/tiff', 'stencil'), 'stencil.tiff', 'sin nombre usa el kind');
+    assert.equal(name('.png', 'image/png'), 'original.png');
+    // Un MIME fuera de store-design-files (o sin MIME) nunca baja con su extensión.
+    assert.equal(name('x.svg', 'image/svg+xml'), 'x.bin');
+    assert.equal(name('x.html', null), 'x.html.bin');
+    assert.equal(downloadFileName(null), 'archivo.bin');
+    const long = name('a'.repeat(300) + '.png', 'image/png');
+    assert.ok(long.length <= 130 && long.endsWith('.png'), long.length);
+
+    // Con el handler: se firma con el nombre normalizado, no con file_name crudo.
+    const repo = fakeRepo({ getAsset: async () => ({ id: ASSET_ID, product_id: PRODUCT_ID, kind: 'original', storage_path: `seller/${PRODUCT_ID}/original/1-x.png`, file_name: 'x.png.exe', mime_type: 'image/png' }) });
+    const { handlers, signCalls } = handlersWith({ repo });
+    const res = fakeRes();
+    await handlers.handleDownloadUrl(downloadReq(), res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(signCalls[0].opts.download, 'x.png.exe.png');
+});
+
+test('descarga: las extensiones por MIME son las del guard SQL y coinciden con EXTENSION_MIME del modelo', () => {
+    const { DOWNLOAD_EXTENSIONS } = storeOrders;
+    const M = require('../public/shared/js/store-model.js');
+    for (const [mime, exts] of Object.entries(DOWNLOAD_EXTENSIONS)) {
+        assert.ok(exts.length > 0, mime);
+        for (const ext of exts) assert.equal(M.FILES.EXTENSION_MIME[ext], mime, `${ext} → ${mime}`);
+    }
+    // Cubre exactamente los MIME de store-design-files (originales y stencils).
+    const bucket = [...new Set([...M.FILES.ORIGINAL_MIME, ...M.FILES.STENCIL_MIME])].sort();
+    assert.deepEqual(Object.keys(DOWNLOAD_EXTENSIONS).sort(), bucket);
+
+    // Mismo mapa y mismo orden (la primera es la preferida) que v_exts en store_design_assets_guard.
+    const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261030150000_store_core.sql'), 'utf8');
+    const guard = sql.slice(sql.indexOf('create or replace function public.store_design_assets_guard()'));
+    const block = guard.slice(guard.indexOf('v_exts := case new.mime_type'), guard.indexOf('end;', guard.indexOf('v_exts := case new.mime_type')));
+    const fromSql = {};
+    for (const m of block.matchAll(/when '([^']+)' then array\[([^\]]+)\]/g)) {
+        fromSql[m[1]] = m[2].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+    }
+    assert.ok(Object.keys(fromSql).length === 8, 'v_exts del guard');
+    assert.deepEqual(JSON.parse(JSON.stringify(DOWNLOAD_EXTENSIONS)), fromSql);
 });
 
 test('descarga: un fallo interno responde 500 genérico sin filtrar el detalle', async () => {
@@ -623,6 +677,42 @@ test('webhook: eventos ignorados, inválidos, vacíos y errores de negocio', asy
     res = fakeRes();
     await ctx.handlers.handleWebhook(webhookReq(PAID_EVENT), res);
     assert.equal(res.statusCode, 500);
+});
+
+test('webhook: store:cannot_reopen deja un log claro del cobro huérfano y responde 422', async () => {
+    const logs = [];
+    const handlers = createHandlers({
+        resolveUser: async () => null,
+        repo: fakeRepo({ confirmProviderPayment: async () => { throw new Error('PostgREST POST rpc/confirm_store_order_payment_as_provider failed (400): {"code":"P0001","message":"store:cannot_reopen"}'); } }),
+        providers: fakeStripeRegistry(),
+        now: () => FIXED_NOW,
+        env: {},
+        logger: { error: (...args) => logs.push(args.join(' ')), warn() {}, log() {} },
+    });
+    const res = fakeRes();
+    await handlers.handleWebhook(webhookReq(PAID_EVENT), res);
+    assert.equal(res.statusCode, 422);
+    assert.deepEqual(res.body, { success: false, error: 'No pudimos aplicar el pago a ese pedido.' });
+    assert.equal(logs.length, 1, 'un solo log');
+    const line = logs[0];
+    assert.match(line, /COBRO HUÉRFANO/);
+    assert.match(line, /store:cannot_reopen/);
+    assert.ok(line.includes(`pedido ${ORDER_ID}`), 'pedido');
+    assert.ok(line.includes('proveedor stripe'), 'proveedor');
+    assert.ok(line.includes('referencia pi_123'), 'referencia');
+    assert.ok(line.includes('USD 50'), 'monto');
+
+    // Otro código de negocio sigue con el log genérico (sin «cobro huérfano»).
+    logs.length = 0;
+    const other = createHandlers({
+        repo: fakeRepo({ confirmProviderPayment: async () => { throw new Error('{"message":"store:collector_mismatch"}'); } }),
+        providers: fakeStripeRegistry(),
+        logger: { error: (...args) => logs.push(args.join(' ')), warn() {}, log() {} },
+    });
+    const res2 = fakeRes();
+    await other.handleWebhook(webhookReq(PAID_EVENT), res2);
+    assert.equal(res2.statusCode, 422);
+    assert.doesNotMatch(logs.join('\n'), /HUÉRFANO/);
 });
 
 test('isStoreWebhookRequest reconoce la ruta del webhook montada bajo /api/', () => {

@@ -145,6 +145,9 @@ test('priceLabel: «Desde» solo con varios precios o un precio aproximado (prec
     assert.equal(label({ kind: 'design', currency: 'USD', price_from: 80 }), 'Desde USD 80', 'sin precios: price_from');
     assert.equal(label({ kind: 'design', price_from: 80 }), 'Desde USD 80', 'sin moneda: USD');
     assert.deepEqual(plainObj(M.merchPricing({ kind: 'merch', price_from: 20, variants: [{ id: 'a', price_amount: 30 }, { id: 'b' }] })), { base: 20, exact: true });
+    // Fila del vendedor: una variante pausada (active = false) no se vende y no cuenta.
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_amount: 25, variants: [{ id: 'a', active: true }, { id: 'b', active: false, price_amount: 40 }] }), 'USD 25');
+    assert.equal(label({ kind: 'merch', currency: 'USD', price_amount: 25, variants: [{ id: 'a', active: false, price_amount: 10 }] }), 'USD 25', 'sin activas: el base');
 });
 
 test('priceLabel ≡ priceSummary de la vitrina (store-catalog.js) para que catálogo y perfil la reutilicen', () => {
@@ -403,6 +406,9 @@ test('COUNTRY_CODES: los 249 ISO 3166-1 alfa-2, iguales a la lista del checkout,
     assert.equal(M.countryName(' UY '), 'Uruguay');
     assert.equal(M.countryName('MX'), 'México');
     assert.equal(M.countryName('A1'), 'A1', 'código inválido: tal cual');
+    // Intl nombra códigos que no son países («Región desconocida», «Unión Europea»…): tal cual.
+    for (const code of ['ZZ', 'EU', 'UN', 'XA', 'QO', 'UK', 'XK']) assert.equal(M.countryName(code), code, code);
+    assert.equal(M.countryName('zz'), 'ZZ');
     assert.equal(M.countryName(''), '');
     assert.equal(M.countryName(null), '');
     const all = M.countryOptions();

@@ -1027,6 +1027,10 @@ function renderPresence() {
  * 6 productos públicos y «Ver la Store →». Solo con el gate (features.store y
  * tablas disponibles) y vía WeotziData.Store.getStorefront. Sin productos o ante
  * cualquier falla queda oculta: la Store nunca rompe el perfil.
+ *
+ * La vitrina se busca por username, que en artists_db todavía no es único: la
+ * banda se muestra solo si el vendedor que resolvió la RPC (seller.id) es el
+ * artista de este perfil (user_id). Si no coincide, queda oculta.
  */
 const STORE_BAND_MAX_ITEMS = 6;
 
@@ -1046,9 +1050,11 @@ async function loadStoreBand() {
     if (!band || !grid) return;
     band.hidden = true;
     try {
-        if (!artistData?.username || !(await isStoreGateOpen())) return;
+        if (!artistData?.username || !artistData?.user_id || !(await isStoreGateOpen())) return;
         const storefront = await window.WeotziData.Store.getStorefront('artist', artistData.username);
-        const products = Array.isArray(storefront?.products) ? storefront.products : [];
+        const sellerId = storefront?.seller?.id;
+        const sameArtist = sellerId != null && String(sellerId) === String(artistData.user_id);
+        const products = sameArtist && Array.isArray(storefront?.products) ? storefront.products : [];
         if (!products.length) {
             grid.innerHTML = '';
             return;
@@ -1062,58 +1068,6 @@ async function loadStoreBand() {
     }
 }
 
-/**
- * Precio de la banda con el mismo criterio que la vitrina (priceSummary de
- * store-catalog.js, que el perfil no carga): «Desde …» solo si hay varios
- * precios posibles; con uno solo, el precio a secas.
- */
-function storeBandPrice(product, M) {
-    if (!M || !product) return '';
-    const amount = (value) => {
-        const n = Number(value);
-        return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
-    };
-    const variants = Array.isArray(product.variants) ? product.variants : [];
-    const prices = [];
-    let approx = false;
-    if (product.kind === 'design') {
-        (Array.isArray(M.LICENSE_TIERS) ? M.LICENSE_TIERS : []).forEach((tier) => {
-            const v = amount(product[tier.priceField]);
-            if (v != null) prices.push(v);
-        });
-    } else {
-        // Precio base del merch: price_amount o, si falta, price_from cuando
-        // alguna variante lo hereda (exacto si ningún override queda por debajo).
-        let base = amount(product.price_amount);
-        let exact = true;
-        if (base == null) {
-            const overrides = variants.map((v) => amount(v && v.price_amount)).filter((v) => v != null);
-            if (!variants.length || overrides.length < variants.length) {
-                base = amount(product.price_from);
-                exact = base != null && (!overrides.length || Math.min(...overrides) > base);
-            }
-        }
-        if (variants.length) {
-            variants.forEach((v) => {
-                const own = amount(v && v.price_amount);
-                if (own != null) { prices.push(own); return; }
-                if (base == null) return;
-                prices.push(base);
-                if (!exact) approx = true;
-            });
-        } else if (base != null) {
-            prices.push(base);
-        }
-    }
-    if (!prices.length) {
-        const from = typeof M.priceFrom === 'function' ? M.priceFrom(product) : null;
-        return from == null ? '' : `Desde ${M.formatMoney(from, product.currency)}`;
-    }
-    const min = Math.min(...prices);
-    const several = approx || prices.some((p) => p !== min);
-    return `${several ? 'Desde ' : ''}${M.formatMoney(min, product.currency)}`;
-}
-
 function renderStoreBand(products, storefront) {
     const grid = document.getElementById('store-band-grid');
     const link = document.getElementById('store-band-link');
@@ -1125,12 +1079,15 @@ function renderStoreBand(products, storefront) {
     grid.innerHTML = products.map((product) => {
         const image = Array.isArray(product.images) ? product.images.find((img) => img && img.path) : null;
         const src = image ? Store.previewUrl(image.path) : '';
-        const price = storeBandPrice(product, M);
+        // Mismo precio que la vitrina (WeotziStoreModel.priceLabel): «Desde …»
+        // solo con varios precios posibles o uno aproximado.
+        const price = typeof M?.priceLabel === 'function' ? M.priceLabel(product).label : '';
         const kind = M?.KIND_LABELS?.[product.kind] || (product.kind === 'design' ? 'Diseño' : 'Merch');
         const badges = M ? M.productBadges(product) : [];
         const href = M ? M.itemUrl(product.id) : `/store/item/?id=${encodeURIComponent(product.id)}`;
+        // Miniatura decorativa: el título del link ya nombra el producto.
         const media = src
-            ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(image.alt)}" loading="lazy" width="600" height="750">`
+            ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" width="600" height="750">`
             : '<span class="store-band-media-empty"><i data-wo-icon="image" aria-hidden="true"></i></span>';
         const badgeHtml = badges.length
             ? `<span class="store-band-badges">${badges.map((b) => `<span class="${escapeHtml(b.tag)} store-band-tag">${escapeHtml(b.label)}</span>`).join('')}</span>`

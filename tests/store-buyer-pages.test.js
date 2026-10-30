@@ -565,32 +565,203 @@ test('checkout: tras el ingreso inline el foco va al título del pedido; el tota
     assert.doesNotMatch(doc.getElementById('stb-terms').innerHTML, /stb-terms-notice/);
 });
 
-test('checkout: sin países restringidos ofrece todos los ISO-2; con restricción, solo esos', async () => {
-    const src = read(PAGES.checkout.js);
-    const codes = vm.runInNewContext(/var COUNTRY_CODES = (\[[\s\S]*?\]);/.exec(src)[1]);
-    assert.equal(codes.length, 249, 'ISO 3166-1 alfa-2 completo');
-    assert.equal(new Set(codes).size, codes.length);
-    for (const c of ['TR', 'RO', 'PH', 'SG', 'AR', 'ES', 'MX', 'US']) assert.ok(codes.includes(c), c);
-    for (const c of ['EU', 'UN', 'ZZ', 'UK', 'XK']) assert.ok(!codes.includes(c), c + ' no es un país ISO asignado');
+test('checkout: los países salen del modelo (M.COUNTRY_CODES / M.countryName), sin lista local', async () => {
+    const code = stripComments(read(PAGES.checkout.js));
+    assert.doesNotMatch(code, /COUNTRY_CODES\s*=/, 'sin copia local de los 249 códigos');
+    assert.doesNotMatch(code, /Intl\.DisplayNames/, 'los nombres los da M.countryName');
+    assert.match(code, /M\.countryOptions\(/);
+    assert.equal(Model.COUNTRY_CODES.length, 249, 'ISO 3166-1 alfa-2 completo en el modelo');
 
     const open = runPage('checkout', { location: { pathname: '/store/checkout/', search: '?item=m1&variant=v1&qty=1' }, store: storeFor(MERCH), viewer: BUYER });
     await flush();
     const fields = open.doc.getElementById('stb-fields').innerHTML;
-    assert.equal((fields.match(/<option value="[A-Z]{2}">/g) || []).length, 249);
+    const values = [...fields.matchAll(/<option value="([A-Z]{2})">/g)].map((m) => m[1]);
+    assert.equal(values.length, 249, 'sin restricción: los 249 del modelo');
+    assert.deepEqual(values.slice().sort(), Model.COUNTRY_CODES.slice(), 'los mismos códigos que M.COUNTRY_CODES');
+    for (const c of ['TR', 'SG', 'AR', 'MX']) {
+        assert.match(fields, new RegExp('<option value="' + c + '">' + Model.countryName(c) + '</option>'), c + ' con el nombre de M.countryName');
+    }
     assert.match(fields, /<option value="TR">Turquía<\/option>/);
     assert.match(fields, /<option value="SG">Singapur<\/option>/);
     assert.doesNotMatch(fields, /stb-country-help/, 'sin restricción no hay lista de países en la ayuda');
     assert.equal(open.doc.getElementById('stb-total-live').textContent, 'Total: ARS 20.000, con envío de ARS 2.000.');
     assert.match(open.doc.getElementById('stb-summary').innerHTML, /<span class="sts-media-ph" aria-hidden="true">/);
 
+    // Con restricción: solo esos, sin repetidos (minúsculas incluidas) y ordenados por nombre.
     const closed = runPage('checkout', {
         location: { pathname: '/store/checkout/', search: '?item=m1&variant=v1&qty=1' },
-        store: storeFor(Object.assign({}, MERCH, { ships_to_countries: ['ES', 'PT'] })), viewer: BUYER
+        store: storeFor(Object.assign({}, MERCH, { ships_to_countries: ['pt', 'ES', 'ES'] })), viewer: BUYER
     });
     await flush();
     const only = closed.doc.getElementById('stb-fields').innerHTML;
-    assert.equal((only.match(/<option value="[A-Z]{2}">/g) || []).length, 2);
+    assert.deepEqual([...only.matchAll(/<option value="([A-Z]{2})">/g)].map((m) => m[1]), ['ES', 'PT']);
+    assert.match(only, /<option value="">Elegí el país<\/option>/);
     assert.match(only, /El vendedor envía a: España, Portugal\./);
+
+    // Un solo país: queda elegido y sin opción vacía.
+    const single = runPage('checkout', {
+        location: { pathname: '/store/checkout/', search: '?item=m1&variant=v1&qty=1' },
+        store: storeFor(Object.assign({}, MERCH, { ships_to_countries: ['UY'] })), viewer: BUYER
+    });
+    await flush();
+    assert.doesNotMatch(single.doc.getElementById('stb-fields').innerHTML, /Elegí el país/);
+    assert.equal(single.doc.getElementById('stb-country').value, 'UY');
+});
+
+/* ---------------------------- pedidos vencidos ---------------------------- */
+
+const HOUR = 3600000;
+const isoIn = (ms) => new Date(Date.now() + ms).toISOString();
+function pendingDesignOrder(extra) {
+    return Object.assign({
+        id: 'o7', order_number: 'ST-0000A007', status: 'pending_payment', fulfillment_method: 'digital', currency: 'USD', buyer_user_id: 'buyer-1',
+        subtotal_amount: 25, shipping_amount: 0, total_amount: 25, created_at: isoIn(-30 * HOUR), expires_at: isoIn(-6 * HOUR),
+        payment_provider: 'manual', expected_collector: 'seller', payment_instructions: 'Transferencia al alias mara.ink.pagos',
+        seller_contact: 'Instagram @mara.ink',
+        store_order_items: [{ id: 'i7', order_id: 'o7', product_id: 'p1', kind: 'design', title: 'Golondrina', license_tier: 'personal',
+            unit_price: 25, quantity: 1, line_total: 25, image_path: null }],
+        store_licenses: []
+    }, extra || {});
+}
+async function checkoutDone(order) {
+    const page = runPage('checkout', {
+        location: { pathname: '/store/checkout/', search: '?pedido=' + order.id },
+        viewer: BUYER,
+        store: { getMyOrder: async () => order, reportPayment: async () => order }
+    });
+    await flush();
+    return page;
+}
+
+test('purchases: un pedido vencido no ofrece «Ya pagué →», ni el form, ni instrucciones para pagar', async () => {
+    // En plazo: instrucciones y form de «Ya pagué →».
+    const live = await purchasesDetail(pendingDesignOrder({ expires_at: isoIn(20 * HOUR) }), DESIGN);
+    const liveHtml = live.doc.getElementById('stb-detail').innerHTML;
+    assert.match(liveHtml, /id="stb-report-form"/);
+    assert.match(liveHtml, />Ya pagué →<\/button>/);
+    assert.match(liveHtml, /Cómo pagar/);
+    assert.match(liveHtml, /Tenés hasta el /);
+
+    // Vencido sin pago informado: aviso, contacto y cancelar; nada para pagar ni informar.
+    const overdue = await purchasesDetail(pendingDesignOrder(), DESIGN);
+    const html = overdue.doc.getElementById('stb-detail').innerHTML;
+    assert.match(html, /<h2 class="stb-block-title">Venció el plazo para pagar<\/h2>/);
+    assert.match(html, /Venció el plazo para pagar este pedido\. Si ya pagaste, escribile al vendedor con el número de pedido\./);
+    assert.doesNotMatch(html, /Ya pagué/);
+    assert.doesNotMatch(html, /stb-report-form|stb-report-ref/);
+    assert.doesNotMatch(html, /Cómo pagar|Pagá el monto exacto|mara\.ink\.pagos/, 'sin instrucciones para pagar un pedido vencido');
+    assert.doesNotMatch(html, /Tenés hasta el /);
+    assert.match(html, /Instagram @mara\.ink/, 'queda el contacto del vendedor');
+    assert.match(html, /data-stb-action="cancel"/, 'sin pago informado se puede cancelar');
+    assert.equal(overdue.doc.getElementById('stb-report-form'), null);
+
+    // Vencido con pago informado: tampoco se actualiza el comprobante.
+    const reported = await purchasesDetail(pendingDesignOrder({ buyer_payment_reported_at: isoIn(-26 * HOUR), buyer_payment_reference: 'TR-77' }), DESIGN);
+    const repHtml = reported.doc.getElementById('stb-detail').innerHTML;
+    assert.match(repHtml, /Informaste el pago, pero el vendedor no lo confirmó a tiempo\./);
+    assert.doesNotMatch(repHtml, /Ya pagué|Actualizar comprobante|Actualizá el comprobante|stb-report-form/);
+    assert.doesNotMatch(repHtml, /Cómo pagar/);
+    assert.doesNotMatch(repHtml, /data-stb-action="cancel"/, 'con pago informado cancela soporte');
+    assert.match(repHtml, /para cancelar el pedido, escribile a soporte/);
+    const platform = await purchasesDetail(pendingDesignOrder({ expected_collector: 'platform', buyer_payment_reported_at: isoIn(-26 * HOUR) }), DESIGN);
+    assert.match(platform.doc.getElementById('stb-detail').innerHTML, /Informaste el pago, pero We Ötzi no lo confirmó a tiempo\./);
+});
+
+test('purchases: la card del pedido vencido avisa el plazo y el detalle vencido explica por qué', async () => {
+    const list = runPage('purchases', { location: { pathname: '/store/purchases/', search: '' }, viewer: BUYER,
+        store: { listMyPurchases: async () => [pendingDesignOrder()] } });
+    await flush();
+    const cards = list.doc.getElementById('stb-orders').innerHTML;
+    assert.match(cards, /<span class="stb-order-next">Venció el plazo para pagar<\/span>/);
+    assert.doesNotMatch(cards, /Ya pagué|Pagalo antes/);
+
+    const expired = await purchasesDetail(pendingDesignOrder({ status: 'expired' }), DESIGN);
+    const html = expired.doc.getElementById('stb-detail').innerHTML;
+    assert.match(html, /Este pedido venció porque no se informó el pago a tiempo\./);
+    assert.doesNotMatch(html, /Ya pagué|stb-report-form|Cómo pagar/);
+
+    const lapsed = await purchasesDetail(pendingDesignOrder({ status: 'expired', buyer_payment_reported_at: isoIn(-8 * 24 * HOUR) }), DESIGN);
+    const lapsedHtml = lapsed.doc.getElementById('stb-detail').innerHTML;
+    assert.match(lapsedHtml, /Este pedido venció porque nadie confirmó el pago a tiempo\. Si pagaste, escribile a soporte con el número de pedido\./);
+    assert.doesNotMatch(lapsedHtml, /no se informó el pago/);
+});
+
+test('checkout ?pedido=: un pedido vencido no muestra «Ya pagué →» ni instrucciones; en plazo sí', async () => {
+    const live = await checkoutDone(pendingDesignOrder({ expires_at: isoIn(20 * HOUR) }));
+    const liveHtml = live.doc.getElementById('stb-done').innerHTML;
+    assert.match(liveHtml, />Ya pagué →<\/button>/);
+    assert.match(liveHtml, /Cómo pagar/);
+    assert.match(liveHtml, /<p class="stb-deadline">Tenés hasta el /);
+    assert.equal(live.doc.getElementById('stb-sub').hidden, false);
+
+    const overdue = await checkoutDone(pendingDesignOrder());
+    const html = overdue.doc.getElementById('stb-done').innerHTML;
+    assert.match(html, /Venció el plazo para pagar este pedido\. Si ya pagaste, escribile al vendedor con el número de pedido\./);
+    assert.doesNotMatch(html, /Ya pagué|stb-report-form|stb-report-ref/);
+    assert.doesNotMatch(html, /Cómo pagar|Pagá el monto exacto|mara\.ink\.pagos/);
+    assert.doesNotMatch(html, /stb-deadline|Tenés hasta el /, 'sin plazo vencido como si siguiera vigente');
+    assert.match(html, /Instagram @mara\.ink/);
+    assert.match(html, /Ver mis compras →/);
+    assert.ok(html.indexOf('Venció el plazo') < html.indexOf('Contacto del vendedor'), 'el aviso va antes del contacto');
+    assert.equal(overdue.doc.getElementById('stb-sub').hidden, true, 'sin «Pagalo con las instrucciones de abajo»');
+    assert.equal(overdue.doc.getElementById('stb-report-form'), null);
+
+    const reported = await checkoutDone(pendingDesignOrder({ buyer_payment_reported_at: isoIn(-26 * HOUR), buyer_payment_reference: 'TR-77' }));
+    const repHtml = reported.doc.getElementById('stb-done').innerHTML;
+    assert.match(repHtml, /Informaste el pago, pero el vendedor no lo confirmó a tiempo\./);
+    assert.doesNotMatch(repHtml, /Ya pagué|queda reservado hasta|stb-report-form/);
+});
+
+/* ------------------------------ retiro y envío ------------------------------ */
+
+function merchOrder(extra) {
+    return Object.assign({
+        id: 'o8', order_number: 'ST-0000A008', status: 'paid', fulfillment_method: 'pickup', fulfillment_status: 'preparing', currency: 'ARS',
+        buyer_user_id: 'buyer-1', subtotal_amount: 18000, shipping_amount: 0, total_amount: 18000, created_at: isoIn(-48 * HOUR),
+        paid_at: isoIn(-24 * HOUR), expires_at: isoIn(-24 * HOUR), payment_provider: 'manual', expected_collector: 'seller',
+        seller_contact: 'Instagram @mara.ink', pickup_details: null, shipping_address: null,
+        store_order_items: [{ id: 'i8', order_id: 'o8', product_id: 'm1', variant_id: 'v1', kind: 'merch', title: 'Remera Ö', variant_label: 'Talle M',
+            unit_price: 18000, quantity: 1, line_total: 18000, image_path: null }],
+        store_licenses: []
+    }, extra || {});
+}
+const detailOf = async (order) => (await purchasesDetail(order, MERCH)).doc.getElementById('stb-detail').innerHTML;
+
+test('purchases: retiro pagado sin pickup_details → «Coordiná el retiro con el vendedor ({contacto}).»', async () => {
+    const paid = await detailOf(merchOrder());
+    assert.match(paid, /<p class="stb-text">Coordiná el retiro con el vendedor \(Instagram @mara\.ink\)\.<\/p>/);
+    assert.doesNotMatch(paid, /te llega cuando el vendedor confirme el pago/, 'ya pagado: no se promete que llegue la dirección');
+
+    const noContact = await detailOf(merchOrder({ seller_contact: null }));
+    assert.match(noContact, /<p class="stb-text">Coordiná el retiro con el vendedor\.<\/p>/);
+
+    const ready = await detailOf(merchOrder({ status: 'fulfilled', fulfillment_status: 'delivered', delivered_at: isoIn(-HOUR) }));
+    assert.match(ready, /Coordiná el retiro con el vendedor \(Instagram @mara\.ink\)\./);
+
+    const escaped = await detailOf(merchOrder({ seller_contact: '<b>@mara</b>' }));
+    assert.match(escaped, /Coordiná el retiro con el vendedor \(&lt;b&gt;@mara&lt;\/b&gt;\)\./);
+
+    // Con la dirección del pedido: se muestra y no hace falta coordinar.
+    const withAddress = await detailOf(merchOrder({ pickup_details: 'Av. de ejemplo 123 · Palermo' }));
+    assert.match(withAddress, /Dirección de retiro<\/p><p class="stb-pre">Av\. de ejemplo 123 · Palermo<\/p>/);
+    assert.doesNotMatch(withAddress, /Coordiná el retiro/);
+
+    // Pendiente: la dirección llega con la confirmación del pago.
+    const pending = await detailOf(merchOrder({ status: 'pending_payment', paid_at: null, fulfillment_status: 'unfulfilled', expires_at: isoIn(20 * HOUR) }));
+    assert.match(pending, /La dirección exacta del estudio te llega cuando el vendedor confirme el pago\./);
+    assert.doesNotMatch(pending, /Coordiná el retiro/);
+
+    // Cancelado: ni promesa ni coordinación.
+    const cancelled = await detailOf(merchOrder({ status: 'cancelled', paid_at: null, fulfillment_status: 'unfulfilled', cancelled_at: isoIn(-HOUR) }));
+    assert.doesNotMatch(cancelled, /te llega cuando el vendedor confirme el pago|Coordiná el retiro/);
+});
+
+test('purchases: la dirección de envío muestra el país con M.countryName', async () => {
+    const html = await detailOf(merchOrder({ fulfillment_method: 'shipping', shipping_amount: 2000, total_amount: 20000,
+        shipping_address: { recipient: 'Ana Pérez', line1: 'Calle 1', city: 'Montevideo', postal_code: '11200', country: 'UY', phone: null } }));
+    assert.match(html, /<address class="stb-address">Ana Pérez<br>Calle 1<br>Montevideo, 11200<br>Uruguay<\/address>/);
+    const odd = await detailOf(merchOrder({ fulfillment_method: 'shipping', shipping_address: { recipient: 'Ana', line1: 'Calle 1', city: 'X', country: 'ZZ' } }));
+    assert.match(odd, /<br>ZZ<\/address>/, 'un código que no es país queda tal cual');
 });
 
 test('checkout: «Olvidé mi contraseña →» termina en flecha y el total tiene su región viva', () => {
@@ -650,6 +821,71 @@ test('purchases: «Imprimir a escala real» usa las medidas de la licencia aunqu
     const plainHtml = none.doc.getElementById('stb-detail').innerHTML;
     assert.doesNotMatch(plainHtml, /print-scale/);
     assert.match(plainHtml, /Bajar stencil/, 'las descargas siguen');
+});
+
+test('purchases: designSize lee de la licencia las mismas claves que escriben el SQL y la fixture', async () => {
+    // SQL (store_apply_order_payment): la licencia nace con las medidas del producto.
+    const sql = read('supabase/migrations/20261030150000_store_core.sql');
+    const apply = sql.slice(sql.indexOf('create or replace function public.store_apply_order_payment('));
+    const at = apply.indexOf('insert into public.store_licenses');
+    assert.ok(at > 0, 'store_apply_order_payment emite la licencia');
+    const insert = apply.slice(at, apply.indexOf(');', apply.indexOf('jsonb_strip_nulls', at)) + 2);
+    assert.match(insert, /metadata_json\s*\)\s*values/, 'store_licenses recibe metadata_json');
+    assert.match(insert, /jsonb_strip_nulls\(jsonb_build_object\(\s*'design_width_cm', v_product\.design_width_cm,\s*'design_height_cm', v_product\.design_height_cm\s*\)\)/);
+    // La página lee esas claves de metadata_json y, si faltan, de la ficha pública.
+    const code = stripComments(read(PAGES.purchases.js));
+    assert.match(code, /Number\(src\.design_width_cm\)/);
+    assert.match(code, /Number\(src\.design_height_cm\)/);
+    assert.match(code, /sizeFrom\(raw && raw\.metadata_json\) \|\| sizeFrom\(bundle && bundle\.product\)/);
+
+    // Fixture: una exclusiva pagada en el emulador deja el producto retirado
+    // (sin ficha pública) y la licencia con las medidas: igual se imprime.
+    const prevSelf = global.self;
+    const sandbox = { console };
+    sandbox.self = sandbox;
+    vm.runInNewContext(read('public/shared/js/store-model.js'), sandbox, { filename: 'store-model.js' });
+    vm.runInNewContext(read('public/shared/js/demo-fixtures/store.js'), sandbox, { filename: 'demo-fixtures/store.js' });
+    global.self = sandbox;
+    let fx;
+    let emu;
+    try {
+        const Postgrest = require('../public/shared/js/wo-demo-postgrest.js');
+        const Fixtures = require('../public/shared/js/wo-demo-fixtures.js');
+        fx = Fixtures.build({ userId: '11111111-1111-4111-8111-111111111111', username: 'demo.wo', name: 'Demo Artist', email: 'demo@weotzi.test' });
+        emu = Postgrest.createStore({ tables: fx.tables, relations: fx.relations, rpcs: fx.rpcs, views: fx.views });
+    } finally {
+        global.self = prevSelf;
+    }
+    const SELLER_ID = '11111111-1111-4111-8111-111111111111';
+    const D1 = '0000c0de-0000-4000-8000-57' + String(101).padStart(10, '0');
+    const buyerId = fx.clients[2].user_id;
+    const call = (method, p, search, body, userId) => {
+        const res = emu.handle({ method, path: p, search: search || '', headers: {}, body: body == null ? null : JSON.stringify(body), ctx: { userId } });
+        assert.ok(res.status >= 200 && res.status < 300, p + ' → ' + res.status + ' ' + res.body);
+        return res.body == null ? null : JSON.parse(res.body);
+    };
+    const rpc = (fn, args, userId) => call('POST', 'rpc/' + fn, '', args, userId);
+    const created = rpc('create_store_order', {
+        p_product_id: D1, p_variant_id: null, p_quantity: 1, p_license_tier: 'exclusive', p_license_holder_name: null, p_fulfillment_method: null,
+        p_shipping_address: null, p_buyer_note: null, p_terms_version: Model.TERMS_VERSION, p_idempotency_key: 'k-size-1'
+    }, buyerId);
+    rpc('report_store_payment', { p_order_id: created.id, p_reference: 'TR-SIZE' }, buyerId);
+    rpc('confirm_store_order_payment', { p_order_id: created.id, p_collected_by: 'seller', p_reference: 'TR-SIZE', p_note: null }, SELLER_ID);
+    assert.equal(rpc('get_public_store_product', { p_product_id: D1 }, buyerId), null, 'exclusiva vendida: sin ficha pública');
+    const rows = call('GET', 'store_orders', '?select=' + encodeURIComponent(Repo.STORE_SELECTS.orderFull) + '&id=eq.' + created.id, null, buyerId);
+    const order = rows[0];
+    assert.deepEqual(order.store_licenses[0].metadata_json, { design_width_cm: 9, design_height_cm: 7 }, 'la licencia trae las medidas');
+    const assets = emu.rows('store_design_assets').filter((a) => a.product_id === D1).map((a) => JSON.parse(JSON.stringify(a)));
+    const page = await purchasesDetail(order, null, { listLicenseAssets: async () => assets });
+    const html = page.doc.getElementById('stb-detail').innerHTML;
+    assert.match(html, /data-stb-action="print-scale"/);
+    assert.match(html, /El stencil se imprime a 9 × 7 cm\./);
+
+    // Solo una medida en la licencia (jsonb_strip_nulls sacó la otra): se usa la ficha pública.
+    const half = JSON.parse(JSON.stringify(order));
+    half.store_licenses[0].metadata_json = { design_width_cm: 9 };
+    const fallback = await purchasesDetail(half, Object.assign({}, DESIGN, { design_width_cm: 11, design_height_cm: 8.5 }), { listLicenseAssets: async () => assets });
+    assert.match(fallback.doc.getElementById('stb-detail').innerHTML, /El stencil se imprime a 11 × 8,5 cm\./);
 });
 
 test('purchases: si falla el refresco después de una acción, avisa y deshabilita las acciones del detalle', async () => {
