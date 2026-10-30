@@ -1,7 +1,34 @@
 # Estudios en We Otzi
 
-Actualizado: 2026-05-27  
+Actualizado: 2026-10-30
 Alcance: modulo local de Estudios en `C:\dev\weotzi-unified`.
+
+## Plataforma de Estudios (2026-10-30)
+
+La rama `feature/estudios-plataforma` convierte el dashboard en el sistema administrativo del estudio. El contrato completo entre modulos esta en [plans/2026-10-30-estudios-plataforma.md](plans/2026-10-30-estudios-plataforma.md). Las migraciones `20261030200000`–`20261030204000` estan **NO aplicadas**. Cada una tiene su rollback en `supabase/rollbacks/` y sus tests SQL en `supabase/tests/`. El frontend degrada mientras falten: muestra "falta aplicar una migracion" o cae al flujo anterior.
+
+| Pestaña | Que hace |
+| --- | --- |
+| Inicio | Pendientes con enlaces (solicitudes, contratos por firmar o por vencer, citas de hoy y mañana, stock bajo, pedidos en camino, postulaciones nuevas) y los KPIs del mes por moneda. |
+| Solicitudes | **Altas** que piden los artistas (aprobar, aprobar con contrato, rechazar), **cambios pedidos** a invitaciones y **contraofertas** a postulaciones. |
+| Spots | Spots para residentes, guest e itinerantes. Cada uno define que incluye, beneficios (`benefit_tags`), que se espera, requisitos y modalidad: porcentaje, fijo (con quien paga) o mixto. Aceptar una postulacion abre el editor de contrato. |
+| Contratos | Borrador → emitir y firmar (dueño) → firma del artista → membresia activa. Terminos congelados (`terms_snapshot` + `terms_hash` SHA-256), documento imprimible, cancelar, rescindir y nueva version. Los guest con fecha de fin pasan a `ended` al vencer. |
+| Agenda | Dia (columnas por artista), semana y lista. Muestra las citas y bloques "Ocupado" sin detalle de la agenda personal del artista, sus sesiones de cotizaciones y otros estudios, con chequeo de disponibilidad en vivo. Al completar una cita se crea el trabajo con el split del contrato. |
+| Inventario | Stock, movimientos y **materiales por artista**: entregas (`assignment`) y devoluciones (`return`) con costo y balance. |
+| Reposicion | Sugerencias por stock bajo, catalogo de Supplies verificados con descuento We Otzi, carrito por proveedor, pedidos y recepcion que repone stock y registra el gasto. Ver [SUPPLIES.md](SUPPLIES.md). |
+| Tienda | Placeholder hasta integrar la Store compartida (`store_*`, rama `feature/store-artista`). Mientras tanto, la merch vendida se registra en Finanzas como `merch_manual`. |
+| Finanzas | Gastos e ingresos (alquiler de puesto, merch manual, sponsors, etc.) con comprobante privado en `studio-documents/<studio_id>/finance/` y anulacion con motivo. |
+| Reportes | Tatuajes, ingreso del estudio por tatuajes, merch, otros ingresos, gastos y resultado por moneda; resultado mensual, gastos por categoria, top artistas, materiales por artista y compras a Supplies, con CSV. Debajo sigue el Analytics anterior. |
+
+**Alta en dos sentidos.** El estudio invita y el artista acepta, o firma el contrato si la invitacion tiene uno. El artista solicita el alta desde el detalle del estudio en `/artist/invitations` o al registrarse, y el estudio aprueba. Un guard en `studio_artist_memberships` impide que el estudio active a alguien sin su consentimiento. El perfil publico y la marca "tatua en" salen solo de membresias activas (vista `studio_public_roster`).
+
+**Reclamo de estudio.** Los 40 estudios del catalogo no tienen dueño. En `/studio/register` el estudio busca su ficha y la reclama; soporte la aprueba en el backoffice (**Revisiones**).
+
+**Seguridad.**
+- Guards de escritura en membresias, postulaciones, `studios` (`is_verified`, `user_id`) y `artists_db.studio_id`.
+- RPC SECURITY DEFINER con validacion de pertenencia cruzada.
+- Arreglo de las policies de Storage de los buckets `studio-*`: comparaban `studios.name` en lugar del path del objeto, y por eso hoy solo soporte puede subir archivos.
+- Emails siempre al email de auth del dueño o del artista.
 
 ## Resumen
 

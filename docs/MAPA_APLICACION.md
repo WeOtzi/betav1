@@ -13,7 +13,8 @@ Las areas actuales son:
 
 - **Cliente**: cotizacion guiada, pre-cotizador, dashboard, job board, cuenta y chat.
 - **Artista**: registro, dashboard, perfil publico, galeria, cotizaciones, calendario, job board, invitaciones de estudios e importacion de Instagram.
-- **Estudio**: registro/login, perfil publico, dashboard operativo, sedes, roster, spots, inventario, proveedores, sponsors, documentos/facturas internas y analytics.
+- **Estudio**: registro/login y reclamo de fichas del catalogo, perfil publico, sistema administrativo (roster con alta en dos sentidos, solicitudes, spots con contratos registrados, agenda de citas por artista, inventario con entrega de materiales, reposicion a Supplies, finanzas, reportes, sedes, sponsors y documentos/facturas internas).
+- **Supplies**: tiendas de insumos para tatuaje con catalogo, beneficios We Otzi para estudios, pedidos de reposicion, clientes y reportes.
 - **Soporte**: login, dashboard de operaciones, inspeccion/edicion de artistas/cotizaciones/tickets/sesiones y chat de soporte.
 - **Admin/backoffice**: administracion global, usuarios de soporte, backups, salud, analytics, integraciones y configuracion secreta.
 
@@ -97,7 +98,7 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/client/requests` | Cliente | `public/client/requests/index.html` | Solicitudes del job board del cliente: estados, postulaciones recibidas, comparación y negociación (rediseño 2026). |
 | `/client/chats` | Cliente | `public/client/chats/index.html` | Chats del cliente con sus artistas sobre `chat_threads` (rediseño 2026). |
 | `/client/profile` | Cliente | `public/client/profile/index.html` | Centro de cuenta del cliente: perfil, seguridad, notificaciones, configuración (rediseño 2026; conserva el modo perfil público). |
-| `/bienvenida` | Público | `public/bienvenida/index.html` | Selección de rol post-registro: cliente o tatuador (rediseño 2026). |
+| `/bienvenida` | Público | `public/bienvenida/index.html` | Selección de rol post-registro: cliente o tatuador, más accesos a Estudio y Supplies (rediseño 2026). |
 | `/recover` | Público | `public/recover/index.html` | Recuperación de contraseña única (cliente/artista/beta) con OTP de Supabase (rediseño 2026). |
 | `/job-board/request` | Cliente | `public/job-board/request/index.html` | Publicar solicitud abierta de tatuaje. |
 | `/job-board` | Artista | `public/job-board/index.html` | Feed de solicitudes publicas para que artistas postulen. |
@@ -116,10 +117,13 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/my-quotations/detail` | Artista | `public/my-quotations/detail/index.html` | Expediente de una cotización: propuesta, acuerdo, sesiones, disputa, notas de trabajo e historial. |
 | `/my-quotations/statistics` | Artista/admin operativo | `public/my-quotations/statistics/index.html` | Estadisticas de cotizaciones. |
 | `/calendar` | Artista/admin operativo | `public/calendar/index.html` | Calendario de sesiones/cotizaciones con FullCalendar. |
-| `/studio/register` | Estudio | `public/studio/register/index.html` | Registro de estudio en 5 pasos: cuenta, identidad, sedes, fotos, confirmar. |
-| `/studio/login` | Estudio | `public/studio/login/index.html` | Login de estudio. |
-| `/studio/dashboard` | Estudio | `public/studio/dashboard/index.html` | Panel de estudio: perfil, sedes, roster, spots, operaciones, inventario, proveedores, sponsors y analytics. |
-| `/studio/profile` | Estudio/publico | `public/studio/profile/index.html` | Perfil publico del estudio con sedes y roster. |
+| `/studio/register` | Estudio | `public/studio/register/index.html` | Registro de estudio en 5 pasos: cuenta, identidad, sedes, fotos, confirmar. El paso 1 busca el estudio en el catalogo y permite reclamarlo (`studio_claim_requests`, lo aprueba soporte). |
+| `/studio/login` | Estudio | `public/studio/login/index.html` | Login de estudio; muestra el estado del reclamo si la cuenta todavia no tiene estudio. |
+| `/studio/dashboard` | Estudio | `public/studio/dashboard/index.html` | Sistema administrativo del estudio. Estudio: Inicio, Perfil, Sedes, Cuenta. Equipo: Roster, Solicitudes, Spots, Contratos, Agenda, Travel. Operacion: Operaciones, Inventario (con materiales por artista), Reposicion, Proveedores, Sponsors. Negocio: Tienda, Finanzas, Reportes. |
+| `/studio/profile` | Estudio/publico | `public/studio/profile/index.html` | Perfil publico del estudio: sedes, roster validado (residentes y guest/itinerantes desde `studio_public_roster`), spots abiertos y sponsors. |
+| `/supplies/register` | Supplies | `public/supplies/register/index.html` | Alta de tienda de insumos en 3 pasos: cuenta, negocio, condiciones comerciales. |
+| `/supplies/login` | Supplies | `public/supplies/login/index.html` | Login y recuperacion de la cuenta Supplies. |
+| `/supplies/dashboard` | Supplies | `public/supplies/dashboard/index.html` | Panel Supplies: Inicio, Pedidos, Catalogo, Beneficios, Clientes, Reportes, Perfil, Cuenta. |
 | `/studio-spots` | Artista/publico | `public/studio-spots/index.html` | Directorio de spots abiertos por estudios y postulacion de artistas. |
 | `/support/login` | Soporte | `public/support/login/index.html` | Login de soporte. |
 | `/support/dashboard` | Soporte | `public/support/dashboard/index.html` | Dashboard de soporte para artistas, cotizaciones, tickets, sesiones, chats y acciones operativas. |
@@ -216,16 +220,29 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 
 ### Estudio
 
-- Registrar estudio con cuenta Supabase, identidad publica, sedes y fotos.
+- Registrar estudio con cuenta Supabase, identidad publica, sedes y fotos, o reclamar la ficha que ya existe en el catalogo.
 - Iniciar sesion en `/studio/login`.
 - Administrar perfil publico, cover/logo, galeria y metadatos.
 - Crear y mantener multiples sedes (`studio_locations`).
-- Gestionar roster de artistas (`studio_artist_memberships`) con roles y estado.
-- Publicar spots/residencias/guest spots y gestionar postulaciones.
-- Enviar notificaciones via n8n para decisiones o invitaciones con validacion server-side de ownership.
+- Roster con alta en dos sentidos: invitar artistas (el artista acepta) y aprobar o rechazar las solicitudes de artistas que dicen trabajar en el estudio (pestaña Solicitudes, junto con cambios pedidos y contraofertas). Nada se muestra en el perfil publico hasta que el vinculo queda activo.
+- Publicar spots para residentes, guest e itinerantes con modalidad (porcentaje, pago fijo o mixto), lo que incluye el puesto y beneficios.
+- Contratos registrados: borrador desde una postulacion, una solicitud o una membresia; el estudio emite y firma, el artista firma y recien ahi entra al roster. Terminos congelados con hash SHA-256, versiones y rescision.
+- Agenda del estudio por artista (dia, semana, lista) con chequeo de disponibilidad contra la agenda personal del artista, sus sesiones de cotizaciones y otros estudios; las citas se proyectan en `/calendar` del artista.
+- Inventario con entregas y devoluciones de materiales por artista y su balance.
+- Reposicion: catalogo de proveedores Supplies verificados con descuento We Otzi, carrito por proveedor, pedidos y recepcion que repone stock y registra el gasto.
+- Finanzas (gastos e ingresos con comprobante) y Reportes (tatuajes, ingreso del estudio, merch, otros ingresos, gastos y resultado, por moneda).
+- Enviar notificaciones con validacion server-side de ownership (`/api/studio/notify`).
 - Registrar trabajos realizados, facturas internas, documentos y adjuntos.
-- Gestionar inventario, movimientos, salud de stock, proveedores, sponsors y artistas patrocinados.
-- Consultar metricas internas mediante vistas de dashboard, performance e inventario.
+- Gestionar proveedores, sponsors y artistas patrocinados.
+
+### Supplies
+
+- Registrarse en `/supplies/register` (`user_type: 'supplies'`, no crea fila en `artists_db`) y entrar en `/supplies/login`.
+- Quedar visible para los estudios recien cuando soporte verifica la cuenta.
+- Cargar catalogo (tintas, cartuchos, guantes, papel y film, higiene, aftercare, piercing, equipos) con stock opcional y compra minima.
+- Definir el beneficio We Otzi (% de descuento), descuentos por volumen, minimo de compra, envio gratis y textos de beneficios.
+- Gestionar pedidos de estudios: confirmar con costo de envio, rechazar, despachar con tracking, marcar entregado o cancelar.
+- Ver clientes (estudios) y reportes de ventas mensuales y productos.
 
 ### Soporte
 
@@ -297,6 +314,24 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `studio_inventory_movements` | Movimientos de inventario con trigger de stock. |
 | `studio_sponsors` | Sponsors del estudio. |
 | `studio_sponsor_artists` | Relacion sponsor-artista. |
+| `studio_bookings` | Agenda de citas del estudio por artista; al completarse genera el trabajo con su split. |
+| `studio_membership_invitation_details` / `studio_invitation_change_requests` | Condiciones de una invitacion y cambios pedidos por el artista. |
+| `studio_membership_request_details` | Mensaje, portfolio y fecha de una solicitud iniciada por el artista (`initiated_by='artist'`, status `requested`). |
+| `studio_spot_counter_offers` | Contraofertas de artista o estudio sobre una postulacion. |
+| `studio_contracts` | Contratos registrados: modalidad, lo que incluye, beneficios, vigencia, firmas, `terms_snapshot` y `terms_hash`. |
+| `studio_claim_requests` | Reclamos de fichas de estudio sin dueño, decididos por soporte. |
+| `studio_finance_entries` | Gastos e ingresos del estudio con comprobante y anulacion. |
+| `studio_public_roster` (vista) | Roster publico (solo membresias activas, sin split ni notas). |
+
+### Supplies
+
+| Entidad | Proposito |
+| --- | --- |
+| `supply_vendors` | Tienda de insumos: perfil publico, condiciones comerciales y beneficio We Otzi. |
+| `supply_vendor_private` / `supply_vendor_counters` | Datos fiscales del vendor y su numeracion de pedidos. |
+| `supply_products` | Catalogo con precio, presentacion, stock opcional y compra minima. |
+| `supply_discount_tiers` | Descuentos por volumen. |
+| `supply_orders` / `supply_order_items` / `supply_order_events` | Pedidos de reposicion de estudios, lineas con snapshot y auditoria de estados. |
 
 ### Travel
 
@@ -368,11 +403,14 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 
 ### Estudio y spots
 
-1. Estudio se registra en `/studio/register` y crea `studios` + `studio_locations`.
-2. En `/studio/dashboard` administra sedes, roster, spots y operaciones.
-3. Publica spots abiertos que aparecen en `/studio-spots`.
-4. Artistas postulan; el estudio decide.
-5. Al aceptar/invitar, se crea/actualiza `studio_artist_memberships` y se notifica via `/api/studio/notify`.
+1. Estudio se registra en `/studio/register` y crea `studios` + `studio_locations`, o reclama una ficha del catalogo que soporte aprueba.
+2. En `/studio/dashboard` administra sedes, roster, spots, agenda, inventario, reposicion, finanzas y reportes.
+3. Publica spots abiertos que aparecen en `/studio-spots` con modalidad y beneficios.
+4. Artistas postulan; al aceptar, la postulacion queda preseleccionada con un borrador de contrato. El estudio emite el contrato, el artista lo firma en `/artist/invitations?contrato=<id>` y recien entonces la membresia queda activa y la postulacion aceptada.
+5. El estudio tambien puede invitar (el artista acepta o firma el contrato) y el artista puede solicitar el alta desde el detalle del estudio o en su registro (el estudio aprueba).
+6. Las notificaciones salen por `/api/studio/notify` (estudio), `/api/artist/studio-notify` (artista) y `/api/supplies/notify` (pedidos), siempre al email de auth del dueño o del artista.
+
+Detalle de diseño y contrato entre modulos: `docs/plans/2026-10-30-estudios-plataforma.md`. Guia operativa: `docs/STUDIOS.md` y `docs/SUPPLIES.md`.
 
 ### Travel
 

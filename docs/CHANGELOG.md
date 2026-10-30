@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.3.0] - 2026-10-30
+
+- Plataforma de Estudios y Supplies: sistema administrativo del estudio (inicio, solicitudes con alta en dos sentidos, contratos registrados con modalidad porcentaje/fijo/mixto y firma de ambas partes, agenda por artista con chequeo de disponibilidad, materiales por artista, reposicion a Supplies, finanzas y reportes), reclamo de estudios del catalogo, nuevo tipo de cuenta Supplies con catalogo, beneficios y pedidos, lado del artista (solicitar alta, firmar contratos, citas del estudio en el calendario) y backoffice de reclamos y vendors.
+- Base de datos:
+  - Migraciones 20261030200000–20261030204000 NO aplicadas, con rollback y tests SQL.
+  - Guards de escritura en membresías, postulaciones, studios, artists_db.studio_id, finanzas y vendors.
+  - Roster público sin split ni notas (vista `studio_public_roster`).
+  - Se arreglan las policies de Storage de los buckets studio-*, que comparaban studios.name en lugar del path del objeto.
+- El frontend y el servidor degradan mientras falten las migraciones: el registro de artista y el guardado de perfil conservan el vínculo legado con el estudio; el backoffice decide postulaciones con la escritura previa.
+- Validación:
+  - 1075 pruebas Node aprobadas.
+  - Contra la base viva, dentro de BEGIN…ROLLBACK y sin persistir nada: cadena M1→M5 por segmentos, tests SQL de afiliaciones/contratos y de Supplies, test de identidad existente, rollbacks M5→M1.
+  - Recorrido en navegador con un harness local de Supabase en memoria: aprobar con contrato, emitir, firmar como artista, agenda con conflicto, materiales, catálogo y pedidos Supplies, perfil público y reclamo.
+  - Pendiente: studio_agenda_inventory_finance.sql y studio_operations_workflows.sql completos en vivo (se cortó por el límite de uso).
+- Rollback: revertir los commits de la entrega. Las migraciones no están aplicadas; si se aplican, usar supabase/rollbacks/20261030204000…200000 en orden inverso.
+
+
 ## [2.2.1] - 2026-09-30
 
 - Se corrige File.Replace en los manifiestos Windows y el respaldo GitHub: NullString entrega un null real a .NET y evita que PowerShell convierta el parámetro en una ruta vacía. Se conserva la sustitución atómica.
