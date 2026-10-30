@@ -2,11 +2,25 @@
 // Studio Public Profile
 // Reads ?studio=<slug-or-id> from the URL, renders the profile, and shows
 // every studio_locations as a numbered Bauhaus pin on a Google Map.
-// Roster and aggregated styles come from active memberships.
+// Roster and aggregated styles come from active memberships
+// (StudioMemberships.listActiveRosterWithArtists → vista studio_public_roster,
+// con fallback a la tabla): "Residentes" y "Guest e itinerantes", con
+// "Hasta {ends_on}" del contrato firmado para los guests.
+// "Spots abiertos" sale de StudioSpots.listOpenByStudio; #studio-store queda
+// como hueco vacío para la vitrina de la Tienda (fase Store).
+// Contrato: docs/plans/2026-10-30-estudios-plataforma.md → "Perfil público".
 // ============================================
 
 (function () {
     'use strict';
+
+    // Roles de studio_artist_memberships y tipos de studio_spots, en español.
+    const ROLE_LABELS = { resident: 'Residente', guest: 'Guest', itinerant: 'Itinerante', manager: 'Manager' };
+    const GUEST_ROLES = ['guest', 'itinerant'];
+    const SPOT_KIND_LABELS = { resident: 'Residencia', guest_spot: 'Guest spot', itinerant: 'Itinerante' };
+    const SPOT_KIND_PILL = { resident: 'role-resident', guest_spot: 'role-guest', itinerant: 'role-itinerant' };
+    const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
     document.addEventListener('DOMContentLoaded', async () => {
         const params = new URLSearchParams(window.location.search);
@@ -80,16 +94,40 @@
 
         renderMeta(studio, locations || []);
         renderLocations(locations || []);
-        await renderMap(locations || []);
+        // El mapa (Google Maps) no frena el resto del perfil.
+        const mapReady = renderMap(locations || []).catch(err => console.warn('[studio-profile] map:', err));
 
-        // Roster + aggregated styles via memberships → artists.
-        const { data: memberships, error: rosterError } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studio.id);
-        if (rosterError) throw rosterError;
+        prepareStoreSlot(studio);
 
-        renderRoster(memberships || []);
+        // Roster + aggregated styles via memberships → artists. Si el roster
+        // falla, el resto del perfil se muestra igual.
+        const memberships = await loadRoster(studio.id);
+        renderRoster(memberships);
         renderAggregatedStyles(memberships || []);
+        await renderOpenSpots(studio.id);
         await renderSponsors(studio.id);
         renderStudioReviews(studio);
+        await mapReady;
+    }
+
+    async function loadRoster(studioId) {
+        try {
+            const { data, error } = await WeotziData.StudioMemberships.listActiveRosterWithArtists(studioId);
+            if (error) throw error;
+            return data || [];
+        } catch (err) {
+            console.warn('[studio-profile] roster:', err);
+            return null;
+        }
+    }
+
+    // Hueco para la vitrina de la Tienda: queda vacío y oculto; el módulo de
+    // Store lo completa leyendo data-studio-id / data-studio-slug.
+    function prepareStoreSlot(studio) {
+        const slot = document.getElementById('studio-store');
+        if (!slot || !studio) return;
+        slot.setAttribute('data-studio-id', studio.id || '');
+        slot.setAttribute('data-studio-slug', studio.slug || '');
     }
 
     function renderStudioReviews(studio) {
@@ -122,26 +160,130 @@
 
     function renderRoster(memberships) {
         const el = document.getElementById('profile-roster');
-        if (memberships.length === 0) {
-            el.innerHTML = '<p class="studio-help">Sin artistas en el roster por ahora.</p>';
-            return;
+        if (!el) return;
+        el.innerHTML = memberships == null
+            ? '<p class="studio-help">No pudimos cargar el roster. Probá de nuevo en un rato.</p>'
+            : rosterHtml(groupRoster(memberships));
+    }
+
+    // Residentes (y managers) por un lado; guests e itinerantes por otro,
+    // ordenados por el fin de su contrato (los sin fecha, al final).
+    function groupRoster(memberships) {
+        const residents = [];
+        const guests = [];
+        (Array.isArray(memberships) ? memberships : []).forEach(m => {
+            if (!m) return;
+            (GUEST_ROLES.includes(m.role) ? guests : residents).push(m);
+        });
+        const byName = (a, b) => artistName(a).localeCompare(artistName(b), 'es');
+        const roleRank = m => (m.role === 'manager' ? 1 : 0);
+        const endKey = m => (isIsoDate(m.ends_on) ? String(m.ends_on).slice(0, 10) : '9999-12-31');
+        residents.sort((a, b) => roleRank(a) - roleRank(b) || byName(a, b));
+        guests.sort((a, b) => endKey(a).localeCompare(endKey(b)) || byName(a, b));
+        return { residents, guests };
+    }
+
+    function rosterHtml(groups) {
+        const residents = (groups && groups.residents) || [];
+        const guests = (groups && groups.guests) || [];
+        if (residents.length === 0 && guests.length === 0) {
+            return '<p class="studio-help">Sin artistas en el roster por ahora.</p>';
         }
-        el.innerHTML = memberships.map(m => {
-            const a = m.artists_db || {};
-            const display = a.name || a.username || '—';
-            const pic = a.profile_picture
-                ? `<div class="pic" style="background-image:url('${cssEscape(a.profile_picture)}')"></div>`
-                : '<div class="pic"></div>';
-            return `
-                <a class="studio-roster-card" href="/artist/profile?artist=${encodeURIComponent(a.username || '')}" rel="noopener">
+        const group = (key, title, list, opts) => list.length === 0 ? '' : `
+            <section class="studio-profile-roster-group" data-roster-group="${key}">
+                <h3 class="studio-label studio-profile-roster-title">${escapeHtml(title)} <span class="count">· ${list.length}</span></h3>
+                <div class="studio-roster-cards">${list.map(m => rosterCardHtml(m, opts)).join('')}</div>
+            </section>
+        `;
+        return group('residents', 'Residentes', residents, { showEndsOn: false })
+            + group('guests', 'Guest e itinerantes', guests, { showEndsOn: true });
+    }
+
+    function rosterCardHtml(m, opts) {
+        const a = (m && m.artists_db) || {};
+        const pic = safeUrl(a.profile_picture)
+            ? `<div class="pic" style="background-image:url('${cssEscape(a.profile_picture)}')"></div>`
+            : '<div class="pic"></div>';
+        const until = opts && opts.showEndsOn && isIsoDate(m.ends_on)
+            ? `<span class="until">${escapeHtml(endsOnLabel(m.ends_on))}</span>`
+            : '';
+        const body = `
                     ${pic}
                     <div class="body">
-                        <strong>${escapeHtml(display)}</strong>
-                        <span class="role">${escapeHtml(m.role)}</span>
+                        <strong>${escapeHtml(artistName(m))}</strong>
+                        <span class="role">${escapeHtml(roleLabel(m.role))}</span>
+                        ${until}
+                    </div>`;
+        return a.username
+            ? `<a class="studio-roster-card" href="/artist/profile?artist=${encodeURIComponent(a.username)}">${body}</a>`
+            : `<div class="studio-roster-card">${body}</div>`;
+    }
+
+    function artistName(m) {
+        const a = (m && m.artists_db) || {};
+        return a.name || a.username || 'Artista';
+    }
+    function roleLabel(role) {
+        return ROLE_LABELS[role] || 'Artista';
+    }
+    function endsOnLabel(endsOn) {
+        return 'Hasta ' + formatDate(endsOn, 'long');
+    }
+
+    // ---- Spots abiertos ----
+
+    async function renderOpenSpots(studioId) {
+        const section = document.getElementById('profile-spots-section');
+        const el = document.getElementById('profile-spots');
+        if (!section || !el) return;
+        let rows = [];
+        const repo = window.WeotziData && window.WeotziData.StudioSpots;
+        if (repo && typeof repo.listOpenByStudio === 'function') {
+            try {
+                const { data, error } = await repo.listOpenByStudio(studioId);
+                if (error) console.warn('[studio-profile] spots abiertos:', error);
+                else rows = Array.isArray(data) ? data : [];
+            } catch (err) {
+                console.warn('[studio-profile] spots abiertos:', err);
+            }
+        }
+        section.hidden = rows.length === 0;
+        el.innerHTML = rows.length ? spotsHtml(rows) : '';
+    }
+
+    function spotsHtml(spots) {
+        return (Array.isArray(spots) ? spots : []).filter(s => s && s.id).map(spotCardHtml).join('');
+    }
+
+    function spotCardHtml(s) {
+        const benefits = normalizeList(s.benefit_tags).map(t => String(t).trim()).filter(Boolean).slice(0, 6);
+        const count = Number(s.application_count) || 0;
+        const applications = count > 0
+            ? `${count} postulaci${count === 1 ? 'ón' : 'ones'}`
+            : 'Postulaciones abiertas';
+        return `
+            <a class="spot-card studio-profile-spot" href="/studio-spots?spot=${encodeURIComponent(s.id)}">
+                <div class="spot-card-body">
+                    <span class="studio-role-pill ${SPOT_KIND_PILL[s.kind] || 'role-guest'}">${escapeHtml(SPOT_KIND_LABELS[s.kind] || 'Spot')}</span>
+                    <strong class="spot-card-title">${escapeHtml(s.title || 'Spot')}</strong>
+                    <span class="spot-card-meta">${escapeHtml(spotDatesText(s))}</span>
+                    ${benefits.length ? `<div class="spot-card-styles" aria-label="Beneficios">${benefits.map(b => `<span class="studio-style-pill">${escapeHtml(b)}</span>`).join('')}</div>` : ''}
+                    <div class="spot-card-foot">
+                        <span>${escapeHtml(applications)}</span>
+                        <span>Ver spot <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </div>
-                </a>
-            `;
-        }).join('');
+                </div>
+            </a>
+        `;
+    }
+
+    function spotDatesText(s) {
+        const start = isIsoDate(s.start_date) ? formatDate(s.start_date) : '';
+        const end = isIsoDate(s.end_date) ? formatDate(s.end_date) : '';
+        if (start && end) return `Del ${start} al ${end}`;
+        if (start) return `Desde el ${start}`;
+        if (end) return `Hasta el ${end}`;
+        return 'Fechas a convenir';
     }
 
     function renderAggregatedStyles(memberships) {
@@ -295,11 +437,39 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
     function escapeAttr(v) { return escapeHtml(v); }
+    // URL de datos solo si es http(s) (WeOtziStudioKit.safeUrl cuando está
+    // cargado); si no, ''.
     function safeUrl(value) {
+        const kit = window.WeOtziStudioKit;
+        if (kit && typeof kit.safeUrl === 'function') return kit.safeUrl(value) || '';
         try {
             const url = new URL(String(value || ''));
             return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
         } catch { return ''; }
+    }
+    function isIsoDate(value) {
+        return /^\d{4}-\d{2}-\d{2}/.test(String(value || ''));
+    }
+    // Fechas SQL 'YYYY-MM-DD' de calendario (no instantes UTC):
+    // '15/12/2026' o, con style 'long', '15 de diciembre de 2026'.
+    function formatDate(value, style) {
+        const kit = window.WeOtziStudioKit;
+        if (kit && typeof kit.fmtDate === 'function') return kit.fmtDate(String(value).slice(0, 10), style ? { style } : undefined);
+        const [y, m, d] = String(value).slice(0, 10).split('-').map(Number);
+        if (!y || !m || !d) return '—';
+        if (style === 'long') return `${d} de ${MONTHS[m - 1]} de ${y}`;
+        return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    }
+    function normalizeList(value) {
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string' && value.trim()) {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) return parsed;
+            } catch { /* lista separada por comas */ }
+            return value.split(',');
+        }
+        return [];
     }
     function cssEscape(value) {
         return escapeAttr(safeUrl(value).replace(/'/g, '%27').replace(/"/g, '%22').replace(/\\/g, '%5C'));

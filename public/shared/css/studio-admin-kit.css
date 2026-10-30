@@ -1,0 +1,975 @@
+/* ============================================
+   WE ÖTZI — STUDIO ADMIN KIT (prefijo sk-)
+   Piezas compartidas del panel de estudio y de Supplies: sidebar agrupada,
+   badges, KPIs, tablas, empty states, barras, list editor, modal/drawer
+   (<dialog> nativo), toasts y documentos imprimibles.
+   Va DESPUÉS de studio.css y usa sus tokens (.studio-page), con fallbacks
+   por si un overlay se monta fuera de .studio-page.
+   Reglas de la línea: radio 0, bordes duros, sombra dura solo en hover.
+   Breakpoints: 900px (sidebar en fila) y 600px (móvil).
+   ============================================ */
+
+:where(.studio-page, .sk-overlay, .sk-toast-stack, .sk-print-root) {
+    --sk-mono: var(--studio-mono, 'IBM Plex Mono', 'JetBrains Mono', 'Consolas', monospace);
+    --sk-display: var(--studio-display, 'Archivo Black', 'Inter', sans-serif);
+    --sk-sans: var(--font-primary, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+    --sk-rule: var(--studio-rule, 2px);
+    --sk-rule-thick: var(--studio-rule-thick, 3px);
+    --sk-shadow: var(--studio-shadow-sm, 4px 4px 0 var(--fg));
+    --sk-shadow-md: var(--studio-shadow-md, 6px 6px 0 var(--fg));
+    --sk-focus: var(--primary-blue, #1A4B8E);
+    --sk-gap: 12px;
+}
+
+/* ----- Utilidades ----- */
+.sk-muted { color: var(--text-secondary); }
+.sk-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sk-center { text-align: center; }
+.sk-overlay [hidden],
+.sk-toast-stack [hidden],
+.sk-print-root [hidden] { display: none !important; }
+.sk-total { display: block; }
+.sk-total.is-negative { color: var(--primary-red); }
+
+/* Foco visible en todo lo del kit: styles.css lo apaga con
+   `button:focus-visible { outline: none !important }` (0,1,1), así que estas
+   reglas necesitan más especificidad. */
+.sk-overlay :is(button, a, summary, [tabindex], input[type="checkbox"], input[type="radio"]):focus-visible,
+.sk-toast-stack :is(button, a):focus-visible,
+.sk-list-editor :is(button, a):focus-visible,
+.sk-chips :is(button, a):focus-visible,
+.sk-subtabs :is(button, a):focus-visible,
+.sk-toolbar :is(button, a):focus-visible,
+.sk-table :is(button, a):focus-visible,
+.sk-empty :is(button, a):focus-visible,
+.sk-sidebar-group .studio-dash-tab:focus-visible {
+    outline: 3px solid var(--sk-focus) !important;
+    outline-offset: 2px;
+}
+
+/* ----- Shell: <main> del panel -----
+   styles.css define `main { display:flex; flex-direction:column; align-items:center }`.
+   Con eso cada panel queda "shrink-to-fit" y una tabla ancha lo hace desbordar
+   (el panel crece hasta el min-content de la tabla). Se estira al ancho del main. */
+.studio-dash-shell > .studio-dash-main { align-items: stretch; }
+.studio-dash-shell > .studio-dash-main > .studio-dash-panel { min-width: 0; max-width: 100%; }
+
+/* ----- Sidebar agrupada (shell) ----- */
+.sk-sidebar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.sk-sidebar-group + .sk-sidebar-group {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: var(--sk-rule) solid var(--fg);
+}
+.sk-sidebar-group-title {
+    margin: 0 0 2px;
+    padding: 0 12px;
+    font-family: var(--sk-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.sk-tab-badge {
+    margin-left: auto;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--primary-red);
+    color: var(--text-on-light);
+    font-family: var(--sk-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.sk-tab-badge:empty { display: none; }
+.studio-dash-tab.is-active .sk-tab-badge { border-color: var(--bg); }
+
+/* ----- Secciones, toolbar, subtabs, chips, grilla, campos ----- */
+.sk-section { margin-top: 28px; min-width: 0; }
+.sk-section:first-child { margin-top: 0; }
+.sk-section > .studio-h2,
+.sk-section-title {
+    font-family: var(--sk-display);
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+}
+.sk-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.sk-section-head > * { margin-bottom: 0; }
+
+.sk-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 14px;
+    min-width: 0;
+}
+.sk-toolbar > .sk-field { flex: 1 1 180px; min-width: 0; }
+.sk-toolbar > .sk-toolbar-spacer { flex: 1 1 auto; }
+.sk-toolbar .studio-btn { min-height: 48px; }
+
+.sk-subtabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 18px;
+    border: var(--sk-rule) solid var(--fg);
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.sk-subtabs > button,
+.sk-subtabs > a,
+.sk-subtab {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-right: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sk-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.sk-subtabs > :last-child { border-right: 0; }
+.sk-subtabs > button:hover,
+.sk-subtabs > a:hover,
+.sk-subtab:hover { background: var(--primary-yellow); color: var(--text-on-light); }
+.sk-subtabs > .is-active,
+.sk-subtabs > [aria-selected="true"],
+.sk-subtabs > [aria-pressed="true"],
+.sk-subtabs > [aria-current="page"] { background: var(--fg); color: var(--bg); }
+
+.sk-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.sk-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sk-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s, color .15s, transform .15s, box-shadow .15s;
+}
+span.sk-chip { cursor: default; }
+button.sk-chip:hover,
+a.sk-chip:hover {
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--sk-shadow);
+}
+.sk-chip[aria-pressed="true"],
+.sk-chip.is-active { background: var(--fg); color: var(--bg); }
+.sk-chip[aria-pressed="true"]:hover { background: var(--fg); color: var(--bg); }
+.sk-chip .sk-chip-count { opacity: 0.75; font-variant-numeric: tabular-nums; }
+
+.sk-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+    min-width: 0;
+}
+.sk-grid-2 > .sk-span-2 { grid-column: 1 / -1; }
+
+.sk-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sk-field > label,
+.sk-field > .sk-field-label,
+.sk-field > span:first-child:not(.studio-help) {
+    font-family: var(--sk-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg);
+}
+/* :where() deja la especificidad en (0,1,0) para que las variantes de abajo ganen. */
+.sk-field :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    border: var(--sk-rule-thick) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sk-sans);
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
+    box-sizing: border-box;
+    transition: box-shadow .15s, transform .15s;
+}
+.sk-field textarea { min-height: 110px; padding: 10px 12px; line-height: 1.5; resize: vertical; }
+.sk-field :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+    outline: none;
+    box-shadow: var(--sk-shadow);
+    transform: translate(-2px, -2px);
+}
+.sk-field [aria-invalid="true"] { border-color: var(--primary-red); }
+.sk-field--inline { flex-direction: row; align-items: center; gap: 8px; }
+.sk-field--inline input[type="checkbox"],
+.sk-field--inline input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--fg); }
+.sk-field-hint,
+.sk-field .studio-help {
+    font-family: var(--sk-mono);
+    font-size: 0.68rem;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--text-secondary);
+}
+.sk-field-error {
+    font-family: var(--sk-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: none;
+    color: var(--primary-red);
+}
+
+/* Botón compacto para tablas y toolbars densas. */
+.sk-btn-sm,
+.sk-table .studio-btn,
+.sk-list-editor .studio-btn {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+}
+.sk-btn--danger { background: var(--primary-red); color: var(--text-on-light); }
+.sk-btn--danger:hover { background: var(--fg); color: var(--bg); }
+
+/* ----- Badges ----- */
+.sk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border: 1px solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sk-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.25;
+    text-transform: uppercase;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.sk-badge--neutral { border-style: dashed; }
+.sk-badge--info    { background: var(--primary-blue); color: var(--bg); }
+.sk-badge--success { background: var(--fg); color: var(--bg); }
+.sk-badge--warning { background: var(--primary-yellow); color: var(--text-on-light); }
+.sk-badge--danger  { background: var(--primary-red); color: var(--text-on-light); }
+
+/* ----- KPIs ----- */
+.sk-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+    min-width: 0;
+}
+.sk-kpi {
+    min-width: 0;
+    padding: 12px 14px;
+    border: var(--sk-rule-thick) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    font-family: var(--sk-mono);
+}
+.sk-kpi .key,
+.sk-kpi__label {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.sk-kpi strong,
+.sk-kpi__value {
+    display: block;
+    margin-top: 6px;
+    font-family: var(--sk-display);
+    font-size: 1.35rem;
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+.sk-kpi__value .sk-total + .sk-total { margin-top: 4px; font-size: 0.85em; }
+.sk-kpi small,
+.sk-kpi__hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--text-secondary);
+    white-space: normal;
+}
+.sk-kpi--warning { border-left: 10px solid var(--primary-yellow); }
+.sk-kpi--danger  { border-left: 10px solid var(--primary-red); }
+.sk-kpi--info    { border-left: 10px solid var(--primary-blue); }
+.sk-kpi--success { border-left: 10px solid var(--fg); }
+a.sk-kpi { display: block; color: var(--fg); text-decoration: none; transition: transform .15s, box-shadow .15s; }
+a.sk-kpi:hover { transform: translate(-3px, -3px); box-shadow: var(--sk-shadow-md); }
+
+/* ----- Tablas ----- */
+.sk-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border: var(--sk-rule-thick) solid var(--fg);
+    background: var(--bg);
+    -webkit-overflow-scrolling: touch;
+}
+.sk-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg);
+    font-family: var(--sk-sans);
+    font-size: 0.85rem;
+}
+:not(.sk-table-wrap) > table.sk-table { border: var(--sk-rule-thick) solid var(--fg); }
+.sk-table th,
+.sk-table td {
+    padding: 10px 12px;
+    border: var(--sk-rule) solid var(--fg);
+    text-align: left;
+    vertical-align: top;
+}
+.sk-table-wrap .sk-table tr > :first-child { border-left: 0; }
+.sk-table-wrap .sk-table tr > :last-child { border-right: 0; }
+.sk-table-wrap .sk-table thead tr:first-child > * { border-top: 0; }
+.sk-table-wrap .sk-table tbody tr:last-child > *,
+.sk-table-wrap .sk-table tfoot tr:last-child > * { border-bottom: 0; }
+.sk-table th {
+    background: var(--surface-color);
+    font-family: var(--sk-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.sk-table th.sk-num, .sk-table td.sk-num { text-align: right; }
+.sk-table tbody tr:hover > td { background: var(--surface-color); }
+.sk-table tfoot td {
+    font-family: var(--sk-mono);
+    font-weight: 700;
+    background: var(--surface-color);
+}
+.sk-table td small { display: block; color: var(--text-secondary); font-size: 0.75rem; }
+.sk-table td .sk-row-actions,
+.sk-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.sk-table__caption {
+    caption-side: top;
+    text-align: left;
+    padding: 8px 12px;
+    font-family: var(--sk-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* ----- Empty state ----- */
+.sk-empty {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+    padding: 22px;
+    border: var(--sk-rule) dashed var(--fg);
+    background: var(--bg);
+    min-width: 0;
+}
+.sk-empty--compact { padding: 14px 16px; }
+.sk-empty__icon { font-size: 1.4rem; color: var(--primary-red); }
+.sk-empty__title {
+    margin: 0;
+    font-family: var(--sk-display);
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+}
+.sk-empty__body {
+    margin: 0;
+    max-width: 62ch;
+    font-family: var(--sk-mono);
+    font-size: 0.74rem;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--text-secondary);
+}
+.sk-empty__action { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ----- Barras (HTML/CSS) ----- */
+.sk-bars {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+.sk-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.sk-bar__label {
+    min-width: 0;
+    font-family: var(--sk-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+.sk-bar__label small {
+    display: block;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--text-secondary);
+}
+.sk-bar__track {
+    position: relative;
+    height: 18px;
+    border: var(--sk-rule) solid var(--fg);
+    background: var(--surface-color);
+}
+.sk-bar__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--fg);
+}
+.sk-bar:not(.is-zero) .sk-bar__fill { min-width: 2px; }
+.sk-bar--info .sk-bar__fill    { background: var(--primary-blue); }
+.sk-bar--warning .sk-bar__fill { background: var(--primary-yellow); }
+.sk-bar--danger .sk-bar__fill  { background: var(--primary-red); }
+.sk-bar--neutral .sk-bar__fill { background: var(--text-secondary); }
+.sk-bar__value {
+    font-family: var(--sk-mono);
+    font-size: 0.74rem;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+/* ----- List editor (chips o líneas) ----- */
+.sk-list-editor { display: grid; gap: 8px; min-width: 0; }
+.sk-list-editor__items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+.sk-list-editor__item {
+    display: inline-flex;
+    align-items: stretch;
+    max-width: 100%;
+    border: var(--sk-rule) solid var(--fg);
+    background: var(--bg);
+}
+.sk-list-editor__text {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    min-width: 0;
+    font-family: var(--sk-sans);
+    font-size: 0.85rem;
+    letter-spacing: normal;
+    text-transform: none;
+    overflow-wrap: anywhere;
+}
+.sk-list-editor__remove {
+    flex: 0 0 auto;
+    width: 32px;
+    border: 0;
+    border-left: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.sk-list-editor__remove:hover { background: var(--primary-red); color: var(--text-on-light); }
+.sk-list-editor--lines .sk-list-editor__items { flex-direction: column; flex-wrap: nowrap; }
+.sk-list-editor--lines .sk-list-editor__item { display: flex; width: 100%; }
+.sk-list-editor__line.studio-input,
+.sk-list-editor__line {
+    flex: 1 1 auto;
+    height: 40px;
+    margin: 0;
+    border: 0;
+    font-weight: 500;
+    text-transform: none;
+}
+.sk-list-editor__line:focus { transform: none; box-shadow: inset 0 0 0 2px var(--sk-focus); }
+.sk-list-editor__add { display: flex; gap: 8px; min-width: 0; }
+.sk-list-editor__input.studio-input,
+.sk-list-editor__input {
+    flex: 1 1 auto;
+    height: 40px;
+    min-width: 0;
+    margin: 0;
+    font-weight: 500;
+    text-transform: none;
+}
+.sk-list-editor__input:disabled { opacity: 0.55; cursor: not-allowed; }
+.sk-list-editor__count {
+    font-family: var(--sk-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+/* ----- Overlays: modal + drawer sobre <dialog> -----
+   El <dialog> ocupa todo el viewport y es transparente (sin transform, para
+   que el stack de toasts fijo adentro siga anclado al viewport); el panel
+   es la caja visible. */
+html.sk-scroll-lock,
+html.sk-scroll-lock body { overflow: hidden; }
+
+.sk-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--fg);
+    overflow: hidden;
+    box-sizing: border-box;
+    font-family: var(--sk-sans);
+    text-transform: none;
+    letter-spacing: normal;
+}
+.sk-overlay:not([open]) { display: none; }
+.sk-overlay[open] { display: flex; align-items: center; justify-content: center; }
+.sk-overlay::backdrop { background: rgba(10, 10, 10, 0.62); }
+.sk-overlay--fallback { z-index: 90; background: rgba(10, 10, 10, 0.62); }
+
+.sk-overlay__panel {
+    display: flex;
+    flex-direction: column;
+    width: min(var(--sk-modal-w, 560px), 100%);
+    max-width: 100%;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+    border: var(--sk-rule-thick) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    box-sizing: border-box;
+    animation: sk-modal-in .18s ease-out;
+}
+.sk-modal--sm { --sk-modal-w: 420px; }
+.sk-modal--md { --sk-modal-w: 560px; }
+.sk-modal--lg { --sk-modal-w: 760px; }
+.sk-modal--xl { --sk-modal-w: 960px; }
+
+.sk-overlay__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 14px 20px;
+    border-bottom: var(--sk-rule-thick) solid var(--fg);
+    flex: 0 0 auto;
+}
+.sk-overlay__title {
+    margin: 0;
+    min-width: 0;
+    font-family: var(--sk-display);
+    font-size: 1.15rem;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+.sk-overlay__close {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    margin: 0;
+    padding: 0;
+    border: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.sk-overlay__close:hover { background: var(--primary-red); color: var(--text-on-light); }
+.sk-overlay__close:disabled { opacity: 0.5; cursor: not-allowed; }
+.sk-overlay__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px;
+    display: grid;
+    align-content: start;
+    gap: 14px;
+}
+.sk-overlay__text {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    text-transform: none;
+}
+.sk-overlay__error {
+    margin: 0 20px 12px;
+    padding: 10px 12px;
+    border: var(--sk-rule) solid var(--fg);
+    background: var(--primary-red);
+    color: var(--text-on-light);
+    font-family: var(--sk-mono);
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+.sk-overlay__foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: var(--sk-rule-thick) solid var(--fg);
+    flex: 0 0 auto;
+}
+.sk-overlay__foot .studio-btn { min-height: 44px; }
+.sk-overlay[aria-busy="true"] .sk-overlay__foot { cursor: progress; }
+
+/* Drawer: panel a la derecha, alto completo. */
+.sk-drawer[open] { justify-content: flex-end; align-items: stretch; padding: 0; }
+.sk-drawer .sk-overlay__panel {
+    width: min(var(--sk-drawer-w, 560px), 100%);
+    height: 100%;
+    max-height: none;
+    border-width: 0 0 0 var(--sk-rule-thick);
+    animation: sk-drawer-in .22s ease-out;
+}
+.sk-drawer--sm { --sk-drawer-w: 420px; }
+.sk-drawer--md { --sk-drawer-w: 560px; }
+.sk-drawer--lg { --sk-drawer-w: 780px; }
+.sk-drawer--xl { --sk-drawer-w: 980px; }
+
+@keyframes sk-modal-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes sk-drawer-in { from { transform: translateX(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+
+/* ----- Toasts ----- */
+.sk-toast-stack {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 100;
+    display: grid;
+    gap: 8px;
+    width: min(380px, calc(100vw - 32px));
+    pointer-events: none;
+}
+.sk-toast-stack:empty { display: none; }
+/* Dentro de un modal/drawer el stack se corre a la izquierda para no tapar
+   las acciones del pie (el drawer está a la derecha). */
+.sk-overlay > .sk-toast-stack { left: 16px; right: auto; }
+.sk-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 10px 12px 14px;
+    border: var(--sk-rule-thick) solid var(--fg);
+    border-left-width: 10px;
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    animation: sk-toast-in .2s ease-out;
+}
+.sk-toast--info    { border-left-color: var(--primary-blue); }
+.sk-toast--success { border-left-color: var(--fg); }
+.sk-toast--warning { border-left-color: var(--primary-yellow); }
+.sk-toast--danger  { border-left-color: var(--primary-red); }
+.sk-toast--neutral { border-left-color: var(--text-secondary); }
+.sk-toast__text {
+    flex: 1 1 auto;
+    margin: 0;
+    min-width: 0;
+    font-family: var(--sk-mono);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    overflow-wrap: anywhere;
+}
+.sk-toast__close {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    border: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.sk-toast__close:hover { background: var(--fg); color: var(--bg); }
+@keyframes sk-toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ----- Documento imprimible (contratos, comprobantes) ----- */
+.sk-print-doc {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: clamp(18px, 3vw, 32px);
+    border: var(--sk-rule-thick) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sk-sans);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    letter-spacing: normal;
+    text-transform: none;
+    box-sizing: border-box;
+}
+.sk-print-doc h1,
+.sk-print-doc h2,
+.sk-print-doc h3 {
+    font-family: var(--sk-display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin: 1.4em 0 0.5em;
+}
+.sk-print-doc h1 { font-size: 1.6rem; margin-top: 0; }
+.sk-print-doc h2 { font-size: 1.1rem; border-bottom: var(--sk-rule) solid var(--fg); padding-bottom: 4px; }
+.sk-print-doc h3 { font-size: 0.95rem; }
+.sk-print-doc p { margin: 0 0 0.8em; }
+.sk-print-doc ul,
+.sk-print-doc ol { margin: 0 0 0.8em 1.2em; padding: 0; }
+.sk-print-doc li { margin: 0 0 0.25em; }
+.sk-print-doc dl {
+    display: grid;
+    grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
+    gap: 6px 16px;
+    margin: 0 0 1em;
+}
+.sk-print-doc dt {
+    font-family: var(--sk-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.sk-print-doc dd { margin: 0; overflow-wrap: anywhere; }
+.sk-print-doc table { width: 100%; border-collapse: collapse; margin: 0 0 1em; }
+.sk-print-doc th,
+.sk-print-doc td { border: 1px solid var(--fg); padding: 6px 8px; text-align: left; vertical-align: top; }
+.sk-print-doc .sk-doc-meta,
+.sk-print-doc code,
+.sk-print-doc .sk-doc-hash {
+    font-family: var(--sk-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+.sk-print-doc .sk-doc-signatures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 1.6em;
+}
+.sk-print-doc .sk-doc-signature {
+    border-top: var(--sk-rule) solid var(--fg);
+    padding-top: 8px;
+    font-family: var(--sk-mono);
+    font-size: 0.74rem;
+}
+.sk-print-root { display: none; }
+
+/* ----- Responsive ----- */
+@media (max-width: 900px) {
+    /* La sidebar pasa a fila (studio.css): los grupos se disuelven. */
+    .sk-sidebar-group { display: contents; }
+    .sk-sidebar-group-title { display: none; }
+    .sk-tab-badge { margin-left: 2px; }
+}
+
+@media (max-width: 600px) {
+    .sk-grid-2 { grid-template-columns: 1fr; }
+    .sk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sk-kpi strong, .sk-kpi__value { font-size: 1.1rem; }
+    .sk-toolbar > .sk-field { flex-basis: 100%; }
+    .sk-toolbar > .studio-btn { flex: 1 1 auto; }
+    .sk-subtabs { width: 100%; }
+    .sk-bar { grid-template-columns: minmax(0, 1fr) auto; }
+    .sk-bar__track { grid-column: 1 / -1; grid-row: 2; }
+    :not(.sk-table-wrap) > table.sk-table { display: block; overflow-x: auto; }
+    .sk-table th, .sk-table td { padding: 8px 10px; }
+
+    .sk-modal[open] { align-items: flex-end; padding: 0; }
+    .sk-modal .sk-overlay__panel {
+        width: 100%;
+        max-height: 92dvh;
+        border-width: var(--sk-rule-thick) 0 0;
+    }
+    .sk-drawer .sk-overlay__panel { width: 100%; border-left-width: 0; }
+    .sk-overlay__head { padding: 12px 12px 12px 16px; }
+    .sk-overlay__body { padding: 16px; }
+    .sk-overlay__error { margin: 0 16px 10px; }
+    .sk-overlay__foot { padding: 12px 16px; }
+    .sk-overlay__foot .studio-btn { flex: 1 1 auto; }
+
+    .sk-toast-stack { right: 16px; left: 16px; bottom: 16px; width: auto; }
+    .sk-overlay > .sk-toast-stack { top: 16px; bottom: auto; right: 16px; }
+    .sk-print-doc dl { grid-template-columns: 1fr; gap: 2px; }
+    .sk-print-doc dd { margin-bottom: 8px; }
+    .sk-print-doc .sk-doc-signatures { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sk-overlay__panel,
+    .sk-drawer .sk-overlay__panel,
+    .sk-toast { animation: none; }
+    .sk-chip, .sk-field :where(input, select, textarea), a.sk-kpi { transition: none; }
+}
+
+/* ----- Impresión -----
+   1) printDocument(): el documento se clona en .sk-print-root y solo eso se imprime.
+   2) window.print() directo con un .sk-print-doc abierto en un modal/drawer:
+      se ocultan el shell y el cromo del overlay, y el overlay deja de ser fijo. */
+@media print {
+    @page { margin: 16mm; }
+
+    html.sk-print-mode body > *:not(.sk-print-root),
+    html.sk-print-mode dialog { display: none !important; }
+    html.sk-print-mode .sk-print-root { display: block !important; }
+
+    html, body,
+    .studio-page,
+    .sk-print-root { background: #fff !important; background-image: none !important; color: #000 !important; }
+    .sk-print-doc {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 10.5pt;
+    }
+    .sk-print-doc h2 { break-after: avoid; }
+    .sk-print-doc .sk-doc-signatures,
+    .sk-print-doc tr,
+    .sk-print-doc dl { break-inside: avoid; }
+
+    .sk-toast-stack,
+    .sk-no-print,
+    .sk-overlay__head,
+    .sk-overlay__foot,
+    .sk-overlay__error { display: none !important; }
+
+    body:has(.sk-overlay[open] .sk-print-doc) .studio-masthead,
+    body:has(.sk-overlay[open] .sk-print-doc) .studio-dash-shell { display: none !important; }
+    body:has(.sk-print-doc) .studio-masthead,
+    body:has(.sk-print-doc) .studio-dash-sidebar { display: none !important; }
+    .sk-overlay[open] {
+        position: absolute !important;
+        inset: 0 auto auto 0 !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: none !important;
+    }
+    .sk-overlay::backdrop { background: none !important; }
+    .sk-overlay__panel,
+    .sk-drawer .sk-overlay__panel {
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        border: 0 !important;
+        overflow: visible !important;
+        animation: none !important;
+        transform: none !important;
+    }
+    .sk-overlay__body { overflow: visible !important; padding: 0 !important; display: block; }
+}

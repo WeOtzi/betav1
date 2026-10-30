@@ -19,6 +19,18 @@
     const _supabase = window._supabase;
 
     const KIND_LABELS = { resident: 'Residencia', itinerant: 'Itinerante', guest_spot: 'Guest spot' };
+    // Modalidad de pago del spot (plataforma de estudios, M2): mismas etiquetas
+    // que WeOtziStudioKit.LABELS (compensationModel / fixedPeriod / fixedPayer).
+    const COMPENSATION_LABELS = { percentage: 'Porcentaje', fixed: 'Pago fijo', mixed: 'Mixto' };
+    const FIXED_PERIOD_SUFFIX = { per_session: 'por sesión', daily: 'por día', weekly: 'por semana', monthly: 'por mes', one_time: 'pago único' };
+    const FIXED_PAYER_LABELS = {
+        artist_to_studio: 'Alquiler de puesto: el artista paga al estudio',
+        studio_to_artist: 'Pago al artista: el estudio paga'
+    };
+    const FIXED_PAYER_SHORT = { artist_to_studio: 'Alquiler', studio_to_artist: 'Pago al artista' };
+    // Columnas de M2 que el select del directorio puede no traer.
+    const SPOT_TERM_KEYS = ['benefit_tags', 'compensation_model', 'fixed_amount', 'fixed_currency', 'fixed_period', 'fixed_payer'];
+    const termsLoaded = new WeakSet();
     const RIBBON_SLOTS = 4;
     const MOSAIC_SLOTS = 9;
     const MOBILE_MENU_BREAKPOINT = 768;
@@ -402,7 +414,7 @@
     }
 
     function splitText(s) {
-        return s.revenue_split_pct == null ? '' : `Split ${Number(s.revenue_split_pct).toFixed(0)}%`;
+        return showsSplit(s) ? `Split ${Number(s.revenue_split_pct).toFixed(0)}%` : '';
     }
 
     function stipendText(s) {
@@ -410,11 +422,71 @@
         return `Stipend ${formatMoney(s.stipend_amount)} ${s.stipend_currency || ''}`.trim();
     }
 
+    // ---- modalidad y beneficios (M2; sin la migración, los campos no llegan
+    // y se muestra lo de siempre: split y stipend) ----
+
+    function compensationModel(s) {
+        const model = s && s.compensation_model;
+        return Object.prototype.hasOwnProperty.call(COMPENSATION_LABELS, model) ? model : null;
+    }
+
+    // Con modalidad "Pago fijo" el porcentaje no aplica aunque la columna
+    // legacy revenue_split_pct tenga valor.
+    function showsSplit(s) {
+        return s.revenue_split_pct != null && s.revenue_split_pct !== '' && compensationModel(s) !== 'fixed';
+    }
+
+    // "150.000 ARS por mes" (solo con modalidad fija o mixta y monto cargado).
+    function fixedAmountText(s) {
+        const model = compensationModel(s);
+        if (model !== 'fixed' && model !== 'mixed') return '';
+        if (s.fixed_amount == null || s.fixed_amount === '') return '';
+        const amount = Number(s.fixed_amount);
+        if (!Number.isFinite(amount)) return '';
+        const currency = /^[A-Z]{3}$/.test(String(s.fixed_currency || '')) ? s.fixed_currency : '';
+        return [formatMoney(amount) + (currency ? ' ' + currency : ''), FIXED_PERIOD_SUFFIX[s.fixed_period] || '']
+            .filter(Boolean).join(' ');
+    }
+
+    // Versión corta para las tarjetas: "Alquiler 150.000 ARS por mes".
+    function fixedShortText(s) {
+        const amount = fixedAmountText(s);
+        return amount ? `${FIXED_PAYER_SHORT[s.fixed_payer] || 'Fijo'} ${amount}` : '';
+    }
+
+    function fixedPayerText(s) {
+        return fixedAmountText(s) ? (FIXED_PAYER_LABELS[s.fixed_payer] || '') : '';
+    }
+
+    function benefitTags(s) {
+        return normalizeList(s && s.benefit_tags).map(t => String(t == null ? '' : t).trim()).filter(Boolean).slice(0, 6);
+    }
+
+    // "Beneficios: Hospedaje · Insumos incluidos · +2".
+    function benefitsLine(s, limit) {
+        const tags = benefitTags(s);
+        if (tags.length === 0) return '';
+        const max = limit || 3;
+        const shown = tags.slice(0, max).join(' · ');
+        return `Beneficios: ${shown}${tags.length > max ? ` · +${tags.length - max}` : ''}`;
+    }
+
+    // Condiciones en una línea (resumen de "Solicitud enviada").
+    function conditionsText(s) {
+        return [
+            showsSplit(s) ? `${Number(s.revenue_split_pct).toFixed(0)}% para el artista` : '',
+            fixedShortText(s),
+            stipendText(s)
+        ].filter(Boolean).join(' · ');
+    }
+
     // Línea mono del Figma: "3 a 6 meses · Split 66% · Stipend 1.000 EUR".
-    // El cierre solo se anuncia cuando está cerca (≤ 14 días), como en el Figma.
+    // Con modalidad fija o mixta suma "Alquiler 150.000 ARS por mes" (o "Pago
+    // al artista …"). El cierre solo se anuncia cuando está cerca (≤ 14 días),
+    // como en el Figma.
     function metaLine(s) {
         const close = daysToClose(s);
-        return [durationText(s), splitText(s), stipendText(s), close !== null && close <= 14 ? closingText(s) : '']
+        return [durationText(s), splitText(s), fixedShortText(s), stipendText(s), close !== null && close <= 14 ? closingText(s) : '']
             .filter(Boolean).join(' · ');
     }
 
@@ -675,6 +747,7 @@
                     <span class="sps-feature-eyebrow"><span class="sps-mark sps-mark--hero" aria-hidden="true"></span> ${escapeHtml(eyebrow)}</span>
                     <h2 class="sps-feature-title">${escapeHtml(spotName(s))}</h2>
                     ${metaLine(s) ? `<span class="sps-feature-meta">${escapeHtml(metaLine(s))}</span>` : ''}
+                    ${benefitsLine(s) ? `<span class="sps-feature-meta" data-spot-benefits>${escapeHtml(benefitsLine(s))}</span>` : ''}
                     ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
                     ${desc ? `<p class="sps-feature-desc">${escapeHtml(truncate(desc, 130))}</p>` : ''}
                     <div class="sps-feature-actions">
@@ -716,6 +789,7 @@
                     <span class="sps-tile-top">${markHtml(s.kind, markSlot)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
                     <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                     ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
+                    ${benefitsLine(s) ? `<span class="sps-tile-meta" data-spot-benefits>${escapeHtml(benefitsLine(s))}</span>` : ''}
                     ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
                     ${desc ? `<p class="sps-tile-desc">${escapeHtml(truncate(desc, 150))}</p>` : ''}
                     <span class="wo-btn wo-btn--direct sps-tile-cta">
@@ -763,10 +837,12 @@
         const loc = s.location || {};
         const place = String(loc.formatted_address || loc.city || '').split(',')[0].trim();
         const head = [spotName(s), place, loc.city && loc.city !== place ? loc.city : ''].filter(Boolean).join(', ');
+        const fixed = fixedShortText(s);
         const terms = [
             durationText(s),
             normalizeList(s.styles_wanted).slice(0, 2).join(' / '),
-            s.revenue_split_pct != null ? `split ${Number(s.revenue_split_pct).toFixed(0)}%` : ''
+            showsSplit(s) ? `split ${Number(s.revenue_split_pct).toFixed(0)}%` : '',
+            fixed ? fixed.charAt(0).toLowerCase() + fixed.slice(1) : ''
         ].filter(Boolean).join(', ');
         return [head, terms, closingText(s)].filter(Boolean).map(part => part.replace(/\.$/, '')).join('. ') + '.';
     }
@@ -783,6 +859,7 @@
                 <span class="sps-tile-top">${markHtml(s.kind)}<span class="sps-tile-city">${escapeHtml(eyebrow)}</span></span>
                 <h3 class="sps-tile-name">${escapeHtml(spotName(s))}</h3>
                 ${metaLine(s) ? `<span class="sps-tile-meta">${escapeHtml(metaLine(s))}</span>` : ''}
+                ${benefitsLine(s) ? `<span class="sps-tile-meta" data-spot-benefits>${escapeHtml(benefitsLine(s))}</span>` : ''}
                 ${styleChips(s, 3) ? `<div class="sps-styles">${styleChips(s, 3)}</div>` : ''}
                 <div class="sps-promoted-media${cover ? ' has-image' : ''}" ${cover ? `style="background-image:url('${cssEscape(cover)}')"` : ''}>
                     ${cover ? '' : mediaPlaceholder('Foto del estudio')}
@@ -867,9 +944,74 @@
         const cells = [];
         if (s.availability_summary || s.start_date) cells.push(['Fechas disponibles', s.availability_summary || formatDateRange(s.start_date, s.end_date)]);
         if (durationText(s)) cells.push(['Duración', durationText(s)]);
-        if (s.revenue_split_pct != null) cells.push(['Split / comisión', `${Number(s.revenue_split_pct).toFixed(0)}% para el artista`]);
+        const model = compensationModel(s);
+        if (model) cells.push(['Modalidad', COMPENSATION_LABELS[model]]);
+        if (showsSplit(s)) cells.push(['Split / comisión', `${Number(s.revenue_split_pct).toFixed(0)}% para el artista`]);
+        if (fixedAmountText(s)) cells.push(['Pago fijo', fixedAmountText(s)]);
+        if (fixedPayerText(s)) cells.push(['Quién paga', fixedPayerText(s)]);
         if (s.stipend_amount) cells.push(['Stipend', `${formatMoney(s.stipend_amount)} ${s.stipend_currency || ''}${stipendFrequencySuffix(s)}`.trim()]);
         return cells;
+    }
+
+    // "Detalles de la oportunidad": tipo + celdas (fechas, duración, modalidad…).
+    function termsHtml(s) {
+        const cells = detailCells(s);
+        if (!cells.length) return '';
+        return `
+                    <div class="sps-opportunity-head">
+                        <span class="sps-kind-badge">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>
+                        <span>Detalles de la oportunidad</span>
+                    </div>
+                    <div class="sps-meta-grid">
+                        ${cells.map(([k, v]) => `
+                            <div class="sps-meta-row">
+                                <span class="sps-meta-key">${escapeHtml(k)}</span>
+                                <span class="sps-meta-val">${escapeHtml(v)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+        `;
+    }
+
+    // Beneficios del spot (benefit_tags, hasta 6) como etiquetas.
+    function benefitsHtml(s) {
+        const tags = benefitTags(s);
+        if (!tags.length) return '';
+        return `
+                    <div class="sps-bullets sps-benefits">
+                        <span class="sps-label">Beneficios</span>
+                        <div class="sps-styles">${tags.map(t => `<span class="sps-tag">${escapeHtml(t)}</span>`).join('')}</div>
+                    </div>
+        `;
+    }
+
+    // El directorio puede venir del select previo, sin las columnas de M2:
+    // al abrir el detalle se completan modalidad y beneficios con la fila del
+    // spot (StudioSpots.getById, '*': trae lo que exista). Sin la migración no
+    // cambia nada.
+    async function enrichSpotTerms(s) {
+        const repo = WeotziData.StudioSpots;
+        if (!s || !s.id || termsLoaded.has(s) || !repo || typeof repo.getById !== 'function') return;
+        if (SPOT_TERM_KEYS.every(key => Object.prototype.hasOwnProperty.call(s, key))) return;
+        termsLoaded.add(s);
+        try {
+            const { data, error } = await repo.getById(s.id);
+            if (error || !data) return;
+            let changed = false;
+            SPOT_TERM_KEYS.forEach(key => {
+                if (Object.prototype.hasOwnProperty.call(data, key) && !Object.prototype.hasOwnProperty.call(s, key)) {
+                    s[key] = data[key];
+                    changed = true;
+                }
+            });
+            if (!changed || currentSpot?.id !== s.id) return;
+            const terms = document.getElementById('spot-terms');
+            const benefits = document.getElementById('spot-benefits');
+            if (terms) terms.innerHTML = termsHtml(s);
+            if (benefits) benefits.innerHTML = benefitsHtml(s);
+        } catch (err) {
+            console.warn('[spots] modalidad del spot:', err);
+        }
     }
 
     function stipendFrequencySuffix(s) {
@@ -892,8 +1034,8 @@
     function buildDetailMain(s) {
         const studio = s.studios || {};
         const photos = photosOf(s);
-        const cells = detailCells(s);
         const desc = descriptionOf(s);
+        const website = safeHref(studio.website);
 
         return `
             <div class="sps-detail-hero">
@@ -918,7 +1060,7 @@
 
                 <div class="sps-links" id="spot-links">
                     ${studio.instagram ? `<a href="https://instagram.com/${encodeURIComponent(String(studio.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i> @${escapeHtml(String(studio.instagram).replace(/^@/, ''))}</a>` : ''}
-                    ${studio.website ? `<a href="${escapeAttr(studio.website)}" target="_blank" rel="noopener"><i data-wo-icon="external-link" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(String(studio.website).replace(/^https?:\/\//, ''))}</a>` : ''}
+                    ${website ? `<a href="${escapeAttr(website)}" target="_blank" rel="noopener"><i data-wo-icon="external-link" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(String(studio.website).replace(/^https?:\/\//, ''))}</a>` : ''}
                     <span id="spot-roster" hidden></span>
                 </div>
 
@@ -926,26 +1068,15 @@
                     ${styleChips(s, 6)}
                 </div>
 
-                ${cells.length ? `
-                    <div class="sps-opportunity-head">
-                        <span class="sps-kind-badge">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>
-                        <span>Detalles de la oportunidad</span>
-                    </div>
-                    <div class="sps-meta-grid">
-                        ${cells.map(([k, v]) => `
-                            <div class="sps-meta-row">
-                                <span class="sps-meta-key">${escapeHtml(k)}</span>
-                                <span class="sps-meta-val">${escapeHtml(v)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                <div id="spot-terms">${termsHtml(s)}</div>
 
                 <div class="sps-bullet-cols">
                     ${bulletList('Qué incluye el estudio', includesList(s))}
                     ${bulletList('Qué espera del artista', expectationsList(s))}
                     ${bulletList('Requisitos mínimos', requirementsList(s))}
                 </div>
+
+                <div id="spot-benefits">${benefitsHtml(s)}</div>
             </div>
         `;
     }
@@ -1046,6 +1177,7 @@
         wireApply(s);
         loadRosterCount(s);
         markAlreadyApplied(s);
+        enrichSpotTerms(s);
     }
 
     // Si el artista ya se postuló, el aside muestra el estado en lugar del formulario.
@@ -1069,7 +1201,8 @@
         if (window.WoIcons) window.WoIcons.hydrate(aside);
     }
 
-    // "N artistas residentes" — conteo real del roster activo del estudio.
+    // "N artistas residentes" — conteo real del roster activo del estudio. El
+    // roster público suma guests e itinerantes: se cuentan aparte.
     async function loadRosterCount(s) {
         const studioId = s.studios?.id;
         if (!studioId) return;
@@ -1077,8 +1210,17 @@
         if (error || !data || data.length === 0) return;
         const el = document.getElementById('spot-roster');
         if (!el || currentSpot?.id !== s.id) return;
-        el.innerHTML = `<i data-wo-icon="users" class="wo-icon-18" aria-hidden="true"></i> ${data.length} artista${data.length === 1 ? '' : 's'} residente${data.length === 1 ? '' : 's'}`;
+        el.innerHTML = `<i data-wo-icon="users" class="wo-icon-18" aria-hidden="true"></i> ${escapeHtml(rosterCountText(data))}`;
         el.hidden = false;
+    }
+
+    function rosterCountText(rows) {
+        const guests = rows.filter(row => row && (row.role === 'guest' || row.role === 'itinerant')).length;
+        const residents = rows.length - guests;
+        const parts = [];
+        if (residents) parts.push(`${residents} artista${residents === 1 ? '' : 's'} residente${residents === 1 ? '' : 's'}`);
+        if (guests) parts.push(`${guests} guest${guests === 1 ? '' : 's'} e itinerante${guests === 1 ? '' : 's'}`);
+        return parts.join(' · ');
     }
 
     // ============================================
@@ -1283,7 +1425,7 @@
             ['Ciudad', escapeHtml(cityCountryOf(s) || 'A confirmar'), false],
             ['Tipo de spot', `<span class="sps-summary-kind">${escapeHtml(KIND_LABELS[s.kind] || s.kind)}</span>`, false],
             ['Fechas propuestas', escapeHtml(rangeLabel), false],
-            ['Split / condiciones', '<span class="sps-summary-mono">' + escapeHtml(s.revenue_split_pct != null ? `${Number(s.revenue_split_pct).toFixed(0)}% para el artista` : (stipendText(s) || 'A convenir')) + '</span>', false],
+            ['Split / condiciones', '<span class="sps-summary-mono">' + escapeHtml(conditionsText(s) || 'A convenir') + '</span>', false],
             ['Fecha de envío', escapeHtml(formatLongDateTime(sentAt)), false]
         ];
 
@@ -1332,7 +1474,25 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
     function escapeAttr(v) { return escapeHtml(v); }
-    function cssEscape(v) { return String(v).replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+    // URL dentro de style="…url('…')": comillas y barras se codifican en la URL
+    // (las barras invertidas no escapan en HTML) y el resto se escapa para el
+    // atributo, así una URL de datos no puede cerrar el atributo.
+    function cssEscape(v) {
+        return escapeAttr(String(v == null ? '' : v).replace(/\\/g, '%5C').replace(/'/g, '%27').replace(/"/g, '%22'));
+    }
+    // href externo de datos: solo http(s); un dominio sin protocolo
+    // ("estudio.com") se completa con https://. Si no, ''.
+    function safeHref(value) {
+        let raw = String(value == null ? '' : value).trim();
+        if (!raw) return '';
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(raw) && /^[\w-]+(\.[\w-]+)+([/?#].*)?$/.test(raw)) raw = 'https://' + raw;
+        try {
+            const url = new URL(raw);
+            return (url.protocol === 'https:' || url.protocol === 'http:') && url.hostname ? url.href : '';
+        } catch (err) {
+            return '';
+        }
+    }
     function capitalize(v) { return String(v).charAt(0).toUpperCase() + String(v).slice(1); }
     function normalizeList(value) {
         if (!value) return [];

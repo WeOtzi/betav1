@@ -15,6 +15,21 @@
  * Las columnas FIJAS de cada vista con nombre propio quedan ENCAPSULADAS aqui.
  * Para reads genericos con columnas variables se acepta `columns='*'`.
  *
+ * Plataforma de Estudios (docs/plans/2026-10-30-estudios-plataforma.md) suma:
+ *   - tablas: studio_membership_request_details, studio_invitation_change_requests,
+ *     studio_spot_counter_offers, studio_claim_requests, supply_products (embed);
+ *   - vistas: studio_public_roster, studio_artist_material_balance,
+ *     studio_material_assignment_monthly;
+ *   - RPCs: request_studio_membership, decide_studio_membership_request,
+ *     withdraw_studio_membership_request, decide_studio_spot_application,
+ *     check_studio_booking_availability, list_studio_artist_busy_blocks,
+ *     list_my_studio_material_assignments, list_unowned_studios,
+ *     request_studio_claim.
+ * Esas migraciones pueden NO estar aplicadas: los metodos nuevos que corren al
+ * cargar una pantalla devuelven `{ data: [] | null, error: null, unavailable: true }`
+ * ante un error de "migracion pendiente", y las variantes V2 reintentan sin las
+ * columnas nuevas (`legacy: true`). Los metodos nuevos nunca lanzan.
+ *
  * Carga: DESPUES de postgrest-client.js. Expone window.WeotziData.{Studios,
  * StudioLocations, StudioMemberships, StudioSpots, StudioOps}.
  */
@@ -47,6 +62,86 @@
     const ADDRESS_COLS =
         'country, country_code, state_province, city, locality, street, street_number, ' +
         'unit, postal_code, formatted_address, latitude, longitude, google_place_id';
+
+    // ---- helpers de la plataforma de estudios (metodos nuevos) ----
+
+    // Codigos de "falta aplicar una migracion" (Reglas transversales §5):
+    // relacion/embed, funcion, columna o tabla ausentes en PostgREST o Postgres.
+    const MISSING_SCHEMA_CODES = ['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'];
+    // Columna o embed nuevo ausente: las variantes V2 reintentan sin ellos.
+    const MISSING_COLUMN_CODES = ['42703', 'PGRST204', 'PGRST200'];
+    // Vista o tabla nueva ausente.
+    const MISSING_RELATION_CODES = ['42P01', 'PGRST205'];
+    function errorCode(error) {
+        if (!error) return '';
+        return String(error.code || (error.cause && error.cause.code) || '');
+    }
+    function isMissingSchema(error) { return MISSING_SCHEMA_CODES.indexOf(errorCode(error)) !== -1; }
+    function isMissingColumn(error) { return MISSING_COLUMN_CODES.indexOf(errorCode(error)) !== -1; }
+    function isMissingRelation(error) { return MISSING_RELATION_CODES.indexOf(errorCode(error)) !== -1; }
+
+    // Devuelve el builder sin resolver; si armarlo lanza (sin cliente), una
+    // promesa ya resuelta con { data: null, error }. Nunca lanza.
+    function guard(build) {
+        try {
+            return build();
+        } catch (error) {
+            return Promise.resolve({ data: null, error });
+        }
+    }
+    function rpc(name, args) {
+        return guard(() => client().rpc(name, args));
+    }
+    // Resuelve un builder (o una promesa de { data, error }) sin lanzar.
+    async function settle(build) {
+        try {
+            const result = await build();
+            return result || { data: null, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    }
+    // Lectura que corre al cargar una pantalla: traga la "migracion pendiente"
+    // y deja la UI vacia (`unavailable: true`); cualquier otro error sube.
+    async function soft(build, empty) {
+        const result = await settle(build);
+        if (result.error && isMissingSchema(result.error)) return { data: empty, error: null, unavailable: true };
+        return result;
+    }
+    // Filtro de status: string -> eq, array -> in, vacio -> sin filtro.
+    function byStatus(query, status, column = 'status') {
+        if (Array.isArray(status)) return status.length ? query.in(column, status) : query;
+        return status ? query.eq(column, status) : query;
+    }
+    // Aplica `fn` a cada fila de un resultado exitoso.
+    function mapRows(result, fn) {
+        if (!result || result.error || !Array.isArray(result.data)) return result;
+        return { ...result, data: result.data.map(fn) };
+    }
+    // Primer dia del mes de una fecha 'YYYY-MM-DD' (las vistas mensuales
+    // guardan `month` como el dia 1).
+    function monthStart(value) {
+        const text = String(value || '');
+        return /^\d{4}-\d{2}/.test(text) ? `${text.slice(0, 7)}-01` : value;
+    }
+    // Defaults de las columnas de M1/M2 cuando la migracion no esta aplicada
+    // (`initiated_by` ausente equivale a 'studio').
+    function withMembershipDefaults(row) {
+        return { ...row, initiated_by: row.initiated_by || 'studio', current_contract_id: row.current_contract_id || null };
+    }
+
+    // Embeds de la plataforma de estudios.
+    const REQUEST_DETAILS_EMBED =
+        'studio_membership_request_details ( message, portfolio_url, proposed_start_date, styles, created_at )';
+    const REQUEST_ARTIST_EMBED = 'artists_db ( user_id, name, username, profile_picture, styles_array )';
+    const PUBLIC_ROSTER_ARTIST_COLS = 'user_id, username, name, profile_picture, styles_array, session_price';
+    // artists_db expone los estilos como styles_array; las solicitudes los
+    // exponen ademas como `styles` (nombre del contrato).
+    function withArtistStyles(row) {
+        const artist = row && row.artists_db;
+        if (!artist) return row;
+        return { ...row, artists_db: { ...artist, styles: artist.styles_array || [] } };
+    }
 
     // ===================== studios =====================
     const Studios = {
@@ -177,6 +272,49 @@
         setPrimaryLocation(studioId, locationId) {
             return from('studios').update({ primary_location_id: locationId }).eq('id', studioId);
         },
+
+        // --- reclamo de estudio (studio_claim_requests, M1) ---
+
+        // Estudios del catalogo sin dueno (registro: "¿Tu estudio ya figura en
+        // We Ötzi?"). La RPC exige >= 2 caracteres: con menos no se consulta.
+        // Sin la migracion devuelve [] con `unavailable: true`.
+        listUnownedStudios(query) {
+            const text = String(query == null ? '' : query).trim();
+            if (text.length < 2) return Promise.resolve({ data: [], error: null });
+            return soft(() => rpc('list_unowned_studios', { p_query: text }), []);
+        },
+
+        // Pide la titularidad de un estudio sin dueno. Devuelve el id del reclamo.
+        requestClaim(studioId, evidence, contactName, contactPhone) {
+            return rpc('request_studio_claim', {
+                p_studio_id: studioId,
+                p_evidence: evidence,
+                p_contact_name: contactName || null,
+                p_contact_phone: contactPhone || null,
+            });
+        },
+
+        // Ultimo reclamo del usuario autenticado (pending/approved/rejected) con
+        // el estudio embebido, o null. Filtra por el uid de la sesion porque la
+        // RLS le deja ver todos los reclamos a soporte.
+        async getMyClaim() {
+            let uid = null;
+            try {
+                const auth = client() && client().auth;
+                if (auth && typeof auth.getSession === 'function') {
+                    const { data } = await auth.getSession();
+                    uid = data && data.session && data.session.user ? data.session.user.id : null;
+                }
+            } catch (error) {
+                uid = null;
+            }
+            return soft(() => {
+                let query = from('studio_claim_requests')
+                    .select('id, studio_id, user_id, status, evidence, contact_name, contact_phone, created_at, decided_at, decision_note, studios:studio_id ( id, name, slug, city, country, logo_image )');
+                if (uid) query = query.eq('user_id', uid);
+                return query.order('created_at', { ascending: false }).limit(1).maybeSingle();
+            }, null);
+        },
     };
 
     // ===================== studio_locations =====================
@@ -263,11 +401,37 @@
 
         // Roster activo con artista embebido para el perfil publico del estudio.
         // Cubre studio-profile.js:95.
-        listActiveRosterWithArtists(studioId) {
-            return from('studio_artist_memberships')
-                .select('role, status, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
+        // Lee de la vista publica studio_public_roster (M1: no expone
+        // revenue_split_pct ni notes). Si la vista no existe (42P01/PGRST205),
+        // cae a la tabla como antes. Si existe pero PostgREST no infiere el
+        // embed (PGRST200), resuelve los artistas con un segundo read.
+        // Filas: { id, membership_id, studio_id, artist_user_id, location_id,
+        // role, status: 'active', started_at, ends_on, artists_db }.
+        async listActiveRosterWithArtists(studioId) {
+            const viewCols = 'membership_id, studio_id, artist_user_id, location_id, role, started_at, ends_on';
+            const fromView = (row) => ({ ...row, id: row.membership_id, status: 'active' });
+            const view = await settle(() => from('studio_public_roster')
+                .select(`${viewCols}, artists_db ( ${PUBLIC_ROSTER_ARTIST_COLS} )`)
+                .eq('studio_id', studioId));
+            if (!view.error) return mapRows(view, fromView);
+            if (errorCode(view.error) === 'PGRST200') {
+                const bare = await settle(() => from('studio_public_roster').select(viewCols).eq('studio_id', studioId));
+                if (bare.error) return bare;
+                const rows = bare.data || [];
+                const ids = Array.from(new Set(rows.map((row) => row.artist_user_id).filter(Boolean)));
+                const artists = ids.length
+                    ? await settle(() => from('artists_db').select(PUBLIC_ROSTER_ARTIST_COLS).in('user_id', ids))
+                    : { data: [], error: null };
+                if (artists.error) return artists;
+                const byId = new Map((artists.data || []).map((artist) => [artist.user_id, artist]));
+                return { data: rows.map((row) => ({ ...fromView(row), artists_db: byId.get(row.artist_user_id) || null })), error: null };
+            }
+            if (!isMissingRelation(view.error)) return view;
+            const legacy = await settle(() => from('studio_artist_memberships')
+                .select('id, artist_user_id, location_id, role, status, started_at, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
                 .eq('studio_id', studioId)
-                .eq('status', 'active');
+                .eq('status', 'active'));
+            return mapRows(legacy, (row) => ({ ...row, membership_id: row.id, studio_id: studioId, ends_on: null }));
         },
 
         // Artistas activos del roster (embed minimo) para selectores de ops. Con
@@ -376,6 +540,120 @@
                 p_membership_id: membershipId,
                 p_message: message,
             });
+        },
+
+        // --- alta en dos sentidos (M1) ---
+
+        // Solicitudes de alta pendientes (status 'requested', las pidio el
+        // artista) con studio_membership_request_details y artists_db
+        // embebidos; artists_db.styles replica styles_array. Badge/pestania
+        // Solicitudes: sin la migracion devuelve [] con `unavailable: true`.
+        listRequestsForStudio(studioId) {
+            return soft(() => allRows(() => from('studio_artist_memberships')
+                .select(`id, studio_id, artist_user_id, role, status, location_id, invited_at, initiated_by, ${REQUEST_DETAILS_EMBED}, ${REQUEST_ARTIST_EMBED}`)
+                .eq('studio_id', studioId)
+                .eq('status', 'requested')
+                .order('invited_at', { ascending: false })
+                .order('id')), []).then((result) => mapRows(result, withArtistStyles));
+        },
+
+        // El artista pide sumarse a un estudio. Devuelve
+        // { membership_id, studio_has_owner }.
+        requestMembership({ studioId, role = 'resident', locationId = null, message = null, portfolioUrl = null, proposedStartDate = null } = {}) {
+            return rpc('request_studio_membership', {
+                p_studio_id: studioId,
+                p_role: role || 'resident',
+                p_location_id: locationId || null,
+                p_message: message || null,
+                p_portfolio_url: portfolioUrl || null,
+                p_proposed_start_date: proposedStartDate || null,
+            });
+        },
+
+        // El estudio (o soporte) decide una solicitud: decision 'accept' |
+        // 'reject'; rol y sede opcionales al aprobar. Devuelve
+        // { membership_id, status, artist_user_id, studio_id }.
+        decideRequest(membershipId, decision, { role = null, locationId = null } = {}) {
+            return rpc('decide_studio_membership_request', {
+                p_membership_id: membershipId,
+                p_decision: decision,
+                p_role: role || null,
+                p_location_id: locationId || null,
+            });
+        },
+
+        // El artista retira su solicitud (requested -> ended).
+        withdrawRequest(membershipId) {
+            return rpc('withdraw_studio_membership_request', { p_membership_id: membershipId });
+        },
+
+        // Solicitudes enviadas por el artista (status 'requested') con el
+        // estudio embebido, incluido studios.user_id: `studio_has_owner` dice
+        // si el estudio ya tiene cuenta. Sin la migracion: [] + `unavailable`.
+        listRequestsForArtist(artistUserId) {
+            return soft(() => from('studio_artist_memberships')
+                .select(`id, studio_id, artist_user_id, role, status, location_id, invited_at, ended_at, initiated_by, ${REQUEST_DETAILS_EMBED}, ` +
+                    'studios:studio_id ( id, slug, name, logo_image, cover_image, city, country, user_id ), ' +
+                    'location:location_id ( id, label, city, country, formatted_address )')
+                .eq('artist_user_id', artistUserId)
+                .eq('status', 'requested')
+                .order('invited_at', { ascending: false }), [])
+                .then((result) => mapRows(result, (row) => ({ ...row, studio_has_owner: !!(row.studios && row.studios.user_id) })));
+        },
+
+        // Cambios pedidos por artistas sobre invitaciones del estudio (pending),
+        // con la membresia (studio_artist_memberships) y el artista embebidos.
+        listChangeRequestsForStudio(studioId) {
+            return soft(() => allRows(() => from('studio_invitation_change_requests')
+                .select(`id, membership_id, artist_user_id, message, status, created_at, studio_artist_memberships!inner ( id, studio_id, role, status, location_id, revenue_split_pct, invited_at ), ${REQUEST_ARTIST_EMBED}`)
+                .eq('studio_artist_memberships.studio_id', studioId)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+                .order('id')), []).then((result) => mapRows(result, withArtistStyles));
+        },
+
+        // Cierra un pedido de cambios sin aplicarlo (la RLS lo permite al
+        // estudio). Devuelve las filas tocadas: [] si ya estaba cerrado.
+        closeChangeRequest(id) {
+            return guard(() => from('studio_invitation_change_requests')
+                .update({ status: 'declined', resolved_at: new Date().toISOString() })
+                .eq('id', id)
+                .eq('status', 'pending')
+                .select('id, status'));
+        },
+
+        // Memberships del artista (INVITE_COLS + initiated_by y
+        // current_contract_id). `status` opcional: string o array. Sin M1/M2
+        // reintenta con INVITE_COLS y completa initiated_by='studio',
+        // current_contract_id=null (`legacy: true`). Los metodos existentes
+        // (listPendingForArtist, ...) no cambian.
+        async listForArtistV2(artistUserId, { status = null } = {}) {
+            const build = (cols) => byStatus(from('studio_artist_memberships')
+                .select(cols)
+                .eq('artist_user_id', artistUserId), status)
+                .order('invited_at', { ascending: false, nullsFirst: false })
+                .order('id');
+            const full = await settle(() => build(`${StudioMemberships.INVITE_COLS}, initiated_by, current_contract_id`));
+            if (!full.error || !isMissingColumn(full.error)) return full;
+            const legacy = await settle(() => build(StudioMemberships.INVITE_COLS));
+            if (legacy.error) return legacy;
+            return { ...mapRows(legacy, withMembershipDefaults), legacy: true };
+        },
+
+        // Mismas columnas y filtro que listRoster + initiated_by y
+        // current_contract_id (el roster bloquea rol/split con contrato). Sin
+        // M1/M2 cae a listRoster y completa los defaults (`legacy: true`).
+        async listRosterV2(studioId) {
+            const full = await settle(() => from('studio_artist_memberships')
+                .select(`id, role, status, started_at, ended_at, location_id, revenue_split_pct, initiated_by, current_contract_id, ${ARTIST_EMBED}`)
+                .eq('studio_id', studioId)
+                .in('status', ['active', 'pending_acceptance', 'paused'])
+                .order('status', { ascending: true })
+                .order('role', { ascending: true }));
+            if (!full.error || !isMissingColumn(full.error)) return full;
+            const legacy = await settle(() => StudioMemberships.listRoster(studioId));
+            if (legacy.error) return legacy;
+            return { ...mapRows(legacy, withMembershipDefaults), legacy: true };
         },
     };
 
@@ -535,6 +813,56 @@
         withdrawApplication(applicationId) {
             return from('studio_spot_applications').update({ status: 'withdrawn', decided_at: new Date().toISOString() }).eq('id', applicationId);
         },
+
+        // --- spots y contratos (M2) ---
+
+        // Decide una postulacion por RPC (dueno o soporte). Con M2, 'accepted'
+        // deja la postulacion en shortlisted y prepara el borrador de contrato.
+        decideApplicationRpc(appId, status) {
+            return rpc('decide_studio_spot_application', { p_application_id: appId, p_status: status });
+        },
+
+        // Spots abiertos de un estudio (perfil publico). Pide benefit_tags y,
+        // si la columna no existe, reintenta sin ella con benefit_tags=[]
+        // (`legacy: true`).
+        async listOpenByStudio(studioId) {
+            const base = 'id, title, kind, start_date, end_date, application_count';
+            const build = (cols) => from('studio_spots')
+                .select(cols)
+                .eq('studio_id', studioId)
+                .eq('status', 'open')
+                .order('start_date', { ascending: true, nullsFirst: false })
+                .order('id');
+            const full = await settle(() => build(`${base}, benefit_tags`));
+            if (!full.error || !isMissingColumn(full.error)) return full;
+            const legacy = await settle(() => build(base));
+            if (legacy.error) return legacy;
+            return { ...mapRows(legacy, (row) => ({ ...row, benefit_tags: [] })), legacy: true };
+        },
+
+        // Contraofertas pendientes que mandaron artistas a spots del estudio,
+        // con la postulacion (studio_spot_applications), su spot (studio_spots)
+        // y su artista (artists_db) embebidos. Badge: traga la migracion pendiente.
+        listArtistCounterOffersForStudio(studioId) {
+            return soft(() => allRows(() => from('studio_spot_counter_offers')
+                .select('id, application_id, author_role, split_pct, proposed_start_date, proposed_end_date, note, status, created_at, ' +
+                    'studio_spot_applications!inner ( id, status, spot_id, artist_user_id, created_at, ' +
+                    'studio_spots!inner ( id, title, kind, studio_id ), ' +
+                    'artists_db ( user_id, name, username, profile_picture, styles_array ) )')
+                .eq('studio_spot_applications.studio_spots.studio_id', studioId)
+                .eq('author_role', 'artist')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+                .order('id')), []);
+        },
+
+        // Responde una contraoferta con la RPC existente. decision: 'accept' |
+        // 'reject' (tambien 'accepted' | 'rejected'). No lanza: un valor
+        // invalido lo rechaza la RPC.
+        respondCounterOffer(id, decision) {
+            const action = decision === 'accepted' ? 'accept' : decision === 'rejected' ? 'reject' : decision;
+            return rpc('respond_to_studio_spot_counter_offer', { p_offer_id: id, p_action: action });
+        },
     };
 
     // ===================== StudioOps (jobs, invoices, documents, inventory, suppliers, sponsors, vistas) =====================
@@ -565,9 +893,122 @@
         replaceSponsorArtists(id, artistIds) {
             return client().rpc('replace_studio_sponsor_artists', { p_sponsor_id: id, p_artist_ids: artistIds });
         },
+        // Historial del item. Suma unit_cost y related_artist_user_id (existen en
+        // vivo); el nombre del artista se resuelve en el cliente con el roster.
         listInventoryMovements(itemId) {
-            return from('studio_inventory_movements').select('id,kind,quantity,performed_at,notes')
+            return from('studio_inventory_movements').select('id,kind,quantity,performed_at,notes,unit_cost,related_artist_user_id')
                 .eq('item_id', itemId).order('performed_at', { ascending: false }).limit(100);
+        },
+
+        // ---- agenda (M3) ----
+
+        // Citas del estudio que se superponen con [fromIso, toIso): empiezan
+        // antes del fin del rango y terminan despues de su inicio. Mismo embed
+        // que listBookings; las columnas de M3 llegan por '*'.
+        listBookingsRange(studioId, fromIso, toIso) {
+            return settle(() => allRows(() => {
+                let query = from('studio_bookings').select('*, artists_db(name,username), studio_locations(label)')
+                    .eq('studio_id', studioId).order('starts_at').order('id');
+                if (toIso) query = query.lt('starts_at', toIso);
+                if (fromIso) query = query.gt('ends_at', fromIso);
+                return query;
+            }));
+        },
+
+        // Chequeo de disponibilidad del artista (agenda personal, sesiones de
+        // cotizacion, otros estudios). Devuelve { available, reason }.
+        checkBookingAvailability(studioId, artistUserId, startsIso, endsIso, excludeId) {
+            return rpc('check_studio_booking_availability', {
+                p_studio_id: studioId,
+                p_artist_user_id: artistUserId,
+                p_starts: startsIso,
+                p_ends: endsIso,
+                p_exclude_booking: excludeId || null,
+            });
+        },
+
+        // Bloques "Ocupado" (sin detalle) de los artistas activos del estudio;
+        // rango de 62 dias o menos. Paginado con orden estable (la RPC no
+        // devuelve id). Sin la migracion: [] + `unavailable`.
+        listArtistBusyBlocks(studioId, fromIso, toIso) {
+            return soft(() => allRows(() => client()
+                .rpc('list_studio_artist_busy_blocks', { p_studio_id: studioId, p_from: fromIso, p_to: toIso })
+                .order('artist_user_id').order('starts_at').order('ends_at').order('source')), []);
+        },
+
+        // Citas del artista en estudios (proyeccion de su calendario), con
+        // studios(name, slug). Mismo criterio de superposicion que
+        // listBookingsRange; todos los estados (el llamador filtra confirmed).
+        listBookingsForArtist(artistUserId, fromIso, toIso) {
+            return soft(() => allRows(() => {
+                let query = from('studio_bookings')
+                    .select('id, studio_id, location_id, artist_user_id, client_name, starts_at, ends_at, status, studios(name, slug)')
+                    .eq('artist_user_id', artistUserId).order('starts_at').order('id');
+                if (toIso) query = query.lt('starts_at', toIso);
+                if (fromIso) query = query.gt('ends_at', fromIso);
+                return query;
+            }), []);
+        },
+
+        // ---- materiales entregados a artistas (M3) ----
+
+        // Balance por artista e item (vista studio_artist_material_balance).
+        listMaterialBalance(studioId) {
+            return soft(() => allRows(() => from('studio_artist_material_balance')
+                .select('*')
+                .eq('studio_id', studioId)
+                .order('artist_user_id').order('item_id')), []);
+        },
+
+        // Entregas netas de devoluciones por mes, artista y moneda (vista
+        // studio_material_assignment_monthly). from/to: 'YYYY-MM-DD'.
+        listMaterialAssignmentsMonthly(studioId, fromDate, toDate) {
+            return soft(() => allRows(() => {
+                let query = from('studio_material_assignment_monthly').select('*').eq('studio_id', studioId);
+                if (fromDate) query = query.gte('month', monthStart(fromDate));
+                if (toDate) query = query.lte('month', toDate);
+                return query.order('month').order('artist_user_id').order('currency');
+            }), []);
+        },
+
+        // Entregas y devoluciones de materiales al artista autenticado.
+        listMyMaterialAssignments() {
+            return soft(() => allRows(() => client()
+                .rpc('list_my_studio_material_assignments')
+                .order('performed_at', { ascending: false }).order('studio_id').order('item_name').order('kind')), []);
+        },
+
+        // ---- reportes ----
+
+        // Metricas mensuales por moneda entre dos fechas ('YYYY-MM-DD'; el
+        // inicio se lleva al dia 1 de su mes porque la vista guarda month=dia 1).
+        listMonthlyMetrics(studioId, fromDate, toDate) {
+            return settle(() => allRows(() => {
+                let query = from('studio_monthly_metrics_by_currency').select('*').eq('studio_id', studioId);
+                if (fromDate) query = query.gte('month', monthStart(fromDate));
+                if (toDate) query = query.lte('month', toDate);
+                return query.order('month').order('currency');
+            }));
+        },
+
+        // ---- reposicion (M5) ----
+
+        // Items activos (columnas de listInventoryItems) + supply_product_id y
+        // el producto Supplies vinculado. Sin M5 reintenta sin el embed y
+        // completa supply_product_id/supply_products en null (`legacy: true`).
+        // El filtro "por debajo del punto de reposicion" lo hace el llamador.
+        async listRestockCandidates(studioId) {
+            const base = 'id, name, sku, category, unit, quantity_on_hand, reorder_level, cost_per_unit, currency, supplier_id, studio_suppliers ( name )';
+            const build = (cols) => () => from('studio_inventory_items')
+                .select(cols)
+                .eq('studio_id', studioId)
+                .eq('is_active', true)
+                .order('name', { ascending: true }).order('id');
+            const full = await settle(() => allRows(build(`${base}, supply_product_id, supply_products!supply_product_id ( id, name, price, currency, vendor_id, unit_label, pack_size )`)));
+            if (!full.error || !isMissingColumn(full.error)) return full;
+            const legacy = await settle(() => allRows(build(base)));
+            if (legacy.error) return legacy;
+            return { ...mapRows(legacy, (row) => ({ ...row, supply_product_id: null, supply_products: null })), legacy: true };
         },
         // ---- studio_jobs_log ----
 
