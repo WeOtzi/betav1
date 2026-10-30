@@ -978,6 +978,23 @@
                 .order('performed_at', { ascending: false }).order('studio_id').order('item_name').order('kind')), []);
         },
 
+        // ---- tienda ----
+        // Venta de mostrador (create_store_pos_order, M6): un ítem por pedido,
+        // cobrado por el estudio; idempotente por idempotencyKey.
+        createStorePosOrder({ studioId, productId, variantId, quantity, paymentMethod, buyerName, buyerEmail, buyerPhone, idempotencyKey } = {}) {
+            return rpc('create_store_pos_order', {
+                p_studio_id: studioId,
+                p_product_id: productId,
+                p_variant_id: variantId || null,
+                p_quantity: quantity || 1,
+                p_payment_method: paymentMethod,
+                p_buyer_name: buyerName || null,
+                p_buyer_email: buyerEmail || null,
+                p_buyer_phone: buyerPhone || null,
+                p_idempotency_key: idempotencyKey || null,
+            });
+        },
+
         // ---- reportes ----
 
         // Metricas mensuales por moneda entre dos fechas ('YYYY-MM-DD'; el

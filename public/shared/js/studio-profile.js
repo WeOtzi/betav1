@@ -128,6 +128,35 @@
         if (!slot || !studio) return;
         slot.setAttribute('data-studio-id', studio.id || '');
         slot.setAttribute('data-studio-slug', studio.slug || '');
+        renderStudioStore(slot, studio);
+    }
+
+    // Vitrina de la Tienda del estudio (get_public_storefront 'studio', M6).
+    // Sin Store o sin productos publicados, la sección queda oculta.
+    async function renderStudioStore(slot, studio) {
+        const store = window.WeotziData && window.WeotziData.Store;
+        const model = window.WeotziStoreModel;
+        if (!store || typeof store.getStorefront !== 'function' || !studio.slug) return;
+        let front = null;
+        try { front = await store.getStorefront('studio', studio.slug); } catch (_) { return; }
+        const products = (front && Array.isArray(front.products) ? front.products : []).filter(p => p && p.kind === 'merch');
+        if (!products.length) return;
+        const money = (amount, currency) => model && typeof model.formatMoney === 'function'
+            ? model.formatMoney(amount, currency) : `${currency || ''} ${amount}`;
+        const itemHref = id => model && typeof model.itemUrl === 'function' ? model.itemUrl(id) : `/store/item/?id=${encodeURIComponent(id)}`;
+        const cards = products.map(p => {
+            const img = Array.isArray(p.images) && p.images[0] && typeof store.previewUrl === 'function' ? safeUrl(store.previewUrl(p.images[0].path)) : null;
+            const price = p.price_amount != null ? p.price_amount : p.price_from;
+            return `<a class="studio-store-card" href="${escapeAttr(itemHref(p.id))}">`
+                + (img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr((p.images[0] && p.images[0].alt) || p.title)}" loading="lazy">` : '<span class="studio-store-card__ph" aria-hidden="true"></span>')
+                + `<strong>${escapeHtml(p.title)}</strong>`
+                + (price != null ? `<span>${escapeHtml(money(price, p.currency))}</span>` : '')
+                + '</a>';
+        }).join('');
+        slot.innerHTML = '<div class="studio-section-kicker">Tienda</div>'
+            + '<h2 class="studio-section-title">Merch y <em>cuidado</em></h2>'
+            + `<div class="studio-store-grid">${cards}</div>`;
+        slot.hidden = false;
     }
 
     function renderStudioReviews(studio) {
