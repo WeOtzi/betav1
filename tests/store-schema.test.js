@@ -13,7 +13,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+// En Windows con core.autocrlf=true el checkout deja CRLF: las regex del test asumen \n.
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
 
 const MIGRATION = 'supabase/migrations/20261030150000_store_core.sql';
 const ROLLBACK = 'supabase/rollbacks/20261030150000_store_core.down.sql';
