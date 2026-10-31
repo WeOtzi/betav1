@@ -1,7 +1,11 @@
 // ============================================
-// Artist Authentication Module
-// Handles login, Google OAuth, password recovery and session
-// management for artist users.
+// Artist Authentication Module — /artist/login
+// Figma final del flujo de artista (oct 2026):
+//   801:585   Iniciar sesión - Email y redes sociales
+//   2001:3334 Iniciar sesión - usuario registrado ("Ya iniciaste sesión")
+//   801:1099 / 2001:3335 loader post-auth (v1 login · v2 sesión activa)
+// Maneja login con email/contraseña, link de acceso por email (OTP de
+// Supabase), OAuth de Facebook, la vista de sesión activa y el logout.
 // UI: design system Bauhaus (wo-*) — /shared/css/artist-auth-ds.css
 // ============================================
 
@@ -10,6 +14,7 @@ const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR
 const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
 const AUTH_REQUEST_TIMEOUT_MS = 10000;
 const PROFILE_LOOKUP_TIMEOUT_MS = 8000;
+const POSTAUTH_DELAY_MS = 1400;
 
 const ARTIST_PROFILE_SELECT = [
     'user_id',
@@ -34,6 +39,24 @@ const ARTIST_PROFILE_SELECT = [
 // ============================================
 // Helpers
 // ============================================
+
+// Prefijo de la app (/beta en producción, /preview/<id> en el preview local).
+function artistLoginBasePath() {
+    if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+    return /^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '';
+}
+
+function appPath(path) {
+    const normalized = String(path || '/').startsWith('/') ? String(path || '/') : '/' + String(path || '');
+    const base = artistLoginBasePath();
+    if (base && (normalized === base || normalized.startsWith(base + '/'))) return normalized;
+    return base + normalized;
+}
+
+function isPreviewContext() {
+    if (window.WEOTZI_PREVIEW === true) return true;
+    try { return window.sessionStorage.getItem('wo_demo_mode') === '1'; } catch (_) { return false; }
+}
 
 function normalizeReturnTo(value) {
     if (window.ArtistAuth?.normalizeReturnTo) {
@@ -68,6 +91,16 @@ function buildRegisterArtistUrl(progress) {
         return window.ArtistRegistrationProgress.withResumeStep(baseUrl, progress?.nextStep || null);
     }
     return baseUrl;
+}
+
+// Loader post-auth (Figma 801:1099). Sin el script cargado, redirige directo.
+function goWithPostAuthLoader(targetPath, { role = 'artist', variant = 'v1' } = {}) {
+    const url = appPath(targetPath);
+    if (window.WoPostAuthLoader && typeof window.WoPostAuthLoader.show === 'function') {
+        window.WoPostAuthLoader.show({ role, targetUrl: url, variant, delayMs: POSTAUTH_DELAY_MS });
+    } else {
+        window.location.href = url;
+    }
 }
 
 // Mensajes de estado — usan las clases wo-alert del DS.
@@ -136,12 +169,23 @@ async function lookupClientProfile(userId) {
     return data || null;
 }
 
+function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
 // ============================================
 // Initialization
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+    const params = new URLSearchParams(window.location.search || '');
+    const prefillEmail = (params.get('email') || '').trim();
+    const emailInput = document.getElementById('login-email');
+    if (prefillEmail && emailInput) emailInput.value = prefillEmail;
+
+    if (window.location.hash.includes('access_token') || params.has('code')) {
         handleArtistOAuthCallback();
         return;
     }
@@ -150,60 +194,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// View Switching (login <-> recuperar contraseña)
-// ============================================
-
-function togglePoster(which) {
-    const posterLogin = document.getElementById('poster-login');
-    const posterRecovery = document.getElementById('poster-recovery');
-    if (posterLogin) posterLogin.hidden = which !== 'login';
-    if (posterRecovery) posterRecovery.hidden = which !== 'recovery';
-}
-
-function setRecoveryStep(step) {
-    const emailStep = document.getElementById('recovery-step-email');
-    const sentStep = document.getElementById('recovery-step-sent');
-    if (emailStep) emailStep.hidden = step !== 'email';
-    if (sentStep) sentStep.hidden = step !== 'sent';
-}
-
-function showRecoveryView() {
-    const anonView = document.getElementById('login-anonymous-view');
-    const recoveryView = document.getElementById('recovery-view');
-    if (!recoveryView) return;
-
-    const loginEmail = document.getElementById('login-email');
-    const recoveryEmail = document.getElementById('recovery-email');
-    if (recoveryEmail && loginEmail && loginEmail.value.trim()) {
-        recoveryEmail.value = loginEmail.value.trim();
-    }
-
-    setRecoveryStep('email');
-    if (anonView) anonView.hidden = true;
-    recoveryView.hidden = false;
-    togglePoster('recovery');
-    clearFormMessage();
-    setAuthMessage('recovery-message', '');
-    recoveryEmail?.focus();
-}
-
-function showLoginView() {
-    const anonView = document.getElementById('login-anonymous-view');
-    const recoveryView = document.getElementById('recovery-view');
-    if (recoveryView) recoveryView.hidden = true;
-    if (anonView) anonView.hidden = false;
-    togglePoster('login');
-    setAuthMessage('recovery-message', '');
-    document.getElementById('login-password')?.focus();
-}
-
-// ============================================
 // Auth State Management
 // ============================================
 
 async function checkArtistAuthState() {
     const currentPath = window.location.pathname;
     const onLoginPage = currentPath.includes('/artist/login');
+    const params = new URLSearchParams(window.location.search || '');
 
     try {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -211,12 +208,21 @@ async function checkArtistAuthState() {
         if (!session) {
             if (currentPath.includes('/artist/dashboard')) {
                 const returnTo = encodeURIComponent(currentPath + window.location.search);
-                window.location.href = '/artist/login?returnTo=' + returnTo;
+                window.location.href = appPath('/artist/login?returnTo=' + returnTo);
+                return;
+            }
+            // Atajo desde /registerclosedbeta: "Continuá con Facebook".
+            if (onLoginPage && params.get('oauth') === 'facebook') {
+                handleArtistSocialLogin('facebook');
             }
             return;
         }
 
         if (!onLoginPage) return;
+
+        // QA del preview: ?state=login muestra el formulario aunque haya sesión
+        // ficticia. En producción el parámetro se ignora.
+        if (params.get('state') === 'login' && isPreviewContext()) return;
 
         const artist = await lookupArtistProfile(session.user.id);
         if (artist) {
@@ -247,87 +253,66 @@ async function checkArtistAuthState() {
     }
 }
 
-function renderAuthenticatedView({ email, role, artist, progress }) {
+function renderAuthenticatedView({ email, role, progress }) {
     const anonView = document.getElementById('login-anonymous-view');
-    const recoveryView = document.getElementById('recovery-view');
     const authView = document.getElementById('login-authenticated-view');
-    const emailEl = document.getElementById('auth-view-email');
-    const kickerEl = document.getElementById('auth-view-kicker');
-    const kickerTextEl = document.getElementById('auth-view-kicker-text') || kickerEl;
     const titleEl = document.getElementById('auth-view-title');
     const subcopyEl = document.getElementById('auth-view-subcopy');
-    const noteEl = document.getElementById('auth-view-progress-note');
     const actionsEl = document.getElementById('auth-view-actions');
 
     if (!anonView || !authView || !actionsEl) return;
 
     anonView.hidden = true;
-    if (recoveryView) recoveryView.hidden = true;
     authView.hidden = false;
-    togglePoster('login');
-
-    if (emailEl) emailEl.textContent = email || '';
-
     actionsEl.innerHTML = '';
+    setAuthMessage('auth-view-progress-note', '');
 
     if (role === 'artist') {
-        kickerTextEl.textContent = 'Sesión activa';
         titleEl.textContent = 'Ya iniciaste sesión';
 
         if (progress && !progress.isComplete) {
             const stepLabel = progress.nextStep
                 ? `paso ${String(progress.nextStep).padStart(2, '0')}`
                 : 'siguiente paso';
+            subcopyEl.textContent = 'Tu perfil de artista está en progreso.';
             setAuthMessage('auth-view-progress-note',
-                `Tu perfil de artista está en progreso. Continuá desde el ${stepLabel}.`, 'info');
-
-            actionsEl.appendChild(createActionButton(
-                'Continuar registro',
-                'primary',
-                buildRegisterArtistUrl(progress)
-            ));
-            actionsEl.appendChild(createActionButton('Ir al dashboard', 'ghost', '/artist/dashboard'));
+                `Continuá tu registro desde el ${stepLabel}.`, 'info');
+            actionsEl.appendChild(createActionButton('Continuar registro', 'primary', buildRegisterArtistUrl(progress)));
+            actionsEl.appendChild(createActionButton('Dashboard', 'outline', '/artist/dashboard', { loader: 'v2' }));
         } else {
-            setAuthMessage('auth-view-progress-note', '');
-            subcopyEl.textContent = 'Continuá desde tu panel de artista.';
-            actionsEl.appendChild(createActionButton('Ir al dashboard', 'primary', '/artist/dashboard'));
+            subcopyEl.textContent = 'Continuá desde tu panel de artista';
+            actionsEl.appendChild(createActionButton('Dashboard', 'primary', '/artist/dashboard', { loader: 'v2' }));
+            actionsEl.appendChild(createActionButton('Mis cotizaciones', 'outline', '/my-quotations'));
+            actionsEl.appendChild(createActionButton('Job board', 'outline', '/job-board'));
         }
-
-        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'ghost', '/my-quotations'));
-        actionsEl.appendChild(createActionButton('Job board', 'ghost', '/job-board'));
     } else if (role === 'client') {
-        kickerTextEl.textContent = 'Cuenta cliente';
         titleEl.textContent = 'Esta cuenta es de cliente';
-        subcopyEl.innerHTML = `Tenés sesión iniciada como <strong id="auth-view-email">${escapeHtml(email || '')}</strong> en una cuenta de cliente.`;
-        setAuthMessage('auth-view-progress-note', '');
-
-        actionsEl.appendChild(createActionButton('Ir al dashboard de cliente', 'primary', '/client/dashboard'));
-        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'ghost', '/my-quotations'));
+        subcopyEl.innerHTML = `Tenés sesión iniciada como <strong>${escapeHtml(email || '')}</strong> en una cuenta de cliente.`;
+        actionsEl.appendChild(createActionButton('Dashboard de cliente', 'primary', '/client/dashboard', { loader: 'v2', role: 'client' }));
+        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'outline', '/my-quotations'));
     } else {
-        kickerTextEl.textContent = 'Sin perfil';
         titleEl.textContent = 'Completá tu registro';
-        subcopyEl.innerHTML = `Tenés sesión como <strong id="auth-view-email">${escapeHtml(email || '')}</strong>, pero todavía no creaste tu perfil de artista.`;
-        setAuthMessage('auth-view-progress-note', '');
-
+        subcopyEl.innerHTML = `Tenés sesión como <strong>${escapeHtml(email || '')}</strong>, pero todavía no creaste tu perfil de artista.`;
         actionsEl.appendChild(createActionButton('Crear perfil de artista', 'primary', '/register-artist'));
-        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'ghost', '/my-quotations'));
+        actionsEl.appendChild(createActionButton('Mis cotizaciones', 'outline', '/my-quotations'));
     }
+
+    if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') window.WoIcons.hydrate(actionsEl);
 }
 
-function createActionButton(label, kind, href) {
+function createActionButton(label, kind, href, opts = {}) {
     const btn = document.createElement('a');
-    btn.className = kind === 'primary'
-        ? 'wo-btn wo-btn--block wo-btn--hard'
-        : 'wo-btn wo-btn--ghost wo-btn--block wo-btn--hard';
-    btn.href = href;
-    btn.innerHTML = `<span class="btn-text">${escapeHtml(label)}</span><i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>`;
+    btn.className = kind === 'primary' ? 'wo-auth-btn' : 'wo-auth-btn wo-auth-btn--outline';
+    btn.href = appPath(href);
+    btn.innerHTML = `<span class="btn-text">${escapeHtml(label)}</span><i data-wo-icon="arrow-right" aria-hidden="true"></i>`;
+    if (opts.loader) {
+        btn.addEventListener('click', (event) => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
+            event.preventDefault();
+            goWithPostAuthLoader(href, { role: opts.role || 'artist', variant: opts.loader });
+        });
+    }
     return btn;
-}
-
-function escapeHtml(str) {
-    return String(str || '').replace(/[&<>"']/g, (c) => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
 }
 
 // ============================================
@@ -376,28 +361,26 @@ async function handleArtistLogin(e) {
         if (error) throw error;
 
         const artist = await lookupArtistProfile(data.user.id);
+        const returnTo = getReturnToParam();
 
         if (artist) {
-            btn.innerHTML = '<span class="btn-text">Listo</span>';
-            showFormMessage('Sesión iniciada. Abriendo tu panel…', 'success');
-
-            const returnTo = getReturnToParam();
-            setTimeout(() => {
-                window.location.href = returnTo || '/artist/dashboard';
-            }, 1500);
+            const progress = getArtistProgress(artist);
+            if (progress && !progress.isComplete) {
+                // Perfil a medias: retomamos el registro donde quedó.
+                window.location.href = appPath(buildRegisterArtistUrl(progress));
+                return;
+            }
+            goWithPostAuthLoader(returnTo || '/artist/dashboard', { role: 'artist', variant: 'v1' });
             return;
         }
 
         const client = await lookupClientProfile(data.user.id);
         if (client) {
-            showFormMessage('Esta cuenta es de cliente. Te llevamos a tu panel…', 'info');
-            setTimeout(() => { window.location.href = '/client/dashboard'; }, 1500);
+            goWithPostAuthLoader('/client/dashboard', { role: 'client', variant: 'v1' });
             return;
         }
 
-        showFormMessage('Sesión iniciada. Abriendo tu panel…', 'success');
-        const returnTo = getReturnToParam();
-        setTimeout(() => { window.location.href = returnTo || '/artist/dashboard'; }, 1500);
+        goWithPostAuthLoader(returnTo || '/artist/dashboard', { role: 'artist', variant: 'v1' });
 
     } catch (error) {
         console.error('Artist login error:', error);
@@ -405,10 +388,13 @@ async function handleArtistLogin(e) {
         btn.disabled = false;
 
         let errorMessage = 'No pudimos iniciar tu sesión.';
-        if (error.message && error.message.includes('Invalid login credentials')) {
+        const message = String(error?.message || '');
+        if (message.includes('Invalid login credentials')) {
             errorMessage = 'Email o contraseña incorrectos.';
-        } else if (error.message && error.message.includes('Email not confirmed')) {
+        } else if (message.includes('Email not confirmed')) {
             errorMessage = 'Confirmá tu email antes de iniciar sesión.';
+        } else if (error?.code === 'PREVIEW_INPUT') {
+            errorMessage = escapeHtml(message);
         }
 
         showFormMessage(errorMessage, 'error');
@@ -416,46 +402,76 @@ async function handleArtistLogin(e) {
 }
 
 // ============================================
-// Google OAuth
+// Redes: Instagram · Email (link de acceso) · Facebook
 // ============================================
 
-// These providers appear in Figma but are not integrated with artist auth yet.
-// Keep the existing Google route available without implying a working provider.
-function handleArtistSocialUnavailable(provider) {
-    const notice = document.getElementById('social-access-notice');
-    const message = document.getElementById('social-access-message');
-    if (!notice || !message) return;
-    message.textContent = `El acceso con ${provider} todavía no está disponible. Ingresá con tu email o continuá con Google.`;
-    notice.hidden = false;
+function setSocialBusy(provider, busy) {
+    const btn = document.querySelector(`.wo-auth-social-btn[data-social="${provider}"]`);
+    if (!btn) return;
+    btn.disabled = Boolean(busy);
+    btn.setAttribute('aria-busy', busy ? 'true' : 'false');
 }
 
-function focusArtistEmailLogin() {
-    const notice = document.getElementById('social-access-notice');
-    if (notice) notice.hidden = true;
-    document.getElementById('login-email')?.focus();
+function oauthRedirectUrl() {
+    const returnTo = getReturnToParam();
+    return window.location.origin + appPath('/artist/login')
+        + (returnTo ? ('?returnTo=' + encodeURIComponent(returnTo)) : '');
 }
 
-async function handleArtistGoogleLogin() {
-    try {
-        const returnTo = getReturnToParam();
-        const redirectTo = window.location.origin + '/artist/login'
-            + (returnTo ? ('?returnTo=' + encodeURIComponent(returnTo)) : '');
+async function handleArtistSocialLogin(provider) {
+    clearFormMessage();
 
-        const { error } = await _supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: redirectTo,
-                queryParams: {
-                    access_type: 'offline',
-                    prompt: 'consent'
-                }
-            }
-        });
+    if (provider === 'instagram') {
+        // Meta no ofrece login con Instagram para cuentas personales y Supabase
+        // no tiene ese proveedor. "Instagram" (Recomendado en el Figma 801:585)
+        // abre el mismo inicio rápido que Crear cuenta: el wizard pide el
+        // @usuario, importa el perfil público y sigue con email y contraseña.
+        // Si el email ya tiene cuenta, el paso 02 del registro avisa y ofrece
+        // volver a ingresar; las cuentas existentes entran con email arriba.
+        setSocialBusy('instagram', true);
+        try { localStorage.setItem('weotzi_signup_via_instagram', '1'); } catch (_) {}
+        window.location.href = appPath('/register-artist/?source=instagram');
+        return;
+    }
 
-        if (error) throw error;
-    } catch (error) {
-        console.error('Artist Google login error:', error);
-        showFormMessage('No pudimos conectar con Google. Probá de nuevo.', 'error');
+    if (provider === 'email') {
+        const emailInput = document.getElementById('login-email');
+        const email = String(emailInput?.value || '').trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+            showFormMessage('Escribí tu email arriba y te mandamos un link de acceso, sin contraseña.', 'info');
+            emailInput?.focus();
+            return;
+        }
+        setSocialBusy('email', true);
+        try {
+            const { error } = await _supabase.auth.signInWithOtp({
+                email,
+                options: { shouldCreateUser: false, emailRedirectTo: oauthRedirectUrl() }
+            });
+            if (error) throw error;
+            showFormMessage(`Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.`, 'success');
+        } catch (error) {
+            console.warn('Artist email link error:', error);
+            showFormMessage('No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.', 'error');
+        } finally {
+            setSocialBusy('email', false);
+        }
+        return;
+    }
+
+    if (provider === 'facebook') {
+        setSocialBusy('facebook', true);
+        try {
+            const { error } = await _supabase.auth.signInWithOAuth({
+                provider: 'facebook',
+                options: { redirectTo: oauthRedirectUrl(), scopes: 'email' }
+            });
+            if (error) throw error;
+        } catch (error) {
+            console.warn('Artist Facebook login error:', error);
+            showFormMessage('No pudimos conectar con Facebook. Probá de nuevo o ingresá con tu email.', 'error');
+            setSocialBusy('facebook', false);
+        }
     }
 }
 
@@ -473,87 +489,35 @@ async function handleArtistOAuthCallback() {
         if (artist) {
             const progress = getArtistProgress(artist);
             if (progress?.isComplete) {
-                const returnTo = getReturnToParam();
-                window.location.href = returnTo || '/artist/dashboard';
+                goWithPostAuthLoader(getReturnToParam() || '/artist/dashboard', { role: 'artist', variant: 'v1' });
             } else {
-                window.location.href = buildRegisterArtistUrl(progress);
+                window.location.href = appPath(buildRegisterArtistUrl(progress));
             }
             return;
         }
 
         const client = await lookupClientProfile(session.user.id);
         if (client) {
-            showFormMessage('Esta cuenta está registrada como cliente.', 'info');
-            setTimeout(() => { window.location.href = '/client/dashboard'; }, 1500);
+            goWithPostAuthLoader('/client/dashboard', { role: 'client', variant: 'v1' });
             return;
         }
 
-        window.location.href = '/register-artist';
+        window.location.href = appPath('/register-artist');
     } catch (err) {
         console.error('Error in handleArtistOAuthCallback:', err);
     }
 }
 
 // ============================================
-// Password Recovery
+// Password Recovery → /recover (OTP de Supabase Auth)
 // ============================================
 
-function generateTempPassword() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    let password = '';
-    for (let i = 0; i < 10; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-}
-
-// La recuperación vive ahora en /recover (código OTP de Supabase Auth).
-// Este handler solo redirige, con el email prefilleado si ya lo tipearon;
-// la vista in-page (#recovery-view) y handleRecoverySubmit quedan muertas.
 function handleArtistPasswordRecovery(e) {
     if (e) e.preventDefault();
     const loginEmail = document.getElementById('login-email');
     const email = loginEmail ? loginEmail.value.trim().toLowerCase() : '';
     const qs = email ? '&email=' + encodeURIComponent(email) : '';
-    const basePath = window.WEOTZI_BASE_PATH || (/^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '');
-    window.location.href = basePath + '/recover?from=artist' + qs;
-}
-
-async function handleRecoverySubmit(e) {
-    if (e) e.preventDefault();
-
-    const emailInput = document.getElementById('recovery-email');
-    const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
-
-    if (!email) {
-        setAuthMessage('recovery-message', 'Ingresá tu email para recuperar tu acceso.', 'info');
-        emailInput?.focus();
-        return;
-    }
-
-    const btn = document.getElementById('btn-recovery');
-    const originalHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.innerHTML = '<span class="wo-spinner" aria-hidden="true"></span><span class="btn-text">Enviando…</span>';
-        btn.disabled = true;
-    }
-    setAuthMessage('recovery-message', '');
-
-    try {
-        await window.ArtistLogin.resetPassword(email);
-
-        const sentEmailEl = document.getElementById('recovery-sent-email');
-        if (sentEmailEl) sentEmailEl.textContent = email;
-        setRecoveryStep('sent');
-    } catch (error) {
-        console.error('Artist password recovery error:', error);
-        setAuthMessage('recovery-message', error.message || 'No pudimos procesar la solicitud. Probá de nuevo.', 'error');
-    } finally {
-        if (btn) {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    }
+    window.location.href = appPath('/recover?from=artist' + qs);
 }
 
 // ============================================
@@ -564,7 +528,7 @@ async function handleArtistLogout() {
     try {
         const { error } = await _supabase.auth.signOut();
         if (error) throw error;
-        window.location.href = '/artist/login';
+        window.location.href = appPath('/artist/login');
     } catch (error) {
         console.error('Artist logout error:', error);
     }
@@ -602,8 +566,7 @@ window.ArtistLogin = {
     },
 
     async resetPassword(email) {
-        // Recovery verifies ownership before changing the password. It shares the
-        // same OTP delivery path as /recover and never sends credentials twice.
+        // Mismo canal OTP que /recover: nunca se envían credenciales.
         const { error } = await _supabase.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase());
         if (error) throw new Error('No pudimos procesar la solicitud. Probá de nuevo en un momento.');
         return { success: true, message: 'Si existe una cuenta, recibirás un correo para recuperar el acceso.' };

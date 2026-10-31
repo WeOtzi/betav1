@@ -1,16 +1,22 @@
 /**
  * WE OTZI - /bienvenida · selección de rol (rediseño Bauhaus 2026)
  * ----------------------------------------------------------------
- * Figma 238:2335 (= 205:666): "¿Cómo querés usar We Ötzi?" — dos cards
- * radio (cliente / artista) + CONTINUAR.
+ * Figma final (oct 2026) 797:269 (= 801:1125 del flujo de clientes):
+ * "¡Bienvenido! ¿Cómo querés usar We Ötzi?" — dos cards radio
+ * (cliente / artista) + CONTINUAR. La plataforma de estudios suma dos cards
+ * compactas en el mismo radio group: Estudio y Supplies (fuera del Figma).
  *
  * Comportamiento al continuar:
  *  - Sin sesión  → cliente: /client/register · artista: /registerclosedbeta
  *  - Con sesión  → cliente: loader post-auth → /client/dashboard
  *                → artista: si tiene perfil en artists_db, loader → /artist/dashboard;
  *                  si no, /register-artist
+ *  - Estudio → /studio/register · Supplies → /supplies/register, con o sin
+ *    sesión: esas páginas completan el alta sobre la cuenta actual y mandan
+ *    al panel a quien ya tiene estudio o cuenta Supplies.
  * La elección se guarda en localStorage ('wo-role-choice') y se preselecciona
- * al volver.
+ * al volver. `?role=artist|client|studio|supplies` (o `?rol=artista|cliente|
+ * estudio|insumos`) preselecciona una card al llegar desde un link.
  *
  * Datos: solo via window.WeotziData.* (capa PostgREST). Auth directo via
  * window.ConfigManager.getSupabaseClient().auth.
@@ -22,6 +28,16 @@
     var ROUTES = {
         client: { register: '/client/register', dashboard: '/client/dashboard' },
         artist: { register: '/registerclosedbeta', dashboard: '/artist/dashboard', onboarding: '/register-artist' },
+        studio: { register: '/studio/register', dashboard: '/studio/dashboard' },
+        supplies: { register: '/supplies/register', dashboard: '/supplies/dashboard' },
+    };
+    var ROLES = ['client', 'artist', 'studio', 'supplies'];
+    // Alias aceptados en ?role= / ?rol= (links de landings y emails).
+    var ROLE_ALIASES = {
+        client: 'client', cliente: 'client',
+        artist: 'artist', artista: 'artist', tatuador: 'artist',
+        studio: 'studio', estudio: 'studio',
+        supplies: 'supplies', insumos: 'supplies', proveedor: 'supplies'
     };
 
     var busy = false;
@@ -29,10 +45,12 @@
     function $(sel, root) { return (root || document).querySelector(sel); }
     function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
+    function isRole(value) { return ROLES.indexOf(value) !== -1; }
+
     function readStoredRole() {
         try {
             var v = window.localStorage.getItem(STORAGE_KEY);
-            return (v === 'client' || v === 'artist') ? v : null;
+            return isRole(v) ? v : null;
         } catch (e) { return null; }
     }
 
@@ -97,21 +115,46 @@
         }
     }
 
-    function go(url) { window.location.href = url; }
+    // Prefijo de la app (/beta en producción, /preview/<id> en el preview local).
+    function appPath(path) {
+        var base = window.WEOTZI_BASE_PATH
+            ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '');
+        if (base && (path === base || path.indexOf(base + '/') === 0)) return path;
+        return base + path;
+    }
+
+    function go(url) { window.location.href = appPath(url); }
 
     function goWithLoader(role, targetUrl) {
         if (window.WoPostAuthLoader && typeof window.WoPostAuthLoader.show === 'function') {
-            window.WoPostAuthLoader.show({ role: role, targetUrl: targetUrl });
+            window.WoPostAuthLoader.show({ role: role, targetUrl: appPath(targetUrl) });
         } else {
             go(targetUrl);
         }
     }
 
+    function roleFromQuery() {
+        try {
+            var params = new URLSearchParams(window.location.search);
+            var raw = String(params.get('role') || params.get('rol') || '').trim().toLowerCase();
+            if (Object.prototype.hasOwnProperty.call(ROLE_ALIASES, raw)) return ROLE_ALIASES[raw];
+        } catch (e) { /* sin URLSearchParams */ }
+        return null;
+    }
+
     async function proceed() {
         var role = selectedRole();
-        if (!role || busy) return;
+        if (!role || busy || !isRole(role)) return;
         storeRole(role);
         setBusy(true);
+
+        // Estudio y Supplies: el registro resuelve la sesión (alta sobre la
+        // cuenta actual o redirección al panel si ya existe).
+        if (role === 'studio' || role === 'supplies') {
+            go(ROUTES[role].register);
+            return;
+        }
 
         var session = await getSession();
 
@@ -135,8 +178,8 @@
     }
 
     function init() {
-        // Preselección desde la visita anterior
-        var stored = readStoredRole();
+        // Preselección: ?role= de la URL, o la elección de la visita anterior
+        var stored = roleFromQuery() || readStoredRole();
         if (stored) setRole(stored);
         else syncSelection();
 

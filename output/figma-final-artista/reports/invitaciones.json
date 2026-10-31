@@ -1,0 +1,212 @@
+{
+  "area": "invitaciones",
+  "frames": [
+    {
+      "node": "801:540",
+      "name": "Invitaciones - Listado de estudios",
+      "route": "/artist/invitations",
+      "result": "rediseñada",
+      "summary": "Cabecera editorial, índice lateral, barra de filtros, invitación del mes, cards de roster, filas pendientes y fila rechazada. Ronda 1: índice con la invitación del mes como 01 y nombres cortos, punto rojo para rechazada, 'Ver estudio →' subrayado, placeholder gris oscuro, nombre de la fila en una línea, 'Ordenar' ordena la lista completa y un filtro ya no promueve otra invitación del mes.",
+      "figma_png": "output/figma-final-artista/frames/801-540_invitaciones-listado.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/801-540.png",
+      "state_url": "/artist/invitations/",
+      "fidelity": "alta",
+      "fidelity_notes": "Las citas usan Inter: el Figma usa Space Grotesk, que no está en el DS (decisión de DS pendiente). El demo trae 7 invitaciones (el mockup muestra 5). Los nombres largos de fila bajan a 28px como 'Tierra Firme Tattoo' en el Figma; entre 1025 y 1279px los nombres cortan por palabras porque la fila no entra en una línea. Topbar y pie compartidos: el Figma subraya COTIZACIONES y no muestra badges ni <weotzi-product-footer> (área Dashboard)."
+    },
+    {
+      "node": "801:541",
+      "name": "Invitaciones - Detalle y condiciones",
+      "route": "/artist/invitations?invitacion=<id>",
+      "result": "rediseñada",
+      "summary": "Stepper, kicker, galería de 4 fotos, links, chips, pestañas Roster / Detalles, condiciones, mensaje del estudio y resumen lateral. Ronda 1: espaciados verticales medidos contra el Figma (descripción, links, chips, pestañas y regla); quedan a ±1px.",
+      "figma_png": "output/figma-final-artista/frames/801-541_invitaciones-detalle-condiciones.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/801-541.png",
+      "state_url": "/artist/invitations/?invitacion=0000c0de-0000-4000-8000-1dc100000001",
+      "fidelity": "alta",
+      "fidelity_notes": "Los slots de foto sin imagen muestran ícono + 'Foto N' sin 'or browse files' (es UI de carga, no del artista): falta que diseño lo confirme o lo retire del Figma."
+    },
+    {
+      "node": "2007:5792",
+      "name": "Invitaciones - Mapa de estudios",
+      "route": "/artist/invitations?vista=mapa",
+      "result": "creada",
+      "summary": "Mapa de estudios con globo arrastrable, zoom, marcadores agrupados, búsqueda, país y segmentado. Ronda 1: tierra rellena (WebGL propio) y grupos sin solapes. Ronda 2: el renderer ya acepta Natural Earth 1:110m (TopoJSON world-atlas: máscara de 4096×2048 con mipmaps + fronteras vectoriales blancas de 0,5–0,9px medidas en el Figma) y el pie cambia solo a \"Geografía: Natural Earth · escala 1:110m.\" cuando se carga; retícula cada 10° en arena al 45% (#EEEAE1, como el Figma) con meridianos mayores hasta el polo; el respaldo COBE ya no rellena el océano Ártico ni dibuja \"peines\" junto al polo.",
+      "figma_png": "output/figma-final-artista/frames/2007-5792_invitaciones-mapa.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/2007-5792.png",
+      "state_url": "/artist/invitations/?vista=mapa&grupo=0000c0de-0000-4000-8000-1da100000002,0000c0de-0000-4000-8000-a50000000004",
+      "fidelity": "parcial",
+      "fidelity_notes": "Coinciden layout, encuadre (zoom 1,16), colores de tierra/océano/contorno, retícula de 10°, marcadores y aside. NO coincide la geografía: el archivo Natural Earth no está en el repo (descargarlo requiere aprobación, ver missing_functions), así que se sigue viendo la máscara de COBE de 256×128: costas en manchas, sin fronteras, sin Svalbard ni islas árticas rusas, y el pie dice \"Geografía: máscara de tierra de COBE · escala aproximada.\" (atribución real). El tubo de Natural Earth está probado con una topología sintética (output/figma-final-artista/shots/invitaciones/qa-natural-earth-topologia-sintetica.png). El mockup además centra el globo en Bogotá con el grupo de Barcelona en el aside; la URL de QA abre el grupo y centra ese punto (estado real)."
+    },
+    {
+      "node": "2007:5793",
+      "name": "Invitaciones - Mapa de estudios detalle",
+      "route": "/artist/invitations?vista=mapa&estudio=<studio_id>",
+      "result": "estado-nuevo",
+      "summary": "Al tocar un marcador o una fila el globo centra y acerca el estudio (zoom 2,6, mismo encuadre que el Figma) y el aside muestra el detalle. Ronda 2: misma retícula de 10° y misma ruta de geografía que 5792; con Natural Earth cargado las fronteras se dibujan a ~0,9px como en el mockup.",
+      "figma_png": "output/figma-final-artista/frames/2007-5793_invitaciones-mapa-detalle.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/2007-5793.png",
+      "state_url": "/artist/invitations/?vista=mapa&estudio=0000c0de-0000-4000-8000-a50000000004&grupo=0000c0de-0000-4000-8000-1da100000002,0000c0de-0000-4000-8000-a50000000004",
+      "fidelity": "parcial",
+      "fidelity_notes": "Con la máscara de COBE (1,4°/px) Europa sigue en manchas a zoom 2,6: Gran Bretaña, Irlanda e Italia no se reconocen y no hay fronteras. Es la misma causa que 5792: falta el dato Natural Earth 1:110m, cuya descarga necesita aprobación. Con ese archivo no hace falta tocar código (ver missing_functions)."
+    },
+    {
+      "node": "2007:5794",
+      "name": "Invitaciones - Detalle de estudio ampliado",
+      "route": "/artist/invitations?estudio=<studio_id>",
+      "result": "creada",
+      "summary": "Hero, galería 1+3, Presentación, Trabajar en este estudio y Contacto. Ronda 1: se quitó el subtítulo inventado 'Las respuestas te llegan al Inbox de We Ötzi.'; sin contacto previo el bloque 03 no muestra subtítulo.",
+      "figma_png": "output/figma-final-artista/frames/2007-5794_invitaciones-detalle-estudio.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/2007-5794.png",
+      "state_url": "/artist/invitations/?estudio=0000c0de-0000-4000-8000-a50000000004",
+      "fidelity": "alta",
+      "fidelity_notes": "El mockup es inconsistente: 5794 muestra 'Escribir al estudio' junto a 'Le escribiste hoy · Guest spot', y 5795 (mismo estudio, mismo fondo) muestra 'Escribir de nuevo'. La implementación sigue a 5795: con contacto previo el CTA dice 'Escribir de nuevo'. Zorro Rojo tiene contacto en el demo; sin contacto (Gòtic 13, ?estudio=0000c0de-0000-4000-8000-1da100000002): output/figma-final-artista/shots/invitaciones/2007-5794-sin-contacto.png. Falta que diseño confirme el rótulo."
+    },
+    {
+      "node": "2007:5795",
+      "name": "Invitaciones - Escribir al estudio",
+      "route": "/artist/invitations?estudio=<studio_id>&contactar=1",
+      "result": "creada",
+      "summary": "Modal Escribir al estudio con motivo, fechas tentativas, mensaje, portfolio y envío por RPC al Inbox. Ronda 1: separación etiqueta→control como el Figma (el <legend> no recibía el gap del fieldset), textarea de 148px y fechas 'dd/mm/aaaa' lisas sin el ícono nativo (el selector se sigue abriendo al tocar el campo).",
+      "figma_png": "output/figma-final-artista/frames/2007-5795_invitaciones-escribir-estudio.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/2007-5795.png",
+      "state_url": "/artist/invitations/?estudio=0000c0de-0000-4000-8000-a50000000004&contactar=1",
+      "fidelity": "alta",
+      "fidelity_notes": "Posiciones verticales a ±3px del Figma. Los botones del pie miden 36px de alto (en el mockup ~22px, por debajo de un área táctil usable). En Firefox el campo de fecha conserva su botón de calendario."
+    },
+    {
+      "node": "801:1101",
+      "name": "Solicitar cambios (aside 380px)",
+      "route": "/artist/invitations?invitacion=<id>",
+      "result": "sin-cambios",
+      "summary": "Drawer de solicitar cambios con confirmación. Ronda 1: etiqueta 'Tu propuesta de cambios' en --neutral-400 (#5A5449, igual que el Figma) y placeholder oscuro (antes salían en beige claro por la especificidad del DS).",
+      "figma_png": "output/figma-final-artista/frames/801-1101_invitaciones-solicitar-cambios.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/801-1101.png",
+      "state_url": "/artist/invitations/?invitacion=0000c0de-0000-4000-8000-1dc100000002&drawer=cambios",
+      "fidelity": "alta",
+      "fidelity_notes": "El placeholder del Figma es #757575, que no es token: se usa --neutral-400 (#5A5449), el más cercano."
+    },
+    {
+      "node": "801:1102",
+      "name": "Invitación aceptada (aside 380px)",
+      "route": "/artist/invitations",
+      "result": "sin-cambios",
+      "summary": "Se muestra al aceptar (listado o detalle). Ronda 1: X de cierre discreta arriba a la derecha (aria-label 'Cerrar'); antes solo cerraba con Escape o tocando el fondo.",
+      "figma_png": "output/figma-final-artista/frames/801-1102_invitaciones-aceptada.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/801-1102.png",
+      "state_url": "/artist/invitations/?invitacion=0000c0de-0000-4000-8000-1dc100000004&drawer=aceptada",
+      "fidelity": "alta",
+      "fidelity_notes": "La X no está en el Figma: se sumó para touch y conviene validarla con diseño."
+    },
+    {
+      "node": "801:1103",
+      "name": "Invitación rechazada (aside 380px)",
+      "route": "/artist/invitations",
+      "result": "sin-cambios",
+      "summary": "Se muestra al rechazar. Ronda 1: 'Ver otras invitaciones' vuelve al listado también cuando el drawer se abre desde el detalle (?invitacion=…&drawer=rechazada).",
+      "figma_png": "output/figma-final-artista/frames/801-1103_invitaciones-rechazada.png",
+      "impl_png": "output/figma-final-artista/shots/invitaciones/801-1103.png",
+      "state_url": "/artist/invitations/?invitacion=0000c0de-0000-4000-8000-d10000000003&drawer=rechazada",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    }
+  ],
+  "removed_in_page": [
+    "Fallbacks de datos del mockup inyectados en producción (Fierro Negro, Nico Ferro, fierronegrotattoo.com, '3 artistas residentes' fijo, fechas/condiciones de ejemplo): ahora se muestran solo datos reales o un vacío explícito",
+    "'Contactar al estudio' como mailto: reemplazado por el modal 'Escribir al estudio'",
+    "'Mapa de estudios' que llevaba a /explore (mapa de artistas de Google Maps): ahora abre la vista interna ?vista=mapa",
+    "'Ver estudio →' hacia /studio/profile en pestaña nueva: ahora abre el detalle de estudio ampliado ?estudio=",
+    "Texto 'or browse files' de los placeholders de foto",
+    "Carga de studio-spots-ds.css, clients-repo.js, email-client.js y currency-utils.js (sin uso; las reglas .inv-* del diseño anterior pisaban el Figma final)",
+    "Creación de un cliente Supabase propio con la anon key embebida en artist-invitations.js (ahora usa el singleton de config-manager)"
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Panel del estudio: perfil de trabajo",
+      "detail": "El estudio todavía no puede cargar estilos, puestos, equipamiento, requisitos, comisión de referencia, ventana para guests ni 'acepta consultas' (columnas nuevas de la migración). Hace falta un formulario en /studio/dashboard (área estudios).",
+      "severity": "media"
+    },
+    {
+      "title": "Respuesta del estudio a 'Escribir al estudio'",
+      "detail": "El estudio responde desde el Inbox unificado (es participante del hilo), pero no hay vista de Inbox para estudios ni email de aviso. Sugerido: aviso por email desde n8n (área emails) cuando entra un mensaje studio_contact.",
+      "severity": "media"
+    },
+    {
+      "title": "Mapa con fronteras y costas Natural Earth (dato pendiente de aprobación)",
+      "detail": "El código ya está: invitations-globe.js decodifica TopoJSON (formato world-atlas, objects.countries), rasteriza la tierra a 4096×2048 con mipmaps y dibuja las fronteras (arcos compartidos por dos países) como vectores en #ism-borders; invitations-map.js lo carga desde data-geography (solo rutas del mismo origen) y cambia el pie. Falta el dato: countries-110m.json del paquete npm world-atlas@2 (≈105 KB; licencia ISC, datos Natural Earth de dominio público). Es una descarga de terceros y no se hizo sin aprobación. Para activarlo: (1) aprobar y revisar el archivo, (2) guardarlo en public/shared/geo/countries-110m.json, (3) agregar data-geography=\"/shared/geo/countries-110m.json\" a <div id=\"ism-stage\"> en public/artist/invitations/index.html. Sin eso 2007:5792/5793 no reproducen la geografía del Figma (hallazgo P1 de la auditoría).",
+      "severity": "alta"
+    },
+    {
+      "title": "Estudios sin cuenta",
+      "detail": "Estudios cargados sin user_id no pueden recibir mensajes: la UI deshabilita el CTA y sugiere Instagram/web. En producción muchos estudios del catálogo pueden estar en ese estado.",
+      "severity": "media"
+    },
+    {
+      "title": "Tipografía de citas (Space Grotesk)",
+      "detail": "Las citas de estudios (tarjeta del mes, roster, filas) usan Space Grotesk en el Figma. No está en el DS: hace falta decidir si se suma como token (--font-quote) o se aprueba Inter como sustituto.",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028180000_invitaciones_estudios_contacto.sql",
+      "rollback": "supabase/rollbacks/20261028180000_invitaciones_estudios_contacto.down.sql",
+      "purpose": "Columnas del perfil de trabajo en public.studios (specialty_styles, station_count, equipment, artist_requirements, default_revenue_split_pct, accepts_guest_spots, guest_window_start/end, accepts_artist_inquiries; heredan RLS de studios) y RPC security definer contact_studio_as_artist que abre/reutiliza un hilo studio_contact del Inbox unificado vía ensure_domain_inbox_thread y publica el mensaje (valida motivo, 20–2000 caracteres, fechas, estudio activo con cuenta, freno de 10 mensajes/hora).",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "'ESCRIBIR al estudio' → 'Escribir al estudio' (mayúsculas solo por CSS)",
+    "'Stipend / beneficios: Materiales incluidos · piso mínimo…' se arma desde los beneficios cargados por el estudio",
+    "Placeholder 'Ordenar' conserva el texto; las opciones pasan a 'Más antiguas primero' y 'Estudio A–Z'",
+    "Subtítulo inventado 'Las respuestas te llegan al Inbox de We Ötzi.' (bloque 03 · Contacto sin contacto previo) → se quitó",
+    "'Geografía: Natural Earth · escala 1:110m.' → se muestra tal cual cuando el globo carga Natural Earth; mientras se use la máscara de respaldo dice 'Geografía: máscara de tierra de COBE · escala aproximada.' (atribución real del dato dibujado)"
+  ],
+  "missing_assets": [
+    "Fotos de estudios: los slots del mockup ('Foto principal de …', 'Galería', 'Foto 1–4') usan cover_image/photo_feed_items reales o un placeholder con ícono",
+    "Mapa vectorial Natural Earth 1:110m del mockup (countries-110m.json de world-atlas): pendiente de aprobar la descarga; mientras tanto se dibuja la máscara de tierra de COBE sin fronteras"
+  ],
+  "files_changed": [
+    "public/artist/invitations/index.html",
+    "public/shared/css/artist-invitations-figma.css",
+    "public/shared/js/artist-invitations.js",
+    "public/shared/js/demo-fixtures/invitaciones.js",
+    "tests/invitations-figma.test.js"
+  ],
+  "files_created": [
+    "public/shared/css/invitations-studios.css",
+    "public/shared/js/invitations-model.js",
+    "public/shared/js/invitations-map.js",
+    "public/shared/js/invitations-studio.js",
+    "public/shared/js/data/invitations-repo.js",
+    "public/shared/js/invitations-globe.js",
+    "supabase/migrations/20261028180000_invitaciones_estudios_contacto.sql",
+    "supabase/rollbacks/20261028180000_invitaciones_estudios_contacto.down.sql",
+    "tests/figma-final-invitaciones.test.js",
+    "output/figma-final-artista/frames/801-540_invitaciones-listado.png",
+    "output/figma-final-artista/frames/801-541_invitaciones-detalle-condiciones.png",
+    "output/figma-final-artista/frames/801-1101_invitaciones-solicitar-cambios.png",
+    "output/figma-final-artista/frames/801-1102_invitaciones-aceptada.png",
+    "output/figma-final-artista/frames/801-1103_invitaciones-rechazada.png",
+    "output/figma-final-artista/frames/2007-5792_invitaciones-mapa.png",
+    "output/figma-final-artista/frames/2007-5793_invitaciones-mapa-detalle.png",
+    "output/figma-final-artista/frames/2007-5794_invitaciones-detalle-estudio.png",
+    "output/figma-final-artista/frames/2007-5795_invitaciones-escribir-estudio.png",
+    "output/figma-final-artista/shots/invitaciones/*.png",
+    "output/figma-final-artista/shots/invitaciones/qa-natural-earth-topologia-sintetica.png"
+  ],
+  "tests": "node --test \"tests/*.test.js\": 612 tests, 607 pass, 4 fail, 1 skipped. Fallan los 3 preexistentes de PowerShell 7 (onboarding x2 y Dev verification plan) y 1 de otra área en curso (dashboard-figma.test.js: \"Figma dashboard markup keeps gallery CTA…\", no carga archivos de invitaciones). Invitaciones: 25/25 (invitations-figma.test.js + figma-final-invitaciones.test.js), con 4 tests nuevos de la ronda 2: decodificación TopoJSON y fronteras, antimeridiano/polos, proyección de fronteras = marcadores y ancho medido, capas/retícula/pie.",
+  "notes": [
+    "La página ya no carga studio-spots-ds.css: sus ~100 reglas .inv-* del diseño anterior (con !important en enlaces) pisaban el Figma. Las reglas de topbar que se usaban (.inv-auth, .inv-o-tile, .inv-logout, .inv-mobile-menu, .hidden) se portaron a artist-invitations-figma.css. studio-spots-ds.css no se editó.",
+    "Fixtures (demo-fixtures/invitaciones.js): suma 17 estudios geolocalizados, geocodifica los estudios de 'oportunidades' que venían sin coordenadas, da user_id ficticio a los estudios del demo, agrega 4 invitaciones (Fierro Negro = invitación del mes, Casa Aguja, Tierra Firme, Zorro Rojo aceptada), roster ficticio (tabla artists_db_roster_demo vía relación, para no pisar el perfil del preview), convierte el hilo base de Zorro Rojo en studio_contact y emula la RPC contact_studio_as_artist. No cierra ni abre spots (no altera el directorio de Spots).",
+    "Preview: el store de fixtures se guarda en localStorage compartido por todas las pestañas del mismo navegador; pestañas con JS viejo en caché pueden pisar las tablas. Las capturas con shot.sh (perfil limpio) no se ven afectadas; en el navegador integrado conviene 'Reiniciar datos'.",
+    "Shot.sh a 390px recorta la página porque Chrome headless impone un ancho mínimo de ventana; el responsive se verificó en el navegador integrado a 375 y 390px: sin desbordes en las vistas del área. El único desborde (3px) es el badge de notificaciones de <weotzi-product-nav> (área Dashboard).",
+    "Topbar (no editada): en 801:540/801:541 el Figma subraya COTIZACIONES y en 2007:5792–5795 INBOX; la web marca SPOTS para invitaciones.",
+    "Contraste: los grises #b9ae98 (eyebrows/metas) y el '07' amarillo sobre crema vienen del Figma/DS y no alcanzan 4.5:1; se mantuvieron por fidelidad. Los placeholders de búsqueda y del drawer de cambios ya salen en --neutral-400 (antes el DS los pisaba con --neutral-300).",
+    "Parámetros de QA: ?invitacion=<id>&drawer=cambios|aceptada|rechazada · ?vista=mapa[&estudio=<id>][&grupo=<id>,<id>…] · ?estudio=<id>[&contactar=1]. Grupo de Barcelona del demo: &grupo=0000c0de-0000-4000-8000-1da100000002,0000c0de-0000-4000-8000-a50000000004. 'Ver conversación' usa /artist/inbox?thread=<thread_id>.",
+    "Ronda 1 de corrección: globo con tierra rellena (invitations-globe.js: shader WebGL que invierte la proyección de invitations-model.js y muestrea la máscara 256×128 de COBE con mezcla B-spline/Catmull-Rom; sin CDN ni datos nuevos), especificidad frente a `.wo-app a` y `.wo-app input::placeholder` del DS, índice (orden, nombres cortos, color de rechazada), Ordenar global, invitación del mes elegida sobre el total, fila en una línea desde 1280px, espaciados de 801:541 y del modal 5795, cierre visible en 801:1102, 'Ver otras invitaciones' desde el detalle, URL de grupo y clustering sin solapes a 390px.",
+    "Navegador integrado: requestAnimationFrame se pausa si la pestaña o el panel no están visibles, así que el globo y los marcadores no se dibujan en pestañas de fondo; las capturas con shot.sh no se ven afectadas.",
+    "Ronda 2 de corrección (hallazgo P1 2007:5792/5793, geografía): no hay datos Natural Earth en el repo ni en la máquina (se buscó en node_modules, caché de npm, otros proyectos de C:/dev y paquetes de Python) y el mapa del Figma es un raster sin vectores (nodos 2007:4911 y 2007:5060, capturas de un globo d3 sobre Natural Earth 110m). Descargar world-atlas es una descarga de terceros que necesita aprobación explícita, así que no se hizo. Se dejó todo listo para que, con el archivo, el mapa iguale el Figma sin tocar código (ver missing_functions). Se corrigió lo que no depende del dato: retícula de 10° con el color del Figma, meridianos mayores al polo, casquete ártico falso de COBE (recortado a 73,5°N salvo Groenlandia/Ellesmere, hasta 83,6°N con transición suave) y más suavizado en latitudes altas (sin \"peines\").",
+    "QA del tubo Natural Earth sin el dato real: con la página abierta, WoInvitationsMap.setGeography(topology) carga cualquier TopoJSON en caliente. La captura qa-natural-earth-topologia-sintetica.png usa una grilla sintética de 5° sobre Europa (no es geografía real): muestra relleno, fronteras blancas sobre la tierra y el pie \"Natural Earth\". La Antártida (anillo que rodea el polo) y una isla que cruza el antimeridiano se verificaron en el raster."
+  ]
+}

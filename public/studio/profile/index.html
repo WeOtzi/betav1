@@ -15,6 +15,22 @@
     <link rel="stylesheet" href="/shared/css/explore-map.css">
     <link rel="stylesheet" href="/shared/css/studio.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
+    <link rel="stylesheet" href="/shared/css/studio-profile-store.css">
+    <style>
+        /* Perfil público (plataforma de estudios): grupos del roster, spots
+           abiertos y hueco de la Tienda. Reutiliza studio.css; solo agregados. */
+        .studio-profile-roster-group + .studio-profile-roster-group { margin-top: 18px; }
+        .studio-profile-roster-title { margin: 0 0 10px; }
+        .studio-profile-roster-title .count { color: var(--text-secondary); }
+        .studio-roster-card .body .until {
+            display: block; margin-top: 4px;
+            font-family: var(--studio-mono); font-size: 0.6rem; font-weight: 700;
+            letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary-red);
+        }
+        a.studio-profile-spot { color: var(--fg); text-decoration: none; }
+        .studio-profile-spot .studio-role-pill { justify-self: start; }
+        .studio-profile-store:empty { display: none; }
+    </style>
 </head>
 <body data-theme="light">
     <div class="studio-page">
@@ -53,12 +69,22 @@
                     <div class="studio-styles-pill-row" id="profile-styles">—</div>
 
                     <p class="studio-section-kicker" style="margin-top:24px;">Roster</p>
-                    <h2 class="studio-h2">Artistas <span style="color:var(--primary-red);font-style:italic;">en residencia</span></h2>
-                    <div class="studio-roster-cards" id="profile-roster"><em>Cargando…</em></div>
+                    <h2 class="studio-h2">Artistas <span style="color:var(--primary-red);font-style:italic;">del estudio</span></h2>
+                    <!-- Residentes y Guest e itinerantes (studio_public_roster) -->
+                    <div class="studio-profile-roster" id="profile-roster"><em>Cargando…</em></div>
+
+                    <section id="profile-spots-section" hidden>
+                        <p class="studio-section-kicker" style="margin-top:24px;">Oportunidades</p>
+                        <h2 class="studio-h2">Spots <span style="color:var(--primary-red);font-style:italic;">abiertos</span></h2>
+                        <div class="spots-grid" id="profile-spots"></div>
+                    </section>
 
                     <p class="studio-section-kicker" style="margin-top:24px;">Galería</p>
                     <h2 class="studio-h2">El estudio</h2>
                     <div class="studio-photos-grid" id="profile-photos"></div>
+
+                    <!-- Vitrina de la Tienda del estudio: la completa el módulo de Store -->
+                    <section id="studio-store" class="studio-profile-store" aria-label="Tienda del estudio" hidden></section>
 
                     <section id="profile-sponsors-section" hidden>
                         <p class="studio-section-kicker" style="margin-top:24px;">Sponsors</p>
@@ -94,6 +120,9 @@
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/geocoder.js"></script>
     <script src="/shared/js/reviews.js"></script>
+    <script src="/shared/js/store-model.js"></script>
+    <script src="/shared/js/data/store-repo.js"></script>
+    <script src="/shared/js/studio-admin-kit.js"></script>
     <script src="/shared/js/studio-profile.js"></script>
 </body>
 </html>

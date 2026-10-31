@@ -1,5 +1,36 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Modo demo para artistas nuevos (2026-10-30)**: las cuentas de 14 días o menos entran al demo con el recorrido la primera vez que abren el dashboard. Con el demo apagado, el dashboard muestra en cada visita la sugerencia "Probá We Ötzi con datos de ejemplo" hasta que el artista la desactive con el interruptor **Sugerir el modo demo** del menú Ö (que además ofrece Recorrido guiado siempre visible, Modo asistido y Salir del demo). El estado se guarda en `user_preferences.app_settings.onboarding` vía `GET/POST /api/artist/onboarding`, con un espejo local para decidir en `<head>`. Si el emulador del demo falla, las escrituras nunca caen al backend real (503 `DEMO_UNAVAILABLE`). Guía: `docs/MODO-DEMO-TOUR.md`.
+- **Modo asistido (2026-10-30)**: panel que guía al tatuador con datos reales por ocho pasos (perfil, portafolio + validación de Instagram, compartir el enlace en Instagram con generador de mensajes cortos para la bio, medio de retiro, disponibilidad, notificaciones, verificación con bioseguridad opcional y configuración), detecta solo lo completado, enfoca el campo pendiente y cierra con una pantalla de bienvenida sobre todo lo que se puede hacer en We Ötzi, las ventajas de que los clientes coticen por la plataforma y el soporte. Se entra al salir del recorrido, desde el menú Ö o con `?asistido=1`. Servicio `services/artist-onboarding.js`, panel `wo-assist.js`. Guía: `docs/MODO-ASISTIDO.md`.
+- **Validación de Instagram (2026-10-30)**: las fotos importadas desde Instagram después de este cambio no se muestran a los clientes hasta validar la cuenta (código `WO-XXXXXX` por email, seguir a @weotzi y mandarle el código por DM; webhook `POST /api/instagram-verification/inbound` para la automatización y cola **Validaciones IG** en el dashboard de soporte). Las importadas antes quedan visibles (`ig_legacy`). Migración `20261030120000_instagram_verification.sql` verificada en PGlite con su reversa y **aplicada en `flbgmlvfiejfttlawnfu`** (versión remota `20261030131202`; 45 fotos existentes marcadas `ig_legacy`, sin cambios en `gallery_images`), evento de email `instagram_verification_code` y variable `IG_VERIFY_WEBHOOK_SECRET`. Guía: `docs/VALIDACION-INSTAGRAM.md`.
+- **Centro de la cuenta (2026-10-30)**: WhatsApp y Email en Mi perfil (Contacto), modalidad de trabajo Estudio / Independiente / Ambos con buscador de estudios en Disponibilidad, documentos de verificación marcados obligatorio/opcional y tarjeta de validación de Instagram en Portafolio.
+
+### Fixed
+- **Narración del recorrido (2026-10-30)**: la voz ya no se corta ni avanza antes de terminar. La causa era un temporizador de respaldo que daba la frase por terminada mientras seguía sonando; el narrador nuevo nunca cierra una frase mientras el navegador habla, reintenta frases caídas, evita la carrera `cancel()`/`speak()`, no avanza en silencio con la pantalla bloqueada y funciona en Safari anterior a 16.4. Se agregó control de velocidad (1× a 2×).
+## [2.3.0] - 2026-10-30
+
+- Plataforma de Estudios y Supplies: sistema administrativo del estudio (inicio, solicitudes con alta en dos sentidos, contratos registrados con modalidad porcentaje/fijo/mixto y firma de ambas partes, agenda por artista con chequeo de disponibilidad, materiales por artista, reposicion a Supplies, finanzas y reportes), reclamo de estudios del catalogo, nuevo tipo de cuenta Supplies con catalogo, beneficios y pedidos, lado del artista (solicitar alta, firmar contratos, citas del estudio en el calendario) y backoffice de reclamos y vendors.
+- Base de datos:
+  - Migraciones 20261030150000 (Store) y 20261030200000–20261030205000 APLICADAS en `flbgmlvfiejfttlawnfu` el 2026-10-31 (M5 en dos partes), con rollback y tests SQL. El test de operaciones de estudio pasa contra el esquema vivo.
+  - Guards de escritura en membresías, postulaciones, studios, artists_db.studio_id, finanzas y vendors.
+  - Roster público sin split ni notas (vista `studio_public_roster`).
+  - Se arreglan las policies de Storage de los buckets studio-*, que comparaban studios.name en lugar del path del objeto.
+- El frontend y el servidor degradan mientras falten las migraciones: el registro de artista y el guardado de perfil conservan el vínculo legado con el estudio; el backoffice decide postulaciones con la escritura previa.
+- Validación:
+  - 1075 pruebas Node aprobadas.
+  - Contra la base viva, dentro de BEGIN…ROLLBACK y sin persistir nada: cadena M1→M5 por segmentos, tests SQL de afiliaciones/contratos y de Supplies, test de identidad existente, rollbacks M5→M1.
+  - Recorrido en navegador con un harness local de Supabase en memoria: aprobar con contrato, emitir, firmar como artista, agenda con conflicto, materiales, catálogo y pedidos Supplies, perfil público y reclamo.
+  - Pendiente: studio_agenda_inventory_finance.sql y studio_operations_workflows.sql completos en vivo, y M6 sobre store_core. `node scripts/sql/compose-studio-validation.cjs > validation.sql` arma la cadena completa (Store + M1→M6 + los 5 tests SQL) en una sola transacción que termina en ROLLBACK, para correrla en el SQL Editor de Supabase.
+- Tienda del estudio: se integra la Store compartida (merge de feature/store-artista hasta 0985a29) con venta en mostrador (M6 `20261030205000`, NO aplicada) y vitrina en el perfil público.
+- Revisión: guard de borrado de membresías (solo invitaciones pendientes), rechazo directo de postulaciones cancela sus contratos abiertos, costos unitarios de inventario con 6 decimales (packs), vendors sin lectura anónima ni autoreactivación, roles de chat de soporte compatibles con el CHECK vivo, email de postulación aceptada según el flujo real (contrato o roster directo).
+- Móvil: las pestañas del panel del estudio envuelven agrupadas con su título, en lugar de una fila con scroll que ocultaba casi todas.
+- Runbook para aplicar las migraciones (orden, validación previa, verificación y rollback): `docs/plans/2026-10-31-estudios-aplicar-migraciones.md`.
+- Rollback: revertir los commits de la entrega. Las migraciones no están aplicadas; si se aplican, usar supabase/rollbacks/20261030204000…200000 en orden inverso.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón
@@ -61,10 +92,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
-- Registro de beta: botones con bordes, tipografía, proporciones e iconos del nodo Figma 22:1106; el tag Recomendado mantiene 4 px de separación positiva, también durante hover. Se conservan los handlers existentes.
-- Validación del ajuste de botones: Chromium a 1440, 768 y 390 px, sin solapamiento ni overflow; Email enfoca el formulario y Facebook muestra el aviso existente. Política de entrega y diff --check aprobados. Ver docs/auditoria-valentina/registro-botones.md.
-- Rollback del ajuste de botones: revertir únicamente los cambios de registro; no incluye datos ni migraciones.
 
 - **Auditoría de Laura y doble modo (2026-09-22)**: una sesión permite activar cliente y tatuador; selector compartido y alta autenticada sin duplicar correo. Registro temporal de cliente sin confirmación en beta, con protecciones para impedir reclamar cotizaciones históricas mediante emails de prueba. Corregido el conflicto del trigger Auth con los borradores de artista. Cuenta con actividad, guía en Notion y borrador de correo preparados. 364 pruebas y verificaciones HTTP reales; 419 archivos publicados y comprobados. Ver [guía](AUDITORIA-LAURA-20260922.md) y [validación](AUDITORIA-LAURA-VALIDACION-20260922.md).
 

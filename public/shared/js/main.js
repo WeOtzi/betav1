@@ -212,20 +212,17 @@ async function checkAuthState() {
     // Skip redirect logic if on landing page - users should be able to stay there
     if (isLandingPage) {
         clearLandingResumeState();
-        // Surface stale sessions explicitly. The login button already turns
-        // into LOG OUT, but that's easy to miss and was the proximate cause
-        // of users completing a fresh signup while a previous account's
-        // session was still active in localStorage — leading the dashboard
-        // to load the wrong identity afterwards. The banner forces a
-        // decision: continue with this account, or sign out to start over.
-        if (session) {
-            renderActiveSessionBanner({
-                email: session.user?.email || '',
-                dashboardUrl: appUrl(authUrls.dashboard),
-                artistComplete: Boolean(artistProgress?.isComplete)
-            });
-        } else {
-            removeActiveSessionBanner();
+        removeActiveSessionBanner();
+        // Sesión activa: el Figma final no tiene un estado "sesión activa" en
+        // Crear cuenta (801:536); su lugar es "Ya iniciaste sesión" (2001:3334)
+        // en /artist/login, que también resuelve perfil incompleto, cuenta de
+        // cliente y cerrar sesión. Evita registrar una cuenta nueva encima de
+        // otra sesión abierta.
+        if (session && !isSignupPreviewState()) {
+            const loginParams = new URLSearchParams();
+            if (requestedReturnTo) loginParams.set('returnTo', requestedReturnTo);
+            const loginQuery = loginParams.toString();
+            window.location.replace(appUrl('/artist/login' + (loginQuery ? '?' + loginQuery : '')));
         }
         return;
     }
@@ -242,63 +239,22 @@ async function checkAuthState() {
     }
 }
 
-const ACTIVE_SESSION_BANNER_ID = 'active-session-banner';
-
-function renderActiveSessionBanner({ email, dashboardUrl, artistComplete }) {
-    if (typeof document === 'undefined') return;
-    if (document.getElementById(ACTIVE_SESSION_BANNER_ID)) return;
-
-    const banner = document.createElement('div');
-    banner.id = ACTIVE_SESSION_BANNER_ID;
-    banner.setAttribute('role', 'status');
-    banner.style.cssText = [
-        'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
-        'padding:12px 16px', 'background:var(--neutral-500)', 'color:var(--neutral-100)',
-        'border-bottom:2px solid var(--yellow-300)', 'font:600 14px/1.35 Inter,system-ui,sans-serif',
-        'display:flex', 'gap:12px', 'align-items:center', 'justify-content:center',
-        'flex-wrap:wrap', 'text-align:center'
-    ].join(';');
-
-    const message = document.createElement('span');
-    message.innerHTML = `Ya hay sesion activa con <strong>${escapeHtmlForBanner(email || 'tu cuenta')}</strong>. ${
-        artistComplete
-            ? 'Si querés registrar otra cuenta, cerra sesion primero.'
-            : 'Tu perfil esta incompleto — podes continuarlo, o cerrar sesion para usar otra cuenta.'
-    }`;
-    banner.appendChild(message);
-
-    if (dashboardUrl) {
-        const dashLink = document.createElement('a');
-        dashLink.href = dashboardUrl;
-        dashLink.textContent = 'Ir al dashboard';
-        dashLink.style.cssText = 'background:var(--yellow-300);color:var(--neutral-500);padding:6px 12px;text-decoration:none;';
-        banner.appendChild(dashLink);
-    }
-
-    const logoutBtn = document.createElement('button');
-    logoutBtn.type = 'button';
-    logoutBtn.textContent = 'Cerrar sesion';
-    logoutBtn.style.cssText = 'background:transparent;color:var(--neutral-100);border:1px solid var(--neutral-100);padding:6px 12px;cursor:pointer;font:inherit;';
-    logoutBtn.addEventListener('click', () => { handleLogout().catch(() => {}); });
-    banner.appendChild(logoutBtn);
-
-    document.body.appendChild(banner);
-    document.body.style.paddingTop = `${banner.offsetHeight}px`;
+// QA del preview: ?state=signup muestra el formulario limpio aunque exista la
+// sesión ficticia. En producción el parámetro se ignora.
+function isSignupPreviewState() {
+    if (window.WEOTZI_PREVIEW !== true) return false;
+    return new URLSearchParams(window.location.search || '').get('state') === 'signup';
 }
+
+const ACTIVE_SESSION_NOTE_ID = 'active-session-note';
 
 function removeActiveSessionBanner() {
     if (typeof document === 'undefined') return;
-    const banner = document.getElementById(ACTIVE_SESSION_BANNER_ID);
-    if (banner) {
-        banner.remove();
-        document.body.style.paddingTop = '';
+    const note = document.getElementById(ACTIVE_SESSION_NOTE_ID);
+    if (note) {
+        note.hidden = true;
+        note.innerHTML = '';
     }
-}
-
-function escapeHtmlForBanner(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -349,12 +305,16 @@ function openLoginModal() {
     window.location.href = appUrl('/artist/login' + (query ? '?' + query : ''));
 }
 
+// El modal de login legado salió del Figma final: "Ingresá" lleva a
+// /artist/login. Se conservan los nombres por compatibilidad, con guardas.
 function closeLoginModal() {
     const modal = document.getElementById('login-modal');
+    if (!modal) return;
     modal.classList.remove('active');
     document.body.style.overflow = '';
     clearLoginMessage();
-    document.getElementById('login-form').reset();
+    const form = document.getElementById('login-form');
+    if (form) form.reset();
 }
 
 function closeLoginModalOnOverlay(event) {
@@ -362,13 +322,6 @@ function closeLoginModalOnOverlay(event) {
         closeLoginModal();
     }
 }
-
-// Close modal on Escape key
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        closeLoginModal();
-    }
-});
 
 // ============================================
 // Form Message Helpers
@@ -500,37 +453,59 @@ async function getIncompleteArtistByEmail(email) {
 // Registration Handler (Email + Password)
 // ============================================
 
+// Estado del botón REGISTRARME sin estilos inline: el texto cambia dentro de
+// .btn-text (la flecha Feather se conserva) y el aspecto lo da la clase
+// is-busy / [aria-busy] de registerclosedbeta-ds.css. Los errores se muestran
+// en #form-message (wo-alert del DS), nunca pintando el botón.
+function setRegisterButtonState(btn, label) {
+    if (!btn) return;
+    const text = btn.querySelector('.btn-text');
+    if (!btn.dataset.idleLabel) btn.dataset.idleLabel = text ? text.textContent : btn.textContent;
+    const busy = Boolean(label);
+    if (text) text.textContent = busy ? label : btn.dataset.idleLabel;
+    btn.disabled = busy;
+    btn.classList.toggle('is-busy', busy);
+    btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+
+// Validación propia (el form lleva novalidate): mensajes del DS en
+// #form-message en lugar del tooltip nativo "Completa este campo".
+function validateBetaForm({ fullName, email, style, terms }) {
+    if (!fullName) return { field: 'beta-fullname', message: 'Contanos tu nombre completo.' };
+    if (!email) return { field: 'beta-email', message: 'Escribí tu email.' };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { field: 'beta-email', message: 'Revisá el email: parece incompleto.' };
+    if (!style) return { field: 'beta-style', message: 'Seleccioná tu estilo principal.' };
+    if (!terms) return { field: 'beta-terms', message: 'Para seguir, aceptá los términos y condiciones.' };
+    return null;
+}
+
 async function handleRegistration(e) {
     e.preventDefault();
     const btn = document.querySelector('#beta-form .btn-register-primary');
-    const originalText = btn.innerHTML;
     const emailInput = document.querySelector('.input-email');
-    const email = emailInput.value.trim().toLowerCase();
-    // Campos del Figma 22-1106: nombre y estilo obligatorios, ciudad opcional.
-    // Todo viaja al borrador para que el wizard los precargue.
+    const email = String(emailInput?.value || '').trim().toLowerCase();
+    // Campos del Figma 801:536: nombre, email y estilo obligatorios, ciudad
+    // opcional. Todo viaja al borrador para que el wizard los precargue.
     const fullName = String(document.getElementById('beta-fullname')?.value || '').trim();
     const city = String(document.getElementById('beta-city')?.value || '').trim();
     const style = String(document.getElementById('beta-style')?.value || '').trim();
+    const terms = Boolean(document.getElementById('beta-terms')?.checked);
 
     clearFormMessage();
+    document.querySelectorAll('#beta-form [aria-invalid="true"]').forEach((el) => el.removeAttribute('aria-invalid'));
 
-    if (!email) return;
-    if (!fullName) {
-        showFormMessage('Contanos tu nombre completo.', 'error');
-        document.getElementById('beta-fullname')?.focus();
+    const invalid = validateBetaForm({ fullName, email, style, terms });
+    if (invalid) {
+        showFormMessage(invalid.message, 'error');
+        const field = document.getElementById(invalid.field);
+        if (field) {
+            field.setAttribute('aria-invalid', 'true');
+            field.focus();
+        }
         return;
     }
-    if (!style) {
-        showFormMessage('Seleccioná tu estilo principal.', 'error');
-        document.getElementById('beta-style')?.focus();
-        return;
-    }
 
-    // Switch to validation state
-    btn.innerHTML = 'VALIDANDO...';
-    btn.style.background = 'var(--yellow-300)';
-    btn.style.color = 'var(--neutral-500)';
-    btn.disabled = true;
+    setRegisterButtonState(btn, 'Validando…');
 
     try {
         const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
@@ -538,7 +513,7 @@ async function handleRegistration(e) {
             registerArtist: requestedReturnTo ? `/register-artist?returnTo=${encodeURIComponent(requestedReturnTo)}` : '/register-artist'
         };
 
-        btn.innerHTML = 'GUARDANDO...';
+        setRegisterButtonState(btn, 'Guardando…');
         const draftPayload = await createOrResumeArtistDraft({
             email,
             source: 'email',
@@ -556,39 +531,24 @@ async function handleRegistration(e) {
             email
         );
 
-        btn.innerHTML = 'REDIRIGIENDO...';
-        btn.style.background = 'var(--system-success)';
-        btn.style.color = 'var(--white)';
-        showFormMessage('Registro iniciado. Continuaremos sin iniciar sesion automaticamente.', 'success');
+        setRegisterButtonState(btn, 'Redirigiendo…');
+        showFormMessage('Registro iniciado. Te llevamos a completar tu perfil…', 'success');
 
         setTimeout(() => {
             window.location.href = appUrl(targetUrl);
         }, 700);
         return;
-/*
-
-        const whatsappMessage = encodeURIComponent(`Hola Ötzi, quiero cotizar con ${tempUsername}`);
-*/
     } catch (error) {
         console.error('Error in registration:', error.message);
-        btn.innerHTML = 'ERROR';
-        btn.style.background = 'var(--system-error)';
-        btn.style.color = 'var(--white)';
-        
-        let errorMessage = 'Error al registrar. Por favor, intenta de nuevo.';
+        setRegisterButtonState(btn, '');
+
+        let errorMessage = 'No pudimos iniciar tu registro. Probá de nuevo en un momento.';
         if (error.code === 'ALREADY_REGISTERED') {
             pendingLoginEmail = email;
-            errorMessage = 'Este email ya tiene un registro enviado. <a href="#" onclick="openLoginModal(); return false;">Inicia sesion</a>.';
+            errorMessage = 'Este email ya tiene una cuenta. <a href="#" onclick="openLoginModal(); return false;">Iniciá sesión</a>.';
         }
-        
-        showFormMessage(errorMessage, 'error');
 
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.style.background = '';
-            btn.style.color = '';
-            btn.disabled = false;
-        }, 3000);
+        showFormMessage(errorMessage, 'error');
     }
 }
 
@@ -872,9 +832,15 @@ function focusBetaForm() {
     }
 }
 
-// El botón está en el diseño; el login con Facebook todavía no existe.
-function handleFacebookComingSoon() {
-    showFormMessage('El registro con Facebook llega pronto. Mientras tanto usá email o Instagram.', 'info');
+// "Continuá con Facebook": el OAuth de Supabase vive en /artist/login
+// (artist-login.js). Al volver sin perfil de artista, ese flujo deriva al
+// wizard /register-artist con la sesión ya iniciada.
+function handleFacebookSignup() {
+    const params = new URLSearchParams();
+    params.set('oauth', 'facebook');
+    const currentReturnTo = new URLSearchParams(window.location.search).get('returnTo');
+    if (currentReturnTo) params.set('returnTo', currentReturnTo);
+    window.location.href = appUrl('/artist/login?' + params.toString());
 }
 
 // ESTILO: catálogo real de tattoo_styles (roots) con fallback fijo del mock.

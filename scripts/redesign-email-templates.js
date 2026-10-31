@@ -66,10 +66,12 @@ const LABELS = {
     country: 'Pais',
     dashboard_url: 'Dashboard',
     date: 'Fecha',
+    dm_url: 'Mensaje directo',
     duration_hours: 'Duracion estimada',
     email: 'Email',
     estimated_price: 'Precio estimado',
     estimated_sessions: 'Sesiones estimadas',
+    expires_label: 'Vence en',
     feature_1_description: 'Detalle 1',
     feature_1_title: 'Novedad 1',
     feature_2_description: 'Detalle 2',
@@ -83,6 +85,7 @@ const LABELS = {
     first_session_date: 'Primera sesion',
     full_name: 'Nombre completo',
     instagram: 'Instagram',
+    instagram_handle: 'Tu Instagram',
     job_board_applications: 'Postulaciones',
     login_url: 'Login',
     message: 'Mensaje',
@@ -130,12 +133,17 @@ const LABELS = {
     upcoming_sessions: 'Proximas sesiones',
     user_email: 'Email usuario',
     username: 'Usuario',
+    verification_code: 'Código',
     week_range: 'Semana',
+    weotzi_instagram: 'Cuenta a seguir',
     whatsapp: 'WhatsApp',
     work_type: 'Modalidad',
     years_experience: 'Experiencia'
 };
 
+// Spec keys: eyebrow, headline, intro (may contain {{variable}} tokens, rendered as
+// placeholders), optional ctaLabel + ctaVar (button) and optional highlightVar +
+// highlightLabel (one value shown large above the panels, e.g. a code).
 const SPECS = {
     'studio-notification': {
         eyebrow: 'ESTUDIOS / COMUNIDAD',
@@ -212,6 +220,15 @@ const SPECS = {
         eyebrow: 'DIGEST / DIARIO',
         headline: 'Tu dia en We Otzi.',
         intro: 'Resumen rapido de nuevas oportunidades, pendientes, mensajes y sesiones para mantener tu agenda clara.'
+    },
+    'instagram-verification': {
+        eyebrow: 'Instagram / Validación',
+        headline: 'Tu código para validar Instagram.',
+        intro: 'Este es tu código para validar tu cuenta de Instagram en We Ötzi. Desde {{instagram_handle}}, seguí a {{weotzi_instagram}} y mandanos el código por mensaje directo. Vence en {{expires_label}}. Si no lo pediste, ignorá este correo.',
+        highlightVar: 'verification_code',
+        highlightLabel: 'Tu código',
+        ctaLabel: 'Abrir mensaje directo',
+        ctaVar: 'dm_url'
     },
     'job-board-application': {
         eyebrow: 'JOB BOARD / POSTULACION',
@@ -332,6 +349,7 @@ const NODE_TEMPLATE_MAP = {
             'Perfil Verificado': { template: 'profile-verified', source: 'body' },
             'Verificacion Denegada': { template: 'verification-denied', source: 'body' },
             'Embajador Actualizado': { template: 'ambassador-updated', source: 'body' },
+            'Codigo Validacion Instagram': { template: 'instagram-verification', source: 'body' },
             'Cliente Califico': { template: 'client-rating', source: 'body' },
             'Solicitar Calificacion': { template: 'request-rating', source: 'body' },
             'Email Admin Cotizacion': { template: 'admin-new-quotation', source: 'root' },
@@ -457,6 +475,31 @@ function renderCta(spec, mode, source) {
         </tr>`;
 }
 
+function renderText(text, mode, source) {
+    return escapeHtml(text).replace(/\{\{(\w+)\}\}/g, (_, name) => placeholder(name, mode, source));
+}
+
+function renderHighlight(spec, mode, source) {
+    if (!spec.highlightVar) return '';
+    return `
+        <tr>
+            <td class="wo-pad-x" style="padding:0 40px 24px 40px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:2px solid ${COLORS.line};background:${COLORS.yellow};table-layout:fixed;">
+                    <tr>
+                        <td style="background:${COLORS.ink};padding:10px 14px;">
+                            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;line-height:1.2;color:${COLORS.paper};letter-spacing:2px;text-transform:uppercase;font-weight:700;">${escapeHtml(spec.highlightLabel || humanize(spec.highlightVar))}</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding:22px 14px;text-align:center;">
+                            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:30px;line-height:1.1;color:${COLORS.ink};letter-spacing:4px;font-weight:700;word-break:break-all;">${placeholder(spec.highlightVar, mode, source)}</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>`;
+}
+
 function buildEmailHtml(templateName, options = {}) {
     const entry = manifest[templateName];
     if (!entry) throw new Error(`Unknown email template: ${templateName}`);
@@ -465,7 +508,7 @@ function buildEmailHtml(templateName, options = {}) {
     const mode = options.mode || 'local';
     const source = options.source || 'body';
     const code = templateName.replace(/-/g, ' / ').toUpperCase();
-    const groups = orderedGroups(entry.variables);
+    const groups = orderedGroups(entry.variables.filter(variable => variable !== spec.highlightVar));
     const body = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="es">
 <head>
@@ -511,10 +554,10 @@ function buildEmailHtml(templateName, options = {}) {
 <td class="wo-pad" style="padding:38px 40px 24px 40px;">
 <p style="margin:0 0 18px 0;font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.3;color:${COLORS.ink};letter-spacing:2px;text-transform:uppercase;"><span style="color:${COLORS.red};font-size:16px;">&#9679;</span>&nbsp; ${escapeHtml(spec.eyebrow)}</p>
 <h1 class="wo-h1" style="margin:0 0 18px 0;font-family:Arial Black,Arial,Helvetica,sans-serif;font-size:48px;line-height:.92;color:${COLORS.ink};font-weight:900;letter-spacing:0;">${escapeHtml(spec.headline)}</h1>
-<p class="wo-intro" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.55;color:${COLORS.ink};">${escapeHtml(spec.intro)}</p>
+<p class="wo-intro" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.55;color:${COLORS.ink};">${renderText(spec.intro, mode, source)}</p>
 </td>
 </tr>
-${renderCta(spec, mode, source)}
+${renderHighlight(spec, mode, source)}${renderCta(spec, mode, source)}
 ${groups.map(group => panel(group.name, group.vars, mode, source)).join('')}
 <tr>
 <td class="wo-pad-x" style="padding:2px 40px 34px 40px;">

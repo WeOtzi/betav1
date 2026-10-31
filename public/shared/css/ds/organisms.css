@@ -69,6 +69,7 @@ weotzi-dashboard{display:block;min-width:0}
 .wo-org-product-nav__links>:nth-child(5){flex:0 0 150.212px;width:150.212px}
 .wo-org-product-nav__links>:nth-child(6){flex:0 0 95.212px;width:95.212px}
 .wo-org-product-nav__links>:nth-child(7){flex:0 0 83.212px;width:83.212px}
+.wo-org-product-nav__links>:nth-child(8){flex:0 0 86.212px;width:86.212px}
 .wo-org-product-nav__link.is-active{border-bottom-color:var(--org-yellow)}
 .wo-org-product-nav__item{position:relative;height:75.842px}
 .wo-org-product-nav__item>.wo-org-product-nav__link{width:100%;padding-right:27px;padding-left:11px}

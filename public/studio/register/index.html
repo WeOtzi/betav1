@@ -15,6 +15,41 @@
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/studio.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
+    <style>
+        /* Catálogo de estudios sin dueño (paso 1) y panel de reclamo. */
+        .studio-claim-search { display: grid; gap: 12px; }
+        .studio-claim-search > .studio-section-kicker { margin: 0; }
+        .studio-claim-results { display: grid; gap: 8px; }
+        .studio-claim-result {
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            border: var(--studio-rule) solid var(--fg);
+            background: var(--bg);
+            padding: 10px;
+        }
+        .studio-claim-result.is-match { box-shadow: var(--studio-shadow-sm); border-width: var(--studio-rule-thick); }
+        .studio-claim-result .studio-btn { min-height: 44px; padding: 0 14px; }
+        .studio-claim-logo {
+            width: 48px;
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: var(--studio-rule) solid var(--fg);
+            background: var(--surface-color);
+            font-family: var(--studio-display);
+            text-transform: uppercase;
+        }
+        .studio-claim-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .studio-claim-panel { display: grid; gap: 18px; }
+        .studio-claim-panel .studio-h2 { margin: 0; }
+        @media (max-width: 600px) {
+            .studio-claim-result { grid-template-columns: 48px minmax(0, 1fr); }
+            .studio-claim-result .studio-btn { grid-column: 1 / -1; }
+        }
+    </style>
 </head>
 <body data-theme="light">
     <div class="studio-page">
@@ -31,7 +66,8 @@
         </header>
 
         <main class="studio-center">
-            <section class="studio-wizard">
+            <section class="studio-wizard" data-claim-hide>
+                <div id="wizard-body">
                 <p class="studio-section-kicker">Registro de estudio</p>
                 <h2 class="studio-h2">Configurá tu perfil en 5 pasos</h2>
 
@@ -45,6 +81,16 @@
 
                 <!-- ============ Step 1: Account ============ -->
                 <section class="studio-wizard-step is-active" data-step="1">
+                    <!-- Catálogo: se muestra solo si list_unowned_studios responde (migración aplicada). -->
+                    <div class="studio-location-row studio-claim-search" id="claim-search" hidden>
+                        <p class="studio-section-kicker">¿Tu estudio ya figura en We Ötzi?</p>
+                        <p class="studio-help">Muchos estudios ya tienen ficha en el catálogo. Buscá el tuyo: si aparece, reclamalo en lugar de crear uno nuevo.</p>
+                        <div class="studio-field">
+                            <label class="studio-label" for="claim-query">Buscar por nombre o ciudad</label>
+                            <input type="search" id="claim-query" class="studio-input" placeholder="Ej. Bang Bang o Palermo" autocomplete="off" maxlength="80">
+                        </div>
+                        <div id="claim-results" class="studio-claim-results" role="list" aria-live="polite"></div>
+                    </div>
                     <div class="studio-field">
                         <label class="studio-label" for="reg-name">Nombre del estudio</label>
                         <input type="text" id="reg-name" class="studio-input" placeholder="Ej. Bang Bang NYC" required>
@@ -135,8 +181,45 @@
                     <p class="studio-help">Revisá y enviá. Vas a poder editar todo desde el panel después.</p>
                     <div id="confirm-summary" class="studio-meta-grid"></div>
                 </section>
+                </div>
 
-                <div id="wizard-status" class="studio-status studio-status-info" hidden></div>
+                <!-- ============ Reclamo de un estudio del catálogo ============ -->
+                <section id="claim-panel" class="studio-claim-panel" aria-labelledby="claim-panel-title" hidden>
+                    <p class="studio-section-kicker">Reclamo de estudio</p>
+                    <h2 class="studio-h2" id="claim-panel-title" tabindex="-1">Es mi estudio</h2>
+                    <div id="claim-selected"></div>
+                    <p class="studio-help">Soporte de We Ötzi revisa cada reclamo antes de darte acceso al panel del estudio. Te avisamos por email.</p>
+                    <div class="studio-field">
+                        <label class="studio-label" for="claim-evidence">¿Cómo verificamos que es tuyo?</label>
+                        <textarea id="claim-evidence" class="studio-textarea" rows="4" maxlength="1000" required placeholder="Ej. Soy la dueña. Podés verificarlo en el Instagram @tustudio, en la web del estudio o llamando al teléfono del local."></textarea>
+                        <span class="studio-help">Tu rol en el estudio y dónde podemos confirmarlo. Hasta 1000 caracteres.</span>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="claim-contact-name">Nombre de contacto</label>
+                        <input type="text" id="claim-contact-name" class="studio-input" maxlength="160" autocomplete="name">
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="claim-contact-phone">Teléfono de contacto</label>
+                        <input type="tel" id="claim-contact-phone" class="studio-input" maxlength="40" autocomplete="tel" placeholder="+54 11 1234 5678">
+                    </div>
+                    <p class="studio-help" id="claim-session-note" hidden></p>
+                    <div id="claim-account" class="studio-form">
+                        <div class="studio-field">
+                            <label class="studio-label" for="claim-email">Email de tu cuenta</label>
+                            <input type="email" id="claim-email" class="studio-input" autocomplete="email" placeholder="contacto@tustudio.com">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="claim-password">Contraseña</label>
+                            <input type="password" id="claim-password" class="studio-input" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="claim-password-confirm">Repetí la contraseña</label>
+                            <input type="password" id="claim-password-confirm" class="studio-input" autocomplete="new-password" minlength="8">
+                        </div>
+                    </div>
+                </section>
+
+                <div id="wizard-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden></div>
 
                 <div class="studio-wizard-actions">
                     <button type="button" id="wizard-prev" class="studio-btn studio-btn-ghost" disabled>
@@ -147,6 +230,9 @@
                     </button>
                 </div>
             </section>
+
+            <!-- Reclamo en revisión / rechazado (lo completa studio-auth.js). -->
+            <section id="studio-claim-screen" class="studio-card" aria-live="polite" hidden></section>
         </main>
     </div>
 
@@ -161,6 +247,7 @@
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/geocoder.js"></script>
     <script src="/shared/js/address-picker.js"></script>
+    <script src="/shared/js/studio-admin-kit.js"></script>
     <script src="/shared/js/studio-auth.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/studio-register.js"></script>

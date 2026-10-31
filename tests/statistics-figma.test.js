@@ -22,7 +22,10 @@ test('statistics implements the six Figma KPIs and complete lower sections', () 
     }
     assert.equal((html.match(/class="kpi-card/g) || []).length, 6);
     assert.match(css, /\.kpi-card\s*\{[\s\S]*?container-type:\s*inline-size[\s\S]*?min-width:\s*0/);
-    assert.match(css, /\.kpi-card--money \.kpi-value\s*\{[\s\S]*?font-size:\s*clamp\(26px,\s*13\.5cqi,\s*40px\)/);
+    // Ingresos a 40px como el resto (Figma 122:10769): se compacta el monto, no la tipografía.
+    assert.doesNotMatch(css, /\.kpi-card--money \.kpi-value\s*\{[^}]*font-size/);
+    assert.match(css, /\.kpi-value\s*\{[^}]*min-height:\s*40px[^}]*font-size:\s*40px/);
+    assert.match(js, /setText\('kpi-revenue', formatKpiMoneyCompact\(/);
     assert.match(css, /@media\s*\(min-width:\s*1025px\)\s*and\s*\(max-width:\s*1439px\)[\s\S]*?\.kpi-row\s*\{\s*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(js, /event_kind === 'portfolio_view'/);
     assert.match(js, /function renderWorksList\(/);

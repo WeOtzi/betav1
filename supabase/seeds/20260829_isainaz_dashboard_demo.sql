@@ -238,8 +238,9 @@ select s.id,a.user_id,'guest','pending_acceptance',now()-interval '20 minutes',
        'Te invitamos como guest artist para la temporada de primavera. [PRUEBA DASHBOARD]',now()
 from public.studios s cross join public.artists_db a
 where s.slug='la-aguja-negra' and lower(a.username)='isainazartattoo.wo'
-on conflict (studio_id,artist_user_id,role,status) do update set
-  invited_at=excluded.invited_at,notes=excluded.notes,updated_at=now();
+-- Sin target: desde 20261030200000 el único vínculo abierto por
+-- (studio, artist, role) lo garantiza un índice parcial, no un UNIQUE.
+on conflict do nothing;
 
 insert into public.studio_spots (
   studio_id,title,kind,description,styles_wanted,experience_min_years,language_requirements,

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
-    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>WE ÖTZI | Inbox</title>
     <meta name="description" content="Inbox del artista: clientes, cotizaciones, soporte, invitaciones, Spots, Job Board, estudios y viajes en un solo lugar.">
 
@@ -63,7 +63,7 @@
 
             <div class="ai-summary" aria-label="Resumen">
                 <p class="wo-eyebrow ai-summary-cap">RESUMEN</p>
-                <div class="ai-summary-row"><span>Sin leer</span><span class="wo-mono-num ai-sum-n is-waiting" id="ai-sum-unread">0</span></div>
+                <div class="ai-summary-row"><span>Sin leer</span><span class="wo-mono-num ai-sum-n is-unread" id="ai-sum-unread">0</span></div>
                 <div class="ai-summary-row"><span>Respondidas</span><span class="wo-mono-num ai-sum-n" id="ai-sum-replied">0</span></div>
                 <div class="ai-summary-row"><span>Esperando respuesta</span><span class="wo-mono-num ai-sum-n is-waiting" id="ai-sum-waiting">0</span></div>
                 <button type="button" class="ai-summary-row ai-summary-filter" data-filter="favorites"><span>Favoritas</span><span class="wo-mono-num ai-sum-n" id="ai-count-favorites">0</span></button>
@@ -133,6 +133,7 @@
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/inbox-repo.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/inbox-deeplink.js"></script>
     <script src="/shared/js/artist-inbox.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>

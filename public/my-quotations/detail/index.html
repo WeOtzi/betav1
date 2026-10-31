@@ -4,18 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
-    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>WE ÖTZI | Detalle de cotización</title>
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
-    <link rel="stylesheet" href="/shared/css/quotation-detail-figma.css">
+    <link rel="stylesheet" href="/shared/css/quotation-detail-figma.css?v=20261028-2">
+    <link rel="stylesheet" href="/shared/css/work-notes-drawer.css?v=20261028-2">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
-    <script src="/shared/js/data/artists-repo.js"></script>
-    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/data/quotation-detail-repo.js?v=20261028"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 </head>
@@ -29,18 +29,29 @@
         logout-id="quotation-detail-logout">
     </weotzi-product-nav>
 
+    <!-- Figma 801:576–584 · barra de comandos del expediente -->
     <div class="qd-commandbar" id="quotation-commandbar" aria-label="Acciones de la cotización">
         <div class="qd-commandbar-context">
-            <a class="qd-back" href="/my-quotations"><span aria-hidden="true">←</span> Volver al listado</a>
+            <a class="qd-back" id="qd-back" href="/my-quotations"><i class="qd-icon qd-icon--16" data-wo-icon="arrow-left" aria-hidden="true"></i>Volver al listado</a>
             <span class="qd-command-divider" aria-hidden="true"></span>
             <span class="qd-reference" id="qd-reference">COT-…</span>
             <span class="qd-status qd-status--pending" id="qd-status">Pendiente</span>
         </div>
         <div class="qd-commandbar-actions">
-            <button class="qd-action qd-action--primary" id="qd-accept" type="button"><span aria-hidden="true">✓</span> Aceptar</button>
-            <button class="qd-action" id="qd-reject" type="button"><span aria-hidden="true">×</span> Rechazar</button>
-            <button class="qd-action" id="qd-schedule" type="button"><span aria-hidden="true">□</span> Agendar</button>
-            <button class="qd-action qd-action--quiet" id="qd-contact" type="button"><span aria-hidden="true">○</span> Contactar cliente</button>
+            <button class="qd-action qd-action--primary" id="qd-accept" type="button" hidden><i class="qd-icon qd-icon--14" data-wo-icon="check" aria-hidden="true"></i>Aceptar</button>
+            <button class="qd-action" id="qd-reject" type="button" hidden><i class="qd-icon qd-icon--14" data-wo-icon="x" aria-hidden="true"></i>Rechazar</button>
+            <button class="qd-action" id="qd-schedule" type="button" hidden><i class="qd-icon qd-icon--14" data-wo-icon="calendar" aria-hidden="true"></i>Agendar</button>
+            <button class="qd-action" id="qd-mark-ready" type="button" hidden>Marcar listo para cliente</button>
+            <div class="qd-dispute-menu" id="qd-dispute-menu" hidden>
+                <button class="qd-action qd-action--danger" id="qd-dispute-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="qd-dispute-options">Ver disputa<i class="qd-icon qd-icon--14" data-wo-icon="chevron-down" aria-hidden="true"></i></button>
+                <div class="qd-menu" id="qd-dispute-options" role="menu" hidden>
+                    <button class="qd-menu-item" type="button" role="menuitem" data-dispute-action="detail">Ver detalle de la disputa</button>
+                    <button class="qd-menu-item" type="button" role="menuitem" data-dispute-action="respond">Responder a la disputa</button>
+                    <button class="qd-menu-item" type="button" role="menuitem" data-dispute-action="correction">Agendar sesión de corrección</button>
+                    <button class="qd-menu-item" type="button" role="menuitem" data-dispute-action="client">Escribir al cliente →</button>
+                </div>
+            </div>
+            <a class="qd-action qd-action--quiet" id="qd-contact" href="/artist/inbox"><i class="qd-icon qd-icon--14" data-wo-icon="message-circle" aria-hidden="true"></i>Contactar cliente</a>
         </div>
     </div>
 
@@ -53,10 +64,13 @@
 
     <weotzi-product-footer></weotzi-product-footer>
 
+    <div id="qd-dialog-root"></div>
     <div class="qd-toast" id="qd-toast" role="status" hidden></div>
 
     <script src="/shared/js/admin-mobile-menu.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
-    <script src="/shared/js/quotation-detail-figma.js"></script>
+    <script src="/shared/js/quotation-detail-model.js?v=20261028-3"></script>
+    <script src="/shared/js/work-notes-drawer.js?v=20261028-2"></script>
+    <script src="/shared/js/quotation-detail-figma.js?v=20261028-3"></script>
 </body>
 </html>

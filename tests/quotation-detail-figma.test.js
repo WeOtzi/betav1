@@ -28,8 +28,12 @@ test('quotation detail reproduces the Figma command bar and complete dossier', (
 });
 
 test('quotation cards navigate to the durable full-page detail route', () => {
-    assert.match(listJs, /\/my-quotations\/detail\?quote=/);
+    // El listado (área cotizaciones) usa la ruta canónica ?id=; el detalle
+    // acepta además el alias legacy ?quote= (links viejos, emails, tour).
+    const listVm = read('public', 'shared', 'js', 'quotations-view-model.js');
+    assert.match(listJs + listVm, /\/my-quotations\/detail\?(id|quote)=/);
     assert.doesNotMatch(listJs, /class="q-card-cta" onclick="inspectQuote/);
+    assert.match(js, /params\.get\('id'\) \|\| params\.get\('quote'\)/);
 });
 
 test('detail loads persisted status history and supports all Figma actions', () => {
@@ -38,9 +42,12 @@ test('detail loads persisted status history and supports all Figma actions', () 
     assert.match(js, /StatusHistory\.listForQuotation/);
     assert.match(js, /quote_status: 'responded'/);
     assert.match(js, /quote_status: 'in_progress'/);
-    assert.match(js, /quote_status: nextStatus/);
+    assert.match(js, /quote_status: 'cancelled'/);
+    assert.match(js, /quote_status\s*[:=]\s*'client_approved'/);
+    assert.match(js, /quote_status: 'artist_completed'/);
     assert.match(js, /Chat\.sendMessage/);
-    assert.match(js, /\/calendar\?quote=/);
+    // Figma: flechas del detalle al Calendario (?date=) y al Inbox (?quote=).
+    assert.match(js, /\/calendar\?date=/);
     assert.match(js, /\/artist\/inbox\?quote=/);
 });
 

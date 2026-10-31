@@ -33,10 +33,10 @@
 
         <main class="studio-center">
             <section class="studio-card">
-                <p class="studio-section-kicker">Iniciar sesión</p>
-                <h2 class="studio-h2">Bienvenido de vuelta</h2>
+                <p class="studio-section-kicker" data-claim-hide>Iniciar sesión</p>
+                <h2 class="studio-h2" data-claim-hide>Bienvenido de vuelta</h2>
 
-                <form id="studio-login-form" class="studio-form" novalidate>
+                <form id="studio-login-form" class="studio-form" novalidate data-claim-hide>
                     <div class="studio-field">
                         <label class="studio-label" for="login-email">Email</label>
                         <input type="email" id="login-email" class="studio-input" autocomplete="email" required>
@@ -50,7 +50,7 @@
                     </button>
                 </form>
 
-                <form id="studio-recovery-form" class="studio-form" hidden>
+                <form id="studio-recovery-form" class="studio-form" hidden data-claim-hide>
                     <p class="studio-help">Elegí una contraseña nueva para recuperar el acceso a tu estudio.</p>
                     <div id="studio-recovery-code-fields" hidden>
                         <div class="studio-field">
@@ -73,13 +73,16 @@
                     <button type="submit" id="recovery-submit" class="studio-btn studio-btn-primary">Guardar contraseña</button>
                 </form>
 
-                <div id="login-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden></div>
+                <div id="login-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden data-claim-hide></div>
 
-                <p class="studio-help" style="margin-top:18px;">
+                <p class="studio-help" style="margin-top:18px;" data-claim-hide>
                     ¿Aún no tenés cuenta? <a href="/studio/register" style="color:var(--primary-red);font-weight:700;">Registrar tu estudio</a>.<br>
                     ¿Olvidaste tu contraseña? <a href="#" id="forgot-password-link" style="color:var(--primary-red);font-weight:700;">Recuperar acceso</a>.
                     <a href="#" id="have-recovery-code" style="color:var(--primary-red);font-weight:700;">Ya tengo un código</a>.
                 </p>
+
+                <!-- Reclamo en revisión / rechazado (lo completa studio-auth.js). -->
+                <div id="studio-claim-screen" aria-live="polite" hidden></div>
             </section>
         </main>
     </div>
@@ -167,7 +170,14 @@
                 const password = document.getElementById('login-password').value;
 
                 try {
-                    await window.WeOtziStudioAuth.login(email, password);
+                    const studio = await window.WeOtziStudioAuth.login(email, password);
+                    if (!studio) {
+                        // Reclamo en revisión o rechazado: studio-auth.js ya mostró la
+                        // pantalla del reclamo (o redirigió a reclamar el estudio).
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder';
+                        return;
+                    }
                     showStatus('success', 'Acceso correcto. Redirigiendo…');
                     setTimeout(() => { window.location.href = window.WeOtziStudioAuth.appUrl('/studio/dashboard'); }, 400);
                 } catch (err) {

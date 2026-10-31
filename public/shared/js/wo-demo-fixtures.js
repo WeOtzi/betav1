@@ -804,8 +804,26 @@
             }
         };
 
+        applyExtensions({ tables: tables, relations: RELATIONS, rpcs: rpcs, views: views, clients: clients,
+            identity: identity || {}, TABLES: TABLES, VIEWS: VIEWS, helpers: { DAY: DAY, ASSETS: ASSETS } });
         return { tables: tables, relations: RELATIONS, rpcs: rpcs, views: views, clients: clients };
     }
 
-    return { build: build, TABLES: TABLES, VIEWS: VIEWS, RELATIONS: RELATIONS, ASSETS: ASSETS };
+    // Extensiones por área (Figma final del flujo de artista, oct 2026): cada
+    // archivo de public/shared/js/demo-fixtures/<área>.js registra una función
+    // en `self.WoDemoFixtureExtensions[<área>]` que recibe el contexto de build
+    // y agrega tablas, relaciones, RPCs o vistas sin tocar este archivo.
+    var EXTENSIONS = ['acceso', 'dashboard', 'cotizaciones', 'cotizaciones-detalle', 'calendario', 'cuenta',
+        'perfil-estadisticas', 'oportunidades', 'invitaciones', 'store', 'travel-inbox'];
+    function applyExtensions(ctx) {
+        var registry = (typeof self !== 'undefined' && self.WoDemoFixtureExtensions) || {};
+        EXTENSIONS.forEach(function (name) {
+            if (typeof registry[name] !== 'function') return;
+            try { registry[name](ctx); } catch (err) {
+                if (typeof console !== 'undefined') console.warn('[demo-fixtures] extensión ' + name + ':', err && err.message);
+            }
+        });
+    }
+
+    return { build: build, TABLES: TABLES, VIEWS: VIEWS, RELATIONS: RELATIONS, ASSETS: ASSETS, EXTENSIONS: EXTENSIONS };
 }));

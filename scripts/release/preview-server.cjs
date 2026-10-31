@@ -2,12 +2,15 @@
 'use strict';
 // This trusted static gateway never runs branch server.js, npm scripts, or application services.
 const http = require('node:http');
+// The installed gateway runs from control/ outside the checkout; legacy redirects are optional there.
+let legacyRedirectFor = () => null, legacyLocation = null;
+try { ({ legacyRedirectFor, legacyLocation } = require('../../lib/legacy-routes')); } catch (_) { /* gateway copy without lib/ */ }
 const fs = require('node:fs');
 const path = require('node:path');
 const { safeChild, runtimePath, sanitizedPreviewConfig } = require('./runtime.cjs');
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.pdf': 'application/pdf' };
-const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://code.jquery.com; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; worker-src 'none'";
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://code.jquery.com; connect-src 'self' https://unpkg.com/feather-icons@4.29.2/dist/icons/; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; worker-src 'none'";
 
 function json(response, status, body) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(JSON.stringify(body)); }
 function escaped(value) { return String(value).replace(/[&<>"']/g, item => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[item]); }
@@ -74,6 +77,12 @@ function gateway(config) {
       const directory = path.resolve(entry.directory);
       const localWorkspace = config.workspaceRoot && path.resolve(config.workspaceRoot) === directory;
       if (!localWorkspace && !directory.startsWith(releaseRoot + path.sep)) throw new Error('Invalid release path');
+      // Rutas del artista retiradas por el Figma final (ver lib/legacy-routes.js).
+      const legacy = legacyRedirectFor(relative, path.join(directory, 'public'));
+      if (legacy) {
+        response.writeHead(301, { Location: legacyLocation(legacy, new URL(request.url, 'http://127.0.0.1').search, { prefix, trailingSlash: true }) });
+        return response.end();
+      }
       if (relative.startsWith('/travel/t/')) relative = '/travel/share/index.html';
       let file = safeChild(directory, 'public', relative.slice(1));
       if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {

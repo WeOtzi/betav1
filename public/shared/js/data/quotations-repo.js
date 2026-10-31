@@ -210,6 +210,32 @@
                 c.from('quotations_db').update({ client_user_id: userId }).eq('quote_id', quoteId).is('client_user_id', null)
             );
         },
+
+        // ---- cotización manual del artista (Figma final 801:556 · /my-quotations/new) ----
+        // Contactos de clientes de cotizaciones anteriores del artista (buscador
+        // "Buscar cliente por nombre, correo o teléfono"). Incluye archivadas.
+        async listClientContactsForArtist(artistUserId, limit = 300) {
+            const { data } = await run('quotations.listClientContactsForArtist', (c) =>
+                c.from('quotations_db')
+                    .select('client_full_name, client_email, client_whatsapp, client_instagram, client_city_residence, created_at')
+                    .eq('artist_id', artistUserId)
+                    .order('created_at', { ascending: false })
+                    .limit(limit)
+            );
+            return data || [];
+        },
+        // Crea la cotización manual en una sola transacción (RPC security definer
+        // create_manual_quotation, migración 20261028120000): fila de
+        // quotations_db (estado responded, source manual) + detalle económico en
+        // artist_manual_quotes + primera sesión si viene de "Nueva cita".
+        // Devuelve { id, quote_id, status }. Lanza con code del backend si falta
+        // la migración (PGRST202) o la validación falla (22023).
+        async createManual(quote, details) {
+            const { data } = await run('quotations.createManual', (c) =>
+                c.rpc('create_manual_quotation', { p_quote: quote, p_details: details })
+            );
+            return data || null;
+        },
     };
 
     // ===================== quotation_notes (key = int id) =====================

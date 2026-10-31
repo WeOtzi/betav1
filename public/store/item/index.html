@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo/preview (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
+    <title>Producto · Store · We Ötzi</title>
+    <meta name="description" content="Diseño con licencia de uso o merch de un artista de We Ötzi.">
+    <!-- store-catalog.js lo ajusta según allow_search_indexing del vendedor -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus + base de la Store pública -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/store-ds.css">
+    <link rel="stylesheet" href="/shared/css/store-catalog.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app sts-page stc-page" data-stc-page="item">
+    <a class="stc-skip" href="#stc-main">Saltar al contenido</a>
+
+    <!-- Topbar: WeotziStoreShell.mountStoreTopbar (anónimo · cliente · artista) -->
+    <div id="store-topbar"></div>
+
+    <main class="sts-shell stc-main" id="stc-main" tabindex="-1" aria-busy="true">
+        <div id="stc-root">
+            <div class="sts-loading">
+                <span class="wo-spinner" aria-hidden="true"></span>
+                <p class="wo-sr-only" role="status">Cargando el producto</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="stc-footer">
+        <div class="stc-footer-inner">
+            <span class="stc-footer-brand">WE ÖTZI</span>
+            <span class="wo-meta-s stc-footer-meta">© 2026 We Ötzi · Todos los derechos reservados</span>
+        </div>
+    </footer>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/store-model.js"></script>
+    <script src="/shared/js/data/store-repo.js"></script>
+    <script src="/shared/js/store-shell.js"></script>
+    <script src="/shared/js/store-catalog.js"></script>
+</body>
+</html>

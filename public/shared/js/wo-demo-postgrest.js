@@ -435,7 +435,15 @@
                     });
                 }
                 if (!handler) return respond(200, null);
-                var result = handler(args, api, ctx);
+                var result;
+                try {
+                    result = handler(args, api, ctx);
+                } catch (err) {
+                    // Un throw del handler es el `raise exception` (P0001) del
+                    // SQL: se responde como PostgREST. Sin esto el demo caía al
+                    // backend real y repetía el request contra Supabase vivo.
+                    return respond(400, { code: 'P0001', message: String((err && err.message) || err), details: null, hint: null });
+                }
                 if (Array.isArray(result)) {
                     var projectedRpc = applyOrder(applyFilters(result, q.filters), q.order);
                     if (q.limit != null) projectedRpc = projectedRpc.slice(q.offset || 0, (q.offset || 0) + q.limit);

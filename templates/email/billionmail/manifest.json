@@ -169,6 +169,17 @@
       "upcoming_sessions"
     ]
   },
+  "instagram-verification": {
+    "file": "templates/email/billionmail/instagram-verification.html",
+    "variables": [
+      "artist_name",
+      "verification_code",
+      "instagram_handle",
+      "expires_label",
+      "weotzi_instagram",
+      "dm_url"
+    ]
+  },
   "job-board-application": {
     "file": "templates/email/billionmail/job-board-application.html",
     "variables": [

@@ -438,10 +438,9 @@ select s.id,t.user_id,s.primary_location_id,v.role,v.split,v.status,
 from seed v
 join public.studios s on s.slug=v.slug and s.user_id is null
 cross join target t
-on conflict (studio_id,artist_user_id,role,status) do update set
-  location_id=excluded.location_id,revenue_split_pct=excluded.revenue_split_pct,
-  invited_at=excluded.invited_at,started_at=excluded.started_at,
-  ended_at=excluded.ended_at,notes=excluded.notes,updated_at=now();
+-- Sin target: desde 20261030200000 el único vínculo abierto por
+-- (studio, artist, role) lo garantiza un índice parcial, no un UNIQUE.
+on conflict do nothing;
 
 with seed(
   slug,role,status,is_featured,styles,response_due,proposed_start,duration_label,benefits,
