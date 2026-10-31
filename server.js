@@ -4965,7 +4965,10 @@ app.post('/api/studio/notify', studioNotifyLimiter, async (req, res) => {
                     : `Actualización de tu postulación a ${studioName}`,
                 bodyText: decision === 'accepted'
                     ? `${_notifyGreeting(artist.name)}${studioName} eligió tu postulación al spot "${spotTitle}" como ${roleFromKind(spot.kind)}.\n\n`
-                        + `Tu postulación avanzó; el estudio te va a enviar el contrato para firmar en ${invitationsUrl}.`
+                        // `accepted` persistido = flujo previo a los contratos (ya está en el roster).
+                        + (app.status === 'accepted'
+                            ? `Ya formás parte del roster de ${studioName}. Coordiná los detalles con el estudio desde ${invitationsUrl}.`
+                            : `Tu postulación avanzó; el estudio te va a enviar el contrato para firmar en ${invitationsUrl}.`)
                     : `${_notifyGreeting(artist.name)}Gracias por postularte al spot "${spotTitle}" en ${studioName}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 ctaUrl: invitationsUrl,
                 meta: { application_id: app.id, artist_user_id: app.artist_user_id, studio_id: studio.id, spot_id: spot.id, spot_kind: spot.kind },

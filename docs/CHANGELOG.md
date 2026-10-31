@@ -15,7 +15,9 @@
   - Recorrido en navegador con un harness local de Supabase en memoria: aprobar con contrato, emitir, firmar como artista, agenda con conflicto, materiales, catálogo y pedidos Supplies, perfil público y reclamo.
   - Pendiente: studio_agenda_inventory_finance.sql y studio_operations_workflows.sql completos en vivo, y M6 sobre store_core. `node scripts/sql/compose-studio-validation.cjs > validation.sql` arma la cadena completa (Store + M1→M6 + los 5 tests SQL) en una sola transacción que termina en ROLLBACK, para correrla en el SQL Editor de Supabase.
 - Tienda del estudio: se integra la Store compartida (merge de feature/store-artista hasta 0985a29) con venta en mostrador (M6 `20261030205000`, NO aplicada) y vitrina en el perfil público.
-- Revisión: guard de borrado de membresías (solo invitaciones pendientes), rechazo directo de postulaciones cancela sus contratos abiertos, costos unitarios de inventario con 6 decimales (packs), vendors sin lectura anónima ni autoreactivación, roles de chat de soporte compatibles con el CHECK vivo.
+- Revisión: guard de borrado de membresías (solo invitaciones pendientes), rechazo directo de postulaciones cancela sus contratos abiertos, costos unitarios de inventario con 6 decimales (packs), vendors sin lectura anónima ni autoreactivación, roles de chat de soporte compatibles con el CHECK vivo, email de postulación aceptada según el flujo real (contrato o roster directo).
+- Móvil: las pestañas del panel del estudio envuelven agrupadas con su título, en lugar de una fila con scroll que ocultaba casi todas.
+- Runbook para aplicar las migraciones (orden, validación previa, verificación y rollback): `docs/plans/2026-10-31-estudios-aplicar-migraciones.md`.
 - Rollback: revertir los commits de la entrega. Las migraciones no están aplicadas; si se aplican, usar supabase/rollbacks/20261030204000…200000 en orden inverso.
 
 

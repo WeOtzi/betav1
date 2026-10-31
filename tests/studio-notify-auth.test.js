@@ -105,10 +105,12 @@ test('studio notify keys idempotency by kind, row id and persisted state', () =>
     assert.match(route, /idempotencyKey: `\$\{kind\}:\$\{b\.id\}:\$\{b\.status\}`/);
 });
 
-test('accepted spot decision email points to the contract that the studio will send', () => {
+test('accepted spot decision email depends on the persisted status (contract vs legacy roster)', () => {
     const route = studioNotifyRoute();
+    // shortlisted (con M2): el estudio emite el contrato. accepted (sin M2):
+    // la RPC viva ya sumó al artista al roster, nunca se promete un contrato.
+    assert.match(route, /app\.status === 'accepted'\s*\?\s*`Ya formás parte del roster de \$\{studioName\}/);
     assert.match(route, /Tu postulación avanzó; el estudio te va a enviar el contrato para firmar en \$\{invitationsUrl\}/);
-    assert.doesNotMatch(route, /Ya formás parte del roster/);
 });
 
 test('studio notify is rate limited per authenticated user', () => {

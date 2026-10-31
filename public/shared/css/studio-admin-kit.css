@@ -867,9 +867,26 @@ html.sk-scroll-lock body { overflow: hidden; }
 
 /* ----- Responsive ----- */
 @media (max-width: 900px) {
-    /* La sidebar pasa a fila (studio.css): los grupos se disuelven. */
+    /* studio.css pone la sidebar en una fila con scroll horizontal; con 19
+       pestañas quedaba casi todo oculto. Acá las pestañas pasan a chips que
+       envuelven y cada grupo arranca en su propia fila con su título. */
+    .studio-dash-sidebar:has(.sk-sidebar-group) {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        row-gap: 6px;
+        column-gap: 6px;
+    }
     .sk-sidebar-group { display: contents; }
-    .sk-sidebar-group-title { display: none; }
+    .sk-sidebar-group-title {
+        display: block;
+        flex-basis: 100%;
+        margin: 6px 0 0;
+        padding: 0;
+    }
+    .sk-sidebar-group .studio-dash-tab {
+        padding: 6px 10px;
+        font-size: 0.72rem;
+    }
     .sk-tab-badge { margin-left: 2px; }
 }
 

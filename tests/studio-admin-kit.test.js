@@ -1005,7 +1005,9 @@ test('CSS: radio 0, sombra dura solo en hover/focus, grupos de sidebar y print',
     const below900 = /@media \(max-width: 900px\)\s*\{([\s\S]*?)\n\}/.exec(css);
     assert.ok(below900, 'breakpoint 900px');
     assert.match(below900[1], /\.sk-sidebar-group\s*\{\s*display:\s*contents;/);
-    assert.match(below900[1], /\.sk-sidebar-group-title\s*\{\s*display:\s*none;/);
+    // En móvil las pestañas envuelven y cada grupo arranca en su fila con su título.
+    assert.match(below900[1], /\.studio-dash-sidebar:has\(\.sk-sidebar-group\)\s*\{[^}]*flex-wrap:\s*wrap;/);
+    assert.match(below900[1], /\.sk-sidebar-group-title\s*\{\s*display:\s*block;\s*flex-basis:\s*100%;/);
     assert.match(css, /\.sk-sidebar-group\s*\{\s*display:\s*flex;\s*flex-direction:\s*column;/);
     assert.match(css, /@media \(max-width: 600px\)/);
     const print = /@media print\s*\{([\s\S]*)\}\s*$/.exec(css);
