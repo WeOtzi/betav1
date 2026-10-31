@@ -6,6 +6,8 @@
  * selectores, gana el primero visible) y trae el texto que se muestra y se
  * lee en voz alta. `before`/`after` abren y cierran estados de la interfaz
  * (menú Ö, editor del calendario, secciones del centro de la cuenta).
+ * `exitLabel` agrega el botón de salida del demo; con `exitAssist: true` esa
+ * salida entrega al modo asistido (WoDemo.disable({ assist: true })).
  *
  * Copy: español rioplatense (voseo), sentence case, sin signos de exclamación
  * (regla 10 del DS). Para cambiar el guion alcanza con editar este archivo.
@@ -47,7 +49,7 @@
                         'Este es el primer paso para impulsar tu carrera como artista del tatuaje. A continuación vamos a hacer un recorrido por la interfaz y sus funciones.',
                         'Mientras dure el modo demo vas a ver cotizaciones, turnos y mensajes de ejemplo. Nada de lo que hagas se guarda: es un espacio para probar sin miedo.'
                     ],
-                    hint: 'Podés avanzar con las flechas del teclado o esperar a que termine la narración.',
+                    hint: 'Podés avanzar con las flechas del teclado o esperar a que termine la narración. Con el botón 1× cambiás la velocidad de la voz.',
                     nextLabel: 'EMPEZAR EL RECORRIDO →'
                 },
                 {
@@ -96,7 +98,7 @@
                 },
                 {
                     id: 'menu', target: '.wo-oam-drop', title: 'El menú Ö', before: openArtistMenu, after: closeArtistMenu,
-                    text: 'El tile Ö abre tu menú: notificaciones, mensajes sin leer, invitaciones pendientes y solicitudes, más accesos al centro de la cuenta y a tu perfil público. Desde acá también podés volver a ver este recorrido.'
+                    text: 'El tile Ö abre tu menú: notificaciones, mensajes sin leer, invitaciones pendientes y solicitudes, más accesos al centro de la cuenta y a tu perfil público. Desde acá también podés volver a ver este recorrido y activar el Modo asistido, que te guía paso a paso para configurar tu perfil. Y si no querés que te sugiramos el modo demo, lo desactivás desde este mismo menú.'
                 },
                 {
                     id: 'go-quotes', target: null, title: 'Vamos a Cotizaciones',
@@ -224,10 +226,18 @@
         {
             id: 'account', title: 'Centro de la cuenta', path: '/artist/account',
             steps: [
-                { id: 'sidebar', target: '.aac-sidebar', title: 'Ocho secciones', text: 'El centro de la cuenta tiene ocho secciones: perfil, portafolio, cobros, disponibilidad, notificaciones, seguridad, verificación y configuración.' },
-                { id: 'perfil', target: '#aac-perfil', title: 'Mi perfil', before: showAccountSection('perfil'), text: 'Mi perfil es cómo te van a ver clientes y estudios: nombre, usuario, idiomas, biografía, ciudad, redes, estilos y tarifa.' },
+                { id: 'sidebar', target: '.aac-sidebar', title: 'Las secciones de tu cuenta', text: 'El menú lateral del centro de la cuenta reúne todo lo tuyo: perfil, portafolio, cobros, disponibilidad, notificaciones, seguridad, verificación y configuración.' },
+                { id: 'perfil', target: '#aac-perfil', title: 'Mi perfil', before: showAccountSection('perfil'), text: 'Mi perfil es cómo te van a ver clientes y estudios: nombre, usuario, idiomas, biografía, ciudad, redes, estilos y tarifa. Sumá también tu WhatsApp y email de contacto, para que sepan cómo escribirte.' },
                 { id: 'portafolio', target: '#aac-portafolio', title: 'Portafolio', before: showAccountSection('portafolio'), text: 'Portafolio administra los trabajos de tu perfil público: subilos, ordenalos, elegí su categoría o importalos desde Instagram.' },
+                {
+                    id: 'ig-verify', target: '#aac-ig-verify', title: 'Validá tu Instagram', before: showAccountSection('portafolio'), timeout: 4000,
+                    text: 'Para mostrar las fotos que importás de Instagram, validá que la cuenta es tuya: te mandamos un código por email, seguís a @weotzi desde la cuenta importada y nos enviás el código por mensaje directo. Hasta que la valides, esas fotos quedan ocultas para los clientes.'
+                },
                 { id: 'cobros', target: '#aac-cobros', title: 'We Ötzi Wallet', before: showAccountSection('cobros'), text: 'El Wallet muestra tu saldo disponible, los fondos por liberar y la actividad. Desde acá retirás a tus destinos y cargás tus datos fiscales.' },
+                {
+                    id: 'modalidad', target: '#aac-modalidad', title: 'Cómo trabajás', before: showAccountSection('disponibilidad'),
+                    text: 'Elegí tu modalidad: Estudio si tatuás en un estudio, Independiente si trabajás por tu cuenta, o Ambos. Si elegís Estudio o Ambos, indicá en qué estudio estás, así los clientes saben dónde encontrarte.'
+                },
                 { id: 'disponibilidad', target: '#aac-disponibilidad', title: 'Disponibilidad por ubicación', before: showAccountSection('disponibilidad'), text: 'Definí días y horarios para cada estudio y destino Travel, y pausá una ubicación cuando no tomes clientes ahí.' },
                 { id: 'verificacion', target: '#aac-verificacion', title: 'Verificación', before: showAccountSection('verificacion'), after: showAccountSection('perfil'), text: 'Verificación: subí tus documentos para obtener el sello de perfil verificado, que da confianza a los clientes.' },
                 { id: 'go-profile', target: null, title: 'Cómo te ven los clientes', text: 'Para cerrar, veamos cómo te ven los clientes en tu perfil público.' }
@@ -247,10 +257,10 @@
                 {
                     id: 'end', target: null, title: 'Fin del recorrido',
                     text: [
-                        'Ya conocés las secciones principales de We Ötzi. Cuando quieras, salí del modo demo para empezar a cargar tus datos reales.',
-                        'Podés volver a ver este recorrido desde el menú Ö, en Recorrido guiado.'
+                        'Ya conocés las secciones principales de We Ötzi. Cuando salgas del modo demo, el modo asistido te guía paso a paso para configurar tu perfil con tus datos reales: perfil, portafolio, cobros, disponibilidad, notificaciones y verificación.',
+                        'Si más adelante querés repasar este recorrido, volvé a activar el modo demo y tocá Recorrido guiado.'
                     ],
-                    nextLabel: 'SEGUIR EXPLORANDO EL DEMO', exitLabel: 'Salir del demo y empezar con mis datos →'
+                    nextLabel: 'SEGUIR EXPLORANDO EL DEMO', exitLabel: 'Salir del demo y configurar mi perfil →', exitAssist: true
                 }
             ]
         }

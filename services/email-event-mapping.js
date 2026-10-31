@@ -23,6 +23,13 @@
  * verifies that every eventId used via emailService.sendEmail exists in this map.
  */
 
+// Instagram handles always reach the template as "@handle" (one leading @), or the
+// fallback text when the payload has none.
+function atHandle(value, fallback) {
+    const handle = String(value || '').trim().replace(/^@+/, '');
+    return handle ? `@${handle}` : fallback;
+}
+
 const EVENTS = {
     studio_roster_invite: {
         name: 'Estudio: invitación al equipo',
@@ -244,6 +251,22 @@ const EVENTS = {
         templateHint: 'ambassador-updated',
         recipient: p => p.artist_email || p.email,
         attribs: p => ({ ...p })
+    },
+    // Server-only: the code is a secret, so the public /api/email/:eventId route rejects
+    // this event (services/email-request-context.js SERVER_ONLY_EVENTS).
+    instagram_verification_code: {
+        name: 'Código de validación de Instagram',
+        templateHint: 'instagram-verification',
+        description: 'Código WO-XXXXXX que el artista manda por mensaje directo a @weotzi para validar su Instagram. Lo envía solo el servidor.',
+        recipient: p => p.artist_email || p.email,
+        attribs: p => ({
+            artist_name: p.artist_name || p.name || p.username || '-',
+            verification_code: String(p.verification_code || '').trim().toUpperCase(),
+            instagram_handle: atHandle(p.instagram_handle, 'tu cuenta de Instagram'),
+            expires_label: p.expires_label || '72 horas',
+            weotzi_instagram: atHandle(p.weotzi_instagram, '@weotzi'),
+            dm_url: /^https:\/\//i.test(String(p.dm_url || '')) ? p.dm_url : 'https://ig.me/m/weotzi'
+        })
     },
 
     // ===== Admin / product =====

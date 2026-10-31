@@ -1,7 +1,12 @@
 # Modo demo y recorrido guiado del artista
 
-Fecha: 2026-09-03
-Alcance: páginas autenticadas del artista (`/artist/*`, `/my-quotations*`, `/calendar`, `/job-board`, `/studio-spots`, `/archive`).
+Fecha: 2026-09-03 · actualizado 2026-10-30 (demo para usuarios nuevos, sugerencia persistente, motor de voz nuevo y velocidad)
+Alcance: las 14 páginas autenticadas del artista que cargan `wo-demo.js` (`/artist/dashboard`, `/artist/account`,
+`/artist/applications`, `/artist/inbox`, `/artist/invitations`, `/artist/profile`, `/artist/travel`, `/calendar`,
+`/job-board`, `/my-quotations`, `/my-quotations/detail`, `/my-quotations/new`, `/my-quotations/statistics`, `/studio-spots`).
+
+Relacionados: [MODO-ASISTIDO.md](MODO-ASISTIDO.md) (configuración guiada del perfil, con datos reales) y
+[VALIDACION-INSTAGRAM.md](VALIDACION-INSTAGRAM.md).
 
 ## Qué es
 
@@ -15,24 +20,30 @@ Entradas:
 
 | Entrada | Qué hace |
 | --- | --- |
+| **Cuenta nueva** (auth creada hace ≤ 14 días) que entra al dashboard por primera vez | El demo y el recorrido se activan solos, sin recargar. Se marca `demo_auto_started` (espejo local + servidor) para no forzarlo de nuevo. |
+| Tarjeta **"Probá We Ötzi con datos de ejemplo"** en el dashboard | Aparece en cada visita con el demo apagado, hasta que el artista la desactive desde el menú Ö. **AHORA NO** la oculta solo por esa sesión del navegador. |
+| Menú Ö → **Recorrido guiado · modo demo** | Siempre visible. Con el demo apagado lleva a `/artist/dashboard?demo=1&tour=1`; con el demo prendido arranca el recorrido. |
+| Menú Ö → **Sugerir el modo demo** (interruptor) | Prende o apaga la tarjeta de sugerencia en forma persistente (se guarda en el servidor). Si el guardado falla, el interruptor vuelve atrás y avisa. |
+| Menú Ö → **Salir del modo demo** | Visible solo con el demo prendido. |
 | `?demo=1` en cualquier página del artista | Activa el modo demo para la sesión del navegador (`sessionStorage`). |
 | `?tour=1` (o `?demo=1&tour=1`) | Activa el demo y arranca el recorrido en el capítulo de esa página. |
-| Menú Ö → **Recorrido guiado · modo demo** | Lleva a `/artist/dashboard?demo=1&tour=1`. |
-| Tarjeta "¿Primera vez acá?" en el dashboard | Aparece una vez a artistas que nunca hicieron el recorrido (`localStorage.wo_tour_seen`). |
 | Barra inferior **MODO DEMO** | Botones RECORRIDO GUIADO, REINICIAR (vuelve a las fixtures iniciales) y SALIR DEL DEMO. |
 | `?demo=0` | Sale del demo y limpia el estado. |
+| Último paso del recorrido → **Salir del demo y configurar mi perfil →** | Sale del demo y entra al [modo asistido](MODO-ASISTIDO.md) en `/artist/account#perfil`. |
 
 ## Cómo funciona
 
 ```text
 <head> de cada página del artista
   └─ wo-demo.js (antes de supabase-js y config-manager.js)
-       ├─ lee ?demo / ?tour / sessionStorage.wo_demo_mode
+       ├─ lee ?demo / ?tour / ?asistido / sessionStorage.wo_demo_mode / espejo wo_onb_<uid>
+       ├─ cuenta nueva en el dashboard sin demo_auto_started → prende el demo + recorrido en el lugar
        ├─ si está activo: parchea window.fetch ANTES de que config-manager cree el cliente
        │    (supabase-js captura la referencia a fetch al crearlo)
-       ├─ carga lazy: wo-demo-postgrest.js + wo-demo-fixtures.js (datos)
+       ├─ carga lazy: wo-demo-postgrest.js + wo-demo-fixtures.js + demo-fixtures/*.js (datos)
        │              wo-tour.js + wo-tour-steps.js + wo-tour.css (recorrido)
-       └─ pinta la barra MODO DEMO y retoma el recorrido si venía de otra página
+       ├─ demo apagado: tarjeta de sugerencia (wo-onboarding.css) y cargador del modo asistido
+       └─ sincroniza el espejo con GET /api/artist/onboarding (fetch nativo, nunca el emulado)
 ```
 
 1. **Intercepción de datos.** Toda request a `/rest/v1/<tabla>` se resuelve en
@@ -45,52 +56,94 @@ Entradas:
    PostgREST para `single()`/`maybeSingle()`), insert/upsert/update/delete con
    `return=representation` y RPCs con handlers JS.
 2. **Qué se simula y qué no.** Las tablas de la lista `TABLES` de
-   `wo-demo-fixtures.js` (cotizaciones, sesiones, adjuntos, chat, job board,
-   estudios/spots/invitaciones, travel, calendario, visitas, reseñas, inbox
-   unificado, centro de la cuenta) se sirven desde memoria. **`artists_db`,
-   `artist_tattoo_locations`, `tattoo_styles` y demás catálogos se leen del
-   backend real**, así el demo muestra el nombre, avatar y galería de quien está
-   logueado. Las escrituras a tablas reales se ignoran (respuesta vacía exitosa),
-   las RPCs de escritura sin handler devuelven `null`, las RPCs de lectura
-   (`get_*`, `list_*`, `check_*`…) pasan al backend y las subidas a Storage se
-   bloquean con un error legible ("Modo demo: nada se guarda").
-3. **Identidad.** El `user_id` sale de la sesión real de Supabase en
-   `localStorage` (`sb-<ref>-auth-token`) o del JWT de la primera request; el
-   `username`/nombre se capturan de la respuesta real de `artists_db`. Las
-   fixtures se generan para ese `user_id`, por eso los filtros
-   `artist_id=eq.<uuid>` de cada página coinciden.
-4. **Persistencia dentro de la sesión.** Las mutaciones (responder una
-   cotización, mandar un mensaje, marcar favorito) se guardan en
-   `sessionStorage.wo_demo_store` (12 h) y sobreviven a la navegación entre
-   páginas. REINICIAR las descarta.
-5. **Fechas relativas.** Los cuatro turnos del día son siempre "hoy" (10:00,
+   `wo-demo-fixtures.js` y de las extensiones `demo-fixtures/*.js` se sirven
+   desde memoria. **`artists_db`, `artist_tattoo_locations`, `tattoo_styles` y
+   demás catálogos se leen del backend real**, así el demo muestra el nombre,
+   avatar y galería de quien está logueado. Las escrituras a tablas reales se
+   ignoran (respuesta vacía exitosa), las RPCs de escritura sin handler
+   devuelven `null`, las RPCs de lectura (`get_*`, `list_*`, `check_*`…) pasan al
+   backend y las subidas a Storage se bloquean con un error legible.
+3. **Si el emulador falla** (no cargaron las fixtures, error interno), las
+   lecturas GET/HEAD caen al backend real, pero **ninguna escritura**: responden
+   503 `DEMO_UNAVAILABLE`. Así una cuenta nueva que entró sola al demo nunca
+   escribe datos reales por un error del sandbox.
+4. **Identidad.** El `user_id` y la fecha de creación de la cuenta salen de la
+   sesión de Supabase en `localStorage` (`sb-<ref>-auth-token`); el
+   `username`/nombre se capturan de la respuesta real de `artists_db`.
+5. **Persistencia dentro de la sesión.** Las mutaciones del demo se guardan en
+   `sessionStorage.wo_demo_store` (12 h). REINICIAR las descarta.
+6. **Fechas relativas.** Los cuatro turnos del día son siempre "hoy" (10:00,
    13:30, 16:00 y 18:30 hora local), los viajes se reparten entre pasado y
    futuro y las visitas cubren los últimos 30 días.
 
+### Estado del onboarding (servidor + espejo)
+
+Las elecciones del artista viven en `user_preferences.app_settings.onboarding`
+(lo escribe solo el servidor, ver [MODO-ASISTIDO.md](MODO-ASISTIDO.md)):
+`demo_suggestions`, `demo_auto_started_at` y `assisted.*`. Como `<head>` necesita
+decidir sin esperar a la red, `wo-demo.js` mantiene un espejo en
+`localStorage.wo_onb_<userId>` (`demo_suggestions`, `assisted_active`,
+`demo_auto_started`, `synced_at`). El GET de sincronización corre en el
+dashboard, con el modo asistido activo o cuando el espejo tiene más de 15
+minutos; un 403 (sesión que no es de artista) solo sella `synced_at` para no
+repetir la consulta en cada página, y los 5xx no tocan nada.
+
+`window.WoDemo` expone, además de `enable/disable/reset/startTour`:
+`appPath(path)`, `getAccessToken()`, `api(path, { method, body })` (fetch nativo,
+Bearer y base path), `onboarding({ fresh })`, `suggestionsEnabled()`,
+`setSuggestions(bool)`, `startAssist()`, `stopAssist()` y `disable({ assist, path })`.
+Eventos en `document`: `wo:demo-suggestions-changed` y `wo:assist-changed`.
+
 ## El recorrido (wo-tour.js + wo-tour-steps.js)
 
-- **Trece capítulos**, uno por página, en este orden: Inicio → Cotizaciones →
-  Expediente → Calendario → Job board → Spots → Invitaciones → Postulaciones →
-  Estadísticas → Travel → Inbox → Centro de la cuenta → Perfil público. Más de
-  80 pasos en total.
+- **Trece capítulos**, uno por página: Inicio → Cotizaciones → Expediente →
+  Calendario → Job board → Spots → Invitaciones → Postulaciones → Estadísticas →
+  Travel → Inbox → Centro de la cuenta → Perfil público. 92 pasos en total
+  (incluye la validación de Instagram y la modalidad de trabajo del centro de
+  la cuenta).
 - Cada paso **oscurece toda la pantalla salvo la sección enfocada** (cuatro
-  paneles de velo + marco con el número de paso), muestra la tarjeta con el
-  texto y lo **lee en voz alta** con la Web Speech API (voz `es-AR` si existe;
-  si no, `es-MX/es-US/es-ES` o cualquier `es-*`). Entre paso y paso el velo se
-  retira, se hace scroll a la sección siguiente y vuelve a cerrarse.
-- Con la voz activa el recorrido **avanza solo** al terminar la narración
-  (0,9 s de pausa); con la voz apagada, o si el navegador no tiene voz en
-  español, se avanza con **SIGUIENTE →**, flechas del teclado o Enter. Esc sale.
-- Al cambiar de página el estado (capítulo/paso) se guarda en
-  `sessionStorage.wo_tour_state` y el recorrido se retoma solo. Como los
-  navegadores exigen un click en cada documento nuevo antes de reproducir voz,
-  el primer paso de cada página muestra **ESCUCHAR ▶** hasta ese click.
-- Pasos con estado previo (menú Ö, editor del calendario, secciones del centro
-  de la cuenta) usan hooks `before`/`after` en el guion. Si una sección no
-  aparece en 9 s (por ejemplo, un contenedor vacío) el paso se salta con un
-  aviso en consola en vez de bloquear el recorrido.
-- Las preferencias de voz y avance automático viven en `localStorage`
-  (`wo_tour_voice`, `wo_tour_auto`).
+  paneles de velo + marco), muestra la tarjeta y lo **lee en voz alta** con la
+  Web Speech API (voz `es-AR` si existe; si no, otra `es-*`).
+- Con la voz activa el recorrido **avanza solo** 0,9 s después de que la
+  narración terminó de verdad. Sin voz se avanza con **SIGUIENTE →**, flechas o
+  Enter. Esc sale. `+`/`=` y `-` cambian la velocidad.
+- Al cambiar de página el estado se guarda en `sessionStorage.wo_tour_state` y
+  el recorrido se retoma solo; el primer paso de cada página muestra
+  **ESCUCHAR ▶** hasta que haya un click (regla de los navegadores).
+- Si la pestaña se oculta o se bloquea la pantalla durante la narración, el
+  recorrido **no avanza en silencio**: espera y, al volver, narra de nuevo el
+  paso actual.
+
+### Motor de voz (narrador)
+
+Reemplaza la versión de septiembre, que a veces **cortaba el audio y avanzaba
+sin terminar**. La causa era un temporizador de respaldo calculado por largo
+del texto: cuando vencía antes que el audio daba la frase por terminada, el
+avance automático se disparaba y cancelaba lo que seguía sonando. Ahora:
+
+- El texto se parte en frases sin lookbehind (compatible con Safari < 16.4) y
+  las de más de 160 caracteres se cortan en `,` `;` `:`.
+- Cada frase tiene un único cierre (`settled`): un `onend` tardío, el error de
+  nuestro propio `cancel()` o el vigilante no pueden avanzar dos veces.
+- **Nunca se da una frase por terminada mientras `speechSynthesis.speaking` sea
+  true.** Si se pierde el `onend`, el vigilante (cada 250 ms) cierra la frase
+  tras 700 ms de silencio real.
+- Una frase que no arranca se reintenta una vez y después se saltea: a los 5 s
+  con el motor ocioso, o a los 20 s si el motor dice que habla pero nunca llegó
+  `onstart`.
+- `interrupted`/`canceled` ajenos y los demás errores reintentan la frase una
+  vez y saltean solo esa frase (antes se abandonaba toda la narración).
+- 120 ms entre `cancel()` y el siguiente `speak()`; referencias fuertes a la
+  utterance activa (Chrome las descartaba); keep-alive `pause()/resume()` cada
+  10 s solo para voces remotas en Chromium que no es Edge.
+
+**Velocidad:** botón en la tarjeta (1×, 1,25×, 1,5×, 1,75×, 2×), guardada en
+`localStorage.wo_tour_rate`. Cambiarla durante la narración repite la frase
+actual a la nueva velocidad, no todo el texto.
+
+`window.WoTour.narrator` (`speak`, `stop`, `isSpeaking`, `getRate`, `setRate`,
+`RATES`, `formatRate`, `voiceEnabled`, `setVoiceEnabled`) lo comparte el panel
+del modo asistido.
 
 ### Editar el guion
 
@@ -103,65 +156,59 @@ Todo el texto vive en `public/shared/js/wo-tour-steps.js`. Cada paso admite:
 | `hint` | Línea mono debajo del texto. |
 | `before(ctx)` / `after(ctx)` | Preparan/cierran la interfaz. `before` puede devolver `false` para saltar el paso. |
 | `interactive` | Deja clickeable la sección enfocada y no avanza solo. |
-| `nextLabel`, `exitLabel` | Etiquetas de los botones (la última pantalla usa `exitLabel` para salir del demo). |
+| `nextLabel`, `exitLabel`, `exitAssist` | Etiquetas de los botones; con `exitAssist: true` la salida pasa al modo asistido. |
 | `waitFor`, `timeout` | Selector alternativo a esperar y tiempo máximo (ms). |
 
 Copy: rioplatense con voseo, sentence case y sin signos de exclamación (regla 10
-del DS). El test `tests/demo-tour.test.js` verifica que cada selector del guion
-exista en el markup o en el script que lo pinta.
-
-### Audio grabado (opcional, a futuro)
-
-`wo-tour.js` usa la voz del navegador para no depender de servicios externos.
-Si se quiere narración profesional, se puede agregar un campo `audio` por paso
-(URL de un MP3, por ejemplo generado con ElevenLabs) y reproducirlo en lugar
-de `speechSynthesis`; el motor ya aísla la narración en `narrate()`/`speak()`.
+del DS). `tests/demo-tour.test.js` verifica que cada selector exista.
 
 ## Archivos
 
 | Archivo | Rol |
 | --- | --- |
-| `public/shared/js/wo-demo.js` | Bootstrap: flag del modo, parche de `fetch`, identidad, carga lazy, barra e invitación. |
-| `public/shared/js/wo-demo-postgrest.js` | Emulador PostgREST en memoria (puro, con tests en Node). |
-| `public/shared/js/wo-demo-fixtures.js` | Fixtures del artista + relaciones, vistas calculadas y RPCs simuladas. |
-| `public/shared/js/wo-tour.js` | Motor del recorrido: velo, marco, tarjeta, voz, navegación entre páginas. |
+| `public/shared/js/wo-demo.js` | Bootstrap: flags, demo para cuentas nuevas, parche de `fetch`, espejo y sincronización del onboarding, sugerencia, cargador del modo asistido. |
+| `public/shared/js/wo-demo-postgrest.js` | Emulador PostgREST en memoria. |
+| `public/shared/js/wo-demo-fixtures.js` + `demo-fixtures/*.js` | Fixtures del artista por área, relaciones, vistas y RPCs simuladas. |
+| `public/shared/js/wo-tour.js` | Motor del recorrido y narrador de voz. |
 | `public/shared/js/wo-tour-steps.js` | Guion (capítulos y pasos). |
-| `public/shared/css/wo-tour.css` | Estilos del recorrido y de la barra demo, solo con tokens del DS. |
-| `public/shared/assets/demo/*.svg` | Placeholders Bauhaus para referencias, portadas de spots y logos de estudios. |
-| `tests/demo-tour.test.js` | Emulador, fixtures, cableado de páginas, CSS y guion. |
+| `public/shared/css/wo-tour.css` | Recorrido y barra demo. |
+| `public/shared/css/wo-onboarding.css` | Tarjeta de sugerencia del demo. |
+| `public/shared/js/wo-artist-menu.js` | Menú Ö: recorrido, modo asistido, salir del demo, interruptor de sugerencia. |
+| `tests/demo-tour.test.js`, `tests/demo-onboarding.test.js`, `tests/tour-narrator.test.js` | Emulador, cableado, guion, decisiones del bootstrap y narrador con un `speechSynthesis` falso. |
 
-Las páginas cableadas son las 15 superficies del artista más `/archive`; el
-include `<script src="/shared/js/wo-demo.js">` va justo después del
-`<meta name="viewport">`, antes de cualquier otro script.
+El include `<script src="/shared/js/wo-demo.js?v=…">` va justo después del
+`<meta name="viewport">`, antes de cualquier otro script. Al cambiar
+`wo-demo.js`, subir el `?v=` en las 14 páginas y la constante `VERSION`.
 
 ## Limitaciones conocidas
 
 - La voz depende del navegador: Edge y Chrome en Windows traen voces en
-  español (Edge incluye `es-AR` natural); Safari usa las voces del sistema. Sin
-  voz en español el recorrido funciona solo en modo lectura.
-- `artists_db` es real: si el artista todavía no cargó galería, la sección
-  "Galería de trabajos" del dashboard se muestra vacía con su CTA (el resto del
-  dashboard sí tiene datos demo).
-- El cliente realtime de Supabase sigue conectado a las tablas reales; en demo
-  no llegan eventos (no hay escrituras), así que las vistas no se actualizan
-  "solas" desde otros dispositivos.
-- Las imágenes del demo son placeholders SVG en estilo Bauhaus, no fotos de
-  tatuajes reales. Se pueden reemplazar en `public/shared/assets/demo/`.
+  español; Safari usa las del sistema. Sin voz en español el recorrido funciona
+  en modo lectura. No se probó todavía en un iPhone ni en Chrome Android real.
+- El espejo vive por navegador: una cuenta nueva que abre el dashboard por
+  primera vez en otro navegador vuelve a ver el demo automático (la decisión se
+  toma en `<head>`, antes de consultar al servidor).
+- `artists_db` es real: si el artista no cargó galería, la del dashboard se ve
+  vacía con su CTA.
+- El realtime de Supabase sigue conectado a las tablas reales; en demo no llegan
+  eventos.
+- El preview local (`scripts/release/preview-server.cjs`) quita `wo-demo.js`
+  por diseño: ahí no hay demo, sugerencia ni modo asistido.
 
 ## Verificación
 
 ```bash
-node --test tests/demo-tour.test.js      # emulador, fixtures, cableado, guion
-node --test "tests/*.test.js"            # suite completa
+node --test tests/demo-tour.test.js tests/demo-onboarding.test.js tests/tour-narrator.test.js
+node --test "tests/*.test.js"
 ```
 
-Prueba manual: iniciar sesión como artista, abrir
+Prueba manual: con una sesión de artista, abrir
 `http://localhost:4545/artist/dashboard?demo=1&tour=1`, recorrer los trece
-capítulos y salir con **SALIR DEL DEMO**; comprobar que la cuenta real quedó
-intacta (sin cotizaciones `DEMO-*`, sin viajes ni mensajes nuevos).
+capítulos (probar el botón de velocidad y bloquear la pantalla a mitad de una
+frase en el celular) y salir con **Salir del demo y configurar mi perfil →**;
+comprobar que la cuenta real quedó intacta.
 
 ## Rollback
 
-Quitar el include de `wo-demo.js` de las 16 páginas (o borrar los seis
-archivos nuevos) desactiva por completo el modo demo; no hay migraciones ni
-datos remotos involucrados.
+Quitar el include de `wo-demo.js` de las 14 páginas desactiva el demo, la
+sugerencia y el modo asistido. No hay migraciones involucradas en el demo.

@@ -5970,6 +5970,38 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
         return res.status(m.status).json(m.body);
     }
 });
+
+// ============================================
+// INSTAGRAM VALIDATION + ARTIST ONBOARDING
+// The artist asks for a WO-XXXXXX code (sent by email) and DMs it to @weotzi;
+// the DM automation confirms it through the webhook, or support confirms it
+// by hand. Until then imported Instagram photos stay hidden from clients
+// (public/shared/js/gallery-visibility.js). Logic lives in
+// services/instagram-verification.js and services/artist-onboarding.js.
+// ============================================
+const igVerification = require('./services/instagram-verification');
+const artistOnboarding = require('./services/artist-onboarding');
+
+// Every request sends an email: cap each IP at 5 codes / hour.
+const igVerifyLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Esperá un rato y probá de nuevo.' }
+});
+
+app.get('/api/artist/onboarding', artistOnboarding.getOnboarding);
+app.post('/api/artist/onboarding', artistOnboarding.patchOnboarding);
+app.get('/api/artist/instagram-verification', igVerification.getArtistVerification);
+app.post('/api/artist/instagram-verification', igVerifyLimiter, igVerification.requestArtistVerification);
+// DM automation webhook (n8n + Meta), authenticated with X-Weotzi-Webhook-Token.
+app.post('/api/instagram-verification/inbound', igVerification.handleInbound);
+// Support queue (active agent in support_users_db).
+app.get('/api/support/instagram-verifications', igVerification.listForSupport);
+app.post('/api/support/instagram-verifications/:id/confirm', igVerification.confirmForSupport);
+app.post('/api/support/instagram-verifications/:id/reject', igVerification.rejectForSupport);
+
 // ============================================
 // EMAIL ROUTING (BillionMail / n8n / dual / off)
 // Centralized dispatcher for all transactional emails.

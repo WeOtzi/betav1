@@ -199,13 +199,26 @@ test('el bootstrap del demo parchea fetch antes de que exista el cliente y bloqu
     assert.ok(js.includes('rest\\/v1'), 'intercepta /rest/v1/');
     assert.ok(js.includes('storage\\/v1\\/object'), 'bloquea subidas a /storage/v1/object/');
     assert.match(js, /Escritura ignorada en modo demo/);
+    // Si el emulador falla (fixtures que no cargan), solo GET/HEAD caen al
+    // backend real; cualquier escritura responde 503 sin salir del navegador.
+    assert.match(js, /if \(method === 'GET' \|\| method === 'HEAD'\) \{\s*warn\('fallo del emulador, la lectura va al backend real', err\);\s*return nativeFetch\.call\(window, input, init\);\s*\}\s*warn\('fallo del emulador, escritura bloqueada en modo demo:'[^;]*;\s*return demoUnavailable\(\);/);
+    assert.match(js, /code: 'DEMO_UNAVAILABLE'/);
+    assert.doesNotMatch(js, /\.catch\(function \(err\) \{\s*warn\('fallo del emulador, se usa el backend real', err\);\s*return nativeFetch/, 'sin el fallback ciego de antes');
     assert.match(js, /sb-\.\+-auth-token/);
     assert.doesNotMatch(js, /createClient\(/, 'el bootstrap no crea clientes propios');
     const menu = read('public/shared/js/wo-artist-menu.js');
     assert.match(menu, /Recorrido guiado · modo demo/);
-    // Figma final (801:559): el acceso al recorrido solo aparece con el demo activo.
+    // Oct 2026: el acceso al recorrido está siempre visible (el final del tour
+    // remite al menú Ö); con el demo activo arranca el recorrido sin navegar.
     assert.match(menu, /window\.WoDemo && window\.WoDemo\.enabled/);
     assert.match(menu, /appPath\('\/artist\/dashboard'\)\) \+ '\?demo=1&amp;tour=1/);
+    assert.doesNotMatch(menu, /\(demo \? '<a class="wo-oam-link" id="wo-oam-tour"/, 'el link al recorrido no depende del demo');
+    assert.match(menu, /W\.startTour\(\)/);
+    // Salida del demo, modo asistido y switch de la sugerencia (role=switch).
+    assert.match(menu, /Salir del modo demo/);
+    assert.match(menu, /Modo asistido · configurá tu perfil/);
+    assert.match(menu, /role="switch" aria-checked="/);
+    assert.match(menu, /Sugerir el modo demo/);
 });
 
 test('el CSS del recorrido usa solo tokens del DS (sin hex sueltos ni [hidden] con display)', () => {

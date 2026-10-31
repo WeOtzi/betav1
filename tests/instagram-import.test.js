@@ -73,3 +73,50 @@ test('instagram preview summary lists each post so the dialog can pick them one 
     // El resumen no expone las URLs de descarga del CDN, solo metadatos para elegir.
     assert.ok(summary.media.every(m => !('cdn_url' in m)));
 });
+
+test('imported feed items record the Instagram source, handle and import time', () => {
+    const { buildFeedItem } = igImport._internal;
+    const importedAt = '2026-10-30T12:00:00.000Z';
+    const photo = buildFeedItem(
+        { category: 'instagram', kind: 'image', timestamp: '2026-01-01T10:00:00.000Z', caption: 'Hola', permalink: 'https://instagram.com/p/p1/' },
+        'https://x.supabase.co/storage/v1/object/public/artist-gallery/instagram-import/u1/abc.jpg',
+        { igHandle: '@Ink_Test', importedAt }
+    );
+    assert.deepEqual(photo, {
+        url: 'https://x.supabase.co/storage/v1/object/public/artist-gallery/instagram-import/u1/abc.jpg',
+        category: 'instagram',
+        kind: 'image',
+        created_at: '2026-01-01T10:00:00.000Z',
+        caption: 'Hola',
+        permalink: 'https://instagram.com/p/p1/',
+        source: 'instagram',
+        ig_handle: 'ink_test',
+        imported_at: importedAt
+    });
+
+    const reel = buildFeedItem({ category: 'instagram-reel', kind: 'reel', cdn_url: 'https://cdn.example.com/r1.mp4' }, 'https://cdn.test/r1.mp4', { igHandle: 'ink_test', importedAt });
+    assert.equal(reel.kind, 'video');
+    assert.equal(reel.created_at, importedAt, 'without a timestamp the item uses the import time');
+    assert.equal(reel.caption, null);
+    assert.equal(reel.permalink, null);
+    assert.equal(reel.source, 'instagram');
+
+    assert.equal(buildFeedItem({ category: 'instagram', kind: 'image' }, 'u', {}).ig_handle, null);
+    assert.match(buildFeedItem({ category: 'instagram', kind: 'image' }, 'u').imported_at, /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('imported items follow the gallery visibility rule of the validated account', () => {
+    const visibility = require('../public/shared/js/gallery-visibility.js');
+    const item = igImport._internal.buildFeedItem({ category: 'instagram', kind: 'image' }, 'https://cdn.test/instagram-import/u/a.jpg', { igHandle: 'ink_test' });
+    assert.equal(visibility.isInstagramItem(item), true);
+    assert.equal(visibility.isPubliclyVisible(item, { enforced: true, verified: false, handle: null }), false);
+    assert.equal(visibility.isPubliclyVisible(item, { enforced: true, verified: true, handle: 'ink_test' }), true);
+    assert.equal(visibility.isPubliclyVisible(item, { enforced: true, verified: true, handle: 'otra.cuenta' }), false);
+    assert.equal(visibility.isPubliclyVisible(item, { enforced: false, verified: false, handle: null }), true);
+});
+
+test('commit builds every new feed item with the imported profile username', () => {
+    const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'lib', 'instagram-import.js'), 'utf8');
+    assert.match(source, /newItems\.push\(buildFeedItem\(media, uploaded\.public_url, \{ igHandle: payload\.username, importedAt \}\)\);/);
+    assert.match(source, /const importedAt = new Date\(\)\.toISOString\(\);/);
+});

@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Modo demo para artistas nuevos (2026-10-30)**: las cuentas de 14 días o menos entran al demo con el recorrido la primera vez que abren el dashboard. Con el demo apagado, el dashboard muestra en cada visita la sugerencia "Probá We Ötzi con datos de ejemplo" hasta que el artista la desactive con el interruptor **Sugerir el modo demo** del menú Ö (que además ofrece Recorrido guiado siempre visible, Modo asistido y Salir del demo). El estado se guarda en `user_preferences.app_settings.onboarding` vía `GET/POST /api/artist/onboarding`, con un espejo local para decidir en `<head>`. Si el emulador del demo falla, las escrituras nunca caen al backend real (503 `DEMO_UNAVAILABLE`). Guía: `docs/MODO-DEMO-TOUR.md`.
+- **Modo asistido (2026-10-30)**: panel que guía al tatuador con datos reales por ocho pasos (perfil, portafolio + validación de Instagram, compartir el enlace en Instagram con generador de mensajes cortos para la bio, medio de retiro, disponibilidad, notificaciones, verificación con bioseguridad opcional y configuración), detecta solo lo completado, enfoca el campo pendiente y cierra con una pantalla de bienvenida sobre todo lo que se puede hacer en We Ötzi, las ventajas de que los clientes coticen por la plataforma y el soporte. Se entra al salir del recorrido, desde el menú Ö o con `?asistido=1`. Servicio `services/artist-onboarding.js`, panel `wo-assist.js`. Guía: `docs/MODO-ASISTIDO.md`.
+- **Validación de Instagram (2026-10-30)**: las fotos importadas desde Instagram después de este cambio no se muestran a los clientes hasta validar la cuenta (código `WO-XXXXXX` por email, seguir a @weotzi y mandarle el código por DM; webhook `POST /api/instagram-verification/inbound` para la automatización y cola **Validaciones IG** en el dashboard de soporte). Las importadas antes quedan visibles (`ig_legacy`). Migración `20261030120000_instagram_verification.sql` verificada en PGlite con su reversa y **aplicada en `flbgmlvfiejfttlawnfu`** (versión remota `20261030131202`; 45 fotos existentes marcadas `ig_legacy`, sin cambios en `gallery_images`), evento de email `instagram_verification_code` y variable `IG_VERIFY_WEBHOOK_SECRET`. Guía: `docs/VALIDACION-INSTAGRAM.md`.
+- **Centro de la cuenta (2026-10-30)**: WhatsApp y Email en Mi perfil (Contacto), modalidad de trabajo Estudio / Independiente / Ambos con buscador de estudios en Disponibilidad, documentos de verificación marcados obligatorio/opcional y tarjeta de validación de Instagram en Portafolio.
+
+### Fixed
+- **Narración del recorrido (2026-10-30)**: la voz ya no se corta ni avanza antes de terminar. La causa era un temporizador de respaldo que daba la frase por terminada mientras seguía sonando; el narrador nuevo nunca cierra una frase mientras el navegador habla, reintenta frases caídas, evita la carrera `cancel()`/`speak()`, no avanza en silencio con la pantalla bloqueada y funciona en Safari anterior a 16.4. Se agregó control de velocidad (1× a 2×).
+
 ## [2.2.1] - 2026-09-30
 
 - Se corrige File.Replace en los manifiestos Windows y el respaldo GitHub: NullString entrega un null real a .NET y evita que PowerShell convierta el parámetro en una ruta vacía. Se conserva la sustitución atómica.

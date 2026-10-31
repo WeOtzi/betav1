@@ -222,6 +222,18 @@
 .wo-dash-activitytxt { min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wo-dash-activitywhen { font-size: 9.5px; }
 
+/* PENDIENTE · IG: foto de Instagram oculta en el perfil público hasta validar
+   la cuenta (dashboard-gallery.js). Fondo warning del DS con texto ink: el
+   --status-warning-fg sobre ese fondo da 3,99:1 a 10px (no llega a AA) y
+   --neutral-500 da 14,39:1. El filete amarillo lo sigue marcando como aviso y
+   lo separa de NUEVO · IG (fondo amarillo lleno). Toma el puntero (la fila de
+   insignias no lo hace) para que el title explique el motivo. */
+.wod-gal-tag.is-pending { background: var(--status-warning-bg); color: var(--neutral-500); box-shadow: inset 0 0 0 1px var(--yellow-300); pointer-events: auto; cursor: help; }
+/* La fila de insignias no se sale de la celda: en celdas angostas (grilla de
+   4 columnas) VIDEO · 0:24 baja a una segunda línea, alineada a la derecha,
+   en vez de empujar PENDIENTE · IG fuera del borde izquierdo. */
+.wod-gal-cell > .wod-gal-tags { flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 20px); }
+
 /* ---------------------------------------------------------------- toast --- */
 .wod-toast {
   position: fixed;

@@ -552,9 +552,11 @@
 
     // ===================== artists_db · datos de oficio del perfil =====================
     // Campos que antes se editaban en /artist/profile/details (estilos,
-    // experiencia, tarifa, WhatsApp, newsletter) y ahora viven en Mi perfil.
+    // experiencia, tarifa, WhatsApp, newsletter) y ahora viven en Mi perfil,
+    // más la modalidad de trabajo y el estudio (Disponibilidad · Modalidad).
     const ACCOUNT_EXTRAS_SELECT = 'styles_array, estilo, years_experience, session_price, ' +
-        'session_price_amount, session_price_currency, whatsapp_number, subscribed_newsletter, work_type';
+        'session_price_amount, session_price_currency, whatsapp_number, subscribed_newsletter, ' +
+        'work_type, estudios, studio_id';
     const AccountProfile = {
         async getExtras(artistUserId) {
             const { data } = await run('accountprofile.getExtras', (c) =>
