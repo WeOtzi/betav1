@@ -376,8 +376,8 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 - `studio-photos`: publico; imagenes de perfil, portada, galeria y sponsors de estudios.
 - `studio-documents`: privado; documentos subidos por estudios.
 - `studio-spot-attachments`: publico; adjuntos de spots publicados por estudios.
-- `store-previews`: publico; imagenes de productos de la Store (jpeg, webp o png de hasta 3 MB, sin SVG) bajo `<seller_id>/<product_id>/`. Migración no aplicada.
-- `store-design-files`: privado; originales y stencils de diseños (hasta 50 MB). Los compradores descargan solo con URL firmada por el servidor. Migración no aplicada.
+- `store-previews`: publico; imagenes de productos de la Store (jpeg, webp o png de hasta 3 MB, sin SVG) bajo `<seller_id>/<product_id>/`. Migración aplicada el 31 oct 2026.
+- `store-design-files`: privado; originales y stencils de diseños (hasta 50 MB). Los compradores descargan solo con URL firmada por el servidor. Migración aplicada el 31 oct 2026.
 - `artist-trip-docs`: privado; documentos de Travel bajo una ruta propiedad del artista, con límite de 10 MiB y MIME PDF/JPEG/PNG/WEBP. Una limpieza fallida deja sólo un objeto privado reintentable, no un metadato activo sin archivo.
 - Media importada desde Instagram tambien puede actualizar `artists_db.gallery_feed_items` o `studios.photo_feed_items`.
 
