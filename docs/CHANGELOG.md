@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3] - 2026-10-31
+
+- Registro de Estudios en cinco pasos y acceso desde Inicio
+- Validación: 417/417 pruebas de la composición aislada; node --check server.js y check:release aprobados. Chromium comprobó Inicio y registro completo con datos ficticios a 1440/768/390 px, persistencia, validaciones y reintentos; esquema remoto leído sin datos personales. Email y Storage reales requieren cuenta de prueba del propietario. Evidencia en docs/auditoria-valentina/registro-estudios.md y campos en docs/CAMPOS-ESTUDIOS.md.
+- Rollback: git revert en rama y nuevo PR, o recuperar la release 65de880 mediante el controlador documentado; no se modificó la base de datos. No borrar cuentas, archivos ni datos al revertir código.
+
+
 ## [2.2.2] - 2026-10-06
 
 - Aplicar Figma al acceso de artista y a los botones de registro, con Recomendado separado del botón

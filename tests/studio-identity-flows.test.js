@@ -34,6 +34,7 @@ function harness(options = {}) {
     const window = {
         location: { pathname: options.pathname || '/studio/register', search: options.search || '', hash: options.hash || '', origin: 'https://weotzi.com', href: '' },
         WeotziData: data,
+        WeOtziStudioMedia: options.media,
         ConfigManager: { ready: async () => { calls.push(['ready']); } }
     };
     const document = { addEventListener() {}, getElementById() { return null; } };
@@ -119,4 +120,65 @@ test('studio recovery can verify a mailed OTP before changing password', async (
     assert.equal(call[1].email, user.email);
     assert.equal(call[1].token, '123456');
     assert.equal(call[1].type, 'recovery');
+});
+
+test('confirmation without a session never attempts to upload staged images', async () => {
+    let touched = false;
+    const h = harness({ media: { hasPending: async () => { touched = true; return true; }, finish: async () => { throw new Error('must not upload'); } } });
+    const result = await h.auth.register({ ...profile, email: user.email, password: 'test-password', locations });
+    assert.equal(result.confirmationRequired, true);
+    assert.equal(touched, false);
+});
+
+test('a photo upload failure preserves the created studio and presents a retry result', async () => {
+    const h = harness({ session: { user }, media: { hasPending: async () => true, finish: async () => { throw new Error('Storage unavailable'); } } });
+    const result = await h.auth.register({ ...profile, email: user.email, locations });
+    assert.equal(result.id, h.studio.id);
+    assert.equal(result.mediaPending, true);
+    assert.equal(result.mediaError, 'Storage unavailable');
+    assert.equal(h.auth.getCurrent().id, h.studio.id);
+});
+
+test('login resumes staged photos for the signed-in owner before reaching the panel', async () => {
+    let received;
+    const h = harness({ pathname: '/studio/login', session: { user }, studio: { id: 'studio-id' }, media: {
+        hasPending: async () => true,
+        finish: async (studio, email) => { received = email; return { ...studio, cover_image: 'https://example.test/cover.jpg' }; }
+    } });
+    await h.auth.check();
+    assert.equal(received, user.email);
+    assert.equal(h.auth.getCurrent().cover_image, 'https://example.test/cover.jpg');
+    assert.equal(h.window.location.href, '/studio/dashboard');
+});
+
+test('failed photo resumption points login to a result screen without blocking panel access', async () => {
+    const h = harness({ pathname: '/studio/login', session: { user }, studio: { id: 'studio-id' }, media: {
+        hasPending: async () => true, finish: async () => { throw new Error('Storage unavailable'); }
+    } });
+    await h.auth.check();
+    assert.equal(h.window.location.href, '/studio/register?registered=1');
+    assert.equal(h.auth.getCurrent().mediaPending, true);
+});
+
+test('registered result remains visible instead of automatically leaving the register page', async () => {
+    const h = harness({ pathname: '/studio/register', search: '?registered=1', session: { user }, studio: { id: 'studio-id' } });
+    await h.auth.check();
+    assert.equal(h.window.location.href, '');
+    assert.equal(h.auth.getCurrent().id, 'studio-id');
+});
+
+test('a returned email-confirmation link reaches the registration success screen', async () => {
+    const h = harness({ pathname: '/beta/studio/login', search: '?confirmed=1', session: { user }, studio: { id: 'studio-id' } });
+    await h.auth.check();
+    assert.equal(h.window.location.href, '/beta/studio/register?registered=1');
+    assert.equal(h.auth.getCurrent().id, 'studio-id');
+});
+
+test('manual login returns unfinished photos to let its submit handler offer retry', async () => {
+    const h = harness({ pathname: '/studio/login', studio: { id: 'studio-id' }, media: {
+        hasPending: async () => true, finish: async () => { throw new Error('Storage unavailable'); }
+    } });
+    const studio = await h.auth.login(user.email, 'test-password');
+    assert.equal(studio.id, 'studio-id');
+    assert.equal(studio.mediaPending, true);
 });

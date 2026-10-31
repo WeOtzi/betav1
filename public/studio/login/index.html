@@ -93,6 +93,8 @@
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/weotzi-uploader.js"></script>
+    <script src="/shared/js/studio-registration-media.js"></script>
     <script src="/shared/js/studio-auth.js"></script>
     <script>
         (function () {
@@ -167,9 +169,10 @@
                 const password = document.getElementById('login-password').value;
 
                 try {
-                    await window.WeOtziStudioAuth.login(email, password);
+                    const studio = await window.WeOtziStudioAuth.login(email, password);
                     showStatus('success', 'Acceso correcto. Redirigiendo…');
-                    setTimeout(() => { window.location.href = window.WeOtziStudioAuth.appUrl('/studio/dashboard'); }, 400);
+                    const showRegistration = studio.mediaPending || new URLSearchParams(window.location.search).get('confirmed') === '1';
+                    setTimeout(() => { window.location.href = window.WeOtziStudioAuth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard'); }, 400);
                 } catch (err) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder';

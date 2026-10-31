@@ -140,6 +140,41 @@
         seedProfiles(fixtures.tables);
         fixtures.rpcs.get_artist_public_profile_preferences = () => ({ show_reviews: true, show_studio: true, show_availability: true, show_portfolio: true });
         fixtures.rpcs.check_email_registered = args => store.rows('clients_db').some(c => c.email === (args.email_to_check || args.p_email)) || store.rows('artists_db').some(a => a.email === (args.email_to_check || args.p_email));
+        fixtures.rpcs.complete_studio_registration = (args, st, ctx) => {
+            if (!ctx.userId || ctx.userId !== session?.user.id) throw new Error('Confirmá tu correo e iniciá sesión para completar el registro.');
+            const existing = st.rows('studios').find(row => row.user_id === ctx.userId);
+            if (existing) return clone(existing);
+            const profile = args.p_profile || {};
+            const name = String(profile.name || '').trim();
+            const locations = args.p_locations;
+            if (name.length < 2 || name.length > 160) throw new Error('El nombre debe tener entre 2 y 160 caracteres.');
+            if (!Array.isArray(locations) || locations.length < 1 || locations.length > 30) throw new Error('Agregá entre 1 y 30 sedes.');
+            if (locations.some(row => !row || !String(row.formatted_address || '').trim())) throw new Error('La dirección de cada sede es obligatoria.');
+            let primaryIndex = 0;
+            locations.forEach((row, index) => { if (row.is_primary === true) primaryIndex = index; });
+            if (locations[primaryIndex].is_active === false) throw new Error('La sede principal debe estar activa.');
+            // Validate the complete input before any mutation, like the real SQL transaction.
+            const fields = ['tagline', 'bio', 'founded_year', 'languages', 'instagram', 'whatsapp', 'website', 'contact_phone', 'cover_image', 'logo_image', 'photo_feed_items'];
+            const values = Object.fromEntries(fields.filter(field => profile[field] !== undefined).map(field => [field, clone(profile[field])]));
+            const addressFields = ['country', 'country_code', 'state_province', 'city', 'locality', 'street', 'street_number', 'unit', 'postal_code', 'formatted_address', 'latitude', 'longitude', 'google_place_id', 'phone', 'hours_json'];
+            const addressOf = row => Object.fromEntries(addressFields.filter(field => row[field] !== undefined).map(field => [field, clone(row[field])]));
+            const normalizedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'estudio';
+            const studio = st.insert('studios', [Object.assign(values, {
+                user_id: ctx.userId, email: session.user.email, name, normalized_name: name.toUpperCase(),
+                slug: normalizedSlug + '-' + ctx.userId.replace(/-/g, '').slice(0, 8),
+                is_active: true, is_verified: false, profile_complete: true, photo_feed_items: values.photo_feed_items || [],
+                updated_at: new Date().toISOString()
+            })])[0];
+            const savedLocations = st.insert('studio_locations', locations.map((row, index) => Object.assign(addressOf(row), {
+                studio_id: studio.id, label: String(row.label || '').trim() || (index === primaryIndex ? 'Sede principal' : 'Sede #' + (index + 1)),
+                formatted_address: String(row.formatted_address).trim(), is_primary: index === primaryIndex,
+                is_active: row.is_active !== false, sort_order: index
+            })));
+            const primary = savedLocations[primaryIndex];
+            Object.assign(studio, addressOf(primary), { primary_location_id: primary.id });
+            record('studio.registration', 'simulated', 'Estudio y sedes guardados solo en este navegador; no se enviaron correos.');
+            return clone(studio);
+        };
         store = window.WoDemoPostgrest.createStore({ tables: remapAssets(fixtures.tables), relations: fixtures.relations, rpcs: fixtures.rpcs, views: fixtures.views });
         try { const saved = JSON.parse(readStorage('tables') || 'null'); if (saved && typeof saved === 'object') store.load(saved); } catch (_) { /* regenerate corrupt fixtures */ }
         store.onChange(() => writeStorage('tables', JSON.stringify(store.dump())));
@@ -151,13 +186,17 @@
 
     async function ensureProfiles(user) {
         const st = await ready;
+        if (user.user_metadata.user_type === 'studio' || st.rows('studios').some(row => row.user_id === user.id)) return;
         if (!st.rows('clients_db').some(c => c.user_id === user.id)) st.insert('clients_db', [{ id: user.id, user_id: user.id, email: user.email, name: user.user_metadata.full_name, username: 'preview-' + user.id.slice(0, 8), city_residence: 'Buenos Aires', country: 'Argentina' }]);
         if (!st.rows('artists_db').some(a => a.user_id === user.id)) st.insert('artists_db', [Object.assign({}, st.rows('artists_db')[0], { id: user.id, user_id: user.id, email: user.email, name: user.user_metadata.full_name, username: 'preview-' + user.id.slice(0, 8) + '.wo' })]);
     }
     async function login(options, signup) {
         const email = String(options && options.email || '').trim().toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || String(options && options.password || '').length < 8) return { data: { session: null, user: null }, error: { code: 'PREVIEW_INPUT', message: 'En preview usá un correo ficticio válido y una contraseña de 8 o más caracteres.' } };
-        const user = makeUser(email, options.options && options.options.data);
+        const st = await ready;
+        const studio = st.rows('studios').find(row => row.user_id === identityId(email));
+        const metadata = Object.assign({}, options.options && options.options.data, studio ? { user_type: 'studio', name: studio.name, full_name: studio.name } : {});
+        const user = makeUser(email, metadata);
         await ensureProfiles(user);
         publishSession(makeSession(user), 'SIGNED_IN');
         record(signup ? 'auth.signup' : 'auth.login', 'simulated', 'Sesión ficticia; no verifica contraseñas contra Supabase.');
