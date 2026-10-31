@@ -1,0 +1,69 @@
+/* ============================================================================
+   We Ötzi · Sugerencia del modo demo (wo-demo.js)
+   Tarjeta .wo-demo-suggest del dashboard con el demo apagado. Se carga lazy
+   (solo cuando la tarjeta va a mostrarse).
+   Mobile primero: hoja de ancho completo apoyada sobre la bottombar del
+   dashboard; desde 768 px, tarjeta abajo a la izquierda (el dock del modo
+   asistido vive abajo a la derecha). DS Bauhaus: radius 0, sin sombra en
+   reposo, jerarquía por borde, todo color desde tokens.
+   ========================================================================== */
+
+.wo-demo-suggest{
+  position:fixed;left:0;right:0;bottom:0;z-index:1150;
+  box-sizing:border-box;margin:0;
+  padding:var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom,0px));
+  background:var(--surface-card);color:var(--text-body);
+  border:0;border-top:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);
+  box-shadow:var(--shadow-none);
+  animation:om-fade-in var(--duration-fade) var(--ease-standard);
+}
+.wo-demo-suggest__eyebrow{margin:0}
+.wo-demo-suggest__title{
+  margin:var(--space-1) 0 var(--space-2);
+  font-family:var(--font-display);font-weight:var(--weight-regular);
+  font-size:var(--body-l-size);line-height:var(--h3-lh);color:var(--text-heading);
+}
+.wo-demo-suggest__copy,
+.wo-demo-suggest__note{
+  margin:0;font-family:var(--font-body);font-size:var(--body-s-size);line-height:var(--body-s-lh);
+}
+.wo-demo-suggest__copy{color:var(--text-body)}
+.wo-demo-suggest__note{margin-top:var(--space-1);color:var(--text-muted)}
+.wo-demo-suggest__actions{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-4)}
+
+/* Sobre la barra inferior fija del dashboard (solo ≤ 640 px, 64 px de alto). */
+body.wod-body .wo-demo-suggest{
+  bottom:calc(var(--space-16) + env(safe-area-inset-bottom,0px));
+  padding-bottom:var(--space-4);
+}
+
+/* En el teléfono el dock del modo asistido trae su propio acceso al demo. */
+html.wo-assist-on .wo-demo-suggest{display:none}
+/* Nunca compite con un recorrido en curso. */
+html.wo-tour-active .wo-demo-suggest{display:none}
+
+@media (min-width:641px){
+  body.wod-body .wo-demo-suggest{bottom:0;padding-bottom:calc(var(--space-4) + env(safe-area-inset-bottom,0px))}
+}
+
+@media (min-width:48rem){
+  .wo-demo-suggest,
+  body.wod-body .wo-demo-suggest{
+    left:var(--space-6);right:auto;bottom:var(--space-6);
+    width:min(360px,calc(100vw - var(--space-12)));
+    padding:var(--space-5);
+    border:var(--border-strong-width) solid var(--border-strong);
+  }
+  html.wo-assist-on .wo-demo-suggest{display:block}
+  /* Con el dock (right:--space-4, 380 px) a la derecha, la tarjeta se angosta
+     para dejar --space-3 de aire: a 768 px mide 336 px y nunca queda debajo. */
+  html.wo-assist-on .wo-demo-suggest{
+    width:min(360px,calc(100vw - 380px - var(--space-4) - var(--space-6) - var(--space-3)));
+  }
+  html.wo-tour-active .wo-demo-suggest{display:none}
+  .wo-demo-suggest__title{font-size:var(--h3-size)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .wo-demo-suggest{animation:none}
+}

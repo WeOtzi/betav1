@@ -7,6 +7,22 @@ const { deliveryKey } = require('./email-delivery-ledger');
 const ADMIN_EVENTS = new Set(['profile_verified', 'profile_verification_denied', 'ambassador_status_updated', 'platform_update', 'password_reset_temp']);
 const ARTIST_EVENTS = new Set(['artist_responded_quotation', 'chat_message_to_client', 'request_rating', 'session_scheduled', 'session_rescheduled', 'session_completed', 'session_cancelled']);
 const CLIENT_EVENTS = new Set(['client_approved_quotation', 'client_rejected_quotation', 'client_left_rating', 'chat_message_to_artist']);
+// Sent only by trusted server routes (they carry secrets such as verification codes).
+// Without this guard they would fall through to the quotation branch below.
+const SERVER_ONLY_EVENTS = new Set(['instagram_verification_code']);
+// Avisos de la plataforma de estudios + Supplies: solo los dispara el servidor
+// (/api/studio/notify, /api/artist/studio-notify, /api/supplies/notify y el
+// backoffice), que verifica la fila, la pertenencia y el estado guardado y
+// resuelve el destinatario desde auth.users. Por POST /api/email/:eventId
+// nunca: ahi un caller podria elegir el destinatario.
+const INTERNAL_ONLY_EVENTS = new Set([
+    'studio_roster_invite', 'studio_spot_decision',
+    'studio_membership_request_created', 'studio_membership_request_decision',
+    'studio_contract_issued', 'studio_contract_signed', 'studio_contract_declined', 'studio_contract_terminated',
+    'studio_booking_created', 'studio_booking_cancelled', 'studio_claim_decision',
+    'supply_order_submitted', 'supply_order_status'
+]);
+const isInternalOnlyEvent = eventId => INTERNAL_ONLY_EVENTS.has(eventId) || /^(studio|supply)_/.test(String(eventId || ''));
 const fail = (status, error) => ({ ok: false, status, error });
 const same = (left, right) => !!left && !!right && String(left).toLowerCase() === String(right).toLowerCase();
 
@@ -43,6 +59,10 @@ function withLinks(payload, base, role) {
 
 /** Resolve trusted recipients and ownership from persisted business records. */
 async function resolveEmailContext(req, eventId, input, deps = {}) {
+    if (SERVER_ONLY_EVENTS.has(eventId)) return fail(403, 'Este correo lo envía solo el servidor.');
+    if (isInternalOnlyEvent(eventId)) {
+        return fail(403, 'Este correo lo envía la plataforma automáticamente.');
+    }
     const lookup = deps.read || read;
     const user = await (deps.resolveUser || resolveBearerUser)(req);
     const base = applicationBase(req);
@@ -152,4 +172,4 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
     }, base, CLIENT_EVENTS.has(eventId) ? 'artist' : 'client') };
 }
 
-module.exports = { resolveEmailContext, applicationBase, withLinks };
+module.exports = { resolveEmailContext, applicationBase, withLinks, SERVER_ONLY_EVENTS, INTERNAL_ONLY_EVENTS, isInternalOnlyEvent };

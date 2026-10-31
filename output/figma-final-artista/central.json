@@ -1,0 +1,146 @@
+{
+  "date": "28 oct 2026",
+  "branch": "feature/figma-final-artista",
+  "tag": "pre-figma-final-artista-20261028",
+  "base_commit": "f695f31",
+  "summary": [
+    "El Figma final tiene 107 frames únicos del flujo de artista, más algunas instancias repetidas que el lienzo usa como referencia entre flujos. Los 110 registros de este informe los cubren todos. 67 corresponden a pantallas que ya existían y se rediseñaron. 14 son pantallas creadas desde cero y 26 son estados nuevos (modales, pasos o variantes) que antes no existían. 3 ya coincidían con el Figma.",
+    "Fidelidad final después de dos rondas de auditoría independiente: 16 frames exactos, 92 de fidelidad alta (diferencias menores, documentadas en cada fila) y 2 parciales. Los parciales son los dos mapas de Invitaciones: el diseño usa la geografía Natural Earth y su archivo de datos no está en el repo.",
+    "Se eliminaron 6 rutas del artista que no aparecen en el Figma. Cada una redirige a la pantalla que la reemplaza, así que ningún link guardado queda roto.",
+    "Todo quedó en la rama local feature/figma-final-artista, sin push, sin merge a main y sin despliegue. Las 9 migraciones nuevas están escritas con su reversa, pero no se aplicaron a Supabase."
+  ],
+  "method": [
+    "Fuente única: archivo Figma “We Otzi Pantallas final” (fileKey w3JA83CcP5ISKjyOu87mx1), página “Flujo artistas”. Se leyó la estructura completa del canvas (frames, instancias, flechas y anotaciones) y cada frame se trató como el mockup de una pantalla o de un estado de pantalla: modal, paso de un wizard o variante.",
+    "Cada frame se asignó a una ruta existente de la web o a una ruta nueva. Las rutas del artista que no tienen frame se consideraron reemplazadas o eliminadas, según la instrucción del pedido.",
+    "La implementación se repartió en diez áreas que trabajaron en paralelo sobre la misma rama, cada una con archivos propios. Por frame: captura y specs del Figma (get_screenshot y get_design_context del MCP oficial), implementación sobre el design system existente (public/shared/css/ds) y la capa de datos PostgREST (window.WeotziData), y comparación lado a lado con una captura full-height de Chrome headless del preview local hasta que no quedaran diferencias visibles.",
+    "Verificación en el preview local seguro (npm run dev:safe, puerto 4647): sesión de artista ficticia y datos ficticios, sin contacto con Supabase real, sin emails y sin servicios externos. Las funciones nuevas que necesitan tablas nuevas tienen fixtures por área (public/shared/js/demo-fixtures/) para funcionar de punta a punta en ese entorno."
+  ],
+  "deleted_routes": [
+    {
+      "route": "/artist/profile/details",
+      "redirect_to": "/artist/account#perfil",
+      "reason": "El Figma no tiene una pantalla aparte para editar el perfil: la edición vive en el Centro de la cuenta, sección Perfil (801:568 y siguientes)."
+    },
+    {
+      "route": "/artist/profile/gallery",
+      "redirect_to": "/artist/profile (conserva ?artist=)",
+      "reason": "La galería pública es un bloque del perfil público (801:539). Los links que compartían clientes siguen funcionando porque el redirect conserva ?artist=<usuario>."
+    },
+    {
+      "route": "/artist/visitors",
+      "redirect_to": "/my-quotations/statistics",
+      "reason": "El mapa de visitantes no existe en el Figma. Las métricas de visitas pasaron a Estadísticas (801:543)."
+    },
+    {
+      "route": "/archive",
+      "redirect_to": "/my-quotations?alcance=archivadas",
+      "reason": "Las cotizaciones archivadas son un alcance del listado de cotizaciones, no una pantalla aparte."
+    },
+    {
+      "route": "/tutorial",
+      "redirect_to": "/my-quotations?demo=1&tour=1",
+      "reason": "El tutorial estático lo reemplaza el recorrido guiado del modo demo, que recorre las pantallas reales."
+    },
+    {
+      "route": "/landing-tatuador",
+      "redirect_to": "/bienvenida",
+      "reason": "La landing comercial para tatuadores no forma parte del flujo del artista del Figma. La captación vive en el sitio corporativo (landing/) y el ingreso al producto empieza en /bienvenida (797:269)."
+    }
+  ],
+  "notes": [
+    "Wallet (decisión de seguridad antes de producción): la migración 20261028150000_artist_wallet guarda el número de cuenta de retiro (CBU/IBAN/SWIFT) en texto plano en account_identifier. Antes de aplicarla hay que tokenizarlo con el proveedor de pagos o cifrarlo con Supabase Vault y guardar solo los últimos 4 dígitos. El archivo lo advierte en su encabezado.",
+    "Pasos manuales en Supabase (no se hicieron): (1) aplicar las 9 migraciones en el proyecto vivo flbgmlvfiejfttlawnfu, en orden y después de revisarlas; (2) cargar la plantilla templates/email/supabase-recovery.html en Auth → Email Templates → Reset Password (usa el código {{ .Token }} que pide la pantalla nueva); (3) activar Security notifications → Password changed con templates/email/supabase-password-changed.html para el correo de contraseña actualizada; (4) habilitar el proveedor Facebook y agregar su redirect URL si se quiere mantener ese botón del login.",
+    "Ingreso con Instagram: el Figma marca INSTAGRAM como opción recomendada del login, pero Supabase no tiene proveedor Instagram y Meta solo permite login con cuentas Business/Creator con revisión. Por eso el botón abre el registro rápido con importación de Instagram (/register-artist/?source=instagram): si el email ya tiene cuenta, el paso 02 lo avisa. Producto tiene que decidir si el login mantiene “Recomendado” sobre una opción que registra.",
+    "Páginas legales: el registro, el login y el footer enlazan a /legal/terms y /legal/privacy, que no existen y hoy devuelven 404. Hace falta el texto legal de la empresa.",
+    "Diferencias con el design system que se resolvieron a favor del Figma: radios de 20 px en /bienvenida, dos botones amarillos y sombra en reposo en el perfil público, y Space Grotesk en citas de Invitaciones. Conviene que Diseño confirme si el Figma actualiza el DS o si fueron licencias del mockup.",
+    "Texto legal del registro: se quitó “y la política de privacidad” en Crear cuenta porque el Figma no lo incluye. Legalmente conviene volver a agregarlo cuando existan las páginas legales.",
+    "Mapa de Invitaciones: el código ya decodifica TopoJSON de Natural Earth y dibuja las fronteras, pero falta el dato countries-110m.json del paquete npm world-atlas@2 (≈105 KB, licencia ISC, datos de dominio público). Bajar un archivo de terceros requiere tu aprobación, así que hoy usa la máscara de tierra de COBE.",
+    "El preview local (npm run dev:safe) comparte localStorage entre pestañas: si dos pestañas modifican los mismos datos ficticios, la última en escribir gana. Para probar flujos largos conviene una sola pestaña.",
+    "El soporte dejó de ser una burbuja flotante en las pantallas del artista: el Figma lo ubica en el Inbox (hilo de soporte) y en Ayuda del menú."
+  ],
+  "revert": [
+    "Todo el trabajo vive en la rama local feature/figma-final-artista, con un commit por área. No se hizo push, merge a main ni despliegue, y no se aplicó ninguna migración a Supabase.",
+    "Para descartarlo todo alcanza con volver a main. Para revertir una sola área, se revierte su commit. El tag pre-figma-final-artista-20261028 marca el punto exacto de partida."
+  ],
+  "revert_commands": [
+    "# Volver a la web anterior (la rama queda intacta por si se quiere retomar)",
+    "git switch main",
+    "",
+    "# Revertir solo un área dentro de la rama",
+    "git revert <commit-del-área>",
+    "",
+    "# Restaurar una pantalla eliminada (la redirección se desactiva sola)",
+    "git checkout pre-figma-final-artista-20261028 -- public/artist/visitors",
+    "",
+    "# Borrar la rama por completo",
+    "git switch main && git branch -D feature/figma-final-artista"
+  ],
+  "commits": [
+    [
+      "cbe3082",
+      "chore(demo): extensiones de fixtures por área para el Figma final del artista"
+    ],
+    [
+      "955c191",
+      "feat(rutas): redirecciones para pantallas del artista retiradas por el Figma final"
+    ],
+    [
+      "a0a0cfb",
+      "feat(artista): sin burbuja de soporte en el flujo del artista; íconos en el preview local"
+    ],
+    [
+      "a9e336a",
+      "feat(acceso): bienvenida, login, registro y recuperación según el Figma final"
+    ],
+    [
+      "4437e25",
+      "feat(dashboard): dashboard, topbar, footer e importación de Instagram según el Figma final"
+    ],
+    [
+      "979b4a8",
+      "feat(cotizaciones): listado de cotizaciones y cotización manual nueva"
+    ],
+    [
+      "ff227f0",
+      "feat(cotizaciones): expediente de cotización y notas de trabajo según el Figma final"
+    ],
+    [
+      "9e6a533",
+      "feat(calendario): calendario vinculado a cotizaciones según el Figma final"
+    ],
+    [
+      "8315fe2",
+      "feat(cuenta): centro de la cuenta del artista y wallet según el Figma final"
+    ],
+    [
+      "7dd2a43",
+      "feat(perfil): perfil público con galería integrada y estadísticas según el Figma final"
+    ],
+    [
+      "f0ed54c",
+      "feat(oportunidades): job board, postulaciones y spots según el Figma final"
+    ],
+    [
+      "50105db",
+      "feat(invitaciones): invitaciones de estudios con mapa y contacto según el Figma final"
+    ],
+    [
+      "54d4828",
+      "feat(travel): travel e inbox del artista según el Figma final"
+    ],
+    [
+      "f4108c3",
+      "feat(rutas): retirar las pantallas del artista que no están en el Figma final"
+    ],
+    [
+      "5e891e8",
+      "fix(calendario): crear cotización manual abre la hoja como cita con la fecha elegida"
+    ]
+  ],
+  "tests": [
+    "Suite completa (node --test \"tests/*.test.js\") sobre el estado commiteado: 621 tests, 617 pasan, 1 omitido y 3 fallan. Los 3 que fallan son de PowerShell 7 (scripts de onboarding y verificación de Dev) y ya fallaban antes de este trabajo: no tocan el flujo del artista.",
+    "Cada área sumó su archivo tests/figma-final-<área>.test.js con contratos de markup, estilos y modelos para cada frame, incluidos los arreglos de las rondas de auditoría.",
+    "Verificación independiente: 48 agentes en dos rondas por área. Un auditor comparó cada frame con una captura nueva, un corrector aplicó los arreglos y un escéptico intentó refutarlos. Los arreglos refutados en la última ronda (registro de sesiones, link del calendario, combobox del calendario y cabecera del job board) se corrigieron después y se midieron en el preview.",
+    "Redirecciones verificadas en el preview: cada ruta eliminada responde 301 a su reemplazo y conserva el query (?artist= en la galería). /quotations (alias del formulario de cliente) sigue respondiendo 200."
+  ]
+}

@@ -135,7 +135,10 @@
     const ready = Promise.all([
         loadScript('/shared/js/wo-demo-postgrest.js', 'WoDemoPostgrest'),
         loadScript('/shared/js/wo-demo-fixtures.js', 'WoDemoFixtures')
-    ]).then(() => {
+    ]).then(() => Promise.all(((window.WoDemoFixtures && window.WoDemoFixtures.EXTENSIONS) || []).map(name =>
+        // Extensiones de fixtures por área; un archivo ausente solo omite esa área.
+        loadScript('/shared/js/demo-fixtures/' + name + '.js', 'WoDemoFixtureExt_' + name).catch(() => null)
+    ))).then(() => {
         const fixtures = window.WoDemoFixtures.build(defaultIdentity);
         seedProfiles(fixtures.tables);
         fixtures.rpcs.get_artist_public_profile_preferences = () => ({ show_reviews: true, show_studio: true, show_availability: true, show_portfolio: true });
@@ -280,6 +283,7 @@
         }
         return blocked(path);
     }
+    const FEATHER_ICON = /^\/feather-icons@4\.29\.2\/dist\/icons\/[a-z0-9-]+\.svg$/;
     window.fetch = async function previewFetch(input, init) {
         const url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
         const method = String(init && init.method || input && input.method || 'GET').toUpperCase();
@@ -304,6 +308,11 @@
             return api(path, method, await bodyOf(input, init));
         }
         if (/\/(auth|storage|functions)\/v1(?:\/|$)/.test(path)) return blocked(path);
+        // Íconos del design system (wo-icons.js): SVG públicos y estáticos de una versión fija de Feather.
+        if (method === 'GET' && url.origin === 'https://unpkg.com' && FEATHER_ICON.test(url.pathname)) {
+            record('GET feather-icons', 'simulated', 'Íconos estáticos del design system.');
+            return nativeFetch(url.href, { method: 'GET', credentials: 'omit' });
+        }
         if (url.origin !== origin || !['GET', 'HEAD'].includes(method)) {
             record(method + ' ' + url.origin + path, 'blocked', 'Red externa o escritura no permitida en preview.');
             return json({ success: false, error: 'Operación real desactivada en preview.', preview: true }, 403);

@@ -1,0 +1,25 @@
+<section id="revertir" data-transition="fade" style="background:#16130F;color:#F6F3EA;font-family:'Inter', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;letter-spacing:4px;text-transform:uppercase;color:#F2B51C">100 % reversible</p>
+<h2 style="font-family:'Archivo Black', Arial, sans-serif;font-size:80px;font-weight:400;line-height:1.05;color:#F6F3EA">Nada salió de tu computadora.</h2>
+<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:32px">
+<div style="display:flex;flex-direction:column;gap:16px;padding:40px;border:2px solid #F6F3EA">
+<h3 style="font-family:'Archivo Black', Arial, sans-serif;font-size:36px;font-weight:400;color:#F2B51C">Una rama aparte</h3>
+<p style="font-size:28px;line-height:1.4;color:#D9D3C7">Todo vive en <b>feature/figma-final-artista</b>, con un commit por área. Main no cambió.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;padding:40px;border:2px solid #F6F3EA">
+<h3 style="font-family:'Archivo Black', Arial, sans-serif;font-size:36px;font-weight:400;color:#F2B51C">Un punto de partida</h3>
+<p style="font-size:28px;line-height:1.4;color:#D9D3C7">El tag <b>pre-figma-final-artista-20261028</b> marca el estado exacto anterior.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;padding:40px;border:2px solid #F6F3EA">
+<h3 style="font-family:'Archivo Black', Arial, sans-serif;font-size:36px;font-weight:400;color:#F2B51C">Base de datos intacta</h3>
+<p style="font-size:28px;line-height:1.4;color:#D9D3C7">Las migraciones nuevas están escritas, cada una con su reversa, pero ninguna se aplicó.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:32px 40px;background:#2A2520">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:28px;color:#F6F3EA">git switch main <span style="color:#9C948A">→ volver a la web anterior</span></p>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:28px;color:#F6F3EA">git revert &lt;commit-del-área&gt; <span style="color:#9C948A">→ deshacer una sola área</span></p>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:28px;color:#F6F3EA">git checkout pre-figma-final-artista-20261028 -- public/archive <span style="color:#9C948A">→ restaurar una pantalla eliminada</span></p>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:900px;font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;color:#9C948A">14 · Cómo revertir</p>
+<aside>Las pantallas eliminadas redirigen a su reemplazo solo mientras su carpeta no exista. Si se restaura la carpeta con git, la página original vuelve a servirse sola, sin tocar nada más.</aside>
+</section>

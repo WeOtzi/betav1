@@ -4,21 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
-    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>We Ötzi · Invitaciones</title>
+    <meta name="description" content="Invitaciones de estudios, mapa de estudios y contacto directo con cada estudio desde tu cuenta de artista.">
 
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
-    <link rel="stylesheet" href="/shared/css/studio-spots-ds.css">
     <link rel="stylesheet" href="/shared/css/artist-invitations-figma.css">
+    <link rel="stylesheet" href="/shared/css/invitations-studios.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="wo-app">
+<body class="wo-app inv-page">
 
     <!-- TopBar compartida de artista -->
     <weotzi-product-nav
@@ -35,19 +36,19 @@
         logout-class="inv-logout hidden">
     </weotzi-product-nav>
 
-    <main class="wo-container inv-shell">
+    <main class="inv-shell" id="inv-main">
 
-        <!-- Vista 1 · Listado -->
-        <div id="inv-feed-view">
+        <!-- Vista 1 · Listado de estudios (Figma 801:540) -->
+        <div id="inv-feed-view" class="inv-feed">
             <header class="inv-head">
-                <div>
-                    <span class="wo-eyebrow" id="inv-eyebrow">Invitaciones</span>
-                    <h1 class="inv-title">Los <span class="wo-highlight">estudios</span><br class="inv-title-break"> que te quieren<br class="inv-title-break"> en su equipo.</h1>
+                <div class="inv-head-main">
+                    <span class="inv-eyebrow" id="inv-eyebrow">Invitaciones</span>
+                    <h1 class="inv-title">Los <span class="inv-title-mark">estudios</span><br> que te quieren<br> en su equipo.</h1>
                     <p class="inv-sub" id="inv-sub">Cargando…</p>
                 </div>
                 <div class="inv-count">
                     <span class="inv-count-num" id="inv-count">00</span>
-                    <span class="wo-meta-s wo-faint">Invitaciones abiertas</span>
+                    <span class="inv-count-label">Invitaciones abiertas</span>
                 </div>
                 <nav class="inv-index" id="inv-index" aria-label="Índice de estudios"></nav>
             </header>
@@ -60,31 +61,101 @@
                     <button type="button" class="inv-tab" data-tab="rejected" role="tab" aria-selected="false">Rechazadas</button>
                 </div>
                 <span class="inv-bar-sep" aria-hidden="true"></span>
-                <select class="wo-select inv-sort" id="inv-sort" aria-label="Ordenar invitaciones">
-                    <option value="recent">Ordenar</option>
-                    <option value="oldest">Ordenar · más antiguas</option>
-                    <option value="studio">Ordenar · estudio A–Z</option>
-                </select>
-                <input type="search" class="wo-input inv-search" id="inv-search" placeholder="Buscar estudio o ciudad" aria-label="Buscar estudio o ciudad" autocomplete="off">
+                <label class="inv-sort">
+                    <span class="wo-sr-only">Ordenar invitaciones</span>
+                    <select id="inv-sort">
+                        <option value="recent">Ordenar</option>
+                        <option value="oldest">Más antiguas primero</option>
+                        <option value="studio">Estudio A–Z</option>
+                    </select>
+                    <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                </label>
+                <input type="search" class="inv-search" id="inv-search" placeholder="Buscar estudio o ciudad" aria-label="Buscar estudio o ciudad" autocomplete="off">
                 <span class="inv-bar-sep" aria-hidden="true"></span>
                 <div class="inv-legend" aria-hidden="true">
                     <span><i class="inv-dot inv-dot--pending"></i>Pendiente</span>
                     <span><i class="inv-dot inv-dot--active"></i>Aceptada</span>
                     <span><i class="inv-dot inv-dot--rejected"></i>Rechazada</span>
                 </div>
-                <a class="inv-map-btn" href="/explore">
-                    <i data-wo-icon="map" class="wo-icon-18" aria-hidden="true"></i> Mapa de estudios
+                <a class="inv-map-btn" id="inv-map-link" href="?vista=mapa" data-inv-nav="map">
+                    <i data-wo-icon="map-pin" aria-hidden="true"></i> Mapa de estudios
                 </a>
-                <button class="inv-preferences" id="inv-preferences" type="button" aria-label="Preferencias de invitaciones">
-                    <i data-wo-icon="settings" class="wo-icon-18" aria-hidden="true"></i>
-                </button>
+                <a class="inv-preferences" id="inv-preferences" href="/artist/account#notificaciones" aria-label="Preferencias de invitaciones">
+                    <i data-wo-icon="settings" aria-hidden="true"></i>
+                </a>
             </div>
 
-            <div id="invitations-list" class="inv-list"><em class="wo-muted">Cargando…</em></div>
+            <div id="invitations-list" class="inv-list" aria-live="polite"><p class="inv-loading">Cargando…</p></div>
         </div>
 
-        <!-- Vista 2 · Detalle de la invitación -->
-        <div id="inv-detail-view" class="inv-detail hidden"></div>
+        <!-- Vista 2 · Detalle y condiciones (Figma 801:541) -->
+        <div id="inv-detail-view" class="inv-detail" hidden></div>
+
+        <!-- Vista 3 · Mapa de estudios (Figma 2007:5792 / 2007:5793) -->
+        <section id="inv-map-view" class="ism" hidden aria-labelledby="ism-title">
+            <a class="ism-back" href="?" data-inv-nav="feed">
+                <i data-wo-icon="arrow-left" aria-hidden="true"></i> Volver a invitaciones
+            </a>
+            <header class="ism-head">
+                <div class="ism-head-text">
+                    <h1 class="ism-title" id="ism-title">Mapa de estudios</h1>
+                    <p class="ism-sub">Encontrá tu próximo lugar para tatuar.</p>
+                </div>
+                <div class="ism-status" aria-live="polite">
+                    <span class="ism-count" id="ism-count">00</span>
+                    <span class="ism-count-label"><span>Estudios</span><span id="ism-countries">0 países</span></span>
+                </div>
+            </header>
+            <form class="ism-filters" id="ism-filters" role="search" aria-label="Buscar y filtrar estudios">
+                <label class="ism-search">
+                    <i data-wo-icon="search" aria-hidden="true"></i>
+                    <span class="wo-sr-only">Buscar estudio o ciudad</span>
+                    <input type="search" id="ism-search" placeholder="Buscar estudio o ciudad" autocomplete="off">
+                </label>
+                <label class="ism-country">
+                    <span class="wo-sr-only">País</span>
+                    <select id="ism-country"><option value="">Todos los países</option></select>
+                    <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+                </label>
+                <div class="ism-kind" id="ism-kind" role="radiogroup" aria-label="Tipo de oportunidad">
+                    <button type="button" role="radio" aria-checked="true" data-kind="all">Todas</button>
+                    <button type="button" role="radio" aria-checked="false" data-kind="guest_spot">Guest spot</button>
+                    <button type="button" role="radio" aria-checked="false" data-kind="resident">Residencia</button>
+                </div>
+            </form>
+            <div class="ism-board">
+                <div class="ism-stage" id="ism-stage">
+                    <!-- Esfera y retícula (SVG) debajo; la tierra (WebGL) las tapa y las fronteras
+                         (canvas 2D) van encima, como en el Figma. Natural Earth 1:110m se activa con
+                         data-geography="/shared/geo/countries-110m.json" cuando el archivo esté vendorizado. -->
+                    <svg class="ism-grid" id="ism-grid" aria-hidden="true" focusable="false"></svg>
+                    <canvas class="ism-canvas" id="ism-canvas" aria-hidden="true"></canvas>
+                    <canvas class="ism-borders" id="ism-borders" aria-hidden="true"></canvas>
+                    <div class="ism-markers" id="ism-markers" aria-label="Estudios en el mapa"></div>
+                    <button type="button" class="ism-all" id="ism-all">
+                        <i data-wo-icon="map-pin" aria-hidden="true"></i> Ver todos
+                    </button>
+                    <div class="ism-zoom">
+                        <button type="button" id="ism-zoom-in" aria-label="Acercar"><i data-wo-icon="zoom-in" aria-hidden="true"></i></button>
+                        <button type="button" id="ism-zoom-out" aria-label="Alejar"><i data-wo-icon="zoom-out" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="ism-foot">
+                        <span class="ism-hint">Arrastrá para girar · Tocá un marcador</span>
+                        <div class="ism-legend" aria-hidden="true">
+                            <span><i class="ism-key ism-key--studio"></i>Estudio</span>
+                            <span><i class="ism-key ism-key--selected"></i>Seleccionado</span>
+                            <span><i class="ism-key ism-key--group">3</i>Grupo</span>
+                        </div>
+                    </div>
+                    <p class="ism-fallback" id="ism-fallback" hidden>El globo interactivo no está disponible en este navegador. Podés usar la lista de estudios.</p>
+                </div>
+                <aside class="ism-aside" id="ism-aside" aria-label="Estudios"></aside>
+            </div>
+            <p class="ism-source" id="ism-source">Geografía: máscara de tierra de COBE · escala aproximada.</p>
+        </section>
+
+        <!-- Vista 4 · Detalle de estudio ampliado (Figma 2007:5794) -->
+        <section id="inv-studio-view" class="isd" hidden aria-live="polite"></section>
     </main>
 
     <weotzi-product-footer></weotzi-product-footer>
@@ -94,10 +165,13 @@
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
-    <script src="/shared/js/data/clients-repo.js"></script>
-    <script src="/shared/js/email-client.js"></script>
-    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/data/studio-contracts-repo.js"></script>
+    <script src="/shared/js/data/invitations-repo.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/invitations-model.js"></script>
+    <script src="/shared/js/invitations-globe.js"></script>
+    <script src="/shared/js/invitations-map.js"></script>
+    <script src="/shared/js/invitations-studio.js"></script>
     <script src="/shared/js/artist-invitations.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>

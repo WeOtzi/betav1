@@ -29,6 +29,8 @@ Workflow: `7T2f3YNXeqFOjV0C` — `We Otzi Email Notifications`.
 
 Después de publicar y verificar el backend se activó autenticación con el header `X-Weotzi-Webhook-Token` en los 27 webhooks. El secreto existe únicamente como configuración privada `n8n_webhook_secret` (o `N8N_WEBHOOK_SECRET` en entorno) y en la credencial n8n `77cxyyUNUDbVnZvC`. Una consulta anónima comprobó que el secreto y `email_routing` devuelven cero filas. La versión activa `454c4843-98a5-41c1-91ec-d01bdfbf3ac5` fue reconsultada y confirma los 27 canales protegidos. Una petición sin credencial al canal de invitaciones respondió 403, sin enviar correo.
 
+**Pendiente (2026-10-30):** el evento `instagram_verification_code` (plantilla `instagram-verification`, nodo "Codigo Validacion Instagram") ya existe en el código pero todavía no tiene Webhook + emailSend en este workflow ni URL en `app_settings.n8n_events`. Mientras tanto la API responde `email_sent: false`. El evento está bloqueado en la ruta pública `/api/email/:eventId` (`SERVER_ONLY_EVENTS`). Detalle en `docs/VALIDACION-INSTAGRAM.md`.
+
 El backend solo confirma `smtp_accepted` cuando n8n devuelve `messageId`. Un HTTP 200 con un simple acuse de ejecución, HTML, un error JSON o destinatarios rechazados no se presenta como correo enviado. La aceptación SMTP no demuestra recepción en la bandeja del usuario.
 
 ## Recuperación de acceso

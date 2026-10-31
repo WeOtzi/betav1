@@ -1,6 +1,7 @@
 // ============================================================================
 // We Ötzi · /recover — recuperación de contraseña única (cliente + artista + beta)
-// Flujo 100% Supabase Auth con la anon key (frames Figma 243:2530 → 243:2778):
+// Figma final (oct 2026): 801:1104 → 801:1105 → 801:1106 → 801:1107.
+// Flujo 100% Supabase Auth con la anon key:
 //   1. Email  → auth.resetPasswordForEmail(email) con código OTP y enlace de retorno.
 //               Copy neutral anti-enumeración: nunca revelamos si el email existe.
 //   2. Código → auth.verifyOtp({ email, token, type: 'recovery' }) — crea sesión.
@@ -32,6 +33,21 @@
 
     // ---------- Helpers de DOM ----------
     const $ = (id) => document.getElementById(id);
+
+    // Prefijo de la app (/beta en producción, /preview/<id> en el preview local).
+    function appPath(path) {
+        const base = window.WEOTZI_BASE_PATH
+            ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(String(window.location.pathname || '')) ? '/beta' : '');
+        if (base && (path === base || String(path).indexOf(base + '/') === 0)) return path;
+        return base + path;
+    }
+
+    // QA del preview: ?step=1..4 abre ese paso sin backend. Solo preview/demo.
+    function isPreviewContext() {
+        if (window.WEOTZI_PREVIEW === true) return true;
+        try { return window.sessionStorage.getItem('wo_demo_mode') === '1'; } catch (_) { return false; }
+    }
 
     function setError(id, message) {
         const el = $(id);
@@ -91,9 +107,10 @@
     async function sendCode(email) {
         const client = sb();
         if (!client) throw new Error('config');
-        const base = window.WEOTZI_BASE_PATH || '';
+        // appPath detecta /beta por la URL aunque WEOTZI_BASE_PATH no esté
+        // definido; la URL resultante tiene que figurar en Redirect URLs de Supabase.
         const { error } = await client.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + base + '/recover?recovery=1'
+            redirectTo: window.location.origin + appPath('/recover?recovery=1')
         });
         if (error) {
             const msg = String(error.message || '').toLowerCase();
@@ -361,9 +378,9 @@
     async function resolveDestination() {
         try {
             const client = sb();
-            if (!client) return { role: 'default', url: '/inicio' };
+            if (!client) return { role: 'default', url: backToLoginPath() };
             const { data: { session } } = await client.auth.getSession();
-            if (!session) return { role: 'default', url: '/inicio' };
+            if (!session) return { role: 'default', url: backToLoginPath() };
 
             if (window.WeotziData && window.WeotziData.Artists) {
                 const { data: artist } = await window.WeotziData.Artists.getByUserId(session.user.id, 'user_id');
@@ -371,8 +388,8 @@
             }
             return { role: 'client', url: '/client/dashboard' };
         } catch (err) {
-            console.warn('Recover: no se pudo resolver el rol, vamos a /inicio:', err);
-            return { role: 'default', url: '/inicio' };
+            console.warn('Recover: no se pudo resolver el rol, vamos al login:', err);
+            return { role: 'default', url: backToLoginPath() };
         }
     }
 
@@ -380,17 +397,22 @@
         const btn = $('rc-success-cta');
         setBusy(btn, true, 'Un segundo…');
         const dest = await resolveDestination();
+        const url = appPath(dest.url);
         if (window.WoPostAuthLoader) {
-            window.WoPostAuthLoader.show({ role: dest.role, targetUrl: dest.url });
+            window.WoPostAuthLoader.show({ role: dest.role, targetUrl: url, variant: 'recover' });
         } else {
-            window.location.href = dest.url;
+            window.location.href = url;
         }
     }
 
     // ---------- Arranque ----------
-    function backToLoginUrl() {
+    function backToLoginPath() {
         const from = new URLSearchParams(window.location.search).get('from');
         return from === 'artist' ? '/artist/login' : '/client/login';
+    }
+
+    function backToLoginUrl() {
+        return appPath(backToLoginPath());
     }
 
     function init() {
@@ -425,6 +447,15 @@
 
         refreshEmailGate();
         renderStep(1);
+
+        const previewStep = Number(params.get('step'));
+        if (isPreviewContext() && previewStep >= 1 && previewStep <= 4) {
+            state.email = prefill || 'vos@email.com';
+            $('rc-code-email').textContent = state.email;
+            renderStep(previewStep);
+            if (previewStep === 2) startResendCountdown();
+            return;
+        }
         // Supabase validates the recovery token; ordinary sessions do not advance
         // unless this page was explicitly opened as the recovery-link destination.
         const client = sb();

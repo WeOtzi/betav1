@@ -351,7 +351,7 @@
     return '<section class="wo-mol wo-mol-profile-info" aria-label="Información de perfil">' +
       '<div class="wo-mol-profile-info__badges"><span>' + escapeHtml(p.verification) + '</span><span>' + escapeHtml(p.lifecycle) + '</span></div>' +
       '<p>' + escapeHtml(p.rate) + ' · ' + escapeHtml(p.styles) + ' · ' + escapeHtml(p.experience) + '</p>' +
-      '<a href="/artist/profile/details">Editar perfil →</a></section>';
+      '<a href="/artist/account#perfil">Editar perfil →</a></section>';
   }
 
   function renderProfile() {

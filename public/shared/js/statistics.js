@@ -1,9 +1,12 @@
 // ============================================
 // WE OTZI · Estadísticas del artista (/my-quotations/statistics)
-// Fidelidad Figma: flujo-artistas--11-estadisticas
-//   KPIs · Embudo · Evolución · Rendimiento · Actividad · Visitantes · Oportunidades
+// Fidelidad Figma final 801:543 "Estadísticas - Actividad y conversión" (oct 2026)
+//   KPIs · Embudo · Evolución · Rendimiento · Actividad · Oportunidades · Visitantes
 // Fuentes reales: quotations_db + artist_profile_visits estructurado +
-// artist_artwork_view_counts. Los eventos distinguen perfil, portfolio y obra.
+// artist_profile_visits_daily + artist_artwork_view_counts + invitaciones de
+// estudios + postulaciones a spots y al job board. Los eventos distinguen
+// perfil, portfolio y obra. Absorbe la información de /artist/visitors
+// (visitas, ciudades, visitantes identificados).
 // ============================================
 
 let quotations = [];
@@ -11,6 +14,7 @@ let profileVisits = [];
 let dailyVisits = [];
 let artworkCounts = [];
 let studioActivity = [];
+let jobBoardActivity = [];
 let charts = {};
 let _supabase = null;
 let currentArtistId = null;
@@ -72,20 +76,24 @@ function renderEyebrow() {
         .filter(date => !isNaN(date.getTime()))
         .sort((a, b) => b - a)[0];
     const period = latestDay || new Date();
-    setText('stats-eyebrow', `Estadísticas · ${MONTH_NAMES[period.getMonth()]} ${period.getFullYear()}`);
+    // Figma 122:10699: "ESTADÍSTICAS · Julio 2026" (mes con mayúscula inicial).
+    setText('stats-eyebrow', `ESTADÍSTICAS · ${MONTH_NAMES[period.getMonth()]} ${period.getFullYear()}`);
 }
 
+// Cliente singleton de la capa de datos (config-manager); no se recrea acá.
+// Se espera a que ConfigManager termine de leer la configuración (máx. 4 s).
 async function initializeSupabase() {
-    if (window.ConfigManager && window.ConfigManager.getSupabaseClient) {
-        _supabase = window.ConfigManager.getSupabaseClient();
+    if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') {
+        try {
+            await Promise.race([
+                window.ConfigManager.ready(),
+                new Promise(resolve => setTimeout(resolve, 4000))
+            ]);
+        } catch (err) {
+            console.warn('ConfigManager.ready failed:', err);
+        }
     }
-
-    if (!_supabase && window.supabase) {
-        const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
-        const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-        _supabase = window._supabase = window._supabase || window.supabase.createClient(supabaseUrl, supabaseKey);
-    }
-
+    _supabase = window.WeotziData?.getClient?.() || null;
     if (!_supabase) {
         console.error('Supabase client could not be initialized');
     }
@@ -114,7 +122,7 @@ async function loadStatisticsData() {
 
         currentArtistId = session.user.id;
 
-        const [allQuotes, visits, daily, works, studioEvents] = await Promise.all([
+        const [allQuotes, visits, daily, works, studioEvents, jobApplications] = await Promise.all([
             WeotziData.Quotations.listForArtist(currentArtistId, {
                 excludeArchived: false,
                 excludeInProgress: false
@@ -122,7 +130,8 @@ async function loadStatisticsData() {
             loadProfileVisits(currentArtistId),
             loadDailyVisits(currentArtistId),
             loadArtworkCounts(currentArtistId),
-            loadStudioActivity(currentArtistId)
+            loadStudioActivity(currentArtistId),
+            loadJobBoardActivity(currentArtistId)
         ]);
 
         quotations = allQuotes || [];
@@ -130,6 +139,7 @@ async function loadStatisticsData() {
         dailyVisits = daily;
         artworkCounts = works;
         studioActivity = studioEvents;
+        jobBoardActivity = jobApplications;
 
         renderEyebrow();
         renderKpis();
@@ -143,6 +153,7 @@ async function loadStatisticsData() {
         renderActivity();
         renderVisitors();
         renderInsights();
+        applyUrlState();
 
     } catch (error) {
         console.error('Error loading statistics:', error);
@@ -183,6 +194,12 @@ async function loadDailyVisits(artistId) {
         console.warn('No se pudieron leer los agregados diarios:', err);
         return [];
     }
+}
+
+// Postulaciones al job board (actividad reciente). Degrada a [] sin repo/tabla.
+async function loadJobBoardActivity(artistId) {
+    if (!WeotziData.ProfilePublic?.listJobBoardApplications) return [];
+    return WeotziData.ProfilePublic.listJobBoardApplications(artistId);
 }
 
 async function loadStudioActivity(artistId) {
@@ -255,8 +272,10 @@ function renderTrend(id, current, previous) {
         return;
     }
     const up = delta >= 0;
-    el.textContent = `${up ? '+' : ''}${delta}%`;
+    // Figma 122:10717: flecha de 12px (↗ sube · ↖ baja, como el mock) + porcentaje.
+    el.innerHTML = `<i data-wo-icon="${up ? 'arrow-up-right' : 'arrow-up-left'}" aria-hidden="true"></i><span>${up ? '+' : ''}${delta}%</span>`;
     el.className = `kpi-trend ${up ? 'trend-up' : 'trend-down'}`;
+    window.WoIcons?.hydrate?.(el);
 }
 
 // ============================================
@@ -307,14 +326,16 @@ function formatMoney(total, currency) {
     return `${currency} ${Math.round(total).toLocaleString('es-AR')}`;
 }
 
+// Figma: "$3,15M" · "US$4.820" (símbolo pegado y número europeo).
 function formatCompactMoney(total, currency) {
-    const amount = Number(total || 0);
-    if (amount < 1000000) return formatMoney(amount, currency);
-    const symbol = String(currency || '').toUpperCase() === 'ARS' ? '$' : `${String(currency || 'USD').toUpperCase()} `;
-    return `${symbol}${(amount / 1000000).toLocaleString('es-AR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    })}M`;
+    if (window.StatisticsFormat?.formatKpiMoney) return window.StatisticsFormat.formatKpiMoney(total, currency);
+    return formatMoney(total, currency);
+}
+
+// KPI de ingresos: siempre a 40px; los montos largos se compactan ("US$4,9K").
+function formatKpiMoneyCompact(total, currency) {
+    if (window.StatisticsFormat?.formatKpiMoneyCompact) return window.StatisticsFormat.formatKpiMoneyCompact(total, currency);
+    return formatCompactMoney(total, currency);
 }
 
 function revenueEntries(quotes) {
@@ -374,13 +395,21 @@ function renderKpis() {
     const revenue = aggregateAmount(revenueEntries(quotations));
     const revenueNow = aggregateAmount(revenueEntries(inWindow(quotations, 'created_at')));
     const revenuePrev = aggregateAmount(revenueEntries(inPrevious(quotations, 'created_at')));
-    setText('kpi-revenue', formatCompactMoney(revenue.total, revenue.currency));
+    setText('kpi-revenue', formatKpiMoneyCompact(revenue.total, revenue.currency));
     renderTrend('kpi-revenue-trend', revenueNow.total, revenuePrev.total);
 }
 
 // ============================================
 // 2 · Embudo de conversión
 // ============================================
+
+// Cada etapa sale de su propia fuente (visitas diarias o cotizaciones): la
+// tasa se topa en 100% para no mostrar conversiones imposibles (ej. 131%).
+function funnelStepRate(current, next) {
+    if (window.StatisticsFormat?.funnelRate) return window.StatisticsFormat.funnelRate(current, next);
+    if (!(current > 0)) return null;
+    return Math.min(100, Math.round((next / current) * 100));
+}
 
 function renderFunnel() {
     const container = document.getElementById('funnel');
@@ -397,7 +426,7 @@ function renderFunnel() {
 
     container.innerHTML = steps.map((step, index) => {
         const next = steps[index + 1];
-        const rate = next && step.value > 0 ? Math.round((next.value / step.value) * 100) : null;
+        const rate = next ? funnelStepRate(step.value, next.value) : null;
         return `
             <div class="funnel-step">
                 <div class="funnel-tile funnel-tile--${step.tone}">
@@ -453,6 +482,19 @@ function setupControls() {
             renderVisitors();
         });
     });
+}
+
+// Estados por URL para QA y enlaces directos:
+//   ?periodo=semana|mes|anio · ?metrica=visitas|solicitudes|reservas|ingresos ·
+//   ?visitantes=todos|clientes|estudios
+function applyUrlState() {
+    const params = new URLSearchParams(window.location.search);
+    const range = { semana: 'week', mes: 'month', anio: 'year', 'año': 'year' }[String(params.get('periodo') || '').toLowerCase()];
+    const metric = { visitas: 'visits', solicitudes: 'requests', reservas: 'bookings', ingresos: 'revenue' }[String(params.get('metrica') || '').toLowerCase()];
+    const visitors = { todos: 'all', clientes: 'client', estudios: 'studio' }[String(params.get('visitantes') || '').toLowerCase()];
+    if (range) document.querySelector(`#evolution-range [data-range="${range}"]`)?.click();
+    if (metric) document.querySelector(`#evolution-metrics [data-metric="${metric}"]`)?.click();
+    if (visitors) document.querySelector(`[data-visitor-filter="${visitors}"]`)?.click();
 }
 
 // Devuelve [{ start, end, label }] según el rango elegido.
@@ -515,16 +557,18 @@ const EVOLUTION_METRICS = {
         ),
         format: formatCount
     },
+    // Chip "Ingresos (miles)" del Figma: la serie va en miles (1,6 = 1.600) y
+    // el titular y el tooltip la muestran compacta ("US$3,8K").
     revenue: {
-        label: 'Ingresos',
+        label: 'Ingresos (miles)',
         value: (from, to) => {
             const inRange = quotations.filter((q) => {
                 const d = new Date(q.created_at);
                 return !isNaN(d.getTime()) && d >= from && d < to;
             });
-            return Math.round(aggregateAmount(revenueEntries(inRange)).total);
+            return Math.round(aggregateAmount(revenueEntries(inRange)).total / 100) / 10;
         },
-        format: (value) => formatMoney(value, resolveTargetCurrency(revenueEntries(quotations)))
+        format: (value) => formatKpiMoneyCompact(value * 1000, resolveTargetCurrency(revenueEntries(quotations)))
     }
 };
 
@@ -558,20 +602,21 @@ function renderEvolution() {
     charts.evolution = new Chart(canvas.getContext('2d'), {
         type: 'line',
         data: {
-            labels: buckets.map(b => b.label),
+            // Figma: eje en mayúsculas (FEB … JUL).
+            labels: buckets.map(b => b.label.toUpperCase()),
             datasets: [{
                 label: metric.label,
                 data: series,
                 borderColor: woToken('--blue-300', '#1E3FA6'),
                 backgroundColor: 'transparent',
-                borderWidth: 2,
+                borderWidth: 3,
                 tension: 0,
                 fill: false,
                 pointBackgroundColor: woToken('--white', '#FCFCFC'),
                 pointBorderColor: woToken('--blue-300', '#1E3FA6'),
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 5,
+                pointBorderWidth: 3,
+                pointRadius: 5,
+                pointHoverRadius: 6,
                 pointStyle: 'circle'
             }]
         },
@@ -790,42 +835,92 @@ function renderClientsSplit() {
 }
 
 function relativeStatsTime(value) {
+    if (window.StatisticsFormat?.formatActivityTime) return window.StatisticsFormat.formatActivityTime(value);
     const date = new Date(value);
     if (isNaN(date.getTime())) return '—';
     const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
-    if (minutes < 1) return 'Ahora';
-    if (minutes < 60) return `Hace ${minutes} min`;
+    if (minutes < 60) return minutes < 1 ? 'Ahora' : `Hace ${minutes} min`;
     const hours = Math.round(minutes / 60);
-    if (hours < 24) return `Hace ${hours} h`;
+    if (hours < 24) return `Hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
     const days = Math.round(hours / 24);
-    return days === 1 ? 'Ayer' : `Hace ${days} días`;
+    return `Hace ${days} ${days === 1 ? 'día' : 'días'}`;
 }
 
+function visitorTime(value) {
+    if (window.StatisticsFormat?.formatVisitorTime) return window.StatisticsFormat.formatVisitorTime(value);
+    return relativeStatsTime(value);
+}
+
+function visitorKeyOf(visit) {
+    if (!visit?.visitor_display_name || !visit?.visitor_type) return null;
+    return visit.visitor_user_id || `${visit.visitor_type}:${visit.visitor_display_name}`;
+}
+
+// Número de visita de cada visitante identificado en el momento de cada evento
+// ("visitó tu perfil por 3ª vez").
+function visitOrdinals() {
+    const ordinals = new Map();
+    const seen = {};
+    profileVisits
+        .slice()
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        .forEach((visit) => {
+            const key = visitorKeyOf(visit);
+            if (!key) return;
+            seen[key] = (seen[key] || 0) + 1;
+            ordinals.set(visit, seen[key]);
+        });
+    return ordinals;
+}
+
+function quoteAmount(quote) {
+    const amount = quote.final_budget_amount ?? quote.artist_budget_amount;
+    const currency = quote.final_budget_currency || quote.artist_budget_currency || 'USD';
+    return Number(amount) > 0 ? formatCompactMoney(amount, currency) : '';
+}
+
+/**
+ * Actividad reciente (Figma 801:543): visitas identificadas, solicitudes,
+ * cotizaciones aceptadas, reservas, invitaciones de estudios y postulaciones a
+ * spots y al job board. Hasta 6 eventos, como mucho 2 por tipo.
+ */
 function renderActivity() {
     const container = document.getElementById('stats-activity');
     if (!container) return;
-    const visitItems = profileVisits.slice(0, 25).map((visit) => {
-        const who = visit.visitor_display_name || 'Una persona';
+    const ordinals = visitOrdinals();
+    // Solo visitas de personas o estudios identificados (las anónimas ya suman en los KPIs).
+    const visitItems = profileVisits.filter(visit => visit.visitor_display_name).slice(0, 25).map((visit) => {
+        const who = visit.visitor_display_name;
         const kind = visit.event_kind || 'profile_view';
-        const action = kind === 'artwork_view'
-            ? `vio ${visit.artwork_title || 'un trabajo'}`
-            : (kind === 'portfolio_view' ? 'visitó tu portfolio' : 'visitó tu perfil');
+        const nth = ordinals.get(visit) || 1;
+        let action = 'visitó tu perfil';
+        if (kind === 'artwork_view') action = `vio ${visit.artwork_title || 'un trabajo'}`;
+        else if (kind === 'portfolio_view') action = 'visitó tu portfolio';
+        else if (nth > 1) action = `visitó tu perfil por ${window.StatisticsFormat?.visitOrdinal ? window.StatisticsFormat.visitOrdinal(nth) : `${nth}ª`} vez`;
         return { ts: visit.created_at, icon: kind === 'artwork_view' ? 'image' : 'eye', tone: 'neutral', text: `${who} ${action}` };
     });
     const quoteItems = quotations.slice(0, 25).map((quote) => {
         const name = quote.client_full_name || 'Un cliente';
         const style = styleNameOf(quote) || 'tatuaje';
         if (quote.quote_status === 'pending') {
-            return { ts: quote.created_at, icon: 'inbox', tone: 'blue', text: `Nueva solicitud: ${style.toLowerCase()} en ${quote.city || quote.client_city || 'tu ciudad'}` };
+            const city = quote.client_city_residence || quote.client_city || quote.city;
+            return { ts: quote.created_at, icon: 'inbox', tone: 'blue', text: `Nueva solicitud: ${style.toLowerCase()}${city ? ` en ${city}` : ''}` };
         }
         if (quote.quote_status === 'client_approved') {
-            const amount = formatMoney(quote.final_budget_amount, quote.final_budget_currency || 'ARS');
-            return { ts: quote.updated_at || quote.created_at, icon: 'check-circle', tone: 'green', text: `${name} aceptó tu cotización de ${amount}` };
+            const amount = quoteAmount(quote);
+            return { ts: quote.updated_at || quote.created_at, icon: 'check-circle', tone: 'green', text: `${name} aceptó tu cotización${amount ? ` de ${amount}` : ''}` };
         }
-        if (quote.quote_status === 'in_progress' || quote.quote_status === 'artist_completed' || quote.quote_status === 'completed') {
-            return { ts: quote.updated_at || quote.created_at, icon: 'calendar', tone: 'yellow', text: `Nueva reserva confirmada para ${name}` };
+        if (quote.quote_status === 'in_progress') {
+            const day = window.StatisticsFormat?.formatDayMonth?.(quote.client_preferred_date) || '';
+            return { ts: quote.updated_at || quote.created_at, icon: 'calendar', tone: 'yellow', text: day ? `Nueva reserva confirmada para el ${day}` : `Nueva reserva confirmada con ${name}` };
         }
-        return { ts: quote.updated_at || quote.created_at, icon: 'inbox', tone: 'blue', text: `Cotización enviada a ${name}` };
+        if (quote.quote_status === 'artist_completed' || quote.quote_status === 'completed') {
+            return { ts: quote.updated_at || quote.created_at, icon: 'award', tone: 'green', text: `Trabajo realizado con ${name}` };
+        }
+        if (quote.quote_status === 'client_rejected') {
+            return { ts: quote.updated_at || quote.created_at, icon: 'x-circle', tone: 'neutral', text: `${name} no aceptó tu cotización` };
+        }
+        return { ts: quote.updated_at || quote.created_at, icon: 'send', tone: 'blue', text: `Cotización enviada a ${name}` };
     });
     const studioItems = studioActivity.map((item) => {
         if (item.stats_kind === 'studio_invitation') {
@@ -837,17 +932,24 @@ function renderActivity() {
             };
         }
         const accepted = item.status === 'accepted' || item.status === 'approved';
-        return {
-            ts: item.decided_at || item.created_at,
-            icon: 'briefcase',
-            tone: 'blue',
-            text: accepted
-                ? `Tu postulación a ${item.studio_spots?.studios?.name || item.studio_spots?.title || 'un estudio'} fue aceptada`
-                : `Enviaste una postulación a ${item.studio_spots?.title || 'un spot'}`
-        };
+        const place = item.studio_spots?.studios?.name || item.studio_spots?.title || 'un estudio';
+        let text = `Te postulaste a ${item.studio_spots?.title || 'un spot'}`;
+        if (accepted) text = `Tu postulación a ${place} fue aceptada`;
+        else if (item.status === 'shortlisted') text = `Quedaste en la lista corta de ${place}`;
+        return { ts: item.decided_at || item.created_at, icon: 'briefcase', tone: 'blue', text };
+    });
+    const jobItems = jobBoardActivity.map((application) => {
+        const request = application.job_board_requests || {};
+        const title = request.display_title || request.tattoo_idea_title || 'una solicitud del job board';
+        const status = String(application.status || '').toLowerCase();
+        let text = `Te postulaste a "${title}"`;
+        if (status === 'accepted' || status === 'selected') text = `Tu postulación a "${title}" fue aceptada`;
+        else if (status === 'viewed') text = `${request.client_display_name || 'El cliente'} vio tu postulación a "${title}"`;
+        else if (status === 'rejected') text = `Tu postulación a "${title}" no fue seleccionada`;
+        return { ts: application.decided_at || application.viewed_at || application.created_at, icon: 'clipboard', tone: 'yellow', text };
     });
     const iconCounts = {};
-    const items = visitItems.concat(quoteItems, studioItems)
+    const items = visitItems.concat(quoteItems, studioItems, jobItems)
         .filter(item => !isNaN(new Date(item.ts).getTime()))
         .sort((a, b) => new Date(b.ts) - new Date(a.ts))
         .filter((item) => {
@@ -865,8 +967,8 @@ function renderActivity() {
 function aggregateVisitors() {
     const map = new Map();
     profileVisits.forEach((visit) => {
-        if (!visit.visitor_display_name || !visit.visitor_type) return;
-        const key = visit.visitor_user_id || `${visit.visitor_type}:${visit.visitor_display_name}`;
+        const key = visitorKeyOf(visit);
+        if (!key) return;
         const current = map.get(key) || {
             key,
             name: visit.visitor_display_name,
@@ -900,13 +1002,18 @@ function renderVisitors() {
         return;
     }
     const typeLabel = { client: 'Cliente', studio: 'Estudio', artist: 'Artista' };
+    const initials = (name) => (window.StatisticsFormat?.initialsOf
+        ? window.StatisticsFormat.initialsOf(name)
+        : name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase());
+    // Figma 801:543: nombre + tipo en una línea y la ciudad debajo; última visita
+    // en mono tenue y el contador de visitas en azul.
     body.innerHTML = rows.slice(0, 30).map((row) => `
         <tr>
-            <td data-label="Avatar"><span class="stats-visitor-avatar stats-visitor-avatar--${escapeHtml(row.type)}">${escapeHtml(row.name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase())}</span></td>
-            <td data-label="Visitante"><span class="stats-visitor-name"><strong>${escapeHtml(row.name)}</strong><span class="stats-visitor-type stats-visitor-type--${escapeHtml(row.type)}">${escapeHtml(typeLabel[row.type] || row.type)}</span></span><span class="stats-visitor-city">${escapeHtml(row.city)}</span></td>
+            <td data-label="Avatar"><span class="stats-visitor-avatar stats-visitor-avatar--${escapeHtml(row.type)}">${escapeHtml(initials(row.name))}</span></td>
+            <td data-label="Visitante"><span class="stats-visitor-person"><span class="stats-visitor-name-line"><strong>${escapeHtml(row.name)}</strong><span class="stats-visitor-type stats-visitor-type--${escapeHtml(row.type)}">${escapeHtml(typeLabel[row.type] || row.type)}</span></span><span class="stats-visitor-city">${escapeHtml(row.city)}</span></span></td>
             <td data-label="Intereses"><span class="stats-visitor-interests">${row.interests.length ? row.interests.slice(0, 3).map(escapeHtml).join(' · ') : '—'}</span></td>
-            <td data-label="Última visita"><time datetime="${escapeHtml(row.last)}">${escapeHtml(relativeStatsTime(row.last).replace('Ayer', 'Hace 1 día'))}</time>${row.count > 1 ? `<span class="stats-visitor-visits"><i data-wo-icon="clock" aria-hidden="true"></i>${formatCount(row.count)} visitas</span>` : ''}</td>
-            <td data-label="Solicitud">${row.requested ? '<span class="stats-requested">Solicitó</span>' : '<span class="stats-no-request">—</span>'}</td>
+            <td data-label="Última visita"><span class="stats-visitor-time"><time datetime="${escapeHtml(row.last)}">${escapeHtml(visitorTime(row.last))}</time>${row.count > 1 ? `<span class="stats-visitor-visits"><i data-wo-icon="clock" aria-hidden="true"></i>${formatCount(row.count)} visitas</span>` : ''}</span></td>
+            <td data-label="Solicitud">${row.requested ? '<span class="stats-requested">Solicitó</span>' : '<span class="stats-requested-empty">—</span>'}</td>
         </tr>`).join('');
 }
 
@@ -928,7 +1035,7 @@ function renderInsights() {
     const visitsDelta = deltaPercent(visitsNow, visitsPrev);
     if (visitsDelta !== null && visitsPrev > 0) {
         insights.push({
-            icon: visitsDelta >= 0 ? 'trending-up' : 'trending-down',
+            icon: visitsDelta >= 0 ? 'bar-chart-2' : 'trending-down',
             text: visitsDelta >= 0
                 ? `Tu perfil recibió un ${visitsDelta}% más de visitas este mes.`
                 : `Tu perfil recibió un ${Math.abs(visitsDelta)}% menos de visitas este mes.`
@@ -940,7 +1047,7 @@ function renderInsights() {
         insights.push({
             icon: 'zap',
             tone: 'yellow',
-            text: `${topStyle[0]} es el estilo con mayor crecimiento en tus visitas.`
+            text: `${topStyle[0]} es el estilo más pedido en tus solicitudes.`
         });
     }
 
@@ -954,12 +1061,17 @@ function renderInsights() {
         });
     }
 
-    const topCity = tally(quotations, q => q.city || q.client_city)[0] || tally(profileVisits, v => v.visitor_city || v.city)[0];
-    if (topCity) {
+    // Lo que se mide: la ciudad que más solicitudes manda (o, sin solicitudes
+    // con ciudad, la que más visitas identificadas aporta).
+    const requestCity = tally(quotations, q => q.client_city_residence || q.client_city || q.city)[0];
+    const visitCity = requestCity ? null : tally(profileVisits, v => v.visitor_city || v.city)[0];
+    if (requestCity || visitCity) {
         insights.push({
             icon: 'map-pin',
             tone: 'red',
-            text: `Los clientes de ${topCity[0]} convierten mejor que el resto.`
+            text: requestCity
+                ? `${requestCity[0]} es la ciudad que más te escribe.`
+                : `${visitCity[0]} es la ciudad que más visita tu perfil.`
         });
     }
 

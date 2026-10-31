@@ -1,0 +1,221 @@
+{
+  "area": "travel-inbox",
+  "frames": [
+    {
+      "node": "801:1076",
+      "name": "Artista / Travel - Mapa e itinerario",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Globo wireframe del Figma como modo de <weotzi-travel-globe mode=\"wireframe\"> con las medidas de los vectores del SVG 68:11939: retícula de 1.96px en --neutral-400; rutas de 2.94px al 25% desde la base hacia TODAS las paradas de la vista (pendientes punteadas 9.6/7.7 en amarillo, confirmadas en tinta y finalizadas en arena --neutral-300; las canceladas no se dibujan); paradas de Ø19.6 al 25%; parada seleccionada de Ø27.5 con ruta amarilla de 5.89px punteada 9.7/7.8 que arranca con medio trazo sobre la base; base de Ø23.5 en #FAF8F3 (--neutral-100, el color exacto del Figma) debajo de las rutas; etiqueta 'TU BASE · BS. AS.' en mono 17.66px a 43px del centro; sin halo ni tooltip. ?parada=<trip_id> resalta una parada en el globo y la agenda (el frame resalta Madrid); sin parámetro se resalta la próxima. Contenedor de 1280px, tabs, filtros y cronología como la ronda 1.",
+      "figma_png": "output/figma-final-artista/frames/801-1076_travel-mapa-itinerario.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1076.png",
+      "state_url": "/artist/travel/?parada=0000c0de-0000-4000-8000-e70000000004",
+      "fidelity": "alta",
+      "fidelity_notes": "Estilos del globo medidos contra el Figma (Ø27 px de la seleccionada, Ø23 px de la base, 3 rutas finalizadas grises, 8 paradas = 2/3/3). Queda una diferencia de posiciones: el globo usa proyección ortográfica real con la base abajo al centro, así que Europa queda agrupada arriba a la derecha y Montevideo cae pegado a la base (el Figma ubica las paradas como ilustración). La selección por defecto es la próxima parada (Barcelona); el estado del frame (Madrid resaltada) se reproduce con ?parada=. Topbar con badges y footer crema vienen de <weotzi-product-nav>/<weotzi-product-footer> (área Dashboard)."
+    },
+    {
+      "node": "801:1077",
+      "name": "Artista / Travel - Crear viaje",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Modal con borde de 1px y sombra dura (único modal que la lleva), sin campo enfocado al abrir, placeholders en --neutral-400, fechas sin ícono nativo (todo el campo abre el selector) y notas sin grip de redimensión.",
+      "figma_png": "output/figma-final-artista/frames/801-1077_travel-crear-viaje.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1077.png",
+      "state_url": "/artist/travel/?modal=crear",
+      "fidelity": "alta",
+      "fidelity_notes": "#757575 del Figma no existe como token: se usa --neutral-400 (#5A5449), el más cercano con buen contraste. Captura rehecha en la ronda 2 porque el globo del fondo ahora incluye las rutas finalizadas."
+    },
+    {
+      "node": "801:1078",
+      "name": "Artista / Travel - Viaje agregado",
+      "route": "/artist/travel",
+      "result": "estado-nuevo",
+      "summary": "Tarjeta 'Resumen del viaje' con borde de 1px, cabecera de 48px (etiqueta --neutral-100, estado blanco), cuerpo con 20px de aire, filas de 43px con divisores dentro del padding, 'Creado manualmente' en mono 12px; eyebrow y bajada en gris como el Figma; 'Agregar otro viaje' con borde de 1px.",
+      "figma_png": "output/figma-final-artista/frames/801-1078_travel-viaje-agregado.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1078.png",
+      "state_url": "/artist/travel/?agregado=0000c0de-0000-4000-8000-e70000000001",
+      "fidelity": "alta",
+      "fidelity_notes": "La captura usa el viaje de Barcelona (Confirmado · Guest Spot); el mockup muestra Lisboa · Planificado · Convención (datos de ejemplo)."
+    },
+    {
+      "node": "801:1079",
+      "name": "Artista / Travel - Detalle y checklist del viaje",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Íconos de documentos del Figma ('copy' para Pasaje y Contrato, 'home' para Reserva de hotel), títulos sin negrita sintética de Archivo Black y feedback visible en las acciones: toast al pedir una vinculación, lista 'Otras solicitudes de vinculación' con su estado y toasts de error.",
+      "figma_png": "output/figma-final-artista/frames/801-1079_travel-detalle-checklist.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1079.png",
+      "state_url": "/artist/travel/?trip=0000c0de-0000-4000-8000-e70000000001",
+      "fidelity": "alta",
+      "fidelity_notes": "Banda oscura inferior del Figma = footer compartido (<weotzi-product-footer>, área Dashboard): se ve el footer crema con columnas."
+    },
+    {
+      "node": "801:1080",
+      "name": "Artista / Travel - Editar datos del viaje",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Modal con borde de 1px sin sombra, secundarios con borde de 1px, sin foco inicial en Ciudad y mensaje de error visible si falla el guardado.",
+      "figma_png": "output/figma-final-artista/frames/801-1080_travel-editar-datos.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1080.png",
+      "state_url": "/artist/travel/?trip=0000c0de-0000-4000-8000-e70000000001&modal=editar",
+      "fidelity": "alta",
+      "fidelity_notes": "En el Figma el encabezado de fondo dice 'CONFIRMADO' mientras el frame base dice 'PENDIENTE' (inconsistencia del mockup); se muestra el dato real."
+    },
+    {
+      "node": "801:1081",
+      "name": "Artista / Travel - Vincular un estudio",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Buscador con lupa en --neutral-300 a 18px y texto a 44px que el foco del DS ya no pisa; el modal abre sin foco en el buscador (campo crema con borde de 1px como el Figma), filtros con 10px de separación, error visible si falla la solicitud y toast 'Solicitud enviada a <estudio>'.",
+      "figma_png": "output/figma-final-artista/frames/801-1081_travel-vincular-estudio.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1081.png",
+      "state_url": "/artist/travel/?trip=0000c0de-0000-4000-8000-e70000000001&modal=vincular",
+      "fidelity": "alta",
+      "fidelity_notes": "Archivo Black a 18px junta los puntos de la i por diseño de la fuente; ya no hay negrita sintética."
+    },
+    {
+      "node": "801:1082",
+      "name": "Artista / Travel - Cambiar fechas",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Sin foco inicial (no se resalta el primer segmento), sin ícono nativo de calendario, borde de 1px y 20px entre bloques.",
+      "figma_png": "output/figma-final-artista/frames/801-1082_travel-cambiar-fechas.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1082.png",
+      "state_url": "/artist/travel/?trip=0000c0de-0000-4000-8000-e70000000001&modal=fechas",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    },
+    {
+      "node": "801:1083",
+      "name": "Artista / Travel - Compartir itinerario",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "URL pública construida con el origen real de la app + prefijo de montaje (/travel/t/<slug> lo sirve server.js), también en mailto y wa.me; el viaje de las fixtures no está compartido, así que el pie muestra solo 'Cerrar' como el Figma; 'Copiar' de 44px en crema con borde de 1px.",
+      "figma_png": "output/figma-final-artista/frames/801-1083_travel-compartir.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1083.png",
+      "state_url": "/artist/travel/?trip=0000c0de-0000-4000-8000-e70000000001&modal=compartir",
+      "fidelity": "alta",
+      "fidelity_notes": "'Desactivar enlace' sigue existiendo, pero solo aparece cuando el itinerario ya es público (estado que el Figma no dibuja); decisión de producto pendiente. En producción la URL será https://beta.weotzi.com/travel/t/<slug>."
+    },
+    {
+      "node": "801:1084",
+      "name": "Artista / Travel - Confirmar cancelación",
+      "route": "/artist/travel",
+      "result": "rediseñada",
+      "summary": "Botón destructivo en --system-error (#E42121, el rojo del Figma), modal con borde de 1px sin sombra y error visible si falla la cancelación.",
+      "figma_png": "output/figma-final-artista/frames/801-1084_travel-confirmar-cancelacion.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1084.png",
+      "state_url": "/artist/travel/?trip=0000c0de-0000-4000-8000-e70000000001&modal=cancelar",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    },
+    {
+      "node": "801:1085",
+      "name": "Artista / Inbox - Conversaciones y seguimiento",
+      "route": "/artist/inbox",
+      "result": "rediseñada",
+      "summary": "El enlace profundo lleva la fila activa a la vista dentro de la lista; contexto con rutas que respetan el base path; hilo de Spot coherente con Postulaciones (Residencia · Barcelona, fechas pedidas en la postulación); composer con íconos de 16px en gris, contador circular de 18px, resumen cada 25px y horas de lista con día de la semana ('lun', 'vie', 'ayer').",
+      "figma_png": "output/figma-final-artista/frames/801-1085_inbox.png",
+      "impl_png": "output/figma-final-artista/shots/travel-inbox/801-1085.png",
+      "state_url": "/artist/inbox/?thread=0000c0de-0000-4000-8000-a30000000001",
+      "fidelity": "alta",
+      "fidelity_notes": "Sin parámetro el Inbox abre en 'Elegí una conversación' (abrir uno solo marcaría mensajes como leídos sin acción del artista). La lista tiene más hilos que el mockup (26, uno por postulación como hace el trigger real). El hilo 'Soporte We Ötzi' sigue en 'Todos' y el footer compartido aparece debajo: ver missing_functions."
+    }
+  ],
+  "removed_in_page": [
+    "Travel · hero: flechas anterior/siguiente y contador '1 / 3' (#tv-hero-previous/#tv-hero-next/#tv-hero-position)",
+    "Travel · globo: tarjeta 'Destino seleccionado' (fechas, estudio, dirección, resumen, ID, 'Ver viaje')",
+    "Travel · globo: controles ↑/↓ con contador '01 / 03', botón 'Reiniciar vista', tira de paradas inferior y avión animado",
+    "Travel · globo: botón visible 'Pausar animación' (queda solo para teclado, visible con foco, por WCAG 2.2.2)",
+    "Travel · crear viaje: texto de ayuda visible bajo 'Estudio (opcional)' (queda como sr-only)",
+    "Travel · cronología: caja amarilla de selección del ítem activo (queda subrayado)",
+    "Travel · detalle: forzado de la etiqueta 'Confirmado' en el encabezado al abrir modales",
+    "Inbox · panel de contexto: bloques genéricos 'Contacto', 'Asunto' y 'Conversación: Activa' cuando la conversación trae contexto de dominio",
+    "Inbox · panel de contexto: enlace roto '/artist/studios' (ruta inexistente)",
+    "Travel · detalle: data-modal-initial-focus en los siete diálogos (el foco inicial ahora va al diálogo, sin campo resaltado)",
+    "Travel · cronología: subrayado de la parada seleccionada (el Figma no la marca)",
+    "Travel · fechas: ícono nativo de calendario de Chrome (transparente sobre todo el campo, que sigue abriendo el selector)"
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Revocar enlace público del itinerario",
+      "detail": "El frame 801:1083 no tiene control para desactivar un enlace ya publicado. 'Desactivar enlace' se mantiene solo cuando el itinerario es público (las fixtures dejan Barcelona sin publicar para reproducir el mockup). Decidir si se agrega al Figma o se acepta como excepción.",
+      "severity": "media"
+    },
+    {
+      "title": "Soporte en 'Todos' del Inbox",
+      "detail": "El Figma no tiene categoría Soporte (el filtro ya está oculto) pero el hilo 'Soporte We Ötzi' aparece en 'Todos'. No se excluyó porque sería la única forma de leer las respuestas del equipo de soporte; decisión de producto.",
+      "severity": "media"
+    },
+    {
+      "title": "Topbar y footer compartidos (área Dashboard)",
+      "detail": "Badges de COTIZACIONES/Ö/INBOX que el Figma no muestra, footer crema con columnas (1079–1084 tienen una banda oscura lisa; 1076–1078 y 1085, ninguno). Son <weotzi-product-nav>/<weotzi-product-footer>: no se tocan desde travel-inbox.",
+      "severity": "baja"
+    },
+    {
+      "title": "Conversación abierta por defecto en el Inbox",
+      "detail": "El frame muestra un hilo abierto; la página abre la lista y el hilo solo con ?thread=… o al hacer click, para no marcar como leído sin acción del artista.",
+      "severity": "baja"
+    },
+    {
+      "title": "Abrir documentos en el preview",
+      "detail": "Los documentos del viaje usan URLs firmadas del bucket privado artist-trip-docs; en el preview (sin Storage real) el botón abrir no puede servir el PDF.",
+      "severity": "baja"
+    },
+    {
+      "title": "Estado de la postulación de Costa Ink",
+      "detail": "El panel del Inbox muestra 'Postulación aceptada' (literal del Figma 801:1085) mientras Postulaciones lista esa postulación como preseleccionada con contraoferta pendiente (fixtures de oportunidades). Con datos reales el contexto lo escribe el trigger con el estado vigente.",
+      "severity": "baja"
+    }
+  ],
+  "backend": [],
+  "copy_fixes": [
+    "'ESPERANDO confirmación' (capa mixta en el Figma) → 'Esperando confirmación' (mayúsculas por CSS)",
+    "Se mantiene literal '¿Estás seguro que querés cancelar este viaje?' (queísmo; sugerencia: '¿Estás seguro de que querés…')",
+    "Convención: etiqueta del campo 'Lugar' → 'Lugar (opcional)' (el Figma marca el campo como opcional)",
+    "Itinerario público: 'Guest spot' → 'Guest Spot' (igual que el resto de Travel)",
+    "Inbox Costa Ink: 'residencia de septiembre' → mes calculado desde las fechas de la postulación (fixtures)",
+    "Inbox Zorro Rojo: 'guest spot en septiembre' → mes de la ventana de guest del estudio (fixtures)"
+  ],
+  "missing_assets": [],
+  "files_changed": [
+    "public/artist/travel/index.html",
+    "public/artist/inbox/index.html",
+    "public/travel/share/index.html",
+    "public/shared/css/artist-travel-ds.css",
+    "public/shared/css/artist-inbox-ds.css",
+    "public/shared/css/weotzi-travel-globe.css",
+    "public/shared/js/artist-travel.js",
+    "public/shared/js/weotzi-travel-globe.js",
+    "public/shared/js/travel-dashboard-model.js",
+    "public/shared/js/travel-form-model.js",
+    "public/shared/js/travel-share.js",
+    "public/shared/js/artist-inbox.js",
+    "public/shared/js/demo-fixtures/travel-inbox.js",
+    "tests/travel-document-storage-contract.test.js",
+    "tests/travel-figma-ui-contract.test.js",
+    "tests/travel-global-globe.test.js"
+  ],
+  "files_created": [
+    "public/shared/js/inbox-deeplink.js",
+    "tests/figma-final-travel-inbox.test.js"
+  ],
+  "tests": "node --test \"tests/*.test.js\": 606 tests · 602 pass · 3 fail (solo los 3 de PowerShell 7 preexistentes). Área travel/inbox: tests/travel-*.test.js + tests/figma-final-travel-inbox.test.js = 84/84 pass (1 test nuevo de la ronda 2: buildGlobeDestinations, geocodificación con includePast, medidas del SVG, rutas finalizadas, escalado a 390px y ?parada=).",
+  "notes": [
+    "Inbox · enlaces profundos (public/shared/js/inbox-deeplink.js): ?thread=<inbox_thread_id|clave|context_id>, ?quote=<quote_id> (hilo legacy de chat o hilo unificado con context_type quotation/context.quote_id), ?opportunity=jobboard|spot&application=<id> (si no hay hilo abre el filtro Job Board/Spots), ?trip=<trip_id>, ?filter=<categoría>. Un hilo archivado se abre dentro de 'Archivados'. Respeta los enlaces existentes de quotation-detail-figma.js (?quote=) y artist-applications.js (?quote&opportunity&application).",
+    "Travel · estados por URL: ?modal=crear, ?agregado=<trip_id>, ?trip=<id>&modal=editar|fechas|vincular|compartir|cancelar|adjuntar, ?parada=<trip_id> (dashboard con esa parada resaltada en el globo y la agenda; 801:1076 = Madrid 0000c0de-0000-4000-8000-e70000000004). El parámetro modal se sincroniza con replaceState al abrir/cerrar y la URL conserva el prefijo del preview.",
+    "Fixtures del área: 8 viajes (2/3/3), Barcelona con vínculo pendiente, 10 tareas (3 hechas), 3 documentos, Passport Buenos Aires/São Paulo/Bogotá; RPC de Travel alineadas con el contrato real (checklist canónica de 10, estado 'esperando_confirmacion', eventos 'nota'); 10 hilos nuevos de Inbox y el hilo de Spot base (Costa Ink) con el contexto exacto del frame. Si el preview muestra datos viejos, usar 'Reiniciar datos'.",
+    "Sin backend nuevo: el esquema de Travel (20260830*) y del Inbox (20260829153500) ya cubre todo; el bloque de timestamps 202610281900xx–202610281959xx quedó sin usar.",
+    "docs/TRAVEL-FIGMA-20260830.md (fuera de mi lista de archivos) describe todavía las flechas del hero y el flujo 'Copiar ahora' en dos clicks; conviene actualizarlo.",
+    "Contraste: los textos meta en #b9ae98 (--neutral-300) sobre crema son literales del Figma (≈2.1:1); los placeholders del Inbox pasaron a --neutral-400. Se corrigió el hover de 'Crear viaje' (texto tinta sobre azul → blanco sobre --blue-500).",
+    "Corrección ronda 1 (auditoría independiente): globo wireframe, buscador del vincular, overlay alineado con la nav real (--tvm-top), URL pública con el origen de la app, modales de 1px sin sombra, rojo #E42121, títulos sin negrita sintética, contenedor de 1280px, feedback de errores/toasts, scroll al hilo del enlace profundo, base path en enlaces del contexto, contexto de estudio (motivo, perfil, sin etiqueta repetida, enlaces en mensajes, iniciales solo con letras) y fixtures coherentes con Postulaciones.",
+    "Globo: <weotzi-travel-globe mode=\"wireframe\"> (Travel lo usa por defecto) dibuja un SVG en px reales y lo rehace con ResizeObserver; las paradas son botones accesibles superpuestos que abren el viaje. Sin el atributo, el componente sigue siendo el globo COBE (WebGL) para otros usos.",
+    "Itinerario público /travel/t/<slug> en el preview: ahora con montevideo-ink-society (viaje finalizado publicado en las fixtures). Barcelona conserva su slug pero sin publicar, como el frame 801:1083. Captura: output/figma-final-artista/shots/travel-inbox/travel-share-publico.png.",
+    "Fixtures del Inbox: el hilo huérfano 'Aurora Ink Collective' (Job Board sin postulación) se reemplazó por un hilo por cada postulación de Job Board y de Spot que no tenía uno, con la misma forma que crean los triggers inbox_from_job_board_application / inbox_from_spot_application. 'Ver conversación' de Postulaciones abre siempre un hilo (p. ej. ?opportunity=jobboard&application=0000c0de-0000-4000-8000-fa2000000001).",
+    "Inbox · studio_contact: bloque 'Motivo' (reason_label), CTA 'Ver perfil del estudio' → /studio/profile?studio=<slug|id>, nombre del estudio sin la etiqueta 'Estudio' repetida y rutas/URLs dentro de los mensajes como enlaces (las rutas internas con base path).",
+    "wo-tour-steps.js no requirió cambios (los selectores de Travel e Inbox se mantienen).",
+    "Corrección ronda 2 (globo 801:1076): el globo ya no se alimenta con buildUpcomingDestinations (solo próximos) sino con TravelDashboardModel.buildGlobeDestinations (próximos primero y después el historial, sin cancelados), así que las finalizadas se dibujan en gris; la agenda resumida sigue mostrando solo próximos. La geocodificación (Google, solo con API key) incluye las paradas pasadas (includePast) para que no aparezca 'N paradas no tienen coordenadas'. Medidas del SVG tomadas de los vectores del Figma (no del PNG) y escaladas con el radio del globo (a 390px: paradas Ø11.8, seleccionada Ø16.5). La selección elegida por el artista (agenda, cronología, globo o ?parada=) se recuerda aunque un filtro la oculte; mientras tanto el globo resalta la próxima vigente (o la finalizada más reciente si no hay próximas).",
+    "Hallazgo de la auditoría ronda 2 corregido en parte de su premisa: la base del Figma no es blanca sino #FAF8F3 (fill del vector 68:11946), que es --neutral-100; se mantiene ese color. El 'núcleo amarillo' del Figma es el primer medio trazo de la ruta seleccionada pintado sobre la base, y así quedó implementado (se quitó el círculo amarillo aparte)."
+  ]
+}

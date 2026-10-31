@@ -1,0 +1,257 @@
+{
+  "area": "cuenta",
+  "frames": [
+    {
+      "node": "801:565",
+      "name": "Cuenta - Mi perfil y redes sociales",
+      "route": "/artist/account#perfil",
+      "result": "rediseñada",
+      "summary": "Sidebar de 8 secciones con los nombres e íconos del Figma, banner 254px + foto superpuesta, Idiomas como selector múltiple, redes en filas completas y botón azul justo después de Sitio web. 'Oficio y tarifa' (estilos, experiencia, tarifa, WhatsApp) salió del formulario: queda plegado debajo de GUARDAR CAMBIOS con su propio botón.",
+      "figma_png": "output/figma-final-artista/frames/801-565_cuenta-mi-perfil.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-565.png",
+      "state_url": "/artist/account/#perfil · /artist/account/?vista=oficio#perfil (Oficio y tarifa abierto, captura 801-565-oficio.png)",
+      "fidelity": "alta",
+      "fidelity_notes": "Hasta GUARDAR CAMBIOS coincide con el frame a ±3px (banner 254px, dropzones con fondo y borde neutros del Figma, ítem activo #EEF3FF). Debajo queda la línea plegada 'Oficio y tarifa', que no está en el Figma: es la única edición de estilos/tarifa/WhatsApp tras retirar /artist/profile/details (desvío pendiente de aprobación). Topbar con contadores y footer de producto son del área Dashboard. 'or browse files' → 'o buscá archivos'. Datos de preview en lugar de los del mockup."
+    },
+    {
+      "node": "801:566",
+      "name": "Cuenta - Gestionar portafolio",
+      "route": "/artist/account#portafolio",
+      "result": "rediseñada",
+      "summary": "Grilla 4×257px con mínimo 8 casilleros (vacíos = dropzone neutra del Figma), 'Agregar trabajo' e 'Importar Instagram'. Las herramientas de cada trabajo (categoría, mover, quitar) ya no se ven en reposo: aparecen al pasar el mouse o con foco, y siempre en pantallas táctiles.",
+      "figma_png": "output/figma-final-artista/frames/801-566_cuenta-portafolio.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-566.png",
+      "state_url": "/artist/account/#portafolio",
+      "fidelity": "alta",
+      "fidelity_notes": "En reposo la grilla coincide con el Figma (que solo dibuja casilleros vacíos). La barra de herramientas por trabajo aparece en hover/foco (sin diseño propio en el Figma). La importación de Instagram usa el modal compartido instagram-import.js (estilo propio, no Bauhaus)."
+    },
+    {
+      "node": "801:568",
+      "name": "Cobros - Wallet y movimientos",
+      "route": "/artist/account#cobros",
+      "result": "creada",
+      "summary": "We Ötzi Wallet: estado de cuenta, saldo disponible + 4 estados (bloque de 1082px, 50/50 como el Figma), próximas liberaciones, actividad filtrable, retiro rápido que sigue al destino predeterminado, fondos bloqueados, destinos de retiro (tercera línea en mono chica gris), promo We Ötzi Card y facturación. Datos de artist_wallet_movements / artist_payout_destinations (migración no aplicada) con modo derivado desde cotizaciones si no existen.",
+      "figma_png": "output/figma-final-artista/frames/801-568_cobros-wallet.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-568.png",
+      "state_url": "/artist/account/#cobros",
+      "fidelity": "alta",
+      "fidelity_notes": "Montos y nombres salen de las fixtures (cierran entre sí). Bloque de saldo en x 314–1396 como el frame. 'Ver todas' y 'Ver toda la actividad' despliegan la lista en la misma página (no hay pantalla aparte en el Figma). Topbar/footer: área Dashboard."
+    },
+    {
+      "node": "801:570",
+      "name": "Cobros - We Ötzi Card - Aviso de disponibilidad",
+      "route": "/artist/account#cobros",
+      "result": "estado-nuevo",
+      "summary": "Modal de la Card con beneficios (viñetas cuadrado/triángulo/círculo dibujadas con CSS, 10×10) y correo prellenado; 'Avisame cuando esté disponible' registra el interés en wallet_card_waitlist y, como respaldo, en user_preferences. DEBIT legible en la tarjeta.",
+      "figma_png": "output/figma-final-artista/frames/801-570_cobros-card-aviso.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-570.png",
+      "state_url": "/artist/account/?modal=card#cobros",
+      "fidelity": "alta",
+      "fidelity_notes": "Al abrir, el foco va al título (sin anillo en la ×). En el Figma el overlay cubre solo la mitad inferior (artefacto del mockup); se implementó como diálogo nativo centrado. El correo va prellenado con el de la cuenta (el Figma lo muestra como placeholder)."
+    },
+    {
+      "node": "801:569",
+      "name": "Cobros - Agregar destino de retiro - Variante 02",
+      "route": "/artist/account#cobros",
+      "result": "estado-nuevo",
+      "summary": "Modal 'Agregar destino de retiro' igual al Figma: Lemon / Cuenta bancaria USD / Banco internacional (todos 'Disponible'; el elegido lleva solo un contorno de 1px), titular, moneda sin chevron, CBU/IBAN/alias y chips 'Próximamente'. Rechaza números de tarjeta (12–19 dígitos con Luhn) con cualquier separador que no sea letra (espacios, guiones, puntos, guiones bajos, barras; también dígitos de ancho completo) con 'No ingreses números de tarjeta…', en el modelo y en el repositorio. Editar con otro método renueva el nombre del destino.",
+      "figma_png": "output/figma-final-artista/frames/801-569_cobros-agregar-destino.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-569.png",
+      "state_url": "/artist/account/?modal=agregar-destino#cobros",
+      "fidelity": "alta",
+      "fidelity_notes": "Sin el estado 'Elegido' ni la ayuda visible (queda como texto para lectores de pantalla); el foco inicial va al título. Diferencias: contorno de 1px en el método elegido (el Figma no dibuja selección) y modal centrado en vez de anclado abajo. Ronda 2: '4111.1111.1111.1111' ya no se guarda (verificado por CDP en Chrome headless limpio: error visible, la lista sigue en 3; un alias con puntos sí se guarda). Evidencia del error: shots/cuenta/801-569-pan-con-puntos.png."
+    },
+    {
+      "node": "801:571",
+      "name": "Cuenta - Disponibilidad por ubicación",
+      "route": "/artist/account#disponibilidad",
+      "result": "rediseñada",
+      "summary": "Pestañas por ubicación (ancho por contenido, mín. 186px como el Figma) con flechas y desvanecido cuando no entran, encabezado oscuro con estado, vigencia, horas semanales y 'Pausar ubicación', días laborales por ciudad con 'Media jornada', vacaciones, Google Calendar y 'Agregar un destino Travel'.",
+      "figma_png": "output/figma-final-artista/frames/801-571_cuenta-disponibilidad.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-571.png",
+      "state_url": "/artist/account/#disponibilidad",
+      "fidelity": "alta",
+      "fidelity_notes": "El preview tiene 5 ubicaciones (el Figma 4): la quinta queda tras la flecha/desvanecido derecho. La ubicación base del preview no tiene studio_name ('Estudio propio — Buenos Aires') y aparece 'París, FR' (fixture de perfil-estadisticas). Google Calendar figura 'Conectar' porque la fixture base lo tiene desconectado."
+    },
+    {
+      "node": "801:1110",
+      "name": "Disponibilidad - Confirmación de cambios",
+      "route": "/artist/account#disponibilidad",
+      "result": "estado-nuevo",
+      "summary": "Modo edición (Cancelar / Guardar cambios, toggles y horas editables, pausar/reactivar) y banner '✓ Disponibilidad actualizada para <ubicación>.' que nombra la ubicación editada (no la pestaña activa al guardar). ?vista=guardado espera a que carguen las ubicaciones. A 390px inicio — fin quedan en una línea.",
+      "figma_png": "output/figma-final-artista/frames/801-1110_disponibilidad-confirmacion.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-1110.png",
+      "state_url": "/artist/account/?vista=guardado#disponibilidad (banner) · /artist/account/?vista=editar#disponibilidad (edición, capturas 801-1110-editar.png y 801-1110-editar-390.png)",
+      "fidelity": "alta",
+      "fidelity_notes": "El selector 'Agenda: Abierta / Lista de espera' del encabezado oscuro en edición sigue sin estar en el Figma (lo pidió el orquestador por la migración 20261028160000; falta aprobación de diseño). ?vista=guardado muestra el banner sin guardar (solo QA visual)."
+    },
+    {
+      "node": "801:572",
+      "name": "Cuenta - Preferencias de notificaciones",
+      "route": "/artist/account#notificaciones",
+      "result": "rediseñada",
+      "summary": "Matriz evento × Email/Push/SMS con el switch del Figma (52×28 tinta + knob amarillo); 'Job Board'; sin nota al pie. Promociones por email sincroniza artists_db.subscribed_newsletter.",
+      "figma_png": "output/figma-final-artista/frames/801-572_cuenta-notificaciones.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-572.png",
+      "state_url": "/artist/account/#notificaciones",
+      "fidelity": "exacta",
+      "fidelity_notes": "Sin diferencias visibles en el contenido (bajada a la distancia del frame). Topbar/footer: área Dashboard."
+    },
+    {
+      "node": "801:575",
+      "name": "Cuenta - Seguridad y recuperación",
+      "route": "/artist/account#seguridad",
+      "result": "rediseñada",
+      "summary": "Contraseña, autenticación en dos pasos como switch (Supabase MFA TOTP), dispositivos conectados, 'Cerrar todas las demás sesiones', eliminar cuenta (solicitud auditable) y 'Recuperación': verificación telefónica (OTP por SMS) y pregunta de seguridad (SHA-256 + sal).",
+      "figma_png": "output/figma-final-artista/frames/801-575_cuenta-seguridad.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-575.png",
+      "state_url": "/artist/account/#seguridad · ?modal=telefono#seguridad · ?modal=pregunta#seguridad",
+      "fidelity": "alta",
+      "fidelity_notes": "Desvío: se quitó el 'CERRAR SESIÓN' por dispositivo que dibuja el Figma porque cerraba todas las demás sesiones (Supabase no permite revocar una sesión ajena desde el cliente); queda 'Cerrar todas las demás sesiones'. Subtítulo de Recuperación distinto del Figma (ver copy_fixes, falta confirmación de diseño). En el preview MFA aparece apagado y los flujos de contraseña/MFA/SMS fallan porque el mock no los simula."
+    },
+    {
+      "node": "801:573",
+      "name": "Cuenta - Verificación y documentos",
+      "route": "/artist/account#verificacion",
+      "result": "rediseñada",
+      "summary": "Caja 'Identidad verificada · Confirmada el <fecha de revisión del DNI>' (o estados en proceso / pendiente / denegada con 'Solicitar verificación') y documentos con badge Verificado/Pendiente/Rechazado/Sin cargar; el nombre abre el archivo con URL firmada. Reemplazar/Subir/Eliminar aparecen al pasar el mouse o con foco, también cuando están deshabilitados (documentos sin backend).",
+      "figma_png": "output/figma-final-artista/frames/801-573_cuenta-verificacion.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-573.png",
+      "state_url": "/artist/account/#verificacion",
+      "fidelity": "alta",
+      "fidelity_notes": "En reposo coincide con el Figma (solo el badge), ahora también con las acciones deshabilitadas: la regla :disabled ya no fija opacidad 0.4 en reposo (medido por CDP: 0 en reposo, 0.4 + cursor not-allowed al pasar el mouse por la fila; evidencia shots/cuenta/801-573-acciones-deshabilitadas.png). Las acciones aparecen en hover/foco y siempre en pantallas táctiles (atenuadas si están deshabilitadas). Abrir un documento falla en el preview (createSignedUrl no simulado). Con la tabla de documentos ausente en el backend real se ve además la nota 'aac-docs-note', que no está en el Figma."
+    },
+    {
+      "node": "801:574",
+      "name": "Cuenta - Configuración y accesibilidad",
+      "route": "/artist/account#configuracion",
+      "result": "rediseñada",
+      "summary": "Región (País como selector, ciudad, zona horaria, 'Moneda predeterminada', formatos), apariencia, plataforma, restablecer, accesibilidad (filas de 56px) y preferencias de visualización; todo se guarda al cambiar y las escrituras seguidas ya no se pisan (cola en Prefs.saveSection).",
+      "figma_png": "output/figma-final-artista/frames/801-574_cuenta-configuracion.png",
+      "impl_png": "output/figma-final-artista/shots/cuenta/801-574.png",
+      "state_url": "/artist/account/#configuracion",
+      "fidelity": "alta",
+      "fidelity_notes": "Ritmo vertical ajustado al frame (deriva máxima ~10px). Los selects muestran valores reales en lugar de 'Select Value' del mockup. Tema por defecto 'Claro'."
+    }
+  ],
+  "removed_in_page": [
+    "Sección 'Integraciones' del sidebar y su panel (Google Calendar, Instagram, Stripe, WhatsApp Business). Google Calendar sigue en Disponibilidad › Sincronización externa; Instagram se gestiona en Mi perfil y Portafolio › Importar Instagram.",
+    "Bloque 'Privacidad' de Seguridad (mostrar ciudad/calificación/redes/indexación). Los valores guardados en user_preferences.privacy no se borran.",
+    "Cobros: 'Ingresos del mes', 'Próximo pago', historial simple, formulario de datos fiscales inline y 'Métodos de pago' tokenizados (artist_payment_methods). Reemplazados por el Wallet, destinos de retiro y el diálogo 'Ver datos fiscales'.",
+    "Notas al pie de Notificaciones ('Las preferencias se aplican…') y Configuración ('Los cambios se guardan automáticamente').",
+    "Disponibilidad: Apple Calendar (no está en el Figma) y el horario semanal único (ahora es por ubicación; el de la base se sigue espejando en app_settings.availability.weekly).",
+    "Mi perfil: el bloque 'Oficio y tarifa' sale del formulario (ronda 1 de auditoría) y queda plegado en un <details> debajo de GUARDAR CAMBIOS, con su botón 'Guardar oficio y tarifa'.",
+    "Seguridad: el botón 'Cerrar sesión' por dispositivo (cerraba todas las demás sesiones).",
+    "Wallet · Agregar destino: el estado 'Elegido' con fondo azul, la ayuda visible bajo CBU/IBAN (queda solo para lectores de pantalla) y los chevrons de los selects que el Figma no dibuja."
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Retiros efectivos",
+      "detail": "request_artist_wallet_withdrawal solo registra el retiro 'en proceso' y valida saldo; falta el proveedor de pagos (p. ej. Lemon/Stripe Connect/Wise) y un proceso servidor que ejecute la transferencia y marque completed/failed.",
+      "severity": "alta"
+    },
+    {
+      "title": "Ingreso de fondos al Wallet",
+      "detail": "No hay pasarela de cobro: los movimientos payment/release/fee/dispute los tiene que escribir el backend de pagos o soporte (service role). Mientras tanto la sección usa el modo derivado desde cotizaciones (client_approved → pendiente, artist_completed → esperando liberación a 72 h, completed → liberado).",
+      "severity": "alta"
+    },
+    {
+      "title": "Verificación de destinos de retiro y KYC",
+      "detail": "Los destinos nuevos quedan 'Verificación pendiente' (trigger) y no se puede retirar a ellos hasta que soporte/proveedor los marque verificados. Falta KYC/validación de titularidad con el proveedor y, idealmente, tokenizar o cifrar account_identifier (hoy texto plano con RLS de dueño + soporte).",
+      "severity": "alta"
+    },
+    {
+      "title": "Disputas",
+      "detail": "No existe flujo de disputas: 'Ver disputa' abre la cotización relacionada (si el movimiento tiene quote_id) o el Inbox.",
+      "severity": "media"
+    },
+    {
+      "title": "We Ötzi Card",
+      "detail": "Solo lista de espera (wallet_card_waitlist + respaldo en preferencias). Emisión de tarjeta y beneficios requieren un emisor.",
+      "severity": "baja"
+    },
+    {
+      "title": "Sincronización real con Google Calendar",
+      "detail": "Sin CONFIG.integrations.google_calendar.authorizeUrl el botón deja la conexión 'pendiente'; falta el OAuth y la sincronización de las ubicaciones activas.",
+      "severity": "media"
+    },
+    {
+      "title": "Verificación telefónica por SMS",
+      "detail": "Usa supabase.auth.updateUser({ phone }) + verifyOtp; requiere proveedor de SMS configurado en Supabase. Si falla, el número queda 'pendiente de verificación'.",
+      "severity": "media"
+    },
+    {
+      "title": "Recuperación con pregunta de seguridad",
+      "detail": "La pregunta se guarda (hash + sal) en user_preferences.app_settings.recovery pero /recover no la usa todavía.",
+      "severity": "media"
+    },
+    {
+      "title": "Campos de /artist/profile/details sin lugar en el Figma",
+      "detail": "Estilos, experiencia, tarifa y WhatsApp quedan editables en 'Oficio y tarifa' (plegado en Mi perfil, sin diseño en el Figma). Fecha de nacimiento, modalidad (independiente/estudio/ambos) con dirección estructurada y vínculo studio_id no tienen lugar. Hace falta decidir con diseño si el bloque se dibuja o se mueve.",
+      "severity": "media"
+    },
+    {
+      "title": "Cerrar una sesión puntual",
+      "detail": "Supabase no permite revocar una sesión ajena desde el cliente. Se quitó el 'Cerrar sesión' por dispositivo del Figma (cerraba todas); para recuperarlo hace falta un endpoint o RPC con service role que borre auth.sessions por session_id del dueño (server.js / migración: decide el orquestador).",
+      "severity": "media"
+    },
+    {
+      "title": "Flujos de Auth/Storage sin simular en el preview",
+      "detail": "Actualizar contraseña, 2FA (mfa.enroll), verificación telefónica (verifyOtp) y abrir documentos (createSignedUrl) terminan en toast de error en el preview porque scripts/release/preview-bootstrap.js no los simula (y su signInWithPassword acepta cualquier contraseña de 8+). No es archivo del área: hay que verificarlos en staging con Supabase real o sumar mocks al bootstrap.",
+      "severity": "media"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028150000_artist_wallet.sql",
+      "rollback": "supabase/rollbacks/20261028150000_artist_wallet.down.sql",
+      "purpose": "We Ötzi Wallet: artist_payout_destinations (destinos con trigger anti auto-verificación y RPC set_artist_default_payout_destination), artist_wallet_movements (solo lectura para el artista), RPC request_artist_wallet_withdrawal (security definer, lock por artista, valida destino verificado y saldo) y wallet_card_waitlist. RLS dueño + soporte; anon sin acceso.",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "'or browse files' (placeholder del mockup en inglés) → 'o buscá archivos'",
+    "Recuperación: 'Controlá qué información es pública en tu perfil.' (texto heredado de Privacidad) → 'Configurá cómo recuperar el acceso a tu cuenta.'",
+    "'Mi Perfil' / 'Seguridad y Privacidad' / 'Job Board' se copiaron literal (mayúsculas del Figma)."
+  ],
+  "missing_assets": [
+    "Banner y foto de perfil, trabajos del portafolio: slots de imagen del mockup → contenido del usuario (en el preview, ilustraciones de prueba).",
+    "Tarjeta We Ötzi: ilustración armada con CSS (rectángulo tinta, aro y dos círculos), sin asset gráfico."
+  ],
+  "files_changed": [
+    "public/artist/account/index.html",
+    "public/shared/css/artist-account-ds.css",
+    "public/shared/js/artist-account.js",
+    "public/shared/js/data/account-repo.js",
+    "public/shared/js/demo-fixtures/cuenta.js",
+    "public/shared/js/wo-tour-steps.js",
+    "tests/account-center-runtime.test.js"
+  ],
+  "files_created": [
+    "public/shared/js/wallet-model.js",
+    "public/shared/js/wallet-account.js",
+    "public/shared/css/wallet-account.css",
+    "public/shared/js/account-availability-model.js",
+    "supabase/migrations/20261028150000_artist_wallet.sql",
+    "supabase/rollbacks/20261028150000_artist_wallet.down.sql",
+    "tests/figma-final-cuenta.test.js",
+    "output/figma-final-artista/shots/cuenta/*.png"
+  ],
+  "tests": "node --test \"tests/*.test.js\": 605 tests, 601 pass, 3 fail (solo los 3 de PowerShell 7 preexistentes). tests/figma-final-cuenta.test.js: 16/16 (3 nuevos de la ronda 2: PAN con separadores en el modelo y en el repo, y acciones de documentos deshabilitadas ocultas en reposo). account-center-runtime pasa.",
+  "notes": [
+    "Estados por URL para QA: ?modal=agregar-destino|card|datos-fiscales#cobros · ?vista=editar|guardado#disponibilidad · ?modal=travel#disponibilidad · ?modal=telefono|pregunta#seguridad · ?vista=oficio#perfil.",
+    "La fixture de cuenta suma ubicaciones (estudio privado, CDMX y Berlín) a artist_tattoo_locations mediante un setter que se encadena con el de perfil-estadisticas; también agrega una sesión 'iPad Air', documentos de verificación y recovery.phone verificado. Los totales del Wallet cierran entre sí.",
+    "El preview comparte el store en localStorage entre pestañas: si otra pestaña guardó un volcado viejo, Disponibilidad puede mostrar solo la ubicación base (botón 'Reiniciar datos'). Las capturas se tomaron con perfil limpio.",
+    "artist_payment_methods (métodos tokenizados) deja de usarse en esta página; el repo PaymentMethods se mantiene para no romper otros consumidores.",
+    "Para el artista, Instagram se guarda ahora sin '@' en artists_db.instagram (antes esta página lo guardaba con '@'); el input lo muestra con '@'.",
+    "Diferencias de topbar/footer respecto del Figma (contador en COTIZACIONES y en el tile Ö) no se tocaron: son del área dashboard.",
+    "Ronda 1 de auditoría: corregidos 2 P1 (Oficio y tarifa fuera del formulario; números de tarjeta rechazados en destinos) y 18 P2 de los archivos del área (el de pestañas, parcial). Pendientes por estar fuera del área o requerir decisión: footer/topbar (Dashboard), selector Agenda en edición, subtítulo de Recuperación, mocks de Auth/Storage del preview.",
+    "Prefs.saveSection (account-repo.js) encola las escrituras por usuario: GET + merge + UPSERT ya no se pisan en cambios seguidos (también beneficia a /client/profile). Lo ideal sigue siendo un merge en el servidor (jsonb ||).",
+    "La página tenía el margen de 8px por defecto del body: topbar y footer no llegaban al borde y todo el contenido estaba corrido 8px. body.aac-page ahora tiene margin:0.",
+    "Pestañas de ubicaciones: con 5+ ubicaciones aparecen flechas y un desvanecido en el borde; la pestaña activa siempre queda a la vista.",
+    "Las rutas propuestas para eliminar (/artist/profile/details y /artist/profile/gallery) ya fueron retiradas por el orquestador (lib/legacy-routes.js); el área no tiene links a rutas retiradas.",
+    "Destinos de retiro: el PAN (12–19 dígitos con Luhn, con cualquier separador que no sea letra) se rechaza en wallet-model.validateDestination y en PayoutDestinations.save (account-repo.js, también looksLikeRawPan de PaymentMethods.save). Recomendado (decide el orquestador, no se tocó 20261028150000_artist_wallet.sql): sumar el mismo CHECK en la base, p. ej. not (account_identifier !~ '[A-Za-z]' and regexp_replace(account_identifier, '[^0-9]', '', 'g') ~ '^[0-9]{12,19}$' and <luhn>) o una función luhn_valid(). Ojo: un CHECK que solo quite espacios y guiones deja pasar '4111.1111.1111.1111'.",
+    "Ronda 2 de auditoría: corregidos los 2 P1 (PAN con puntos/guiones bajos aceptado como destino; Reemplazar/Subir deshabilitados visibles en reposo). Sin hallazgos fuera del área."
+  ]
+}

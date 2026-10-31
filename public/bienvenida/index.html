@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Bienvenida</title>
-    <meta name="description" content="Elegí cómo querés usar We Ötzi: como cliente para encontrar artistas y pedir cotizaciones, o como tatuador para gestionar tu carrera.">
+    <meta name="description" content="Elegí cómo querés usar We Ötzi: como cliente para encontrar artistas y pedir cotizaciones, como tatuador para gestionar tu carrera, como estudio o como proveedor de insumos.">
 
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
@@ -16,23 +16,22 @@
 </head>
 <body class="wo-app bnv-page">
 
-    <!-- Topbar mínima de auth: solo marca, sin nav (Figma 238:2335) -->
-    <header class="wo-topbar bnv-topbar">
-        <div class="wo-topbar-left">
-            <a class="wo-topbar-brand" href="/" aria-label="We Ötzi — inicio">
-                <span class="wo-marks" aria-hidden="true">
-                    <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
-                </span>
-                <span class="bnv-brand-name">We Ötzi</span>
-            </a>
-        </div>
+    <!-- Figma final (oct 2026): 797:269 "Inicio - Elegir experiencia" (artista)
+         = 801:1125 (clientes). Topbar mínima de auth: solo marca, sin nav. -->
+    <header class="bnv-topbar">
+        <a class="bnv-brand" href="/" aria-label="We Ötzi — inicio">
+            <span class="wo-marks" aria-hidden="true">
+                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+            </span>
+            <span class="bnv-brand-name">We Ötzi</span>
+        </a>
     </header>
 
     <main class="bnv-main">
-        <div class="wo-container bnv-container">
+        <div class="bnv-container">
 
             <header class="bnv-head">
-                <h1 class="bnv-title" id="bnv-title">Bienvenido<br>¿Cómo querés usar We Ötzi?</h1>
+                <h1 class="bnv-title" id="bnv-title">¡Bienvenido!<br>¿Cómo querés usar We Ötzi?</h1>
                 <p class="bnv-sub">Elegí la experiencia que mejor se adapte a vos. Vas a poder cambiar esta opción más adelante desde tu perfil.</p>
             </header>
 
@@ -44,9 +43,10 @@
                     <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
                     <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-client" value="client">
                     <label class="bnv-card-label" for="bnv-role-client">
-                        <span class="bnv-card-media" aria-hidden="true"><i data-wo-icon="compass"></i></span>
+                        <!-- Slot de ilustración editorial (asset faltante en el Figma) -->
+                        <span class="bnv-card-media" aria-hidden="true"><i data-wo-icon="image"></i></span>
                         <span class="bnv-card-body">
-                            <span class="wo-tag wo-tag--soft">Cliente</span>
+                            <span class="bnv-card-tag">Cliente</span>
                             <span class="bnv-card-title">Quiero tatuarme</span>
                             <span class="bnv-card-copy">Encontrá artistas, explorá portafolios, pedí cotizaciones y agendá tu próxima sesión.</span>
                             <span class="bnv-features" role="list">
@@ -57,7 +57,7 @@
                             </span>
                         </span>
                     </label>
-                    <button type="button" class="bnv-card-go" data-role="client">Continuar como cliente →</button>
+                    <button type="button" class="bnv-card-go" data-role="client">Continuar como cliente <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
                 </div>
 
                 <!-- Card ARTISTA -->
@@ -65,9 +65,9 @@
                     <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
                     <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-artist" value="artist">
                     <label class="bnv-card-label" for="bnv-role-artist">
-                        <span class="bnv-card-media" aria-hidden="true"><i data-wo-icon="pen-tool"></i></span>
+                        <span class="bnv-card-media" aria-hidden="true"><i data-wo-icon="image"></i></span>
                         <span class="bnv-card-body">
-                            <span class="wo-tag wo-tag--soft">Artista</span>
+                            <span class="bnv-card-tag">Artista</span>
                             <span class="bnv-card-title">Soy tatuador</span>
                             <span class="bnv-card-copy">Creá tu portafolio, recibí solicitudes, gestioná reservas y conseguí nuevos clientes.</span>
                             <span class="bnv-features" role="list">
@@ -78,13 +78,57 @@
                             </span>
                         </span>
                     </label>
-                    <button type="button" class="bnv-card-go" data-role="artist">Continuar como tatuador →</button>
+                    <button type="button" class="bnv-card-go" data-role="artist">Continuar como tatuador <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
+                </div>
+
+                <!-- Cuentas de negocio (plataforma de estudios): fuera del Figma,
+                     cards compactas sin slot de ilustración. -->
+                <p class="bnv-cards-group" id="bnv-business-title">¿Tenés un estudio o vendés insumos?</p>
+
+                <!-- Card ESTUDIO -->
+                <div class="bnv-card bnv-card--compact" data-role="studio" id="bnv-card-studio">
+                    <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
+                    <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-studio" value="studio">
+                    <label class="bnv-card-label" for="bnv-role-studio">
+                        <span class="bnv-card-body">
+                            <span class="bnv-card-tag">Estudio</span>
+                            <span class="bnv-card-title">Tengo un estudio</span>
+                            <span class="bnv-card-copy">Sumá artistas a tu equipo, publicá spots, firmá contratos y llevá la agenda, el inventario y las finanzas del estudio.</span>
+                            <span class="bnv-features" role="list">
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="users" aria-hidden="true"></i>Gestionar el equipo</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="briefcase" aria-hidden="true"></i>Publicar spots</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="calendar" aria-hidden="true"></i>Agenda del estudio</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="package" aria-hidden="true"></i>Reponer insumos</span>
+                            </span>
+                        </span>
+                    </label>
+                    <button type="button" class="bnv-card-go" data-role="studio">Continuar como estudio <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
+                </div>
+
+                <!-- Card SUPPLIES -->
+                <div class="bnv-card bnv-card--compact" data-role="supplies" id="bnv-card-supplies">
+                    <span class="bnv-card-check" aria-hidden="true"><i data-wo-icon="check"></i></span>
+                    <input class="bnv-card-input wo-sr-only" type="radio" name="bnv-role" id="bnv-role-supplies" value="supplies">
+                    <label class="bnv-card-label" for="bnv-role-supplies">
+                        <span class="bnv-card-body">
+                            <span class="bnv-card-tag">Supplies</span>
+                            <span class="bnv-card-title">Vendo insumos</span>
+                            <span class="bnv-card-copy">Publicá tu catálogo, ofrecé beneficios a los estudios de We Ötzi y recibí sus pedidos de reposición.</span>
+                            <span class="bnv-features" role="list">
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="grid" aria-hidden="true"></i>Publicar catálogo</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="inbox" aria-hidden="true"></i>Recibir pedidos</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="percent" aria-hidden="true"></i>Beneficios para estudios</span>
+                                <span class="bnv-feature" role="listitem"><i data-wo-icon="bar-chart-2" aria-hidden="true"></i>Ver ventas</span>
+                            </span>
+                        </span>
+                    </label>
+                    <button type="button" class="bnv-card-go" data-role="supplies">Continuar como proveedor <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
                 </div>
             </fieldset>
 
             <div class="bnv-actions">
-                <button type="button" class="wo-btn wo-btn--hard bnv-continue" id="bnv-continue" disabled>Continuar →</button>
-                <p class="bnv-foot" id="bnv-foot">Vas a poder cambiar esta opción en cualquier momento desde la configuración de tu cuenta.</p>
+                <button type="button" class="bnv-continue" id="bnv-continue" disabled>Continuar <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
+                <p class="bnv-foot" id="bnv-foot">Podrás cambiar esta experiencia en cualquier momento desde la configuración de tu cuenta.</p>
             </div>
 
         </div>

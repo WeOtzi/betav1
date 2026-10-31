@@ -235,3 +235,63 @@ test('deferred client welcome waits for its authenticated user and clears only o
     assert.equal(values.has('weotzi_pending_client_welcome'), false);
     assert.equal(attempts, 2);
 });
+
+// ===== instagram_verification_code (server-only, contrato modo asistido §5) =====
+const { buildAttribs, getEvent } = require('../services/email-event-mapping');
+const { buildEmailHtml, manifest: emailManifest, SPECS: emailSpecs } = require('../scripts/redesign-email-templates.js');
+
+test('instagram verification code goes to the artist email and rejects header injection', () => {
+    assert.equal(getEvent('instagram_verification_code').templateHint, 'instagram-verification');
+    assert.deepEqual(resolveRecipients('instagram_verification_code', { artist_email: ' Laura@Example.COM ', email: 'other@example.com' }), ['laura@example.com']);
+    assert.deepEqual(resolveRecipients('instagram_verification_code', { email: 'laura@example.com' }), ['laura@example.com']);
+    assert.deepEqual(resolveRecipients('instagram_verification_code', { artist_email: 'laura@example.com\r\nBcc: x@example.com' }), []);
+    assert.deepEqual(resolveRecipients('instagram_verification_code', {}), []);
+});
+
+test('instagram verification attribs carry defaults BillionMail cannot compute', () => {
+    const attribs = buildAttribs('instagram_verification_code', {
+        artist_email: 'laura@example.com', artist_name: 'Laura', verification_code: ' wo-4f7k2q ', instagram_handle: '@@laura.tattoo'
+    });
+    assert.deepEqual(attribs, {
+        artist_name: 'Laura', verification_code: 'WO-4F7K2Q', instagram_handle: '@laura.tattoo',
+        expires_label: '72 horas', weotzi_instagram: '@weotzi', dm_url: 'https://ig.me/m/weotzi'
+    });
+    for (const variable of emailManifest['instagram-verification'].variables) {
+        assert.ok(Object.prototype.hasOwnProperty.call(attribs, variable), `attribs missing ${variable}`);
+    }
+    const fallback = buildAttribs('instagram_verification_code', { verification_code: 'WO-AAAAAA', dm_url: 'javascript:alert(1)', weotzi_instagram: 'weotzi.oficial', expires_label: '24 horas' });
+    assert.equal(fallback.dm_url, 'https://ig.me/m/weotzi');
+    assert.equal(fallback.weotzi_instagram, '@weotzi.oficial');
+    assert.equal(fallback.expires_label, '24 horas');
+    assert.equal(fallback.instagram_handle, 'tu cuenta de Instagram');
+    assert.equal(fallback.artist_name, '-');
+});
+
+test('public catch-all route never sends the instagram verification code', async () => {
+    const lookups = [];
+    const owner = { id: 'artist-id', email: quote.artist_email };
+    const deps = dependencies(owner);
+    deps.read = async table => { lookups.push(table); return quote; };
+    deps.resolveUser = async () => { lookups.push('auth'); return owner; };
+    const result = await resolveEmailContext(request, 'instagram_verification_code', {
+        quote_id: quote.quote_id, artist_email: 'victim@example.com', verification_code: 'WO-4F7K2Q'
+    }, deps);
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 403);
+    assert.deepEqual(lookups, []);
+    assert.equal((await resolveEmailContext(request, 'instagram_verification_code', {}, dependencies(null))).status, 403);
+});
+
+test('instagram verification template shows the code and renders intro tokens per channel', () => {
+    const local = buildEmailHtml('instagram-verification', { mode: 'local' });
+    assert.match(local, /font-size:30px[^>]*>\{\{verification_code\}\}</);
+    assert.match(local, /<a href="\{\{dm_url\}\}"/);
+    assert.match(local, /Desde \{\{instagram_handle\}\}, seguí a \{\{weotzi_instagram\}\}/);
+    assert.match(local, /Vence en \{\{expires_label\}\}/);
+    const spec = emailSpecs['instagram-verification'];
+    for (const copy of [spec.eyebrow, spec.headline, spec.intro, spec.ctaLabel, spec.highlightLabel]) assert.doesNotMatch(copy, /[!¡]/);
+    const n8n = buildEmailHtml('instagram-verification', { mode: 'n8n', source: 'body' });
+    assert.ok(n8n.includes("{{ $json.body.data.verification_code || '' }}"));
+    assert.ok(n8n.includes("Desde {{ $json.body.data.instagram_handle || '' }}"));
+    assert.doesNotMatch(n8n, /\{\{(?:instagram_handle|weotzi_instagram|expires_label|verification_code|dm_url)\}\}/);
+});

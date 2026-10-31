@@ -5,6 +5,10 @@
 // Unifica las propuestas enviadas a solicitudes del Job Board
 // (job_board_applications vía WeotziData.JobBoard) y las postulaciones a spots
 // de estudios (studio_spot_applications vía WeotziData.StudioSpots).
+// Plataforma de Estudios: los contratos del artista (WeotziData.StudioContracts)
+// marcan "Contrato pendiente de firma" (se firma en /artist/invitations?contrato=)
+// y confirman el spot recién con el contrato firmado. Sin la migración, la
+// lista de contratos queda vacía y todo sigue como antes.
 // Requiere sesión de artista; sin sesión se enruta a /artist/login.
 // ============================================
 
@@ -20,12 +24,14 @@
         esperando_respuesta: { label: 'Esperando respuesta', tag: 'wo-tag apx-tag--accent' },
         en_revision: { label: 'En revisión', tag: 'wo-tag wo-tag--soft' },
         contraoferta_recibida: { label: 'Contraoferta recibida', tag: 'wo-tag wo-tag--highlight' },
+        contrato_pendiente: { label: 'Contrato pendiente de firma', tag: 'wo-tag wo-tag--highlight' },
         confirmada: { label: 'Confirmada', tag: 'wo-tag wo-tag--active' },
         rechazada: { label: 'Rechazada', tag: 'wo-tag wo-tag--urgent' },
         expirada: { label: 'Expirada', tag: 'wo-tag wo-tag--archived' },
         retirada: { label: 'Retirada', tag: 'wo-tag wo-tag--archived' }
     };
-    const CHIP_ORDER = ['esperando_respuesta', 'en_revision', 'contraoferta_recibida', 'confirmada', 'rechazada', 'expirada', 'retirada'];
+    const ARROW_ICON = '<i data-wo-icon="arrow-right" class="wo-icon-18 apx-arrow" aria-hidden="true"></i>';
+    const CHIP_ORDER = ['esperando_respuesta', 'en_revision', 'contraoferta_recibida', 'contrato_pendiente', 'confirmada', 'rechazada', 'expirada', 'retirada'];
 
     const MONTHS_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     const MONTHS_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -147,7 +153,9 @@
         try {
             const results = await Promise.allSettled([
                 window.WeotziData.JobBoard.Applications.listForArtist(uid),
-                window.WeotziData.StudioSpots.listApplicationsByArtist(uid)
+                (window.WeotziData.SpotsOpportunities
+                    ? window.WeotziData.SpotsOpportunities.listApplicationsByArtist(uid)
+                    : window.WeotziData.StudioSpots.listApplicationsByArtist(uid))
             ]);
             if (results[0].status === 'fulfilled') jbApps = results[0].value || [];
             else console.error('[applications] job board:', results[0].reason);
@@ -187,11 +195,44 @@
         }
 
         await loadApplicationClientProfiles(jbApps);
+        const contracts = spotApps.length ? await loadSpotContracts(uid) : [];
 
         items = []
             .concat(jbApps.map((app) => buildJbItem(app, offerMap[app.id] || [])))
-            .concat(spotApps.map((app) => buildSpotItem(app, spotOfferMap[app.id] || [])))
+            .concat(spotApps.map((app) => buildSpotItem(app, spotOfferMap[app.id] || [], contractForApplication(contracts, app.id))))
             .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+    }
+
+    // Contratos enviados o firmados del artista (la RLS oculta los borradores).
+    // Sin la migración de contratos: [] y las postulaciones siguen como antes.
+    async function loadSpotContracts(uid) {
+        const repo = window.WeotziData?.StudioContracts;
+        if (!repo || typeof repo.listForArtist !== 'function') return [];
+        try {
+            const { data, error } = await repo.listForArtist(uid, { status: ['sent', 'signed'] });
+            if (error) {
+                console.warn('[applications] contratos:', error);
+                return [];
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.warn('[applications] contratos:', err);
+            return [];
+        }
+    }
+
+    function contractForApplication(contracts, applicationId) {
+        if (window.WoApplicationState && typeof window.WoApplicationState.contractForApplication === 'function') {
+            return window.WoApplicationState.contractForApplication(contracts, applicationId);
+        }
+        return null;
+    }
+
+    function contractUrl(contract) {
+        if (window.WoApplicationState && typeof window.WoApplicationState.contractHref === 'function') {
+            return window.WoApplicationState.contractHref(contract);
+        }
+        return '/artist/invitations?contrato=' + encodeURIComponent(contract.id);
     }
 
     function unwrapRows(result) {
@@ -264,7 +305,7 @@
         };
     }
 
-    function buildSpotItem(app, offers) {
+    function buildSpotItem(app, offers, contract) {
         const spot = app.studio_spots || null;
         const studio = (spot && spot.studios) || null;
         const loc = (spot && spot.location) || null;
@@ -277,7 +318,8 @@
             studio,
             offers: offers || [],
             pendingStudioOffer,
-            state: deriveSpotState(app, spot, !!pendingStudioOffer),
+            contract: contract || null,
+            state: deriveSpotState(app, spot, !!pendingStudioOffer, contract),
             title: (studio && studio.name) || (spot && spot.title) || 'Spot de estudio',
             kindLabel: spot ? (KIND_LABELS[spot.kind] || 'Spot') : 'Spot',
             city: (loc && loc.city) || null,
@@ -289,6 +331,7 @@
     }
 
     function deriveJbState(app, request, hasPendingClientOffer) {
+        if (window.WoApplicationState) return window.WoApplicationState.deriveJb(app, request, !!hasPendingClientOffer);
         if (app.status === 'withdrawn') return 'retirada';
         if (app.status === 'rejected') return 'rechazada';
         if (app.status === 'accepted') return 'confirmada';
@@ -298,10 +341,13 @@
         return 'esperando_respuesta';
     }
 
-    function deriveSpotState(app, spot, hasPendingStudioOffer = false) {
+    function deriveSpotState(app, spot, hasPendingStudioOffer = false, contract = null) {
+        if (window.WoApplicationState) return window.WoApplicationState.deriveSpot(app, spot, !!hasPendingStudioOffer, contract);
         if (app.status === 'withdrawn') return 'retirada';
         if (app.status === 'rejected') return 'rechazada';
         if (app.status === 'accepted') return 'confirmada';
+        if (contract && contract.status === 'signed') return 'confirmada';
+        if (contract && contract.status === 'sent') return 'contrato_pendiente';
         if (hasPendingStudioOffer) return 'contraoferta_recibida';
         if (app.status === 'shortlisted') return 'en_revision';
         if (spot && spot.status && spot.status !== 'open') return 'expirada';
@@ -436,7 +482,7 @@
         }
         document.getElementById('apx-chips').addEventListener('click', (event) => {
             const chip = event.target.closest('.wo-chip');
-            if (!chip || chip.disabled) return;
+            if (!chip || chip.getAttribute('aria-disabled') === 'true') return;
             activeChip = chip.dataset.chip;
             renderList();
         });
@@ -495,12 +541,15 @@
         }
 
         const countEl = document.getElementById('apx-result-count');
-        countEl.textContent = filtered.length + ' de ' + tabItems.length + ' ' +
-            (tabItems.length === 1 ? 'postulación' : 'postulaciones');
+        // Figma: "5 de 9 postulaciones" — el total es el de todas las postulaciones.
+        countEl.textContent = filtered.length + ' de ' + items.length + ' ' +
+            (items.length === 1 ? 'postulación' : 'postulaciones');
 
         const rowsEl = document.getElementById('apx-rows');
         const emptyEl = document.getElementById('apx-empty');
         const errorEl = document.getElementById('apx-error');
+        // La pestaña Job Board usa la variante 01 del Figma (acciones como enlaces).
+        rowsEl.dataset.tab = activeTab;
 
         errorEl.hidden = !loadError;
         if (loadError) errorEl.textContent = loadError;
@@ -515,10 +564,12 @@
         rowsEl.innerHTML = filtered.map(rowHtml).join('');
     }
 
+    // Figma 801:1075: los chips en cero conservan el estilo normal; solo se
+    // deshabilitan para tecnologías asistivas (aria-disabled) y no filtran.
     function chipHtml(key, label, count, isActive, isZero) {
         const dim = isZero && !isActive;
-        return '<button type="button" class="wo-chip' + (isActive ? ' is-active' : '') + (dim ? ' is-dim' : '') + '"' +
-            ' data-chip="' + key + '"' + (dim ? ' disabled' : '') +
+        return '<button type="button" class="wo-chip' + (isActive ? ' is-active' : '') + '"' +
+            ' data-chip="' + key + '"' + (dim ? ' aria-disabled="true"' : '') +
             ' aria-pressed="' + isActive + '">' +
             escapeHtml(label) + ' (' + count + ')</button>';
     }
@@ -534,8 +585,8 @@
     }
 
     function emptyTabHtml() {
-        const jbCta = '<a href="/job-board" class="wo-btn wo-btn--s">Explorar el job board →</a>';
-        const spotCta = '<a href="/studio-spots" class="wo-btn wo-btn--s wo-btn--secondary">Explorar spots →</a>';
+        const jbCta = '<a href="/job-board" class="wo-btn wo-btn--s">Explorar el job board ' + ARROW_ICON + '</a>';
+        const spotCta = '<a href="/studio-spots" class="wo-btn wo-btn--s wo-btn--secondary">Explorar spots ' + ARROW_ICON + '</a>';
         if (activeTab === 'jobboard') {
             return '<i data-wo-icon="briefcase" aria-hidden="true"></i>' +
                 '<span class="wo-empty-title">Todavía no cotizaste ninguna solicitud</span>' +
@@ -546,7 +597,7 @@
             return '<i data-wo-icon="map-pin" aria-hidden="true"></i>' +
                 '<span class="wo-empty-title">Todavía no te postulaste a ningún spot</span>' +
                 '<p>Los estudios publican residencias y guest spots: encontrá tu próximo lugar donde tatuar.</p>' +
-                '<div class="apx-empty-ctas"><a href="/studio-spots" class="wo-btn wo-btn--s">Explorar spots →</a></div>';
+                '<div class="apx-empty-ctas"><a href="/studio-spots" class="wo-btn wo-btn--s">Explorar spots ' + ARROW_ICON + '</a></div>';
         }
         return '<i data-wo-icon="inbox" aria-hidden="true"></i>' +
             '<span class="wo-empty-title">Todavía no enviaste postulaciones</span>' +
@@ -565,14 +616,14 @@
         const isSpot = it.kind === 'spot';
         const media = it.thumb
             ? '<img src="' + escapeAttr(it.thumb) + '" alt="" loading="lazy">'
-            : '<span class="apx-photo-placeholder"><strong>Foto</strong><span>or</span><u>browse<br>files</u></span>';
+            : '<span class="apx-photo-placeholder"><i data-wo-icon="image" aria-hidden="true"></i><strong>Sin foto</strong></span>';
         const badges = '<span class="apx-typebadge ' + (isSpot ? 'apx-typebadge--spot' : 'apx-typebadge--jb') + '">' +
             (isSpot ? 'Spot' : 'Job board') + '</span>' +
             (isSpot && it.state === 'confirmada'
                 ? '<span class="apx-confbadge"><i data-wo-icon="check-circle" aria-hidden="true"></i>Spot confirmado</span>'
                 : '');
         const sub = isSpot
-            ? '<i data-wo-icon="home" aria-hidden="true"></i>' + escapeHtml(it.kindLabel)
+            ? '<i data-wo-icon="briefcase" aria-hidden="true"></i>' + escapeHtml(it.kindLabel)
             : '<i data-wo-icon="user" aria-hidden="true"></i>' + escapeHtml(it.clientName || 'Cliente');
         const value = isSpot
             ? (it.split != null ? 'Split ' + it.split.toFixed(0) + '%' : 'A convenir')
@@ -597,23 +648,30 @@
 
     function rowActionsHtml(it) {
         const actions = [];
-        actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="detail">' +
-            'Ver solicitud →</button>');
-        actions.push('<a href="' + escapeAttr(conversationUrl(it)) + '" class="wo-btn wo-btn--secondary wo-btn--s">' +
+        const btn = activeTab === 'jobboard' ? 'wo-btn wo-btn--s apx-action-link' : 'wo-btn wo-btn--secondary wo-btn--s';
+        actions.push('<button type="button" class="' + btn + '" data-action="detail">' +
+            'Ver solicitud' + ARROW_ICON + '</button>');
+        actions.push('<a href="' + escapeAttr(conversationUrl(it)) + '" class="' + btn + '">' +
             '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
         if (it.state === 'contraoferta_recibida') {
-            actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="detail">' +
+            actions.push('<button type="button" class="' + btn + '" data-action="detail">' +
                 '<i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Responder contraoferta</button>');
+        } else if (it.state === 'contrato_pendiente' && it.contract) {
+            actions.push('<a href="' + escapeAttr(contractUrl(it.contract)) + '" class="' + btn + '">' +
+                'Contrato pendiente de firma' + ARROW_ICON + '</a>');
         } else if (it.state === 'confirmada') {
-            actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="conditions">' +
+            actions.push('<button type="button" class="' + btn + '" data-action="conditions">' +
                 '<i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>Ver condiciones acordadas</button>');
         } else if (it.state === 'esperando_respuesta' || it.state === 'en_revision') {
-            actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="withdraw">' +
+            actions.push('<button type="button" class="' + btn + '" data-action="withdraw">' +
                 '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>Retirar</button>');
         }
         return actions.join('');
     }
 
+    // Contrato de enlaces profundos del Inbox (inbox-deeplink.js): abre el hilo
+    // cuyo context_id es la postulación (los crea el trigger de la migración del
+    // inbox unificado) y, si no existe, deja el Inbox filtrado por Job Board o Spots.
     function conversationUrl(item) {
         const params = new URLSearchParams();
         if (item.quoteId) params.set('quote', item.quoteId);
@@ -761,14 +819,11 @@
                     ? '<div class="apx-proposal-row"><span class="wo-label">' + (isSpot ? 'Mensaje de presentación' : 'Mensaje enviado al cliente') + '</span>' +
                       '<p class="apx-quote">"' + escapeHtml(app.message) + '"</p></div>'
                     : '') +
-                (!isSpot && app.availability_note
-                    ? '<div class="apx-proposal-row"><span class="wo-label">Disponibilidad</span>' +
-                      '<p class="apx-quote">' + escapeHtml(app.availability_note) + '</p></div>'
-                    : '') +
+
                 '<div class="apx-proposal-foot">' +
                     (portfolio
                         ? '<a class="apx-attachment" href="' + escapeAttr(portfolio) + '" target="_blank" rel="noopener">' +
-                          '<i data-wo-icon="file-text" aria-hidden="true"></i>' + escapeHtml(fileNameOf(portfolio)) + '</a>'
+                          '<i data-wo-icon="image" aria-hidden="true"></i>' + escapeHtml(attachmentLabel(portfolio)) + '</a>'
                         : '<span></span>') +
                     '<span class="apx-proposal-when">' + (isSpot ? 'Enviado' : 'Enviada') + ' el ' + escapeHtml(when) + '</span>' +
                 '</div>' +
@@ -781,14 +836,14 @@
             trackRow('Estado actual', '<span class="' + st.tag + '">' + escapeHtml(st.label) + '</span>') +
             trackRow('Último movimiento', '<strong>' + fmtShortDate(lastMove) + '</strong>') +
             trackRow('Desde el envío', '<strong>' + escapeHtml(daysSince(app.created_at)) + '</strong>') +
-            trackRow('Cliente', clientMiniHtml(item));
+            trackRow('Cliente', '<strong>' + escapeHtml(item.clientName || 'Cliente') + '</strong>');
 
         const actions = [];
         if (item.pendingClientOffer) {
             const o = item.pendingClientOffer;
             actions.push(
                 '<div class="apx-offerbox">' +
-                    '<span class="apx-offerbox-title">Contraoferta del cliente</span>' +
+                    '<span class="apx-offerbox-title">El cliente propuso cambios</span>' +
                     '<div><span class="wo-label">Precio</span><br><strong class="wo-mono-num">' +
                         escapeHtml(o.price != null ? fmtMoney(o.price, o.currency || item.currency) : 'Sin cambios de precio') + '</strong></div>' +
                     '<div><span class="wo-label">Fecha propuesta</span><br><strong>' +
@@ -803,8 +858,14 @@
             actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--block" data-action="conditions">' +
                 '<i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>Ver condiciones acordadas</button>');
             if (item.quoteId) {
-                actions.push('<a href="/my-quotations" class="wo-btn wo-btn--direct wo-btn--block">Ver cotización →</a>');
+                actions.push('<a href="/my-quotations" class="wo-btn wo-btn--direct wo-btn--block">Ver cotización ' + ARROW_ICON + '</a>');
             }
+        }
+        // "Vas a poder editar tu propuesta hasta que el cliente la vea" (801:1068):
+        // mientras siga en 'pending' y sin contraoferta, la propuesta se edita.
+        if (canEditProposal(item)) {
+            actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--block" data-action="edit">' +
+                '<i data-wo-icon="edit-2" class="wo-icon-18" aria-hidden="true"></i>Editar propuesta</button>');
         }
         actions.push('<a href="' + escapeAttr(conversationUrl(item)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
             '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
@@ -821,14 +882,6 @@
         '</aside>';
     }
 
-    function clientMiniHtml(item) {
-        const name = item.clientName || 'Cliente';
-        const avatar = item.clientProfile?.profile_picture || item.request?.client_avatar_url || null;
-        return '<span class="apx-client-mini"><span class="apx-client-avatar">' +
-            (avatar ? '<img src="' + escapeAttr(avatar) + '" alt="">' : escapeHtml(initials(name))) +
-            '</span><strong>' + escapeHtml(name) + '</strong></span>';
-    }
-
     function jbTimeline(item, app, offers) {
         const ev = [];
         ev.push({
@@ -842,7 +895,7 @@
             ev.push({
                 type: 'status',
                 title: 'Cambio de estado: cliente revisando',
-                detail: 'El cliente abrió tu propuesta y está evaluando los detalles.',
+                detail: null,
                 when: app.viewed_at || app.updated_at || app.created_at
             });
         }
@@ -895,10 +948,13 @@
             const offerTags = ['<span class="wo-tag apx-tag--accent">' + escapeHtml(item.kindLabel) + '</span>']
                 .concat(benefits.map((tag) => '<span class="wo-tag">' + escapeHtml(tag) + '</span>'))
                 .join('');
+            // Lista editorial del estudio; solo sin ella se derivan beneficios de las columnas.
             const includes = listValue(spot.studio_includes);
-            if (spot.includes_housing) includes.push('Alojamiento incluido durante el spot');
-            if (spot.stipend_amount) includes.push('Stipend de ' + fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD'));
-            if (spot.revenue_split_pct != null) includes.push('Split del ' + Number(spot.revenue_split_pct).toFixed(0) + '% para el artista');
+            if (!includes.length) {
+                if (spot.includes_housing) includes.push('Alojamiento incluido durante el spot');
+                if (spot.stipend_amount) includes.push('Stipend de ' + fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD'));
+                if (spot.revenue_split_pct != null) includes.push('Split del ' + Number(spot.revenue_split_pct).toFixed(0) + '% para el artista');
+            }
             const requirements = listValue(spot.minimum_requirements).length
                 ? listValue(spot.minimum_requirements)
                 : listValue(spot.artist_expectations);
@@ -911,10 +967,10 @@
                 (spot.description ? '<p class="apx-detail-desc">' + escapeHtml(spot.description) + '</p>' : '') +
                 '<div class="apx-detail-tags">' + offerTags + '</div>' +
                 '<div class="apx-datagrid">' +
-                    dataCell('Fechas', spot.start_date ? fmtRange(new Date(spot.start_date), new Date(spot.end_date || spot.start_date)) : 'A convenir') +
+                    dataCell('Fechas', spot.start_date ? fmtRange(toDate(spot.start_date), toDate(spot.end_date || spot.start_date)) : 'A convenir') +
                     dataCell('Duración', spotDuration(spot)) +
                     dataCell('Split', spot.revenue_split_pct != null ? Number(spot.revenue_split_pct).toFixed(0) + '% para el artista' : 'A convenir') +
-                    dataCell('Stipend', spot.stipend_amount ? fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD') + stipendFrequencyLabel(spot.stipend_frequency) : 'Sin stipend', spot.stipend_amount != null) +
+                    dataCell('Stipend', spot.stipend_amount ? fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD') + stipendFrequencyLabel(spot.stipend_frequency) : 'Sin stipend') +
                 '</div>' +
                 ((includes.length || requirements.length)
                     ? '<div class="apx-twolists">' +
@@ -997,36 +1053,50 @@
         const rows =
             trackRow('Estado actual', '<span class="' + st.tag + '">' + escapeHtml(st.label) + '</span>') +
             trackRow('Último movimiento', '<strong>' + fmtShortDate(lastMove) + '</strong>') +
-            trackRow('Respuesta estimada', '<strong>' + escapeHtml(spot.response_sla_label || 'A confirmar') + '</strong>') +
-            trackRow('Contacto', '<strong>' + escapeHtml(contactName) + (spot.contact_title ? '<small>' + escapeHtml(spot.contact_title) + '</small>' : '') + '</strong>');
+            trackRow('Tiempo estimado de respuesta', '<strong>' + escapeHtml(spot.response_sla_label || 'A confirmar') + '</strong>') +
+            trackRow('Contacto', '<strong' + (spot.contact_title ? ' title="' + escapeAttr(spot.contact_title) + '"' : '') + '>' + escapeHtml(contactName) + '</strong>');
 
         const actions = [];
         if (item.pendingStudioOffer) {
             const offer = item.pendingStudioOffer;
             actions.push(
                 '<div class="apx-offerbox">' +
-                    '<span class="apx-offerbox-title">Contraoferta del estudio</span>' +
-                    '<div><span class="wo-label">Fechas propuestas</span><br><strong>' + escapeHtml(counterOfferRange(offer)) + '</strong></div>' +
-                    '<div><span class="wo-label">Split propuesto</span><br><strong class="wo-mono-num">' +
+                    '<span class="apx-offerbox-title">El estudio envió una contraoferta</span>' +
+                    '<div><span class="wo-label">Fechas</span><br><strong>' + escapeHtml(counterOfferRange(offer)) + '</strong></div>' +
+                    '<div><span class="wo-label">Split</span><br><strong>' +
                         escapeHtml(offer.split_pct != null ? Number(offer.split_pct).toFixed(0) + '% para el artista' : 'Sin cambios') + '</strong></div>' +
-                    (offer.note ? '<div><span class="wo-label">Condiciones</span><p>' + escapeHtml(offer.note) + '</p></div>' : '') +
+                    (offer.note ? '<div><span class="wo-label">Condiciones adicionales</span><p>' + escapeHtml(offer.note) + '</p></div>' : '') +
                     '<button type="button" class="wo-btn wo-btn--direct wo-btn--block" data-action="respond">' +
                         'Responder contraoferta<i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i></button>' +
+                '</div>'
+            );
+        }
+        if (item.state === 'contrato_pendiente' && item.contract) {
+            actions.push(
+                '<div class="apx-offerbox">' +
+                    '<span class="apx-offerbox-title">El estudio te envió el contrato</span>' +
+                    '<p>Firmalo para confirmar el spot. Hasta entonces la postulación sigue abierta.</p>' +
+                    '<a href="' + escapeAttr(contractUrl(item.contract)) + '" class="wo-btn wo-btn--direct wo-btn--block">' +
+                        'Contrato pendiente de firma' + ARROW_ICON + '</a>' +
                 '</div>'
             );
         }
         if (item.state === 'confirmada') {
             actions.push('<button type="button" class="wo-btn wo-btn--secondary wo-btn--block" data-action="conditions">' +
                 '<i data-wo-icon="eye" class="wo-icon-18" aria-hidden="true"></i>Ver condiciones acordadas</button>');
+            if (item.contract && item.contract.status === 'signed') {
+                actions.push('<a href="' + escapeAttr(contractUrl(item.contract)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
+                    '<i data-wo-icon="file-text" class="wo-icon-18" aria-hidden="true"></i>Ver contrato firmado</a>');
+            }
         }
         actions.push('<a href="' + escapeAttr(conversationUrl(item)) + '" class="wo-btn wo-btn--secondary wo-btn--block">' +
             '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i>Ver conversación</a>');
-        if (item.state === 'esperando_respuesta' || item.state === 'en_revision' || item.state === 'contraoferta_recibida') {
+        if (item.state === 'esperando_respuesta' || item.state === 'en_revision' || item.state === 'contraoferta_recibida' || item.state === 'contrato_pendiente') {
             actions.push('<button type="button" class="wo-btn wo-btn--ghost" data-action="withdraw">' +
                 '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i>Retirar postulación</button>');
         }
 
-        return '<aside class="wo-card apx-track" aria-label="Seguimiento de la postulación">' +
+        return '<aside class="wo-card apx-track apx-track--spot" aria-label="Seguimiento de la postulación">' +
             '<h3 class="wo-h3">Seguimiento</h3>' +
             '<hr class="apx-track-rule">' +
             '<div class="apx-track-rows">' + rows + '</div>' +
@@ -1036,7 +1106,7 @@
 
     function counterOfferRange(offer) {
         if (offer.proposed_start_date && offer.proposed_end_date) {
-            return fmtRange(new Date(offer.proposed_start_date), new Date(offer.proposed_end_date));
+            return fmtRange(toDate(offer.proposed_start_date), toDate(offer.proposed_end_date));
         }
         if (offer.proposed_start_date) return 'Desde ' + fmtLongDate(offer.proposed_start_date);
         if (offer.proposed_end_date) return 'Hasta ' + fmtLongDate(offer.proposed_end_date);
@@ -1050,22 +1120,21 @@
             type: 'sent',
             title: 'Solicitud enviada',
             detail: range
-                ? 'Elegiste ' + fmtRange(range.start, range.end) + ' como fechas propuestas.'
+                ? 'Elegiste ' + fmtRange(range.start, range.end) + ' como fecha propuesta.'
                 : 'Fechas a convenir con el estudio.',
             when: app.created_at
         });
         if (app.status === 'shortlisted' || (offers && offers.length)) {
-            ev.push({ type: 'status', title: 'Cambio de estado: en revisión', detail: 'El estudio dejó tu solicitud en la lista corta.', when: app.decided_at || app.updated_at || app.created_at });
+            ev.push({ type: 'status', title: 'Cambio de estado: en revisión', detail: null, when: app.decided_at || app.updated_at || app.created_at });
         }
         (offers || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((offer) => {
             ev.push({
                 type: 'offer',
                 title: offer.author_role === 'studio' ? 'El estudio envió una contraoferta' : 'Enviaste una contrapropuesta',
                 detail: [
-                    offer.split_pct != null ? 'Split ' + Number(offer.split_pct).toFixed(0) + '%' : null,
-                    (offer.proposed_start_date || offer.proposed_end_date) ? counterOfferRange(offer) : null,
-                    offer.note || null
-                ].filter(Boolean).join(' · '),
+                    (offer.proposed_start_date || offer.proposed_end_date) ? 'Nuevas fechas: ' + counterOfferRange(offer) + '.' : null,
+                    offer.split_pct != null ? 'Split ajustado a ' + Number(offer.split_pct).toFixed(0) + '%.' : null
+                ].filter(Boolean).join(' ') || offer.note || null,
                 when: offer.created_at
             });
             if (offer.decided_at && (offer.status === 'accepted' || offer.status === 'rejected')) {
@@ -1077,6 +1146,18 @@
                 });
             }
         });
+        const contract = item.contract;
+        if (contract && contract.sent_at) {
+            ev.push({
+                type: 'status',
+                title: 'El estudio te envió el contrato',
+                detail: 'Contrato ' + (contract.contract_number || '') + (Number(contract.version) > 1 ? ' v' + contract.version : '') + ' para firmar.',
+                when: contract.sent_at
+            });
+        }
+        if (contract && contract.status === 'signed' && contract.artist_signed_at) {
+            ev.push({ type: 'ok', title: 'Firmaste el contrato', detail: null, when: contract.artist_signed_at });
+        }
         if (app.decided_at) {
             if (app.status === 'accepted') ev.push({ type: 'ok', title: 'Spot confirmado', detail: 'El estudio aceptó tu solicitud.', when: app.decided_at });
             else if (app.status === 'rejected') ev.push({ type: 'bad', title: 'Solicitud rechazada', detail: null, when: app.decided_at });
@@ -1100,6 +1181,7 @@
         let active = 0;
         if (item.state === 'en_revision') { done = 1; active = 2; }
         else if (item.state === 'contraoferta_recibida') { done = 2; active = 3; }
+        else if (item.state === 'contrato_pendiente') { done = 3; active = 4; }
         else if (item.state === 'confirmada') { done = 4; active = 0; }
         const parts = [];
         labels.forEach((label, i) => {
@@ -1111,7 +1193,8 @@
             parts.push('<div class="apx-step' + cls + '"><span class="apx-step-box">' + box + '</span>' +
                 '<span class="apx-step-label">' + escapeHtml(label) + '</span></div>');
             if (n < labels.length) {
-                parts.push('<span class="apx-step-line' + (n < done ? ' is-done' : '') + '"></span>');
+                // En tinta los conectores ya recorridos, incluido el que llega al paso activo.
+                parts.push('<span class="apx-step-line' + (n < done || n + 1 === active ? ' is-done' : '') + '"></span>');
             }
         });
         return '<div class="apx-stepper" aria-label="Progreso de la postulación">' + parts.join('') + '</div>';
@@ -1173,6 +1256,83 @@
                 el.addEventListener('click', () => openRespondModal(item));
             } else if (action === 'conditions') {
                 el.addEventListener('click', () => openConditionsModal(item));
+            } else if (action === 'edit') {
+                el.addEventListener('click', () => openEditProposalModal(item));
+            }
+        });
+        // ?editar=1 abre la edición de la propuesta (deep link de QA).
+        if (canEditProposal(item) && new URLSearchParams(window.location.search).get('editar') === '1') {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('editar');
+                window.history.replaceState(window.history.state, '', url);
+            } catch (err) { /* sin History API: el modal igual se abre */ }
+            openEditProposalModal(item);
+        }
+    }
+
+    function canEditProposal(item) {
+        return !!item && item.kind === 'jobboard' && item.app && item.app.status === 'pending' &&
+            !item.pendingClientOffer && item.state === 'esperando_respuesta';
+    }
+
+    // ---------- Editar propuesta (Job Board, antes de que el cliente la vea) ----------
+
+    function openEditProposalModal(item) {
+        const app = item.app;
+        const overlay = openModal(
+            '<h3 class="wo-modal-title">Editar propuesta</h3>' +
+            '<p>Podés cambiar tu propuesta hasta que ' + escapeHtml(item.clientName || 'el cliente') + ' la abra.</p>' +
+            '<form class="apx-modal-form" data-modal="edit-form">' +
+                '<div class="apx-modal-dates">' +
+                    '<div class="wo-field"><label class="wo-label" for="apx-ed-price">Precio (' + escapeHtml(item.currency || 'USD') + ')</label>' +
+                        '<input type="number" min="1" step="1" id="apx-ed-price" class="wo-input" required value="' + escapeAttr(app.estimated_price != null ? app.estimated_price : '') + '"></div>' +
+                    '<div class="wo-field"><label class="wo-label" for="apx-ed-sessions">Sesiones</label>' +
+                        '<input type="number" min="1" step="1" id="apx-ed-sessions" class="wo-input" required value="' + escapeAttr(app.estimated_sessions != null ? app.estimated_sessions : '') + '"></div>' +
+                '</div>' +
+                '<div class="wo-field"><label class="wo-label" for="apx-ed-message">Mensaje para el cliente</label>' +
+                    '<textarea id="apx-ed-message" class="wo-textarea" rows="4">' + escapeHtml(app.message || '') + '</textarea></div>' +
+                '<div class="wo-modal-actions">' +
+                    '<button type="button" class="wo-btn wo-btn--ghost" data-modal="cancel">Cancelar</button>' +
+                    '<button type="submit" class="wo-btn wo-btn--direct">Guardar cambios</button>' +
+                '</div>' +
+            '</form>'
+        );
+        overlay.querySelector('[data-modal="cancel"]').addEventListener('click', closeModal);
+        overlay.querySelector('[data-modal="edit-form"]').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const price = parseFloat(overlay.querySelector('#apx-ed-price').value);
+            const sessions = parseInt(overlay.querySelector('#apx-ed-sessions').value, 10);
+            const message = overlay.querySelector('#apx-ed-message').value.trim();
+            if (!(price > 0) || !(sessions >= 1)) {
+                modalError(overlay, 'Ingresá un precio y una cantidad de sesiones válidos.');
+                return;
+            }
+            const submitBtn = overlay.querySelector('[type="submit"]');
+            submitBtn.disabled = true;
+            try {
+                const JB = window.WeotziData && window.WeotziData.JobBoard;
+                if (!JB || !JB.Applications || typeof JB.Applications.updateProposal !== 'function') {
+                    throw new Error('updateProposal no disponible');
+                }
+                const updated = await JB.Applications.updateProposal(item.id, {
+                    estimated_price: price,
+                    estimated_sessions: sessions,
+                    message: message || null
+                });
+                if (!updated) {
+                    submitBtn.disabled = false;
+                    modalError(overlay, 'El cliente ya abrió tu propuesta: no se puede editar. Si necesitás cambiarla, escribile desde la conversación.');
+                    return;
+                }
+                Object.assign(app, updated);
+                item.price = app.estimated_price;
+                closeModal();
+                refreshCurrentView(item, true);
+            } catch (err) {
+                console.error('[applications] editar propuesta:', err);
+                submitBtn.disabled = false;
+                modalError(overlay, 'No pudimos guardar los cambios. Probá de nuevo en unos segundos.');
             }
         });
     }
@@ -1382,8 +1542,11 @@
                 offer.status = status;
                 offer.decided_at = new Date().toISOString();
                 item.pendingStudioOffer = null;
-                if (status === 'accepted') item.app.status = 'accepted';
-                item.state = deriveSpotState(item.app, item.spot, false);
+                // Con contratos, aceptar la contraoferta deja la postulación en
+                // revisión (shortlisted) hasta que el estudio emita el contrato;
+                // sin la migración pasa a accepted. Se relee el estado real.
+                if (status === 'accepted') item.app.status = await refreshedSpotStatus(item, 'accepted');
+                item.state = deriveSpotState(item.app, item.spot, false, item.contract);
                 closeModal();
                 refreshCurrentView(item, true);
             } catch (err) {
@@ -1428,7 +1591,7 @@
                 offer.decided_at = new Date().toISOString();
                 item.pendingStudioOffer = null;
                 item.app.status = 'shortlisted';
-                item.state = deriveSpotState(item.app, item.spot, false);
+                item.state = deriveSpotState(item.app, item.spot, false, item.contract);
                 closeModal();
                 refreshCurrentView(item, true);
             } catch (err) {
@@ -1460,7 +1623,7 @@
                 (accepted && accepted.note ? trackRow('Condiciones', '<strong>' + escapeHtml(accepted.note) + '</strong>') : '') +
                 (item.app.estimated_sessions ? trackRow('Sesiones', '<strong>' + escapeHtml(sessionsLabel(item.app.estimated_sessions)) + '</strong>') : '');
             if (item.quoteId) {
-                footer = '<a href="/my-quotations" class="wo-btn wo-btn--direct wo-btn--block">Ver cotización →</a>';
+                footer = '<a href="/my-quotations" class="wo-btn wo-btn--direct wo-btn--block">Ver cotización ' + ARROW_ICON + '</a>';
             }
         } else {
             const spot = item.spot;
@@ -1473,10 +1636,16 @@
                 trackRow('Fechas', '<strong>' + escapeHtml(acceptedOffer
                     ? counterOfferRange(acceptedOffer)
                     : (range ? fmtRange(range.start, range.end)
-                    : (spot && spot.start_date ? fmtRange(new Date(spot.start_date), new Date(spot.end_date || spot.start_date)) : 'A convenir con el estudio'))) + '</strong>') +
+                    : (spot && spot.start_date ? fmtRange(toDate(spot.start_date), toDate(spot.end_date || spot.start_date)) : 'A convenir con el estudio'))) + '</strong>') +
                 ((acceptedOffer?.split_pct != null || spot?.revenue_split_pct != null) ? trackRow('Split', '<strong>' + Number(acceptedOffer?.split_pct ?? spot.revenue_split_pct).toFixed(0) + '% para el artista</strong>') : '') +
                 (acceptedOffer?.note ? trackRow('Condiciones', '<strong>' + escapeHtml(acceptedOffer.note) + '</strong>') : '') +
                 (spot && spot.stipend_amount ? trackRow('Stipend', '<strong class="wo-mono-num">' + escapeHtml(fmtMoney(spot.stipend_amount, spot.stipend_currency || 'USD')) + '</strong>') : '');
+            // Con contrato firmado, las condiciones que valen son las del contrato.
+            if (item.contract && item.contract.status === 'signed') {
+                rows += trackRow('Contrato', '<strong>' + escapeHtml((item.contract.contract_number || 'Contrato') +
+                    (Number(item.contract.version) > 1 ? ' v' + item.contract.version : '')) + '</strong>');
+                footer = '<a href="' + escapeAttr(contractUrl(item.contract)) + '" class="wo-btn wo-btn--direct wo-btn--block">Ver contrato firmado ' + ARROW_ICON + '</a>';
+            }
         }
 
         const overlay = openModal(
@@ -1488,6 +1657,20 @@
             '</div>'
         );
         overlay.querySelector('[data-modal="close"]').addEventListener('click', closeModal);
+    }
+
+    // Estado persistido de la postulación a spot (getApplication); ante
+    // cualquier error se queda con `fallback`.
+    async function refreshedSpotStatus(item, fallback) {
+        const spotId = item && item.spot && item.spot.id;
+        const repo = window.WeotziData?.StudioSpots;
+        if (!spotId || !repo || typeof repo.getApplication !== 'function' || !session) return fallback;
+        try {
+            const { data, error } = await repo.getApplication(spotId, session.user.id);
+            return !error && data && data.status ? data.status : fallback;
+        } catch (err) {
+            return fallback;
+        }
     }
 
     function refreshCurrentView(item, fromDetail) {
@@ -1531,6 +1714,12 @@
 
     function toDate(v) {
         if (!v) return null;
+        // Fecha sola de Postgres ('2026-12-16'): día local, no medianoche UTC
+        // (en América, new Date('2026-12-16') cae el 15).
+        if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+            const parts = v.split('-').map(Number);
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
         const d = v instanceof Date ? v : new Date(v);
         return isNaN(d.getTime()) ? null : d;
     }
@@ -1595,16 +1784,27 @@
         }[value] || null;
     }
 
+    // Adjunto del portfolio: nombre de archivo si es un archivo; si es un enlace, texto genérico.
+    function attachmentLabel(url) {
+        const name = fileNameOf(url);
+        return /\.[a-z0-9]{2,5}$/i.test(String(name)) ? name : 'Portfolio en We Ötzi';
+    }
+
+    // Días de calendario desde el envío (25 jul → 27 jul = 2 días).
     function daysSince(v) {
         const d = toDate(v);
         if (!d) return '—';
-        const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+        const today = new Date();
+        const from = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const to = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const days = Math.max(0, Math.round((to - from) / 86400000));
         if (days === 0) return 'Hoy';
         return days === 1 ? '1 día' : days + ' días';
     }
 
     function sizeLabel(raw) {
         if (!raw) return 'A definir';
+        if (/\(.+\)/.test(String(raw))) return String(raw).trim();
         const key = String(raw).toLowerCase().replace(/\s+/g, '_');
         for (const k of Object.keys(SIZE_LABELS)) {
             if (key.includes(k)) return SIZE_LABELS[k];

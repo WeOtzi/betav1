@@ -1,0 +1,243 @@
+{
+  "area": "oportunidades",
+  "frames": [
+    {
+      "node": "801:1067",
+      "name": "Job Board - Explorar solicitudes",
+      "route": "/job-board",
+      "result": "rediseñada",
+      "summary": "Cabecera con 'Mis postulaciones →', sponsor (103:1666) con franja amarilla, titular Inter 23px y separador, rieles sin regla intermedia con 'Ver todo' siempre, placeholder circular con esquinas sup. izq./inf. der., presupuestos sin sufijo USD, ícono zap en 'Recién publicados' y 'Recomendado' sin estado activo por defecto (ahora filtra). Ronda 1: tarjetas con borde de 1 px, presupuesto JetBrains Mono Bold 14, \"Postularme\" 12 px / tracking .96 y sin regla sobre la fila de precio; rieles a sangre hasta el borde de la ventana; sin divisores entre Regional / Temático / Otros; \"Postularme\" en una solicitud ya postulada abre el detalle con \"Ver seguimiento\"; placeholder del sponsor sin \"browse files\". Ronda 2: tarjeta de 296×437 como en el Figma (cuerpo mínimo de 215 px con gap de 10 px y el pie anclado abajo: de la línea de ciudad/zona al precio hay 70 px), etiquetas de 17.6 px separadas 6 px, pie con 8 px arriba y \"Postularme\" de 36 px; sidebar blanco con su borde hasta el final del contenido y separador a sangre en tinta sobre \"Refinar\".",
+      "figma_png": "output/figma-final-artista/frames/801-1067_jobboard-explorar.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1067.png",
+      "state_url": "/job-board/",
+      "fidelity": "alta",
+      "fidelity_notes": "Topbar con badges (COTIZACIONES 3, Ö 18) y footer son del área Dashboard. Conteos del sidebar, estilos y textos de las cards salen de las fixtures (el mockup muestra otros conteos y colores de placeholder). Tarjeta medida por CDP: 437 px (Figma 437.8)."
+    },
+    {
+      "node": "801:1068",
+      "name": "Job Board - Detalle y envío de propuesta",
+      "route": "/job-board",
+      "result": "rediseñada",
+      "summary": "Chips del frame (código arena, estilos amarillo, 'N propuestas recibidas' a la derecha), requisitos específicos desde la columna nueva specific_requirements con viñeta cuadrada, valores en negrita con íconos, tarjeta del cliente con nota de contacto a la derecha, barra 'N artistas ya enviaron…' con ícono, aside con campos en tinta, sin asteriscos, disponibilidad con ícono de calendario y vista previa 'Así te va a ver el cliente' (avatar cuadrado, ☆ rating · trabajos, ciudad a la derecha). Si ya te postulaste, el aside muestra el estado y 'Ver seguimiento →'. Ronda 1: título 36 px, breadcrumb #b9ae98 11 px, aviso de plazo solo con borde izquierdo de 4 px y título 16 px, referencias sin imagen con ícono y texto en negro 75 % y sin \"browse files\" ni lupa deshabilitada, check de cliente verificado (perfil completo) y rating con estrella Feather, estrella Feather en \"Así te va a ver el cliente\". El aside \"Ya enviaste tu propuesta\" (/job-board/?solicitud=JB-24872) muestra el estado real (Contraoferta recibida → \"Responder contraoferta\"). Ronda 2: título en la caja de 680 px del Heading 1 con interlineado de 39.6 px (corta \"Retrato realista de abuela en / blanco y negro\", primera línea de 574 px como en el Figma), 20 px entre \"Volver\" y el título, chips de 20 px en JetBrains Mono Bold 10, aviso de plazo de 66 px (padding 12/16/12/20), 93 px entre las filas de referencias y 13 px hasta \"La idea del tatuaje\" (texto también en 680 px). El aside arranca a la altura del título, como en el Figma.",
+      "figma_png": "output/figma-final-artista/frames/801-1068_jobboard-detalle-propuesta.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1068.png",
+      "state_url": "/job-board/?solicitud=JB-45210",
+      "fidelity": "alta",
+      "fidelity_notes": "Capturado sobre JB-45210 (el artista de prueba ya se postuló a JB-24872; ese estado está en shots/oportunidades/801-1068-aplicada.png). Posiciones verticales del bloque principal a ±2 px del Figma (medido por CDP). El check usa client_public_profiles.profile_completed_at como dato de verificación. Los decimales del rating usan coma (es-AR) y el Figma muestra punto."
+    },
+    {
+      "node": "801:1069",
+      "name": "Job Board - Propuesta enviada",
+      "route": "/job-board",
+      "result": "rediseñada",
+      "summary": "Resumen con valores en negrita, avatar del cliente azul y botón secundario con borde fino. Nuevo deep link de QA/seguimiento ?solicitud=<código>&estado=enviada que muestra la confirmación de una propuesta ya enviada. Ronda 1: resumen con borde de 1 px, filas de 45 px con padding de 20 px y separadores insetados, encabezado y eyebrow claros, subtítulo a ~28 rem y proyecto en una línea. Con el deep link el badge muestra el estado real de la postulación; tras un envío nuevo dice \"Enviada\" (literal Figma). Ronda 2: cabecera del resumen de 48 px (14 px + badge de 20 px en Mono Bold 10 / .8 px, título 11 px / 1.1 px), cuerpo con 20 px de aire en los cuatro lados, filas de ~43 px (57 la del cliente), precio en Mono Bold 16, claves con tracking .66 px y 36 px hasta los botones de 52 px.",
+      "figma_png": "output/figma-final-artista/frames/801-1069_jobboard-propuesta-enviada.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1069.png",
+      "state_url": "/job-board/?solicitud=JB-24872&estado=enviada",
+      "fidelity": "alta",
+      "fidelity_notes": "Caja de 278 px (Figma 279.2: el borde del Figma es de 1.6 px). En el deep link de QA el badge dice \"Contraoferta recibida\" porque JB-24872 tiene una contraoferta pendiente en las fixtures; el Figma muestra \"Enviada\" (estado inmediatamente posterior al envío, que es lo que se ve al enviar)."
+    },
+    {
+      "node": "801:1070",
+      "name": "Postulaciones - Todas las oportunidades (+ instancia 2007:5811)",
+      "route": "/artist/applications",
+      "result": "rediseñada",
+      "summary": "Fixtures con las 9 postulaciones del Figma (5 Job Board + 4 Spots) y todos los estados; 'En revisión' con fondo arena; badge 'Spot confirmado' en línea; 'Ver conversación' usa el contrato de deep link del Inbox (?opportunity=&application=). Ronda 1: \"Volver…\" Inter Bold 12, pestañas inactivas #b9ae98 a 14 px, chips 12 px con borde de 1 px (los de cero con estilo normal y aria-disabled), contador \"9 de 9 postulaciones\" en minúsculas con el total general, fecha Inter 12, badge 12, botones 12 px / 1 px / 36 px, flecha Feather en \"Ver solicitud\", maletín (briefcase) para el tipo de spot y placeholder \"Sin foto\".",
+      "figma_png": "output/figma-final-artista/frames/801-1070_postulaciones-todas.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1070.png",
+      "state_url": "/artist/applications/",
+      "fidelity": "alta",
+      "fidelity_notes": "\"Retrato realista de abuela\" figura En revisión en el mockup de 801:1070 y con contraoferta en 801:1073: las fixtures siguen 801:1073 (un solo dato no puede cumplir ambos). Orden por fecha de envío. Las miniaturas usan la foto real del spot cuando existe."
+    },
+    {
+      "node": "801:1071",
+      "name": "Postulaciones - Job Board - Variante 01",
+      "route": "/artist/applications",
+      "result": "rediseñada",
+      "summary": "La pestaña Job Board usa la variante 01: columnas más anchas (foto 140×94, título 320px) y acciones como enlaces de texto sin borde. Ronda 1: columna de acciones fija de 15 rem compartida por todas las filas; los enlaces terminan en el mismo borde derecho (el del contenedor de 1144 px) y van en Inter Bold 12.",
+      "figma_png": "output/figma-final-artista/frames/801-1071_postulaciones-jobboard.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1071.png",
+      "state_url": "/artist/applications/?tab=jobboard",
+      "fidelity": "alta",
+      "fidelity_notes": "En el Figma los enlaces desbordan el contenedor (~1352 px); acá se alinean al borde derecho del contenedor y el título queda en ~280 px (Figma 320 px). Los chips pasan \"Expirada\" a la segunda fila, igual que el frame."
+    },
+    {
+      "node": "801:1073",
+      "name": "Postulaciones - Detalle y seguimiento de propuesta",
+      "route": "/artist/applications",
+      "result": "rediseñada",
+      "summary": "Caja 'El cliente propuso cambios' con etiquetas del frame, cliente sin avatar en el seguimiento, 'Desde el envío' en días de calendario, tamaño literal ('Mediano (15–20 cm)'), chips arena, sin la fila 'Disponibilidad' (no está en el Figma) y adjunto en tinta. Responder/aceptar/rechazar/contrapropuesta y retirar funcionan. Ronda 1: stepper con cuadros de 40 px y borde fino, etiquetas centradas en dos líneas (10 px) y conectores en tinta hasta el paso activo; aside \"Seguimiento\" con filas de ~41 px, badge 10 px, caja de contraoferta y botones de 48/44 px a 14 px, \"Ver conversación\" con borde en tinta; timeline sin la descripción de \"Cambio de estado\". Nuevo: \"Editar propuesta\" mientras la propuesta siga en pending sin contraoferta (QA: ?type=jobboard&id=…fa2000000001&editar=1). Ronda 2: título de 22 px y regla pegada a las filas (sin el gap de 16 px que sobraba), filas de 39/42/42/41 px, ítems de la contraoferta de 36 px separados 8 px y 20 px (16 + 4) entre la caja y \"Ver conversación\".",
+      "figma_png": "output/figma-final-artista/frames/801-1073_postulaciones-detalle-propuesta.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1073.png",
+      "state_url": "/artist/applications/?type=jobboard&id=0000c0de-0000-4000-8000-fa2000000002&from=todas",
+      "fidelity": "alta",
+      "fidelity_notes": "Aside de 659 px contra 654 del Figma (bordes de 1 px contra trazos internos del Figma); caja de contraoferta de 267 px (Figma 266). El timeline dice \"El cliente propuso cambios\" (neutro, igual que la caja) donde el Figma dice \"La clienta\". El adjunto muestra \"Portfolio en We Ötzi\" (enlace real a /artist/profile?artist=…) en lugar del PDF del mockup. Las fechas son relativas a hoy."
+    },
+    {
+      "node": "801:1075",
+      "name": "Postulaciones - Spots",
+      "route": "/artist/applications",
+      "result": "rediseñada",
+      "summary": "Lista de 4 spots del Figma (Costa Ink · contraoferta, Bang Bang · en revisión, Palermo · confirmada, Sur · rechazada) con acciones en borde y 'Volver a spots'. Ronda 1: mismos ajustes de tipografía, chips, contador (\"4 de 9 postulaciones\"), botones, flecha y maletín que 801:1070.",
+      "figma_png": "output/figma-final-artista/frames/801-1075_postulaciones-spots.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1075.png",
+      "state_url": "/artist/applications/?tab=spots",
+      "fidelity": "alta",
+      "fidelity_notes": "Se mantiene \"Volver a spots\" (→ /studio-spots) en la pestaña Spots; el Figma dice \"VOLVER AL JOB BOARD\" (desvío deliberado, pendiente de confirmar con diseño). \"Expirada (0)\" baja a una segunda fila (en el Figma los chips desbordan el contenedor)."
+    },
+    {
+      "node": "801:1074",
+      "name": "Postulaciones - Detalle y seguimiento de spot",
+      "route": "/artist/applications",
+      "result": "rediseñada",
+      "summary": "Etiquetas de beneficio desde la columna nueva benefit_tags, 'Tiempo estimado de respuesta', 'El estudio envió una contraoferta' (Fechas / Split / Condiciones adicionales), stipend sin mono, 'Qué incluye' solo con la lista editorial y timeline con 'Nuevas fechas… Split ajustado a N%'. Ronda 1: stepper y aside \"Seguimiento\" como 801:1073, timeline sin descripción en \"Cambio de estado: en revisión\" y fechas sin desfase de zona horaria (las fechas solas se leen como día local). Ronda 2: el aside sigue al nodo 132:15421: título de 22 px, regla pegada a las filas, ítems de 36 px, botón \"Responder contraoferta\" de 41 px (en el Job Board mide 48, como en 801:1073; el aside del spot lleva la clase apx-track--spot) y 20 px hasta \"Ver conversación\".",
+      "figma_png": "output/figma-final-artista/frames/801-1074_postulaciones-detalle-spot.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-1074.png",
+      "state_url": "/artist/applications/?type=spot&id=0000c0de-0000-4000-8000-fb4000000001&from=spots",
+      "fidelity": "alta",
+      "fidelity_notes": "Aside de 652 px contra 647 del Figma; caja de contraoferta de 260 px (Figma 259). Galería con fotos del estudio de las fixtures (el mockup tiene 4 placeholders). Fechas de la contraoferta relativas a hoy."
+    },
+    {
+      "node": "801:537",
+      "name": "Spots - Explorar oportunidades",
+      "route": "/studio-spots",
+      "result": "rediseñada",
+      "summary": "Nueva cabecera 'Encontrá tu próximo spot' con pestañas (Explorar spots · Mis postulaciones · Invitaciones · N con punto rojo), búsqueda, filtros País/Ciudad/Fecha/Tipo de spot/Más filtros (alojamiento, stipend, mis estilos), contador 'N oportunidades encontradas' y orden (relevancia, cierre, recientes, split). Mosaico con 13 spots, ficha urgente (Última oportunidad), ficha itinerante en texto mono, promovido amarillo y cinta con los spots que no entraron. Ronda 1: hero patrocinado sin alto fijo (mín. 396 px + regla de 5 px en tinta, como 107:5088), título 46 px, etiquetas outline en tinta, botones de 37 px y \"Ver detalles\" con borde en tinta; títulos del mosaico 45 / 28 / 26 px y meta 12 px; marcas rotativas cuadrado rojo → triángulo azul → círculo amarillo en mosaico y cinta; cinta en una franja de 56 px con separadores de 22 px; estrella Feather en \"Patrocinado\"; promovida sin borde azul y meta en tinta; buscador con box-sizing (390 px sin scroll horizontal); placeholders sin \"browse files\".",
+      "figma_png": "output/figma-final-artista/frames/801-537_spots-explorar.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-537.png",
+      "state_url": "/studio-spots/",
+      "fidelity": "alta",
+      "fidelity_notes": "La descripción del hero se corta a 130 caracteres para respetar los 380 px del Figma. Las etiquetas de estilos usan el texto de datos (\"Black and grey\"). Contador de invitaciones desde StudioMemberships.listPendingForArtist. Verificado a 390 px por CDP: scrollWidth 390 (captura en shots/oportunidades/spots-390.png)."
+    },
+    {
+      "node": "801:538",
+      "name": "Spots - Detalle y postulación",
+      "route": "/studio-spots",
+      "result": "rediseñada",
+      "summary": "Etiqueta 'Portfolio' fuera de la tarjeta, avatar cuadrado amarillo, '☆ rating · N trabajos' y ciudad a la derecha, textarea con borde en tinta, resumen de fechas oculto hasta elegir. Si ya te postulaste, el aside muestra el estado y 'Ver seguimiento →'. Ronda 1: sitio web con ícono external-link, rating con estrella Feather, galería con placeholders sin \"browse files\". En la residencia del mockup (?spot=…b10000000003) el aside muestra el estado real \"Contraoferta recibida\" con \"Responder contraoferta\"; el error de envío duplicado traduce el estado (\"esperando respuesta\", \"en revisión\"…).",
+      "figma_png": "output/figma-final-artista/frames/801-538_spots-detalle-postulacion.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-538.png",
+      "state_url": "/studio-spots/?spot=0000c0de-0000-4000-8000-fb3000000006",
+      "fidelity": "alta",
+      "fidelity_notes": "Capturado sobre el guest spot de Costa Ink en Barcelona (el artista de prueba ya se postuló a la residencia del mockup). El calendario no tiene los puntos bajo algunos días del Figma (semántica no definida)."
+    },
+    {
+      "node": "801:539",
+      "name": "Spots - Solicitud enviada",
+      "route": "/studio-spots",
+      "result": "rediseñada",
+      "summary": "Iniciales del estudio en cuadrado tinta/amarillo, tipo de spot como badge, split en mono, filas centradas y botón secundario con borde en tinta. Deep link ?spot=<id>&estado=enviada muestra la confirmación de una postulación existente. Ronda 1: título 36 px, eyebrow y encabezado del resumen claros, borde de 1 px, filas de 45 px con separadores insetados, subtítulo a 29 rem y botón secundario con borde fino. Con el deep link el badge usa el estado real; tras un envío nuevo dice \"En revisión\" (literal Figma). Ronda 2: cabecera del resumen de 48 px (badge de 20 px en Mono Bold 10 / .8 px), cuerpo con 20 px de aire en los cuatro lados, filas de ~43 px (57 la del estudio), tipo de spot en badge de 20 px, split en Mono Bold 16 y botones de 52 px separados 16 px.",
+      "figma_png": "output/figma-final-artista/frames/801-539_spots-solicitud-enviada.png",
+      "impl_png": "output/figma-final-artista/shots/oportunidades/801-539.png",
+      "state_url": "/studio-spots/?spot=0000c0de-0000-4000-8000-b10000000003&estado=enviada",
+      "fidelity": "alta",
+      "fidelity_notes": "Caja de 366 px (Figma 367.2: el borde del Figma es de 1.6 px). En el deep link de QA el badge dice \"Contraoferta recibida\" porque la postulación de las fixtures tiene una contraoferta pendiente. Título literal con signos de exclamación (regla 10 del DS: decisión de copy pendiente)."
+    }
+  ],
+  "removed_in_page": [
+    "/job-board: estado activo por defecto de 'Recomendado' (ahora es un filtro que se activa al tocarlo) y regla de 2px entre rieles",
+    "/job-board detalle: asteriscos de campos obligatorios, línea con candado de 'datos de contacto' (reemplazada por la nota del Figma) y requisito 'Fechas flexibles: true'",
+    "/artist/applications detalle JB: fila 'Disponibilidad' en 'Mi propuesta' y mini-avatar del cliente en el seguimiento",
+    "/artist/applications detalle spot: ítems autogenerados de 'Qué incluye el estudio' (stipend/split) cuando el estudio ya cargó su lista",
+    "/studio-spots detalle: texto de ayuda 'Elegí el día de inicio y el de cierre.' (solo aparece al elegir fechas)",
+    "/job-board: regla superior de la fila de precio en las tarjetas y divisores entre acordeones del sidebar",
+    "/job-board detalle: botón de lupa deshabilitado y texto \"or browse files\" en referencias sin imagen; \"o browse files\" del sponsor",
+    "/artist/applications: descripciones de los ítems \"Cambio de estado\" del timeline; \"or browse files\" de las miniaturas",
+    "/studio-spots: \"or browse files\" de los placeholders; borde azul del \"Postularme\" de la ficha promovida",
+    "/job-board: alto libre de la tarjeta (ahora 437 px mínimo, con el pie anclado abajo) y separador insetado sobre \"Refinar\" (ahora a sangre)"
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Carga de requisitos específicos por el cliente",
+      "detail": "El formulario /job-board/request (área cliente) debe escribir job_board_requests.specific_requirements (máx. 8). Mientras tanto el detalle deriva requisitos de otras columnas.",
+      "severity": "media"
+    },
+    {
+      "title": "Edición de etiquetas y resumen de fechas del spot",
+      "detail": "El panel del estudio debería editar studio_spots.benefit_tags (máx. 6) y availability_summary (máx. 160).",
+      "severity": "media"
+    },
+    {
+      "title": "Marcadores del calendario de spots",
+      "detail": "801:538 muestra puntos bajo algunos días; no está definido qué representan (¿días con agenda del estudio?).",
+      "severity": "baja"
+    },
+    {
+      "title": "Flag de verificación de clientes",
+      "detail": "801:1068 muestra un check junto al nombre del cliente. Se usa client_public_profiles.profile_completed_at como dato de verificación; si producto quiere verificación real (email/identidad) hace falta exponer un flag en la vista client_public_profiles.",
+      "severity": "baja"
+    },
+    {
+      "title": "Hilo de Costa Ink duplicado en el Inbox del preview",
+      "detail": "travel-inbox.js (corre después de oportunidades.js) liga el hilo base \"Costa Ink Collective\" a la postulación de la residencia con application_status=accepted. Oportunidades agrega su propio hilo (contraoferta) más reciente, que es el que abre \"Ver conversación\"; el hilo base queda como segundo hilo de Costa Ink con \"Postulación aceptada\". Lo resuelve el área travel-inbox ligando su hilo a otro contexto.",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028170000_oportunidades_figma_final.sql",
+      "rollback": "supabase/rollbacks/20261028170000_oportunidades_figma_final.down.sql",
+      "purpose": "job_board_requests.specific_requirements text[] (requisitos específicos del detalle 801:1068); studio_spots.benefit_tags text[] (etiquetas de 801:1074) y studio_spots.availability_summary text ('Fechas disponibles' de 801:538). Aditiva, idempotente, con checks de largo y RLS reafirmada. El frontend lee las columnas con fallback (WeotziData.SpotsOpportunities reintenta con el select previo; el Job Board usa select *).",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "'3CUPOS' (sponsor 103:1666, falta espacio) → '3 cupos'",
+    "Implementación previa 'Contraoferta del cliente' → 'El cliente propuso cambios' (literal Figma)",
+    "Implementación previa 'Contraoferta del estudio' → 'El estudio envió una contraoferta' (literal Figma)",
+    "Implementación previa 'Respuesta estimada' → 'Tiempo estimado de respuesta' (literal Figma)",
+    "Implementación previa 'Los datos de contacto se habilitan cuando el cliente acepta tu propuesta.' → 'Datos de contacto disponibles cuando el cliente acepte tu propuesta' (literal Figma)",
+    "Implementación previa 'como fechas propuestas' → 'como fecha propuesta' (literal Figma)",
+    "Timeline 801:1073 \"La clienta propuso cambios\" → \"El cliente propuso cambios\" (neutro, igual que el título de la caja del Figma)",
+    "Placeholders del image-slot \"or browse files\" / \"o browse files\" / \"Foto or browse files\" → solo ícono + etiqueta en castellano (\"Foto del estudio\", \"Referencia N\", \"Sin foto\")",
+    "Error de spot duplicado \"Estado: pending.\" → \"Estado: esperando respuesta.\" (etiquetas del estado unificado)",
+    "Pestaña Spots de Mis postulaciones: el Figma dice \"VOLVER AL JOB BOARD\"; se mantiene \"Volver a spots\" (desvío, enlaza a /studio-spots)"
+  ],
+  "missing_assets": [
+    "Fotos de estudio/trabajo destacado, referencias del cliente y portfolio: slots dinámicos (placeholders del DS cuando no hay imagen)",
+    "Foto de Bang Bang NYC: se reutiliza /shared/assets/figma/opportunities/spots-studio-01.png ya existente"
+  ],
+  "files_changed": [
+    "public/artist/applications/index.html",
+    "public/job-board/index.html",
+    "public/shared/css/job-board-feed.css",
+    "public/shared/css/opportunity-applications-figma.css",
+    "public/shared/css/studio-spots-figma.css",
+    "public/shared/js/artist-applications.js (ronda 2: clase apx-track--spot en el aside del spot)",
+    "public/shared/js/data/jobboard-repo.js (método nuevo Applications.updateProposal)",
+    "public/shared/js/demo-fixtures/oportunidades.js",
+    "public/shared/js/job-board-feed.js",
+    "public/shared/js/studio-spots-directory.js",
+    "public/shared/js/wo-tour-steps.js (pasos de /studio-spots: paso 'explore' nuevo y destino de 'invitations-link')",
+    "public/studio-spots/index.html",
+    "tests/job-applications-figma.test.js (aserción de \"Ver solicitud\" con ícono Feather)",
+    "tests/figma-final-oportunidades.test.js (ronda 2: 3 casos nuevos)"
+  ],
+  "files_created": [
+    "output/figma-final-artista/frames/801-1067..801-1075, 801-537..801-539 (PNG del Figma)",
+    "output/figma-final-artista/shots/oportunidades/*.png",
+    "public/shared/js/applications-state.js",
+    "public/shared/js/data/spots-opportunities-repo.js",
+    "supabase/migrations/20261028170000_oportunidades_figma_final.sql",
+    "supabase/rollbacks/20261028170000_oportunidades_figma_final.down.sql",
+    "tests/figma-final-oportunidades.test.js"
+  ],
+  "tests": "node --test \"tests/*.test.js\": 620 tests, 616 pass, 3 fail, 1 skipped. Las 3 fallas son las preexistentes de PowerShell 7 (onboarding/setup y verificación manual de Dev). Tests del área en verde: figma-final-oportunidades suma 3 casos de la ronda 2 (resúmenes de confirmación, aside \"Seguimiento\", título del detalle y tarjetas).",
+  "notes": [
+    "Fixtures: se reemplazan las postulaciones del demo base por las 9 del Figma; las solicitudes base quedan abiertas sin feed_rank y los spots base de La Aguja Negra y Zorro Rojo quedan 'closed'. Costa Ink suma una sede en Barcelona y Bang Bang NYC se ajusta a split 70% / stipend 800 USD. Se agregan 10 estudios y 2 hilos del Inbox (Costa Ink, Bang Bang) quedan ligados a sus postulaciones por context_id.",
+    "preview-bootstrap.js carga demo-fixtures/<área>.js sin cache-busting y guarda el store en localStorage compartido: en el navegador integrado hay que recargar y tocar 'Reiniciar datos' para ver las fixtures nuevas (las capturas headless usan perfil limpio).",
+    "'Ver conversación' respeta el contrato de inbox-deeplink.js (?opportunity=jobboard|spot&application=<id>[&quote=]): abre el hilo con context_id de la postulación o deja el Inbox filtrado.",
+    "Topbar/footer (área Dashboard): en los frames no aparece el footer y la topbar no tiene 'Modo cliente'; el subrayado activo del Figma cae en 'Cotizaciones' en todos los frames.",
+    "artist-applications.js hace pushState a '/artist/applications' y pierde el prefijo del preview (/preview/preview-local-safe); en producción no afecta.",
+    "Ronda 1 (corrector): estado unificado en public/shared/js/applications-state.js (window.WoApplicationState / module.exports). Lo usan Mis postulaciones, los asides \"ya te postulaste\" de /job-board y /studio-spots y las confirmaciones con deep link; las tres páginas cargan el script antes de su JS.",
+    "\"Editar propuesta\": botón en el seguimiento de Job Board mientras la postulación siga en pending sin contraoferta; guarda con WeotziData.JobBoard.Applications.updateProposal (update con .eq('status','pending'); si el cliente ya la abrió, avisa y no guarda). Depende de que la RLS de job_board_applications permita al artista actualizar su fila (hoy ya lo hace para retirar). Deep link de QA: &editar=1.",
+    "Fixtures: un hilo del Inbox por cada una de las 9 postulaciones (context_type *_application, context_id = postulación, estado del panel alineado: pendiente, esperando tu respuesta, aceptada, rechazada, vencida). Portfolio de las postulaciones en /artist/profile?artist=<username> (la tabla de rutas del BRIEF dice ?username=, el parámetro real es ?artist=). Reseñas de otros artistas sobre clientes en verified_reviews (Camila R. 4,9).",
+    "Fechas solas de Postgres (YYYY-MM-DD) en Mis postulaciones se leen como día local: antes, en América, la contraoferta de Costa Ink mostraba un día menos que el Inbox.",
+    "Verificado por CDP a 390 px: scrollWidth = 390 en /studio-spots, /job-board (feed, detalle, confirmación), /artist/applications (listados y detalle) y el detalle/confirmación de Spots. Consola sin errores en las tres páginas.",
+    "Topbar y footer: los badges (COTIZACIONES 3, Ö 18) y el footer completo no están en ningún frame del área; los resuelve el área Dashboard (<weotzi-product-nav>).",
+    "Ronda 2 (corrector): los cuatro hallazgos P1 de la auditoría se corrigieron con CSS del área y una clase en el aside del spot. Medidas verificadas por CDP a 1440 px contra get_design_context de los nodos 112:8897 / 105:4038 (resúmenes), 132:15421 / 133:16833 (asides), 105:3627 / 105:3640 / 105:3629 (cabecera del detalle) y 28:3246 (cuerpo de la tarjeta). La diferencia que queda en altos totales (1–5 px) viene de los bordes: el Figma usa trazos de 1.6 px o internos y la implementación bordes de 1 px.",
+    "Ronda 2: en 801:1068 (detalle) el aside \"Tu propuesta\" / \"Ya enviaste tu propuesta\" arranca a la altura del título (margin-top de 54 px desde 64.0625rem), porque en el Figma \"Volver\" y el breadcrumb ocupan una fila propia encima de las dos columnas. En 801:1073 el botón \"Responder contraoferta\" mide 48 px y en 801:1074 mide 41 px: se respetan ambos valores del Figma.",
+    "Ronda 2: verificado por CDP a 390 px (scrollWidth 390) en /job-board (feed, detalle, confirmación), /studio-spots (confirmación) y /artist/applications (detalle Job Board y Spot); consola sin errores."
+  ]
+}

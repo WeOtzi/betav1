@@ -1,0 +1,374 @@
+/* ============================================
+   WE ÖTZI — SUPPLIES (prefijo sp-)
+   Registro, acceso y panel de las tiendas de insumos (/supplies/*).
+   Va DESPUÉS de studio.css y studio-admin-kit.css: reusa sus tokens
+   (.studio-page) y piezas (sk-*). Misma línea editorial que el estudio:
+   radio 0, bordes duros, sombra dura solo en hover.
+   Breakpoints: 900px y 600px (los del kit).
+   ============================================ */
+
+/* El atributo hidden siempre gana (studio/* no carga el DS global). */
+.supplies-page [hidden] { display: none !important; }
+
+.sp-visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ----- Registro y acceso ----- */
+.sp-wizard-intro { margin: 0 0 18px; max-width: 62ch; }
+
+.sp-details {
+    border: var(--studio-rule) solid var(--fg);
+    padding: 12px 14px;
+    background: var(--bg);
+}
+.sp-details > summary {
+    cursor: pointer;
+    font-family: var(--studio-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg);
+}
+.sp-details[open] > summary { margin-bottom: 12px; }
+.sp-details > .studio-help { margin: 0 0 12px; }
+
+.sp-review-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: var(--studio-rule-thick) solid var(--fg);
+    background: var(--surface-color);
+    color: var(--fg);
+}
+.sp-review-note > i { margin-top: 2px; font-size: 1.1rem; }
+.sp-review-note p { margin: 0; font-size: 0.92rem; line-height: 1.5; }
+
+.sp-login-links { margin-top: 18px; line-height: 1.8; }
+.sp-login-links a,
+.sp-link {
+    color: var(--fg);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+.sp-login-links a:hover,
+.sp-link:hover { background: var(--primary-yellow); color: var(--text-on-light); }
+
+/* ----- Panel: textos y formularios ----- */
+.sp-panel-intro { margin: 0 0 18px; max-width: 70ch; }
+.sp-form { display: grid; gap: 16px; min-width: 0; }
+.sp-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding-top: 4px;
+}
+.sp-inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-family: var(--studio-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg);
+    cursor: pointer;
+}
+.sp-inline-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--fg); }
+.sk-toolbar > .sp-inline-check { flex: 0 0 auto; }
+.sp-toolbar-note { margin: 0; align-self: center; }
+.sp-subtitle {
+    margin: 22px 0 10px;
+    font-family: var(--studio-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+/* ----- Avisos (cuenta en revisión / desactivada / stock) ----- */
+.sp-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: var(--studio-rule-thick) solid var(--fg);
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+.sp-banner > i { margin-top: 3px; font-size: 1.05rem; }
+.sp-banner p { margin: 4px 0 0; font-size: 0.92rem; line-height: 1.5; }
+.sp-banner ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.9rem; }
+.sp-banner .sp-banner__title {
+    margin: 0;
+    font-weight: 900;
+    font-size: 0.98rem;
+}
+.sp-banner--danger {
+    background: var(--bg);
+    color: var(--fg);
+    border-color: var(--primary-red);
+    box-shadow: inset 6px 0 0 var(--primary-red);
+    padding-left: 22px;
+}
+
+/* ----- Inicio: checklist ----- */
+.sp-checklist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: var(--studio-rule-thick) solid var(--fg);
+    background: var(--bg);
+}
+.sp-checklist__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: var(--studio-rule) solid var(--fg);
+    font-size: 0.95rem;
+}
+.sp-checklist__item:last-child { border-bottom: 0; }
+.sp-checklist__item > span { flex: 1 1 auto; min-width: 0; }
+.sp-checklist__item > i { color: var(--text-secondary); }
+.sp-checklist__item.is-done { color: var(--text-secondary); }
+.sp-checklist__item.is-done > i { color: var(--fg); }
+.sp-checklist__item.is-done > span { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* ----- Catálogo ----- */
+.sp-product-cell { display: flex; align-items: center; gap: 12px; min-width: 220px; }
+.sp-product-cell > div { min-width: 0; }
+.sp-thumb {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border: var(--studio-rule) solid var(--fg);
+    background: var(--surface-color);
+    display: block;
+}
+.sp-thumb--empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+.sp-strike { text-decoration: line-through; }
+.sk-table tr.sp-row-archived > td { color: var(--text-secondary); }
+.sk-table tr.sp-row-archived .sp-thumb { opacity: 0.55; }
+
+/* ----- Pedidos: detalle en el drawer ----- */
+.sp-order { display: grid; gap: 16px; min-width: 0; }
+.sp-order-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sp-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    border: var(--studio-rule-thick) solid var(--fg);
+}
+.sp-meta > div {
+    padding: 10px 12px;
+    border-right: var(--studio-rule) solid var(--fg);
+    border-bottom: var(--studio-rule) solid var(--fg);
+    min-width: 0;
+}
+.sp-meta > div:nth-child(2n) { border-right: 0; }
+.sp-meta > div:nth-last-child(-n + 2) { border-bottom: 0; }
+.sp-meta dt,
+.sp-totals dt,
+.sp-preview-card__terms dt {
+    font-family: var(--studio-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.sp-meta dd { margin: 4px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.sp-meta dd small { display: block; font-weight: 400; color: var(--text-secondary); font-size: 0.82rem; }
+
+.sp-note {
+    padding: 12px 14px;
+    border: var(--studio-rule) solid var(--fg);
+    background: var(--surface-color);
+}
+.sp-note p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.sp-note .sp-note__title {
+    margin-bottom: 4px;
+    font-family: var(--studio-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: normal;
+}
+.sp-note--vendor { background: var(--bg); border-style: dashed; }
+
+.sp-totals {
+    display: grid;
+    gap: 0;
+    margin: 0 0 0 auto;
+    width: min(380px, 100%);
+    border: var(--studio-rule-thick) solid var(--fg);
+}
+.sp-totals > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: var(--studio-rule) solid var(--fg);
+}
+.sp-totals > div:last-child { border-bottom: 0; }
+.sp-totals dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+.sp-totals .sp-totals__detail { padding-top: 0; border-bottom-style: dotted; }
+.sp-totals .sp-totals__detail dt { text-transform: none; letter-spacing: 0; font-family: var(--font-primary); font-size: 0.8rem; font-weight: 400; }
+.sp-totals .sp-totals__grand { background: var(--fg); color: var(--bg); }
+.sp-totals .sp-totals__grand dt { color: var(--bg); }
+.sp-totals .sp-totals__grand dd { font-size: 1.1rem; }
+
+.sp-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 18px;
+    border-left: var(--studio-rule-thick) solid var(--fg);
+    display: grid;
+    gap: 12px;
+}
+.sp-timeline__item { position: relative; display: grid; gap: 2px; }
+.sp-timeline__item::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 4px;
+    width: 10px;
+    height: 10px;
+    background: var(--bg);
+    border: var(--studio-rule) solid var(--fg);
+}
+.sp-timeline__item:last-child::before { background: var(--fg); }
+.sp-timeline__when { font-family: var(--studio-mono); font-size: 0.72rem; color: var(--text-secondary); }
+.sp-timeline__what { font-weight: 700; }
+.sp-timeline__note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9rem; }
+
+.sp-drawer-note { margin: 0; }
+.sp-free-shipping {
+    margin: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: var(--studio-rule-thick) solid var(--fg);
+    background: var(--surface-color);
+    font-weight: 700;
+}
+.sp-total-preview {
+    margin: 0;
+    padding: 10px 12px;
+    border: var(--studio-rule) dashed var(--fg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ----- Beneficios ----- */
+.sp-benefits-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    gap: 28px;
+    align-items: start;
+    min-width: 0;
+}
+.sp-benefits-main,
+.sp-benefits-side { min-width: 0; }
+.sp-benefits-side { position: sticky; top: 96px; }
+.sp-sim-result { margin: 10px 0 0; font-size: 0.92rem; line-height: 1.5; }
+
+.sp-preview-card {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: var(--studio-rule-thick) solid var(--fg);
+    background: var(--bg);
+    transition: transform .15s, box-shadow .15s;
+}
+.sp-preview-card:hover { transform: translate(-3px, -3px); box-shadow: var(--studio-shadow-md); }
+.sp-preview-card__head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sp-preview-card__head > div { min-width: 0; }
+.sp-preview-card__head p { margin: 0; }
+.sp-preview-card__logo {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border: var(--studio-rule) solid var(--fg);
+    background: var(--surface-color);
+}
+span.sp-preview-card__logo { display: inline-flex; align-items: center; justify-content: center; }
+.sp-preview-card__name {
+    font-family: var(--studio-display);
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+}
+.sp-preview-card__discount {
+    margin: 0;
+    justify-self: start;
+    padding: 6px 10px;
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    border: var(--studio-rule) solid var(--fg);
+    font-family: var(--studio-mono);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+.sp-preview-card__benefits { list-style: none; margin: 0; padding: 0; }
+.sp-preview-card__benefits .sk-chip { cursor: default; text-transform: none; letter-spacing: 0; font-family: var(--font-primary); font-size: 0.8rem; min-height: 30px; }
+.sp-preview-card__terms { margin: 0; display: grid; gap: 8px; }
+.sp-preview-card__terms dd { margin: 2px 0 0; font-weight: 700; line-height: 1.5; }
+
+/* ----- Cuenta ----- */
+.sp-account-status { margin-bottom: 14px; }
+.sp-account-status .studio-help { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sp-account-form { margin-top: 20px; max-width: 480px; }
+.sp-account-logout {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: var(--studio-rule) solid var(--fg);
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 900px) {
+    .sp-benefits-layout { grid-template-columns: minmax(0, 1fr); }
+    .sp-benefits-side { position: static; }
+}
+
+@media (max-width: 600px) {
+    .sp-meta { grid-template-columns: minmax(0, 1fr); }
+    .sp-meta > div { border-right: 0; }
+    .sp-meta > div:nth-last-child(-n + 2) { border-bottom: var(--studio-rule) solid var(--fg); }
+    .sp-meta > div:last-child { border-bottom: 0; }
+    .sp-product-cell { min-width: 180px; }
+    .sp-totals { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sp-preview-card { transition: none; }
+    .sp-preview-card:hover { transform: none; }
+}

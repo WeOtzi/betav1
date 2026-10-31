@@ -1,0 +1,171 @@
+{
+  "area": "cotizaciones",
+  "frames": [
+    {
+      "node": "801:555",
+      "name": "Artista / Cotizaciones - Listado y prioridades",
+      "route": "/my-quotations",
+      "result": "rediseñada",
+      "summary": "Hero (eyebrow, titular de 52px con '<n> cotizaciones' resaltado en bloque amarillo, bajada, Cotización manual + Exportar), selectores Mostrar en / cotizaciones, 5 indicadores con divisores, filete, búsqueda + chips (TODAS levantada con sombra dura) + orden + más filtros, contador y leyenda en una fila, tarjetas agrupadas por período (28px + prioridad 84px + cuerpo + lateral 176px con badge, precio y VER DETALLE) y Cargar cotizaciones anteriores. Ronda 1: sin hueco entre botones y 'Mostrar en' por debajo de 900px; el orden por presupuesto muestra una sola lista ordenada; 'Ingresos confirmados' suma lo mismo que el chip CONFIRMADAS; 'Mostrar en' sin la opción 'Moneda original' y con la moneda del artista por defecto; los badges usan las cinco familias de la leyenda.",
+      "figma_png": "output/figma-final-artista/frames/801-555_cotizaciones-listado.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones/801-555.png",
+      "state_url": "/my-quotations/ (orden por presupuesto: elegir 'Mayor presupuesto' en el select; móvil: output/figma-final-artista/shots/cotizaciones/801-555-390.png)",
+      "fidelity": "alta",
+      "fidelity_notes": "Datos del preview: todas las cotizaciones son de 'Valentina · Preview' y en USD, y el artista del preview cobra en USD, así que 'Mostrar en' dice 'Dólares (USD)' y los montos 'US$350' (con un artista en ARS dice 'Pesos (ARS)' como el Figma). El preview no tiene tipos de cambio: si se elige otra moneda, cada tarjeta queda en su moneda original y los totales usan la moneda más frecuente. Agrupar por mes ('Octubre 2026', 'Septiembre 2026') es la extensión natural del Figma con más datos. Con orden por presupuesto la lista va en un único grupo 'De mayor/menor a mayor/menor presupuesto' (el Figma solo muestra 'Más recientes'). Quedan fuera del área: el footer global y los badges de la topbar (componentes compartidos). Espaciados en la escala 4pt y filetes de 1.6px a 2px."
+    },
+    {
+      "node": "801:564",
+      "name": "Artista / Cotizaciones - Resumen lateral de solicitud",
+      "route": "/my-quotations",
+      "result": "estado-nuevo",
+      "summary": "Panel de 410px bajo la topbar con overlay al 45% y la fila seleccionada en amarillo: avatar con iniciales, nombre, ubicación, etapa + fecha, referencia, selects de Estado y Prioridad (funcionales), resumen del tatuaje, resumen económico, timeline Nueva→Revisando→Aceptada→Agendada, última nota privada, últimos 2 mensajes y acciones Aceptar / Agendar / Contactar / Rechazar + Ver detalle completo. Ronda 1: el timeline sigue la estructura del nodo 99:828 (tramos iguales con columna de 74px; el último tramo deja el sobrante vacío). Ronda 2: la cifra de la ronda 1 era falsa (el timeline medía 360px, tramos de 90px y guion de 16px). Ahora las secciones posteriores al resumen del tatuaje miden 345.2px como en el Figma 99:732. Medido por CDP a 1440: timeline de 345.2px, tramos de 86.3px, guion de 12.3px, tiles económicos de 160.1/98/96px y burbuja propia alineada a 345.2px. El último cuadrado queda a 304.9px del borde del panel, igual que en el Figma.",
+      "figma_png": "output/figma-final-artista/frames/801-564_cotizaciones-resumen-lateral.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones/801-564.png",
+      "state_url": "/my-quotations/?resumen=DEMO-P01",
+      "fidelity": "alta",
+      "fidelity_notes": "El panel crece con el contenido (mensajes de 2 líneas en el preview) y hace scroll interno; el pie queda fijo. Los montos largos bajan de tamaño para entrar en el tile de 160px: 'US$350' va a 32px (texto de 135px en una caja de 140px) y los de más de 6 caracteres a 26px. En el Figma el panel arranca en x=1032 y se pasa 2px del frame de 1440; acá está pegado al borde (x=1030), así que todo el panel queda 2px a la izquierda en coordenadas absolutas. Debajo de 640px las secciones vuelven al ancho completo. En la ronda 2 también se corrigió un error en móvil: la regla de 640px pisaba los tamaños de los montos largos y 'US$350' se recortaba a 360–390px. Ahora va a 28px (22px los más largos) y entra. Por debajo de 380px de ancho los tramos del timeline no llegan a 74px y el cuadrado y la etiqueta se alinean a la izquierda. Verificado a 360, 375, 390 y 600px sin scroll horizontal."
+    },
+    {
+      "node": "801:556",
+      "name": "Artista / Cotizaciones - Nueva cotización manual (+ instancia 2004:2968)",
+      "route": "/my-quotations/new",
+      "result": "creada",
+      "summary": "Ruta nueva: hoja de 982px sobre el listado con cabecera (ref + Borrador, Guardar borrador, Previsualizar, Crear y enviar cotización, Cancelar, aviso de faltantes), 01 cliente, 02 tatuaje (11 campos + referencias), 03 desglose (conceptos, chips rápidos, totales con moneda, descuento, impuestos, seña y saldo), 04 condiciones y pie. Crea la cotización (RPC create_manual_quotation) y el cliente (artist_clients) y guarda borradores. Ronda 1: los chips rápidos van debajo de AGREGAR CONCEPTO en 2 filas (4 + 2); selects sin chevron en reposo (aparece con hover o foco), fecha sin ícono nativo (todo el campo abre el selector), textareas sin tirador en reposo, buscador con foco pero sin anillo al abrir, borde de inputs #c9c2b4 y chip de moneda sin chevron en reposo. Ronda 2: la afirmación de la ronda 1 de que la deriva era de 1px o menos era falsa, porque seguía en +5px desde 03 y +13.6px desde 04. Se corrigió en tres puntos: (1) la caja de referencias medía 67.1px y ahora mide 62px, con texto de 16px y sin aire inferior (Figma 547:1647: 61.6px); (2) los totales medían 471.7px y ahora miden 462.9px (Figma 547:1712: 463px), con filas de 36.4, 54.4, 54.4, 60, 59.4, 29.6 y 29.6px, nota de 50px, cabezal a 1.6px del borde e inputs de % de 83.6×35.6px; (3) en 04, 18.6px hasta 'Notas para el cliente', 22px hasta 'Términos adicionales' y labels de 13.6px. Medido por CDP a 1440 respecto del borde superior de la hoja: '03' 1090.3 (Figma 1090.4), totales 1118.6–1581.5 (1118.8–1581.8), '04' 1621.5 (1621.8), labels de condiciones 1649.8 (1650.2), 'Notas' 1733.4 (1733.8), 'Términos' 1872.0 (1872.6) y botones del pie 2052.6 (2053). Toda la hoja queda a 0.6px o menos del Figma. El chip de moneda tiene ahora padding de 10.8/22.8px como el Figma. ?fecha=AAAA-MM-DD precarga la fecha tentativa; Cancelar vuelve a la página de origen (?volver= o referrer de We Ötzi); el Atrás del navegador pide confirmación si hay cambios sin guardar.",
+      "figma_png": "output/figma-final-artista/frames/801-556_cotizaciones-nueva-manual.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones/801-556.png",
+      "state_url": "/my-quotations/new/ (también ?origen=cliente, ?origen=cita&fecha=2026-11-03, ?borrador=COT-DEMO01, ?volver=/calendar/)",
+      "fidelity": "alta",
+      "fidelity_notes": "La referencia es aleatoria ('COT-MV4XRM') en vez de correlativa ('COT-059'): quote_ref es único en toda la base (artist_manual_quotes.quote_ref y quotations_db.quote_id), así que un número por artista chocaría entre artistas; ver missing_functions. El chip de moneda dice 'USD' porque el artista del preview cobra en USD (con un artista en ARS dice 'ARS' como el Figma). 'Estudio o ubicación' sale de las ubicaciones del artista (el preview no tiene estudio: 'Elegir ubicación'). El borde de inputs es una mezcla de tokens (sand-350 60% + neutral-300) que da #cac2b0 frente al #c9c2b4 del Figma. El chevron de los selects aparece al pasar el mouse o con foco para no perder la affordance. En horizontal, el contenido del Figma mide 908.8px porque la captura de origen tenía una scrollbar de 15.6px en la hoja. La captura headless oculta las scrollbars, así que ahí el contenido mide 924px y la columna de totales queda unos 16px a la derecha. Con la scrollbar clásica de Windows (la hoja siempre hace scroll en pantallas reales) el ancho coincide."
+    },
+    {
+      "node": "801:557",
+      "name": "Artista / Cotizaciones - Vista previa para el cliente",
+      "route": "/my-quotations/new",
+      "result": "estado-nuevo",
+      "summary": "Modal de 623px centrado con un único overlay al 50% sobre listado y hoja: cabecera ink 'Vista del cliente · COT-…', 'Cotización de <artista> · We Ötzi', título, cliente, descripción, chips (estilo, zona, sesiones · horas), detalle de conceptos, total, seña · saldo, condiciones (+ notas/términos si hay), Seguir editando y Crear y enviar. Sin cambios en el modal en las rondas 1 y 2. Se recapturó en ambas porque cambió la hoja de fondo (en la ronda 2, la caja de referencias y los totales).",
+      "figma_png": "output/figma-final-artista/frames/801-557_cotizaciones-vista-previa.png",
+      "impl_png": "output/figma-final-artista/shots/cotizaciones/801-557.png",
+      "state_url": "/my-quotations/new/?step=preview",
+      "fidelity": "exacta",
+      "fidelity_notes": "Copy del estado vacío idéntico al Figma. Con faltantes, 'Crear y enviar' avisa qué falta en vez de enviar."
+    }
+  ],
+  "removed_in_page": [
+    "Botón 'Configurar cotizador' del hero",
+    "Link 'Ver archivadas →' de la leyenda (las archivadas pasan al selector 'cotizaciones' → Archivadas)",
+    "Atributo archive-extra de la topbar (ítem 'ARCHIVO' del menú móvil)",
+    "Vista oculta 'Mis postulaciones' (?tab=applications): ahora redirige a /artist/applications",
+    "Drawer heredado sin uso (#drawer-toggle/.detail-drawer), modal de notas con Editor.js, modal de borrado, lightbox y los scripts Editor.js/html2pdf/reviews/shared-drawer/email-client/header-effects que solo los alimentaban",
+    "Filete superior de la franja de indicadores y borde izquierdo del bloque 'Mostrar en' (no están en el Figma)",
+    "Ronda 1: opción 'Moneda original' del selector 'Mostrar en' (no está en el Figma; ahora el valor por defecto es la moneda de sesión del artista)"
+  ],
+  "routes_to_delete": [
+    {
+      "route": "/archive",
+      "reason": "Ya eliminada por el orquestador (lib/legacy-routes.js). Sus funciones (ver, desarchivar, eliminar) viven en el selector 'cotizaciones' → Archivadas del listado; se perdió la tabla CRM con columnas configurables y la selección masiva.",
+      "redirect_to": "/my-quotations?alcance=archivadas"
+    },
+    {
+      "route": "/tutorial",
+      "reason": "Ya eliminada por el orquestador (lib/legacy-routes.js). La reemplaza el capítulo 'quotations' del recorrido guiado (wo-tour-steps.js).",
+      "redirect_to": "/my-quotations?demo=1&tour=1"
+    }
+  ],
+  "missing_functions": [
+    {
+      "title": "Archivar una cotización activa",
+      "detail": "El Figma no tiene control para archivar (antes estaba en el drawer heredado, que no se abría desde el listado). Las archivadas se ven y se desarchivan/eliminan desde el selector 'Archivadas'; archivar quedaría para el detalle o una acción futura.",
+      "severity": "media"
+    },
+    {
+      "title": "Aviso por correo al cliente de la cotización manual",
+      "detail": "'Crear y enviar' dispara el evento n8n existente artist_responded_quotation (el mismo de 'Responder'); no hay plantilla propia de cotización manual (emails son de otra área). El cliente la ve en su panel cuando ingresa con ese correo (claim por email).",
+      "severity": "media"
+    },
+    {
+      "title": "Base de datos de la cotización manual",
+      "detail": "Crear cotización, libreta de clientes y borradores en la nube necesitan la migración 20261028120000 (no aplicada). Sin ella la hoja guarda el borrador en el navegador y avisa; no hay excepciones sin capturar.",
+      "severity": "alta"
+    },
+    {
+      "title": "Adjuntos en el preview",
+      "detail": "Los archivos se suben al bucket quotation-references con WeOtziUploader y se registran en quotations_attachments; el preview local no simula Storage, así que ahí se informa 'No pudimos subir N archivos'.",
+      "severity": "baja"
+    },
+    {
+      "title": "Numeración correlativa de cotizaciones (COT-059)",
+      "detail": "El Figma muestra 'COT-059' (siguiente a COT-058). Hoy la referencia es 'COT-' + 6 caracteres aleatorios porque quote_ref/quote_id son únicos en toda la base: un correlativo por artista colisionaría entre artistas. Hacerlo bien requiere backend: una secuencia por artista (tabla artist_quote_counters o columna en artists_db) asignada dentro de create_manual_quotation y un identificador visible por artista separado de la clave global (p. ej. display_ref 'COT-059' + quote_id único). No se tocó la migración por ser un cambio de diseño de datos que conviene decidir aparte.",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028120000_quotation_manual_quotes.sql",
+      "rollback": "supabase/rollbacks/20261028120000_quotation_manual_quotes.down.sql",
+      "purpose": "Tablas artist_clients (libreta de clientes del artista) y artist_manual_quotes (borradores + desglose económico: conceptos, descuento, impuestos, seña, vigencia, política, notas, términos) con RLS por dueño (+ lectura del cliente registrado), y RPC security definer create_manual_quotation(p_quote, p_details) que crea en una transacción la fila de quotations_db (responded, source/quotation_medium 'manual', artist_* forzados desde artists_db, client_user_id solo si el correo coincide con clients_db), el detalle y, con origen=cita + fecha, la primera sesión tentativa.",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "Figma 'cotizaciones' (label del selector en minúscula) → se mantiene en minúscula en el HTML; se ve en mayúsculas por CSS como el resto de labels",
+    "Figma 'Marina Ibañez' (resumen lateral) vs 'Marina Ibáñez' (listado) → los nombres salen de los datos, sin tilde inconsistente",
+    "Figma 'Mediano (10–15cm)' → se muestra el tamaño tal como lo guardó la cotización",
+    "Ronda 1: badges del listado 'Completada' / 'En progreso' / 'Lista para cliente' → 'Confirmada' (familia de la leyenda del Figma); el estado fino queda en el title del badge, en texto para lectores de pantalla, en el filtro 'Estado' y en el resumen lateral"
+  ],
+  "missing_assets": [],
+  "files_changed": [
+    "public/my-quotations/index.html",
+    "public/my-quotations/new/index.html",
+    "public/shared/css/quotations.css",
+    "public/shared/css/quotation-new.css",
+    "public/shared/js/quotations.js",
+    "public/shared/js/quotation-new.js",
+    "public/shared/js/quotation-new-model.js",
+    "public/shared/js/quotations-view-model.js",
+    "public/shared/js/data/quotations-repo.js (agregados: listClientContactsForArtist, createManual)",
+    "public/shared/js/demo-fixtures/cotizaciones.js",
+    "public/shared/js/wo-tour-steps.js (textos del capítulo quotations)",
+    "tests/figma-final-cotizaciones.test.js"
+  ],
+  "files_created": [
+    "public/my-quotations/new/index.html",
+    "public/shared/css/quotation-new.css",
+    "public/shared/js/quotation-new.js",
+    "public/shared/js/quotation-new-model.js",
+    "public/shared/js/quotations-view-model.js",
+    "public/shared/js/quotations-summary.js",
+    "public/shared/js/data/quotation-new-repo.js",
+    "supabase/migrations/20261028120000_quotation_manual_quotes.sql",
+    "supabase/rollbacks/20261028120000_quotation_manual_quotes.down.sql",
+    "tests/figma-final-cotizaciones.test.js",
+    "output/figma-final-artista/frames/801-555_cotizaciones-listado.png",
+    "output/figma-final-artista/frames/801-564_cotizaciones-resumen-lateral.png",
+    "output/figma-final-artista/frames/801-556_cotizaciones-nueva-manual.png",
+    "output/figma-final-artista/frames/801-557_cotizaciones-vista-previa.png",
+    "output/figma-final-artista/shots/cotizaciones/801-555.png",
+    "output/figma-final-artista/shots/cotizaciones/801-555-390.png",
+    "output/figma-final-artista/shots/cotizaciones/801-564.png",
+    "output/figma-final-artista/shots/cotizaciones/801-556.png",
+    "output/figma-final-artista/shots/cotizaciones/801-557.png",
+    "output/figma-final-artista/shots/cotizaciones/estado-archivadas.png"
+  ],
+  "tests": "Ronda 2: node --test \"tests/*.test.js\": 602 tests, 598 pass, 3 fail, 1 skipped. Las 3 fallas son las preexistentes de PowerShell 7 (onboarding/setup). tests/figma-final-cotizaciones.test.js: 26/26, con un test nuevo de la ronda 2 para el ancho de 345.2px del timeline y las secciones del resumen, la caja de referencias, las alturas de filas de los totales, el padding del chip de moneda y los márgenes de 04. Ronda 1: 560 tests, 555 pass, 5 fail. Ninguna falla es del área: 3 preexistentes de PowerShell 7 (onboarding/setup) y 2 del área registro ('el CSS del registro usa solo tokens del design system', 'registro: Behance, portfolio y panel de estilos del Figma final'), trabajo en curso de otro agente. tests/base-path-routing.test.js falló una vez de forma intermitente y pasa solo y en las corridas siguientes. tests/figma-final-cotizaciones.test.js: 25/25 (5 nuevos: orden por presupuesto, badges por familia + criterio de ingresos, 'Mostrar en' sin 'Moneda original', ?fecha= y ?volver= seguros + guardia del Atrás, layout de chips/controles/hero/timeline).",
+  "notes": [
+    "La hoja 'Nueva cotización manual' es un módulo (quotation-new.js) que se abre sobre el listado: desde 'Cotización manual' hace pushState a /my-quotations/new y al cerrar vuelve; entrando directo a /my-quotations/new (o con ?origen=cliente|cita del dashboard) se abre sola. /my-quotations/new/index.html replica el <main> del listado; un test exige que sea idéntico.",
+    "Parámetros de /my-quotations/new: ?origen=cliente abre el alta de cliente; ?origen=cita enfoca la fecha y, al enviar con fecha, agenda la primera sesión tentativa (11:00 hora de Buenos Aires); ?fecha=AAAA-MM-DD precarga la fecha tentativa (solo fechas válidas); ?borrador=<COT-ref> retoma un borrador; ?volver=<ruta interna> define a dónde vuelve Cancelar (se rechazan '//', '\\', esquemas y caracteres de control). Sin ?volver=, si se llegó desde otra página de We Ötzi (calendario, dashboard) Cancelar/× hacen history.back(); desde el listado se cierra en el lugar. Después de 'Crear y enviar' se queda en el listado con el resumen de la cotización nueva.",
+    "El Atrás del navegador con cambios sin guardar pide la misma confirmación que × y Cancelar (si se cancela, la hoja sigue abierta y la URL vuelve a /my-quotations/new); recargar o salir de la página con cambios dispara el aviso nativo de beforeunload.",
+    "'Mostrar en' guarda la elección en la preferencia global de WeOtziCurrency (localStorage weotzi.displayCurrency); si el artista nunca eligió, usa artists_db.session_price_currency sin escribir la preferencia.",
+    "El footer global <weotzi-product-footer> está en las 13 páginas del artista (dashboard, account, calendar, inbox, travel, job-board, spots, etc.): es una decisión transversal, no se quitó solo de cotizaciones. Si el orquestador decide sacarlo del flujo del artista, hay que hacerlo en todas a la vez.",
+    "Links al detalle: /my-quotations/detail?id=<quote_id> (el detalle ya lee id y quote).",
+    "El listado incluye las cotizaciones 'En progreso' (trabajo iniciado) y solo descarta los borradores del wizard del cliente (in_progress sin respuesta del artista).",
+    "shared-drawer.js ya no se carga en /my-quotations y /archive se retiró: shared-drawer.js y las reglas de tabla CRM de quotations.css podrían quedar sin consumidores (quotations.css lo siguen cargando statistics y support; revisar antes de borrar).",
+    "Diferencias de topbar (componente compartido, no tocado): el Figma no muestra badges en COTIZACIONES ni en el tile Ö.",
+    "Si quotations_db tuviera un CHECK sobre source/quotation_medium, debe admitir 'manual' (no hay constraint en las migraciones del repo).",
+    "El preview comparte localStorage entre pestañas: otro agente puede sobrescribir las filas de ejemplo (en la pestaña integrada apareció un 'COT-TEST01' en ARS de otra prueba); 'Reiniciar datos' las regenera. Las capturas headless usan perfil limpio.",
+    "La captura headless a 390px sale recortada a la derecha (Chrome headless no baja de ~500px de ancho de layout); el hueco del hero se verificó en el navegador integrado a 390px: botones y 'Mostrar en' quedan a 24px y no hay scroll horizontal.",
+    "Contraste: varios grises del Figma (#b9ae98 en labels mono de 9–11px) no llegan a AA; se respetaron por fidelidad.",
+    "Se subió el cache-busting de los CSS/JS del área a ?v=20261028-2 en /my-quotations y /my-quotations/new. En la ronda 2, quotations.css y quotation-new.css pasaron a ?v=20261028-3.",
+    "Ronda 2: las medidas se tomaron con Chrome headless por CDP a 1440px (viewport de 2500px para la hoja y de 1300px para el resumen, perfil limpio) y se compararon con get_metadata de 801:556 (547:1528 en adelante) y de 801:564 (99:732/99:828). El Figma da medidas con trazo interior (no ocupa espacio); en CSS el borde de 1px sí ocupa, por eso varios paddings quedan 0.8–1px por debajo del valor del Figma.",
+    "Ronda 2: quotations.css también lo cargan /my-quotations/statistics y support. Los cambios solo tocan las reglas .qs-* del resumen lateral, que esas páginas no usan."
+  ]
+}

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Supplies — Acceder</title>
+    <meta name="description" content="Acceso al panel de Supplies en We Ötzi: pedidos de estudios, catálogo y beneficios.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link rel="stylesheet" href="/shared/css/studio-admin-kit.css">
+    <link rel="stylesheet" href="/shared/css/supplies.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page supplies-page">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn" aria-label="Inicio">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Supplies · Acceso</span>
+                <span class="studio-masthead-wordmark">Panel de <span class="accent">Supplies</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="/supplies/register" class="accent">Registrar tienda</a>
+                <a href="/studio/login">Soy un estudio</a>
+            </nav>
+        </header>
+
+        <main class="studio-center">
+            <section class="studio-card">
+                <p class="studio-section-kicker" id="login-kicker">Iniciar sesión</p>
+                <h2 class="studio-h2" id="login-title">Bienvenido de vuelta</h2>
+
+                <form id="supplies-login-form" class="studio-form" novalidate>
+                    <div class="studio-field">
+                        <label class="studio-label" for="login-email">Email</label>
+                        <input type="email" id="login-email" class="studio-input" autocomplete="email" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="login-password">Contraseña</label>
+                        <input type="password" id="login-password" class="studio-input" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" id="login-submit" class="studio-btn studio-btn-primary">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder
+                    </button>
+                </form>
+
+                <form id="supplies-recovery-form" class="studio-form" hidden>
+                    <p class="studio-help">Elegí una contraseña nueva para recuperar el acceso a tu tienda.</p>
+                    <div id="supplies-recovery-code-fields" hidden>
+                        <div class="studio-field">
+                            <label class="studio-label" for="recovery-email">Email de la cuenta</label>
+                            <input type="email" id="recovery-email" class="studio-input" autocomplete="email">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="recovery-code">Código recibido por correo</label>
+                            <input id="recovery-code" class="studio-input" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
+                        </div>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="recovery-password">Nueva contraseña</label>
+                        <input type="password" id="recovery-password" class="studio-input" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="recovery-confirm">Repetí la nueva contraseña</label>
+                        <input type="password" id="recovery-confirm" class="studio-input" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" id="recovery-submit" class="studio-btn studio-btn-primary">Guardar contraseña</button>
+                </form>
+
+                <div id="login-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden></div>
+
+                <p class="studio-help sp-login-links">
+                    ¿Todavía no tenés cuenta? <a href="/supplies/register">Registrá tu tienda</a>.<br>
+                    ¿Olvidaste tu contraseña? <a href="#" id="forgot-password-link">Recuperar acceso</a>.
+                    <a href="#" id="have-recovery-code">Ya tengo un código</a>.
+                </p>
+            </section>
+        </main>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/supplies-repo.js"></script>
+    <script src="/shared/js/studio-admin-kit.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/supplies-auth.js"></script>
+    <script>
+        (function () {
+            const auth = window.WeOtziSuppliesAuth;
+            const form = document.getElementById('supplies-login-form');
+            const submitBtn = document.getElementById('login-submit');
+            const statusEl = document.getElementById('login-status');
+            const recoveryForm = document.getElementById('supplies-recovery-form');
+            const recoveryCodeFields = document.getElementById('supplies-recovery-code-fields');
+
+            function showStatus(kind, message) {
+                statusEl.className = 'studio-status studio-status-' + kind;
+                statusEl.textContent = message;
+                statusEl.hidden = false;
+            }
+            function errorText(err, fallback) {
+                return (auth.friendlyError && auth.friendlyError(err)) || (err && err.message) || fallback;
+            }
+
+            if (new URLSearchParams(window.location.search).get('confirmed') === '1') {
+                showStatus('success', 'Correo confirmado. Iniciá sesión para terminar de crear tu cuenta Supplies.');
+            }
+
+            function showCodeRecovery(email) {
+                form.hidden = true;
+                recoveryForm.hidden = false;
+                recoveryCodeFields.hidden = false;
+                document.getElementById('recovery-email').value = email || '';
+                document.getElementById('recovery-email').required = true;
+                document.getElementById('recovery-code').required = true;
+                document.getElementById('login-title').textContent = 'Recuperar acceso';
+                document.getElementById('recovery-code').focus();
+            }
+            document.getElementById('have-recovery-code').addEventListener('click', event => {
+                event.preventDefault();
+                showCodeRecovery(document.getElementById('login-email').value.trim());
+            });
+            if (auth.isRecovery()) {
+                form.hidden = true;
+                recoveryForm.hidden = false;
+                document.getElementById('login-kicker').textContent = 'Recuperar acceso';
+                document.getElementById('login-title').textContent = 'Nueva contraseña';
+            }
+            recoveryForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const password = document.getElementById('recovery-password').value;
+                if (password !== document.getElementById('recovery-confirm').value) {
+                    showStatus('error', 'Las contraseñas no coinciden.');
+                    return;
+                }
+                const button = document.getElementById('recovery-submit');
+                button.disabled = true;
+                try {
+                    if (!recoveryCodeFields.hidden) {
+                        await auth.verifyRecoveryCode(
+                            document.getElementById('recovery-email').value,
+                            document.getElementById('recovery-code').value
+                        );
+                        recoveryCodeFields.hidden = true;
+                        document.getElementById('recovery-email').required = false;
+                        document.getElementById('recovery-code').required = false;
+                    }
+                    await auth.changePassword(password);
+                    recoveryForm.reset();
+                    showStatus('success', 'Contraseña actualizada. Entrando al panel…');
+                    window.location.replace(auth.appUrl('/supplies/dashboard'));
+                } catch (err) {
+                    showStatus('error', errorText(err, 'No pudimos actualizar la contraseña.'));
+                } finally { button.disabled = false; }
+            });
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                if (!form.reportValidity()) return;
+                statusEl.hidden = true;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Accediendo…';
+                const email = document.getElementById('login-email').value.trim();
+                const password = document.getElementById('login-password').value;
+                try {
+                    await auth.login(email, password);
+                    showStatus('success', 'Acceso correcto. Redirigiendo…');
+                    setTimeout(() => { window.location.href = auth.appUrl('/supplies/dashboard'); }, 400);
+                } catch (err) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder';
+                    showStatus('error', errorText(err, 'No pudimos iniciar sesión. Revisá tus datos.'));
+                }
+            });
+
+            document.getElementById('forgot-password-link').addEventListener('click', async (event) => {
+                event.preventDefault();
+                const email = (recoveryForm.hidden ? document.getElementById('login-email') : document.getElementById('recovery-email')).value.trim();
+                if (!email) {
+                    showStatus('error', 'Escribí tu email primero, así te mandamos el link de recuperación.');
+                    return;
+                }
+                try {
+                    await auth.requestPasswordReset(email);
+                    showCodeRecovery(email);
+                    showStatus('success', 'Revisá tu correo. Ingresá el código recibido o abrí el enlace para elegir una contraseña nueva.');
+                } catch (err) {
+                    showStatus('error', errorText(err, 'No pudimos enviar el email.'));
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

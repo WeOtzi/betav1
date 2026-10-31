@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
+    <title>WE ÖTZI | Nueva cotización manual</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+    <link rel="stylesheet" href="/shared/css/quotations.css?v=20261028-3">
+    <link rel="stylesheet" href="/shared/css/quotation-new.css?v=20261028-3">
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/quotations-repo.js"></script>
+    <script src="/shared/js/data/quotation-new-repo.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/data/studios-repo.js"></script>
+    <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/weotzi-uploader.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/logging-loader.js"></script>
+</head>
+<body class="wo-app q-page" data-quotation-new-autostart>
+    <weotzi-product-nav
+        active="quotations"
+        menu-toggle-id="admin-mobile-menu-toggle"
+        menu-id="admin-mobile-menu"
+        menu-class="admin-mobile-menu"
+        profile-label="Tu perfil"
+        logout-handler="handleLogout">
+    </weotzi-product-nav>
+
+    <!-- /my-quotations/new: mismo listado de fondo (Figma 801:556 / 801:557) con la hoja
+         "Nueva cotización manual" abierta. El elemento main debe quedar idéntico al de
+         /my-quotations/index.html (lo verifica tests/figma-final-cotizaciones.test.js). -->
+    <!-- Figma final 801:555 · Cotizaciones - Listado y prioridades -->
+    <main class="qadmin-main q-listado" id="q-main">
+        <section class="q-hero">
+            <div class="q-hero-row">
+                <div class="q-hero-main">
+                    <p class="q-hero-eyebrow" id="q-hero-eyebrow">Módulo · Cotizaciones</p>
+                    <h1 class="q-hero-title" id="q-hero-title"><span class="q-hero-mark">0 cotizaciones</span> esperan tu respuesta esta semana.</h1>
+                    <p class="q-hero-sub">Todo lo que te pidieron tus clientes en un solo lugar.</p>
+                    <div class="q-hero-actions">
+                        <a href="/my-quotations/new" id="manual-quote-btn" class="q-hero-btn q-hero-btn--ink" data-quotation-new-open>
+                            <i data-wo-icon="plus" aria-hidden="true"></i>Cotización manual
+                        </a>
+                        <button type="button" class="q-hero-btn" id="export-quotes-btn">
+                            <i data-wo-icon="external-link" aria-hidden="true"></i>Exportar
+                        </button>
+                    </div>
+                </div>
+                <div class="q-hero-aside">
+                    <div class="q-field">
+                        <label class="q-field-label" for="currency-select">Mostrar en</label>
+                        <select id="currency-select" class="q-field-select">
+                            <option value="ARS">Pesos (ARS)</option>
+                        </select>
+                    </div>
+                    <div class="q-field">
+                        <label class="q-field-label" for="scope-select">cotizaciones</label>
+                        <select id="scope-select" class="q-field-select">
+                            <option value="all">Todas las cotizaciones</option>
+                            <option value="open">Solo las abiertas</option>
+                            <option value="closed">Solo las cerradas</option>
+                            <option value="drafts">Borradores</option>
+                            <option value="archived">Archivadas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-strip q-stats" aria-label="Indicadores">
+            <div class="stat-card">
+                <span class="stat-value" id="stat-total-quotes">0</span>
+                <span class="stat-label">Cotizaciones totales</span>
+            </div>
+            <div class="stat-card stat-card--alert">
+                <span class="stat-value" id="stat-pending-quotes">0</span>
+                <span class="stat-label">Pendientes de respuesta</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-response-rate">0%</span>
+                <span class="stat-label">Tasa de respuesta</span>
+            </div>
+            <div class="stat-card stat-card--money">
+                <span class="stat-value" id="stat-revenue">$0</span>
+                <span class="stat-label">Ingresos confirmados</span>
+            </div>
+            <div class="stat-card stat-card--priority">
+                <span class="stat-value"><span class="stat-mark" aria-hidden="true"></span><span id="stat-high-priority">0</span></span>
+                <span class="stat-label">De alta prioridad</span>
+            </div>
+        </section>
+
+        <hr class="q-rule">
+
+        <section class="q-tools" aria-label="Buscar y filtrar">
+            <div class="table-toolbar q-toolbar">
+                <div class="toolbar-search">
+                    <div class="search-wrapper">
+                        <i data-wo-icon="search" aria-hidden="true"></i>
+                        <input type="search" id="search-input" placeholder="Buscar por cliente, ciudad o ID..." class="toolbar-input" aria-label="Buscar por cliente, ciudad o ID">
+                    </div>
+                </div>
+                <div class="q-chipbar" role="group" aria-label="Filtros rápidos">
+                    <button type="button" class="q-chip is-active" data-quick="all" aria-pressed="true">Todas</button>
+                    <button type="button" class="q-chip" data-quick="pending" aria-pressed="false"><i data-wo-icon="clock" aria-hidden="true"></i>Pendientes</button>
+                    <button type="button" class="q-chip" data-quick="high" aria-pressed="false">Alta prioridad</button>
+                    <button type="button" class="q-chip" data-quick="confirmed" aria-pressed="false">Confirmadas</button>
+                </div>
+                <div class="toolbar-filters">
+                    <select id="sort-select" class="toolbar-select" aria-label="Ordenar">
+                        <option value="created_at:desc">Más recientes</option>
+                        <option value="created_at:asc">Más antiguas</option>
+                        <option value="budget:desc">Mayor presupuesto</option>
+                        <option value="budget:asc">Menor presupuesto</option>
+                    </select>
+                    <button type="button" class="q-iconbtn" id="more-filters-btn" aria-expanded="false" aria-controls="more-filters" aria-label="Más filtros">
+                        <i data-wo-icon="sliders" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="q-morefilters" id="more-filters" hidden>
+                <label class="q-morefilters-field">
+                    <span class="q-field-label">Estado</span>
+                    <select id="status-filter" class="toolbar-select">
+                        <option value="all">Todas</option>
+                        <option value="pending">Pendientes</option>
+                        <option value="responded">Respondidas</option>
+                        <option value="client_approved">Confirmadas</option>
+                        <option value="in_progress">En progreso</option>
+                        <option value="artist_completed">Listas para cliente</option>
+                        <option value="completed">Completadas</option>
+                        <option value="client_rejected">Rechazadas</option>
+                        <option value="expired">Vencidas</option>
+                    </select>
+                </label>
+                <label class="q-morefilters-field">
+                    <span class="q-field-label">Prioridad</span>
+                    <select id="priority-filter" class="toolbar-select">
+                        <option value="all">Todas</option>
+                        <option value="high">Alta</option>
+                        <option value="medium">Media</option>
+                        <option value="low">Baja</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="table-legend q-meta">
+                <span class="legend-count" id="legend-count">Mostrando 0 de 0 cotizaciones</span>
+                <div class="legend-groups">
+                    <div class="legend-keys">
+                        <span class="legend-head">Estado</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--pending"></span>Pendiente</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--responded"></span>Respondida</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--confirmed"></span>Confirmada</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--rejected"></span>Rechazada</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--expired"></span>Vencida</span>
+                    </div>
+                    <div class="legend-keys">
+                        <span class="legend-head">Prioridad</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--high"></span>Alta</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--medium"></span>Media</span>
+                        <span class="legend-key"><span class="legend-dot legend-dot--low"></span>Baja</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="q-list" id="quotes-table-body" aria-live="polite">
+            <div class="loading-placeholder">Cargando cotizaciones...</div>
+        </div>
+
+        <div class="q-loadmore" id="load-more-wrap" hidden>
+            <button type="button" class="q-loadmore-btn" id="load-more-btn">
+                Cargar cotizaciones anteriores
+                <i data-wo-icon="chevron-down" aria-hidden="true"></i>
+            </button>
+        </div>
+    </main>
+
+    <weotzi-product-footer></weotzi-product-footer>
+
+    <!-- Figma final 801:564 · Cotizaciones - Resumen lateral de solicitud -->
+    <div class="qs-overlay" id="quote-summary-overlay" hidden></div>
+    <aside class="qs-panel" id="quote-summary" role="dialog" aria-modal="true" aria-label="Resumen de la solicitud" tabindex="-1" hidden></aside>
+
+    <script src="/shared/js/quotations-view-model.js?v=20261028-2"></script>
+    <script src="/shared/js/quotation-new-model.js?v=20261028-2"></script>
+    <script src="/shared/js/admin-mobile-menu.js"></script>
+    <script src="/shared/js/quotations.js?v=20261028-2"></script>
+    <script src="/shared/js/quotations-summary.js?v=20261028"></script>
+    <script src="/shared/js/quotation-new.js?v=20261028-2"></script>
+    <script src="/shared/js/wo-artist-menu.js" defer></script>
+</body>
+</html>

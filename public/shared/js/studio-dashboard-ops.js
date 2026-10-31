@@ -5,6 +5,9 @@
 // Companion to studio-dashboard.js. Designed to be loaded AFTER it so that
 // `window.studio` and `window._supabase` exist.
 //
+// La agenda de citas vive en studio-dashboard-agenda.js (pestaña Agenda) y los
+// materiales por artista en studio-dashboard-materials.js (#inventory-materials).
+//
 // Each panel follows the same shape:
 //   1. wireXxxPanel()  — boots the buttons + initial list
 //   2. renderXxxList() — fetches and paints the table
@@ -28,8 +31,16 @@
         else start();
     }
 
+    // Eventos entre módulos del panel (se despachan en `document`):
+    //   - weotzi:studio-jobs-changed: la Agenda completó una cita y creó un
+    //     trabajo → se vuelven a pintar Trabajos y Clientes.
+    //   - weotzi:studio-inventory-changed ({detail: {source}}): cambió el stock
+    //     o los materiales entregados (Movimiento acá, o Entregar/Devolver en
+    //     studio-dashboard-materials.js) → cada lado refresca lo suyo.
+    const JOBS_CHANGED_EVENT = 'weotzi:studio-jobs-changed';
+    const INVENTORY_CHANGED_EVENT = 'weotzi:studio-inventory-changed';
+
     whenReady((supabase, studio) => {
-        wireBookingPanel(supabase, studio);
         wireOpsSubnav();
         wireJobsPanel(supabase, studio);
         wireClientsPanel(supabase, studio);
@@ -39,9 +50,27 @@
         wireSuppliersPanel(supabase, studio);
         wireSponsorsPanel(supabase, studio);
         wireAnalyticsPanel(supabase, studio);
+        wireCrossModuleEvents(supabase, studio);
         document.querySelector('[data-tab="analytics"]')?.addEventListener('click', () => wireAnalyticsPanel(supabase, studio));
         document.querySelector('[data-sub="clients"]')?.addEventListener('click', () => renderClientsList(supabase, studio));
     });
+
+    function wireCrossModuleEvents(supabase, studio) {
+        document.addEventListener(JOBS_CHANGED_EVENT, () => onJobsChanged(supabase, studio));
+        document.addEventListener(INVENTORY_CHANGED_EVENT, event => {
+            // Lo que dispara este archivo ya repintó su lista.
+            if (event?.detail?.source === 'ops') return;
+            renderInventoryList(supabase, studio).catch(error => status('inventory-status', 'error', error.message || 'No pudimos actualizar el inventario.'));
+        });
+    }
+    function onJobsChanged(supabase, studio) {
+        return Promise.all([renderJobsList(supabase, studio), renderClientsList(supabase, studio)])
+            .catch(error => status('ops-status', 'error', error.message || 'No pudimos actualizar los trabajos.'));
+    }
+    function emitInventoryChanged(detail) {
+        if (typeof CustomEvent !== 'function' || typeof document.dispatchEvent !== 'function') return;
+        document.dispatchEvent(new CustomEvent(INVENTORY_CHANGED_EVENT, { detail: { source: 'ops', ...detail } }));
+    }
 
     // -------------------------------------------------------------
     // Common helpers
@@ -112,100 +141,11 @@
             if (!btn) return;
             nav.querySelectorAll('button').forEach(b => b.classList.toggle('is-active', b === btn));
             const sub = btn.dataset.sub;
-            ['bookings', 'jobs', 'clients', 'invoices', 'documents'].forEach(s => {
+            ['jobs', 'clients', 'invoices', 'documents'].forEach(s => {
                 document.getElementById('ops-sub-' + s).style.display = s === sub ? '' : 'none';
                 document.getElementById('ops-sub-' + s).classList.toggle('is-active', s === sub);
             });
         });
-    }
-
-    function wireBookingPanel(supabase, studio) {
-        const nav = document.getElementById('ops-subnav');
-        const jobs = document.getElementById('ops-sub-jobs');
-        if (!nav || !jobs) return;
-        nav.insertAdjacentHTML('afterbegin', '<button type="button" data-sub="bookings">Agenda</button>');
-        jobs.insertAdjacentHTML('beforebegin', `<div id="ops-sub-bookings" style="display:none;">
-            <p class="studio-help">Reservá horarios de tu roster. Al completar una reserva se registra el trabajo y se actualizan clientes y estadísticas.</p>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
-                <label for="booking-month">Mes</label><input id="booking-month" class="studio-input" type="month" value="${localDateTime().slice(0, 7)}" style="width:auto;">
-                <button class="studio-btn studio-btn-primary" id="booking-new">Nueva reserva</button>
-                <button class="studio-btn" id="booking-refresh">Actualizar</button>
-            </div><div id="booking-editor"></div><div id="bookings-list"></div></div>`);
-        document.getElementById('booking-new').addEventListener('click', guardedAction(() => openBookingEditor(supabase, studio)));
-        document.getElementById('booking-refresh').addEventListener('click', guardedAction(() => renderBookings(supabase, studio)));
-        document.getElementById('booking-month').addEventListener('change', () => renderBookings(supabase, studio));
-        nav.querySelector('[data-sub="bookings"]').addEventListener('click', () => renderBookings(supabase, studio));
-    }
-    async function renderBookings(supabase, studio) {
-        const host = document.getElementById('bookings-list');
-        const month = document.getElementById('booking-month').value;
-        if (!/^\d{4}-\d{2}$/.test(month)) return;
-        const start = new Date(month + '-01T00:00:00');
-        const end = new Date(start); end.setMonth(end.getMonth() + 1);
-        const { data: rows, error } = await WeotziData.StudioOps.listBookings(studio.id, start.toISOString(), end.toISOString());
-        if (error) { host.innerHTML = '<p class="studio-status studio-status-error">' + escapeHtml(error.message) + '</p>'; return; }
-        if (!rows?.length) { host.innerHTML = '<p class="studio-help">No hay reservas en este mes.</p>'; return; }
-        const labels = { confirmed: 'Confirmada', completed: 'Completada', cancelled: 'Cancelada' };
-        host.innerHTML = `<table class="studio-roster-table"><thead><tr><th>Horario</th><th>Artista / sede</th><th>Cliente</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows.map(row => `<tr>
-            <td>${escapeHtml(new Date(row.starts_at).toLocaleString('es-AR'))}<br><small>Hasta ${escapeHtml(new Date(row.ends_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }))}</small></td>
-            <td>${escapeHtml(row.artists_db?.name || row.artists_db?.username || 'Artista')}<br><small>${escapeHtml(row.studio_locations?.label || 'Sin sede')}</small></td>
-            <td>${escapeHtml(row.client_name)}${row.client_email ? '<br><small>' + escapeHtml(row.client_email) + '</small>' : ''}</td>
-            <td>${fmtMoney(row.amount, row.currency)}</td><td>${labels[row.status] || escapeHtml(row.status)}</td>
-            <td>${row.status === 'confirmed' ? `<button class="studio-btn" data-booking-action="edit" data-id="${escapeAttr(row.id)}">Editar</button>
-            <button class="studio-btn" data-booking-action="complete" data-id="${escapeAttr(row.id)}" ${new Date(row.starts_at) > new Date() ? 'disabled' : ''}>Completar</button>
-            <button class="studio-location-row-remove" data-booking-action="cancel" data-id="${escapeAttr(row.id)}">Cancelar</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
-        host.querySelectorAll('[data-booking-action]').forEach(button => button.addEventListener('click', guardedAction(async () => {
-            const row = rows.find(item => item.id === button.dataset.id);
-            if (button.dataset.bookingAction === 'edit') return openBookingEditor(supabase, studio, row);
-            if (button.dataset.bookingAction === 'cancel') {
-                if (!confirm('¿Cancelar esta reserva? El horario volverá a quedar disponible.')) return;
-                requireResult(await WeotziData.StudioOps.saveBooking(row.id, { status: 'cancelled' }));
-            } else {
-                if (!confirm('¿El trabajo ya se realizó? Se agregará al registro de trabajos del estudio.')) return;
-                requireResult(await WeotziData.StudioOps.completeBooking(row.id));
-                await renderJobsList(supabase, studio);
-            }
-            status('ops-status', 'success', 'Reserva actualizada.');
-            await renderBookings(supabase, studio);
-        })));
-    }
-    async function openBookingEditor(supabase, studio, existing) {
-        const [membersResult, locationsResult] = await Promise.all([
-            WeotziData.StudioMemberships.listActiveArtists(studio.id), WeotziData.StudioLocations.listActiveByStudio(studio.id)
-        ]);
-        const members = requireResult(membersResult) || [];
-        const locations = requireResult(locationsResult) || [];
-        const host = document.getElementById('booking-editor');
-        const artistOptions = members.map(member => ({ id: member.artist_user_id, name: member.artists_db?.name || member.artists_db?.username || 'Artista' }));
-        if (existing && !artistOptions.some(artist => artist.id === existing.artist_user_id)) artistOptions.push({ id: existing.artist_user_id, name: existing.artists_db?.name || 'Artista de esta reserva' });
-        if (!artistOptions.length) { status('ops-status', 'error', 'Invitá a un artista y esperá su aceptación en Roster antes de crear una reserva.'); return; }
-        const from = existing?.starts_at || new Date(Date.now() + 3600000).toISOString();
-        const until = existing?.ends_at || new Date(new Date(from).getTime() + 3600000).toISOString();
-        host.innerHTML = `<div class="studio-location-row" style="margin-bottom:20px;">
-            <h3 class="studio-h2">${existing ? 'Editar reserva' : 'Nueva reserva'}</h3>
-            <div class="studio-field"><label for="booking-artist" class="studio-label">Artista</label><select id="booking-artist" class="studio-input">${artistOptions.map(artist => `<option value="${escapeAttr(artist.id)}" ${artist.id === existing?.artist_user_id ? 'selected' : ''}>${escapeHtml(artist.name)}</option>`).join('')}</select></div>
-            <div class="studio-field"><label for="booking-location" class="studio-label">Sede</label><select id="booking-location" class="studio-input"><option value="">Sin sede</option>${locations.map(location => `<option value="${escapeAttr(location.id)}" ${location.id === (existing?.location_id || studio.primary_location_id) ? 'selected' : ''}>${escapeHtml(location.label)}</option>`).join('')}</select></div>
-            <div class="studio-field"><label for="booking-start" class="studio-label">Inicio</label><input id="booking-start" class="studio-input" type="datetime-local" value="${localDateTime(from)}"></div>
-            <div class="studio-field"><label for="booking-end" class="studio-label">Fin</label><input id="booking-end" class="studio-input" type="datetime-local" value="${localDateTime(until)}"></div>
-            <div class="studio-field"><label for="booking-client" class="studio-label">Cliente</label><input id="booking-client" class="studio-input" value="${escapeAttr(existing?.client_name || '')}" required></div>
-            <div class="studio-field"><label for="booking-email" class="studio-label">Correo del cliente</label><input id="booking-email" class="studio-input" type="email" value="${escapeAttr(existing?.client_email || '')}"></div>
-            <div class="studio-field"><label for="booking-amount" class="studio-label">Importe acordado</label><input id="booking-amount" class="studio-input" type="number" min="0" step="0.01" value="${existing?.amount || 0}"></div>
-            <div class="studio-field"><label for="booking-currency" class="studio-label">Moneda</label><input id="booking-currency" class="studio-input" maxlength="3" value="${escapeAttr(existing?.currency || 'USD')}"></div>
-            <div class="studio-field"><label for="booking-notes" class="studio-label">Notas</label><textarea id="booking-notes" class="studio-textarea">${escapeHtml(existing?.notes || '')}</textarea></div>
-            <button class="studio-btn studio-btn-primary" id="booking-save">Guardar reserva</button> <button class="studio-btn" id="booking-close">Cerrar</button></div>`;
-        document.getElementById('booking-close').addEventListener('click', () => { host.innerHTML = ''; });
-        document.getElementById('booking-save').addEventListener('click', guardedAction(async () => {
-            const get = id => document.getElementById('booking-' + id).value.trim();
-            const start = new Date(get('start')), end = new Date(get('end'));
-            const payload = { studio_id: studio.id, artist_user_id: get('artist'), location_id: get('location') || null, client_name: get('client'), client_email: get('email') || null, amount: Number(get('amount')), currency: get('currency').toUpperCase(), notes: get('notes') || null };
-            if (!payload.client_name || !document.getElementById('booking-email').checkValidity() || !Number.isFinite(start.getTime()) || !(end > start) || !Number.isFinite(payload.amount) || payload.amount < 0 || !/^[A-Z]{3}$/.test(payload.currency)) throw new Error('Revisá cliente, correo, fechas, importe y moneda.');
-            payload.starts_at = start.toISOString(); payload.ends_at = end.toISOString();
-            requireResult(await WeotziData.StudioOps.saveBooking(existing?.id, payload));
-            document.getElementById('booking-month').value = localDateTime(start).slice(0, 7);
-            host.innerHTML = '';
-            status('ops-status', 'success', 'Reserva guardada.');
-            await renderBookings(supabase, studio);
-        }));
     }
 
     // -------------------------------------------------------------
@@ -728,7 +668,7 @@
                     const row = requireResult(await WeotziData.StudioOps.getInventoryItemById(btn.dataset.id));
                     await openItemEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'move') {
-                    await openMovementDialog(supabase, studio, btn.dataset.id);
+                    await openMovementDialog(supabase, studio, btn.dataset.id, data.find(item => item.id === btn.dataset.id));
                 } else if (btn.dataset.action === 'delete') {
                     if (!confirm('¿Archivar este item? Se conservará el historial de movimientos.')) return;
                     requireResult(await WeotziData.StudioOps.deleteInventoryItem(btn.dataset.id));
@@ -832,57 +772,227 @@
             renderInventoryList(supabase, studio);
         }));
     }
-    async function openMovementDialog(supabase, studio, itemId) {
+    // -------------------------------------------------------------
+    // Movimientos de stock. 'assignment' (entrega a artista, resta stock) y
+    // 'return' (devolución, suma stock) llegan con M3
+    // (20261030202000_studio_agenda_inventory): exigen artista y el costo
+    // unitario se precarga (el del ítem; en devoluciones, el promedio de lo
+    // que el artista tiene entregado). Sin M3 esos dos tipos no se ofrecen.
+    // -------------------------------------------------------------
+    const MOVEMENT_KINDS = ['restock', 'consumption', 'loss', 'adjustment', 'assignment', 'return'];
+    const ARTIST_MOVEMENTS = ['assignment', 'return'];
+    const MOVEMENT_OPTION_LABELS = {
+        restock: 'Reposición (entrada)', consumption: 'Consumo', loss: 'Pérdida', adjustment: 'Ajuste (±)',
+        assignment: 'Entrega a artista (salida)', return: 'Devolución de artista (entrada)'
+    };
+    const MOVEMENT_LABELS = {
+        restock: 'Reposición', consumption: 'Consumo', adjustment: 'Ajuste', loss: 'Pérdida',
+        assignment: 'Entrega a artista', return: 'Devolución'
+    };
+    // Signo del movimiento sobre el stock (mismo criterio que apply_inventory_movement).
+    const MOVEMENT_SIGN = { restock: 1, adjustment: 1, return: 1, consumption: -1, loss: -1, assignment: -1 };
+    const MIGRATION_PENDING = 'Esta función todavía no está disponible (falta aplicar una migración).';
+
+    function movementLabel(kind) {
+        const labels = window.WeOtziStudioKit?.LABELS?.movementKind || MOVEMENT_LABELS;
+        return labels[kind] || MOVEMENT_LABELS[kind] || 'Otro';
+    }
+    function fmtQty(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '—';
+        return n.toLocaleString('es-AR', { maximumFractionDigits: 3 });
+    }
+    // Costo unitario promedio de lo que el artista todavía tiene entregado
+    // (assigned_cost / net_assigned_qty), redondeado a centavos. Sin saldo o sin
+    // costo, el fallback (el cost_per_unit del ítem).
+    function outstandingUnitCost(row, fallback) {
+        const net = Number(row?.net_assigned_qty);
+        const cost = Number(row?.assigned_cost);
+        if (net > 0 && Number.isFinite(cost) && cost > 0) return Math.round((cost / net) * 100) / 100;
+        return fallback ?? null;
+    }
+    // Nombres por user_id: roster activo y, para ex integrantes que todavía
+    // tienen material, artists_db por id. Nunca lanza.
+    async function artistNames(members, ids) {
+        const names = new Map();
+        (members || []).forEach(m => {
+            const id = m.artists_db?.user_id || m.artist_user_id;
+            if (id) names.set(id, m.artists_db?.name || m.artists_db?.username || 'Artista');
+        });
+        const missing = Array.from(new Set((ids || []).filter(id => id && !names.has(id))));
+        if (missing.length && typeof WeotziData.Artists?.listByUserIds === 'function') {
+            try {
+                const { data } = await WeotziData.Artists.listByUserIds(missing, 'user_id, name, username');
+                (data || []).forEach(a => names.set(a.user_id, a.name || a.username || 'Artista'));
+            } catch (_) { /* quedan como "Artista" */ }
+        }
+        return names;
+    }
+    // <option>s del artista según el tipo: entrega → activos (obligatorio);
+    // devolución → quienes tienen saldo de este ítem; resto → opcional.
+    function movementArtistOptions(kind, members, balanceRows, names, selected) {
+        const option = (id, text) => `<option value="${escapeAttr(id)}" ${id === selected ? 'selected' : ''}>${escapeHtml(text)}</option>`;
+        const active = (members || []).map(m => m.artists_db?.user_id || m.artist_user_id).filter(Boolean);
+        // Sin balance (falló la lectura): se ofrecen los activos y valida el trigger.
+        if (kind === 'return' && !Array.isArray(balanceRows)) {
+            return '<option value="">Elegí quién devuelve</option>' + active.map(id => option(id, names.get(id) || 'Artista')).join('');
+        }
+        if (kind === 'return') {
+            const holders = (balanceRows || []).filter(row => Number(row.net_assigned_qty) > 0);
+            if (!holders.length) return '<option value="">Nadie tiene este ítem por devolver</option>';
+            return '<option value="">Elegí quién devuelve</option>' + holders.map(row =>
+                option(row.artist_user_id, `${names.get(row.artist_user_id) || 'Artista'} · tiene ${fmtQty(row.net_assigned_qty)} ${row.unit || ''}`.trim())).join('');
+        }
+        const list = active.map(id => option(id, names.get(id) || 'Artista')).join('');
+        if (kind === 'assignment') return '<option value="">Elegí a quién se lo entregás</option>' + list;
+        return '<option value="">— Sin asignar —</option>' + list;
+    }
+    // Valida el formulario y arma la fila de studio_inventory_movements.
+    // input: {kind, quantity, artist, cost, notes} (valores crudos del form);
+    // ctx: {item, studioId, balanceRows, materialsReady}. Lanza Error con el
+    // mensaje para el usuario.
+    function buildMovementPayload(input, ctx) {
+        const item = ctx.item || {};
+        const kind = String(input.kind || '');
+        if (!MOVEMENT_KINDS.includes(kind)) throw new Error('Elegí un tipo de movimiento.');
+        if (ARTIST_MOVEMENTS.includes(kind) && ctx.materialsReady === false) throw new Error(MIGRATION_PENDING);
+        const quantity = numOrNull(String(input.quantity ?? '').replace(',', '.'));
+        if (!quantity || (kind !== 'adjustment' && quantity < 0)) throw new Error('Ingresá una cantidad positiva. Los ajustes permiten valores negativos.');
+        const artist = String(input.artist || '').trim() || null;
+        if (kind === 'assignment' && !artist) throw new Error('Elegí el artista que recibe el material.');
+        if (kind === 'return' && !artist) throw new Error('Elegí el artista que devuelve el material.');
+        const unitText = item.unit ? ' ' + item.unit : '';
+        const stock = item.quantity_on_hand == null ? NaN : Number(item.quantity_on_hand);
+        const delta = (MOVEMENT_SIGN[kind] || 0) * quantity;
+        if (delta < 0 && Number.isFinite(stock) && stock + delta < 0) {
+            throw new Error(`No hay stock suficiente de ${item.name || 'este ítem'}: quedan ${fmtQty(Math.max(stock, 0))}${unitText}.`);
+        }
+        if (kind === 'return' && Array.isArray(ctx.balanceRows)) {
+            const held = Number(ctx.balanceRows.find(row => row.artist_user_id === artist)?.net_assigned_qty) || 0;
+            if (quantity > held) throw new Error(`La devolución supera lo entregado: quedan ${fmtQty(Math.max(held, 0))}${unitText} por devolver.`);
+        }
+        const cost = numOrNull(String(input.cost ?? '').replace(',', '.'));
+        if (cost != null && cost < 0) throw new Error('El costo unitario no puede ser negativo.');
+        return {
+            item_id: item.id,
+            studio_id: ctx.studioId,
+            kind,
+            quantity,
+            related_artist_user_id: artist,
+            unit_cost: cost,
+            notes: String(input.notes || '').trim() || null
+        };
+    }
+    // Sin M3, el CHECK vivo de kind rechaza entrega/devolución: se traduce al
+    // aviso de migración pendiente (Reglas transversales §5).
+    function movementSaveError(error) {
+        const text = String(error?.message || '') + ' ' + String(error?.details || '');
+        if (/studio_inventory_movements_kind_check|studio_inventory_movements_artist_required/.test(text)) return new Error(MIGRATION_PENDING);
+        const kit = window.WeOtziStudioKit;
+        const message = kit?.friendlyError ? kit.friendlyError(error) : (error?.message || '');
+        return new Error(message || 'No pudimos registrar el movimiento. Intentá nuevamente.');
+    }
+    function movementHistoryHtml(rows, names, item) {
+        if (!rows?.length) return '<p class="studio-help">Sin movimientos.</p>';
+        const currency = item?.currency;
+        const unit = item?.unit ? ' ' + escapeHtml(item.unit) : '';
+        return '<table class="studio-roster-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Artista</th><th>Costo unit.</th><th>Costo total</th><th>Notas</th></tr></thead><tbody>'
+            + rows.map(row => {
+                const sign = MOVEMENT_SIGN[row.kind] || 0;
+                const qty = Number(row.quantity);
+                const shown = sign < 0 ? '−' + fmtQty(Math.abs(qty)) : (sign > 0 && qty > 0 ? '+' : '') + fmtQty(qty);
+                const total = row.unit_cost == null || !Number.isFinite(qty) ? null : Math.abs(qty) * Number(row.unit_cost);
+                const artist = row.related_artist_user_id ? escapeHtml(names?.get(row.related_artist_user_id) || 'Artista') : '—';
+                return '<tr><td>' + fmtDate(row.performed_at) + '</td><td>' + escapeHtml(movementLabel(row.kind)) + '</td><td>' + shown + unit + '</td><td>'
+                    + artist + '</td><td>' + fmtMoney(row.unit_cost, currency) + '</td><td>' + fmtMoney(total, currency) + '</td><td>' + escapeHtml(row.notes || '—') + '</td></tr>';
+            }).join('') + '</tbody></table>';
+    }
+
+    async function openMovementDialog(supabase, studio, itemId, knownItem) {
         const c = document.getElementById('item-editor');
-        const members = requireResult(await WeotziData.StudioMemberships.listActiveArtists(studio.id));
-        const opts = '<option value="">— Sin asignar —</option>' + (members || []).map(m => {
-            const a = m.artists_db || {};
-            return `<option value="${escapeAttr(a.user_id || m.artist_user_id)}">${escapeHtml(a.name || a.username || a.user_id)}</option>`;
-        }).join('');
+        const [membersResult, balanceResult, item] = await Promise.all([
+            WeotziData.StudioMemberships.listActiveArtists(studio.id),
+            typeof WeotziData.StudioOps.listMaterialBalance === 'function'
+                ? WeotziData.StudioOps.listMaterialBalance(studio.id) : Promise.resolve({ data: [], error: null, unavailable: true }),
+            knownItem && knownItem.id === itemId ? knownItem : WeotziData.StudioOps.getInventoryItemById(itemId).then(requireResult)
+        ]);
+        const members = requireResult(membersResult) || [];
+        // La vista de balance es de M3: si no está, tampoco lo están los tipos nuevos.
+        const materialsReady = !balanceResult?.unavailable;
+        const balanceRows = balanceResult?.error ? null : (balanceResult?.data || []).filter(row => row.item_id === itemId);
+        const names = await artistNames(members, (balanceRows || []).map(row => row.artist_user_id));
+        const kinds = MOVEMENT_KINDS.filter(kind => materialsReady || !ARTIST_MOVEMENTS.includes(kind));
+        const unit = escapeHtml(item?.unit || 'unit');
+        const currency = escapeHtml(String(item?.currency || 'USD').toUpperCase());
         c.innerHTML = `
             <div class="studio-location-row" style="margin-bottom:18px;">
                 <div class="studio-location-row-head">
-                    <span class="studio-section-kicker">Movimiento de stock</span>
+                    <span class="studio-section-kicker">Movimiento de stock · ${escapeHtml(item?.name || 'Ítem')}</span>
                     <button class="studio-location-row-remove" id="mv-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Tipo</label>
-                    <select id="mv-kind" class="studio-input">
-                        <option value="restock">Restock (entrada)</option>
-                        <option value="consumption">Consumo</option>
-                        <option value="loss">Pérdida</option>
-                        <option value="adjustment">Ajuste</option>
-                    </select></div>
-                <div class="studio-field"><label class="studio-label">Cantidad</label>
-                    <input id="mv-qty" class="studio-input" type="number" step="0.001" placeholder="Cantidad"></div>
-                <div class="studio-field"><label class="studio-label">Artista (consumo)</label>
-                    <select id="mv-artist" class="studio-input">${opts}</select></div>
-                <div class="studio-field"><label class="studio-label">Notas</label>
+                <div class="studio-field"><label class="studio-label" for="mv-kind">Tipo</label>
+                    <select id="mv-kind" class="studio-input">${kinds.map(kind => `<option value="${kind}">${escapeHtml(MOVEMENT_OPTION_LABELS[kind])}</option>`).join('')}</select>
+                    ${materialsReady ? '' : '<span class="studio-help">Las entregas y devoluciones a artistas se habilitan cuando se aplique la migración de inventario.</span>'}</div>
+                <div class="studio-field"><label class="studio-label" for="mv-qty">Cantidad (${unit})</label>
+                    <input id="mv-qty" class="studio-input" type="number" step="0.001" placeholder="Cantidad">
+                    <span class="studio-help">Stock actual: ${escapeHtml(fmtQty(item?.quantity_on_hand))} ${unit}</span></div>
+                <div class="studio-field"><label class="studio-label" for="mv-artist" id="mv-artist-label">Artista (opcional)</label>
+                    <select id="mv-artist" class="studio-input">${movementArtistOptions('restock', members, balanceRows, names, null)}</select></div>
+                <div class="studio-field"><label class="studio-label" for="mv-cost">Costo unitario (${currency})</label>
+                    <input id="mv-cost" class="studio-input" type="number" step="0.01" min="0" value="${escapeAttr(item?.cost_per_unit ?? '')}" placeholder="Costo unit.">
+                    <span class="studio-help" id="mv-cost-help">Se precarga con el costo del ítem; podés corregirlo.</span></div>
+                <div class="studio-field"><label class="studio-label" for="mv-notes">Notas</label>
                     <textarea id="mv-notes" class="studio-textarea" rows="2"></textarea></div>
                 <button class="studio-btn studio-btn-primary" id="mv-save"><i class="fa-solid fa-floppy-disk"></i> Registrar</button>
                 <div id="movement-history" style="margin-top:18px;"></div>
             </div>
         `;
+        const kindEl = document.getElementById('mv-kind');
+        const artistEl = document.getElementById('mv-artist');
+        const costEl = document.getElementById('mv-cost');
+        let costTouched = false;
+        costEl.addEventListener('input', () => { costTouched = true; });
+        const prefillCost = () => {
+            if (costTouched) return;
+            const row = kindEl.value === 'return' ? (balanceRows || []).find(r => r.artist_user_id === artistEl.value) : null;
+            const value = row ? outstandingUnitCost(row, item?.cost_per_unit) : item?.cost_per_unit;
+            costEl.value = value == null ? '' : String(value);
+        };
+        kindEl.addEventListener('change', () => {
+            const kind = kindEl.value;
+            artistEl.innerHTML = movementArtistOptions(kind, members, balanceRows, names, null);
+            if (ARTIST_MOVEMENTS.includes(kind)) artistEl.setAttribute('required', '');
+            else artistEl.removeAttribute('required');
+            const label = document.getElementById('mv-artist-label');
+            if (label) label.textContent = kind === 'assignment' ? 'Artista que recibe (obligatorio)' : kind === 'return' ? 'Artista que devuelve (obligatorio)' : 'Artista (opcional)';
+            const help = document.getElementById('mv-cost-help');
+            if (help) help.textContent = kind === 'return' ? 'Se precarga con el costo promedio de lo entregado a ese artista.' : 'Se precarga con el costo del ítem; podés corregirlo.';
+            prefillCost();
+        });
+        artistEl.addEventListener('change', prefillCost);
         document.getElementById('mv-cancel').addEventListener('click', () => { c.innerHTML = ''; });
         document.getElementById('mv-save').addEventListener('click', guardedAction(async () => {
-            const payload = {
-                item_id: itemId,
-                studio_id: studio.id,
-                kind: document.getElementById('mv-kind').value,
-                quantity: numOrNull(document.getElementById('mv-qty').value),
-                related_artist_user_id: document.getElementById('mv-artist').value || null,
-                notes: document.getElementById('mv-notes').value.trim() || null
-            };
-            if (!payload.quantity || (payload.kind !== 'adjustment' && payload.quantity < 0)) { status('inventory-status', 'error', 'Ingresá una cantidad positiva. Los ajustes permiten valores negativos.'); return; }
+            const payload = buildMovementPayload({
+                kind: kindEl.value,
+                quantity: document.getElementById('mv-qty').value,
+                artist: artistEl.value,
+                cost: costEl.value,
+                notes: document.getElementById('mv-notes').value
+            }, { item: { ...item, id: itemId }, studioId: studio.id, balanceRows, materialsReady });
             const { error } = await WeotziData.StudioOps.createInventoryMovement(payload);
-            if (error) { status('inventory-status', 'error', error.message); return; }
-            status('inventory-status', 'success', 'Movimiento registrado.');
+            if (error) throw movementSaveError(error);
+            status('inventory-status', 'success', payload.kind === 'assignment' ? 'Entrega registrada.' : payload.kind === 'return' ? 'Devolución registrada.' : 'Movimiento registrado.');
             c.innerHTML = '';
-            renderInventoryList(supabase, studio);
+            await renderInventoryList(supabase, studio);
+            emitInventoryChanged({ kind: payload.kind, item_id: itemId });
         }));
         const history = await WeotziData.StudioOps.listInventoryMovements(itemId);
         const historyHost = document.getElementById('movement-history');
-        if (historyHost) historyHost.innerHTML = history.error ? '<p class="studio-help">' + escapeHtml(history.error.message) + '</p>'
-            : '<h3 class="studio-section-kicker">Últimos movimientos</h3>' + (history.data?.length ? '<table class="studio-roster-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Notas</th></tr></thead><tbody>' + history.data.map(row => '<tr><td>' + fmtDate(row.performed_at) + '</td><td>' + escapeHtml(row.kind) + '</td><td>' + row.quantity + '</td><td>' + escapeHtml(row.notes || '—') + '</td></tr>').join('') + '</tbody></table>' : '<p class="studio-help">Sin movimientos.</p>');
+        if (!historyHost) return;
+        if (history.error) { historyHost.innerHTML = '<p class="studio-help">' + escapeHtml(history.error.message) + '</p>'; return; }
+        const unknown = (history.data || []).map(row => row.related_artist_user_id).filter(id => id && !names.has(id));
+        if (unknown.length) (await artistNames([], unknown)).forEach((value, key) => names.set(key, value));
+        historyHost.innerHTML = '<h3 class="studio-section-kicker">Últimos movimientos</h3>' + movementHistoryHtml(history.data, names, item);
     }
 
     // -------------------------------------------------------------
