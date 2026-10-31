@@ -814,7 +814,7 @@
     // en `self.WoDemoFixtureExtensions[<área>]` que recibe el contexto de build
     // y agrega tablas, relaciones, RPCs o vistas sin tocar este archivo.
     var EXTENSIONS = ['acceso', 'dashboard', 'cotizaciones', 'cotizaciones-detalle', 'calendario', 'cuenta',
-        'perfil-estadisticas', 'oportunidades', 'invitaciones', 'travel-inbox', 'store'];
+        'perfil-estadisticas', 'oportunidades', 'invitaciones', 'store', 'travel-inbox'];
     function applyExtensions(ctx) {
         var registry = (typeof self !== 'undefined' && self.WoDemoFixtureExtensions) || {};
         EXTENSIONS.forEach(function (name) {
