@@ -34,9 +34,10 @@ function fakeElement(attrs = {}) {
 }
 
 /* ------------------------------ app-config ------------------------------ */
-test('app-config: features.store nace en false dentro del objeto features y el repo lo lee con getValue', () => {
+test('app-config: features.store es un booleano dentro del objeto features y el repo lo lee con getValue', () => {
     const config = JSON.parse(read('public/shared/js/app-config.json'));
-    assert.equal(config.features.store, false);
+    // Encendido el 31 oct 2026 junto con la aplicación de store_core en Supabase.
+    assert.equal(typeof config.features.store, 'boolean');
     assert.equal(config.features.demoMode, false, 'el resto de features no cambia');
     const repo = read('public/shared/js/data/store-repo.js');
     assert.match(repo, /CM\.getValue\('features\.store', false\) === true/);
@@ -764,11 +765,11 @@ test('docs: el mapa lista las rutas de la Store, las tablas store_* y la migraci
         assert.ok(doc.includes('`' + table + '`'), table);
     }
     assert.ok(doc.includes('`resolve_store_order_flag`'), 'RPC de soporte en el mapa');
-    assert.match(doc, /Migración NO aplicada/);
-    assert.match(doc, /features\.store: false/);
-    // El flag no protege la API: la migración va recién con el lanzamiento.
+    // Aplicada el 31 oct 2026 junto con el flag; el flag igual no protege la API.
+    assert.match(doc, /Migración aplicada el 31 oct 2026/);
+    assert.match(doc, /features\.store: true/);
     assert.match(doc, /`features\.store` es solo un gate de UI/);
-    assert.match(doc, /la migración se aplica recién en la ventana de lanzamiento, junto con el flag/);
+    assert.match(doc, /un gate propio en el SQL queda pendiente/);
     assert.match(read('docs/TECHNICAL.md'), /`features\.store` es solo un gate de UI/);
 });
 
@@ -804,7 +805,7 @@ test('docs: el contrato refleja notas internas, gracia de 7 días, reaperturas y
     assert.match(s85, /«Mis compras →» en «Tu actividad»/);
     assert.match(s85, /`storefront\.seller\.id` es el `user_id`/);
     const s9 = section(9);
-    assert.match(s9, /junto con `features\.store`, en la ventana de lanzamiento/);
+    assert.match(s9, /\*\*Hecho el 31 oct 2026\*\*/);
     assert.match(s9, /\*\*`features\.store` es solo un gate de UI\*\*/);
     assert.match(s9, /\*\*Endurecer `artists_db`\*\* \(pendiente\)/);
     assert.match(s9, /`get_store_sales_report` con límites `timestamptz`/);

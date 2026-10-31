@@ -1,7 +1,7 @@
 -- Store del artista · merch y diseños con licencia de uso (/artist/store,
 -- /store/*). Contrato: docs/plans/2026-10-30-store-artista.md (§2, §4, §5, §6).
 --
--- NO APLICADA. Aditiva e idempotente. Requiere antes, en la base viva,
+-- APLICADA el 31 oct 2026 en el proyecto vivo (flbgmlvfiejfttlawnfu). Aditiva e idempotente. Requiere antes, en la base viva,
 -- public.is_support_user() y public.set_updated_at() (existen en el proyecto
 -- vivo, no en el repo). El wallet (20261028150000_artist_wallet.sql) es
 -- opcional: todo acceso a artist_wallet_movements es dinámico y condicionado.

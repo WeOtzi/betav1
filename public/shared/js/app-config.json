@@ -190,7 +190,7 @@
         "demoMode": false,
         "emailNotifications": true,
         "imageUpload": true,
-        "store": false
+        "store": true
     },
     "routes": {
         "quotation": "/quotation",

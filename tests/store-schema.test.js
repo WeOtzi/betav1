@@ -185,7 +185,7 @@ test('Store schema: un único archivo store_core, transaccional, idempotente y q
     assert.deepEqual(files, ['20261030150000_store_core.sql']);
     const sql = readStoreMigration();
     const active = stripComments(sql).trim();
-    assert.match(sql, /NO APLICADA/);
+    assert.match(sql, /APLICADA el 31 oct 2026/);
     assert.match(sql, /Reversa:[\s\S]*20261030150000_store_core\.down\.sql/);
     assert.match(active, /^begin\s*;/i);
     assert.match(active, /notify pgrst, 'reload schema';\s*commit\s*;\s*$/i);

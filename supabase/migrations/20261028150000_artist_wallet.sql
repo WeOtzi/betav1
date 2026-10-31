@@ -1,7 +1,7 @@
 -- We Ötzi Wallet · cuenta del artista (/artist/account#cobros)
 -- Figma final del flujo de artista (oct 2026): frames 801:568, 801:569, 801:570.
 --
--- NO APLICADA. Aditiva e idempotente.
+-- APLICADA el 31 oct 2026 en el proyecto vivo (flbgmlvfiejfttlawnfu). Aditiva e idempotente.
 --
 -- ⚠ DECISIÓN PENDIENTE ANTES DE APLICAR: account_identifier guarda el número
 --   de cuenta (CBU/IBAN/SWIFT) en texto plano. Antes de producción, tokenizarlo

@@ -74,7 +74,7 @@ El archivo `server.js` expone los siguientes endpoints API:
 ### Store
 Contrato completo en [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30-store-artista.md) (§7). Handlers en [`services/store-orders.js`](../services/store-orders.js) (testeables con `createHandlers(deps)`), datos en [`lib/repos/store.js`](../lib/repos/store.js) (service role), firma de Storage en [`lib/storage-sign.js`](../lib/storage-sign.js) y adaptadores de pago en [`services/store-payments.js`](../services/store-payments.js). Todas las respuestas son `{ success, error? }` con `Cache-Control: no-store`; los 500 son genéricos (el detalle queda en el log). Los ids de la URL tienen que ser UUID (si no, 400).
 
-> **`features.store` es solo un gate de UI.** Ni estos endpoints ni las RPC/policies de `store_core` lo consultan: con la migración aplicada, la Store se puede operar por API (publicar productos, crear pedidos, ver la vitrina pública) aunque el flag esté en `false`. Hasta que el SQL tenga su propio gate, la migración se aplica recién en la ventana de lanzamiento, junto con el flag.
+> **`features.store` es solo un gate de UI.** Ni estos endpoints ni las RPC/policies de `store_core` lo consultan: con la migración aplicada, la Store se puede operar por API (publicar productos, crear pedidos, ver la vitrina pública) aunque el flag esté en `false`. La migración está aplicada desde el 31 oct 2026 y el flag encendido; un gate propio en el SQL queda pendiente.
 
 *   `POST /api/store/licenses/:licenseId/assets/:assetId/url`: URL firmada para bajar el original o el stencil de una licencia.
     *   Headers: `Authorization: Bearer <supabase_access_token>`. Rate limit: `storeDownloadLimiter` (60 cada 15 min por IP).
