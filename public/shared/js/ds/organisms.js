@@ -185,7 +185,11 @@
   function renderProductNav(active, options) {
     active = active || 'quotations';
     options = options || {};
-    var navigation = DATA.navigation.concat({ id: 'inbox', label: 'INBOX', href: '/artist/inbox' });
+    // STORE (oct 2026) no está en el Figma final: va al final, después de INBOX.
+    var navigation = DATA.navigation.concat(
+      { id: 'inbox', label: 'INBOX', href: '/artist/inbox' },
+      { id: 'store', label: 'STORE', href: '/artist/store' }
+    );
     var menuToggleId = options.menuToggleId || 'artist-product-menu-toggle';
     var menuId = options.menuId || 'artist-product-mobile-menu';
     var profileHref = options.profileHref || '/artist/account';

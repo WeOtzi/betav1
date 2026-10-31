@@ -340,7 +340,7 @@ test('organism catalog and implementation agree on all 18 references and Figma n
   );
 });
 
-test('artist product navigation always renders the seven Figma destinations in order', () => {
+test('artist product navigation always renders the seven Figma destinations in order (plus STORE)', () => {
   const html = runtime.sandbox.WeotziOrganisms.render.productNav('statistics');
   const desktopLinks = html.match(/<div class="wo-org-product-nav__links">([\s\S]*?)<div class="wo-org-product-nav__account">/)[1];
   const destinations = [...desktopLinks.matchAll(/<a class="wo-org-product-nav__link[^"]*" href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)]
@@ -353,7 +353,8 @@ test('artist product navigation always renders the seven Figma destinations in o
     ['/calendar', 'CALENDARIO'],
     ['/my-quotations/statistics', 'ESTADÍSTICAS'],
     ['/artist/travel', 'TRAVEL'],
-    ['/artist/inbox', 'INBOX']
+    ['/artist/inbox', 'INBOX'],
+    ['/artist/store', 'STORE']
   ]);
   assert.match(html, /data-figma-node="80:13241"/);
   assert.match(html, /href="\/my-quotations\/statistics" aria-current="page">ESTADÍSTICAS<\/a>/);
