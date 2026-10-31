@@ -22,7 +22,17 @@
         window.currentStudioData = studio;
         return studio;
     }
-    async function completeRegistration(draft) {
+    async function finishRegistrationMedia(studio, email) {
+        if (!window.WeOtziStudioMedia || !email) return remember(studio);
+        try {
+            if (!await window.WeOtziStudioMedia.hasPending(email)) return remember(studio);
+            return remember(await window.WeOtziStudioMedia.finish(studio, email));
+        } catch (error) {
+            // Account and locations already exist. Keep access and local files available for retry.
+            return remember({ ...studio, mediaPending: true, mediaError: error.message || 'No pudimos completar la subida de imágenes.' });
+        }
+    }
+    async function completeRegistration(draft, email) {
         const { data, error } = await requireClient().rpc('complete_studio_registration', {
             p_profile: draft.profile, p_locations: draft.locations
         });
@@ -33,14 +43,14 @@
         // Non-secret draft survives email confirmation on another device.
         // Clear it only after profile and locations have committed together.
         await client.auth.updateUser({ data: { studio_registration: null } }).catch(() => {});
-        return studio;
+        return finishRegistrationMedia(studio, email);
     }
     async function resolveStudio(session) {
         const { data: studio, error } = await WeotziData.Studios.getByUserId(session.user.id);
         if (error) throw error;
-        if (studio) return remember(studio);
+        if (studio) return finishRegistrationMedia(studio, session.user.email);
         const draft = session.user.user_metadata?.studio_registration;
-        if (draft?.profile && Array.isArray(draft.locations)) return completeRegistration(draft);
+        if (draft?.profile && Array.isArray(draft.locations)) return completeRegistration(draft, session.user.email);
         return null;
     }
     async function checkStudioAuthState() {
@@ -58,7 +68,14 @@
                 if (recoveryMode) return null;
                 const studio = await resolveStudio(session);
                 if (studio) {
-                    if (path.startsWith('/studio/login') || path.startsWith('/studio/register')) {
+                    const showResult = path.startsWith('/studio/register') &&
+                        (studio.mediaPending || new URLSearchParams(window.location.search).get('registered') === '1');
+                    if (showResult) {
+                        if (typeof window.CustomEvent === 'function') window.dispatchEvent(new window.CustomEvent('weotzi:studio-ready', { detail: studio }));
+                    } else if (path.startsWith('/studio/login') && (studio.mediaPending ||
+                        new URLSearchParams(window.location.search).get('confirmed') === '1')) {
+                        window.location.href = appUrl('/studio/register?registered=1');
+                    } else if (path.startsWith('/studio/login') || path.startsWith('/studio/register')) {
                         window.location.href = appUrl('/studio/dashboard');
                     }
                     return studio;
@@ -94,12 +111,13 @@
             throw new Error('Completá el nombre, correo y al menos una sede.');
         }
         const draft = { profile, locations };
-        const { data: { session } } = await requireClient().auth.getSession();
+        const { data: { session }, error: sessionError } = await requireClient().auth.getSession();
+        if (sessionError) throw sessionError;
         if (session) {
             if (session.user.email?.toLowerCase() !== email.trim().toLowerCase()) {
                 throw new Error('Hay otra cuenta abierta. Cerrá esa sesión antes de registrar un correo diferente.');
             }
-            return completeRegistration(draft);
+            return completeRegistration(draft, email);
         }
         if (!password || password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
         const { data, error } = await client.auth.signUp({
@@ -115,7 +133,7 @@
             throw new Error('Ya existe una cuenta con ese email. Iniciá sesión para continuar.');
         }
         if (!data.session) return { confirmationRequired: true, email: email.trim() };
-        return completeRegistration(draft);
+        return completeRegistration(draft, email);
     }
     async function requestStudioPasswordReset(email) {
         await ready();
