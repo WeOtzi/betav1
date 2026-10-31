@@ -4,7 +4,7 @@
 
 - Plataforma de Estudios y Supplies: sistema administrativo del estudio (inicio, solicitudes con alta en dos sentidos, contratos registrados con modalidad porcentaje/fijo/mixto y firma de ambas partes, agenda por artista con chequeo de disponibilidad, materiales por artista, reposicion a Supplies, finanzas y reportes), reclamo de estudios del catalogo, nuevo tipo de cuenta Supplies con catalogo, beneficios y pedidos, lado del artista (solicitar alta, firmar contratos, citas del estudio en el calendario) y backoffice de reclamos y vendors.
 - Base de datos:
-  - Migraciones 20261030200000–20261030204000 NO aplicadas, con rollback y tests SQL.
+  - Migraciones 20261030150000 (Store) y 20261030200000–20261030205000 APLICADAS en `flbgmlvfiejfttlawnfu` el 2026-10-31 (M5 en dos partes), con rollback y tests SQL. El test de operaciones de estudio pasa contra el esquema vivo.
   - Guards de escritura en membresías, postulaciones, studios, artists_db.studio_id, finanzas y vendors.
   - Roster público sin split ni notas (vista `studio_public_roster`).
   - Se arreglan las policies de Storage de los buckets studio-*, que comparaban studios.name en lugar del path del objeto.

@@ -1,8 +1,8 @@
 # Runbook: aplicar las migraciones de Estudios, Supplies y Store
 
-**Fecha:** 2026-10-31 · **Estado:** pendiente de ejecutar · **Proyecto Supabase:** `flbgmlvfiejfttlawnfu` ("Chatbot"; nunca el pausado "WeOtzi's App").
+**Fecha:** 2026-10-31 · **Estado:** APLICADO el 2026-10-31 · **Proyecto Supabase:** `flbgmlvfiejfttlawnfu` ("Chatbot"; nunca el pausado "WeOtzi's App").
 
-Nada de esto se aplicó. El código de la rama `feature/estudios-plataforma` ya corre sin las migraciones: muestra "falta aplicar una migración" en lo nuevo y conserva los flujos previos.
+Se aplicaron en orden Store (`store_core`), M1, M2, M3, M4, M5 (en dos partes: `..._part1` y `..._part2`, por tamaño) y M6, vía `apply_migration` del MCP, cada una en su transacción. Verificado después: sin funciones faltantes, UNIQUE viejo retirado e índice parcial creado, `studio_public_roster`, costos `numeric(14,6)`, bucket `supply-photos`, `handle_new_user` parcheado, policies de Storage sobre `objects.name`, 40 estudios y 56 membresías intactos. El test `supabase/tests/studio_operations_workflows.sql` pasó contra el esquema vivo dentro de BEGIN…ROLLBACK. Lo que sigue queda como referencia para repetirlo en otro entorno o para el rollback.
 
 ## Qué se aplica, en orden
 
