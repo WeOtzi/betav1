@@ -113,6 +113,21 @@ weotzi-dashboard{display:block;min-width:0}
 .wo-org-product-footer__instagram:hover,.wo-org-product-footer__instagram:focus-visible{text-decoration:underline;text-underline-offset:3px}
 .wo-org-product-nav__mobile a:last-child{border-bottom:0}
 
+/* Studio context keeps the artist navigation chrome with studio destinations. */
+.wo-org-product-navigation--studio .wo-org-product-nav__links{flex:1 1 auto;min-width:0}
+.wo-org-product-navigation--studio .wo-org-product-nav__links>:nth-child(n){flex:1 1 auto;width:auto;min-width:0;padding-right:14px;padding-left:14px}
+.wo-org-product-navigation--studio .wo-org-product-nav__brand{flex-shrink:0}
+.wo-org-product-navigation--studio .wo-org-product-nav__mobile{max-height:calc(100dvh - 76px);overflow-y:auto;overscroll-behavior:contain}
+.wo-org-product-navigation--studio .wo-org-product-nav__mobile[hidden]{display:none!important}
+.wo-org-product-footer__column button[data-studio-document]{display:block;width:fit-content;padding:0;border:0;background:transparent;color:var(--org-black);font-family:var(--font-body,Inter,sans-serif);font-size:14px;font-weight:400;line-height:20px;text-align:left;cursor:pointer}
+.wo-org-product-footer__column button[data-studio-document]:hover{text-decoration:underline;text-underline-offset:3px}
+.wo-org-product-footer__dialog{width:min(480px,calc(100% - 32px));padding:var(--space-6,24px);border:2px solid var(--org-black);background:var(--org-paper);color:var(--org-black)}
+.wo-org-product-footer__dialog::backdrop{background:rgb(0 17 37 / 48%)}
+.wo-org-product-footer__dialog h2{font-family:var(--font-display,'Archivo Black',sans-serif);font-size:24px}
+.wo-org-product-footer__dialog p{margin:20px 0 24px;line-height:1.5}
+@media(min-width:1280px){.wo-org-product-navigation--studio .wo-org-product-nav__mobile{display:none!important}}
+@media(max-width:480px){.wo-org-product-navigation--studio .wo-org-product-nav__mobile{max-height:calc(100dvh - 56px)}}
+
 /* Profile · 34:136 */
 .wo-org-profile{position:relative;width:100%;max-width:374px;min-height:414px;margin-inline:auto;padding:72px 24px 64px 48px;background:#fff}
 .wo-org-profile__rule{position:absolute;top:72px;bottom:64px;left:48px;width:2px;background:var(--org-black)}

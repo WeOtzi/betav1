@@ -19,7 +19,12 @@
         studio = auth.getCurrent() || await auth.check();
         if (!studio) return;
 
-        document.querySelector('[data-tab="travel"]')?.addEventListener('click', load);
+        document.addEventListener('click', event => {
+            if (event.target.closest('.studio-dash-tab[data-tab="travel"]')) load();
+        });
+        window.addEventListener('studio:tabchange', event => {
+            if (event.detail?.tab === 'travel') load();
+        });
         document.getElementById('studio-travel-links')?.addEventListener('click', onDecision);
         await load();
         subscribe(auth.getSupabase());
@@ -29,6 +34,10 @@
         if (loading || !studio) return;
         loading = true;
         const host = document.getElementById('studio-travel-links');
+        if (host) {
+            host.setAttribute('aria-busy', 'true');
+            if (!host.childElementCount) host.innerHTML = '<p class="wo-help" role="status">Cargando solicitudes Travel…</p>';
+        }
         try {
             const result = await D.StudioOps.listTravelLinks(studio.id);
             if (result.error) throw result.error;
@@ -37,9 +46,10 @@
             render(links, artists);
         } catch (error) {
             console.error('[studio-travel] cargar', error);
-            if (host) host.innerHTML = '<div class="studio-status studio-status-error">No pudimos cargar las solicitudes Travel.</div>';
+            if (host) host.innerHTML = '<div class="studio-status studio-status-error" role="alert">No pudimos cargar las solicitudes Travel. Volvé a abrir esta sección para intentar nuevamente.</div>';
         } finally {
             loading = false;
+            if (host) host.setAttribute('aria-busy', 'false');
         }
     }
 
@@ -58,26 +68,26 @@
         const host = document.getElementById('studio-travel-links');
         if (!host) return;
         if (!links.length) {
-            host.innerHTML = '<div class="studio-card"><p class="studio-section-kicker">Travel</p><h2 class="studio-h2">Todavía no hay solicitudes</h2><p class="studio-help">Cuando un artista quiera vincular un viaje con este estudio, aparecerá acá. También vas a ver el historial de solicitudes resueltas.</p></div>';
+            host.innerHTML = '<div class="studio-empty"><i data-wo-icon="map-pin" aria-hidden="true"></i><h3 class="studio-item-title">Todavía no hay solicitudes</h3><p class="wo-help">Cuando un artista quiera vincular un viaje con este estudio, aparecerá acá. También vas a ver el historial de solicitudes resueltas.</p></div>';
             return;
         }
-        host.innerHTML = '<div style="display:grid;gap:14px;">' + links.map(function (link) {
+        host.innerHTML = '<div class="studio-list">' + links.map(function (link) {
             const trip = link.artist_trips || {};
             const artist = artists.get(trip.artist_user_id) || {};
             const artistName = artist.name || (artist.username ? '@' + artist.username : 'Artista');
             const pending = link.status === 'esperando_confirmacion' && trip.status !== 'cancelado';
             const label = trip.status === 'cancelado' ? 'Viaje cancelado' : ({ esperando_confirmacion: 'Pendiente', confirmado: 'Confirmado', rechazado: 'Rechazado', cancelado: 'Cancelado' })[link.status] || link.status;
-            return '<article class="studio-card" data-travel-request="' + esc(link.id) + '">' +
-                '<div style="display:flex;gap:14px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;">' +
-                    '<div style="min-width:0;">' +
-                        '<p class="studio-section-kicker">Travel · ' + esc(label) + '</p>' +
-                        '<h2 class="studio-h2" style="margin-bottom:8px;">' + esc(artistName) + '</h2>' +
-                        '<p class="studio-help" style="margin:0 0 4px;"><strong>' + esc([trip.city, trip.country].filter(Boolean).join(', ')) + '</strong></p>' +
-                        '<p class="studio-help" style="margin:0;">' + esc(formatRange(trip.start_date, trip.end_date)) + ' · ' + esc(typeLabel(trip.trip_type)) + '</p>' +
+            return '<article class="studio-location-row studio-travel-request" data-travel-request="' + esc(link.id) + '">' +
+                '<div class="studio-location-row-head">' +
+                    '<div class="studio-travel-details">' +
+                        '<span class="wo-badge wo-badge--s ' + (pending ? 'wo-badge--outline' : link.status === 'confirmado' ? 'wo-badge--success' : 'wo-badge--outline') + '">' + esc(label) + '</span>' +
+                        '<h3 class="studio-item-title">' + esc(artistName) + '</h3>' +
+                        '<p class="wo-help"><strong>' + esc([trip.city, trip.country].filter(Boolean).join(', ')) + '</strong></p>' +
+                        '<p class="wo-help">' + esc(formatRange(trip.start_date, trip.end_date)) + ' · ' + esc(typeLabel(trip.trip_type)) + '</p>' +
                     '</div>' +
-                    (pending ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-                        '<button type="button" class="studio-btn" data-travel-action="reject">Rechazar</button>' +
-                        '<button type="button" class="studio-btn studio-btn-primary" data-travel-action="confirm">Confirmar vínculo</button>' +
+                    (pending ? '<div class="studio-actions">' +
+                        '<button type="button" class="wo-btn wo-btn--secondary" data-travel-action="reject">Rechazar</button>' +
+                        '<button type="button" class="wo-btn" data-travel-action="confirm"><i data-wo-icon="check" aria-hidden="true"></i>Confirmar vínculo</button>' +
                     '</div>' : '') +
                 '</div>' +
             '</article>';
@@ -122,6 +132,7 @@
         node.className = 'studio-status studio-status-' + kind;
         node.textContent = message;
         node.hidden = false;
+        node.setAttribute('role', kind === 'error' ? 'alert' : 'status');
         window.setTimeout(function () { node.hidden = true; }, 5000);
     }
 
