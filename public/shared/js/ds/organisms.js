@@ -185,6 +185,7 @@
   function renderProductNav(active, options) {
     active = active || 'quotations';
     options = options || {};
+    if (options.context === 'studio') return renderStudioProductNav(active, options);
     var navigation = DATA.navigation.concat({ id: 'inbox', label: 'INBOX', href: '/artist/inbox' });
     var menuToggleId = options.menuToggleId || 'artist-product-menu-toggle';
     var menuId = options.menuId || 'artist-product-mobile-menu';
@@ -260,18 +261,59 @@
       '</div>';
   }
 
-  function renderProductFooter() {
+  function renderStudioProductNav(active, options) {
+    var navigation = [
+      { id: 'resumen', label: 'RESUMEN' }, { id: 'perfil', label: 'PERFIL' },
+      { id: 'sedes', label: 'SEDES' }, { id: 'roster', label: 'EQUIPO' },
+      { id: 'spots', label: 'SPOTS' }, { id: 'travel', label: 'VISITAS' },
+      { id: 'ops', label: 'OPERACIONES' }, { id: 'inventory', label: 'INVENTARIO' },
+      { id: 'suppliers', label: 'PROVEEDORES' }, { id: 'sponsors', label: 'SPONSORS' },
+      { id: 'analytics', label: 'ESTADÍSTICAS' }, { id: 'cuenta', label: 'CUENTA' }
+    ];
+    var desktopIds = ['resumen', 'spots', 'ops', 'inventory', 'analytics'];
+    var menuToggleId = options.menuToggleId || 'studio-mobile-menu-toggle';
+    var menuId = options.menuId || 'studio-mobile-menu';
+    var profileLabel = options.profileLabel || 'Centro de la cuenta del estudio';
+    function link(item, desktop) {
+      var current = item.id === active;
+      return '<a class="studio-dash-tab' + (desktop ? ' wo-org-product-nav__link' : '') + (current ? ' is-active' : '') +
+        '" href="#' + item.id + '" data-tab="' + item.id + '"' + (current ? ' aria-current="page"' : '') + '>' + item.label + '</a>';
+    }
+    var desktopLinks = navigation.filter(function (item) { return desktopIds.indexOf(item.id) !== -1; }).map(function (item) { return link(item, true); }).join('');
+    return '<div class="wo-org wo-org-product-navigation wo-org-product-navigation--studio">' +
+      '<header class="wo-org-product-nav wo-topbar wo-topbar--studio" aria-label="Navegación del estudio">' +
+      '<a class="wo-org-product-nav__brand studio-dash-tab" href="#resumen" data-tab="resumen" aria-label="We Ötzi, resumen del estudio">WE ÖTZI</a>' +
+      '<div class="wo-org-product-nav__links">' + desktopLinks + '</div>' +
+      '<div class="wo-org-product-nav__account">' +
+      '<button class="wo-org-product-nav__menu wo-topbar-menu-toggle" id="' + escapeHtml(menuToggleId) + '" type="button" aria-expanded="false" aria-controls="' + escapeHtml(menuId) + '" aria-label="Abrir menú del estudio">' + icon('menu') + '<span>MENÚ</span></button>' +
+      '<a class="wo-org-product-nav__profile wo-o-tile studio-dash-tab' + (active === 'cuenta' ? ' is-active' : '') + '" href="#cuenta" data-tab="cuenta" aria-label="' + escapeHtml(profileLabel) + '"' + (active === 'cuenta' ? ' aria-current="page"' : '') + '>Ö</a>' +
+      '<button id="' + escapeHtml(options.logoutId || 'logout-btn') + '" type="button" class="wo-org-product-nav__logout" aria-label="Cerrar sesión">LOG OUT</button>' +
+      '</div></header>' +
+      '<nav id="' + escapeHtml(menuId) + '" class="wo-org-product-nav__mobile wo-topbar-mobile-menu" aria-label="Navegación móvil del estudio" hidden>' + navigation.map(function (item) { return link(item, false); }).join('') + '</nav></div>';
+  }
+
+  function renderProductFooter(options) {
+    var studio = options && options.context === 'studio';
+    var contactLinks = studio
+      ? '<a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Centro de ayuda</a><a href="https://www.instagram.com/weotzi" target="_blank" rel="noopener">Instagram</a>'
+      : '<a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a><a href="mailto:artistas@weotzi.com">Soporte</a>';
+    var helpLinks = studio
+      ? '<a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Preguntas frecuentes</a><a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Centro de ayuda</a>'
+      : '<a href="/faqs">Preguntas frecuentes</a><a href="mailto:artistas@weotzi.com">Centro de ayuda</a>';
+    var legalLinks = studio
+      ? '<button type="button" data-studio-document="Términos y condiciones">Términos y condiciones</button><button type="button" data-studio-document="Privacidad">Privacidad</button>'
+      : '<a href="/terminos">Términos y condiciones</a><a href="/privacidad">Privacidad</a>';
     return '<div class="wo-org wo-org-product-footer" data-figma-node="24:1817" data-figma-file="UmVbDewiAHkfLedTR5uyFj">' +
       '<footer class="wo-org-product-footer__surface" aria-label="Pie de página de We Ötzi">' +
       '<div class="wo-org-product-footer__inner">' +
       '<div class="wo-org-product-footer__columns">' +
       '<div class="wo-org-product-footer__brand"><p class="wo-org-product-footer__logo">WE ÖTZI</p><p class="wo-org-product-footer__tagline">La plataforma que conecta artistas y clientes de tatuajes en toda la región.</p></div>' +
-      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">CONTACTO</p><div><a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a><a href="mailto:artistas@weotzi.com">Soporte</a></div></div>' +
-      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">AYUDA</p><div><a href="/faqs">Preguntas frecuentes</a><a href="mailto:artistas@weotzi.com">Centro de ayuda</a></div></div>' +
-      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">TÉRMINOS</p><div><a href="/terminos">Términos y condiciones</a><a href="/privacidad">Privacidad</a></div></div>' +
+      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">CONTACTO</p><div>' + contactLinks + '</div></div>' +
+      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">AYUDA</p><div>' + helpLinks + '</div></div>' +
+      '<div class="wo-org-product-footer__column"><p class="wo-org-product-footer__caption">TÉRMINOS</p><div>' + legalLinks + '</div></div>' +
       '</div>' +
       '<div class="wo-org-product-footer__bottom"><p>© 2026 WE ÖTZI. TODOS LOS DERECHOS RESERVADOS.</p><a class="wo-org-product-footer__instagram" href="https://www.instagram.com/weotzi" target="_blank" rel="noopener">' + icon('instagram') + '<span>INSTAGRAM</span></a></div>' +
-      '</div></footer></div>';
+      '</div></footer>' + (studio ? '<dialog class="wo-org-product-footer__dialog" aria-labelledby="studio-legal-document-title"><h2 id="studio-legal-document-title"></h2><p>Este documento todavía no está disponible en la aplicación.</p><form method="dialog"><button class="wo-btn wo-btn--secondary">Cerrar</button></form></dialog>' : '') + '</div>';
   }
 
   function renderProfilePanel() {
@@ -533,16 +575,17 @@
     }
     connectedCallback() {
       super.connectedCallback();
-      document.addEventListener('weotzi:artist-counts', this._handleArtistCounts);
+      if (this.getAttribute('context') !== 'studio') document.addEventListener('weotzi:artist-counts', this._handleArtistCounts);
     }
     disconnectedCallback() {
       document.removeEventListener('weotzi:artist-counts', this._handleArtistCounts);
       document.removeEventListener('click', this._handleSpotsDocumentClick);
       document.removeEventListener('keydown', this._handleSpotsDocumentKeydown);
+      if (this._studioMenuCleanup) this._studioMenuCleanup();
     }
     static get observedAttributes() {
       return [
-        'active', 'variant', 'menu-toggle-id', 'menu-id', 'menu-class',
+        'active', 'variant', 'context', 'menu-toggle-id', 'menu-id', 'menu-class',
         'profile-href', 'profile-id', 'profile-class', 'profile-label-id',
         'profile-label', 'profile-current', 'logout-id', 'logout-class',
         'logout-handler', 'logout-hidden', 'badge-item', 'badge-id',
@@ -550,7 +593,8 @@
       ];
     }
     template() {
-      return renderProductNav(this.getAttribute('active') || this.getAttribute('variant') || 'quotations', {
+      return renderProductNav(this.getAttribute('active') || this.getAttribute('variant') || (this.getAttribute('context') === 'studio' ? 'resumen' : 'quotations'), {
+        context: this.getAttribute('context'),
         menuToggleId: this.getAttribute('menu-toggle-id'),
         menuId: this.getAttribute('menu-id'),
         menuClass: this.getAttribute('menu-class'),
@@ -572,6 +616,15 @@
       });
     }
     bind() {
+      if (this._studioMenuCleanup) this._studioMenuCleanup();
+      if (this.getAttribute('context') === 'studio') {
+        document.removeEventListener('weotzi:artist-counts', this._handleArtistCounts);
+        document.removeEventListener('click', this._handleSpotsDocumentClick);
+        document.removeEventListener('keydown', this._handleSpotsDocumentKeydown);
+        this._spotsToggle = null; this._spotsMenu = null;
+        this.bindStudioMenu();
+        return;
+      }
       this.applyArtistCounts(this._artistCounts || window.WeotziArtistMenuCounts || {});
       this._spotsToggle = this.querySelector('[data-spots-menu-toggle]');
       this._spotsMenu = this.querySelector('.wo-org-product-nav__spots-dropdown');
@@ -582,6 +635,46 @@
       document.removeEventListener('keydown', this._handleSpotsDocumentKeydown);
       document.addEventListener('click', this._handleSpotsDocumentClick);
       document.addEventListener('keydown', this._handleSpotsDocumentKeydown);
+    }
+    bindStudioMenu() {
+      var self = this;
+      var toggle = this.querySelector('.wo-org-product-nav__menu');
+      var menu = this.querySelector('.wo-org-product-nav__mobile');
+      if (!toggle || !menu) return;
+      function setOpen(open, restoreFocus) {
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.setAttribute('aria-label', open ? 'Cerrar menú del estudio' : 'Abrir menú del estudio');
+        menu.hidden = !open;
+        if (restoreFocus) toggle.focus();
+      }
+      function toggleMenu(event) {
+        event.stopPropagation();
+        setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+      }
+      function enterMenu(event) {
+        if (event.key !== 'ArrowDown') return;
+        event.preventDefault(); setOpen(true);
+        var first = menu.querySelector('a[data-tab]');
+        if (first) first.focus();
+      }
+      function closeOutside(event) { if (!menu.hidden && !self.contains(event.target)) setOpen(false); }
+      function closeEscape(event) {
+        if (event.key === 'Escape' && !menu.hidden) { event.preventDefault(); setOpen(false, true); }
+      }
+      function closeAfterNavigation(event) { if (event.target.closest('a[data-tab]')) setOpen(false); }
+      toggle.addEventListener('click', toggleMenu);
+      toggle.addEventListener('keydown', enterMenu);
+      menu.addEventListener('click', closeAfterNavigation);
+      document.addEventListener('click', closeOutside);
+      document.addEventListener('keydown', closeEscape);
+      this._studioMenuCleanup = function () {
+        toggle.removeEventListener('click', toggleMenu);
+        toggle.removeEventListener('keydown', enterMenu);
+        menu.removeEventListener('click', closeAfterNavigation);
+        document.removeEventListener('click', closeOutside);
+        document.removeEventListener('keydown', closeEscape);
+        self._studioMenuCleanup = null;
+      };
     }
     setSpotsMenu(open, restoreFocus) {
       if (!this._spotsToggle || !this._spotsMenu) return;
@@ -638,7 +731,20 @@
       }
     }
   }
-  class ProductFooterElement extends WeotziOrganism { template() { return renderProductFooter(); } }
+  class ProductFooterElement extends WeotziOrganism {
+    static get observedAttributes() { return ['context']; }
+    template() { return renderProductFooter({ context: this.getAttribute('context') }); }
+    bind() {
+      if (this.getAttribute('context') !== 'studio') return;
+      var dialog = this.querySelector('.wo-org-product-footer__dialog');
+      this.querySelectorAll('[data-studio-document]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          dialog.querySelector('h2').textContent = button.getAttribute('data-studio-document');
+          dialog.showModal();
+        });
+      });
+    }
+  }
   class ProfilePanelElement extends WeotziOrganism { template() { return renderProfilePanel(); } }
   class DashboardSidebarElement extends WeotziOrganism { template() { return renderDashboardSidebar(); } }
   class IncomeStatsElement extends WeotziOrganism { template() { return renderIncomeStats(); } }

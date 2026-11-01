@@ -9,6 +9,24 @@
     let studio = null;          // studios row
     let supabase = null;
     const sedePickers = [];     // { row, picker, address, locationId, isPrimary }
+    let sedeFieldId = 0;
+    const summary = {
+        locations: null, roster: null, spots: null,
+        state: { profile: 'loading', locations: 'loading', roster: 'loading', spots: 'loading' },
+        errors: {}
+    };
+
+    function publishSummary(area, state, data, error) {
+        if (area) {
+            summary.state[area] = state;
+            if (area !== 'profile' && data !== undefined) summary[area] = data;
+            if (error) summary.errors[area] = error.message || String(error);
+            else delete summary.errors[area];
+        }
+        const detail = { studio, ...summary, state: { ...summary.state }, errors: { ...summary.errors } };
+        window.WeOtziStudioDashboardSummary = detail;
+        window.dispatchEvent(new CustomEvent('studio:dashboard-summary', { detail }));
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
         const auth = window.WeOtziStudioAuth;
@@ -22,8 +40,7 @@
             return;
         }
 
-        document.getElementById('studio-name-display').innerHTML =
-            'Panel · <span class="accent">' + escapeHtml(studio.name || 'Mi estudio') + '</span>';
+        document.getElementById('studio-name-display').textContent = studio.name || 'Mi estudio';
         document.getElementById('view-public-profile').href =
             auth.appUrl('/studio/profile/?studio=') + encodeURIComponent(studio.slug || studio.id);
 
@@ -31,10 +48,17 @@
 
         wireTabs();
         wireAccount();
-        await loadProfile();
-        await loadSedes();
-        await loadRoster();
-        await loadSpotsPanel();
+        publishSummary();
+        for (const [area, load, statusId] of [
+            ['profile', loadProfile, 'profile-status'], ['locations', loadSedes, 'sedes-status'],
+            ['roster', loadRoster, 'roster-status'], ['spots', loadSpotsPanel, 'spots-status']
+        ]) {
+            try { await load(); }
+            catch (error) {
+                publishSummary(area, 'error', undefined, error);
+                showStatus(statusId, 'error', error.message || 'No se pudo cargar esta sección. Recargá la página para intentar nuevamente.');
+            }
+        }
     });
 
     function escapeHtml(v) {
@@ -44,23 +68,36 @@
     }
 
     function wireTabs() {
+        let current = null;
         function activate(want) {
-            const found = document.querySelector('.studio-dash-tab[data-tab="' + want + '"]');
-            if (!found) return;
+            const panels = Array.from(document.querySelectorAll('.studio-dash-panel[data-panel]'));
+            const fallback = panels.some(panel => panel.dataset.panel === 'resumen') ? 'resumen' : 'perfil';
+            if (!panels.some(panel => panel.dataset.panel === want)) want = fallback;
             document.querySelectorAll('.studio-dash-tab').forEach(tab => {
-                tab.classList.toggle('is-active', tab === found);
-                tab.setAttribute('aria-current', tab === found ? 'page' : 'false');
+                const active = tab.dataset.tab === want;
+                tab.classList.toggle('is-active', active);
+                if (active) tab.setAttribute('aria-current', 'page');
+                else tab.removeAttribute('aria-current');
             });
-            document.querySelectorAll('.studio-dash-panel').forEach(panel =>
-                panel.classList.toggle('is-active', panel.dataset.panel === want));
+            panels.forEach(panel => {
+                const active = panel.dataset.panel === want;
+                panel.classList.toggle('is-active', active);
+                panel.hidden = !active;
+            });
+            if (current !== want) window.dispatchEvent(new CustomEvent('studio:tabchange', { detail: { tab: want } }));
+            current = want;
         }
-        document.querySelectorAll('.studio-dash-tab').forEach(tab => {
-            tab.href = '#' + tab.dataset.tab;
-            tab.addEventListener('click', () => activate(tab.dataset.tab));
+        document.addEventListener('click', event => {
+            const tab = event.target.closest('.studio-dash-tab[data-tab]');
+            if (!tab || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            const want = tab.dataset.tab;
+            if (!Array.from(document.querySelectorAll('.studio-dash-panel[data-panel]')).some(panel => panel.dataset.panel === want)) return;
+            event.preventDefault();
+            activate(want);
+            if (window.location.hash !== '#' + want) window.location.hash = want;
         });
         window.addEventListener('hashchange', () => activate(window.location.hash.slice(1)));
-        const hash = window.location.hash.slice(1);
-        if (/^[a-z]+$/.test(hash)) activate(hash);
+        activate(window.location.hash.slice(1));
     }
 
     function wireAccount() {
@@ -142,14 +179,14 @@
             const pathPrefix = studio.id;
 
             window.WeOtziUploader.attach(document.getElementById('p-cover'), {
-                supabase, bucket: 'studio-photos',
+                supabase, bucket: 'studio-photos', designSystem: true,
                 pathPrefix: pathPrefix + '/cover',
                 placeholder: 'pegá una URL de portada',
                 accept: 'image/*'
             });
 
             window.WeOtziUploader.attach(document.getElementById('p-logo'), {
-                supabase, bucket: 'studio-photos',
+                supabase, bucket: 'studio-photos', designSystem: true,
                 pathPrefix: pathPrefix + '/logo',
                 placeholder: 'pegá una URL del logo',
                 accept: 'image/*'
@@ -161,6 +198,7 @@
                 window.WeOtziUploader.attachGallery(galleryContainer, {
                     supabase,
                     bucket: 'studio-photos',
+                    designSystem: true,
                     pathPrefix: pathPrefix + '/gallery',
                     initialUrls,
                     onChange(urls) {
@@ -207,11 +245,13 @@
                 const { error } = await WeotziData.Studios.updateProfile(studio.id, update);
                 if (error) throw error;
                 Object.assign(studio, update);
-                document.getElementById('studio-name-display').textContent = 'Panel · ' + studio.name;
+                document.getElementById('studio-name-display').textContent = studio.name;
+                publishSummary('profile', 'ready');
                 showStatus('profile-status', 'success', 'Perfil actualizado.');
             } catch (err) { showStatus('profile-status', 'error', err.message || 'No se pudo guardar.'); }
             finally { button.disabled = false; }
         });
+        publishSummary('profile', 'ready');
     }
 
     // -------------------------------------------------------------
@@ -219,14 +259,17 @@
     // -------------------------------------------------------------
     async function loadSedes() {
         const list = document.getElementById('sedes-list');
-        list.innerHTML = '<em>Cargando sedes…</em>';
+        publishSummary('locations', 'loading');
+        list.innerHTML = '<p class="wo-help" role="status">Cargando sedes…</p>';
 
         const { data: locations, error } = await WeotziData.StudioLocations.listByStudio(studio.id);
 
         if (error) {
-            list.innerHTML = '<em>Error: ' + escapeHtml(error.message) + '</em>';
+            publishSummary('locations', 'error', undefined, error);
+            list.innerHTML = '<p class="wo-error-msg" role="alert">No pudimos cargar las sedes. ' + escapeHtml(error.message) + '</p>';
             return;
         }
+        publishSummary('locations', 'ready', locations || []);
 
         sedePickers.length = 0;
         list.innerHTML = '';
@@ -241,38 +284,43 @@
         const idx = sedePickers.length;
         const row = document.createElement('div');
         row.className = 'studio-location-row';
+        const fieldId = 'studio-location-' + (++sedeFieldId);
         const label = (existing && existing.label) || (idx === 0 ? 'Sede principal' : 'Sede #' + (idx + 1));
 
         row.innerHTML = `
             <div class="studio-location-row-head">
-                <span class="studio-section-kicker">${escapeHtml(label)}</span>
-                <div style="display:flex;gap:6px;">
-                    <label style="font-family:var(--studio-mono);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                <h3 class="studio-item-title">${escapeHtml(label)}</h3>
+                <div class="studio-actions">
+                    <label class="wo-check studio-inline-control">
                         <input type="checkbox" data-field="is_primary" ${existing && existing.is_primary ? 'checked' : ''}> Principal
                     </label>
-                    <button type="button" class="studio-location-row-remove" data-action="remove">Quitar</button>
-                    <button type="button" class="studio-locations-add" data-action="save" style="border-style:solid;padding:6px 10px;">Guardar</button>
+                    <button type="button" class="wo-btn wo-btn--danger wo-btn--s" data-action="remove">Quitar</button>
+                    <button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="save" >Guardar</button>
                 </div>
             </div>
-            <div class="studio-field">
-                <label class="studio-label">Etiqueta</label>
-                <input type="text" class="studio-input" data-field="label" value="${escapeHtml(label)}">
+            <div class="studio-form-grid">
+            <div class="wo-field">
+                <label class="wo-label" for="${fieldId}-label">Etiqueta</label>
+                <input type="text" id="${fieldId}-label" class="wo-input" data-field="label" value="${escapeHtml(label)}">
             </div>
-            <div class="studio-field">
-                <label class="studio-label">Dirección</label>
-                <input type="text" class="studio-input weotzi-address-picker-input" data-field="address" placeholder="Buscá la dirección…" autocomplete="off"
+            <div class="wo-field">
+                <label class="wo-label" for="${fieldId}-address">Dirección</label>
+                <input type="text" id="${fieldId}-address" class="wo-input weotzi-address-picker-input" data-field="address" placeholder="Buscá la dirección…" autocomplete="off"
                        value="${existing ? escapeHtml(existing.formatted_address || '') : ''}">
                 <div class="weotzi-address-fields" data-field="preview" hidden></div>
             </div>
-            <details>
-                <summary class="studio-help">Ingresar dirección manualmente</summary>
-                <div class="studio-field"><label class="studio-label">Ciudad</label><input class="studio-input" data-field="manual-city" value="${escapeHtml(existing?.city || '')}"></div>
-                <div class="studio-field"><label class="studio-label">País</label><input class="studio-input" data-field="manual-country" value="${escapeHtml(existing?.country || '')}"></div>
-                <button type="button" class="studio-locations-add" data-action="manual">Usar la dirección escrita arriba</button>
-                <p class="studio-help">Podés buscarla en el mapa después.</p>
+            <details class="studio-manual-address studio-form-full">
+                <summary class="wo-help">Ingresar dirección manualmente</summary>
+                <div class="studio-form-grid">
+                <div class="wo-field"><label class="wo-label" for="${fieldId}-city">Ciudad</label><input id="${fieldId}-city" class="wo-input" data-field="manual-city" value="${escapeHtml(existing?.city || '')}"></div>
+                <div class="wo-field"><label class="wo-label" for="${fieldId}-country">País</label><input id="${fieldId}-country" class="wo-input" data-field="manual-country" value="${escapeHtml(existing?.country || '')}"></div>
+                </div>
+                <button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-action="manual">Usar la dirección escrita arriba</button>
+                <p class="wo-help">Podés buscarla en el mapa después.</p>
             </details>
-            <div class="studio-field"><label class="studio-label">Teléfono de la sede</label><input type="tel" class="studio-input" data-field="phone" value="${escapeHtml(existing?.phone || '')}"></div>
-            <div class="studio-field"><label class="studio-label">Horarios de atención</label><textarea class="studio-textarea" data-field="hours" placeholder="Lunes a viernes de 10 a 19 h">${escapeHtml(existing?.hours_json?.description || '')}</textarea></div>
+            <div class="wo-field"><label class="wo-label" for="${fieldId}-phone">Teléfono de la sede</label><input type="tel" id="${fieldId}-phone" class="wo-input" data-field="phone" value="${escapeHtml(existing?.phone || '')}"></div>
+            <div class="wo-field"><label class="wo-label" for="${fieldId}-hours">Horarios de atención</label><textarea id="${fieldId}-hours" class="wo-textarea" data-field="hours" placeholder="Lunes a viernes de 10 a 19 h">${escapeHtml(existing?.hours_json?.description || '')}</textarea></div>
+            </div>
         `;
         list.appendChild(row);
 
@@ -408,31 +456,37 @@
 
     async function renderMySpots() {
         const container = document.getElementById('my-spots-list');
+        publishSummary('spots', 'loading');
+        container.innerHTML = '<p class="wo-help" role="status">Cargando spots…</p>';
         const { data: list, error } = await WeotziData.StudioSpots.listByStudio(studio.id);
-        if (error) { container.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
+        if (error) {
+            publishSummary('spots', 'error', undefined, error);
+            container.innerHTML = '<p class="wo-error-msg" role="alert">No pudimos cargar los spots. ' + escapeHtml(error.message) + '</p>'; return;
+        }
+        publishSummary('spots', 'ready', list || []);
         if (!list || list.length === 0) {
-            container.innerHTML = '<p class="studio-help">Aún no publicaste spots. Tocá "Nuevo spot" para empezar.</p>';
+            container.innerHTML = '<p class="wo-help">Aún no publicaste spots. Tocá "Nuevo spot" para empezar.</p>';
             return;
         }
         container.innerHTML = list.map(s => `
             <div class="studio-location-row">
                 <div class="studio-location-row-head">
-                    <span class="studio-section-kicker">${escapeHtml(KIND_LABELS[s.kind] || s.kind)} · ${escapeHtml(s.status)}</span>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                        <button class="studio-locations-add" data-action="apps" data-id="${escapeAttr(s.id)}" style="border-style:solid;padding:6px 10px;">
+                    <span class="wo-badge wo-badge--s wo-badge--outline">${escapeHtml(KIND_LABELS[s.kind] || s.kind)} · ${escapeHtml(s.status)}</span>
+                    <div class="studio-actions">
+                        <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="apps" data-id="${escapeAttr(s.id)}" >
                             Postulaciones (${s.application_count || 0})
                         </button>
-                        <button class="studio-locations-add" data-action="edit" data-id="${escapeAttr(s.id)}" style="border-style:solid;padding:6px 10px;">Editar</button>
-                        <button class="studio-locations-add" data-action="toggle" data-id="${escapeAttr(s.id)}" data-status="${escapeAttr(s.status)}" style="border-style:solid;padding:6px 10px;">
+                        <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="edit" data-id="${escapeAttr(s.id)}" >Editar</button>
+                        <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="toggle" data-id="${escapeAttr(s.id)}" data-status="${escapeAttr(s.status)}" >
                             ${s.status === 'open' ? 'Cerrar' : (s.status === 'draft' ? 'Publicar' : 'Reabrir')}
                         </button>
-                        <button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(s.id)}">Borrar</button>
+                        <button class="wo-btn wo-btn--danger wo-btn--s" data-action="delete" data-id="${escapeAttr(s.id)}">Borrar</button>
                     </div>
                 </div>
-                <div style="font-family:var(--studio-display);font-size:1.1rem;letter-spacing:-0.02em;text-transform:uppercase;">
+                <h3 class="studio-item-title">
                     ${escapeHtml(s.title)}
-                </div>
-                <div class="studio-help" style="display:flex;flex-wrap:wrap;gap:14px;">
+                </h3>
+                <div class="wo-help studio-meta-row">
                     <span>${s.start_date ? formatDateRange(s.start_date, s.end_date) : 'Fechas a definir'}</span>
                     <span>Split: ${s.revenue_split_pct != null ? Number(s.revenue_split_pct).toFixed(0) + '%' : '—'}</span>
                     ${s.stipend_amount ? `<span>Stipend: ${escapeHtml(String(s.stipend_amount))} ${escapeHtml(s.stipend_currency || '')}</span>` : ''}
@@ -468,60 +522,62 @@
         const c = document.getElementById('spots-editor-container');
         const isEdit = !!existing;
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row" >
                 <div class="studio-location-row-head">
-                    <span class="studio-section-kicker">${isEdit ? 'Editar spot' : 'Nuevo spot'}</span>
-                    <button type="button" class="studio-location-row-remove" id="spot-cancel">Cancelar</button>
+                    <h3 class="studio-item-title">${isEdit ? 'Editar spot' : 'Nuevo spot'}</h3>
+                    <button type="button" class="wo-btn wo-btn--danger wo-btn--s" id="spot-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Título</label>
-                    <input id="sp-title" class="studio-input" value="${escapeAttr(existing?.title || '')}" required>
+                <div class="studio-form-grid">
+                <div class="wo-field">
+                    <label class="wo-label" for="sp-title">Título</label>
+                    <input id="sp-title" class="wo-input" value="${escapeAttr(existing?.title || '')}" required>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Tipo</label>
-                    <select id="sp-kind" class="studio-input">
+                <div class="wo-field">
+                    <label class="wo-label" for="sp-kind">Tipo</label>
+                    <select id="sp-kind" class="wo-select">
                         <option value="guest_spot" ${existing?.kind === 'guest_spot' ? 'selected' : ''}>Guest spot</option>
                         <option value="resident" ${existing?.kind === 'resident' ? 'selected' : ''}>Residencia</option>
                         <option value="itinerant" ${existing?.kind === 'itinerant' ? 'selected' : ''}>Itinerante</option>
                     </select>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Descripción</label>
-                    <textarea id="sp-desc" class="studio-textarea" rows="4">${escapeHtml(existing?.description || '')}</textarea>
+                <div class="wo-field studio-form-full">
+                    <label class="wo-label" for="sp-desc">Descripción</label>
+                    <textarea id="sp-desc" class="wo-textarea" rows="4">${escapeHtml(existing?.description || '')}</textarea>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Estilos buscados (coma)</label>
-                    <input id="sp-styles" class="studio-input" value="${escapeAttr((existing?.styles_wanted || []).join(', '))}">
+                <div class="wo-field">
+                    <label class="wo-label" for="sp-styles">Estilos buscados (coma)</label>
+                    <input id="sp-styles" class="wo-input" value="${escapeAttr((existing?.styles_wanted || []).join(', '))}">
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Fecha inicio / fin</label>
-                    <div style="display:flex;gap:8px;">
-                        <input id="sp-start" class="studio-input" type="date" value="${escapeAttr(existing?.start_date || '')}">
-                        <input id="sp-end"   class="studio-input" type="date" value="${escapeAttr(existing?.end_date || '')}">
+                <div class="wo-field">
+                    <label class="wo-label">Fecha inicio / fin</label>
+                    <div class="studio-control-row">
+                        <input id="sp-start" class="wo-input" type="date" aria-label="Fecha de inicio del spot" value="${escapeAttr(existing?.start_date || '')}">
+                        <input id="sp-end"   class="wo-input" type="date" aria-label="Fecha de fin del spot" value="${escapeAttr(existing?.end_date || '')}">
                     </div>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Split (%) y stipend opcional</label>
-                    <div style="display:flex;gap:8px;">
-                        <input id="sp-split"    class="studio-input" type="number" min="0" max="100" step="1" placeholder="60" value="${escapeAttr(existing?.revenue_split_pct ?? '')}">
-                        <input id="sp-stipend"  class="studio-input" type="number" min="0" step="1" placeholder="Stipend" value="${escapeAttr(existing?.stipend_amount ?? '')}">
-                        <input id="sp-currency" class="studio-input" placeholder="USD" value="${escapeAttr(existing?.stipend_currency || '')}">
+                <div class="wo-field studio-form-full">
+                    <label class="wo-label">Split (%) y stipend opcional</label>
+                    <div class="studio-control-row">
+                        <input id="sp-split"    class="wo-input" type="number" min="0" max="100" step="1" aria-label="Reparto porcentual del spot" placeholder="60" value="${escapeAttr(existing?.revenue_split_pct ?? '')}">
+                        <input id="sp-stipend"  class="wo-input" type="number" min="0" step="1" aria-label="Estipendio del spot" placeholder="Stipend" value="${escapeAttr(existing?.stipend_amount ?? '')}">
+                        <input id="sp-currency" class="wo-input" aria-label="Moneda del estipendio" placeholder="USD" value="${escapeAttr(existing?.stipend_currency || '')}">
                     </div>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label" style="display:inline-flex;gap:8px;align-items:center;">
+                <div class="wo-field">
+                    <label class="wo-check">
                         <input id="sp-housing" type="checkbox" ${existing?.includes_housing ? 'checked' : ''}>
                         Incluye vivienda
                     </label>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Imagen del spot (opcional)</label>
-                    <input id="sp-cover" class="studio-input" type="url" value="${escapeAttr(existing?.cover_image || '')}">
-                    <span class="studio-help">Si no subís nada, se usa la portada del estudio.</span>
+                <div class="wo-field studio-form-full">
+                    <label class="wo-label" for="sp-cover">Imagen del spot (opcional)</label>
+                    <input id="sp-cover" class="wo-input" type="url" value="${escapeAttr(existing?.cover_image || '')}">
+                    <span class="wo-help">Si no subís nada, se usa la portada del estudio.</span>
                 </div>
-                <div style="display:flex;gap:10px;">
-                    <button id="sp-save"   class="studio-btn studio-btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar como borrador</button>
-                    <button id="sp-publish" class="studio-btn"><i class="fa-solid fa-rocket"></i> ${existing?.status === 'open' ? 'Republicar' : 'Publicar (abierto)'}</button>
+                </div>
+                <div class="studio-actions">
+                    <button id="sp-save"   class="wo-btn"><i data-wo-icon="save" aria-hidden="true"></i> Guardar como borrador</button>
+                    <button id="sp-publish" class="wo-btn wo-btn--secondary"><i data-wo-icon="send" aria-hidden="true"></i> ${existing?.status === 'open' ? 'Republicar' : 'Publicar (abierto)'}</button>
                 </div>
             </div>
         `;
@@ -533,7 +589,7 @@
         if (window.WeOtziUploader) {
             window.WeOtziUploader.attach(document.getElementById('sp-cover'), {
                 supabase,
-                bucket: 'studio-spot-attachments',
+                bucket: 'studio-spot-attachments', designSystem: true,
                 pathPrefix: studio.id + '/' + (existing?.id || 'new'),
                 accept: 'image/*',
                 placeholder: 'pegá una URL'
@@ -613,7 +669,7 @@
 
     async function openSpotApplications(spotId) {
         const c = document.getElementById('spots-editor-container');
-        c.innerHTML = '<em class="studio-help">Cargando postulaciones…</em>';
+        c.innerHTML = '<em class="wo-help">Cargando postulaciones…</em>';
 
         const [spotRes, appsRes] = await Promise.all([
             WeotziData.StudioSpots.getSummaryById(spotId),
@@ -627,14 +683,14 @@
         const apps = appsRes.data || [];
 
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row" >
                 <div class="studio-location-row-head">
-                    <span class="studio-section-kicker">Postulaciones · ${escapeHtml(spot.title)}</span>
-                    <button type="button" class="studio-location-row-remove" id="apps-close">Cerrar</button>
+                    <h3 class="studio-item-title">Postulaciones · ${escapeHtml(spot.title)}</h3>
+                    <button type="button" class="wo-btn wo-btn--danger wo-btn--s" id="apps-close">Cerrar</button>
                 </div>
                 ${apps.length === 0
-                    ? '<p class="studio-help">Aún no hay postulaciones a este spot.</p>'
-                    : `<table class="studio-roster-table"><thead><tr>
+                    ? '<p class="wo-help">Aún no hay postulaciones a este spot.</p>'
+                    : `<div class="studio-table-scroll" role="region" aria-label="Postulaciones al spot" tabindex="0"><table class="wo-table studio-roster-table"><thead><tr>
                             <th>Artista</th><th>Estilo</th><th>Ciudad</th><th>Mensaje</th><th>Estado</th><th>Acciones</th>
                        </tr></thead><tbody>
                        ${apps.map(a => {
@@ -644,19 +700,19 @@
                            const decided = ['accepted', 'rejected', 'withdrawn'].includes(a.status);
                            return `<tr data-id="${escapeAttr(a.id)}">
                                 <td><strong>${escapeHtml(ar.name || ar.username || '—')}</strong>
-                                    ${a.portfolio_url ? `<br><a href="${escapeAttr(a.portfolio_url)}" target="_blank" style="color:var(--primary-red);font-size:.75rem;">Portfolio ↗</a>` : ''}
+                                    ${a.portfolio_url ? `<br><a href="${escapeAttr(a.portfolio_url)}" target="_blank" rel="noopener">Ver portfolio <i data-wo-icon="external-link" aria-hidden="true"></i></a>` : ''}
                                 </td>
                                 <td>${escapeHtml(styles)}</td>
                                 <td>${escapeHtml([ar.city, ar.country].filter(Boolean).join(', '))}</td>
                                 <td>${escapeHtml(msg)}</td>
-                                <td><span class="studio-role-pill role-${a.status === 'accepted' ? 'resident' : (a.status === 'rejected' ? 'guest' : 'itinerant')}">${escapeHtml(a.status)}</span></td>
+                                <td><span class="wo-badge wo-badge--s ${a.status === 'accepted' ? 'wo-badge--success' : (a.status === 'rejected' ? 'wo-badge--error' : 'wo-badge--outline')}">${escapeHtml(a.status)}</span></td>
                                 <td>${decided ? '—' : `
-                                    <button class="studio-locations-add" data-app-action="accept" data-id="${escapeAttr(a.id)}" data-artist="${escapeAttr(ar.user_id)}" style="border-style:solid;padding:4px 8px;">Aceptar</button>
-                                    <button class="studio-location-row-remove" data-app-action="reject" data-id="${escapeAttr(a.id)}">Rechazar</button>
+                                    <button class="wo-btn wo-btn--secondary wo-btn--s" data-app-action="accept" data-id="${escapeAttr(a.id)}" data-artist="${escapeAttr(ar.user_id)}" >Aceptar</button>
+                                    <button class="wo-btn wo-btn--danger wo-btn--s" data-app-action="reject" data-id="${escapeAttr(a.id)}">Rechazar</button>
                                 `}</td>
                            </tr>`;
                        }).join('')}
-                       </tbody></table>`}
+                       </tbody></table></div>`}
             </div>
         `;
         document.getElementById('apps-close').addEventListener('click', () => { c.innerHTML = ''; });
@@ -777,7 +833,7 @@
             const q = input.value.trim();
             if (debounceTimer) clearTimeout(debounceTimer);
             chosen = null;
-            if (q.length < 2) { suggEl.style.display = 'none'; suggEl.innerHTML = ''; return; }
+            if (q.length < 2) { suggEl.hidden = true; suggEl.innerHTML = ''; return; }
             debounceTimer = setTimeout(async () => {
                 const term = q.replace(/^@/, '');
                 const { data, error } = await WeotziData.Artists.searchByUsernameOrName(term);
@@ -785,17 +841,17 @@
                 if (error) { showStatus('roster-status', 'error', 'No se pudieron buscar artistas. Intentá nuevamente.'); return; }
                 _inviteHits = data || [];
                 suggEl.innerHTML = _inviteHits.map(a => `
-                    <div class="studio-location-row" data-id="${escapeAttr(a.user_id)}" style="cursor:pointer;">
+                    <button type="button" class="studio-search-result" data-id="${escapeAttr(a.user_id)}">
                         <strong>${escapeHtml(a.name || a.username)}</strong>
-                        <span class="studio-help">@${escapeHtml(a.username || '')} · ${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</span>
-                    </div>
-                `).join('') || '<em class="studio-help">Sin resultados.</em>';
-                suggEl.style.display = 'block';
+                        <span class="wo-help">@${escapeHtml(a.username || '')} · ${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</span>
+                    </button>
+                `).join('') || '<em class="wo-help">Sin resultados.</em>';
+                suggEl.hidden = false;
                 suggEl.querySelectorAll('[data-id]').forEach(row => {
                     row.addEventListener('click', () => {
                         chosen = row.dataset.id;
                         input.value = row.querySelector('strong').textContent;
-                        suggEl.style.display = 'none';
+                        suggEl.hidden = true;
                     });
                 });
             }, 200);
@@ -809,7 +865,7 @@
             const role     = document.getElementById('invite-role').value;
             const location = document.getElementById('invite-location').value || null;
             sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+            sendBtn.innerHTML = 'Enviando…';
 
             const { data: insertedRows, error } = await WeotziData.StudioMemberships.inviteArtist({
                 studio_id:       studio.id,
@@ -822,7 +878,7 @@
             });
 
             sendBtn.disabled = false;
-            sendBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Invitar';
+            sendBtn.innerHTML = '<i data-wo-icon="user-plus" aria-hidden="true"></i> Invitar';
 
             if (error) {
                 if (error.code === '23505') {
@@ -856,11 +912,17 @@
 
     async function renderRosterTable() {
         const container = document.getElementById('roster-content');
+        publishSummary('roster', 'loading');
+        container.innerHTML = '<p class="wo-help" role="status">Cargando equipo…</p>';
         const { data: members, error } = await WeotziData.StudioMemberships.listRoster(studio.id);
 
-        if (error) { container.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
+        if (error) {
+            publishSummary('roster', 'error', undefined, error);
+            container.innerHTML = '<p class="wo-error-msg" role="alert">No pudimos cargar el equipo. ' + escapeHtml(error.message) + '</p>'; return;
+        }
+        publishSummary('roster', 'ready', members || []);
         if (!members || members.length === 0) {
-            container.innerHTML = '<p class="studio-help">Aún no hay miembros. Invitá artistas con el formulario de arriba.</p>';
+            container.innerHTML = '<p class="wo-help">Aún no hay miembros. Invitá artistas con el formulario de arriba.</p>';
             return;
         }
 
@@ -877,32 +939,29 @@
                 <tr data-id="${escapeAttr(m.id)}" data-artist-user-id="${escapeAttr(a.user_id || '')}" data-artist-name="${escapeAttr(display)}">
                     <td>
                         <strong>${escapeHtml(display)}</strong>
-                        <br><small style="color:var(--text-secondary);font-family:var(--studio-mono);">@${escapeHtml(a.username || '')}</small>
-                        <br><small style="color:var(--text-secondary);">${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</small>
+                        <br><small class="studio-member-meta">@${escapeHtml(a.username || '')}</small>
+                        <br><small class="studio-member-meta">${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</small>
                     </td>
                     <td>
-                        <span class="studio-role-pill role-${escapeHtml(m.role)}" style="margin-bottom:4px;display:inline-block;">${escapeHtml(KIND_TO_LABEL[m.role] || m.role)}</span><br>
-                        <select class="studio-input" data-field="role" style="height:32px;font-size:.78rem;">${roleOpts}</select>
+                        <span class="wo-badge wo-badge--s wo-badge--outline">${escapeHtml(KIND_TO_LABEL[m.role] || m.role)}</span><br>
+                        <select class="wo-select" data-field="role" aria-label="Rol de ${escapeAttr(display)}">${roleOpts}</select>
                     </td>
                     <td>
-                        <select class="studio-input" data-field="location_id" style="height:32px;font-size:.78rem;">${sedeOpts}</select>
+                        <select class="wo-select" data-field="location_id" aria-label="Sede de ${escapeAttr(display)}">${sedeOpts}</select>
                     </td>
                     <td>
-                        <input class="studio-input" data-field="revenue_split_pct" type="number" min="0" max="100" step="1" style="height:32px;font-size:.78rem;width:70px;" value="${m.revenue_split_pct ?? ''}">
+                        <input class="wo-input" data-field="revenue_split_pct" type="number" min="0" max="100" step="1" aria-label="Reparto porcentual de ${escapeAttr(display)}" value="${m.revenue_split_pct ?? ''}">
                     </td>
                     <td>
-                        <span class="studio-role-pill" style="background:${
-                            m.status === 'active' ? 'var(--primary-yellow)' :
-                            m.status === 'pending_acceptance' ? 'var(--bg)' : 'var(--bg)'
-                        };border-style:${m.status === 'pending_acceptance' ? 'dashed' : 'solid'};">${escapeHtml(m.status)}</span>
+                        <span class="wo-badge wo-badge--s ${m.status === 'active' ? 'wo-badge--success' : 'wo-badge--outline'}">${escapeHtml(m.status)}</span>
                     </td>
                     <td>
-                        <button class="studio-locations-add" data-action="save"     data-id="${escapeAttr(m.id)}" style="border-style:solid;padding:4px 8px;">Guardar</button>
+                        <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="save"     data-id="${escapeAttr(m.id)}" >Guardar</button>
                         ${m.status === 'active'
-                            ? `<button class="studio-location-row-remove" data-action="end" data-id="${escapeAttr(m.id)}">Desvincular</button>`
+                            ? `<button class="wo-btn wo-btn--danger wo-btn--s" data-action="end" data-id="${escapeAttr(m.id)}">Desvincular</button>`
                             : (m.status === 'pending_acceptance'
-                                ? `<button class="studio-location-row-remove" data-action="cancel" data-id="${escapeAttr(m.id)}">Cancelar</button>`
-                                : `<button class="studio-locations-add" data-action="resume" data-id="${escapeAttr(m.id)}" style="border-style:solid;padding:4px 8px;">Reactivar</button>`)
+                                ? `<button class="wo-btn wo-btn--danger wo-btn--s" data-action="cancel" data-id="${escapeAttr(m.id)}">Cancelar</button>`
+                                : `<button class="wo-btn wo-btn--secondary wo-btn--s" data-action="resume" data-id="${escapeAttr(m.id)}" >Reactivar</button>`)
                         }
                     </td>
                 </tr>
@@ -910,12 +969,12 @@
         }).join('');
 
         container.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="studio-table-scroll" role="region" aria-label="Equipo del estudio" tabindex="0"><table class="wo-table studio-roster-table">
                 <thead><tr>
                     <th>Artista</th><th>Rol</th><th>Sede</th><th>Split %</th><th>Estado</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
-            </table>
+            </table></div>
         `;
         container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => onRosterAction(btn));

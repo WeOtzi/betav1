@@ -5,85 +5,102 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Estudios — Acceder</title>
     <meta name="description" content="Acceso al panel del estudio en We Ötzi.">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/artist-auth-ds.css">
+    <link rel="stylesheet" href="/shared/css/artist-login-figma.css">
+    <link rel="stylesheet" href="/shared/css/studio-login-ds.css">
+    <script src="/shared/js/wo-icons.js" data-icon-base="../assets/feather-studio/" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/studio.css">
 </head>
-<body data-theme="light">
-    <div class="studio-page">
-        <header class="studio-masthead">
-            <a href="/" class="nav-btn" aria-label="Inicio">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div class="studio-masthead-title">
-                <span class="studio-masthead-eyebrow">Studios · Acceso</span>
-                <span class="studio-masthead-wordmark">Panel del <span class="accent">estudio</span></span>
-            </div>
-            <nav class="studio-masthead-actions">
-                <a href="/studio/register" class="accent">Registrar estudio</a>
-                <a href="/marketplace">Marketplace</a>
-                <a href="/explore">Mapa</a>
-            </nav>
-        </header>
-
-        <main class="studio-center">
-            <section class="studio-card">
-                <p class="studio-section-kicker">Iniciar sesión</p>
-                <h2 class="studio-h2">Bienvenido de vuelta</h2>
-
-                <form id="studio-login-form" class="studio-form" novalidate>
-                    <div class="studio-field">
-                        <label class="studio-label" for="login-email">Email</label>
-                        <input type="email" id="login-email" class="studio-input" autocomplete="email" required>
-                    </div>
-                    <div class="studio-field">
-                        <label class="studio-label" for="login-password">Contraseña</label>
-                        <input type="password" id="login-password" class="studio-input" autocomplete="current-password" required>
-                    </div>
-                    <button type="submit" id="login-submit" class="studio-btn studio-btn-primary">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder
-                    </button>
-                </form>
-
-                <form id="studio-recovery-form" class="studio-form" hidden>
-                    <p class="studio-help">Elegí una contraseña nueva para recuperar el acceso a tu estudio.</p>
-                    <div id="studio-recovery-code-fields" hidden>
-                        <div class="studio-field">
-                            <label class="studio-label" for="recovery-email">Email de la cuenta</label>
-                            <input type="email" id="recovery-email" class="studio-input" autocomplete="email">
-                        </div>
-                        <div class="studio-field">
-                            <label class="studio-label" for="recovery-code">Código recibido por correo</label>
-                            <input id="recovery-code" class="studio-input" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
-                        </div>
-                    </div>
-                    <div class="studio-field">
-                        <label class="studio-label" for="recovery-password">Nueva contraseña</label>
-                        <input type="password" id="recovery-password" class="studio-input" minlength="8" autocomplete="new-password" required>
-                    </div>
-                    <div class="studio-field">
-                        <label class="studio-label" for="recovery-confirm">Repetí la nueva contraseña</label>
-                        <input type="password" id="recovery-confirm" class="studio-input" minlength="8" autocomplete="new-password" required>
-                    </div>
-                    <button type="submit" id="recovery-submit" class="studio-btn studio-btn-primary">Guardar contraseña</button>
-                </form>
-
-                <div id="login-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden></div>
-
-                <p class="studio-help" style="margin-top:18px;">
-                    ¿Aún no tenés cuenta? <a href="/studio/register" style="color:var(--primary-red);font-weight:700;">Registrar tu estudio</a>.<br>
-                    ¿Olvidaste tu contraseña? <a href="#" id="forgot-password-link" style="color:var(--primary-red);font-weight:700;">Recuperar acceso</a>.
-                    <a href="#" id="have-recovery-code" style="color:var(--primary-red);font-weight:700;">Ya tengo un código</a>.
+<body class="wo-app wo-auth-body artist-login-page studio-login-page">
+    <a class="wo-skip-link" href="#login-content">Saltar al contenido</a>
+    <div class="wo-auth-split">
+        <aside class="wo-auth-poster" aria-hidden="true">
+            <div class="wo-auth-poster-frame">
+                <span class="wo-marks"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>
+                <p class="wo-auth-poster-title" id="poster-login">
+                    <span class="line">Accedé</span><span class="line hl-blue">A tu</span><span class="line hl-yellow">Estudio</span>
                 </p>
-            </section>
+                <p class="wo-auth-poster-title" id="poster-recovery" hidden>
+                    <span class="line">Recuperá</span><span class="line hl-blue">Tu</span><span class="line hl-yellow">Acceso</span>
+                </p>
+            </div>
+        </aside>
+        <main class="wo-auth-panel" id="login-content" tabindex="-1">
+            <div class="wo-auth-panel-inner">
+                <a class="wo-auth-brand" href="/marketplace" aria-label="We Ötzi — ir a explorar">
+                    <span class="wo-marks" aria-hidden="true"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>
+                    <span class="wo-auth-brand-name">We Ötzi</span>
+                </a>
+                <div class="wo-auth-view">
+                    <h1 class="wo-auth-title" id="studio-login-title">Bienvenido de vuelta</h1>
+                    <p class="wo-auth-copy" id="studio-login-copy">Ingresá para gestionar tu estudio.</p>
+                    <form id="studio-login-form" class="wo-auth-form" novalidate>
+                        <div class="wo-field">
+                            <label class="wo-label" for="login-email">Email del estudio</label>
+                            <div class="wo-auth-inputwrap">
+                                <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/mail.svg" alt="">
+                                <input type="email" id="login-email" class="wo-input" placeholder="vos@email.com" autocomplete="email" required aria-describedby="login-status">
+                            </div>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="login-password">Contraseña</label>
+                            <div class="wo-auth-inputwrap">
+                                <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/lock.svg" alt="">
+                                <input type="password" id="login-password" class="wo-input" placeholder="••••••••" autocomplete="current-password" required aria-describedby="login-status">
+                            </div>
+                        </div>
+                        <button type="submit" id="login-submit" class="wo-btn wo-btn--block wo-btn--hard">
+                            <span>Acceder</span><img src="/shared/assets/figma/artist-login/arrow-right.svg" alt="">
+                        </button>
+                    </form>
+                    <form id="studio-recovery-form" class="wo-auth-form" hidden novalidate>
+                        <div id="studio-recovery-code-fields" class="studio-recovery-fields" hidden>
+                            <div class="wo-field">
+                                <label class="wo-label" for="recovery-email">Email de la cuenta</label>
+                                <div class="wo-auth-inputwrap">
+                                    <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/mail.svg" alt="">
+                                    <input type="email" id="recovery-email" class="wo-input" autocomplete="email" placeholder="vos@email.com" aria-describedby="login-status">
+                                </div>
+                            </div>
+                            <div class="wo-field">
+                                <label class="wo-label" for="recovery-code">Código recibido por correo</label>
+                                <input id="recovery-code" class="wo-input" inputmode="numeric" autocomplete="one-time-code" maxlength="12" aria-describedby="login-status">
+                            </div>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="recovery-password">Nueva contraseña</label>
+                            <div class="wo-auth-inputwrap">
+                                <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/lock.svg" alt="">
+                                <input type="password" id="recovery-password" class="wo-input" minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required aria-describedby="recovery-password-help login-status">
+                            </div>
+                            <span class="wo-help" id="recovery-password-help">Usá al menos 8 caracteres.</span>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="recovery-confirm">Repetí la nueva contraseña</label>
+                            <div class="wo-auth-inputwrap">
+                                <img class="wo-auth-field-icon" src="/shared/assets/figma/artist-login/lock.svg" alt="">
+                                <input type="password" id="recovery-confirm" class="wo-input" minlength="8" autocomplete="new-password" placeholder="••••••••" required aria-describedby="login-status">
+                            </div>
+                        </div>
+                        <button type="submit" id="recovery-submit" class="wo-btn wo-btn--block wo-btn--hard">
+                            <span>Guardar contraseña</span><img src="/shared/assets/figma/artist-login/arrow-right.svg" alt="">
+                        </button>
+                    </form>
+                    <div id="login-status" class="studio-status studio-status-info" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden></div>
+                    <div class="studio-login-help">
+                        <button type="button" id="forgot-password-link" class="wo-auth-forgot">¿Olvidaste tu contraseña?</button>
+                        <button type="button" id="have-recovery-code" class="wo-auth-back">Ya tengo un código</button>
+                        <button type="button" id="studio-back-to-login" class="wo-auth-back" hidden><i data-wo-icon="arrow-left" aria-hidden="true"></i>Volver al inicio de sesión</button>
+                    </div>
+                    <div class="wo-auth-links">
+                        <p class="wo-meta">¿Aún no tenés cuenta? <a href="/studio/register">Registrar tu estudio</a></p>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
-
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
@@ -96,106 +113,6 @@
     <script src="/shared/js/weotzi-uploader.js"></script>
     <script src="/shared/js/studio-registration-media.js"></script>
     <script src="/shared/js/studio-auth.js"></script>
-    <script>
-        (function () {
-            const form = document.getElementById('studio-login-form');
-            const submitBtn = document.getElementById('login-submit');
-            const statusEl = document.getElementById('login-status');
-
-            function showStatus(kind, message) {
-                statusEl.className = 'studio-status studio-status-' + kind;
-                statusEl.textContent = message;
-                statusEl.hidden = false;
-            }
-
-            const recoveryForm = document.getElementById('studio-recovery-form');
-            const recoveryCodeFields = document.getElementById('studio-recovery-code-fields');
-            function showCodeRecovery(email) {
-                form.hidden = true;
-                recoveryForm.hidden = false;
-                recoveryCodeFields.hidden = false;
-                document.getElementById('recovery-email').value = email || '';
-                document.getElementById('recovery-email').required = true;
-                document.getElementById('recovery-code').required = true;
-                document.querySelector('.studio-h2').textContent = 'Recuperar acceso';
-                document.getElementById('recovery-code').focus();
-            }
-            document.getElementById('have-recovery-code').addEventListener('click', event => {
-                event.preventDefault();
-                showCodeRecovery(document.getElementById('login-email').value.trim());
-            });
-            if (window.WeOtziStudioAuth.isRecovery()) {
-                form.hidden = true;
-                recoveryForm.hidden = false;
-                document.querySelector('.studio-section-kicker').textContent = 'Recuperar acceso';
-                document.querySelector('.studio-h2').textContent = 'Nueva contraseña';
-            }
-            recoveryForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const password = document.getElementById('recovery-password').value;
-                if (password !== document.getElementById('recovery-confirm').value) {
-                    showStatus('error', 'Las contraseñas no coinciden.');
-                    return;
-                }
-                const button = document.getElementById('recovery-submit');
-                button.disabled = true;
-                try {
-                    if (!recoveryCodeFields.hidden) {
-                        await window.WeOtziStudioAuth.verifyRecoveryCode(
-                            document.getElementById('recovery-email').value,
-                            document.getElementById('recovery-code').value
-                        );
-                        recoveryCodeFields.hidden = true;
-                        document.getElementById('recovery-email').required = false;
-                        document.getElementById('recovery-code').required = false;
-                    }
-                    await window.WeOtziStudioAuth.changePassword(password);
-                    recoveryForm.reset();
-                    showStatus('success', 'Contraseña actualizada. Entrando al panel…');
-                    window.location.replace(window.WeOtziStudioAuth.appUrl('/studio/dashboard'));
-                } catch (err) {
-                    showStatus('error', err.message || 'No pudimos actualizar la contraseña.');
-                } finally { button.disabled = false; }
-            });
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!form.reportValidity()) return;
-                statusEl.hidden = true;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Accediendo…';
-
-                const email    = document.getElementById('login-email').value.trim();
-                const password = document.getElementById('login-password').value;
-
-                try {
-                    const studio = await window.WeOtziStudioAuth.login(email, password);
-                    showStatus('success', 'Acceso correcto. Redirigiendo…');
-                    const showRegistration = studio.mediaPending || new URLSearchParams(window.location.search).get('confirmed') === '1';
-                    setTimeout(() => { window.location.href = window.WeOtziStudioAuth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard'); }, 400);
-                } catch (err) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Acceder';
-                    showStatus('error', err?.message || 'No pudimos iniciar sesión. Revisá tus datos.');
-                }
-            });
-
-            document.getElementById('forgot-password-link').addEventListener('click', async (e) => {
-                e.preventDefault();
-                const email = (recoveryForm.hidden ? document.getElementById('login-email') : document.getElementById('recovery-email')).value.trim();
-                if (!email) {
-                    showStatus('error', 'Escribí tu email primero, así te mandamos el link de recuperación.');
-                    return;
-                }
-                try {
-                    await window.WeOtziStudioAuth.requestPasswordReset(email);
-                    showCodeRecovery(email);
-                    showStatus('success', 'Revisá tu correo. Ingresá el código recibido o abrí el enlace para elegir una contraseña nueva.');
-                } catch (err) {
-                    showStatus('error', err?.message || 'No pudimos enviar el email.');
-                }
-            });
-        })();
-    </script>
+    <script src="/shared/js/studio-login.js"></script>
 </body>
 </html>
