@@ -4,11 +4,14 @@
 (function () {
   'use strict';
   var CDN = 'https://unpkg.com/feather-icons@4.29.2/dist/icons/';
+  var script = document.currentScript;
+  var localBase = script && script.getAttribute('data-icon-base');
+  if (localBase) localBase = new URL(localBase, script.src).href;
   var cache = Object.create(null); // name -> Promise<string>
 
   function fetchIcon(name) {
     if (!cache[name]) {
-      cache[name] = fetch(CDN + encodeURIComponent(name) + '.svg')
+      cache[name] = fetch((localBase || CDN) + encodeURIComponent(name) + '.svg')
         .then(function (r) { return r.ok ? r.text() : ''; })
         .catch(function () { return ''; });
     }

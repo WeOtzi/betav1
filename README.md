@@ -15,6 +15,7 @@ We Ötzi existe para rediseñar el futuro del arte visual y del tatuaje, posicio
 *   [**CHANGELOG.md**](docs/CHANGELOG.md): Historial de cambios y nuevas caracteristicas (v2.0.1).
 *   [**TECHNICAL.md**](docs/TECHNICAL.md): Arquitectura, API y detalles tecnicos.
 *   [**ARTIST_SIGNUP_FLOW.md**](docs/ARTIST_SIGNUP_FLOW.md): Flujo de registro de artista (auth + artists_db) y runbook local de validacion.
+*   [**Estudios: acceso y dashboard**](docs/auditoria-valentina/estudios-diseno.md): extensión del Design System, doce secciones, pruebas simuladas, evidencia y límites de validación.
 *   [**TRAVEL-FIGMA-20260830.md**](docs/TRAVEL-FIGMA-20260830.md): Guia operativa de Travel, contrato seguro de datos, fixture Figma y rollback.
 *   [**STATISTICS-FIGMA-20260830.md**](docs/STATISTICS-FIGMA-20260830.md): Guia de Estadisticas, fuentes agregadas, filtros, exportacion, fixture Figma y rollback.
 *   [**MODO-DEMO-TOUR.md**](docs/MODO-DEMO-TOUR.md): Modo demo del artista (`?demo=1`, datos de ejemplo sin escribir en Supabase) y recorrido guiado narrado por voz (`?tour=1`).

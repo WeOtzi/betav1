@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.4] - 2026-11-01
+
+- Unificar el acceso y todo el panel de Estudios con los componentes visuales del artista
+- Login y recuperación reutilizan composición, fuentes, SVG y controles del artista. Las doce secciones del panel y sus cinco áreas operativas usan el DS compartido, con menú móvil y resumen de datos del estudio. Uploaders DS con estados de error y éxito coherentes.
+- Se separan IDs de Sponsors/Spots, se conserva el guardado de facturas con labels accesibles y se actualizan estadísticas desde todos los destinos de navegación. Iconos Feather locales sólo en las superficies de Estudios; comportamiento por defecto de otros consumidores conservado.
+- Validación: npm test 421/421; npm run check:release aprobado. Chromium verificó doce secciones y editores a 1440/768/390 px, menú y teclado, estados vacío/error, persistencia local de perfil/proveedor/factura y actualización de métricas tras registrar trabajo. OTP y cargas completas/parciales/fallidas se comprobaron con dobles aislados. Revisión visual independiente y evidencia en docs/auditoria-valentina/estudios-diseno.md. Auth, emails, Storage y RLS reales no se acreditan con estas fixtures.
+- Rollback: git revert en una rama y nuevo PR, o controlador privado hacia la release anterior 2.2.3 (54b43a5db4d667c69ceaca208a24515ad3ee009d). No incluye migraciones ni modifica Auth/RLS; conservar cuentas, archivos y datos al revertir código.
+
+
 ## [2.2.3] - 2026-10-31
 
 - Registro de Estudios en cinco pasos y acceso desde Inicio
