@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.17] - 2026-11-02
+
+- Pantalla 9: perfil público del artista según Figma 801:1155
+- Ajuste exclusivo del perfil público: columnas proporcionales, medidas y espaciados del hero, portafolio, biografía, especialidades, reseñas, disponibilidad y barra final. Corrige el texto azul del CTA principal y el desborde del encabezado en tamaños angostos sin cambiar el componente compartido. Portafolio de doce espacios con el SVG vacío original de Figma; mantiene fotos, datos y destinos dinámicos.
+- Validación: npm test 441/441. Chromium a 1920, 1440, 1280, 1024, 768 y 390 px: aserciones de geometría, contraste, doce espacios, SVG 28×29,1 e inexistencia de scroll horizontal aprobadas. Marketplace → perfil; menú/Escape, lightbox/siguiente/Escape, filtros sincronizados, reseñas, reserva y alias de cotización, portafolio vacío y artista inexistente comprobados con datos ficticios. Browser no pudo capturar por ventana no visible; capturas con Chrome headless instalado. Evidencia y límites en docs/auditoria-valentina/pantalla-9/design-qa.md. Integraciones y persistencia real no probadas; soporte remoto 501 es una limitación previa de preview. check:release y repetición de la suite mediante entrega automática.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.16] - 2026-10-29
 
 - Pantalla 8: revisión de publicación según Figma 801:1131
