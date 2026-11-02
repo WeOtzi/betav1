@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.18] - 2026-11-02
+
+- Pantalla 10: vincular un estudio según Figma 801:1081
+- Modal exclusivo de /artist/travel/: tipografías, campos, espaciados, fondo, borde, posición, botones e íconos originales locales. Corrige superposición de lupa/texto y el tamaño del estado vacío sin cambiar lógica, datos, otras pantallas ni los demás modales.
+- Validación: npm test 441/441. Chrome/Playwright a 1444, 1440, 1280, 1024, 1920, 2560, 1366, 768 y 390 px, incluido escritorio de 600 px de alto: geometría, ausencia de overflow del modal, SVG, búsqueda, filtro, selección, sin resultados, estado deshabilitado, cancelación/cierre/Escape y foco comprobados con datos ficticios, sin excepciones JS. Aislamiento contra CSS de HEAD aprobado para detalle y modales de fechas/compartir/editar. Evidencia y límites en docs/auditoria-valentina/pantalla-10/design-qa.md. check:release y repetición de suite mediante entrega automática. No se acredita solicitud, aceptación, persistencia ni correos reales; fondo dinámico y header compartido se conservan.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.17] - 2026-11-02
 
 - Pantalla 9: perfil público del artista según Figma 801:1155
