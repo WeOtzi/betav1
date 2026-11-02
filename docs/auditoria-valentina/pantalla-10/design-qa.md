@@ -5,7 +5,7 @@
 - [Frame final 801:1081](https://www.figma.com/design/w3JA83CcP5ISKjyOu87mx1/We-Otzi-Pantallas-final?node-id=801-1081), modal `173:27451`. Leídos contexto de diseño, captura y geometría del nodo.
 - Ruta pública: <https://preview.weotzi.chat/artist/travel/>.
 - Recorrido: modo artista → Travel → en **Cronología de viajes**, abrir **Barcelona · Guest Spot** → **Vincular un estudio** en las acciones del viaje. Si no hay sesión de prueba, abrir el ojo flotante y elegir **Artista de prueba**, luego volver a Travel. El modal es un estado de esta ruta, no otra URL.
-- Rama: `valentina/rediseno-laura`. Versión: `2.2.3-valentina.rediseno-laura.18`.
+- Rama: `valentina/rediseno-laura`. Versión final: `2.2.3-valentina.rediseno-laura.19` (ajuste final sobre `.18`).
 - Solo cambia `#tv-modal-link`: composición, tipografía, borde, fondo, campos, espaciados, estado vacío, botones e íconos. No cambia JavaScript, permisos, consultas, datos, otras pantallas ni otros modales.
 
 | ID | Rol / URL / estado | Nodo auditoría | Nodo rediseño | Visual | Funcional | Evidencia | Acción |
@@ -37,6 +37,7 @@ Colores y fuentes reutilizan tokens existentes; `#757575` del placeholder es la 
 - SVG de búsqueda/cierre cargados, no vacíos y con dimensiones naturales y renderizadas coincidentes; selector usa el SVG local de chevron a 18×18.
 - Sin excepciones JavaScript durante el recorrido. `npm test`: **441/441**. `check:release` y repetición de la suite mediante entrega automática.
 - Prueba de aislamiento con intercepción temporal de CSS de `HEAD` frente al CSS nuevo: geometría, tipografía, colores y sombras idénticos para detalle de viaje y modales de fechas, compartir y editar.
+- Revisión final: el borde de Cancelar heredaba #24211D; aserción primero fallida y luego aprobada al usar el negro literal #000000 del frame. No afecta otros botones ni otros modales.
 - Capturas comparables sin datos personales: [desktop](desktop.png), [móvil](mobile.png). Evidencia ampliada y scripts temporales de QA en el directorio temporal aprobado de OpenCode, fuera del runtime.
 
 ## Límites y diferencias fuera de alcance
@@ -44,6 +45,7 @@ Colores y fuentes reutilizan tokens existentes; `#757575` del placeholder es la 
 - El diseño del **modal** coincide; los datos de fondo son dinámicos. No se sustituyen fechas, duración, estados, checklist ni documentos por los ejemplos del frame. El aviso Vinculación pendiente solo corresponde a viajes con esa condición; la fixture de Barcelona está confirmada.
 - La navegación compartida conserva Modo cliente, contadores y Travel activo, aunque el frame muestra otra selección. A 1280 px se observa un recorte previo del extremo derecho del header; no se cambia una pieza compartida en una tarea exclusiva de modal.
 - La prueba de búsqueda/selección es simulada. No se envió una solicitud a un estudio real, no se verificó aceptación del estudio ni persistencia Supabase, notificaciones o correos reales.
+- Consola de la preview pública: advertencia esperada de Supabase sin configurar (entorno seguro) y 404 preexistente de `/favicon.ico`; sin excepciones JavaScript ni assets faltantes del modal.
 - No se acredita funcionamiento en todos los navegadores posibles ni identidad píxel a píxel de los datos dinámicos del fondo.
 
 ## Publicación y reversión

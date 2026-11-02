@@ -537,6 +537,7 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
   letter-spacing:1.12px;
 }
 #tv-modal-link #tvl-submit{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--surface-page)}
+#tv-modal-link .tvm-foot .wo-btn--ghost{border-color:var(--black)}
 #tv-modal-link #tvl-submit:not(:disabled):hover{background:var(--black);border-color:var(--black)}
 @media (min-width:769px){
   #tv-modal-link .tvm-body{height:366.325px}

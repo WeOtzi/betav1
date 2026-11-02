@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.19] - 2026-11-02
+
+- Pantalla 10: ajustar borde literal de Cancelar y cerrar QA
+- El borde del botón Cancelar usa el negro #000000 del frame, en lugar del color ink heredado. Corrección exclusiva del modal Vincular un estudio. Auditoría y capturas finales actualizadas; la entrega anterior .18 ya pasó CI y se comprobó en la preview pública.
+- Validación: aserción de color primero fallida y luego aprobada. Repetición de Chrome/Playwright en nueve tamaños de 390 a 2560 px: búsqueda, filtro, resultados, selección, cancelación/cierre/Escape y foco, sin overflow del modal ni excepciones JS. Los SVG originales cargan a sus medidas naturales. npm test y check:release mediante entrega automática. Consola pública: aviso esperado de Supabase desactivado y favicon 404 preexistente, sin fallos de recursos del modal. Solo datos ficticios; no se acredita solicitud ni persistencia reales.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.18] - 2026-11-02
 
 - Pantalla 10: vincular un estudio según Figma 801:1081
