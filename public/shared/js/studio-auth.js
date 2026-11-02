@@ -7,6 +7,10 @@
 //   claim_failed    the claim saved at signUp could not be filed after confirming the email
 //   claimable       complete_studio_registration refused the name because an unowned
 //                   catalog studio already uses it → the register page offers the claim
+//   registration_conflict  complete_studio_registration refused the draft because the
+//                   name is identical to an owned studio (23505) or a location shares
+//                   the address of a matching studio (23P01) → the register page
+//                   reopens the draft (user_metadata.studio_registration) with the reason
 //   none            signed in without studio, claim or draft
 // Every claim call degrades when the M1 migration is not applied: missing repo
 // methods or RPCs fall back to the plain registration flow.
@@ -70,6 +74,10 @@
         const code = errorCode(err);
         return (!code || code === '23514') && /reclamalo/i.test(String(err?.message || ''));
     }
+    // Identical owned name (23505) or a location on a matching studio's address (23P01).
+    function isRegistrationConflict(err) {
+        return ['23505', '23P01'].includes(errorCode(err));
+    }
     function escapeHtml(v) {
         return String(v == null ? '' : v)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -83,7 +91,17 @@
         const pad = n => String(n).padStart(2, '0');
         return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
     }
-    async function completeRegistration(draft) {
+    async function finishRegistrationMedia(studio, email) {
+        if (!window.WeOtziStudioMedia || !email) return remember(studio);
+        try {
+            if (!await window.WeOtziStudioMedia.hasPending(email)) return remember(studio);
+            return remember(await window.WeOtziStudioMedia.finish(studio, email));
+        } catch (error) {
+            // Account and locations already exist. Keep access and local files available for retry.
+            return remember({ ...studio, mediaPending: true, mediaError: error.message || 'No pudimos completar la subida de imágenes.' });
+        }
+    }
+    async function completeRegistration(draft, email) {
         const { data, error } = await requireClient().rpc('complete_studio_registration', {
             p_profile: draft.profile, p_locations: draft.locations
         });
@@ -94,7 +112,7 @@
         // Non-secret draft survives email confirmation on another device.
         // Clear it only after profile and locations have committed together.
         await client.auth.updateUser({ data: { studio_registration: null } }).catch(() => {});
-        return studio;
+        return finishRegistrationMedia(studio, email);
     }
     // Files the claim (request_studio_claim needs a confirmed email, so the
     // signUp draft waits in user_metadata.studio_claim until then).
@@ -127,7 +145,7 @@
         const meta = session.user.user_metadata || {};
         const { data: studio, error } = await WeotziData.Studios.getByUserId(session.user.id);
         if (error) throw error;
-        if (studio) return setState({ kind: 'studio', studio: remember(studio) });
+        if (studio) return setState({ kind: 'studio', studio: await finishRegistrationMedia(studio, session.user.email) });
         let claimError = null;
         const claimDraft = meta.studio_claim?.studio_id ? meta.studio_claim : null;
         if (claimDraft) {
@@ -146,8 +164,11 @@
         const draft = meta.studio_registration;
         if (draft?.profile && Array.isArray(draft.locations)) {
             try {
-                return setState({ kind: 'studio', studio: await completeRegistration(draft) });
+                return setState({ kind: 'studio', studio: await completeRegistration(draft, session.user.email) });
             } catch (err) {
+                if (isRegistrationConflict(err)) {
+                    return setState({ kind: 'registration_conflict', draft, code: errorCode(err), error: err.message });
+                }
                 if (!isClaimableError(err)) throw err;
                 // Keep the draft: the user may rename the studio or claim the catalog one.
                 return setState({ kind: 'claimable', name: draft.profile.name || '', error: err.message });
@@ -239,6 +260,9 @@
             case 'claimable':
                 if (!onRegister) window.location.href = appUrl('/studio/register?reclamar=1');
                 break;
+            case 'registration_conflict':
+                if (!onRegister) window.location.href = appUrl('/studio/register?complete=1&revisar=1');
+                break;
             case 'none':
                 if (path.startsWith('/studio/dashboard')) window.location.href = appUrl('/studio/register?complete=1');
                 break;
@@ -262,8 +286,16 @@
                 }
                 if (recoveryMode) return null;
                 const state = await resolveState(session);
-                if (state.studio) {
-                    if (path.startsWith('/studio/login') || path.startsWith('/studio/register')) {
+                const studio = state.studio;
+                if (studio) {
+                    const showResult = path.startsWith('/studio/register') &&
+                        (studio.mediaPending || new URLSearchParams(window.location.search).get('registered') === '1');
+                    if (showResult) {
+                        if (typeof window.CustomEvent === 'function') window.dispatchEvent(new window.CustomEvent('weotzi:studio-ready', { detail: studio }));
+                    } else if (path.startsWith('/studio/login') && (studio.mediaPending ||
+                        new URLSearchParams(window.location.search).get('confirmed') === '1')) {
+                        window.location.href = appUrl('/studio/register?registered=1');
+                    } else if (path.startsWith('/studio/login') || path.startsWith('/studio/register')) {
                         window.location.href = appUrl('/studio/dashboard');
                     }
                     return state.studio;
@@ -309,12 +341,13 @@
             throw new Error('Completá el nombre, correo y al menos una sede.');
         }
         const draft = { profile, locations };
-        const { data: { session } } = await requireClient().auth.getSession();
+        const { data: { session }, error: sessionError } = await requireClient().auth.getSession();
+        if (sessionError) throw sessionError;
         if (session) {
             if (session.user.email?.toLowerCase() !== email.trim().toLowerCase()) {
                 throw new Error('Hay otra cuenta abierta. Cerrá esa sesión antes de registrar un correo diferente.');
             }
-            return completeRegistration(draft);
+            return completeRegistration(draft, email);
         }
         if (!password || password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
         const { data, error } = await client.auth.signUp({
@@ -330,7 +363,7 @@
             throw new Error('Ya existe una cuenta con ese email. Iniciá sesión para continuar.');
         }
         if (!data.session) return { confirmationRequired: true, email: email.trim() };
-        return completeRegistration(draft);
+        return completeRegistration(draft, email);
     }
     // Claims an unowned catalog studio. Signed in: files it now. Otherwise the
     // signUp keeps the non-secret draft in user_metadata.studio_claim and
@@ -413,7 +446,7 @@
         check: checkStudioAuthState, login: loginStudio, register: registerStudio, claim: claimStudio,
         requestPasswordReset: requestStudioPasswordReset, changePassword, verifyRecoveryCode,
         isRecovery: () => recoveryMode, ready, appUrl, logout,
-        whenChecked, getState: () => lastState, presentState, isClaimableError, claimScreenHtml,
+        whenChecked, getState: () => lastState, presentState, isClaimableError, isRegistrationConflict, claimScreenHtml,
         getSupabase: () => client || requireClient(), getCurrent: () => currentStudioData
     };
     document.addEventListener('DOMContentLoaded', () => { if (!initialCheck) initialCheck = checkStudioAuthState(); });

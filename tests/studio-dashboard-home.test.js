@@ -66,11 +66,11 @@ const NOW = new Date(2026, 9, 30, 10, 0); // jueves 30/10/2026 10:00 local
 // ---------------------------------------------------------------
 // Registro y fuentes
 // ---------------------------------------------------------------
-test('se registra en la pestaña inicio con mount y show', () => {
+test('se registra en la pestaña resumen con mount y show', () => {
     const { registered } = loadHome();
-    assert.deepEqual(Object.keys(registered), ['inicio']);
-    assert.equal(typeof registered.inicio.mount, 'function');
-    assert.equal(typeof registered.inicio.show, 'function');
+    assert.deepEqual(Object.keys(registered), ['resumen']);
+    assert.equal(typeof registered.resumen.mount, 'function');
+    assert.equal(typeof registered.resumen.show, 'function');
 });
 
 test('sin WeOtziStudioAdmin avisa y no rompe', () => {
@@ -346,10 +346,10 @@ test('mount pinta el esqueleto y show carga todas las fuentes con los filtros de
     const root = fakeRoot();
     const navigations = [];
     const ctx = { studioId: 'st', data, kit, navigate: (tab, params) => navigations.push(params === undefined ? [tab] : [tab, params]) };
-    registered.inicio.mount(root, ctx);
+    registered.resumen.mount(root, ctx);
     assert.match(root.innerHTML, /Buscando pendientes…/);
     assert.match(root.innerHTML, /data-home-refresh/);
-    await registered.inicio.show(root, ctx);
+    await registered.resumen.show(root, ctx);
 
     const byName = JSON.parse(JSON.stringify(Object.fromEntries(calls.map(c => [c[0], c.slice(1)]))));
     assert.deepEqual(byName.contracts, ['st', { status: ['draft', 'sent', 'signed', 'expired'] }]);
@@ -391,8 +391,8 @@ test('sin migraciones aplicadas se ocultan las tarjetas y KPIs de esas fuentes',
     const { registered } = loadHome({ data });
     const root = fakeRoot();
     const ctx = { studioId: 'st', data, kit, navigate() {} };
-    registered.inicio.mount(root, ctx);
-    await registered.inicio.show(root, ctx);
+    registered.resumen.mount(root, ctx);
+    await registered.resumen.show(root, ctx);
     const html = root.innerHTML;
     for (const id of ['solicitudes', 'contratos', 'reposicion']) {
         assert.doesNotMatch(html, new RegExp('data-home-card="' + id + '"'), id + ' debería ocultarse');
@@ -412,9 +412,9 @@ test('show no rechaza aunque los repos lancen y reutiliza la carga en vuelo', as
     const { registered } = loadHome({ data });
     const root = fakeRoot();
     const ctx = { studioId: 'st', data, kit, navigate() {} };
-    registered.inicio.mount(root, ctx);
-    const first = registered.inicio.show(root, ctx);
-    const second = registered.inicio.show(root, ctx);
+    registered.resumen.mount(root, ctx);
+    const first = registered.resumen.show(root, ctx);
+    const second = registered.resumen.show(root, ctx);
     assert.equal(first, second);
     assert.equal(root.attrs['aria-busy'], 'true');
     await tick();

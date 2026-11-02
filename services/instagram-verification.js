@@ -19,6 +19,9 @@
 //      reescribe gallery_feed_items: una copia leída antes podría pisar una
 //      edición de la galería guardada en el medio.
 //   Soporte puede confirmar o rechazar a mano (/api/support/instagram-verifications).
+//   Estudios: si el código no es de ningún artista, el webhook prueba con los
+//   códigos de estudios (services/studio-verification.js handleInboundCodes,
+//   registrado desde server.js con setStudioInboundHandler).
 //
 // La tabla y las columnas vienen de la migración 20261030120000 (todavía NO
 // aplicada). Sin ella los endpoints del artista responden 503
@@ -73,8 +76,15 @@ const deps = {
     resolveBearerUser,
     sendEmail: (...args) => emailService.sendEmail(...args),
     getSetting: (...args) => appSettings.getSetting(...args),
-    now: () => Date.now()
+    now: () => Date.now(),
+    // Fallback de estudios (services/studio-verification.js handleInboundCodes):
+    // server.js lo registra con setStudioInboundHandler. null = solo artistas.
+    studioInbound: null
 };
+
+function setStudioInboundHandler(handler) {
+    deps.studioInbound = typeof handler === 'function' ? handler : null;
+}
 
 function setDeps(overrides) {
     const previous = { ...deps };
@@ -564,7 +574,17 @@ async function handleInboundHandler(req, res) {
     await expireStale(null);
     const rows = await deps.pgrest(TABLE).select('id,artist_user_id,ig_handle,status,attempts,expires_at,created_at,dm_sender_handle')
         .in('code_hash', codes.map(hashCode)).order('created_at', { ascending: false }).limit(MAX_CODE_CANDIDATES).execute();
-    if (!rows.length) return res.json({ success: true, verified: false, reason: 'code_not_found' });
+    if (!rows.length) {
+        // Ningún código de artista: puede ser el de un estudio
+        // (studio_instagram_verifications). Mismos motivos de respuesta.
+        if (typeof deps.studioInbound === 'function') {
+            const studio = await deps.studioInbound({ sender, codes, followsBusiness: body.follows_business });
+            if (studio && typeof studio.reason === 'string') {
+                return res.json({ success: true, verified: studio.verified === true, reason: studio.reason });
+            }
+        }
+        return res.json({ success: true, verified: false, reason: 'code_not_found' });
+    }
 
     const nowMs = deps.now();
     const live = rows.filter((r) => r.status === 'pending' && timeOf(r.expires_at) > nowMs);
@@ -707,6 +727,7 @@ module.exports = {
     rejectForSupport,
     getStateForArtist,
     resolveSupportAgent,
+    setStudioInboundHandler,
     isMissingSchemaError,
     normalizeHandle,
     maskEmail,

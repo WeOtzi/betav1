@@ -105,14 +105,25 @@ Las policies permiten que el estudio dueno gestione objetos bajo el prefijo `<st
 
 ## Flujos vinculados
 
-### Registro de estudio
+### Registro de estudio (revisión Estudios v1, nov 2026)
 
-1. El usuario completa `/studio/register`.
-2. `studio-register.js` crea Supabase Auth con `user_type=studio`.
-3. Inserta `studios` con `user_id`.
-4. Inserta sedes en `studio_locations`.
-5. Actualiza `primary_location_id`.
-6. Redirige a `/studio/dashboard`.
+Cinco pasos en `/studio/register` (`studio-register.js`):
+
+1. **Cuenta.** Al continuar, `Studios.findMatches` (RPC `find_studio_matches`) busca estudios con el mismo nombre o uno parecido (tokens sin acentos ni palabras genéricas) y muestra la advertencia con: iniciar sesión (estudio con dueño), reclamar la ficha (sin dueño, `WeOtziStudioAuth.claim`), registrar una sede (login con `?next=sedes`), cambiar el nombre o seguir como estudio distinto. Seguir pide confirmar que ninguna sede comparte dirección y, si el nombre es idéntico, uno que lo distinga (`normalized_name` sigue siendo único).
+2. **Identidad.** Año de fundación con calendario de años e idiomas con selección múltiple (`studio-register-pickers.js`). Si el Instagram ya figura en otro estudio, se avisa y se pide confirmarlo. El import de Instagram avisa que las fotos se publican cuando se valida la cuenta.
+3. **Sedes.** Buscador de Google Places (dropdown opaco en el DS) y pin arrastrable en el mapa; al mover el pin se trae la dirección desde Google Maps (`studio-location-map.js`). Ninguna sede puede coincidir con la dirección de un estudio parecido: a menos de 40 m, mismo texto, o misma calle y número a menos de 1 km.
+4. **Fotos.** Sin cambios.
+5. **Confirmación.** Vista previa del perfil editable en el lugar (nombre, tagline, bio, año, idiomas, Instagram, web, WhatsApp, nombres de sedes, portada y logo).
+
+`complete_studio_registration` repite en el servidor el control de nombre y dirección (errores 23514 reclamable, 23505 nombre idéntico, 23P01 dirección) y deja el estudio con `verification_required` y una solicitud de verificación pendiente cuando coincide con otro.
+
+### Verificación de estudios
+
+- Estado en `studios.verification_status` (unverified, pending, verified, rejected) junto a `is_verified`. Solo soporte o el servidor lo cambian (guard).
+- El dueño completa la información desde Panel → Verificación (`request_studio_verification`) y valida el Instagram con un código WO-XXXXXX que manda por DM a @weotzi (`/api/studio/verification`, `/api/studio/verification/instagram`; el webhook de DMs de artistas también resuelve códigos de estudios).
+- Soporte decide en Backoffice → Verificaciones de estudios (`/api/admin/studio-verifications`, RPC `decide_studio_verification`) y puede confirmar el Instagram en el mismo paso. El estudio recibe un email (`studio_verification_decision`).
+- El perfil público muestra el sello "Verificado" y oculta las fotos importadas de Instagram hasta validar la cuenta (`gallery-visibility.js`, misma regla que el artista).
+- Migraciones: `20261102120000_studio_verification`, `20261102130000_studio_matches_unowned_fix` y `20261102140000_studio_address_match`, APLICADAS en `flbgmlvfiejfttlawnfu` el 2026-11-02, con rollback y test SQL (`supabase/tests/studio_verification.sql`).
 
 ### Spot y postulacion
 

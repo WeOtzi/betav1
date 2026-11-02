@@ -105,6 +105,10 @@ const EVENTS = {
         'Estudio: respuesta al reclamo de ficha',
         'Aviso al usuario que reclamó un estudio del catálogo cuando soporte decide.'
     ),
+    studio_verification_decision: studioPlatformEvent(
+        'Estudio: resultado de la verificación',
+        'Aviso al dueño del estudio cuando soporte aprueba o rechaza la verificación del estudio.'
+    ),
     supply_order_submitted: studioPlatformEvent(
         'Supplies: pedido nuevo',
         'Aviso al dueño del vendor cuando un estudio le envía un pedido.'

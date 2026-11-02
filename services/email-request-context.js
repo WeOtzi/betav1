@@ -19,7 +19,7 @@ const INTERNAL_ONLY_EVENTS = new Set([
     'studio_roster_invite', 'studio_spot_decision',
     'studio_membership_request_created', 'studio_membership_request_decision',
     'studio_contract_issued', 'studio_contract_signed', 'studio_contract_declined', 'studio_contract_terminated',
-    'studio_booking_created', 'studio_booking_cancelled', 'studio_claim_decision',
+    'studio_booking_created', 'studio_booking_cancelled', 'studio_claim_decision', 'studio_verification_decision',
     'supply_order_submitted', 'supply_order_status'
 ]);
 const isInternalOnlyEvent = eventId => INTERNAL_ONLY_EVENTS.has(eventId) || /^(studio|supply)_/.test(String(eventId || ''));

@@ -1,0 +1,36 @@
+/* Studio access reuses the artist login composition, fonts and DS primitives. */
+.studio-login-page{caret-color:var(--ink);scrollbar-color:var(--neutral-400) var(--neutral-100)}
+.studio-login-page .wo-skip-link{color:var(--white)}
+.studio-login-page .wo-skip-link:hover{color:var(--white)}
+.studio-login-page .wo-auth-view{gap:0;min-width:0}
+.studio-login-page .wo-auth-copy{margin-top:var(--space-2);line-height:1.45}
+.studio-login-page .wo-auth-form{margin-top:var(--space-6);gap:var(--space-6)}
+.studio-login-page .wo-field{min-width:0;gap:var(--space-2)}
+.studio-login-page .wo-label{font-size:13px;line-height:1.3;color:var(--text-muted)}
+.studio-login-page .wo-input{height:52px;min-height:52px;font-size:17px;line-height:normal;border-width:1px;border-color:var(--border-strong);padding:0 var(--space-4)}
+.studio-login-page .wo-auth-inputwrap .wo-input,
+.studio-login-page .wo-auth-inputwrap .wo-input:focus{padding:0 var(--space-4) 0 var(--space-12)}
+.studio-login-page .wo-input:focus{border-width:1px;padding:0 var(--space-4);box-shadow:var(--shadow-focus)}
+.studio-login-page .wo-input[aria-invalid="true"]{border-color:var(--status-error-fg)}
+.studio-login-page .wo-input::placeholder{color:var(--neutral-400)}
+.studio-login-page .wo-btn--block{min-height:49px;padding:var(--space-3) var(--space-6);border-width:1px;font-size:15px}
+.studio-login-page .wo-btn--block img{flex:none}
+.studio-login-page .studio-login-help{display:flex;flex-direction:column;align-items:center;margin-top:var(--space-2)}
+.studio-login-page .wo-auth-forgot{font-size:14px;letter-spacing:.06em}
+.studio-login-page .wo-auth-back{min-height:44px;font-size:11px;line-height:1.5}
+.studio-login-page .wo-auth-links{margin-top:var(--space-5)}
+.studio-login-page .wo-auth-links p{color:var(--text-muted)}
+.studio-login-page .wo-auth-links .wo-meta{font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.studio-login-page .wo-auth-links a{display:inline-block;min-height:44px;align-content:center;color:var(--red-700);text-decoration:underline;text-underline-offset:.2em}
+.studio-login-page .studio-recovery-fields{display:flex;flex-direction:column;gap:var(--space-6)}
+.studio-login-page #login-status{margin-top:var(--space-5);padding:var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh);overflow-wrap:anywhere}
+.studio-login-page .studio-status-info{background:var(--info-bg);color:var(--info-fg)}
+.studio-login-page .studio-status-error{background:var(--error-bg);color:var(--error-fg)}
+.studio-login-page .studio-status-success{background:var(--success-bg);color:var(--success-fg)}
+.studio-login-page button[aria-busy="true"]{cursor:wait}
+.studio-login-page .wo-help{font-size:13px;line-height:1.5}
+@media(max-width:800px){
+  .studio-login-page .wo-auth-panel-inner{max-width:422px}
+  .studio-login-page .wo-input{font-size:16px}
+  .studio-login-page .wo-auth-forgot{font-size:13px}
+}

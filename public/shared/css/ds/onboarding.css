@@ -1,0 +1,30 @@
+weotzi-onboarding-header,weotzi-onboarding-footer{display:block}
+.wo-onboarding-header.wo-topbar{align-items:center;justify-content:flex-start;gap:8px;min-height:65px;overflow:visible;border-bottom:1px solid var(--neutral-500)}
+.wo-onboarding-header .wo-topbar-brand{padding:0 24px;gap:14px;font-size:18px;letter-spacing:.72px;min-height:64px}
+.wo-app .wo-onboarding-header .wo-topbar-brand{color:var(--ink)}
+.wo-onboarding-header .wo-marks{gap:10px}
+.wo-onboarding-header .wo-mark-triangle{border-left-width:6.4px;border-right-width:6.4px;border-bottom-width:13.6px}
+.wo-onboarding-nav{display:flex;gap:32px;align-items:center}
+.wo-onboarding-nav button{padding:14px 0;background:transparent;border:0;color:var(--neutral-500);font:10px/1.45 var(--font-mono);text-transform:uppercase;cursor:pointer}
+.wo-onboarding-nav button[aria-current="step"]{color:var(--blue-300)}
+.wo-onboarding-nav button:disabled{cursor:default}
+.wo-onboarding-menu{display:none!important}
+.wo-onboarding-mobile-menu{padding:20px;gap:12px;border-bottom:1px solid var(--neutral-300)}
+.wo-onboarding-mobile-menu:not([hidden]){display:flex;flex-direction:column}
+.wo-onboarding-footer{display:flex;gap:40px;align-items:center;padding:32px;color:var(--neutral-400);font:10px/1.45 var(--font-mono);text-transform:uppercase}
+.wo-onboarding-footer strong{font:14px/1.12 var(--font-display);color:var(--ink)}
+.wo-onboarding-footer a{color:inherit}
+.wo-onboarding-footer button{background:none;border:0;padding:0;font:inherit;color:inherit;text-transform:inherit;cursor:pointer}
+.wo-onboarding-footer button:hover{text-decoration:underline}
+.wo-onboarding-dialog{max-width:min(480px,calc(100% - 40px));padding:28px;background:var(--neutral-100);border:1px solid var(--neutral-500);color:var(--neutral-500)}
+.wo-onboarding-dialog h2{font:24px/1.2 var(--font-display);color:var(--ink)}
+.wo-onboarding-dialog p{font:16px/1.5 var(--font-body)}
+@media(max-width:767px){
+ .wo-onboarding-header.wo-topbar{min-height:76px;justify-content:space-between;gap:12px;border-color:var(--neutral-200)}
+ .wo-onboarding-header .wo-topbar-brand{padding:0 20px;font-size:18px;gap:14px}
+ .wo-onboarding-nav{display:none}
+ .wo-onboarding-menu{display:inline-flex!important;margin-right:20px}
+ .wo-onboarding-footer{border:1px solid var(--neutral-200);padding:28px 20px;gap:10px;align-items:flex-start;flex-wrap:wrap}
+ .wo-onboarding-footer strong{width:100%}
+ .wo-onboarding-footer>span{max-width:230px}
+}

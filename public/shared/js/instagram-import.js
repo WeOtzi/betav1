@@ -16,6 +16,11 @@
 //     onViewGallery: () => {},            // botón "VER EN LA GALERÍA →"
 //     onPreviewImport: async (items) => n // solo preview local (API simulada)
 //     onComplete: (result) => { ... }     // result = { prefill, imported, ... }
+//     notice: 'texto',                    // aviso fijo en 01 (p. ej. verificación)
+//     checkHandle: async (handle) => texto | null
+//                                         // advertencia sobre la cuenta (p. ej.
+//                                         // ya vinculada a otro estudio); pide
+//                                         // un segundo tilde antes de buscar
 //   });
 //   IGImport.open(opts)  // abre el diálogo sin botón (registerclosedbeta)
 //
@@ -126,6 +131,7 @@
             this.handle = String(opts.prefillHandle || '').replace(/^@/, '').trim();
             this.limit = 12;
             this.confirmed = false;
+            this.handleWarning = null; // { handle, message, acknowledged }
             this.items = [];
             this.selected = [];
             this.simulated = false;
@@ -217,6 +223,8 @@
                             '<div><p class="igi-fact-l">ESPACIOS LIBRES EN TU GALERÍA</p><p class="igi-fact-v" data-free>' + free + ' de ' + g.max + '</p></div>' +
                         '</div></div>' +
                     '<p class="igi-note">' + icon('info') + '<span>Solo podemos importar contenido de cuentas públicas.</span></p>' +
+                    (this.opts.notice ? '<p class="igi-notice" data-notice>' + icon('alert-triangle') + '<span>' + escapeHtml(this.opts.notice) + '</span></p>' : '') +
+                    this.warningHtml() +
                     '<label class="igi-confirm"><input type="checkbox" id="igi-confirm"' + (this.confirmed ? ' checked' : '') + '><span class="igi-box" aria-hidden="true">' + icon('check') + '</span>' +
                         '<span>Confirmo que esta cuenta es mía y autorizo la importación de su contenido.</span></label>' +
                     '<p class="igi-error" role="alert"' + (errorMessage ? '' : ' hidden') + '>' + escapeHtml(errorMessage || '') + '</p>' +
@@ -234,6 +242,17 @@
                 this.body.querySelector('[data-review]').textContent = this.limit + ' publicaciones';
             });
             confirm.addEventListener('change', () => { this.confirmed = confirm.checked; });
+            const ack = this.body.querySelector('#igi-warning-ack');
+            if (ack) ack.addEventListener('change', () => { if (this.handleWarning) this.handleWarning.acknowledged = ack.checked; });
+            handleInput.addEventListener('input', () => {
+                // Otra cuenta: la advertencia anterior ya no aplica.
+                const next = handleInput.value.trim().replace(/^@+/, '').toLowerCase();
+                if (this.handleWarning && this.handleWarning.handle !== next) {
+                    this.handleWarning = null;
+                    const box = this.body.querySelector('[data-warning]');
+                    if (box) box.remove();
+                }
+            });
             handleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.startPreview(); } });
             this.foot.querySelector('[data-cancel]').addEventListener('click', () => this.close());
             this.foot.querySelector('[data-search]').addEventListener('click', () => this.startPreview());
@@ -253,6 +272,15 @@
                 const text = this.freeSlots() + ' de ' + g.max;
                 if (slot.textContent !== text) slot.textContent = text;
             }, 500);
+        }
+
+        warningHtml() {
+            const w = this.handleWarning;
+            if (!w || !w.message) return '';
+            return '<div class="igi-warning" data-warning role="alert">' +
+                '<p>' + icon('alert-triangle') + '<span>' + escapeHtml(w.message) + '</span></p>' +
+                '<label class="igi-confirm"><input type="checkbox" id="igi-warning-ack"' + (w.acknowledged ? ' checked' : '') + '><span class="igi-box" aria-hidden="true">' + icon('check') + '</span>' +
+                '<span>Entiendo: es la cuenta de mi estudio y We Ötzi va a pedir verificarla.</span></label></div>';
         }
 
         showInlineError(message) {
@@ -275,6 +303,23 @@
             if (!this.confirmed) {
                 this.showInlineError('Confirmá que la cuenta es tuya para seguir.');
                 return;
+            }
+            if (typeof this.opts.checkHandle === 'function') {
+                const key = handle.toLowerCase();
+                if (!this.handleWarning || this.handleWarning.handle !== key) {
+                    let message = null;
+                    try { message = await this.opts.checkHandle(handle); } catch (_) { message = null; }
+                    this.handleWarning = { handle: key, message: message ? String(message) : null, acknowledged: !message };
+                    if (message) {
+                        this.renderProfile();
+                        const box = this.body.querySelector('#igi-warning-ack');
+                        if (box) box.focus();
+                        return;
+                    }
+                } else if (this.handleWarning.message && !this.handleWarning.acknowledged) {
+                    this.showInlineError('Confirmá que la cuenta es de tu estudio para seguir.');
+                    return;
+                }
             }
             this.renderLoading('Buscando @' + handle + ' en Instagram. Puede tardar entre 5 y 15 segundos.');
             try {

@@ -60,7 +60,17 @@
         document.title = (studio.name || 'Estudio') + ' · We Ötzi';
         document.getElementById('profile-name-display').innerHTML =
             escapeHtml(studio.name || 'Estudio');
-        document.getElementById('profile-h1').textContent = studio.name || 'Estudio';
+        const h1 = document.getElementById('profile-h1');
+        h1.textContent = studio.name || 'Estudio';
+        // Sello de verificado (soporte aprobó la verificación del estudio).
+        if (studio.is_verified) {
+            const seal = document.createElement('span');
+            seal.className = 'studio-verified-seal';
+            seal.title = 'Estudio verificado por We Ötzi';
+            seal.textContent = '✓ Verificado';
+            h1.appendChild(document.createTextNode(' '));
+            h1.appendChild(seal);
+        }
         document.getElementById('profile-tagline').textContent =
             studio.tagline || (studio.bio ? '' : 'Estudio de tatuajes');
         document.getElementById('profile-bio').textContent =
@@ -78,7 +88,16 @@
         ].filter(Boolean).join('');
 
         // Photos
-        const photos = (Array.isArray(studio.photo_feed_items) ? studio.photo_feed_items : []).filter(p => safeUrl(p?.url));
+        // Las fotos importadas de Instagram se publican cuando soporte o el DM a
+        // @weotzi validan la cuenta del estudio (misma regla que la galería del
+        // artista). Sin la migración de verificación (sin la columna) se muestra todo.
+        const igState = Object.prototype.hasOwnProperty.call(studio, 'instagram_verified_at')
+            ? { enforced: true, verified: !!studio.instagram_verified_at, handle: studio.instagram_verified_handle || null }
+            : { enforced: false, verified: false, handle: null };
+        const visible = window.WoGalleryVisibility
+            ? window.WoGalleryVisibility.filterPublic(studio.photo_feed_items, igState)
+            : (Array.isArray(studio.photo_feed_items) ? studio.photo_feed_items : []);
+        const photos = visible.filter(p => safeUrl(p?.url));
         const photosEl = document.getElementById('profile-photos');
         if (photos.length === 0) {
             photosEl.innerHTML = '<p class="studio-help">Sin fotos cargadas todavía.</p>';

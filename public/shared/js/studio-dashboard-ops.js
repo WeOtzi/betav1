@@ -51,7 +51,9 @@
         wireSponsorsPanel(supabase, studio);
         wireAnalyticsPanel(supabase, studio);
         wireCrossModuleEvents(supabase, studio);
-        document.querySelector('[data-tab="analytics"]')?.addEventListener('click', () => wireAnalyticsPanel(supabase, studio));
+        window.addEventListener('studio:tabchange', event => {
+            if (event.detail?.tab === 'analytics') wireAnalyticsPanel(supabase, studio);
+        });
         document.querySelector('[data-sub="clients"]')?.addEventListener('click', () => renderClientsList(supabase, studio));
     });
 
@@ -139,7 +141,10 @@
         nav.addEventListener('click', e => {
             const btn = e.target.closest('button[data-sub]');
             if (!btn) return;
-            nav.querySelectorAll('button').forEach(b => b.classList.toggle('is-active', b === btn));
+            nav.querySelectorAll('button').forEach(b => {
+                b.classList.toggle('is-active', b === btn);
+                b.setAttribute('aria-pressed', String(b === btn));
+            });
             const sub = btn.dataset.sub;
             ['jobs', 'clients', 'invoices', 'documents'].forEach(s => {
                 document.getElementById('ops-sub-' + s).style.display = s === sub ? '' : 'none';
@@ -162,7 +167,7 @@
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin trabajos registrados todavía.</p>'; return; }
         el.innerHTML = `<p class="studio-help">Últimos 100 trabajos registrados.</p>
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr>
                     <th>Fecha</th><th>Artista</th><th>Horas</th><th>Bruto</th><th>Studio split</th><th>Acciones</th>
                 </tr></thead>
@@ -174,12 +179,12 @@
                         <td>${fmtMoney(j.gross_amount, j.gross_currency)}</td>
                         <td>${fmtMoney(j.studio_split_amount, j.gross_currency)}</td>
                         <td>
-                            <button class="studio-locations-add" data-action="edit"   data-id="${escapeAttr(j.id)}" style="border-style:solid;padding:4px 8px;">Editar</button>
-                            <button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(j.id)}">Borrar</button>
+                            <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="edit"   data-id="${escapeAttr(j.id)}">Editar</button>
+                            <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="delete" data-id="${escapeAttr(j.id)}">Borrar</button>
                         </td>
                     </tr>`).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', guardedAction(async () => {
@@ -207,34 +212,34 @@
         }).join('');
 
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">${existing ? 'Editar trabajo' : 'Nuevo trabajo'}</span>
-                    <button class="studio-location-row-remove" id="job-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="job-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Fecha</label>
-                    <input id="job-when" class="studio-input" type="datetime-local" value="${escapeAttr(localDateTime(existing?.performed_at))}"></div>
-                <div class="studio-field"><label class="studio-label">Artista</label>
-                    <select id="job-artist" class="studio-input">${artistOptions || '<option value="">— Sin artistas activos —</option>'}</select></div>
-                <div class="studio-field"><label class="studio-label">Cliente (nombre)</label>
-                    <input id="job-client" class="studio-input" value="${escapeAttr(existing?.client_display_name || '')}" placeholder="Cliente o anónimo"></div>
-                <div class="studio-field"><label class="studio-label" for="job-email">Correo del cliente</label>
-                    <input id="job-email" class="studio-input" type="email" value="${escapeAttr(existing?.client_email || '')}"></div>
-                <div class="studio-field"><label class="studio-label">Duración (horas) y bruto</label>
-                    <div style="display:flex;gap:8px;">
-                        <input id="job-hours" class="studio-input" type="number" step="0.25" min="0" value="${escapeAttr(existing?.duration_hours ?? '')}">
-                        <input id="job-gross" class="studio-input" type="number" step="0.01" min="0" value="${escapeAttr(existing?.gross_amount ?? '')}" placeholder="Bruto">
-                        <input id="job-currency" class="studio-input" placeholder="USD" value="${escapeAttr(existing?.gross_currency || 'USD')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="job-when">Fecha</label>
+                    <input id="job-when" class="studio-input wo-input" type="datetime-local" value="${escapeAttr(localDateTime(existing?.performed_at))}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="job-artist">Artista</label>
+                    <select id="job-artist" class="studio-input wo-input">${artistOptions || '<option value="">— Sin artistas activos —</option>'}</select></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="job-client">Cliente (nombre)</label>
+                    <input id="job-client" class="studio-input wo-input" value="${escapeAttr(existing?.client_display_name || '')}" placeholder="Cliente o anónimo"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="job-email">Correo del cliente</label>
+                    <input id="job-email" class="studio-input wo-input" type="email" value="${escapeAttr(existing?.client_email || '')}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Duración (horas) y bruto</label>
+                    <div class="sdo-field-row">
+                        <input id="job-hours" aria-label="Duración en horas" class="studio-input wo-input" type="number" step="0.25" min="0" value="${escapeAttr(existing?.duration_hours ?? '')}">
+                        <input id="job-gross" aria-label="Importe bruto" class="studio-input wo-input" type="number" step="0.01" min="0" value="${escapeAttr(existing?.gross_amount ?? '')}" placeholder="Bruto">
+                        <input id="job-currency" aria-label="Moneda del trabajo" class="studio-input wo-input" placeholder="USD" value="${escapeAttr(existing?.gross_currency || 'USD')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Split artista / studio / supplies</label>
-                    <div style="display:flex;gap:8px;">
-                        <input id="job-art-split"   class="studio-input" type="number" step="0.01" placeholder="Artista" value="${escapeAttr(existing?.artist_split_amount ?? '')}">
-                        <input id="job-stu-split"   class="studio-input" type="number" step="0.01" placeholder="Studio"  value="${escapeAttr(existing?.studio_split_amount ?? '')}">
-                        <input id="job-supplies"    class="studio-input" type="number" step="0.01" placeholder="Supplies" value="${escapeAttr(existing?.supplies_cost ?? '')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Split artista / studio / supplies</label>
+                    <div class="sdo-field-row">
+                        <input id="job-art-split" aria-label="Importe del artista"   class="studio-input wo-input" type="number" step="0.01" placeholder="Artista" value="${escapeAttr(existing?.artist_split_amount ?? '')}">
+                        <input id="job-stu-split" aria-label="Importe del estudio"   class="studio-input wo-input" type="number" step="0.01" placeholder="Studio"  value="${escapeAttr(existing?.studio_split_amount ?? '')}">
+                        <input id="job-supplies" aria-label="Costo de insumos"    class="studio-input wo-input" type="number" step="0.01" placeholder="Supplies" value="${escapeAttr(existing?.supplies_cost ?? '')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Notas</label>
-                    <textarea id="job-notes" class="studio-textarea" rows="2">${escapeHtml(existing?.notes || '')}</textarea></div>
-                <button class="studio-btn studio-btn-primary" id="job-save"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="job-notes">Notas</label>
+                    <textarea id="job-notes" class="studio-textarea wo-textarea" rows="2">${escapeHtml(existing?.notes || '')}</textarea></div>
+                <button class="studio-btn studio-btn-primary wo-btn" id="job-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
             </div>
         `;
         document.getElementById('job-cancel').addEventListener('click', () => { c.innerHTML = ''; });
@@ -297,17 +302,17 @@
         });
         const rows = Array.from(map.values()).sort((a, b) => new Date(b.last) - new Date(a.last));
         el.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr><th>Cliente</th><th>Sesiones</th><th>Bruto total</th><th>Última visita</th></tr></thead>
                 <tbody>${rows.map(c => `
                     <tr>
-                        <td><strong>${escapeHtml(c.name)}</strong>${c.email ? `<br><small style="color:var(--text-secondary);font-family:var(--studio-mono);">${escapeHtml(c.email)}</small>` : ''}</td>
+                        <td><strong>${escapeHtml(c.name)}</strong>${c.email ? `<br><small class="sdo-meta">${escapeHtml(c.email)}</small>` : ''}</td>
                         <td>${c.sessions}</td>
                         <td>${sumCurrencies(c.jobs, 'gross_amount', 'gross_currency')}</td>
                         <td>${fmtDate(c.last)}</td>
                     </tr>`).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
     }
 
@@ -324,7 +329,7 @@
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin facturas todavía.</p>'; return; }
         el.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody>${data.map(i => `
                     <tr>
@@ -332,15 +337,15 @@
                         <td>${fmtDate(i.issue_date)}</td>
                         <td>${escapeHtml(i.billed_to_name || '—')}</td>
                         <td>${fmtMoney(i.total_amount, i.currency)}</td>
-                        <td><span class="studio-role-pill role-${i.status === 'paid' ? 'resident' : (i.status === 'overdue' ? 'manager' : 'guest')}">${escapeHtml(i.status)}</span></td>
+                        <td><span class="studio-role-pill wo-badge wo-badge--s wo-badge--outline role-${i.status === 'paid' ? 'resident' : (i.status === 'overdue' ? 'manager' : 'guest')}">${escapeHtml(i.status)}</span></td>
                         <td>
-                            ${!['paid', 'void'].includes(i.status) ? `<button class="studio-locations-add" data-action="edit" data-id="${escapeAttr(i.id)}" style="border-style:solid;padding:4px 8px;">Editar</button>
-                            <button class="studio-locations-add" data-action="paid" data-id="${escapeAttr(i.id)}" style="border-style:solid;padding:4px 8px;">Registrar pago recibido</button>` : ''}
-                            ${i.status === 'draft' ? `<button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(i.id)}">Borrar borrador</button>` : ''}
+                            ${!['paid', 'void'].includes(i.status) ? `<button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="edit" data-id="${escapeAttr(i.id)}">Editar</button>
+                            <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="paid" data-id="${escapeAttr(i.id)}">Registrar pago recibido</button>` : ''}
+                            ${i.status === 'draft' ? `<button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="delete" data-id="${escapeAttr(i.id)}">Borrar borrador</button>` : ''}
                         </td>
                     </tr>`).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', guardedAction(async () => {
@@ -365,42 +370,42 @@
             ? requireResult(await WeotziData.StudioOps.listInvoiceItems(existing.id)) || []
             : [{ description: '', quantity: 1, unit_price: 0 }];
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">${existing ? 'Editar factura' : 'Nueva factura'}</span>
-                    <button class="studio-location-row-remove" id="inv-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="inv-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Número de factura</label>
-                    <input id="inv-num" class="studio-input" value="${escapeAttr(existing?.invoice_number || ('INV-' + Date.now().toString().slice(-6)))}"></div>
-                <div class="studio-field"><label class="studio-label">Cliente</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="inv-name"  class="studio-input" placeholder="Nombre" value="${escapeAttr(existing?.billed_to_name || '')}">
-                        <input id="inv-email" class="studio-input" type="email" placeholder="Email" value="${escapeAttr(existing?.billed_to_email || '')}">
-                        <input id="inv-tax"   class="studio-input" placeholder="CUIT/NIF" value="${escapeAttr(existing?.billed_to_tax_id || '')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="inv-num">Número de factura</label>
+                    <input id="inv-num" class="studio-input wo-input" value="${escapeAttr(existing?.invoice_number || ('INV-' + Date.now().toString().slice(-6)))}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Cliente</label>
+                    <div class="sdo-field-row">
+                        <input id="inv-name" aria-label="Nombre del cliente"  class="studio-input wo-input" placeholder="Nombre" value="${escapeAttr(existing?.billed_to_name || '')}">
+                        <input id="inv-email" aria-label="Email del cliente" class="studio-input wo-input" type="email" placeholder="Email" value="${escapeAttr(existing?.billed_to_email || '')}">
+                        <input id="inv-tax" aria-label="CUIT o NIF del cliente"   class="studio-input wo-input" placeholder="CUIT/NIF" value="${escapeAttr(existing?.billed_to_tax_id || '')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Fechas y moneda</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="inv-issue" class="studio-input" type="date" value="${escapeAttr(existing?.issue_date || new Date().toISOString().slice(0,10))}">
-                        <input id="inv-due"   class="studio-input" type="date" value="${escapeAttr(existing?.due_date || '')}">
-                        <input id="inv-curr"  class="studio-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
-                        <input id="inv-tax-amt" class="studio-input" type="number" step="0.01" placeholder="IVA / Tax" value="${escapeAttr(existing?.tax_amount ?? 0)}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Fechas y moneda</label>
+                    <div class="sdo-field-row">
+                        <input id="inv-issue" aria-label="Fecha de emisión" class="studio-input wo-input" type="date" value="${escapeAttr(existing?.issue_date || new Date().toISOString().slice(0,10))}">
+                        <input id="inv-due" aria-label="Fecha de vencimiento"   class="studio-input wo-input" type="date" value="${escapeAttr(existing?.due_date || '')}">
+                        <input id="inv-curr" aria-label="Moneda de la factura"  class="studio-input wo-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
+                        <input id="inv-tax-amt" aria-label="Impuestos" class="studio-input wo-input" type="number" step="0.01" placeholder="IVA / Tax" value="${escapeAttr(existing?.tax_amount ?? 0)}">
                     </div></div>
-                <h3 class="studio-section-kicker" style="margin-top:8px;">Items</h3>
+                <h3 class="studio-section-kicker sdo-line-item">Items</h3>
                 <div id="inv-items">${items.map(it => itemRowHtml(it)).join('')}</div>
-                <button class="studio-locations-add" id="inv-add-item" style="border-style:dashed;margin-top:6px;">+ Agregar línea</button>
-                <div style="display:flex;gap:10px;margin-top:14px;">
-                    <button class="studio-btn studio-btn-primary" id="inv-save"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s sdo-add-line" id="inv-add-item">+ Agregar línea</button>
+                <div class="sdo-actions">
+                    <button class="studio-btn studio-btn-primary wo-btn" id="inv-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
                 </div>
             </div>
         `;
         function itemRowHtml(it) {
             return `
-                <div class="studio-location-row" style="margin-top:8px;">
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input class="studio-input" data-field="description" placeholder="Descripción" value="${escapeAttr(it?.description || '')}" style="flex:2;min-width:160px;">
-                        <input class="studio-input" data-field="quantity"   placeholder="Cant." type="number" step="0.01" value="${escapeAttr(it?.quantity ?? 1)}"   style="flex:1;max-width:80px;">
-                        <input class="studio-input" data-field="unit_price" placeholder="P. unit." type="number" step="0.01" value="${escapeAttr(it?.unit_price ?? 0)}" style="flex:1;max-width:120px;">
-                        <button class="studio-location-row-remove" data-action="remove-item">Quitar</button>
+                <div class="studio-location-row sdo-line-item">
+                    <div class="sdo-field-row">
+                        <input class="studio-input wo-input sdo-line-description" data-field="description" aria-label="Descripción del concepto" placeholder="Descripción" value="${escapeAttr(it?.description || '')}">
+                        <input class="studio-input wo-input sdo-line-quantity" data-field="quantity" aria-label="Cantidad del concepto"   placeholder="Cant." type="number" step="0.01" value="${escapeAttr(it?.quantity ?? 1)}"  >
+                        <input class="studio-input wo-input sdo-line-price" data-field="unit_price" aria-label="Precio unitario" placeholder="P. unit." type="number" step="0.01" value="${escapeAttr(it?.unit_price ?? 0)}">
+                        <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="remove-item">Quitar</button>
                     </div>
                 </div>
             `;
@@ -457,22 +462,22 @@
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin documentos cargados.</p>'; return; }
         el.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr><th>Título</th><th>Tipo</th><th>Plantilla</th><th>Firma</th><th>Acciones</th></tr></thead>
                 <tbody>${data.map(d => `
                     <tr>
-                        <td><strong>${escapeHtml(d.title)}</strong>${d.description ? `<br><small style="color:var(--text-secondary);">${escapeHtml(d.description)}</small>` : ''}</td>
+                        <td><strong>${escapeHtml(d.title)}</strong>${d.description ? `<br><small class="sdo-muted">${escapeHtml(d.description)}</small>` : ''}</td>
                         <td><span class="studio-role-pill">${escapeHtml(d.kind)}</span></td>
                         <td>${d.is_template ? 'Sí' : '—'}</td>
                         <td>${d.requires_signature ? 'Requerida' : '—'}</td>
                         <td>
-                            ${d.file_url || d.storage_path ? `<button class="studio-locations-add" data-action="open" data-id="${escapeAttr(d.id)}" style="border-style:solid;padding:4px 8px;">Ver archivo</button>` : ''}
-                            <button class="studio-locations-add" data-action="edit" data-id="${escapeAttr(d.id)}" style="border-style:solid;padding:4px 8px;">Editar</button>
-                            <button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(d.id)}">Borrar</button>
+                            ${d.file_url || d.storage_path ? `<button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="open" data-id="${escapeAttr(d.id)}">Ver archivo</button>` : ''}
+                            <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="edit" data-id="${escapeAttr(d.id)}">Editar</button>
+                            <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="delete" data-id="${escapeAttr(d.id)}">Borrar</button>
                         </td>
                     </tr>`).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', guardedAction(async () => {
@@ -519,36 +524,36 @@
     function openDocEditor(supabase, studio, existing) {
         const c = document.getElementById('doc-editor');
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">${existing ? 'Editar documento' : 'Nuevo documento'}</span>
-                    <button class="studio-location-row-remove" id="doc-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="doc-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Título</label>
-                    <input id="doc-title" class="studio-input" value="${escapeAttr(existing?.title || '')}"></div>
-                <div class="studio-field"><label class="studio-label">Tipo</label>
-                    <select id="doc-kind" class="studio-input">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-title">Título</label>
+                    <input id="doc-title" class="studio-input wo-input" value="${escapeAttr(existing?.title || '')}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-kind">Tipo</label>
+                    <select id="doc-kind" class="studio-input wo-input">
                         ${['consent','release','contract','nda','price_list','custom'].map(k =>
                             `<option value="${k}" ${existing?.kind === k ? 'selected' : ''}>${k}</option>`).join('')}
                     </select></div>
-                <div class="studio-field"><label class="studio-label">Descripción</label>
-                    <textarea id="doc-desc" class="studio-textarea" rows="2">${escapeHtml(existing?.description || '')}</textarea></div>
-                <div class="studio-field"><label class="studio-label" for="doc-file">Archivo privado (PDF, Word o imagen; hasta 10 MB)</label>
-                    <input id="doc-file" class="studio-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.doc,.docx">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-desc">Descripción</label>
+                    <textarea id="doc-desc" class="studio-textarea wo-textarea" rows="2">${escapeHtml(existing?.description || '')}</textarea></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-file">Archivo privado (PDF, Word o imagen; hasta 10 MB)</label>
+                    <input id="doc-file" class="studio-input wo-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.doc,.docx">
                     ${documentStoragePath(existing) ? '<span class="studio-help">Ya tiene un archivo privado. Elegí otro para reemplazarlo.</span>' : ''}</div>
-                <div class="studio-field"><label class="studio-label" for="doc-url">O enlace a un archivo</label>
-                    <input id="doc-url" class="studio-input" type="url" value="${escapeAttr(existing?.file_url || '')}" placeholder="https://…">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-url">O enlace a un archivo</label>
+                    <input id="doc-url" class="studio-input wo-input" type="url" value="${escapeAttr(existing?.file_url || '')}" placeholder="https://…">
                     <span class="studio-help">Los archivos subidos solo se abren mediante un enlace temporal.</span></div>
-                <div class="studio-field" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
-                    <label style="display:inline-flex;gap:6px;align-items:center;font-family:var(--studio-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;">
+                <div class="studio-field wo-field sdo-checks">
+                    <label class="wo-check sdo-check">
                         <input id="doc-template" type="checkbox" ${existing?.is_template ? 'checked' : ''}> Plantilla reutilizable
                     </label>
-                    <label style="display:inline-flex;gap:6px;align-items:center;font-family:var(--studio-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;">
+                    <label class="wo-check sdo-check">
                         <input id="doc-sig" type="checkbox" ${existing?.requires_signature ? 'checked' : ''}> Requiere firma
                     </label>
                 </div>
-                <button class="studio-btn studio-btn-primary" id="doc-save"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
-                ${existing ? '<div id="doc-links" style="margin-top:24px;"></div>' : '<p class="studio-help">Guardá el documento para vincularlo a un artista, trabajo o factura.</p>'}
+                <button class="studio-btn studio-btn-primary wo-btn" id="doc-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
+                ${existing ? '<div id="doc-links" class="sdo-section-gap"></div>' : '<p class="studio-help">Guardá el documento para vincularlo a un artista, trabajo o factura.</p>'}
             </div>
         `;
         document.getElementById('doc-cancel').addEventListener('click', () => { c.innerHTML = ''; });
@@ -599,11 +604,11 @@
         if (!host) return;
         host.innerHTML = `<h3 class="studio-section-kicker">Vínculos y firmas recibidas</h3>
             <p class="studio-help">Asociá este archivo a su registro. La firma recibida se registra manualmente; conservá el documento firmado como archivo.</p>
-            ${(links || []).length ? '<ul>' + links.map(link => `<li>${escapeHtml(targets.find(target => target.id === link.attached_to_id)?.label || link.attached_to_kind)}${link.signed_at ? ' · Firma recibida de ' + escapeHtml(link.signer_name) + ' el ' + fmtDate(link.signed_at) : ' · Sin firma registrada'} <button type="button" class="studio-location-row-remove" data-doc-unlink="${escapeAttr(link.id)}">Desvincular</button></li>`).join('') + '</ul>' : '<p class="studio-help">Sin vínculos todavía.</p>'}
-            <div class="studio-field"><label for="doc-target" class="studio-label">Vincular a</label><select id="doc-target" class="studio-input"><option value="">Seleccioná un registro</option>${targets.map((target, index) => `<option value="${index}">${escapeHtml(target.label)}</option>`).join('')}</select></div>
-            <div class="studio-field"><label for="doc-signer" class="studio-label">Firmante (opcional)</label><input id="doc-signer" class="studio-input" placeholder="Nombre que figura en el documento firmado"></div>
-            <div class="studio-field"><label for="doc-signed-date" class="studio-label">Fecha de firma recibida (opcional)</label><input id="doc-signed-date" class="studio-input" type="date" max="${localDateTime().slice(0, 10)}"></div>
-            <button type="button" class="studio-btn" id="doc-link-save">Agregar vínculo</button>`;
+            ${(links || []).length ? '<ul>' + links.map(link => `<li>${escapeHtml(targets.find(target => target.id === link.attached_to_id)?.label || link.attached_to_kind)}${link.signed_at ? ' · Firma recibida de ' + escapeHtml(link.signer_name) + ' el ' + fmtDate(link.signed_at) : ' · Sin firma registrada'} <button type="button" class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-doc-unlink="${escapeAttr(link.id)}">Desvincular</button></li>`).join('') + '</ul>' : '<p class="studio-help">Sin vínculos todavía.</p>'}
+            <div class="studio-field wo-field"><label for="doc-target" class="studio-label wo-label">Vincular a</label><select id="doc-target" class="studio-input wo-input"><option value="">Seleccioná un registro</option>${targets.map((target, index) => `<option value="${index}">${escapeHtml(target.label)}</option>`).join('')}</select></div>
+            <div class="studio-field wo-field"><label for="doc-signer" class="studio-label wo-label">Firmante (opcional)</label><input id="doc-signer" class="studio-input wo-input" placeholder="Nombre que figura en el documento firmado"></div>
+            <div class="studio-field wo-field"><label for="doc-signed-date" class="studio-label wo-label">Fecha de firma recibida (opcional)</label><input id="doc-signed-date" class="studio-input wo-input" type="date" max="${localDateTime().slice(0, 10)}"></div>
+            <button type="button" class="studio-btn wo-btn wo-btn--secondary wo-btn--s" id="doc-link-save">Agregar vínculo</button>`;
         document.getElementById('doc-link-save').addEventListener('click', guardedAction(async () => {
             const value = document.getElementById('doc-target').value;
             if (value === '') throw new Error('Seleccioná un artista, factura o trabajo.');
@@ -641,26 +646,26 @@
         await renderInventoryHealth(supabase, studio, data || []);
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin items en inventario.</p>'; return; }
         el.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr><th>Item</th><th>Stock</th><th>Reorder</th><th>Costo unit.</th><th>Proveedor</th><th>Acciones</th></tr></thead>
                 <tbody>${data.map(it => {
                     const low = it.reorder_level != null && Number(it.quantity_on_hand) <= Number(it.reorder_level);
                     return `
-                        <tr style="${low ? 'background:rgba(226,62,40,0.08);' : ''}">
-                            <td><strong>${escapeHtml(it.name)}</strong>${it.sku ? `<br><small style="color:var(--text-secondary);font-family:var(--studio-mono);">${escapeHtml(it.sku)}</small>` : ''}</td>
-                            <td>${it.quantity_on_hand} ${escapeHtml(it.unit)}${low ? ' ⚠' : ''}</td>
+                        <tr class="${low ? 'sdo-stock-low' : ''}">
+                            <td><strong>${escapeHtml(it.name)}</strong>${it.sku ? `<br><small class="sdo-meta">${escapeHtml(it.sku)}</small>` : ''}</td>
+                            <td>${it.quantity_on_hand} ${escapeHtml(it.unit)}${low ? ' <i data-wo-icon="alert-triangle" aria-label="Stock para reponer"></i>' : ''}</td>
                             <td>${it.reorder_level ?? '—'}</td>
                             <td>${fmtMoney(it.cost_per_unit, it.currency)}</td>
                             <td>${escapeHtml((it.studio_suppliers && it.studio_suppliers.name) || '—')}</td>
                             <td>
-                                <button class="studio-locations-add" data-action="move" data-id="${escapeAttr(it.id)}" style="border-style:solid;padding:4px 8px;">Movimiento</button>
-                                <button class="studio-locations-add" data-action="edit" data-id="${escapeAttr(it.id)}" style="border-style:solid;padding:4px 8px;">Editar</button>
-                                <button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(it.id)}">Archivar</button>
+                                <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="move" data-id="${escapeAttr(it.id)}">Movimiento</button>
+                                <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="edit" data-id="${escapeAttr(it.id)}">Editar</button>
+                                <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="delete" data-id="${escapeAttr(it.id)}">Archivar</button>
                             </td>
                         </tr>`;
                 }).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', guardedAction(async () => {
@@ -719,28 +724,28 @@
         const supplierOpts = '<option value="">— Sin proveedor —</option>'
             + (suppliers || []).map(s => `<option value="${escapeAttr(s.id)}" ${existing?.supplier_id === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">${existing ? 'Editar item' : 'Nuevo item'}</span>
-                    <button class="studio-location-row-remove" id="item-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="item-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Nombre</label><input id="it-name" class="studio-input" value="${escapeAttr(existing?.name || '')}"></div>
-                <div class="studio-field"><label class="studio-label">SKU / Categoría / Unidad</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="it-sku"  class="studio-input" placeholder="SKU"        value="${escapeAttr(existing?.sku || '')}">
-                        <input id="it-cat"  class="studio-input" placeholder="Categoría"  value="${escapeAttr(existing?.category || '')}">
-                        <input id="it-unit" class="studio-input" placeholder="unit/ml/gr" value="${escapeAttr(existing?.unit || 'unit')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="it-name">Nombre</label><input id="it-name" class="studio-input wo-input" value="${escapeAttr(existing?.name || '')}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label">SKU / Categoría / Unidad</label>
+                    <div class="sdo-field-row">
+                        <input id="it-sku" aria-label="SKU"  class="studio-input wo-input" placeholder="SKU"        value="${escapeAttr(existing?.sku || '')}">
+                        <input id="it-cat" aria-label="Categoría del item"  class="studio-input wo-input" placeholder="Categoría"  value="${escapeAttr(existing?.category || '')}">
+                        <input id="it-unit" aria-label="Unidad de medida" class="studio-input wo-input" placeholder="unit/ml/gr" value="${escapeAttr(existing?.unit || 'unit')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Stock inicial / reorder / costo</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="it-qty"   class="studio-input" type="number" step="0.001" min="0" ${existing ? 'disabled title="Registrá un movimiento para cambiar el stock"' : ''} value="${escapeAttr(existing?.quantity_on_hand ?? 0)}" placeholder="Stock">
-                        <input id="it-reord" class="studio-input" type="number" step="0.001" value="${escapeAttr(existing?.reorder_level ?? '')}" placeholder="Reorder">
-                        <input id="it-cost"  class="studio-input" type="number" step="0.01"  value="${escapeAttr(existing?.cost_per_unit ?? '')}" placeholder="Costo unit.">
-                        <input id="it-curr"  class="studio-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Stock inicial / reorder / costo</label>
+                    <div class="sdo-field-row">
+                        <input id="it-qty" aria-label="Stock inicial"   class="studio-input wo-input" type="number" step="0.001" min="0" ${existing ? 'disabled title="Registrá un movimiento para cambiar el stock"' : ''} value="${escapeAttr(existing?.quantity_on_hand ?? 0)}" placeholder="Stock">
+                        <input id="it-reord" aria-label="Nivel de reposición" class="studio-input wo-input" type="number" step="0.001" value="${escapeAttr(existing?.reorder_level ?? '')}" placeholder="Reorder">
+                        <input id="it-cost" aria-label="Costo unitario"  class="studio-input wo-input" type="number" step="0.01"  value="${escapeAttr(existing?.cost_per_unit ?? '')}" placeholder="Costo unit.">
+                        <input id="it-curr" aria-label="Moneda del costo"  class="studio-input wo-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Proveedor</label>
-                    <select id="it-supp" class="studio-input">${supplierOpts}</select></div>
-                <button class="studio-btn studio-btn-primary" id="it-save"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="it-supp">Proveedor</label>
+                    <select id="it-supp" class="studio-input wo-input">${supplierOpts}</select></div>
+                <button class="studio-btn studio-btn-primary wo-btn" id="it-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
             </div>
         `;
         document.getElementById('item-cancel').addEventListener('click', () => { c.innerHTML = ''; });
@@ -896,7 +901,7 @@
         if (!rows?.length) return '<p class="studio-help">Sin movimientos.</p>';
         const currency = item?.currency;
         const unit = item?.unit ? ' ' + escapeHtml(item.unit) : '';
-        return '<table class="studio-roster-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Artista</th><th>Costo unit.</th><th>Costo total</th><th>Notas</th></tr></thead><tbody>'
+        return '<div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Movimientos de stock"><table class="studio-roster-table wo-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Artista</th><th>Costo unit.</th><th>Costo total</th><th>Notas</th></tr></thead><tbody>'
             + rows.map(row => {
                 const sign = MOVEMENT_SIGN[row.kind] || 0;
                 const qty = Number(row.quantity);
@@ -905,7 +910,7 @@
                 const artist = row.related_artist_user_id ? escapeHtml(names?.get(row.related_artist_user_id) || 'Artista') : '—';
                 return '<tr><td>' + fmtDate(row.performed_at) + '</td><td>' + escapeHtml(movementLabel(row.kind)) + '</td><td>' + shown + unit + '</td><td>'
                     + artist + '</td><td>' + fmtMoney(row.unit_cost, currency) + '</td><td>' + fmtMoney(total, currency) + '</td><td>' + escapeHtml(row.notes || '—') + '</td></tr>';
-            }).join('') + '</tbody></table>';
+            }).join('') + '</tbody></table></div>';
     }
 
     async function openMovementDialog(supabase, studio, itemId, knownItem) {
@@ -925,26 +930,26 @@
         const unit = escapeHtml(item?.unit || 'unit');
         const currency = escapeHtml(String(item?.currency || 'USD').toUpperCase());
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">Movimiento de stock · ${escapeHtml(item?.name || 'Ítem')}</span>
-                    <button class="studio-location-row-remove" id="mv-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="mv-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label" for="mv-kind">Tipo</label>
-                    <select id="mv-kind" class="studio-input">${kinds.map(kind => `<option value="${kind}">${escapeHtml(MOVEMENT_OPTION_LABELS[kind])}</option>`).join('')}</select>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="mv-kind">Tipo</label>
+                    <select id="mv-kind" class="studio-input wo-input">${kinds.map(kind => `<option value="${kind}">${escapeHtml(MOVEMENT_OPTION_LABELS[kind])}</option>`).join('')}</select>
                     ${materialsReady ? '' : '<span class="studio-help">Las entregas y devoluciones a artistas se habilitan cuando se aplique la migración de inventario.</span>'}</div>
-                <div class="studio-field"><label class="studio-label" for="mv-qty">Cantidad (${unit})</label>
-                    <input id="mv-qty" class="studio-input" type="number" step="0.001" placeholder="Cantidad">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="mv-qty">Cantidad (${unit})</label>
+                    <input id="mv-qty" class="studio-input wo-input" type="number" step="0.001" placeholder="Cantidad">
                     <span class="studio-help">Stock actual: ${escapeHtml(fmtQty(item?.quantity_on_hand))} ${unit}</span></div>
-                <div class="studio-field"><label class="studio-label" for="mv-artist" id="mv-artist-label">Artista (opcional)</label>
-                    <select id="mv-artist" class="studio-input">${movementArtistOptions('restock', members, balanceRows, names, null)}</select></div>
-                <div class="studio-field"><label class="studio-label" for="mv-cost">Costo unitario (${currency})</label>
-                    <input id="mv-cost" class="studio-input" type="number" step="0.01" min="0" value="${escapeAttr(item?.cost_per_unit ?? '')}" placeholder="Costo unit.">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="mv-artist" id="mv-artist-label">Artista (opcional)</label>
+                    <select id="mv-artist" class="studio-input wo-input">${movementArtistOptions('restock', members, balanceRows, names, null)}</select></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="mv-cost">Costo unitario (${currency})</label>
+                    <input id="mv-cost" class="studio-input wo-input" type="number" step="0.01" min="0" value="${escapeAttr(item?.cost_per_unit ?? '')}" placeholder="Costo unit.">
                     <span class="studio-help" id="mv-cost-help">Se precarga con el costo del ítem; podés corregirlo.</span></div>
-                <div class="studio-field"><label class="studio-label" for="mv-notes">Notas</label>
-                    <textarea id="mv-notes" class="studio-textarea" rows="2"></textarea></div>
-                <button class="studio-btn studio-btn-primary" id="mv-save"><i class="fa-solid fa-floppy-disk"></i> Registrar</button>
-                <div id="movement-history" style="margin-top:18px;"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="mv-notes">Notas</label>
+                    <textarea id="mv-notes" class="studio-textarea wo-textarea" rows="2"></textarea></div>
+                <button class="studio-btn studio-btn-primary wo-btn" id="mv-save"><i data-wo-icon="save" aria-hidden="true"></i> Registrar</button>
+                <div id="movement-history" class="sdo-section-gap"></div>
             </div>
         `;
         const kindEl = document.getElementById('mv-kind');
@@ -1008,22 +1013,22 @@
         if (error) { el.innerHTML = '<em>' + escapeHtml(error.message) + '</em>'; return; }
         if (!data || data.length === 0) { el.innerHTML = '<p class="studio-help">Sin proveedores cargados.</p>'; return; }
         el.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr><th>Nombre</th><th>Categorías</th><th>Email</th><th>Tel.</th><th>Web</th><th>Acciones</th></tr></thead>
                 <tbody>${data.map(s => `
                     <tr>
                         <td><strong>${escapeHtml(s.name)}</strong></td>
-                        <td>${(s.categories || []).map(c => `<span class="studio-style-pill">${escapeHtml(c)}</span>`).join(' ') || '—'}</td>
+                        <td>${(s.categories || []).map(c => `<span class="studio-style-pill wo-badge wo-badge--s wo-badge--outline">${escapeHtml(c)}</span>`).join(' ') || '—'}</td>
                         <td>${escapeHtml(s.contact_email || '—')}</td>
                         <td>${escapeHtml(s.contact_phone || '—')}</td>
-                        <td>${s.website ? `<a href="${escapeAttr(s.website)}" target="_blank" style="color:var(--primary-red);">${escapeHtml(s.website)}</a>` : '—'}</td>
+                        <td>${s.website ? `<a href="${escapeAttr(s.website)}" target="_blank" class="sdo-link">${escapeHtml(s.website)}</a>` : '—'}</td>
                         <td>
-                            <button class="studio-locations-add" data-action="edit" data-id="${escapeAttr(s.id)}" style="border-style:solid;padding:4px 8px;">Editar</button>
-                            <button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(s.id)}">Borrar</button>
+                            <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="edit" data-id="${escapeAttr(s.id)}">Editar</button>
+                            <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="delete" data-id="${escapeAttr(s.id)}">Borrar</button>
                         </td>
                     </tr>`).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', guardedAction(async () => {
@@ -1041,21 +1046,21 @@
     function openSupplierEditor(supabase, studio, existing) {
         const c = document.getElementById('supplier-editor');
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">${existing ? 'Editar proveedor' : 'Nuevo proveedor'}</span>
-                    <button class="studio-location-row-remove" id="sup-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="sup-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Nombre</label><input id="sup-name" class="studio-input" value="${escapeAttr(existing?.name || '')}"></div>
-                <div class="studio-field"><label class="studio-label">Categorías (coma)</label><input id="sup-cats" class="studio-input" value="${escapeAttr((existing?.categories || []).join(', '))}"></div>
-                <div class="studio-field"><label class="studio-label">Email / Tel. / Web</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="sup-email" class="studio-input" type="email" placeholder="Email" value="${escapeAttr(existing?.contact_email || '')}">
-                        <input id="sup-phone" class="studio-input" placeholder="Teléfono" value="${escapeAttr(existing?.contact_phone || '')}">
-                        <input id="sup-web"   class="studio-input" type="url" placeholder="Sitio" value="${escapeAttr(existing?.website || '')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="sup-name">Nombre</label><input id="sup-name" class="studio-input wo-input" value="${escapeAttr(existing?.name || '')}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="sup-cats">Categorías (coma)</label><input id="sup-cats" class="studio-input wo-input" value="${escapeAttr((existing?.categories || []).join(', '))}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Email / Tel. / Web</label>
+                    <div class="sdo-field-row">
+                        <input id="sup-email" aria-label="Email del proveedor" class="studio-input wo-input" type="email" placeholder="Email" value="${escapeAttr(existing?.contact_email || '')}">
+                        <input id="sup-phone" aria-label="Teléfono del proveedor" class="studio-input wo-input" placeholder="Teléfono" value="${escapeAttr(existing?.contact_phone || '')}">
+                        <input id="sup-web" aria-label="Sitio web del proveedor"   class="studio-input wo-input" type="url" placeholder="Sitio" value="${escapeAttr(existing?.website || '')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Notas</label><textarea id="sup-notes" class="studio-textarea" rows="2">${escapeHtml(existing?.notes || '')}</textarea></div>
-                <button class="studio-btn studio-btn-primary" id="sup-save"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="sup-notes">Notas</label><textarea id="sup-notes" class="studio-textarea wo-textarea" rows="2">${escapeHtml(existing?.notes || '')}</textarea></div>
+                <button class="studio-btn studio-btn-primary wo-btn" id="sup-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
             </div>
         `;
         document.getElementById('sup-cancel').addEventListener('click', () => { c.innerHTML = ''; });
@@ -1101,26 +1106,26 @@
             artistsBySponsor.set(link.sponsor_id, list);
         });
         el.innerHTML = `
-            <table class="studio-roster-table">
+            <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                 <thead><tr><th>Sponsor</th><th>Tier</th><th>Artistas</th><th>Vigencia</th><th>Valor mensual</th><th>Público</th><th>Acciones</th></tr></thead>
                 <tbody>${data.map(sp => `
                     <tr>
                         <td>
-                            ${sp.logo_url ? `<img src="${escapeAttr(sp.logo_url)}" alt="" style="height:28px;vertical-align:middle;margin-right:6px;">` : ''}
+                            ${sp.logo_url ? `<img src="${escapeAttr(sp.logo_url)}" alt="" class="sdo-sponsor-logo">` : ''}
                             <strong>${escapeHtml(sp.name)}</strong>
                         </td>
-                        <td><span class="studio-role-pill role-${sp.tier === 'gold' ? 'resident' : (sp.tier === 'platinum' ? 'manager' : 'guest')}">${escapeHtml(sp.tier)}</span></td>
-                        <td>${(artistsBySponsor.get(sp.id) || []).map(name => `<span class="studio-style-pill">${escapeHtml(name)}</span>`).join(' ') || '—'}</td>
+                        <td><span class="studio-role-pill wo-badge wo-badge--s wo-badge--outline role-${sp.tier === 'gold' ? 'resident' : (sp.tier === 'platinum' ? 'manager' : 'guest')}">${escapeHtml(sp.tier)}</span></td>
+                        <td>${(artistsBySponsor.get(sp.id) || []).map(name => `<span class="studio-style-pill wo-badge wo-badge--s wo-badge--outline">${escapeHtml(name)}</span>`).join(' ') || '—'}</td>
                         <td>${fmtDate(sp.starts_on)} – ${fmtDate(sp.ends_on)}</td>
                         <td>${fmtMoney(sp.monthly_value, sp.currency)}</td>
                         <td>${sp.is_public ? 'Sí' : 'No'}</td>
                         <td>
-                            <button class="studio-locations-add" data-action="edit"   data-id="${escapeAttr(sp.id)}" style="border-style:solid;padding:4px 8px;">Editar</button>
-                            <button class="studio-location-row-remove" data-action="delete" data-id="${escapeAttr(sp.id)}">Borrar</button>
+                            <button class="studio-locations-add wo-btn wo-btn--secondary wo-btn--s" data-action="edit"   data-id="${escapeAttr(sp.id)}">Editar</button>
+                            <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-action="delete" data-id="${escapeAttr(sp.id)}">Borrar</button>
                         </td>
                     </tr>`).join('')}
                 </tbody>
-            </table>
+            </table></div>
         `;
         el.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', guardedAction(async () => {
@@ -1151,54 +1156,55 @@
             const id = a.user_id || m.artist_user_id;
             const label = a.name || a.username || id;
             return `
-                <label class="studio-check-card">
-                    <input type="checkbox" name="sp-artist" value="${escapeAttr(id)}" ${selectedArtists.has(id) ? 'checked' : ''}>
+                <label class="studio-check-card wo-check">
+                    <input type="checkbox" name="sponsor-artist" value="${escapeAttr(id)}" ${selectedArtists.has(id) ? 'checked' : ''}>
                     <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(m.role || 'artist')}</small></span>
                 </label>
             `;
         }).join('');
         c.innerHTML = `
-            <div class="studio-location-row" style="margin-bottom:18px;">
+            <div class="studio-location-row sdo-editor">
                 <div class="studio-location-row-head">
                     <span class="studio-section-kicker">${existing ? 'Editar sponsor' : 'Nuevo sponsor'}</span>
-                    <button class="studio-location-row-remove" id="sp-cancel">Cancelar</button>
+                    <button class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" id="sponsor-cancel">Cancelar</button>
                 </div>
-                <div class="studio-field"><label class="studio-label">Nombre</label>
-                    <input id="sp-name" class="studio-input" value="${escapeAttr(existing?.name || '')}"></div>
-                <div class="studio-field"><label class="studio-label">Tier</label>
-                    <select id="sp-tier" class="studio-input">
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="sponsor-name">Nombre</label>
+                    <input id="sponsor-name" class="studio-input wo-input" value="${escapeAttr(existing?.name || '')}"></div>
+                <div class="studio-field wo-field"><label class="studio-label wo-label" for="sponsor-tier">Tier</label>
+                    <select id="sponsor-tier" class="studio-input wo-input">
                         ${['bronze','silver','gold','platinum'].map(t => `<option value="${t}" ${existing?.tier === t ? 'selected' : ''}>${t}</option>`).join('')}
                     </select></div>
-                <div class="studio-field"><label class="studio-label">Logo URL / Web</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="sp-logo" class="studio-input" type="url" placeholder="Logo" value="${escapeAttr(existing?.logo_url || '')}">
-                        <input id="sp-web"  class="studio-input" type="url" placeholder="Sitio" value="${escapeAttr(existing?.website || '')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Logo URL / Web</label>
+                    <div class="sdo-field-row">
+                        <input id="sponsor-logo" aria-label="URL del logo del sponsor" class="studio-input wo-input" type="url" placeholder="Logo" value="${escapeAttr(existing?.logo_url || '')}">
+                        <input id="sponsor-web" aria-label="Sitio web del sponsor"  class="studio-input wo-input" type="url" placeholder="Sitio" value="${escapeAttr(existing?.website || '')}">
                     </div></div>
-                <div class="studio-field"><label class="studio-label">Vigencia y monto</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <input id="sp-from" class="studio-input" type="date" value="${escapeAttr(existing?.starts_on || '')}">
-                        <input id="sp-to"   class="studio-input" type="date" value="${escapeAttr(existing?.ends_on || '')}">
-                        <input id="sp-amt"  class="studio-input" type="number" step="0.01" placeholder="Mensual" value="${escapeAttr(existing?.monthly_value ?? '')}">
-                        <input id="sp-curr" class="studio-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
+                <div class="studio-field wo-field"><label class="studio-label wo-label">Vigencia y monto</label>
+                    <div class="sdo-field-row">
+                        <input id="sponsor-from" aria-label="Inicio de vigencia" class="studio-input wo-input" type="date" value="${escapeAttr(existing?.starts_on || '')}">
+                        <input id="sponsor-to" aria-label="Fin de vigencia"   class="studio-input wo-input" type="date" value="${escapeAttr(existing?.ends_on || '')}">
+                        <input id="sponsor-amt" aria-label="Valor mensual"  class="studio-input wo-input" type="number" step="0.01" placeholder="Mensual" value="${escapeAttr(existing?.monthly_value ?? '')}">
+                        <input id="sponsor-curr" aria-label="Moneda del sponsor" class="studio-input wo-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
                     </div></div>
-                <div class="studio-field" style="display:flex;gap:18px;align-items:center;">
-                    <label style="display:inline-flex;gap:6px;align-items:center;font-family:var(--studio-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;">
-                        <input id="sp-public" type="checkbox" ${existing?.is_public !== false ? 'checked' : ''}> Mostrar en perfil público
+                <div class="studio-field wo-field sdo-checks">
+                    <label class="wo-check sdo-check">
+                        <input id="sponsor-public" type="checkbox" ${existing?.is_public !== false ? 'checked' : ''}> Mostrar en perfil público
                     </label>
                 </div>
-                <div class="studio-field">
-                    <label class="studio-label">Artistas sponsoreados</label>
-                    <div class="studio-check-grid" id="sp-artists">
+                <div class="studio-field wo-field">
+                    <label class="studio-label wo-label">Artistas sponsoreados</label>
+                    <div class="studio-check-grid" id="sponsor-artists">
                         ${artistOptions || '<p class="studio-help">Todavía no hay artistas activos en el roster.</p>'}
                     </div>
                 </div>
-                <button class="studio-btn studio-btn-primary" id="sp-save"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                <button class="studio-btn studio-btn-primary wo-btn" id="sponsor-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
             </div>
         `;
         // Wire uploader on the sponsor logo field.
         if (window.WeOtziUploader) {
-            window.WeOtziUploader.attach(document.getElementById('sp-logo'), {
+            window.WeOtziUploader.attach(document.getElementById('sponsor-logo'), {
                 supabase,
+                designSystem: true,
                 bucket: 'studio-photos',
                 pathPrefix: studio.id + '/sponsors',
                 accept: 'image/*',
@@ -1206,19 +1212,19 @@
             });
         }
 
-        document.getElementById('sp-cancel').addEventListener('click', () => { c.innerHTML = ''; });
-        document.getElementById('sp-save').addEventListener('click', guardedAction(async () => {
+        document.getElementById('sponsor-cancel').addEventListener('click', () => { c.innerHTML = ''; });
+        document.getElementById('sponsor-save').addEventListener('click', guardedAction(async () => {
             const payload = {
                 studio_id: studio.id,
-                name: document.getElementById('sp-name').value.trim(),
-                tier: document.getElementById('sp-tier').value,
-                logo_url: document.getElementById('sp-logo').value.trim() || null,
-                website:  document.getElementById('sp-web').value.trim() || null,
-                starts_on: document.getElementById('sp-from').value || null,
-                ends_on:   document.getElementById('sp-to').value || null,
-                monthly_value: numOrNull(document.getElementById('sp-amt').value),
-                currency: document.getElementById('sp-curr').value.trim() || 'USD',
-                is_public: document.getElementById('sp-public').checked
+                name: document.getElementById('sponsor-name').value.trim(),
+                tier: document.getElementById('sponsor-tier').value,
+                logo_url: document.getElementById('sponsor-logo').value.trim() || null,
+                website:  document.getElementById('sponsor-web').value.trim() || null,
+                starts_on: document.getElementById('sponsor-from').value || null,
+                ends_on:   document.getElementById('sponsor-to').value || null,
+                monthly_value: numOrNull(document.getElementById('sponsor-amt').value),
+                currency: document.getElementById('sponsor-curr').value.trim() || 'USD',
+                is_public: document.getElementById('sponsor-public').checked
             };
             if (!payload.name) { status('sponsors-status', 'error', 'Nombre obligatorio.'); return; }
             if ((payload.ends_on && payload.starts_on && payload.ends_on < payload.starts_on) || (payload.monthly_value != null && payload.monthly_value < 0) || (payload.website && !validUrl(payload.website)) || (payload.logo_url && !validUrl(payload.logo_url))) { status('sponsors-status', 'error', 'Revisá fechas, importe y enlaces.'); return; }
@@ -1240,7 +1246,7 @@
     }
 
     async function saveSponsorArtists(supabase, sponsorId) {
-        const selected = Array.from(document.querySelectorAll('input[name="sp-artist"]:checked'))
+        const selected = Array.from(document.querySelectorAll('input[name="sponsor-artist"]:checked'))
             .map(input => input.value)
             .filter(Boolean);
         requireResult(await WeotziData.StudioOps.replaceSponsorArtists(sponsorId, selected));
@@ -1268,7 +1274,7 @@
         const totalJobs   = months.reduce((s, m) => s + Number(m.jobs_count || 0), 0);
         const totalClients = months.reduce((s, m) => s + Number(m.unique_clients || 0), 0);
         sumEl.innerHTML = `
-            <div class="studio-meta-grid">
+            <div class="studio-meta-grid sdo-metrics">
                 <div class="studio-meta-row"><span class="key">Bruto (12 meses)</span><span class="val">${sumCurrencies(months, 'gross_amount')}</span></div>
                 <div class="studio-meta-row"><span class="key">Neto al estudio</span><span class="val">${sumCurrencies(months, 'studio_net')}</span></div>
                 <div class="studio-meta-row"><span class="key">Trabajos</span>      <span class="val">${totalJobs}</span></div>
@@ -1281,7 +1287,7 @@
             monEl.innerHTML = '<p class="studio-help">Sin datos suficientes. Registrá trabajos para ver métricas.</p>';
         } else {
             monEl.innerHTML = `
-                <table class="studio-roster-table">
+                <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                     <thead><tr><th>Mes</th><th>Trabajos</th><th>Bruto</th><th>Neto</th><th>Pagado a artistas</th><th>Ticket promedio</th></tr></thead>
                     <tbody>${months.map(m => `
                         <tr>
@@ -1293,7 +1299,7 @@
                             <td>${fmtMoney(m.avg_ticket, m.currency)}</td>
                         </tr>`).join('')}
                     </tbody>
-                </table>
+                </table></div>
             `;
         }
 
@@ -1303,7 +1309,7 @@
             artEl.innerHTML = '<p class="studio-help">Aún no hay performance por artista.</p>';
         } else {
             artEl.innerHTML = `
-                <table class="studio-roster-table">
+                <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">
                     <caption class="studio-help">20 principales resultados por artista y moneda · últimos 12 meses</caption>
                     <thead><tr><th>Artista</th><th>Trabajos</th><th>Bruto</th><th>Ticket prom.</th><th>Supplies</th><th>Último trabajo</th></tr></thead>
                     <tbody>${artists.map(a => `
@@ -1316,7 +1322,7 @@
                             <td>${a.days_since_last_job != null ? `hace ${a.days_since_last_job} días` : '—'}</td>
                         </tr>`).join('')}
                     </tbody>
-                </table>
+                </table></div>
             `;
         }
     }

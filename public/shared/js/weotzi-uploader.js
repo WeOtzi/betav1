@@ -29,6 +29,12 @@
             : null);
     }
 
+    function icon(options, name, legacyClass) {
+        return options.designSystem
+            ? `<i data-wo-icon="${name}" class="wo-icon-18" aria-hidden="true"></i>`
+            : `<i class="${legacyClass}"></i>`;
+    }
+
     function sanitizeFilename(name) {
         return String(name)
             .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -81,6 +87,7 @@
      *   accept        - HTML accept= attribute (default 'image/*')
      *   onUploaded    - callback(url, meta) after successful upload
      *   placeholder   - placeholder for the URL display
+     *   designSystem  - opt in to shared DS controls and Feather icons
      */
     function attach(input, options) {
         if (!input || input.tagName !== 'INPUT') {
@@ -89,20 +96,23 @@
         }
         const opts = options || {};
         const supabase = getClient(opts);
+        const originalDisplay = input.style.display;
+        const labels = opts.designSystem ? Array.from(input.labels || []) : [];
 
         // Wrap the input in a small UI: file button + URL display + status.
         const wrapper = document.createElement('div');
         wrapper.className = 'wo-uploader wo-uploader-single';
         const previewClass = opts.preview === false ? 'wo-uploader-no-preview' : 'wo-uploader-with-preview';
         wrapper.classList.add(previewClass);
+        if (opts.designSystem) wrapper.classList.add('wo-field', 'wo-uploader--ds');
 
         wrapper.innerHTML = `
             <div class="wo-uploader-row">
-                <button type="button" class="wo-uploader-btn">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Subir archivo
+                <button type="button" class="wo-uploader-btn${opts.designSystem ? ' wo-btn wo-btn--ghost' : ''}">
+                    ${icon(opts, 'upload-cloud', 'fa-solid fa-cloud-arrow-up')} Subir archivo
                 </button>
                 <span class="wo-uploader-or">o</span>
-                <input type="text" class="wo-uploader-url" placeholder="${opts.placeholder || 'pegá una URL'}" autocomplete="off">
+                <input type="text" class="wo-uploader-url${opts.designSystem ? ' wo-input' : ''}" placeholder="${opts.placeholder || 'pegá una URL'}" autocomplete="off">
             </div>
             ${opts.preview === false ? '' : '<div class="wo-uploader-preview" hidden></div>'}
             <div class="wo-uploader-status" hidden></div>
@@ -117,6 +127,17 @@
         const previewEl  = wrapper.querySelector('.wo-uploader-preview');
         const statusEl   = wrapper.querySelector('.wo-uploader-status');
         const btn        = wrapper.querySelector('.wo-uploader-btn');
+        if (opts.designSystem) {
+            const label = labels.map(item => item.textContent.trim()).join(' ') || 'Archivo';
+            urlInput.setAttribute('aria-label', label + ' · URL');
+            fileInput.setAttribute('aria-label', label + ' · Subir archivo');
+            statusEl.setAttribute('role', 'status');
+            statusEl.setAttribute('aria-live', 'polite');
+            if (input.id) {
+                urlInput.id = input.id + '-url';
+                labels.forEach(item => { item.htmlFor = urlInput.id; });
+            }
+        }
 
         // Pre-fill URL display + preview if input.value already has something.
         if (input.value) {
@@ -135,7 +156,7 @@
             previewEl.hidden = false;
             if (/\.(pdf|docx?)(\?|$)/i.test(url)) {
                 previewEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener">
-                    <i class="fa-solid fa-file-lines"></i> Ver archivo
+                    ${icon(opts, 'file-text', 'fa-solid fa-file-lines')} Ver archivo
                 </a>`;
             } else {
                 previewEl.innerHTML = `<img src="${url}" alt="" loading="lazy">`;
@@ -155,7 +176,8 @@
             const file = fileInput.files && fileInput.files[0];
             if (!file) return;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Subiendo…';
+            btn.innerHTML = icon(opts, 'loader', 'fa-solid fa-circle-notch fa-spin') + ' Subiendo…';
+            if (opts.designSystem) btn.setAttribute('aria-busy', 'true');
             showStatus('info', `Subiendo ${file.name}…`);
 
             try {
@@ -172,7 +194,8 @@
                 showStatus('error', 'Error al subir: ' + (err.message || err));
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Subir archivo';
+                btn.innerHTML = icon(opts, 'upload-cloud', 'fa-solid fa-cloud-arrow-up') + ' Subir archivo';
+                if (opts.designSystem) btn.removeAttribute('aria-busy');
                 fileInput.value = ''; // allow re-uploading same file later
             }
         });
@@ -180,7 +203,13 @@
         return {
             getUrl()   { return input.value; },
             setUrl(v)  { input.value = v || ''; urlInput.value = v || ''; renderPreview(v); },
-            destroy()  { wrapper.replaceWith(input); }
+            destroy()  {
+                wrapper.replaceWith(input);
+                if (opts.designSystem) {
+                    input.style.display = originalDisplay;
+                    labels.forEach(item => { item.htmlFor = input.id; });
+                }
+            }
         };
     }
 
@@ -192,6 +221,7 @@
      *   bucket, pathPrefix - same as attach()
      *   initialUrls        - string[] to pre-render
      *   onChange(urls)     - called when the list changes (add/remove)
+     *   designSystem       - shared DS controls and Feather icons (optional)
      */
     function attachGallery(container, options) {
         if (!container) {
@@ -203,6 +233,7 @@
         const urls = Array.isArray(opts.initialUrls) ? opts.initialUrls.slice() : [];
 
         container.classList.add('wo-uploader-gallery');
+        if (opts.designSystem) container.classList.add('wo-uploader--ds');
         container.innerHTML = '';
 
         const grid = document.createElement('div');
@@ -215,6 +246,11 @@
         const status = document.createElement('div');
         status.className = 'wo-uploader-status';
         status.hidden = true;
+        if (opts.designSystem) {
+            fileInput.setAttribute('aria-label', 'Agregar imágenes a la galería');
+            status.setAttribute('role', 'status');
+            status.setAttribute('aria-live', 'polite');
+        }
 
         container.append(grid, status, fileInput);
 
@@ -235,8 +271,9 @@
             tile.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
             const rm = document.createElement('button');
             rm.type = 'button';
-            rm.className = 'wo-uploader-tile-remove';
-            rm.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            rm.className = 'wo-uploader-tile-remove' + (opts.designSystem ? ' wo-iconbtn wo-iconbtn--s' : '');
+            rm.innerHTML = icon(opts, 'x', 'fa-solid fa-xmark');
+            if (opts.designSystem) rm.setAttribute('aria-label', 'Quitar imagen de la galería');
             rm.addEventListener('click', () => {
                 const idx = urls.indexOf(url);
                 if (idx >= 0) urls.splice(idx, 1);
@@ -250,8 +287,8 @@
         function renderAddTile() {
             const tile = document.createElement('button');
             tile.type = 'button';
-            tile.className = 'wo-uploader-add-tile';
-            tile.innerHTML = '<i class="fa-solid fa-plus"></i><span>Agregar</span>';
+            tile.className = 'wo-uploader-add-tile' + (opts.designSystem ? ' wo-btn wo-btn--ghost' : '');
+            tile.innerHTML = icon(opts, 'plus', 'fa-solid fa-plus') + '<span>Agregar</span>';
             tile.addEventListener('click', () => fileInput.click());
             return tile;
         }
@@ -266,20 +303,28 @@
             const files = Array.from(fileInput.files || []);
             if (!files.length) return;
             showStatus('info', `Subiendo ${files.length} archivo${files.length > 1 ? 's' : ''}…`);
+            let uploaded = 0;
+            let failed = 0;
             for (const file of files) {
                 try {
                     const result = await uploadFile({
                         supabase, bucket: opts.bucket, pathPrefix: opts.pathPrefix, file
                     });
-                    if (result.publicUrl) urls.push(result.publicUrl);
+                    if (!result.publicUrl) throw new Error('No pudimos obtener el enlace del archivo.');
+                    urls.push(result.publicUrl);
+                    uploaded++;
                 } catch (err) {
+                    failed++;
                     console.error('[WeOtziUploader] gallery upload error', err);
                     showStatus('error', `Error en ${file.name}: ${err.message || err}`);
                 }
             }
             paint();
             emit();
-            showStatus('success', '¡Listo!');
+            if (!failed) showStatus('success', '¡Listo!');
+            else showStatus('error', uploaded
+                ? `${uploaded === 1 ? 'Se subió' : 'Se subieron'} ${uploaded} de ${files.length} archivos. ${failed === 1 ? 'Reintentá el archivo que no se pudo subir.' : `Reintentá los ${failed} archivos que no se pudieron subir.`}`
+                : 'No se pudo subir ningún archivo. Revisá la conexión y volvé a intentar.');
             fileInput.value = '';
         });
 

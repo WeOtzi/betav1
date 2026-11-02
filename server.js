@@ -2899,6 +2899,125 @@ app.post('/api/admin/studio-claims/:id/decide', async (req, res) => {
     return res.json({ success: true, result, email_sent: Boolean(email.sent), delivery_status: email.delivery_status || null });
 });
 
+// ============================================
+// BACKOFFICE - VERIFICACIONES DE ESTUDIOS
+// ============================================
+// Cola de studio_verification_requests (las abre el registro al coincidir con
+// otro estudio o el dueño con request_studio_verification). La decisión pasa
+// por decide_studio_verification con el JWT del caller (exige
+// is_support_user()). Lógica compartida con el flujo del dueño en
+// services/studio-verification.js.
+const studioVerification = require('./services/studio-verification');
+
+// Aviso best-effort al dueño del estudio (email de auth.users, nunca studios.email).
+async function _notifyStudioVerificationDecision(req, requestId) {
+    const request = await StudiosRepo.getVerificationRequestWithStudio(requestId);
+    if (!request || !['approved', 'rejected'].includes(request.status)) return { sent: false, delivery_status: 'skipped' };
+    const owner = await StudiosRepo.getStudioOwnerContact(request.studio_id);
+    if (!owner || !owner.email) return { sent: false, delivery_status: 'no_recipient' };
+
+    const base = applicationBase(req);
+    const studioName = _notifyText(request.studios?.name || owner.studio_name, 120) || 'tu estudio';
+    const approved = request.status === 'approved';
+    const note = _notifyText(request.decision_note, 300);
+    const ctaUrl = `${base}/studio/dashboard#verificacion`;
+    const result = await _sendStudioPlatformEmail({
+        eventId: 'studio_verification_decision',
+        recipient: owner,
+        fromName: 'We Ötzi',
+        subject: approved ? 'Tu estudio está verificado' : `No pudimos verificar ${studioName}`,
+        bodyText: approved
+            ? `${_notifyGreeting(owner.name)}Revisamos la información de ${studioName} y ya figura como estudio verificado en We Ötzi.\n\n`
+                + `Podés ver el estado de la verificación en ${ctaUrl}.`
+            : `${_notifyGreeting(owner.name)}Revisamos la información de ${studioName} y por ahora no pudimos verificarlo.${note ? ` Motivo: ${note}.` : ''}\n\n`
+                + `Podés mandarnos más información desde ${ctaUrl}.`,
+        ctaUrl,
+        meta: { verification_request_id: request.id, studio_id: request.studio_id, status: request.status },
+        idempotencyKey: `studio_verification_decision:${request.id}:${request.status}`
+    });
+    return { sent: Boolean(result && result.ok), delivery_status: result && result.delivery_status };
+}
+
+/**
+ * GET /api/admin/studio-verifications?status=pending|approved|rejected|all
+ * Solicitudes con su estudio, los estudios con los que coincidió y el email
+ * del dueño (auth.users). Sin la migración: {requests: [], migration_pending}.
+ */
+app.get('/api/admin/studio-verifications', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    const status = studioVerification.parseAdminStatus(req.query && req.query.status);
+    if (!status) {
+        return res.status(400).json({ success: false, error: 'status invalido (esperado: pending | approved | rejected | all)' });
+    }
+    try {
+        const requests = await StudiosRepo.listVerificationRequests({ status });
+        return res.json({ success: true, requests });
+    } catch (err) {
+        if (isMissingSchemaError(err) || studioVerification.isMissingSchemaError(err)) {
+            return res.json({ success: true, requests: [], migration_pending: true });
+        }
+        console.error('[Admin API] studio-verifications list failed:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudieron cargar las verificaciones.' });
+    }
+});
+
+/**
+ * POST /api/admin/studio-verifications/:id/decide
+ * Body: { decision: 'approve' | 'reject', note?, confirm_instagram?: boolean }
+ * decide_studio_verification con el JWT del caller (debe ser soporte). Con
+ * confirm_instagram al aprobar, también valida el Instagram del estudio.
+ */
+app.post('/api/admin/studio-verifications/:id/decide', async (req, res) => {
+    const auth = await _verifyBackofficeOrSupport(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+
+    const input = studioVerification.parseDecisionInput(req.params, req.body);
+    if (!input.ok) return res.status(input.status).json({ success: false, error: input.error });
+    const { id, decision, note, confirmInstagram } = input;
+
+    let result;
+    try {
+        result = await StudiosRepo.decideVerificationAsCaller(id, decision, note, bearerToken(req));
+    } catch (err) {
+        return _respondRpcFailure(res, err, 'decide_studio_verification');
+    }
+
+    let instagram = null;
+    if (confirmInstagram) {
+        try {
+            let studioId = result && result.studio_id;
+            if (!studioId) {
+                const request = await StudiosRepo.getVerificationRequestWithStudio(id);
+                studioId = request && request.studio_id;
+            }
+            instagram = await studioVerification.confirmInstagramBySupport({ studioId, verifiedBy: auth.userId || null });
+        } catch (igErr) {
+            console.warn('[Admin API] studio verification: Instagram not confirmed:', igErr.message);
+            instagram = { confirmed: false, reason: 'failed' };
+        }
+    }
+
+    let email = { sent: false, delivery_status: 'skipped' };
+    try {
+        email = await _notifyStudioVerificationDecision(req, id);
+    } catch (notifyErr) {
+        console.warn('[Admin API] studio verification decision email not sent:', notifyErr.message);
+        email = { sent: false, delivery_status: 'failed' };
+    }
+
+    console.log(`[Admin API] Studio verification ${id} decided (${decision}${confirmInstagram ? ', +instagram' : ''}) by ${auth.role} ${auth.email || auth.userId}`);
+    return res.json({
+        success: true,
+        result,
+        instagram_confirmed: Boolean(instagram && instagram.confirmed),
+        instagram_handle: (instagram && instagram.handle) || null,
+        email_sent: Boolean(email.sent),
+        delivery_status: email.delivery_status || null
+    });
+});
+
 /**
  * GET /api/admin/supply-vendors
  * Vendors Supplies (los más nuevos primero).
@@ -7018,6 +7137,20 @@ app.post('/api/instagram-verification/inbound', igVerification.handleInbound);
 app.get('/api/support/instagram-verifications', igVerification.listForSupport);
 app.post('/api/support/instagram-verifications/:id/confirm', igVerification.confirmForSupport);
 app.post('/api/support/instagram-verifications/:id/reject', igVerification.rejectForSupport);
+
+// Studio Instagram + verification state (studio owner). Same WO-XXXXXX flow;
+// the DM webhook above falls back to studio codes when no artist code matches.
+// Logic lives in services/studio-verification.js.
+const studioIgVerifyLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Esperá un rato y probá de nuevo.' }
+});
+igVerification.setStudioInboundHandler(studioVerification.handleInboundCodes);
+app.get('/api/studio/verification', studioVerification.getStudioVerification);
+app.post('/api/studio/verification/instagram', studioIgVerifyLimiter, studioVerification.requestInstagramCode);
 
 // ============================================
 // EMAIL ROUTING (BillionMail / n8n / dual / off)

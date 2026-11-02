@@ -315,6 +315,43 @@
                 return query.order('created_at', { ascending: false }).limit(1).maybeSingle();
             }, null);
         },
+
+        // --- coincidencias y verificación (20261102120000_studio_verification) ---
+
+        // Estudios que coinciden con un nombre (exact | similar) o con la misma
+        // cuenta de Instagram (instagram). Cada fila trae owned, verified y las
+        // sedes activas (para avisar si la dirección también coincide). Sin la
+        // migración devuelve [] con `unavailable: true`.
+        findMatches(name, instagram) {
+            const text = String(name == null ? '' : name).trim();
+            const handle = String(instagram == null ? '' : instagram).trim();
+            if (text.length < 2 && !handle) return Promise.resolve({ data: [], error: null });
+            return soft(async () => {
+                const result = await rpc('find_studio_matches', { p_name: text.length >= 2 ? text : null, p_instagram: handle || null });
+                return result && !result.error && !Array.isArray(result.data) ? { ...result, data: [] } : result;
+            }, []);
+        },
+
+        // El dueño pide la verificación (o completa la que abrió el registro).
+        requestVerification(studioId, { evidence, contactName, contactPhone, links } = {}) {
+            return rpc('request_studio_verification', {
+                p_studio_id: studioId,
+                p_evidence: evidence,
+                p_contact_name: contactName || null,
+                p_contact_phone: contactPhone || null,
+                p_links: Array.isArray(links) ? links : [],
+            });
+        },
+
+        // Última solicitud de verificación del estudio (RLS: dueño o soporte).
+        getLatestVerificationRequest(studioId) {
+            return soft(() => from('studio_verification_requests')
+                .select('id, studio_id, status, reasons, evidence, contact_name, contact_phone, links, created_at, decided_at, decision_note')
+                .eq('studio_id', studioId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(), null);
+        },
     };
 
     // ===================== studio_locations =====================

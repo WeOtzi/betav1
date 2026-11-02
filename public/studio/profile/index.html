@@ -31,6 +31,10 @@
         .studio-profile-spot .studio-role-pill { justify-self: start; }
         .studio-profile-store:empty { display: none; }
     </style>
+    <style>
+        /* Sello de estudio verificado (revisión Estudios v1). */
+        .studio-verified-seal{display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:4px 10px;border:2px solid currentColor;font:700 12px/1 var(--font-technical, monospace);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle;white-space:nowrap}
+    </style>
 </head>
 <body data-theme="light">
     <div class="studio-page">
@@ -123,6 +127,7 @@
     <script src="/shared/js/store-model.js"></script>
     <script src="/shared/js/data/store-repo.js"></script>
     <script src="/shared/js/studio-admin-kit.js"></script>
+    <script src="/shared/js/gallery-visibility.js"></script>
     <script src="/shared/js/studio-profile.js"></script>
 </body>
 </html>

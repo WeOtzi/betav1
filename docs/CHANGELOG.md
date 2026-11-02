@@ -28,7 +28,27 @@
 - Revisión: guard de borrado de membresías (solo invitaciones pendientes), rechazo directo de postulaciones cancela sus contratos abiertos, costos unitarios de inventario con 6 decimales (packs), vendors sin lectura anónima ni autoreactivación, roles de chat de soporte compatibles con el CHECK vivo, email de postulación aceptada según el flujo real (contrato o roster directo).
 - Móvil: las pestañas del panel del estudio envuelven agrupadas con su título, en lugar de una fila con scroll que ocultaba casi todas.
 - Runbook para aplicar las migraciones (orden, validación previa, verificación y rollback): `docs/plans/2026-10-31-estudios-aplicar-migraciones.md`.
+- Revisión "Estudios v1" (2026-11-02):
+  - Registro: advertencia de estudio existente o parecido con iniciar sesión, reclamar, cambiar el nombre, registrar una sede o seguir con verificación adicional y sin compartir dirección; calendario de años e idiomas con selección múltiple; aviso de Instagram ya vinculado y de verificación en el import; dropdown de direcciones opaco y pin arrastrable con la dirección de Google Maps; vista previa del perfil editable en el paso 5.
+  - Verificación de estudios: estado y pedido desde el panel (pestaña Verificación), código de Instagram por DM a @weotzi, cola de soporte en el backoffice con aprobación/rechazo y email, sello en el perfil público y fotos de Instagram ocultas hasta validar la cuenta.
+  - Base de datos: migraciones 20261102120000 (verificación y coincidencias), 20261102130000 (coincidencias con fichas sin dueño para visitas anónimas) y 20261102140000 (misma calle y número), APLICADAS en `flbgmlvfiejfttlawnfu` el 2026-11-02 después de validarlas con BEGIN…ROLLBACK; rollbacks en `supabase/rollbacks/`.
+  - Merge de main 2.2.3/2.2.4 (registro, acceso y panel del DS): los módulos de la plataforma se suman a las pestañas y al menú del DS; "Inicio" pasa a vivir debajo de Resumen (#inicio redirige).
+  - Google Maps se carga una sola vez en el registro (dos <script> rompían el loader del mapa).
 - Rollback: revertir los commits de la entrega. Las migraciones no están aplicadas; si se aplican, usar supabase/rollbacks/20261030204000…200000 en orden inverso.
+## [2.2.4] - 2026-11-01
+
+- Unificar el acceso y todo el panel de Estudios con los componentes visuales del artista
+- Login y recuperación reutilizan composición, fuentes, SVG y controles del artista. Las doce secciones del panel y sus cinco áreas operativas usan el DS compartido, con menú móvil y resumen de datos del estudio. Uploaders DS con estados de error y éxito coherentes.
+- Se separan IDs de Sponsors/Spots, se conserva el guardado de facturas con labels accesibles y se actualizan estadísticas desde todos los destinos de navegación. Iconos Feather locales sólo en las superficies de Estudios; comportamiento por defecto de otros consumidores conservado.
+- Validación: npm test 421/421; npm run check:release aprobado. Chromium verificó doce secciones y editores a 1440/768/390 px, menú y teclado, estados vacío/error, persistencia local de perfil/proveedor/factura y actualización de métricas tras registrar trabajo. OTP y cargas completas/parciales/fallidas se comprobaron con dobles aislados. Revisión visual independiente y evidencia en docs/auditoria-valentina/estudios-diseno.md. Auth, emails, Storage y RLS reales no se acreditan con estas fixtures.
+- Rollback: git revert en una rama y nuevo PR, o controlador privado hacia la release anterior 2.2.3 (54b43a5db4d667c69ceaca208a24515ad3ee009d). No incluye migraciones ni modifica Auth/RLS; conservar cuentas, archivos y datos al revertir código.
+
+
+## [2.2.3] - 2026-10-31
+
+- Registro de Estudios en cinco pasos y acceso desde Inicio
+- Validación: 417/417 pruebas de la composición aislada; node --check server.js y check:release aprobados. Chromium comprobó Inicio y registro completo con datos ficticios a 1440/768/390 px, persistencia, validaciones y reintentos; esquema remoto leído sin datos personales. Email y Storage reales requieren cuenta de prueba del propietario. Evidencia en docs/auditoria-valentina/registro-estudios.md y campos en docs/CAMPOS-ESTUDIOS.md.
+- Rollback: git revert en rama y nuevo PR, o recuperar la release 65de880 mediante el controlador documentado; no se modificó la base de datos. No borrar cuentas, archivos ni datos al revertir código.
 
 
 ## [2.2.2] - 2026-10-06

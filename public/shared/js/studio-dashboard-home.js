@@ -23,7 +23,7 @@
 (function () {
     'use strict';
 
-    const TAB = 'inicio';
+    const TAB = 'resumen'; // antes 'inicio': ahora vive debajo del resumen del DS
     const TAB_PATTERN = /^[a-z]+$/;
     const SOON_DAYS = 3;                 // "por vencer": 3 días o menos
     const EXPIRED_WINDOW_DAYS = 30;      // contratos vencidos que todavía se muestran

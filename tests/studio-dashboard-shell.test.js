@@ -97,28 +97,28 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 // ---------------------------------------------------------------
 // Markup
 // ---------------------------------------------------------------
-test('la sidebar agrupa las pestañas con las etiquetas del contrato e Inicio por defecto', () => {
-    const sidebar = html.match(/<aside class="studio-dash-sidebar"[\s\S]*?<\/aside>/)[0];
-    const groups = [...sidebar.matchAll(/<div class="sk-sidebar-group">\s*<p class="sk-sidebar-group-title">([^<]+)<\/p>([\s\S]*?)<\/div>/g)]
-        .map(m => ({ title: m[1], tabs: [...m[2].matchAll(/data-tab="([a-z]+)"[^>]*>\s*<span class="dot"><\/span>\s*([^<]+?)\s*<\/a>/g)].map(t => [t[1], t[2]]) }));
-    assert.deepEqual(groups, [
-        { title: 'Estudio', tabs: [['inicio', 'Inicio'], ['perfil', 'Perfil'], ['sedes', 'Sedes'], ['cuenta', 'Cuenta']] },
-        { title: 'Equipo', tabs: [['roster', 'Roster'], ['solicitudes', 'Solicitudes'], ['spots', 'Spots'], ['contratos', 'Contratos'], ['agenda', 'Agenda'], ['travel', 'Travel']] },
-        { title: 'Operación', tabs: [['ops', 'Operaciones'], ['inventory', 'Inventario'], ['reposicion', 'Reposición'], ['suppliers', 'Proveedores'], ['sponsors', 'Sponsors']] },
-        { title: 'Negocio', tabs: [['tienda', 'Tienda'], ['finanzas', 'Finanzas'], ['analytics', 'Reportes']] }
+test('las pestañas del DS listan los módulos del estudio y Resumen abre por defecto', () => {
+    const strip = html.match(/<nav class="studio-dash-tabs wo-tabs"[\s\S]*?<\/nav>/)[0];
+    const tabs = [...strip.matchAll(/data-tab="([a-z]+)">([^<]+)<\/a>/g)].map(m => [m[1], m[2]]);
+    assert.deepEqual(tabs, [
+        ['resumen', 'Resumen'], ['perfil', 'Perfil'], ['verificacion', 'Verificación'], ['sedes', 'Sedes'], ['roster', 'Equipo'], ['solicitudes', 'Solicitudes'],
+        ['spots', 'Spots'], ['contratos', 'Contratos'], ['agenda', 'Agenda'], ['travel', 'Visitas'], ['ops', 'Operaciones'],
+        ['inventory', 'Inventario'], ['reposicion', 'Reposición'], ['suppliers', 'Proveedores'], ['sponsors', 'Sponsors'],
+        ['tienda', 'Tienda'], ['finanzas', 'Finanzas'], ['analytics', 'Reportes'], ['cuenta', 'Cuenta']
     ]);
-    const active = [...sidebar.matchAll(/class="studio-dash-tab is-active" data-tab="([a-z]+)"/g)].map(m => m[1]);
-    assert.deepEqual(active, ['inicio']);
+    const active = [...strip.matchAll(/class="studio-dash-tab wo-tab is-active" href="#([a-z]+)"/g)].map(m => m[1]);
+    assert.deepEqual(active, ['resumen']);
     const activePanels = [...html.matchAll(/class="studio-dash-panel is-active" data-panel="([a-z]+)"/g)].map(m => m[1]);
-    assert.deepEqual(activePanels, ['inicio']);
-    assert.doesNotMatch(sidebar, /Analytics/);
+    assert.deepEqual(activePanels, ['resumen']);
+    assert.match(source, /const DEFAULT_TAB = 'resumen';/);
+    assert.match(source, /TAB_ALIASES = \{ inicio: 'resumen' \}/, '#inicio de enlaces viejos sigue funcionando');
 });
 
 test('cada pestaña tiene panel y los paneles de módulos traen [data-module-root]', () => {
     const tabs = [...html.matchAll(/class="studio-dash-tab[^"]*" data-tab="([a-z]+)"/g)].map(m => m[1]);
-    const panels = new Map([...html.matchAll(/<section class="studio-dash-panel[^"]*" data-panel="([a-z]+)">([\s\S]*?)<\/section>/g)].map(m => [m[1], m[2]]));
+    const panels = new Map([...html.matchAll(/<section class="studio-dash-panel[^"]*" data-panel="([a-z]+)"[^>]*>([\s\S]*?)<\/section>/g)].map(m => [m[1], m[2]]));
     tabs.forEach(tab => assert.ok(panels.has(tab), 'falta el panel ' + tab));
-    for (const tab of ['inicio', 'solicitudes', 'contratos', 'agenda', 'reposicion', 'tienda', 'finanzas']) {
+    for (const tab of ['resumen', 'solicitudes', 'contratos', 'agenda', 'reposicion', 'tienda', 'finanzas']) {
         assert.match(panels.get(tab), /<div data-module-root\b/, tab + ' sin data-module-root');
     }
     // Materiales y reportes extendidos son el primer root de su panel.
@@ -132,7 +132,7 @@ test('cada pestaña tiene panel y los paneles de módulos traen [data-module-roo
     assert.match(panels.get('spots'), /revisá y emití el contrato para sumarlo al roster/);
 });
 
-test('scripts en el orden clásico del contrato y CSS de módulos después de studio.css', () => {
+test('scripts en el orden clásico del contrato y CSS de módulos después del DS del panel', () => {
     const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1].replace(/^\/shared\/js\//, ''));
     const order = [
         'data/studios-repo.js', 'data/studio-contracts-repo.js', 'data/studio-finance-repo.js', 'data/supplies-repo.js',
@@ -151,9 +151,9 @@ test('scripts en el orden clásico del contrato y CSS de módulos después de st
     assert.ok(!html.includes('type="module"'), 'scripts clásicos');
 
     const css = [...html.matchAll(/<link rel="stylesheet" href="\/shared\/css\/([^"]+)"/g)].map(m => m[1]);
-    const base = css.indexOf('studio.css');
+    const base = css.indexOf('studio-dashboard-ds.css');
     for (const file of ['studio-admin-kit.css', 'studio-contracts.css', 'studio-agenda.css', 'studio-finance.css', 'studio-restock.css']) {
-        assert.ok(css.indexOf(file) > base, file + ' debe ir después de studio.css');
+        assert.ok(css.indexOf(file) > base, file + ' debe ir después de studio-dashboard-ds.css');
     }
     assert.ok(css.indexOf('studio-admin-kit.css') < css.indexOf('studio-contracts.css'));
 });
@@ -174,28 +174,28 @@ test('WeOtziStudioAdmin existe de forma sincrónica con la API del contrato', ()
 
 test('register guarda en buffer y monta al resolver el contexto si la pestaña está activa', async () => {
     const { api } = shell();
-    const env = fakeEnv(['inicio', 'solicitudes']);
+    const env = fakeEnv(['resumen', 'solicitudes']);
     const admin = api.createAdminRegistry(env);
     const events = [];
-    admin.register('inicio', {
+    admin.register('resumen', {
         mount: async (root, ctx) => { events.push(['mount', root.tab, ctx.studioId]); },
         show: (root, ctx, params) => { events.push(['show', root.tab, JSON.stringify(params)]); }
     });
-    assert.equal(admin.activate('inicio'), true);
+    assert.equal(admin.activate('resumen'), true);
     await tick();
     assert.deepEqual(events, [], 'sin contexto no se monta');
     const ctx = { studioId: 's1', notify: async () => ({ ok: true }), refresh: async () => 'ok' };
     admin._setContext(ctx);
     await tick(); await tick();
-    assert.deepEqual(events, [['mount', 'inicio', 's1'], ['show', 'inicio', '{}']]);
-    assert.ok(env.log.some(entry => entry[0] === 'clear' && entry[1] === 'inicio'));
+    assert.deepEqual(events, [['mount', 'resumen', 's1'], ['show', 'resumen', '{}']]);
+    assert.ok(env.log.some(entry => entry[0] === 'clear' && entry[1] === 'resumen'));
     assert.equal(await admin.getContext(), ctx);
     assert.equal(await admin.refresh(), 'ok');
 });
 
 test('activate es idempotente por tab+params, monta una sola vez y llama show en cada visita', async () => {
     const { api } = shell();
-    const env = fakeEnv(['inicio', 'reposicion']);
+    const env = fakeEnv(['resumen', 'reposicion']);
     const admin = api.createAdminRegistry(env);
     let mounts = 0;
     const shows = [];
@@ -210,7 +210,7 @@ test('activate es idempotente por tab+params, monta una sola vez y llama show en
     await tick(); await tick();
     assert.deepEqual(shows, [null, 'o-1']);
     assert.deepEqual(env.log.filter(e => e[0] === 'hash'), [['hash', 'reposicion']]);
-    admin.activate('inicio');
+    admin.activate('resumen');
     admin.activate('reposicion');
     await tick(); await tick();
     assert.equal(mounts, 1);
@@ -221,7 +221,7 @@ test('activate es idempotente por tab+params, monta una sola vez y llama show en
 
 test('registro tardío monta en el momento y un mount fallido permite reintentar', async () => {
     const { api } = shell();
-    const env = fakeEnv(['inicio', 'contratos']);
+    const env = fakeEnv(['resumen', 'contratos']);
     const admin = api.createAdminRegistry(env);
     admin._setContext({ studioId: 's' });
     admin.activate('contratos');
@@ -313,7 +313,7 @@ function bootDocument(tabIds) {
     return { doc, tabs, roots, byId };
 }
 
-test('arranque: monta Inicio con el contexto, vence contratos antes del roster y pone badges', async () => {
+test('arranque: monta Resumen con el contexto, vence contratos antes del roster y pone badges', async () => {
     const order = [];
     const studio = { id: 'st', user_id: 'owner', name: 'Estudio <Sur>', slug: 'sur', email: 'sur@example.test' };
     const client = { auth: { getSession: async () => ({ data: { session: { user: { id: 'owner' }, access_token: 't' } } }) } };
@@ -330,23 +330,23 @@ test('arranque: monta Inicio con el contexto, vence contratos antes del roster y
             listForStudio: async () => ({ data: [{ status: 'sent' }], error: null })
         }
     };
-    const tabIds = ['inicio', 'perfil', 'roster', 'solicitudes', 'contratos', 'spots'];
+    const tabIds = ['resumen', 'perfil', 'roster', 'solicitudes', 'contratos', 'spots'];
     const { doc, tabs, roots } = bootDocument(tabIds);
     const auth = { ready: async () => client, getSupabase: () => client, getCurrent: () => studio, check: async () => studio, appUrl: p => p, logout() {} };
     const h = shell({ document: doc, data, window: { WeOtziStudioAuth: auth, WeOtziStudioKit: { marker: 'kit' } } });
     const mounted = [];
     // Los módulos se registran al cargar (antes de DOMContentLoaded).
-    h.window.WeOtziStudioAdmin.register('inicio', { mount: (root, ctx) => { mounted.push([root, ctx.studioId, ctx.userId, ctx.kit.marker, typeof ctx.navigate, typeof ctx.notify]); } });
+    h.window.WeOtziStudioAdmin.register('resumen', { mount: (root, ctx) => { mounted.push([root, ctx.studioId, ctx.userId, ctx.kit.marker, typeof ctx.navigate, typeof ctx.notify]); } });
     await doc.listeners.DOMContentLoaded[0]();
     for (let i = 0; i < 5; i++) await tick();
 
-    assert.deepEqual(mounted, [[roots.get('inicio'), 'st', 'owner', 'kit', 'function', 'function']]);
-    assert.ok(tabs.find(t => t.dataset.tab === 'inicio').attrs['aria-current'] === 'page', 'sin hash se activa inicio');
+    assert.deepEqual(mounted, [[roots.get('resumen'), 'st', 'owner', 'kit', 'function', 'function']]);
+    assert.ok(tabs.find(t => t.dataset.tab === 'resumen').attrs['aria-current'] === 'page', 'sin hash se activa resumen');
     assert.deepEqual(order, ['expire', 'roster'], 'expireOverdue corre antes de pintar el roster');
     assert.match(doc.getElementById('roster-content').innerHTML, /Se edita con una nueva versión del contrato/);
     assert.equal(tabs.find(t => t.dataset.tab === 'solicitudes').badge.textContent, '1');
     assert.equal(tabs.find(t => t.dataset.tab === 'contratos').badge.textContent, '1');
-    assert.match(doc.getElementById('studio-name-display').innerHTML, /Estudio &lt;Sur&gt;/);
+    assert.equal(doc.getElementById('studio-name-display').textContent, 'Estudio <Sur>', 'el nombre va como texto, sin HTML');
     // Click en una pestaña con módulo ausente marca el placeholder como no disponible.
     h.window.WeOtziStudioAdmin.activate('contratos');
     await tick();

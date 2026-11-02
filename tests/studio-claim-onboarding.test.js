@@ -357,51 +357,70 @@ test('claim screen escapes catalog data and keeps the beta prefix', () => {
 
 function registerHelpers() {
     const window = { WeotziData: {} };
-    const context = { window, document: { addEventListener() {} }, console: { error() {}, warn() {} }, URL, setTimeout, clearTimeout };
+    const context = { window, document: { addEventListener() {} }, location: { pathname: '/studio/register/', search: '' }, console: { error() {}, warn() {} }, URL, setTimeout, clearTimeout };
     vm.runInNewContext(kitSource, context);
     vm.runInNewContext(registerSource, context);
     return window.WeOtziStudioRegister;
 }
 
-test('catalog results escape data, drop unsafe logos and flag the same-name studio', () => {
+test('match cards escape data, drop unsafe logos and offer the claim only for unowned studios', () => {
     const reg = registerHelpers();
-    const rows = [
-        { id: 'a', name: 'Otro <b>estudio</b>', city: 'Córdoba', country: 'Argentina', logo_image: 'javascript:alert(1)' },
-        { id: 'b"x', name: 'Black Ínk', city: 'Rosario', country: null, logo_image: 'https://cdn.example.test/logo.png' }
-    ];
-    const sorted = reg.sortCatalogMatches(rows, 'black ink');
-    assert.deepEqual([...sorted].map(r => r.id), ['b"x', 'a']);
-    assert.equal(reg.findExactMatch(rows, '  BLACK   INK ').id, 'b"x');
-    assert.equal(reg.findExactMatch(rows, 'Black'), null);
-    const html = reg.renderCatalogResults(sorted, { query: 'black', matchName: 'Black Ink' });
-    assert.doesNotMatch(html, /javascript:/);
-    assert.doesNotMatch(html, /<b>estudio/);
-    assert.match(html, /Otro &lt;b&gt;estudio&lt;\/b&gt;/);
-    assert.match(html, /<img src="https:\/\/cdn\.example\.test\/logo\.png"/);
-    assert.match(html, /data-claim-studio="b&quot;x"/);
-    assert.match(html, />Es mi estudio</);
-    assert.equal((html.match(/is-match/g) || []).length, 1);
-    assert.match(html, /Mismo nombre que tu registro/);
-    assert.match(html, /Rosario<\/small>/);
-    assert.match(reg.renderCatalogResults([], { query: 'zz<' }), /No encontramos «zz&lt;» en el catálogo/);
-    assert.equal(reg.renderCatalogResults([], { query: 'z' }), '');
+    const unowned = reg.matchCardHtml({ id: 'b"x', name: 'Otro <b>estudio</b>', city: 'Rosario', country: 'Argentina', logo_image: 'javascript:alert(1)', owned: false, verified: false, match: 'similar', slug: 'otro', locations: [{ formatted_address: 'Calle <i>1</i>' }] });
+    assert.doesNotMatch(unowned, /javascript:/);
+    assert.doesNotMatch(unowned, /<b>estudio|<i>1/);
+    assert.match(unowned, /Otro &lt;b&gt;estudio&lt;\/b&gt;/);
+    assert.match(unowned, /data-match-action="claim" data-id="b&quot;x"/);
+    assert.match(unowned, />Nombre parecido</);
+    assert.match(unowned, />Ficha sin dueño</);
+    assert.match(unowned, /Calle &lt;i&gt;1&lt;\/i&gt;/);
+    const owned = reg.matchCardHtml({ id: 'o', name: 'Black Ink', owned: true, verified: true, match: 'exact', logo_image: 'https://cdn.example.test/logo.png', locations: [] });
+    assert.doesNotMatch(owned, /data-match-action="claim"/, 'un estudio con dueño no se reclama: se inicia sesión');
+    assert.match(owned, />Iniciar sesión</);
+    assert.match(owned, /data-match-action="branch"/);
+    assert.match(owned, />Mismo nombre</);
+    assert.match(owned, />Verificado</);
+    assert.match(owned, /<img src="https:\/\/cdn\.example\.test\/logo\.png"/);
 });
 
-test('the catalog search stays hidden while list_unowned_studios is unavailable', async () => {
+test('name and address rules mirror the SQL functions of the verification migration', () => {
     const reg = registerHelpers();
-    assert.equal(await reg.catalogAvailable(null), false);
-    assert.equal(await reg.catalogAvailable({}), false);
-    assert.equal(await reg.catalogAvailable({ listUnownedStudios: async () => ({ data: [], error: null, unavailable: true }) }), false);
-    assert.equal(await reg.catalogAvailable({ listUnownedStudios: async () => ({ data: null, error: { message: 'boom' } }) }), false);
-    assert.equal(await reg.catalogAvailable({ listUnownedStudios: async () => { throw new Error('offline'); } }), false);
-    assert.equal(await reg.catalogAvailable({ listUnownedStudios: async () => ({ data: [], error: null }) }), true);
+    assert.equal(reg.normName('  Estudio  Ñandú-Tattoo '), 'estudio nandu tattoo');
+    assert.deepEqual(JSON.parse(JSON.stringify(reg.nameTokens('Estudio Ñandú Tattoo'))), ['nandu']);
+    assert.equal(reg.nameMatchKind('Claroscuro', 'CLAROSCURO'), 'exact');
+    assert.equal(reg.nameMatchKind('Claroscuro', 'Claroscuro Tattoo Studio'), 'similar');
+    assert.equal(reg.nameMatchKind('Claroscuro', 'ClaroscuroBA'), 'similar');
+    assert.equal(reg.nameMatchKind('Sur Tattoo House', 'Sur Ink'), null);
+    assert.equal(reg.nameMatchKind('Bang Bang NYC', 'Bang Bang'), 'similar');
+    assert.equal(reg.streetKey('Gorriti 4800, Palermo, CABA'), 'gorriti 4800');
+    assert.equal(reg.streetKey('Palermo, CABA'), null);
+    const demo = { formatted_address: 'Gorriti 4800, Palermo, CABA, Argentina', city: 'Buenos Aires', latitude: -34.5889, longitude: -58.4306 };
+    assert.equal(reg.addressConflict({ formatted_address: 'Gorriti 4800, C1414 Cdad. Autónoma de Buenos Aires, Argentina', latitude: -34.5907952, longitude: -58.4292052 }, demo), true, 'misma calle y número a 250 m');
+    assert.equal(reg.addressConflict({ formatted_address: 'Gorriti 4800, Rosario', latitude: -32.95, longitude: -60.65 }, demo), false, 'misma calle en otra ciudad');
+    assert.equal(reg.addressConflict({ formatted_address: 'Otra 1', latitude: -34.58893, longitude: -58.4306 }, demo), true, 'a menos de 40 m');
+    assert.equal(reg.addressConflict({ formatted_address: 'Gorriti 4800, CABA', city: 'Buenos Aires', latitude: null, longitude: null }, demo), true, 'sin coordenadas: misma ciudad');
+    assert.equal(reg.addressConflict({ formatted_address: 'Gorriti 4801', latitude: -34.6, longitude: -58.43 }, demo), false);
+    const entries = [{ address: { formatted_address: 'Lejos 1', latitude: -31.4, longitude: -64.18 } }, { address: { formatted_address: 'Gorriti 4800', latitude: -34.5890, longitude: -58.4306 } }];
+    const conflict = reg.locationConflicts(entries, [{ name: 'Demo', locations: [demo] }]);
+    assert.equal(conflict.entry, entries[1]);
+    assert.equal(conflict.match.name, 'Demo');
+    assert.equal(reg.locationConflicts(entries.slice(0, 1), [{ name: 'Demo', locations: [demo] }]), null);
+});
 
-    // With the real repo: the probe goes through the RPC and a missing function hides the search.
-    const live = harness();
-    assert.equal(await reg.catalogAvailable(live.data.Studios), true);
-    assert.deepEqual({ ...live.rpcCalls('list_unowned_studios')[0][2] }, { p_query: 'we' });
-    const missing = harness({ rpc: { list_unowned_studios: { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } } } });
-    assert.equal(await reg.catalogAvailable(missing.data.Studios), false);
+test('findMatches goes through find_studio_matches and degrades without the migration', async () => {
+    const live = harness({ rpc: { find_studio_matches: { data: [{ id: 'm', name: 'Black Ink', match: 'exact', owned: false, locations: [] }], error: null } } });
+    const res = await live.data.Studios.findMatches('  Black Ink ', '@blackink');
+    assert.equal(res.data[0].id, 'm');
+    assert.deepEqual({ ...live.rpcCalls('find_studio_matches')[0][2] }, { p_name: 'Black Ink', p_instagram: '@blackink' });
+    const igOnly = harness({ rpc: { find_studio_matches: { data: [], error: null } } });
+    await igOnly.data.Studios.findMatches(null, '@x');
+    assert.deepEqual({ ...igOnly.rpcCalls('find_studio_matches')[0][2] }, { p_name: null, p_instagram: '@x' });
+    const nothing = harness();
+    assert.deepEqual(JSON.parse(JSON.stringify(await nothing.data.Studios.findMatches('x', ''))), { data: [], error: null });
+    assert.equal(nothing.rpcCalls('find_studio_matches').length, 0, 'sin nombre ni Instagram no se consulta');
+    const missing = harness({ rpc: { find_studio_matches: { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } } } });
+    const degraded = await missing.data.Studios.findMatches('Black Ink');
+    assert.equal(degraded.unavailable, true);
+    assert.equal(degraded.data.length, 0);
 });
 
 test('rejected claim notice on the register page names the studio and the motive', () => {
@@ -418,39 +437,44 @@ test('rejected claim notice on the register page names the studio and the motive
 
 /* ------------------------------------- markup ------------------------------------- */
 
-test('register page hides the catalog search until it is available and hosts the claim panel', () => {
+test('register page hosts the match warning, the claim panel and the new pickers', () => {
     const html = read('public/studio/register/index.html');
-    assert.match(html, /<div class="studio-location-row studio-claim-search" id="claim-search" hidden>/);
-    assert.match(html, /¿Tu estudio ya figura en We Ötzi\?/);
-    assert.match(html, /<input type="search" id="claim-query"[^>]*maxlength="80"/);
-    assert.match(html, /<section id="claim-panel"[^>]*hidden>/);
-    assert.match(html, /<textarea id="claim-evidence"[^>]*maxlength="1000"/);
-    assert.match(html, /<section class="studio-wizard" data-claim-hide>/);
-    assert.match(html, /<section id="studio-claim-screen" class="studio-card"[^>]*hidden><\/section>/);
-    // The claim panel sits outside the wizard steps, before the shared status and actions.
-    assert.ok(html.indexOf('id="wizard-body"') < html.indexOf('id="claim-panel"'));
-    assert.ok(html.indexOf('id="claim-panel"') < html.indexOf('id="wizard-status"'));
+    assert.match(html, /<section id="match-panel" class="sr-match"[^>]*hidden><\/section>/);
+    assert.match(html, /<section id="claim-panel" class="sr-claim"[^>]*hidden>/);
+    assert.match(html, /<textarea class="wo-input" id="claim-evidence"[^>]*maxlength="1000"/);
+    assert.match(html, /<form id="studio-register-form" novalidate aria-busy="true" data-claim-hide>/);
+    assert.match(html, /<section id="studio-claim-screen" class="sr-result sr-claim-screen" aria-live="polite" hidden><\/section>/);
+    // Año e idiomas: el input oculto sigue siendo la fuente del borrador.
+    assert.match(html, /<input type="hidden" id="reg-founded"><div id="founded-picker"><\/div>/);
+    assert.match(html, /<input type="hidden" id="reg-languages"><div id="languages-picker"><\/div>/);
+    assert.match(html, /<label id="reg-founded-label" for="reg-founded-trigger">/);
+    assert.match(html, /<div id="instagram-warning" class="sr-warning" role="alert" hidden><\/div>/);
+    assert.match(html, /<div id="profile-preview"><\/div>/);
+    // El reclamo vive dentro del paso 1, antes del estado y las acciones compartidas.
+    assert.ok(html.indexOf('id="match-panel"') < html.indexOf('id="claim-panel"'));
+    assert.ok(html.indexOf('id="claim-panel"') < html.indexOf('data-step="2"'));
     const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
     const at = file => scripts.indexOf('/shared/js/' + file);
-    assert.ok(at('data/studios-repo.js') >= 0 && at('studio-admin-kit.js') > at('data/studios-repo.js'));
-    assert.ok(at('studio-auth.js') > at('studio-admin-kit.js'));
-    assert.ok(at('studio-register.js') > at('studio-auth.js'));
+    assert.ok(at('data/studios-repo.js') >= 0 && at('studio-auth.js') > at('data/studios-repo.js'));
+    assert.ok(at('address-picker.js') >= 0 && at('studio-location-map.js') > at('address-picker.js'));
+    assert.ok(at('studio-register-pickers.js') > at('instagram-import.js'));
+    assert.ok(at('studio-register.js') > at('studio-register-pickers.js') && at('studio-register.js') > at('studio-location-map.js'));
 });
 
 test('login page lets studio-auth.js swap the form for the claim screen', () => {
     const html = read('public/studio/login/index.html');
-    assert.match(html, /<form id="studio-login-form" class="studio-form" novalidate data-claim-hide>/);
-    assert.match(html, /<form id="studio-recovery-form" class="studio-form" hidden data-claim-hide>/);
-    assert.match(html, /<div id="studio-claim-screen" aria-live="polite" hidden><\/div>/);
-    // The recovery code looks up the first kicker/h2: the claim screen must come after them.
-    assert.ok(html.indexOf('studio-claim-screen') > html.indexOf('class="studio-h2"'));
-    assert.match(html, /const studio = await window\.WeOtziStudioAuth\.login\(email, password\);\s*if \(!studio\) \{/);
+    const loginJs = read('public/shared/js/studio-login.js');
+    // El acceso del DS envuelve formularios y ayudas en una sola vista que se oculta entera.
+    assert.match(html, /<div class="wo-auth-view" data-claim-hide>/);
+    assert.match(html, /<div id="studio-claim-screen" class="wo-auth-view studio-claim-screen" aria-live="polite" hidden><\/div>/);
+    assert.ok(html.indexOf('studio-claim-screen') > html.indexOf('id="studio-login-form"'));
+    assert.match(loginJs, /const studio = await auth\.login\(email, password\);\s*if \(!studio\) \{/);
 });
 
 test('studio-register.js routes the catalog refusal and the claim through WeOtziStudioAuth', () => {
     assert.match(registerSource, /isClaimableError\?\.\(err\)/);
     assert.match(registerSource, /window\.WeOtziStudioAuth\.claim\(\{/);
-    assert.match(registerSource, /auth\.whenChecked\(\)/);
+    assert.match(registerSource, /WeOtziStudioAuth\.whenChecked\(\)/);
     assert.doesNotMatch(registerSource, /\.from\(|\/rest\/v1|_supabase\.from/, 'data access only through WeotziData repos');
     assert.doesNotMatch(authSource, /\.from\(|\/rest\/v1/, 'studio-auth.js uses the Studios repo');
 });

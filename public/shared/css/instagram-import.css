@@ -381,3 +381,11 @@ body.igi-open { overflow: hidden; }
     .igi-overlay, .igi-spinner { animation: none; }
     .ig-import-trigger, .igi-btn { transition: none; }
 }
+
+/* Avisos opcionales del paso 01 (registro de estudios: verificación y cuenta ya vinculada). */
+.igi-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; background: var(--yellow-100, #FFF3C4); color: var(--neutral-500, #1E1B16); font-size: 13px; line-height: 1.45; }
+.igi-notice .igi-ic { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+.igi-warning { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--system-error, #E42121); background: var(--error-bg, #FFF2EF); color: var(--red-700, #991E0D); font-size: 14px; line-height: 1.45; }
+.igi-warning p { display: flex; align-items: flex-start; gap: 8px; margin: 0; }
+.igi-warning p .igi-ic { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.igi-warning .igi-confirm { color: var(--neutral-500, #1E1B16); }
