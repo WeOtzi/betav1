@@ -33,7 +33,7 @@
                     <span class="wo-marks" aria-hidden="true"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>
                     <span class="wo-auth-brand-name">We Ötzi</span>
                 </a>
-                <div class="wo-auth-view">
+                <div class="wo-auth-view" data-claim-hide>
                     <h1 class="wo-auth-title" id="studio-login-title">Bienvenido de vuelta</h1>
                     <p class="wo-auth-copy" id="studio-login-copy">Ingresá para gestionar tu estudio.</p>
                     <form id="studio-login-form" class="wo-auth-form" novalidate>
@@ -98,6 +98,8 @@
                         <p class="wo-meta">¿Aún no tenés cuenta? <a href="/studio/register">Registrar tu estudio</a></p>
                     </div>
                 </div>
+                <!-- Reclamo en revisión / rechazado (lo completa studio-auth.js). -->
+                <div id="studio-claim-screen" class="wo-auth-view studio-claim-screen" aria-live="polite" hidden></div>
             </div>
         </main>
     </div>

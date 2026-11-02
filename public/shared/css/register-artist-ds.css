@@ -941,3 +941,373 @@ a.ra-continue:hover{color:var(--white);text-decoration:none}
 .ra-suggestion-chip{border:1px solid var(--border-strong);background:var(--surface-card);padding:var(--space-1) var(--space-3);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-heading);cursor:pointer;border-radius:0;transition:transform .12s ease,box-shadow .12s ease}
 .ra-suggestion-chip:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
 .ra-suggestion-chip:active{transform:translate(0,0);box-shadow:none}
+
+/* ============================================================================
+   Figma final del flujo de artista (oct 2026) · área acceso
+   801:1086 a 801:1098 + 2001:3897 (panel de estilos). Ajustes sobre lo
+   anterior y componentes nuevos del grupo 04 (Portfolio).
+   ========================================================================== */
+
+/* Topbar: marca en ink, nav con check en verde oscuro para grupos completos */
+.ra-topbar .wo-topbar-brand,
+.wo-app .ra-topbar a.wo-topbar-brand{color:var(--ink);font-size:18px;letter-spacing:0.04em}
+.ra-nav-item.is-done{color:var(--success-fg)}
+.ra-nav-item.is-done:hover{color:var(--system-success)}
+.ra-row-eyebrow{color:var(--success-fg);letter-spacing:0.05em;font-size:10px}
+.ra-row{border-bottom:0;border-top:1.6px solid var(--ink);padding:var(--space-4) 0 var(--space-5)}
+.ra-group[data-group="quien"] .ra-row{border-top-width:0}
+.ra-row-value{font-size:18px}
+.ra-edit{font-size:10px;letter-spacing:0.05em}
+.ra-panel{border-top:1.6px solid var(--ink);padding-top:33.6px}
+.ra-group[data-group="quien"] .ra-panel{border-top-width:0}
+.ra-eyebrow{font-weight:var(--weight-bold);letter-spacing:0.02em;color:var(--ink)}
+
+/* CONTINUAR compacto (33px) y deshabilitado gris del Figma */
+.ra-continue{min-height:33px;padding:0 21.6px;height:33px;gap:var(--space-2);border-width:var(--border-hairline);letter-spacing:0.08em}
+.ra-continue:disabled{background:var(--neutral-400);border-color:var(--neutral-400);color:var(--neutral-100);opacity:.6}
+.ra-continue--confirm{height:35px}
+
+/* Toggles de "¿Dónde mostrás tu trabajo?" (ink + mono 11) */
+.link-toggle{min-height:31.6px;padding:8.6px 13.6px;font-size:11px;letter-spacing:0.04em}
+.link-toggle.is-active{background:var(--ink);border-color:var(--ink);color:var(--white)}
+.link-toggles + .ra-fields{margin-top:var(--space-3)}
+
+/* ---------- 04 · Portfolio ---------- */
+.ra-portfolio{display:flex;flex-direction:column;align-items:flex-start;gap:7.3px;margin-top:var(--space-6);padding-top:31.6px;border-top:1.6px solid var(--ink)}
+.ra-portfolio [hidden]{display:none !important}
+.ra-portfolio-title{margin:0;font-family:var(--font-display);font-size:23px;line-height:1.2;color:var(--ink)}
+.ra-portfolio-lead{margin:0;max-width:520px;font-size:15px;line-height:22.5px;color:var(--text-muted)}
+.ra-portfolio-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4);width:100%;padding-top:14.7px}
+.ra-portfolio-choice{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:21.6px;background:transparent;border:var(--border-hairline) solid var(--ink);border-radius:var(--radius-none);text-align:left;cursor:pointer;transition:transform var(--duration-press),box-shadow var(--duration-press)}
+.ra-portfolio-choice:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.ra-portfolio-choice:active{transform:none;box-shadow:none}
+.ra-portfolio-choice:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.ra-portfolio-choice-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px}
+.ra-portfolio-choice-icon.is-instagram{background:var(--blue-400);color:var(--white)}
+.ra-portfolio-choice-icon.is-files{background:var(--yellow-300);color:var(--ink)}
+.ra-portfolio-choice-icon [data-wo-icon]{width:18px;height:18px;display:inline-flex}
+.ra-portfolio-choice-icon svg{width:100%;height:100%}
+.ra-portfolio-choice-kicker{padding-top:var(--space-2);font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted)}
+.ra-portfolio-choice-title{font-family:var(--font-display);font-size:19px;line-height:1.1;color:var(--ink)}
+.ra-portfolio-choice-hint{font-size:13px;line-height:1.25;color:var(--text-faint)}
+.ra-portfolio-error{margin:var(--space-2) 0 0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--status-error-fg)}
+
+/* Conectar Instagram (801:1092) */
+.ra-ig-connect{display:flex;flex-direction:column;align-items:stretch;gap:10px;box-sizing:border-box;width:100%;max-width:520px;margin-top:0;padding:36.3px 21.6px 21.6px;border:var(--border-hairline) solid var(--ink)}
+.ra-ig-connect-title,
+.ra-ig-connect-label{margin:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink)}
+.ra-ig-connect-label{padding-top:6px;color:var(--text-muted)}
+.ra-ig-connect-input{box-sizing:border-box;width:100%;height:52px;padding:0 17.6px;background:var(--surface-page);border:var(--border-hairline) solid var(--ink);border-radius:var(--radius-none);font-family:var(--font-body);font-size:var(--body-m-size);color:var(--text-body);outline:none}
+.ra-ig-connect-input::placeholder{color:color-mix(in srgb,var(--neutral-300) 70%,var(--neutral-400))}
+.ra-ig-connect-input:focus{border:var(--border-strong-width) solid var(--border-focus);padding:0 16.6px;background:var(--white)}
+.ra-ig-connect-status{margin:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted)}
+.ra-ig-connect-status[data-tone="error"]{color:var(--status-error-fg)}
+.ra-ig-connect-actions{display:flex;align-items:center;gap:18px;padding-top:var(--space-2)}
+.ra-ig-connect-go,
+.ra-ig-connect-cancel{display:inline-flex;align-items:center;gap:10px;height:43px;padding:0 20px;border:0;border-radius:var(--radius-none);font-family:var(--font-body);font-size:13px;font-weight:var(--weight-bold);letter-spacing:0.08em;text-transform:uppercase;color:var(--neutral-100);cursor:pointer;transition:transform var(--duration-press),box-shadow var(--duration-press)}
+.ra-ig-connect-go{background:var(--ink)}
+.ra-ig-connect-go [data-wo-icon]{width:15px;height:15px;display:inline-flex}
+.ra-ig-connect-go svg{width:100%;height:100%}
+.ra-ig-connect-cancel{margin-left:149px;width:111px;padding:0 20px 0 16px;background:var(--system-error)}
+.ra-ig-connect-go:hover,
+.ra-ig-connect-cancel:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.ra-ig-connect-go:focus-visible,
+.ra-ig-connect-cancel:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+
+/* Tus trabajos (801:1093) */
+.ra-portfolio.has-works{padding-top:65.6px}
+.ra-works{display:flex;flex-direction:column;gap:var(--space-1);width:100%;max-width:560px;padding-top:14.7px}
+.ra-works-head{display:flex;align-items:baseline;justify-content:space-between;margin:0}
+.ra-works-title{font-family:var(--font-display);font-size:18px;color:var(--ink)}
+.ra-works-count{font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint)}
+.ra-works-lead{margin:0;font-size:13px;line-height:1.25;color:var(--text-muted)}
+.ra-works-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,102.4px));gap:12px;padding-top:12px}
+.ra-work{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ra-work-media{position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--ink);border:var(--border-hairline) solid var(--ink)}
+.ra-work-media img,
+.ra-work-media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ra-work-media.is-broken{background:var(--surface-media)}
+.ra-work-remove{position:absolute;top:0;right:0;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;background:var(--red-300);border:0;border-left:1.6px solid var(--ink);border-bottom:1.6px solid var(--ink);color:var(--white);cursor:pointer}
+.ra-work-remove [data-wo-icon]{width:12px;height:12px;display:inline-flex}
+.ra-work-remove svg{width:100%;height:100%}
+.ra-work-remove:hover{background:var(--red-400)}
+.ra-work-remove:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.ra-work-name{margin:0;font-family:var(--font-mono);font-size:9px;line-height:1.33;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);overflow-wrap:anywhere}
+.ra-work-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-2);aspect-ratio:1/1;padding:0;background:transparent;border:var(--border-hairline) solid var(--ink);border-radius:var(--radius-none);font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink);cursor:pointer}
+.ra-work-add [data-wo-icon]{width:18px;height:18px;display:inline-flex}
+.ra-work-add svg{width:100%;height:100%}
+.ra-work-add:hover{background:var(--surface-input-hover)}
+.ra-works-clear{align-self:flex-start;margin-top:12px;padding:0;background:none;border:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);cursor:pointer}
+.ra-works-clear:hover{color:var(--status-error-fg);text-decoration:underline}
+
+/* ---------- 03 · Panel "Todos los estilos" (2001:3897) ---------- */
+body.ra-styles-open{overflow:hidden}
+.ra-styles-overlay{position:fixed;inset:0;z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:var(--space-8) var(--space-4);overflow-y:auto;background:color-mix(in srgb,var(--neutral-500) 55%,transparent)}
+.ra-styles-overlay[hidden]{display:none}
+.ra-styles-panel{position:relative;display:flex;flex-direction:column;width:100%;max-width:863px;max-height:calc(100vh - var(--space-16));background:var(--surface-page);border:var(--border-hairline) solid var(--neutral-500)}
+.ra-styles-head{display:flex;flex-direction:column;gap:18px;padding:24px 26px 21.6px;border-bottom:1.6px solid var(--neutral-500)}
+.ra-styles-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4)}
+.ra-styles-title{margin:0;font-family:var(--font-display);font-size:26px;line-height:28.6px;color:var(--ink)}
+.ra-styles-sub{margin:8px 0 0;font-size:14.5px;color:color-mix(in srgb,var(--neutral-500) 70%,var(--neutral-400))}
+.ra-styles-close{flex:none;width:38px;height:38px;padding:0;background:transparent;border:var(--border-hairline) solid var(--neutral-500);font-size:17px;line-height:1;color:var(--neutral-500);cursor:pointer}
+.ra-styles-close:hover{background:var(--surface-input-hover)}
+.ra-styles-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ra-styles-search{display:flex;align-items:center;flex:1 1 263px;min-width:0;height:49px;box-sizing:border-box;padding:0 var(--space-2) 0 13px;gap:var(--space-2);background:var(--white);border:var(--border-hairline) solid var(--neutral-500)}
+.ra-styles-search [data-wo-icon]{width:16px;height:16px;display:inline-flex;flex:none;color:var(--neutral-400)}
+.ra-styles-search svg{width:100%;height:100%}
+.ra-styles-search input{flex:1;min-width:0;height:100%;border:0;background:transparent;font-family:var(--font-body);font-size:15px;color:var(--text-body);outline:none}
+.ra-styles-search:focus-within{border:var(--border-strong-width) solid var(--border-focus);padding-left:12px}
+.ra-styles-count{display:inline-flex;align-items:center;gap:10px;margin:0;font-family:var(--font-mono);font-size:11.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--neutral-500)}
+.ra-styles-count-box{width:12.6px;height:12.6px;box-sizing:border-box;background:var(--yellow-300);border:var(--border-hairline) solid var(--neutral-500)}
+.ra-styles-clear{padding:1px 6px;background:none;border:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;text-decoration:underline;color:color-mix(in srgb,var(--neutral-400) 60%,var(--neutral-300));cursor:pointer}
+.ra-styles-clear:hover{color:var(--neutral-500)}
+.ra-styles-body{flex:1;min-height:0;overflow-y:auto;padding:0 43px 0 25px}
+.ra-styles-group{display:flex;flex-direction:column;gap:11px;padding:22px 0 22.8px;border-bottom:0.8px solid color-mix(in srgb,var(--neutral-200) 70%,var(--neutral-300))}
+.ra-styles-group:last-child{border-bottom:0}
+.ra-styles-group-title{margin:0;font-family:var(--font-mono);font-size:10.5px;font-weight:var(--weight-bold);letter-spacing:0.18em;text-transform:uppercase;color:color-mix(in srgb,var(--neutral-400) 60%,var(--neutral-300))}
+.ra-styles-main{display:flex;flex-wrap:wrap;gap:9px;padding-top:3px}
+.ra-styles-subs{display:flex;flex-wrap:wrap;gap:7.6px;padding-left:17.6px;border-left:1.6px solid color-mix(in srgb,var(--neutral-200) 70%,var(--neutral-300))}
+.ra-styles-chip{display:inline-flex;align-items:center;gap:var(--space-2);box-sizing:border-box;background:var(--surface-page);border:var(--border-hairline) solid var(--neutral-500);border-radius:var(--radius-none);font-family:var(--font-body);font-weight:var(--weight-medium);color:var(--ink);white-space:nowrap;cursor:pointer;transition:transform var(--duration-press),box-shadow var(--duration-press)}
+.ra-styles-chip--main{height:38px;padding:0 15.6px;font-size:13.5px}
+.ra-styles-chip--sub{height:33px;padding:0 12.8px;font-size:13px;border-color:color-mix(in srgb,var(--neutral-200) 40%,var(--neutral-300))}
+.ra-styles-chip:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.ra-styles-chip:active{transform:none;box-shadow:none}
+.ra-styles-chip:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.ra-styles-chip.is-selected{background:var(--yellow-300);border-color:var(--neutral-500);font-weight:var(--weight-bold)}
+.ra-styles-chip [data-wo-icon]{width:12px;height:12px;display:inline-flex}
+.ra-styles-chip svg{width:100%;height:100%}
+.ra-styles-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);min-height:64px;box-sizing:border-box;padding:var(--space-3) 26px;background:color-mix(in srgb,var(--neutral-100) 50%,var(--neutral-200));border-top:1.6px solid var(--neutral-500)}
+.ra-styles-foot-hint{margin:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb,var(--neutral-400) 60%,var(--neutral-300))}
+.ra-styles-foot-actions{display:flex;gap:10px}
+.ra-styles-cancel,
+.ra-styles-apply{height:46px;padding:0 21.6px;border:var(--border-hairline) solid var(--neutral-500);border-radius:var(--radius-none);font-family:var(--font-body);font-size:12.5px;font-weight:var(--weight-bold);letter-spacing:0.08em;text-transform:uppercase;color:var(--ink);cursor:pointer;transition:transform var(--duration-press),box-shadow var(--duration-press)}
+.ra-styles-cancel{background:transparent}
+.ra-styles-apply{padding:0 25.6px;background:var(--yellow-300)}
+.ra-styles-cancel:hover,
+.ra-styles-apply:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
+.ra-styles-apply:hover{background:var(--yellow-400)}
+
+@media (max-width:768px){
+  .ra-portfolio-choices{grid-template-columns:1fr}
+  .ra-ig-connect-cancel{margin-left:auto}
+  .ra-styles-overlay{padding:0}
+  .ra-styles-panel{max-height:100vh;height:100%;border:0}
+  .ra-styles-body{padding:0 var(--space-4)}
+  .ra-styles-head,.ra-styles-foot{padding-left:var(--space-4);padding-right:var(--space-4)}
+  .ra-styles-foot{flex-direction:column;align-items:stretch}
+  .ra-styles-foot-actions > button{flex:1}
+}
+@media (max-width:480px){
+  .ra-ig-connect-actions{flex-wrap:wrap}
+  .ra-ig-connect-go,.ra-ig-connect-cancel{flex:1 1 auto;justify-content:center;margin-left:0}
+  .ra-works-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+/* Chips elegidos con sombra dura (801:1088) */
+.style-option.selected,
+.experience-option.selected{font-weight:var(--weight-bold);box-shadow:3px 3px 0 var(--neutral-500)}
+
+/* Modalidad elegida en ink (801:1094 / 801:1095) */
+.work-type-option.selected{background:var(--ink);border-color:var(--ink)}
+
+/* Revisión (801:1097): filas compactas, términos sin links azules */
+.summary-row{grid-template-columns:132px minmax(0,1fr) auto;padding:11px 0;align-items:center}
+.summary-label{font-size:10px;letter-spacing:0.1em}
+.summary-value{font-size:15px;line-height:1.4}
+.terms-checkbox-wrapper{align-items:center;font-size:16px}
+.terms-link,
+.wo-app a.terms-link{color:inherit;text-decoration:none}
+.terms-link:hover{text-decoration:underline}
+
+/* Perfil creado (801:1098): bloque arriba, CTA blanco sobre ink */
+.success-step{min-height:0;justify-content:flex-start;padding:100px 0 var(--space-16);gap:var(--space-4)}
+.success-step .ra-success-title{font-size:var(--title-lg-size);line-height:1.15;letter-spacing:0}
+.success-step .ra-success-sub{font-size:16px;line-height:1.2;margin-top:var(--space-4)}
+.wo-app a.ra-continue,
+.wo-app a.ra-continue:visited{color:var(--white)}
+#ra-success-cta{height:43px;padding:0 21.6px}
+
+/* Panel de estilos: arranca debajo de la cabecera, como en el frame */
+.ra-styles-overlay{padding-top:min(206px,10vh)}
+.ra-styles-panel{max-height:calc(100vh - min(206px,10vh) - var(--space-8))}
+.ra-styles-search input:focus{outline:none;box-shadow:none;border:0;background:transparent}
+
+/* Feedback de contraseña solo mientras se escribe (02 · Tu acceso) */
+.password-strength[data-idle="true"],
+.password-match-hint[data-idle="true"]{display:none}
+
+/* Sugerencias de estudio en el flujo (801:1095): empujan el contenido y
+   muestran ~6 opciones antes de scrollear. */
+.studio-suggestions{position:relative;top:auto;max-height:372px}
+
+/* 02 · contraseñas: separación entre campos cuando el feedback está oculto */
+.ig-preauth-only > .ra-field + .ra-field{margin-top:var(--space-5)}
+
+/* ============================================================================
+   Correcciones de auditoría (ronda 1) · Figma final 801:1086–801:1098
+   ========================================================================== */
+
+/* Topbar (801:1086–801:1095): marca a 32px, figuras de 14px separadas 10px,
+   nav desde x≈218 (el frame varía entre 214 y 243); mono 10px, tracking 0.05em, gap 16px y el check
+   pegado al texto. */
+.ra-topbar .wo-topbar-brand,
+.wo-app .ra-topbar a.wo-topbar-brand{padding:0 7px 0 32px;gap:14px;letter-spacing:0.04em}
+.ra-topbar .wo-marks{gap:10px}
+.ra-topbar .wo-mark-triangle{border-left-width:6.4px;border-right-width:6.4px;border-bottom-width:13.6px}
+.ra-topbar{gap:var(--space-4)}
+.ra-nav{gap:var(--space-4)}
+.ra-nav-item{font-size:10px;letter-spacing:0.05em;gap:0}
+.ra-nav-item.is-done .ra-check{width:8px;margin-right:4px}
+
+/* Cabecera del registro: 16/24, ancho 525px (corta después de "Podés") */
+.ra-intro-eyebrow{margin-bottom:9.1px}
+.ra-intro-title{margin-bottom:9.1px}
+.ra-intro-lead{max-width:525px;padding-top:4.9px;font-size:16px;line-height:24px}
+.ra-intro-rule{margin-top:36px}
+
+/* Labels y campos: mono 12px, inputs de 47px (801:1086) */
+.ra-fields{gap:18px}
+.ra-label{font-size:12px;line-height:14.4px;letter-spacing:0.08em}
+.form-input,
+.ra-input,
+.currency-select,
+.studio-location-select{min-height:47px;height:47px;padding:0 17.6px;border-color:var(--neutral-500)}
+.form-input:focus,
+.ra-input:focus,
+.currency-select:focus,
+.studio-location-select:focus,
+.form-input.error,
+.ra-input.error{padding:0 16.6px}
+.currency-select,
+.studio-location-select{padding-right:var(--space-10)}
+
+/* Placeholder gris del Figma (gris 757575). No hay token gris neutro: se mezcla
+   --neutral-400 (75%) con --neutral-300, el par de tokens más cercano. */
+body.register-page{--ra-placeholder:color-mix(in srgb,var(--neutral-400) 75%,var(--neutral-300))}
+body.register-page .form-input::placeholder,
+body.register-page .ra-input::placeholder,
+body.register-page .ra-textarea::placeholder,
+body.register-page .ra-ig-connect-input::placeholder,
+body.register-page .ra-styles-search input::placeholder{color:var(--ra-placeholder);opacity:1}
+
+/* 03 · Tu oficio (801:1088): subtítulo pegado al título y 80px entre la
+   tarifa y CONTINUAR. */
+.ra-group[data-group="oficio"] .ra-title{margin-bottom:6px}
+.ra-group[data-group="oficio"] .ra-hint{margin-bottom:12px;font-size:14px}
+.ra-group[data-group="oficio"] .ra-actions{margin-top:80px}
+
+/* 05 · Cómo trabajás: TU DIRECCIÓN en Inter, como el valor del frame 801:1094 */
+.address-picker-wrapper #address_search,
+.address-picker-wrapper .weotzi-address-picker-input{font-family:var(--font-body);font-size:var(--body-m-size);letter-spacing:0}
+.address-picker-wrapper #address_search:focus{transform:none}
+
+/* 05 · Buscar estudio (801:1095): input de 560×52, lista sin scroll con hasta
+   5 estudios y "Crear «x»" al pie. */
+@media (min-width:769px){
+  .studio-name-wrapper{max-width:560px}
+}
+#studio_name{height:52px}
+.studio-suggestions{max-height:none;overflow:visible;padding:1.6px;border:var(--border-hairline) solid var(--ink);border-top:0;box-shadow:none}
+.studio-suggestions.is-open,
+.studio-suggestions.visible{box-shadow:3px 5px 0 var(--ink)}
+.studio-suggestion-item{padding:14px 16px 14.8px;border-bottom-color:var(--neutral-200)}
+.studio-suggestion-name{gap:12px;font-weight:var(--weight-bold);letter-spacing:0.08em}
+.studio-suggestion-address{margin-top:3px;padding-left:22px;font-size:13px;line-height:1.25}
+.studio-suggestion-new .studio-suggestion-name{gap:10px}
+.studio-suggestion-new .studio-suggestion-name::before{width:18px;height:18px;font-size:14px}
+
+/* 07 · Revisión (801:1097): filas de 12/12.8 con etiqueta de 140px */
+.summary-row{grid-template-columns:140px minmax(0,1fr) auto;padding:12px 0 12.8px;border-bottom:0.8px solid var(--sand-350)}
+.summary-label{letter-spacing:0.06em}
+.summary-value{font-size:14px;line-height:normal}
+.ra-continue--confirm{height:37px}
+
+/* CONTINUAR / IR A TU PANEL con flecha Feather de 18px */
+.ra-continue [data-wo-icon]{width:18px;height:18px}
+.ra-continue [data-wo-icon] svg{width:100%;height:100%}
+
+/* 08 · Perfil creado: CTA de 44px que nunca desborda (390px sin scroll lateral) */
+#ra-success-cta{box-sizing:border-box;height:44px;max-width:100%}
+
+/* Importador IG abierto: la topbar sticky no queda por encima del velo */
+body.igi-open .ra-topbar{z-index:0}
+
+/* Ritmo vertical de los grupos (801:1086 / 801:1097): título → campos 20px
+   y campos → CONTINUAR 22px (pt 11.2 + gap 10.8 del frame). */
+.ra-title{margin-bottom:20px}
+.ra-group[data-group="oficio"] .ra-title{margin-bottom:6px}
+.ra-actions{margin-top:22px}
+.ra-group[data-group="oficio"] .ra-actions{margin-top:80px}
+
+/* CONTINUAR deshabilitado: ink al 40% (801:1086). En el gate del estudio
+   (801:1095) el frame lo muestra arena al 70% junto al aviso mono 10px. */
+.ra-continue:disabled{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--neutral-100);opacity:.4}
+.ra-group[data-group="trabajo"] .ra-continue:disabled{background:var(--sand-350);border-color:var(--sand-350);opacity:.7}
+.ra-gate-hint{font-size:10px;letter-spacing:0.08em;color:var(--text-faint)}
+
+/* 08 · Perfil creado (801:1098): figuras de 18px, título 36px, gap 18px */
+.success-step{gap:18px}
+.ra-success-marks{gap:8px;margin-bottom:0}
+.ra-success-marks .wo-mark-square,
+.ra-success-marks .wo-mark-circle{width:18px;height:18px}
+.ra-success-marks .wo-mark-triangle{border-left-width:8.8px;border-right-width:8.8px;border-bottom-width:17.6px}
+.success-step .ra-success-title{font-size:36px;line-height:normal}
+.success-step .ra-success-sub{margin-top:0;line-height:normal}
+@media (max-width:600px){
+  .success-step .ra-success-title{font-size:var(--title-md-size)}
+}
+
+/* ============================================================================
+   Correcciones de auditoría (ronda 2) · Figma final 801:1094 / 1095 / 1097
+   ========================================================================== */
+
+/* 07 · Revisión (801:1097): etiqueta 140 + valor 581 + EDITAR 39 sin gap, el
+   valor arranca en x+140. En mobile vuelve el layout apilado (etiqueta arriba). */
+@media (min-width:769px){
+  .summary-row{grid-template-columns:140px minmax(0,1fr) auto;column-gap:0}
+}
+@media (max-width:768px){
+  .summary-row{grid-template-columns:minmax(0,1fr) auto;gap:var(--space-1) var(--space-4)}
+}
+
+/* 05 · Cómo trabajás (801:1094): tarjetas de 84.2px (18.6 + borde de 1px), sin
+   relleno, kicker mono 10 ink y valor 24px. La elegida va en ink sin sombra;
+   la sombra dura de 3px queda para hover (801:1095 muestra la tarjeta bajo
+   el puntero). No hay token de sombra de 3px: se usa --neutral-500 a mano. */
+.work-type-options{gap:14px;margin-bottom:0}
+.work-type-option{min-height:0;padding:18.6px;gap:6px;background:transparent;border:var(--border-hairline) solid var(--ink)}
+.work-type-kicker{font-size:10px;line-height:13px;letter-spacing:0.06em;color:var(--ink)}
+.work-type-label{font-size:24px;line-height:26px}
+.work-type-option:hover{transform:translate(-2px,-2px);box-shadow:3px 3px 0 var(--neutral-500)}
+.work-type-option:active{transform:none;box-shadow:none}
+.work-type-option.selected{box-shadow:none}
+.work-type-option.selected:hover{box-shadow:3px 3px 0 var(--neutral-500)}
+.work-type-option.selected .work-type-kicker{color:var(--white)}
+
+/* Etiqueta → campo: 8px (dirección, 801:1094) y 10px (estudio, 801:1095). */
+.address-picker-wrapper > .ra-label,
+.studio-location-select-wrapper > .ra-label{display:block;margin-bottom:8px}
+.studio-name-wrapper > .ra-label{display:block;margin-bottom:10px}
+
+/* TU DIRECCIÓN: borde de 1px --neutral-500 y sombra 3px 3px (el picker compartido le
+   ponía 2px + 4px 4px). Los campos "duros" no engrosan el borde al foco: el
+   Figma 801:1095 muestra el estudio mientras se escribe con 1px + sombra; el
+   foco se nota por la sombra (si está vacío) y el fondo blanco del DS. */
+.address-picker-wrapper #address_search{height:47.2px;min-height:47.2px;padding:0 17.6px;background:var(--surface-input);border:var(--border-hairline) solid var(--neutral-500);box-shadow:none}
+.address-picker-wrapper #address_search:focus{background:var(--white);border:var(--border-hairline) solid var(--neutral-500);padding:0 17.6px}
+.address-picker-wrapper #address_search.has-value,
+.address-picker-wrapper #address_search:focus{box-shadow:3px 3px 0 var(--neutral-500)}
+
+/* 05 · Buscar estudio (801:1095): input con borde ink de 1px y sombra 3px 3px,
+   lista sobre arena (--surface-input) y no sobre blanco. */
+#studio_name,
+#studio_name:focus{border:var(--border-hairline) solid var(--ink);padding:0 17.6px}
+#studio_name.has-value,
+#studio_name:focus{box-shadow:3px 3px 0 var(--neutral-500)}
+.studio-suggestions{background:var(--surface-input)}
+
+/* CONTINUAR deshabilitado del gate (801:1095 · 422:3069): 160×46, padding
+   15/22, texto 13px, flecha de 16px separada 12px; aviso a 20px del botón. */
+.ra-group[data-group="trabajo"] .ra-actions{column-gap:20px}
+.ra-group[data-group="trabajo"] .ra-continue:disabled{height:46px;min-height:46px;padding:0 22px;gap:12px;font-size:13px;letter-spacing:0.08em}
+.ra-group[data-group="trabajo"] .ra-continue:disabled [data-wo-icon]{width:16px;height:16px}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Supplies — Panel</title>
+    <meta name="description" content="Panel de Supplies en We Ötzi: pedidos de estudios, catálogo, beneficios, clientes y reportes.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link rel="stylesheet" href="/shared/css/studio-admin-kit.css">
+    <link rel="stylesheet" href="/shared/css/supplies.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page supplies-page supplies-dashboard">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn" aria-label="Inicio"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Supplies · Panel</span>
+                <span class="studio-masthead-wordmark" id="vendor-name-display">Mi <span class="accent">tienda</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="#cuenta" id="vendor-status-link"><span id="vendor-status-label">Cuenta</span></a>
+                <button type="button" id="logout-btn">Salir</button>
+            </nav>
+        </header>
+
+        <div class="studio-dash-shell">
+            <aside class="studio-dash-sidebar" aria-label="Navegación del panel de Supplies">
+                <div class="sk-sidebar-group">
+                    <p class="sk-sidebar-group-title">Ventas</p>
+                    <a href="#inicio" class="studio-dash-tab is-active" data-tab="inicio" aria-current="page"><span class="dot"></span> Inicio</a>
+                    <a href="#pedidos" class="studio-dash-tab" data-tab="pedidos"><span class="dot"></span> Pedidos</a>
+                </div>
+                <div class="sk-sidebar-group">
+                    <p class="sk-sidebar-group-title">Tienda</p>
+                    <a href="#catalogo" class="studio-dash-tab" data-tab="catalogo"><span class="dot"></span> Catálogo</a>
+                    <a href="#beneficios" class="studio-dash-tab" data-tab="beneficios"><span class="dot"></span> Beneficios</a>
+                </div>
+                <div class="sk-sidebar-group">
+                    <p class="sk-sidebar-group-title">Negocio</p>
+                    <a href="#clientes" class="studio-dash-tab" data-tab="clientes"><span class="dot"></span> Clientes</a>
+                    <a href="#reportes" class="studio-dash-tab" data-tab="reportes"><span class="dot"></span> Reportes</a>
+                </div>
+                <div class="sk-sidebar-group">
+                    <p class="sk-sidebar-group-title">Cuenta</p>
+                    <a href="#perfil" class="studio-dash-tab" data-tab="perfil"><span class="dot"></span> Perfil</a>
+                    <a href="#cuenta" class="studio-dash-tab" data-tab="cuenta"><span class="dot"></span> Cuenta</a>
+                </div>
+            </aside>
+
+            <main class="studio-dash-main">
+                <div id="dashboard-status" class="studio-status studio-status-info" role="status" hidden></div>
+
+                <!-- ============ Inicio ============ -->
+                <section class="studio-dash-panel is-active" data-panel="inicio">
+                    <p class="studio-section-kicker">Inicio</p>
+                    <h1 class="studio-h1">Lo que <span class="accent">tenés pendiente</span></h1>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Pedidos ============ -->
+                <section class="studio-dash-panel" data-panel="pedidos">
+                    <p class="studio-section-kicker">Pedidos</p>
+                    <h1 class="studio-h1">Pedidos de <span class="accent">estudios</span></h1>
+                    <p class="studio-help sp-panel-intro">Confirmá, despachá y seguí cada pedido. Cada cambio le avisa al estudio por email.</p>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Catálogo ============ -->
+                <section class="studio-dash-panel" data-panel="catalogo">
+                    <p class="studio-section-kicker">Catálogo</p>
+                    <h1 class="studio-h1">Tus <span class="accent">productos</span></h1>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Beneficios ============ -->
+                <section class="studio-dash-panel" data-panel="beneficios">
+                    <p class="studio-section-kicker">Beneficios</p>
+                    <h1 class="studio-h1">Descuentos <span class="accent">&amp; condiciones</span></h1>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Clientes ============ -->
+                <section class="studio-dash-panel" data-panel="clientes">
+                    <p class="studio-section-kicker">Clientes</p>
+                    <h1 class="studio-h1">Estudios que <span class="accent">te compran</span></h1>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Reportes ============ -->
+                <section class="studio-dash-panel" data-panel="reportes">
+                    <p class="studio-section-kicker">Reportes</p>
+                    <h1 class="studio-h1">Ventas <span class="accent">&amp; productos</span></h1>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Perfil ============ -->
+                <section class="studio-dash-panel" data-panel="perfil">
+                    <p class="studio-section-kicker">Perfil</p>
+                    <h1 class="studio-h1">Tu <span class="accent">tienda</span></h1>
+                    <div data-module-root aria-live="polite"><p class="studio-help" data-module-loading>Cargando…</p></div>
+                </section>
+
+                <!-- ============ Cuenta ============ -->
+                <section class="studio-dash-panel" data-panel="cuenta">
+                    <p class="studio-section-kicker">Cuenta</p>
+                    <h1 class="studio-h1">Acceso y <span class="accent">contraseña</span></h1>
+                    <div class="sp-account-status" id="account-state" data-module-root aria-live="polite"></div>
+                    <p class="studio-help">Correo de acceso: <strong id="account-email">—</strong></p>
+                    <p class="studio-help">Para cambiar el correo de acceso escribinos a soporte.</p>
+                    <form id="account-password-form" class="studio-form sp-account-form">
+                        <div class="studio-field">
+                            <label class="studio-label" for="account-password">Nueva contraseña</label>
+                            <input class="studio-input" id="account-password" type="password" autocomplete="new-password" minlength="8" required>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="account-password-confirm">Repetí la contraseña</label>
+                            <input class="studio-input" id="account-password-confirm" type="password" autocomplete="new-password" minlength="8" required>
+                        </div>
+                        <button type="submit" class="studio-btn studio-btn-primary">Actualizar contraseña</button>
+                        <div id="account-status" class="studio-status studio-status-info" role="status" hidden></div>
+                    </form>
+                    <div class="sp-account-logout">
+                        <button type="button" class="studio-btn studio-btn-ghost" id="account-logout-btn">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar sesión
+                        </button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/supplies-repo.js"></script>
+    <script src="/shared/js/studio-admin-kit.js"></script>
+    <script src="/shared/js/weotzi-uploader.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/supplies-auth.js"></script>
+    <script src="/shared/js/supplies-dashboard.js"></script>
+</body>
+</html>

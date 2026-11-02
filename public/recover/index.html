@@ -27,22 +27,23 @@
 
 <div class="rc-split">
 
+    <!-- Figma final (oct 2026): 801:1104 → 801:1105 → 801:1106 → 801:1107
+         "Recuperar acceso - 01..04" (compartida artista + cliente). -->
     <aside class="rc-poster" aria-hidden="true">
-        <div class="rc-poster-frame">
-            <span class="wo-marks">
-                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
-            </span>
-            <p class="rc-poster-title">
-                <span class="line">Recuperá</span>
-                <span class="line"><span class="hl-blue">Tu</span> <span class="hl-yellow">acceso</span></span>
-            </p>
-        </div>
+        <span class="wo-marks rc-poster-marks">
+            <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+        </span>
+        <p class="rc-poster-title">
+            <span class="line">Recuperá</span>
+            <span class="line"><span class="hl-blue">Tu</span> <span class="hl-yellow">acceso</span></span>
+        </p>
+        <span class="rc-poster-triangle"></span>
     </aside>
 
     <main class="rc-panel" id="recover-content" tabindex="-1">
         <div class="rc-panel-inner">
 
-            <a class="rc-brand" href="/inicio" aria-label="We Ötzi — ir al inicio">
+            <a class="rc-brand" href="/bienvenida" aria-label="We Ötzi — ir al inicio">
                 <span class="wo-marks">
                     <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
                 </span>
@@ -51,14 +52,18 @@
 
             <ol class="rc-steps" id="rc-steps" aria-label="Pasos de recuperación">
                 <li class="rc-step is-active" data-step="1"><span class="box">1</span><span class="lbl">Email</span></li>
+                <li class="rc-step-line" aria-hidden="true"></li>
                 <li class="rc-step" data-step="2"><span class="box">2</span><span class="lbl">Código</span></li>
+                <li class="rc-step-line" aria-hidden="true"></li>
                 <li class="rc-step" data-step="3"><span class="box">3</span><span class="lbl">Contraseña</span></li>
             </ol>
 
             <!-- Paso 1 · Email -->
             <section id="rc-view-email" class="rc-view" aria-labelledby="rc-email-title">
-                <h1 class="rc-title" id="rc-email-title">¿Olvidaste tu contraseña?</h1>
-                <p class="rc-copy">Ingresá tu email y, si existe una cuenta, te mandamos un código para restablecer tu contraseña.</p>
+                <div class="rc-head">
+                    <h1 class="rc-title" id="rc-email-title">¿Olvidaste tu contraseña?</h1>
+                    <p class="rc-copy">Ingresá tu email y te mandamos un código para restablecer tu contraseña.</p>
+                </div>
 
                 <form id="rc-email-form" class="rc-form" novalidate>
                     <div class="wo-field">
@@ -83,8 +88,10 @@
 
             <!-- Paso 2 · Código -->
             <section id="rc-view-code" class="rc-view" aria-labelledby="rc-code-title" hidden>
-                <h1 class="rc-title" id="rc-code-title">Verificá tu código</h1>
-                <p class="rc-copy">Si existe una cuenta con <strong id="rc-code-email"></strong>, te enviamos un código de 6 dígitos.</p>
+                <div class="rc-head">
+                    <h1 class="rc-title" id="rc-code-title">Verificá tu código</h1>
+                    <p class="rc-copy">Te enviamos un código de 6 dígitos a<br><strong id="rc-code-email"></strong>.</p>
+                </div>
 
                 <form id="rc-code-form" class="rc-form" novalidate>
                     <div class="rc-otp" id="rc-otp" role="group" aria-label="Código de 6 dígitos">
@@ -116,8 +123,10 @@
 
             <!-- Paso 3 · Nueva contraseña -->
             <section id="rc-view-password" class="rc-view" aria-labelledby="rc-password-title" hidden>
-                <h1 class="rc-title" id="rc-password-title">Creá una nueva contraseña</h1>
-                <p class="rc-copy">Tiene que ser distinta a las que ya usaste.</p>
+                <div class="rc-head">
+                    <h1 class="rc-title" id="rc-password-title">Creá una nueva contraseña</h1>
+                    <p class="rc-copy">Tiene que ser distinta a las que ya usaste.</p>
+                </div>
 
                 <form id="rc-password-form" class="rc-form" novalidate>
                     <div class="wo-field">
@@ -167,10 +176,12 @@
             <!-- Paso 4 · Éxito -->
             <section id="rc-view-success" class="rc-view rc-success" aria-labelledby="rc-success-title" hidden>
                 <div class="rc-success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
-                <h1 class="rc-title" id="rc-success-title">Contraseña actualizada</h1>
-                <p class="rc-copy">Ya podés usar tu cuenta con tu nueva contraseña.</p>
+                <div class="rc-head">
+                    <h1 class="rc-title" id="rc-success-title">¡Contraseña actualizada!</h1>
+                    <p class="rc-copy">Ya podés iniciar sesión con tu nueva contraseña.</p>
+                </div>
                 <button type="button" class="wo-btn wo-btn--block wo-btn--hard" id="rc-success-cta">
-                    <span class="btn-text">Ir a tu panel</span>
+                    <span class="btn-text">Iniciar sesión</span>
                     <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                 </button>
             </section>

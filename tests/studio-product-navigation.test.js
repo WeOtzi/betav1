@@ -34,7 +34,7 @@ function load() {
     return { registry, document };
 }
 
-test('studio product navigation exposes only real studio tabs on desktop and all twelve on mobile', () => {
+test('studio product navigation exposes only real studio tabs on desktop and every studio module on mobile', () => {
     const { registry } = load();
     const nav = new (registry.get('weotzi-product-nav'))();
     nav.setAttribute('context', 'studio');
@@ -43,13 +43,14 @@ test('studio product navigation exposes only real studio tabs on desktop and all
     const mobile = /<nav id="studio-mobile-menu"[\s\S]*?<\/nav>/.exec(html)[0];
     const destinations = fragment => Array.from(fragment.matchAll(/data-tab="([^"]+)"/g), match => match[1]);
     assert.deepEqual(destinations(desktop), ['resumen', 'spots', 'ops', 'inventory', 'analytics']);
-    assert.deepEqual(destinations(mobile), ['resumen', 'perfil', 'sedes', 'roster', 'spots', 'travel', 'ops', 'inventory', 'suppliers', 'sponsors', 'analytics', 'cuenta']);
+    assert.deepEqual(destinations(mobile), ['resumen', 'perfil', 'verificacion', 'sedes', 'roster', 'solicitudes', 'spots', 'contratos', 'agenda', 'travel', 'ops', 'inventory', 'reposicion', 'suppliers', 'sponsors', 'tienda', 'finanzas', 'analytics', 'cuenta']);
     assert.match(html, /id="logout-btn"/);
     assert.match(html, /href="#cuenta" data-tab="cuenta"/);
     assert.match(desktop, /data-tab="resumen" aria-current="page"/);
     assert.match(mobile, />EQUIPO<\/a>/);
     assert.match(mobile, />VISITAS<\/a>/);
-    assert.doesNotMatch(html, /\/artist\/|INBOX|FINAN/);
+    assert.doesNotMatch(html, /\/artist\/|INBOX/);
+    assert.match(mobile, /href="#finanzas" data-tab="finanzas"/, 'Finanzas del estudio es una pestaña propia, no la del artista');
     nav.setAttribute('active', 'cuenta');
     assert.match(nav.template(), /href="#cuenta" data-tab="cuenta" aria-label="Centro de la cuenta del estudio" aria-current="page"/);
 });

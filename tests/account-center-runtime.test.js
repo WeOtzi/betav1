@@ -7,24 +7,27 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('account center covers the nine Figma states and uses mobile-first reflow', () => {
+test('account center covers the eight Figma final sections and uses mobile-first reflow', () => {
   const html = read('public/artist/account/index.html');
   const css = read('public/shared/css/artist-account-ds.css');
+  const walletCss = read('public/shared/css/wallet-account.css');
   const js = read('public/shared/js/artist-account.js');
 
-  for (const section of ['perfil', 'portafolio', 'cobros', 'disponibilidad', 'notificaciones', 'seguridad', 'integraciones', 'verificacion', 'configuracion']) {
+  for (const section of ['perfil', 'portafolio', 'cobros', 'disponibilidad', 'notificaciones', 'seguridad', 'verificacion', 'configuracion']) {
     assert.match(html, new RegExp(`id="aac-${section}"`));
   }
+  // Integraciones no está en el Figma final (oct 2026): Google Calendar vive en Disponibilidad.
+  assert.doesNotMatch(html, /id="aac-integraciones"/);
+  assert.match(html, /data-integration-row="google_calendar"/);
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1\.0">/);
-  assert.doesNotMatch(css, /@media\s*\(max-width/);
+  for (const sheet of [css, walletCss]) assert.doesNotMatch(sheet, /@media\s*\(max-width/);
   assert.match(css, /@media \(min-width:48rem\)/);
   assert.match(css, /@media \(min-width:64rem\)/);
   assert.match(css, /grid-template-columns:17rem minmax\(0,1fr\)/);
-  assert.match(css, /font-size:clamp\(2rem,10vw,var\(--title-lg-size\)\)/);
+  assert.match(css, /font-size:clamp\(1\.625rem,7vw,var\(--title-md-size\)\)/);
   assert.match(css, /repeat\(3,3\.625rem\)/);
   assert.match(js, /NOTIF_EVENTS[\s\S]*'mensajes'[\s\S]*true, true, false/);
   assert.match(html, /<span class="aac-matrix-col">SMS<\/span>/);
-  assert.match(html, /data-integration-row="instagram"/);
 });
 
 test('security surface uses Supabase MFA, visible sessions and an auditable deletion request', () => {
@@ -47,7 +50,8 @@ test('payment and document flows never collect raw card data and clean private s
   const repo = read('public/shared/js/data/account-repo.js');
 
   assert.doesNotMatch(html, /CVV|CVC|número completo de tarjeta"\s+id=/i);
-  assert.match(html, /Referencia tokenizada del proveedor/);
+  // Destinos de retiro (Wallet): cuentas de destino, nunca datos de tarjeta.
+  assert.match(html, /Nunca ingreses datos de tarjeta/);
   assert.match(repo, /metadata de tarjeta no permitida/);
   assert.match(repo, /provider_reference/);
   assert.match(js, /VerificationDocs\.replace/);

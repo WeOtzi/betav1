@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Supplies — Registrar tu tienda</title>
+    <meta name="description" content="Registrá tu tienda de insumos en We Ötzi: catálogo para estudios, pedidos de reposición y beneficios.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="/shared/css/styles.css">
+    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link rel="stylesheet" href="/shared/css/studio-admin-kit.css">
+    <link rel="stylesheet" href="/shared/css/supplies.css">
+</head>
+<body data-theme="light">
+    <div class="studio-page supplies-page">
+        <header class="studio-masthead">
+            <a href="/" class="nav-btn" aria-label="Inicio"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="studio-masthead-title">
+                <span class="studio-masthead-eyebrow">Supplies · Registro</span>
+                <span class="studio-masthead-wordmark">Sumá tu <span class="accent">tienda</span></span>
+            </div>
+            <nav class="studio-masthead-actions">
+                <a href="/supplies/login">Ya tengo cuenta</a>
+            </nav>
+        </header>
+
+        <main class="studio-center">
+            <section class="studio-wizard">
+                <p class="studio-section-kicker">Registro de Supplies</p>
+                <h2 class="studio-h2">Tu tienda de insumos en 3 pasos</h2>
+                <p class="studio-help sp-wizard-intro">
+                    Los estudios de We Ötzi te compran insumos desde su panel de reposición, con el descuento
+                    We Ötzi y los beneficios que definas. Los pagos se coordinan por fuera de la plataforma.
+                </p>
+
+                <ol class="studio-wizard-rail" id="wizard-rail">
+                    <li class="studio-wizard-pill is-active" data-step="1">1 · Cuenta</li>
+                    <li class="studio-wizard-pill" data-step="2">2 · Negocio</li>
+                    <li class="studio-wizard-pill" data-step="3">3 · Comercial</li>
+                </ol>
+
+                <!-- ============ Paso 1: Cuenta ============ -->
+                <section class="studio-wizard-step is-active" data-step="1">
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-email">Email de acceso</label>
+                        <input type="email" id="reg-email" class="studio-input" placeholder="ventas@tutienda.com" autocomplete="email" required>
+                        <span class="studio-help">Lo usás para entrar y para recibir los avisos de pedidos de los estudios.</span>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-password">Contraseña</label>
+                        <input type="password" id="reg-password" class="studio-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-password-confirm">Repetí la contraseña</label>
+                        <input type="password" id="reg-password-confirm" class="studio-input" autocomplete="new-password" minlength="8" required>
+                    </div>
+                </section>
+
+                <!-- ============ Paso 2: Negocio ============ -->
+                <section class="studio-wizard-step" data-step="2">
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-name">Nombre de la tienda</label>
+                        <input type="text" id="reg-name" class="studio-input" placeholder="Ej. Tinta Sur Insumos" maxlength="160" required>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-description">Descripción</label>
+                        <textarea id="reg-description" class="studio-textarea" maxlength="2000" placeholder="Qué vendés, marcas que trabajás, zonas a las que llegás…"></textarea>
+                    </div>
+                    <div class="sk-grid-2">
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-country">País</label>
+                            <input type="text" id="reg-country" class="studio-input" maxlength="120" placeholder="Argentina" autocomplete="country-name">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-city">Ciudad</label>
+                            <input type="text" id="reg-city" class="studio-input" maxlength="120" placeholder="Buenos Aires" autocomplete="address-level2">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-phone">Teléfono</label>
+                            <input type="tel" id="reg-phone" class="studio-input" maxlength="40" placeholder="+54 11 1234 5678" autocomplete="tel">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-whatsapp">WhatsApp</label>
+                            <input type="tel" id="reg-whatsapp" class="studio-input" maxlength="40" placeholder="+54 9 11 1234 5678">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-contact-email">Email de contacto</label>
+                            <input type="email" id="reg-contact-email" class="studio-input" maxlength="254" placeholder="hola@tutienda.com">
+                            <span class="studio-help">Lo ven los estudios. Puede ser distinto del de acceso.</span>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-instagram">Instagram</label>
+                            <input type="text" id="reg-instagram" class="studio-input" maxlength="120" placeholder="@tutienda">
+                        </div>
+                    </div>
+                    <div class="studio-field">
+                        <label class="studio-label" for="reg-website">Sitio web</label>
+                        <input type="url" id="reg-website" class="studio-input" placeholder="https://tutienda.com">
+                    </div>
+                    <details class="sp-details">
+                        <summary>Datos fiscales (opcional)</summary>
+                        <p class="studio-help">Solo los ve el equipo de We Ötzi. Podés completarlos después desde Perfil.</p>
+                        <div class="sk-grid-2">
+                            <div class="studio-field">
+                                <label class="studio-label" for="reg-legal-name">Razón social</label>
+                                <input type="text" id="reg-legal-name" class="studio-input" maxlength="200">
+                            </div>
+                            <div class="studio-field">
+                                <label class="studio-label" for="reg-tax-id">CUIT / identificación fiscal</label>
+                                <input type="text" id="reg-tax-id" class="studio-input" maxlength="60">
+                            </div>
+                            <div class="studio-field">
+                                <label class="studio-label" for="reg-fiscal-address">Domicilio fiscal</label>
+                                <input type="text" id="reg-fiscal-address" class="studio-input" maxlength="500">
+                            </div>
+                            <div class="studio-field">
+                                <label class="studio-label" for="reg-billing-email">Email de facturación</label>
+                                <input type="email" id="reg-billing-email" class="studio-input" maxlength="254">
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- ============ Paso 3: Comercial ============ -->
+                <section class="studio-wizard-step" data-step="3">
+                    <div class="sk-grid-2">
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-currency">Moneda de tus precios</label>
+                            <select id="reg-currency" class="studio-input"></select>
+                            <span class="studio-help">Todo tu catálogo y tus pedidos van en esta moneda.</span>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-discount">Descuento We Ötzi (%)</label>
+                            <input type="number" id="reg-discount" class="studio-input" min="0" max="60" step="0.5" value="10" inputmode="decimal">
+                            <span class="studio-help">Se aplica a todos los pedidos de estudios de We Ötzi. Máximo 60%.</span>
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-min-order">Compra mínima</label>
+                            <input type="number" id="reg-min-order" class="studio-input" min="0" step="0.01" inputmode="decimal" placeholder="Sin mínimo">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-free-shipping">Envío gratis desde</label>
+                            <input type="number" id="reg-free-shipping" class="studio-input" min="0" step="0.01" inputmode="decimal" placeholder="Sin envío gratis">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-lead-time">Plazo de entrega (días)</label>
+                            <input type="number" id="reg-lead-time" class="studio-input" min="0" max="365" step="1" inputmode="numeric" placeholder="Ej. 3">
+                        </div>
+                        <div class="studio-field">
+                            <label class="studio-label" for="reg-ships-to">Países a los que enviás</label>
+                            <input type="text" id="reg-ships-to" class="studio-input" placeholder="AR, UY" autocomplete="off">
+                            <span class="studio-help">Códigos de 2 letras separados por coma. Vacío: enviás a todos lados.</span>
+                        </div>
+                    </div>
+                    <div class="studio-field">
+                        <span class="studio-label" id="reg-benefits-label">Beneficios para estudios</span>
+                        <div id="reg-benefits" aria-labelledby="reg-benefits-label"></div>
+                        <span class="studio-help">Hasta 10, por ejemplo "Envío en 24 h en CABA" o "Muestras gratis de tintas nuevas".</span>
+                    </div>
+                    <div class="sp-review-note" role="note">
+                        <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                        <p>Tu cuenta queda en revisión hasta que el equipo de We Ötzi la verifique. Mientras tanto podés cargar tu catálogo: los estudios lo ven cuando te aprobamos.</p>
+                    </div>
+                    <div id="confirm-summary" class="studio-meta-grid"></div>
+                </section>
+
+                <div id="wizard-status" class="studio-status studio-status-info" role="status" aria-live="polite" hidden></div>
+
+                <div class="studio-wizard-actions">
+                    <button type="button" id="wizard-prev" class="studio-btn studio-btn-ghost" disabled>
+                        <i class="fa-solid fa-arrow-left"></i> Atrás
+                    </button>
+                    <button type="button" id="wizard-next" class="studio-btn studio-btn-primary">
+                        Continuar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/supplies-repo.js"></script>
+    <script src="/shared/js/studio-admin-kit.js"></script>
+    <script src="/shared/js/support-loader.js" defer></script>
+    <script src="/shared/js/supplies-auth.js"></script>
+    <script src="/shared/js/supplies-register.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+/* Vitrina de la Tienda en el perfil público del estudio (studio-profile.js →
+   renderStudioStore). Tokens de .studio-page; radio 0, sombra dura en hover. */
+.studio-store-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.studio-store-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border: var(--studio-rule, 2px) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.studio-store-card:hover,
+.studio-store-card:focus-visible {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--studio-shadow-sm, 4px 4px 0 var(--fg));
+}
+
+.studio-store-card img,
+.studio-store-card__ph {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    background: var(--surface-color, #ece8df);
+}
+
+.studio-store-card strong {
+    font-family: var(--studio-display);
+    font-size: 15px;
+    line-height: 1.2;
+}
+
+.studio-store-card span {
+    font-family: var(--studio-mono);
+    font-size: 13px;
+}

@@ -1,0 +1,17 @@
+/* Verificación del estudio (studio-dashboard-verification.js). Tokens del DS del panel. */
+.sv-root{display:grid;gap:28px}
+.sv-block{display:grid;gap:14px}
+.sv-block .studio-h2{margin:0}
+.sv-status{display:grid;gap:10px;padding:18px;border:1px solid var(--neutral-500,#1E1B16);background:var(--surface-card,#fff)}
+.sv-status p{margin:0;line-height:1.5}
+.sv-status--verified{background:var(--success-bg,#EAF6EC)}
+.sv-status--rejected{background:var(--error-bg,#FFF2EF)}
+.sv-reasons{margin:0;padding-left:18px;line-height:1.5}
+.sv-note{padding-top:10px;border-top:1px solid var(--neutral-200,#E3DDD1)}
+.sv-alert{padding:16px 18px;border:1px solid var(--neutral-500,#1E1B16);background:var(--yellow-100,#FFF3C4);line-height:1.5}
+.sv-alert p{margin:6px 0 0}
+.sv-steps{display:grid;gap:10px;padding:16px 18px;background:var(--sand-050,#EFEBE1)}
+.sv-steps p,.sv-steps ol{margin:0}
+.sv-steps ol{padding-left:20px;line-height:1.6}
+.sv-steps .wo-btn{justify-self:start}
+.sv-form .studio-actions{margin-top:16px}

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/onboarding.css">
     <link rel="stylesheet" href="/shared/css/studio-register-ds.css">
+    <link rel="stylesheet" href="/shared/css/studio-register-revision.css">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -18,23 +19,38 @@
 <body class="wo-app studio-registration" data-theme="light">
     <weotzi-onboarding-header></weotzi-onboarding-header>
     <main class="sr-main" id="registration-main">
-        <p class="sr-eyebrow"><span class="sr-desktop-context">Registro completo en cinco pasos / Estudios</span><span class="sr-mobile-context">Registro del estudio</span></p>
-        <header class="sr-intro">
+        <p class="sr-eyebrow" data-claim-hide><span class="sr-desktop-context">Registro completo en cinco pasos / Estudios</span><span class="sr-mobile-context">Registro del estudio</span></p>
+        <header class="sr-intro" data-claim-hide>
             <h1 id="step-title" tabindex="-1">Cuenta · Paso 1 de 5</h1>
             <p>Registro del estudio</p>
         </header>
-        <div class="sr-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-        <p class="sr-mobile-help" id="mobile-help">Este email será tu acceso y el canal para las notificaciones del estudio.</p>
+        <div class="sr-progress" aria-hidden="true" data-claim-hide><i></i><i></i><i></i><i></i><i></i></div>
+        <p class="sr-mobile-help" id="mobile-help" data-claim-hide>Este email será tu acceso y el canal para las notificaciones del estudio.</p>
         <div id="wizard-status" class="sr-status" role="status" aria-live="polite" tabindex="-1" hidden></div>
-        <form id="studio-register-form" novalidate aria-busy="true">
+        <form id="studio-register-form" novalidate aria-busy="true" data-claim-hide>
             <section class="sr-step" data-step="1" aria-labelledby="account-title">
                 <h2 id="account-title">Datos de acceso</h2>
-                <div class="sr-grid">
+                <div class="sr-grid" id="account-fields">
                     <div class="studio-field"><label for="reg-name">Nombre del estudio</label><input class="wo-input" id="reg-name" name="studio-name" placeholder="Estudio Horizonte" autocomplete="organization" minlength="2" maxlength="160" required></div>
                     <div class="studio-field"><label for="reg-email">Email del estudio</label><input class="wo-input" type="email" id="reg-email" name="email" placeholder="hola@tustudio.com" autocomplete="email" maxlength="254" required></div>
                     <div class="studio-field"><label for="reg-password">Contraseña</label><input class="wo-input" type="password" id="reg-password" name="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" minlength="8" required></div>
                     <div class="studio-field"><label for="reg-password-confirm">Repetí la contraseña</label><input class="wo-input" type="password" id="reg-password-confirm" name="password-confirm" autocomplete="new-password" minlength="8" required></div>
                 </div>
+                <!-- Coincidencias con estudios ya registrados (find_studio_matches). -->
+                <section id="match-panel" class="sr-match" aria-labelledby="match-title" hidden></section>
+                <!-- Reclamo de una ficha del catálogo sin dueño. -->
+                <section id="claim-panel" class="sr-claim" aria-labelledby="claim-panel-title" hidden>
+                    <p class="sr-kicker">Reclamo de estudio</p>
+                    <h3 id="claim-panel-title" tabindex="-1">Es mi estudio</h3>
+                    <div id="claim-selected"></div>
+                    <p class="sr-help">Soporte de We Ötzi revisa cada reclamo antes de darte acceso al panel. Te avisamos por email.</p>
+                    <div class="sr-grid">
+                        <div class="studio-field sr-full"><label for="claim-evidence">¿Cómo verificamos que es tuyo?</label><textarea class="wo-input" id="claim-evidence" rows="4" maxlength="1000" placeholder="Ej. Soy la dueña. Podés confirmarlo en el Instagram del estudio o con la habilitación municipal."></textarea><span class="sr-help">Tu rol en el estudio y dónde podemos confirmarlo. Hasta 1000 caracteres.</span></div>
+                        <div class="studio-field"><label for="claim-contact-name">Nombre de contacto</label><input class="wo-input" id="claim-contact-name" maxlength="160" autocomplete="name"></div>
+                        <div class="studio-field"><label for="claim-contact-phone">Teléfono de contacto</label><input class="wo-input" type="tel" id="claim-contact-phone" maxlength="40" autocomplete="tel" placeholder="+54 11 1234 5678"></div>
+                    </div>
+                    <p class="sr-help" id="claim-account-note"></p>
+                </section>
             </section>
             <section class="sr-step" data-step="2" aria-labelledby="identity-title" hidden>
                 <aside class="sr-notice"><strong>Paso 2 de 5 · Identidad</strong><p>Contá qué hace especial a tu estudio. Los campos de identidad son opcionales y podés completarlos después.</p></aside>
@@ -42,15 +58,18 @@
                 <div class="sr-grid">
                     <div class="studio-field sr-full"><label for="reg-tagline">Tagline (frase corta)</label><input class="wo-input" id="reg-tagline" maxlength="120" placeholder="Un espacio para el arte que llevás con vos"></div>
                     <div class="studio-field sr-full"><label for="reg-bio">Descripción / bio</label><textarea class="wo-input" id="reg-bio" maxlength="2000" rows="4" placeholder="Contanos sobre tu estudio"></textarea></div>
-                    <div class="studio-field"><label for="reg-founded">Año de fundación</label><input class="wo-input" type="number" id="reg-founded" min="1900" step="1" placeholder="2018"></div>
-                    <div class="studio-field"><label for="reg-languages">Idiomas</label><input class="wo-input" id="reg-languages" maxlength="200" placeholder="Español, Inglés"></div>
-                    <div class="studio-field"><label for="reg-instagram">Instagram</label><input class="wo-input" id="reg-instagram" maxlength="100" placeholder="@tustudio"></div>
+                    <div class="studio-field"><label id="reg-founded-label" for="reg-founded-trigger">Año de fundación</label><input type="hidden" id="reg-founded"><div id="founded-picker"></div></div>
+                    <div class="studio-field"><label id="reg-languages-label" for="reg-languages-input">Idiomas</label><input type="hidden" id="reg-languages"><div id="languages-picker"></div></div>
+                    <div class="studio-field"><label for="reg-instagram">Instagram</label><input class="wo-input" id="reg-instagram" maxlength="100" placeholder="@tustudio" autocapitalize="off" spellcheck="false"></div>
                     <div class="studio-field"><label for="reg-website">Sitio web</label><input class="wo-input" type="url" id="reg-website" maxlength="2000" placeholder="https://tustudio.com"></div>
                     <div class="studio-field sr-full"><label for="reg-whatsapp">WhatsApp</label><input class="wo-input" type="tel" id="reg-whatsapp" maxlength="40" placeholder="+54 · Teléfono del estudio"></div>
                 </div>
+                <!-- Instagram ya vinculado a otro estudio. -->
+                <div id="instagram-warning" class="sr-warning" role="alert" hidden></div>
             </section>
             <section class="sr-step" data-step="3" aria-labelledby="locations-title" hidden>
-                <aside class="sr-notice"><strong>Paso 3 de 5 · Sedes</strong><p>Elegí una dirección de los resultados y comprobá el pin. La primera sede será la principal.</p></aside>
+                <aside class="sr-notice"><strong>Paso 3 de 5 · Sedes</strong><p>Elegí una dirección de los resultados y ajustá el pin en el mapa. La primera sede será la principal.</p></aside>
+                <div id="locations-match-note" class="sr-warning" hidden></div>
                 <h2 id="locations-title">Sedes del estudio</h2>
                 <div id="locations-list"></div>
             </section>
@@ -64,7 +83,9 @@
                 </div></details>
             </section>
             <section class="sr-step" data-step="5" aria-labelledby="review-title" hidden>
-                <h2 id="review-title">Revisá tus datos</h2>
+                <h2 id="review-title">Así se va a ver tu estudio</h2>
+                <p class="sr-help sr-preview-help">Tocá cualquier texto del perfil para corregirlo acá mismo. Los cambios se guardan en el registro.</p>
+                <div id="profile-preview"></div>
                 <div id="confirm-summary" class="sr-summary"></div>
             </section>
             <div class="sr-actions" id="wizard-actions">
@@ -79,6 +100,8 @@
             </div>
         </form>
         <section id="registration-result" class="sr-result" hidden></section>
+        <!-- Reclamo en revisión / rechazado (lo completa studio-auth.js). -->
+        <section id="studio-claim-screen" class="sr-result sr-claim-screen" aria-live="polite" hidden></section>
         <noscript>Activá JavaScript para registrar tu estudio.</noscript>
     </main>
     <weotzi-onboarding-footer></weotzi-onboarding-footer>
@@ -94,6 +117,8 @@
     <script src="/shared/js/studio-registration-media.js"></script>
     <script src="/shared/js/studio-auth.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
+    <script src="/shared/js/studio-register-pickers.js"></script>
+    <script src="/shared/js/studio-location-map.js"></script>
     <script src="/shared/js/studio-register.js"></script>
 </body>
 </html>

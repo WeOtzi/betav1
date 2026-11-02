@@ -18,6 +18,12 @@
         return;
     }
 
+    // Flujo del artista (Figma final, oct 2026): no hay burbuja flotante; el
+    // soporte vive como hilo fijo en /artist/inbox. /job-board/request es del
+    // cliente y conserva el widget.
+    const artistFlow = /\/(artist|my-quotations|calendar|studio-spots|register-artist|registerclosedbeta)(\/|$)|\/job-board\/?$/;
+    if (artistFlow.test(currentPath)) return;
+
     // Detección de opt-out: data-no-support-chat en <html> o <body>
     if (document.documentElement.dataset.noSupportChat !== undefined ||
         (document.body && document.body.dataset.noSupportChat !== undefined)) {

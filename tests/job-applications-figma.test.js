@@ -76,7 +76,10 @@ test('Applications list and details use real client media plus persistent Spot c
     assert.match(js, /job_board_attachments/);
     assert.match(js, /clientProfileOf\(request\)/);
     assert.match(js, /it\.clientName/);
-    assert.match(js, /Ver solicitud →/);
+    // Figma final 801:1075: la flecha es el ícono Feather arrow-right, no el carácter "→".
+    assert.match(js, /'Ver solicitud' \+ ARROW_ICON/);
+    assert.match(js, /ARROW_ICON = '<i data-wo-icon="arrow-right"/);
+    assert.doesNotMatch(js, /Ver solicitud →/);
     assert.match(js, /Ver conversación/);
     assert.match(js, /gallerySlotsHtml\(photos, 'Foto del estudio'\)/);
     assert.match(js, /Array\.from\(\{ length: 4 \}/);

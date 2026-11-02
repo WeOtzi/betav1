@@ -92,9 +92,18 @@
         setBusy(button, 'Accediendo…');
         try {
             const studio = await auth.login(email, password);
+            if (!studio) {
+                // Reclamo en revisión o rechazado: studio-auth.js ya montó la pantalla
+                // del reclamo (o redirigió a reclamar el estudio desde el registro).
+                setBusy(button, false);
+                return;
+            }
             showStatus('success', 'Acceso correcto. Redirigiendo…');
-            const showRegistration = studio.mediaPending || new URLSearchParams(window.location.search).get('confirmed') === '1';
-            window.location.href = auth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard');
+            const params = new URLSearchParams(window.location.search);
+            const showRegistration = studio.mediaPending || params.get('confirmed') === '1';
+            // ?next=sedes (registro: "Registrar una sede de este estudio") abre esa sección del panel.
+            const next = /^[a-z]+$/.test(params.get('next') || '') ? '#' + params.get('next') : '';
+            window.location.href = auth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard' + next);
         } catch (error) {
             const message = /invalid login credentials/i.test(error?.message || '')
                 ? 'El email o la contraseña no son correctos. Revisá tus datos e intentá nuevamente.'

@@ -4,7 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+// Fin de línea normalizado: con core.autocrlf=true el checkout en Windows trae
+// CRLF y los indexOf/regex de abajo esperan \n.
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
 
 test('dashboard waits for API config and rejects mismatched Supabase singletons', () => {
   const config = read('public/shared/js/config-manager.js');

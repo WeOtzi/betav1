@@ -657,6 +657,7 @@ function applyDashboardArtistData(artist) {
     runDashboardStep('update milestones UI', updateMilestonesUI);
     runDashboardStep('check profile completion', checkProfileCompletion);
     runDashboardStep('render gallery admin', renderGalleryAdmin);
+    runDashboardStep('load instagram validation state', loadInstagramValidationStateOnce);
     runDashboardStep('mount instagram import', mountInstagramImportInDashboard);
 
     return true;
@@ -734,12 +735,136 @@ function mountInstagramImportInDashboard() {
         targetId: currentUser.id,
         mode: 'dashboard',
         prefillHandle: handle,
+        triggerLabel: 'IMPORTAR INSTAGRAM',
+        // Capacidad real de la galería para el paso 01/02 del Figma 2003:*.
+        getGalleryState: () => {
+            // null mientras el perfil completo (con la galería) no llegó.
+            if (!artistData || (artistData.gallery_feed_items === undefined && artistData.gallery_images === undefined)) return null;
+            const feed = normalizeDashboardGalleryFeedItems();
+            const videos = feed.filter(item => item.kind === 'video').length;
+            return { count: feed.length, max: MAX_GALLERY_IMAGES, videos, maxVideos: MAX_GALLERY_VIDEOS, maxVideoSeconds: MAX_VIDEO_DURATION_S };
+        },
+        // Preview local: la API está bloqueada; las publicaciones simuladas se
+        // suman al feed del artista ficticio (persistencia del emulador).
+        onPreviewImport: async (items) => {
+            const feed = normalizeDashboardGalleryFeedItems();
+            const now = new Date().toISOString();
+            // Igual que el servidor: lo que ya está en la galería (mismo
+            // permalink o archivo) no se vuelve a sumar ni a contar.
+            const known = new Set(feed.flatMap((item) => [item.url, item.permalink].filter(Boolean)));
+            const added = items.filter((item) => !known.has(item.permalink) && !known.has(item.thumbnail_url)).map((item) => {
+                const isReel = item.kind === 'reel' || item.kind === 'video';
+                const seconds = Math.round(Number(item.video_duration) || 0);
+                return {
+                    // El preview solo tiene miniaturas: el reel queda como
+                    // "video" con su póster para mostrar la insignia del Figma.
+                    url: item.thumbnail_url,
+                    category: 'realizados',
+                    kind: isReel ? 'video' : 'image',
+                    ...(isReel && seconds > 0 ? { duration: seconds } : {}),
+                    ...(item.caption ? { caption: item.caption } : {}),
+                    permalink: item.permalink,
+                    source: 'instagram',
+                    imported_at: now,
+                    created_at: now
+                };
+            });
+            await persistDashboardGalleryFeed(feed.concat(added).slice(0, MAX_GALLERY_IMAGES));
+            renderGalleryAdmin();
+            return added.length;
+        },
+        onViewGallery: () => {
+            const target = document.querySelector('.wo-dash-gallery') || document.getElementById('gallery-admin-grid');
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
         onComplete: async () => {
             // Refresh local state and rerender the gallery so imported items appear.
+            const before = new Set(normalizeDashboardGalleryFeedItems().map((item) => item.url));
             await loadArtistData().catch(() => {});
+            // El servidor no sella la fecha de importación: la marcamos acá para
+            // la insignia NUEVO · IG (Figma 2003:2583).
+            try {
+                const feed = normalizeDashboardGalleryFeedItems();
+                const now = new Date().toISOString();
+                let stamped = false;
+                const next = feed.map((item) => {
+                    if (before.has(item.url) || item.imported_at) return item;
+                    stamped = true;
+                    return { ...item, source: 'instagram', imported_at: now };
+                });
+                if (stamped) {
+                    await persistDashboardGalleryFeed(next);
+                    renderGalleryAdmin();
+                }
+            } catch (stampErr) {
+                console.warn('[dashboard] No se pudo marcar la importación de IG:', stampErr);
+            }
         }
     });
     _igImportDashboardMounted = true;
+}
+
+// ============================================
+// Validación de Instagram (galería)
+// Las fotos importadas de Instagram quedan ocultas en el perfil público hasta
+// que el artista valida su cuenta (regla en gallery-visibility.js). Después
+// del primer render de la galería con fotos de IG se consulta el estado una
+// sola vez y se repinta la grilla para marcarlas PENDIENTE · IG
+// (dashboard-gallery.js lee window.WoIgValidationState). En modo demo no se
+// consulta; cualquier falla deja la galería como estaba.
+// ============================================
+let _igValidationStateRequested = false;
+
+function dashboardAppPath(path) {
+    if (typeof window.WoDemo?.appPath === 'function') return window.WoDemo.appPath(path);
+    const base = window.WEOTZI_BASE_PATH
+        ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+        : (/^\/beta(?:\/|$)/.test(String(window.location?.pathname || '')) ? '/beta' : '');
+    return base + path;
+}
+
+async function getDashboardAccessToken() {
+    try {
+        if (_supabase?.auth?.getSession) {
+            const { data } = await _supabase.auth.getSession();
+            if (data?.session?.access_token) return data.session.access_token;
+        }
+    } catch (_) { /* sin sesión en el cliente: se prueba con la guardada */ }
+    return readStoredDashboardSession()?.access_token || null;
+}
+
+async function fetchInstagramValidationState() {
+    const path = '/api/artist/instagram-verification';
+    if (typeof window.WoDemo?.api === 'function') return window.WoDemo.api(path);
+    const token = await getDashboardAccessToken();
+    if (!token) return null;
+    const response = await fetch(dashboardAppPath(path), { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return null;
+    return response.json();
+}
+
+function loadInstagramValidationStateOnce() {
+    if (_igValidationStateRequested || !currentUser) return;
+    if (window.WoDemo && window.WoDemo.enabled) return;
+    const visibility = window.WoGalleryVisibility;
+    if (typeof visibility?.stateFrom !== 'function' || typeof visibility.isInstagramItem !== 'function') return;
+    // Sin fotos de IG no hace falta preguntar; si después se importan, el
+    // render que sigue a la importación vuelve a pasar por acá.
+    if (!parseJsonArraySafe(artistData?.gallery_feed_items).some((item) => visibility.isInstagramItem(item))) return;
+    _igValidationStateRequested = true;
+    fetchInstagramValidationState()
+        .then((data) => {
+            if (!data || typeof data !== 'object' || data.success === false) return;
+            // El endpoint informa `available` (validación disponible en el
+            // backend) y la regla lo lee como `enforced`. Se compara contra la
+            // cuenta validada, igual que el RPC del perfil público.
+            window.WoIgValidationState = visibility.stateFrom(Object.assign({}, data, {
+                enforced: data.available === true,
+                handle: data.verified_handle || data.handle || null
+            }));
+            renderGalleryAdmin();
+        })
+        .catch(() => { /* sin estado: la galería queda sin marcas de pendiente */ });
 }
 
 async function loadArtistTattooLocations() {
@@ -1472,7 +1597,10 @@ function populateDashboard() {
     }
 
     // Identity Block
-    const artisticName = artistData.username ? String(artistData.username).toUpperCase() : 'ARTISTA';
+    // Figma 24:1425: "LAUUMARTH" (sin el sufijo .wo, que va en el handle).
+    const artisticName = artistData.username
+        ? String(artistData.username).replace(/^@/, '').replace(/\.wo$/i, '').toUpperCase()
+        : 'ARTISTA';
     document.getElementById('artist-name').textContent = artisticName;
     document.getElementById('artist-username').textContent = '@' + (artistData.username || 'usuario.wo');
     const locationValue = artistData.ubicacion || 'Sin ubicacion';
@@ -1526,12 +1654,11 @@ function populateDashboard() {
     document.getElementById('stat-experience').textContent = artistData.years_experience || '-';
     const stylesCount = artistData.styles_array ? artistData.styles_array.length : 0;
     document.getElementById('stat-styles').textContent = stylesCount;
-    document.getElementById('stat-price').textContent = (
-        artistData.session_price_amount && artistData.session_price_currency
-            && window.WeOtziCurrency && window.WeOtziCurrency.isReady()
-        ? window.WeOtziCurrency.formatInline(artistData.session_price_amount, artistData.session_price_currency, { showSecondary: false })
-        : (artistData.session_price || '-')
-    );
+    // Figma 24:1425: "$150 / SESIÓN" (símbolo adelante, sin decimales si el
+    // monto es entero), no el formato largo de Intl ("150,00 US$").
+    document.getElementById('stat-price').textContent = artistData.session_price_amount
+        ? formatCompactSessionPrice(artistData.session_price_amount, artistData.session_price_currency)
+        : (artistData.session_price || '-');
 
     // Bio & Portfolio (render sanitized rich text)
     const bioTextEl = document.getElementById('bio-text');
@@ -2635,6 +2762,72 @@ function initDashboardBioToolbar() {
 // PROFILE SAVE
 // ============================================
 
+// Plataforma de Estudios (docs/plans/2026-10-30-estudios-plataforma.md):
+// el perfil ya no escribe artists_db.studio_id ("tatúa en …" sale de una
+// membresía activa). Elegir un estudio nuevo con dueño pide el alta con
+// request_studio_membership y el estudio la aprueba.
+
+// ¿El estudio tiene dueño? true / false, o null si no se pudo saber.
+async function dashboardStudioOwnership(studioId) {
+    if (!studioId || !window.WeotziData?.Studios?.getById) return { hasOwner: null, name: '' };
+    try {
+        const { data, error } = await WeotziData.Studios.getById(studioId, 'id, name, user_id');
+        if (error || !data) return { hasOwner: null, name: '' };
+        return { hasOwner: Boolean(data.user_id), name: data.name || '' };
+    } catch (err) {
+        return { hasOwner: null, name: '' };
+    }
+}
+
+// Pide el alta en el estudio elegido y avisa al dueño. Nunca lanza ni frena el
+// guardado del perfil. Devuelve 'requested' | 'open' (ya hay una solicitud o
+// vínculo abierto, o pidió hace poco) | 'unavailable' (falta la migración) |
+// 'error'.
+async function dashboardRequestStudioMembership(studioId) {
+    const repo = window.WeotziData?.StudioMemberships;
+    if (!studioId || !repo || typeof repo.requestMembership !== 'function') return 'unavailable';
+    let result;
+    try {
+        result = await repo.requestMembership({ studioId, role: 'resident' });
+    } catch (err) {
+        result = { data: null, error: err };
+    }
+    const error = result && result.error;
+    if (error) {
+        const code = String(error.code || '');
+        if (code === '23514' || code === '23505') return 'open';
+        if (['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'].includes(code)) return 'unavailable';
+        console.warn('[dashboard] Studio membership request failed:', error);
+        return 'error';
+    }
+    const row = (Array.isArray(result.data) ? result.data[0] : result.data) || {};
+    if (row.membership_id && row.studio_has_owner !== false) {
+        dashboardNotifyStudioRequest(row.membership_id);
+    }
+    return 'requested';
+}
+
+// POST /api/artist/studio-notify con el Bearer de la sesión (best-effort).
+async function dashboardNotifyStudioRequest(membershipId) {
+    try {
+        let token = null;
+        if (_supabase?.auth?.getSession) {
+            const { data } = await _supabase.auth.getSession();
+            token = data?.session?.access_token || null;
+        }
+        const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const base = window.WEOTZI_BASE_PATH ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '') : '';
+        await fetch(`${base}/api/artist/studio-notify`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ kind: 'membership_request_created', membership_id: membershipId })
+        });
+    } catch (err) {
+        console.warn('[dashboard] Studio notify failed:', err);
+    }
+}
+
 async function handleProfileSave(e) {
     e.preventDefault();
 
@@ -2691,6 +2884,16 @@ async function handleProfileSave(e) {
             estudios = null;
         }
 
+        // Estudio nuevo (distinto del vínculo actual) con dueño: se pide el alta
+        // después de guardar. Sus datos y su dirección los administra el estudio.
+        const previousStudioId = artistData?.studio_id || null;
+        const studioOwnership = resolvedStudioId
+            ? await dashboardStudioOwnership(resolvedStudioId)
+            : { hasOwner: null, name: '' };
+        const requestStudioMembership = Boolean(resolvedStudioId)
+            && String(resolvedStudioId) !== String(previousStudioId || '')
+            && studioOwnership.hasOwner === true;
+
         // Capitalize full name
         const capitalizedName = capitalizeWords(fullName);
 
@@ -2710,6 +2913,7 @@ async function handleProfileSave(e) {
 
         if ((normalizedWorkType === 'studio' || normalizedWorkType === 'both')
             && resolvedStudioId
+            && studioOwnership.hasOwner !== true
             && pickedAddress
             && pickedAddress.formatted_address) {
             try {
@@ -2746,7 +2950,11 @@ async function handleProfileSave(e) {
             session_price_currency: currency || null,
             portafolio: portfolio || null,
             estudios: estudios,
-            studio_id: resolvedStudioId,
+            // Con dueño, el vínculo es una membresía que aprueba el estudio. Sin
+            // dueño (catálogo) se mantiene el studio_id legado: nadie puede
+            // aprobar, y con la migración aplicada el guard de artists_db solo lo
+            // acepta si hay una membresía activa.
+            ...(studioOwnership.hasOwner === true ? {} : { studio_id: resolvedStudioId || null }),
             work_type: normalizedWorkType,
             birth_date: birthDate || null,
             subscribed_newsletter: newsletter,
@@ -2774,17 +2982,31 @@ async function handleProfileSave(e) {
 
         await saveArtistTattooLocations(tattooLocationsPayload);
 
+        const membershipOutcome = requestStudioMembership
+            ? await dashboardRequestStudioMembership(resolvedStudioId)
+            : null;
+        if (membershipOutcome === 'unavailable') {
+            // Migración de estudios sin aplicar: se conserva el vínculo legado.
+            const legacy = await WeotziData.Artists.updateByUserId(currentUser.id, { studio_id: resolvedStudioId });
+            if (!legacy.error) updateData.studio_id = resolvedStudioId;
+        }
+
         // Update local data
         artistData = { ...artistData, ...updateData };
 
         // Exit edit mode and refresh display
         toggleEditMode();
         populateDashboard();
-        
+
         // Recheck profile completion milestone
         checkProfileCompletion();
 
-        showStatusMessage('Perfil actualizado correctamente.', 'success');
+        if (membershipOutcome === 'requested') {
+            const studioLabel = studioOwnership.name || 'el estudio';
+            showStatusMessage(`Perfil actualizado. Le pediste el alta a ${studioLabel}: tu alta queda pendiente hasta que el estudio la apruebe.`, 'success');
+        } else {
+            showStatusMessage('Perfil actualizado correctamente.', 'success');
+        }
 
     } catch (error) {
         console.error('Error saving profile:', error);
@@ -3037,6 +3259,24 @@ async function handleAvatarUpload(e) {
 // GALLERY MANAGEMENT
 // ============================================
 
+// "$150" / "$1.250" / "$99,50": símbolo de la moneda adelante y decimales solo
+// cuando el monto no es entero (regla de montos del DS, Figma 24:1425).
+function formatCompactSessionPrice(amount, currencyCode) {
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0) return '-';
+    let symbol = '$';
+    try {
+        const meta = window.WeOtziCurrency && typeof window.WeOtziCurrency.get === 'function'
+            ? window.WeOtziCurrency.get(currencyCode) : null;
+        if (meta && meta.symbol) symbol = meta.symbol;
+    } catch (_) { /* símbolo por defecto */ }
+    const whole = Math.abs(value - Math.round(value)) < 0.005;
+    return symbol + value.toLocaleString('es-AR', {
+        minimumFractionDigits: whole ? 0 : 2,
+        maximumFractionDigits: whole ? 0 : 2
+    });
+}
+
 const MAX_GALLERY_IMAGES = 12;
 const MAX_GALLERY_VIDEOS = 2;
 const MAX_VIDEO_SIZE_MB = 80;
@@ -3053,8 +3293,87 @@ function isVideoFile(file) {
 }
 
 function isUrlVideo(url) {
-    const ext = (url || '').split('?')[0].split('.').pop().toLowerCase();
-    return ext === 'mp4' || ext === 'mov';
+    const raw = String(url || '');
+    if (/^data:video\//i.test(raw)) return true;
+    const ext = raw.split('?')[0].split('.').pop().toLowerCase();
+    return ext === 'mp4' || ext === 'mov' || ext === 'webm';
+}
+
+// Un ítem del feed es video por su `kind` (normalizeDashboardGalleryFeedItems
+// lo deriva de kind / media_type / extensión). Es la misma regla que usa el
+// contador "N/2 VIDEOS" de la galería (WodGallery.counts): los reels de IG
+// importados con miniatura .jpg cuentan como video aunque su URL sea imagen.
+function isFeedItemVideo(item) {
+    return !!item && (item.kind === 'video' || item.media_type === 'video' || isUrlVideo(item.url));
+}
+
+// ---- Subida de un archivo de la galería -----------------------------------
+// Producción: bucket público artist-gallery de Supabase Storage.
+// Preview local (window.WEOTZI_PREVIEW, sin Storage): el archivo queda en el
+// navegador como data: URL (imágenes reducidas a 900px para que el feed
+// entre en el almacenamiento local del preview; videos de hasta 1,5 MB) o,
+// si el video es más grande, como blob: URL que dura hasta recargar.
+const PREVIEW_GALLERY_IMAGE_MAX_SIDE = 900;
+const PREVIEW_GALLERY_INLINE_VIDEO_BYTES = 1.5 * 1024 * 1024;
+
+function isDashboardPreviewRuntime() {
+    return window.WEOTZI_PREVIEW === true;
+}
+
+function readBlobAsDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error || new Error('No se pudo leer el archivo.'));
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function previewImageDataUrl(file) {
+    try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, PREVIEW_GALLERY_IMAGE_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        if (typeof bitmap.close === 'function') bitmap.close();
+        return canvas.toDataURL('image/jpeg', 0.78);
+    } catch (_) {
+        // SVG u otros formatos que createImageBitmap no decodifica.
+        return readBlobAsDataUrl(file);
+    }
+}
+
+async function uploadDashboardGalleryFile(file, kind) {
+    if (isDashboardPreviewRuntime()) {
+        if (kind === 'video') {
+            if (file.size <= PREVIEW_GALLERY_INLINE_VIDEO_BYTES) return { url: await readBlobAsDataUrl(file), kind, preview: true };
+            return { url: URL.createObjectURL(file), kind, preview: true, ephemeral: true };
+        }
+        return { url: await previewImageDataUrl(file), kind, preview: true };
+    }
+    const fileExt = String(file.name || '').split('.').pop().toLowerCase() || (kind === 'video' ? 'mp4' : 'jpg');
+    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `${currentUser.id}/${fileName}`;
+    const { error: uploadError } = await _supabase.storage
+        .from('artist-gallery')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+    if (uploadError) throw uploadError;
+    const { data: urlData } = _supabase.storage.from('artist-gallery').getPublicUrl(filePath);
+    return { url: urlData.publicUrl, kind };
+}
+
+// Mensaje de cierre de una subida: éxito total, parcial o fallo completo.
+function galleryUploadOutcomeMessage(uploaded, total, ephemeral) {
+    if (!uploaded) return { text: 'No pudimos subir los archivos. Probá de nuevo en unos minutos.', type: 'error' };
+    const done = uploaded === 1 ? '1 archivo subido a tu galería.' : `${uploaded} archivos subidos a tu galería.`;
+    if (uploaded < total) {
+        const failed = total - uploaded;
+        return { text: `${done} ${failed === 1 ? 'Uno no se pudo subir' : failed + ' no se pudieron subir'}; probá de nuevo con ese archivo.`, type: 'warning' };
+    }
+    if (ephemeral) return { text: `${done} Vista previa: el video se ve hasta que recargues la página.`, type: 'warning' };
+    return { text: done, type: 'success' };
 }
 
 function getVideoDuration(file) {
@@ -3102,10 +3421,14 @@ function normalizeDashboardGalleryFeedItems() {
         if (!url || seen.has(url)) continue;
 
         const category = normalizeGalleryCategory(raw?.category);
+        // Conserva nombre, caption/permalink de IG, duración e importación
+        // (Figma 2003:862): antes se perdían al guardar desde el dashboard.
+        const extras = window.WodGallery ? window.WodGallery.pickExtras(raw) : {};
         normalized.push({
+            ...extras,
             url,
             category,
-            kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image',
+            kind: raw?.kind === 'video' || raw?.media_type === 'video' || isUrlVideo(url) ? 'video' : 'image',
             created_at: raw?.created_at || new Date().toISOString()
         });
         seen.add(url);
@@ -3180,6 +3503,24 @@ function setupGalleryListeners() {
         galleryInput.addEventListener('change', handleGalleryUpload);
     }
     setupDashboardGalleryLightbox();
+    // Acciones de la grilla del Figma 2003:862 (renombrar, destacar, borrar,
+    // reordenar, soltar archivos en SUBIR MÁS): ver dashboard-gallery.js.
+    const adminGrid = document.getElementById('gallery-admin-grid');
+    if (adminGrid && window.WodGallery) {
+        window.WodGallery.bind(adminGrid, {
+            getFeed: () => normalizeDashboardGalleryFeedItems(),
+            persist: async (next) => {
+                await persistDashboardGalleryFeed(next);
+                renderGalleryAdmin();
+                renderGalleryEditPreview();
+            },
+            rerender: () => renderGalleryAdmin(),
+            deleteAt: (index) => deleteGalleryImage(index),
+            pickFiles: () => { if (galleryInput) galleryInput.click(); },
+            uploadFiles: (files) => handleGalleryUpload({ target: { files, value: '' } }),
+            notify: (message, type) => showStatusMessage(message, type)
+        });
+    }
 }
 
 function setupDashboardGalleryLightbox() {
@@ -3218,7 +3559,7 @@ function setupDashboardGalleryLightbox() {
 }
 
 function handleDashboardGalleryClick(event, origin) {
-    if (event.target.closest('.gallery-item-delete, .gallery-edit-thumb-delete')) return;
+    if (event.target.closest('.gallery-item-delete, .gallery-edit-thumb-delete, [data-gal-action], .wod-gal-input')) return;
 
     const itemSelector = origin === 'edit' ? '.gallery-edit-thumb' : '.gallery-item';
     const itemEl = event.target.closest(itemSelector);
@@ -3232,7 +3573,7 @@ function handleDashboardGalleryClick(event, origin) {
 
 function openDashboardGalleryLightbox(index, origin = 'admin') {
     const lightbox = document.getElementById('dashboard-gallery-lightbox');
-    const images = normalizeDashboardGalleryFeedItems().map((item) => item.url);
+    const images = normalizeDashboardGalleryFeedItems().map((item) => ({ url: item.url, kind: item.kind }));
     if (!lightbox || !images.length) return;
 
     dashboardGalleryLightboxState = {
@@ -3285,10 +3626,13 @@ function updateDashboardGalleryLightboxItem() {
     const video = document.getElementById('dashboard-lightbox-video');
     const counter = document.getElementById('dashboard-lightbox-counter');
     const items = dashboardGalleryLightboxState.items || [];
-    const currentUrl = items[dashboardGalleryLightboxState.index];
+    const current = items[dashboardGalleryLightboxState.index];
+    const currentUrl = current && (typeof current === 'string' ? current : current.url);
     if (!image || !video || !counter || !currentUrl) return;
 
-    const isVideo = isUrlVideo(currentUrl);
+    // Se reproduce si la URL es un video (también data:video/ o el blob: de
+    // la vista previa); un reel de IG con miniatura .jpg se ve como imagen.
+    const isVideo = isUrlVideo(currentUrl) || (current && current.kind === 'video' && /^blob:/i.test(currentUrl));
     if (isVideo) {
         image.style.display = 'none';
         image.removeAttribute('src');
@@ -3314,7 +3658,9 @@ async function handleGalleryUpload(e) {
     const selectedCategory = getSelectedGalleryCategory('gallery-category-select');
 
     if (files.length > remainingSlots) {
-        showStatusMessage(`Solo puedes subir ${remainingSlots} archivos mas (max ${MAX_GALLERY_IMAGES}).`, 'error');
+        showStatusMessage(remainingSlots > 0
+            ? `Podés subir ${remainingSlots === 1 ? '1 archivo más' : remainingSlots + ' archivos más'} (máximo ${MAX_GALLERY_IMAGES}).`
+            : `Tu galería ya tiene ${MAX_GALLERY_IMAGES} archivos. Borrá alguno para subir otro.`, 'error');
         e.target.value = '';
         return;
     }
@@ -3336,13 +3682,17 @@ async function handleGalleryUpload(e) {
         }
     }
 
-    // Validate video files
-    const currentVideoCount = currentFeedItems.filter((item) => isUrlVideo(item.url)).length;
+    // Validate video files (misma regla que el contador "N/2 VIDEOS").
+    const currentVideoCount = currentFeedItems.filter(isFeedItemVideo).length;
     if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
-        showStatusMessage(`Ya tienes el maximo de ${MAX_GALLERY_VIDEOS} videos en tu portfolio.`, 'error');
+        const free = Math.max(0, MAX_GALLERY_VIDEOS - currentVideoCount);
+        showStatusMessage(free
+            ? `Podés sumar ${free === 1 ? '1 video más' : free + ' videos más'} (máximo ${MAX_GALLERY_VIDEOS}).`
+            : `Ya tenés el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
         e.target.value = '';
         return;
     }
+    const videoDurations = new Map();
     for (const file of videoFiles) {
         if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
             showStatusMessage(`El video no puede superar los ${MAX_VIDEO_SIZE_MB}MB.`, 'error');
@@ -3350,6 +3700,7 @@ async function handleGalleryUpload(e) {
             return;
         }
         const duration = await getVideoDuration(file);
+        videoDurations.set(file, duration);
         if (duration > MAX_VIDEO_DURATION_S) {
             showStatusMessage(`El video supera los ${MAX_VIDEO_DURATION_S} segundos permitidos.`, 'error');
             e.target.value = '';
@@ -3366,29 +3717,24 @@ async function handleGalleryUpload(e) {
     if (progressFill) progressFill.style.width = '0%';
     loadingEl.style.display = 'block';
 
-    const uploadedUrls = [];
+    // { url, kind, duration? } en el orden en que terminan de subir.
+    const uploaded = [];
+    let ephemeral = false;
 
     try {
         // Upload images via UploadQueue (handles HEIC conversion + compression)
         if (imageFiles.length > 0) {
             const queue = new UploadQueue(
                 async (processedFile) => {
-                    const fileExt = processedFile.name.split('.').pop();
-                    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                    const filePath = `${currentUser.id}/${fileName}`;
-                    const { error: uploadError } = await _supabase.storage
-                        .from('artist-gallery')
-                        .upload(filePath, processedFile, { cacheControl: '3600', upsert: false });
-                    if (uploadError) { console.error('Upload error:', uploadError); return; }
-                    const { data: urlData } = _supabase.storage.from('artist-gallery').getPublicUrl(filePath);
-                    uploadedUrls.push(urlData.publicUrl);
+                    const result = await uploadDashboardGalleryFile(processedFile, 'image');
+                    uploaded.push({ url: result.url, kind: 'image' });
                 },
                 (current, total) => {
                     const overall = Math.round(((current) / files.length) * 100);
                     if (progressFill) progressFill.style.width = `${overall}%`;
                     if (uploadCounter) uploadCounter.textContent = `${current} / ${files.length}`;
                 },
-                (file, err) => { console.error('Gallery upload error:', err); }
+                (file, err) => { console.error('Gallery upload error:', file && file.name, err && (err.message || err)); }
             );
             await queue.addFiles(imageFiles);
         }
@@ -3396,32 +3742,35 @@ async function handleGalleryUpload(e) {
         // Upload videos directly (no HEIC conversion or compression)
         for (let i = 0; i < videoFiles.length; i++) {
             const file = videoFiles[i];
-            const fileExt = file.name.split('.').pop().toLowerCase();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-            const filePath = `${currentUser.id}/${fileName}`;
             const overall = Math.round(((imageFiles.length + i + 1) / files.length) * 100);
             if (progressFill) progressFill.style.width = `${overall}%`;
             if (uploadCounter) uploadCounter.textContent = `${imageFiles.length + i + 1} / ${files.length}`;
-            const { error: uploadError } = await _supabase.storage
-                .from('artist-gallery')
-                .upload(filePath, file, { cacheControl: '3600', upsert: false });
-            if (uploadError) { console.error('Video upload error:', uploadError); continue; }
-            const { data: urlData } = _supabase.storage.from('artist-gallery').getPublicUrl(filePath);
-            uploadedUrls.push(urlData.publicUrl);
+            let result;
+            try {
+                result = await uploadDashboardGalleryFile(file, 'video');
+            } catch (uploadError) {
+                console.error('Video upload error:', file.name, uploadError && (uploadError.message || uploadError));
+                continue;
+            }
+            if (result.ephemeral) ephemeral = true;
+            // Duración para la insignia "VIDEO · 0:24" del Figma 2003:862.
+            const seconds = Math.round(videoDurations.get(file) || 0);
+            uploaded.push({ url: result.url, kind: 'video', ...(seconds > 0 ? { duration: seconds } : {}) });
         }
 
-        if (uploadedUrls.length > 0) {
-            const newFeedItems = uploadedUrls.map((url) => ({
-                url,
+        if (uploaded.length > 0) {
+            const now = new Date().toISOString();
+            const newFeedItems = uploaded.map((item) => ({
+                ...item,
                 category: selectedCategory,
-                kind: isUrlVideo(url) ? 'video' : 'image',
-                created_at: new Date().toISOString()
+                created_at: now
             }));
             await persistDashboardGalleryFeed([...currentFeedItems, ...newFeedItems]);
             renderGalleryAdmin();
             renderGalleryEditPreview();
-            showStatusMessage(`${uploadedUrls.length} archivo(s) subido(s) en ${selectedCategory}.`, 'success');
         }
+        const outcome = galleryUploadOutcomeMessage(uploaded.length, files.length, ephemeral);
+        showStatusMessage(outcome.text, outcome.type);
     } catch (error) {
         console.error('Error uploading gallery files:', error);
         showStatusMessage('Error al subir los archivos.', 'error');
@@ -3439,6 +3788,13 @@ function renderGalleryAdmin() {
     if (!grid) return;
     const feedItems = normalizeDashboardGalleryFeedItems();
     syncDashboardGalleryFromFeed(feedItems);
+
+    // Figma 2003:862: mosaicos con nombre + papelera, insignias de video /
+    // NUEVO · IG y dropzone "SUBIR MÁS · N LIBRES" (dashboard-gallery.js).
+    if (window.WodGallery) {
+        window.WodGallery.render(grid, feedItems, { max: MAX_GALLERY_IMAGES, maxVideos: MAX_GALLERY_VIDEOS });
+        return;
+    }
 
     if (feedItems.length === 0) {
         grid.innerHTML = '<div class="gallery-empty wod-empty" id="gallery-empty">Aún no subiste archivos</div>';
@@ -4095,13 +4451,14 @@ async function handleGalleryEditUpload(e) {
         }
     }
 
-    // Validate video files
-    const currentVideoCount = currentFeedItems.filter((item) => isUrlVideo(item.url)).length;
+    // Validate video files (misma regla que el contador "N/2 VIDEOS").
+    const currentVideoCount = currentFeedItems.filter(isFeedItemVideo).length;
     if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
-        showStatusMessage(`Ya tienes el maximo de ${MAX_GALLERY_VIDEOS} videos en tu portfolio.`, 'error');
+        showStatusMessage(`Ya tenés el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
         e.target.value = '';
         return;
     }
+    const editVideoDurations = new Map();
     for (const file of videoFiles) {
         if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
             showStatusMessage(`El video no puede superar los ${MAX_VIDEO_SIZE_MB}MB.`, 'error');
@@ -4109,6 +4466,7 @@ async function handleGalleryEditUpload(e) {
             return;
         }
         const duration = await getVideoDuration(file);
+        editVideoDurations.set(file, duration);
         if (duration > MAX_VIDEO_DURATION_S) {
             showStatusMessage(`El video supera los ${MAX_VIDEO_DURATION_S} segundos permitidos.`, 'error');
             e.target.value = '';
@@ -4125,28 +4483,22 @@ async function handleGalleryEditUpload(e) {
     if (editProgressFill) editProgressFill.style.width = '0%';
     if (editLoadingEl) editLoadingEl.style.display = 'block';
 
-    const uploadedUrls = [];
+    const uploaded = [];
+    let ephemeral = false;
 
     try {
         // Upload images via UploadQueue
         if (imageFiles.length > 0) {
             const queue = new UploadQueue(
                 async (processedFile) => {
-                    const fileExt = processedFile.name.split('.').pop();
-                    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                    const filePath = `${currentUser.id}/${fileName}`;
-                    const { error: uploadError } = await _supabase.storage
-                        .from('artist-gallery')
-                        .upload(filePath, processedFile, { cacheControl: '3600', upsert: false });
-                    if (uploadError) { console.error('Upload error:', uploadError); return; }
-                    const { data: urlData } = _supabase.storage.from('artist-gallery').getPublicUrl(filePath);
-                    uploadedUrls.push(urlData.publicUrl);
+                    const result = await uploadDashboardGalleryFile(processedFile, 'image');
+                    uploaded.push({ url: result.url, kind: 'image' });
                 },
                 (current, total) => {
                     if (editProgressFill) editProgressFill.style.width = `${Math.round((current / files.length) * 100)}%`;
                     if (editUploadCounter) editUploadCounter.textContent = `${current} / ${files.length}`;
                 },
-                (file, err) => { console.error('Gallery edit upload error:', err); }
+                (file, err) => { console.error('Gallery edit upload error:', file && file.name, err && (err.message || err)); }
             );
             await queue.addFiles(imageFiles);
         }
@@ -4154,32 +4506,34 @@ async function handleGalleryEditUpload(e) {
         // Upload videos directly
         for (let i = 0; i < videoFiles.length; i++) {
             const file = videoFiles[i];
-            const fileExt = file.name.split('.').pop().toLowerCase();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-            const filePath = `${currentUser.id}/${fileName}`;
             const overall = Math.round(((imageFiles.length + i + 1) / files.length) * 100);
             if (editProgressFill) editProgressFill.style.width = `${overall}%`;
             if (editUploadCounter) editUploadCounter.textContent = `${imageFiles.length + i + 1} / ${files.length}`;
-            const { error: uploadError } = await _supabase.storage
-                .from('artist-gallery')
-                .upload(filePath, file, { cacheControl: '3600', upsert: false });
-            if (uploadError) { console.error('Video upload error:', uploadError); continue; }
-            const { data: urlData } = _supabase.storage.from('artist-gallery').getPublicUrl(filePath);
-            uploadedUrls.push(urlData.publicUrl);
+            let result;
+            try {
+                result = await uploadDashboardGalleryFile(file, 'video');
+            } catch (uploadError) {
+                console.error('Video upload error:', file.name, uploadError && (uploadError.message || uploadError));
+                continue;
+            }
+            if (result.ephemeral) ephemeral = true;
+            const seconds = Math.round(editVideoDurations.get(file) || 0);
+            uploaded.push({ url: result.url, kind: 'video', ...(seconds > 0 ? { duration: seconds } : {}) });
         }
 
-        if (uploadedUrls.length > 0) {
-            const newFeedItems = uploadedUrls.map((url) => ({
-                url,
+        if (uploaded.length > 0) {
+            const now = new Date().toISOString();
+            const newFeedItems = uploaded.map((item) => ({
+                ...item,
                 category: selectedCategory,
-                kind: isUrlVideo(url) ? 'video' : 'image',
-                created_at: new Date().toISOString()
+                created_at: now
             }));
             await persistDashboardGalleryFeed([...currentFeedItems, ...newFeedItems]);
             renderGalleryEditPreview();
             renderGalleryAdmin();
-            showStatusMessage(`${uploadedUrls.length} archivo(s) subido(s) en ${selectedCategory}.`, 'success');
         }
+        const outcome = galleryUploadOutcomeMessage(uploaded.length, files.length, ephemeral);
+        showStatusMessage(outcome.text, outcome.type);
     } catch (error) {
         console.error('Error uploading gallery files:', error);
         showStatusMessage('Error al subir los archivos.', 'error');
@@ -4422,7 +4776,11 @@ function openQRModal() {
 }
 
 function closeQRModal() {
-    document.getElementById('qr-modal').classList.remove('active');
+    // El dashboard ya no tiene #qr-modal (paneles de dashboard-share.js); el
+    // handler global de Escape lo sigue llamando en todas las páginas.
+    const modal = document.getElementById('qr-modal');
+    if (!modal) return;
+    modal.classList.remove('active');
     document.body.style.overflow = '';
 }
 
@@ -4438,7 +4796,7 @@ function generateQR(dest) {
     const encodedUsername = encodeURIComponent(username);
 
     const url = dest === 'gallery'
-        ? `${origin}/artist/profile/gallery?artist=${encodedUsername}`
+        ? `${origin}/artist/profile?artist=${encodedUsername}#block-gallery`
         : `${origin}/artist/profile?artist=${encodedUsername}`;
 
     currentQRUrl = url;

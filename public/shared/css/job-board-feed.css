@@ -1234,3 +1234,479 @@ body.wo-app.jbf-is-sent #sc-fab { display: none !important; }
     .jbf-sent { padding-top: 16px; }
     .jbf-client-card { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 }
+
+/* ============================================================================
+   Figma final (oct 2026) · 801:1067 · 801:1068 · 801:1069
+   Ajustes sobre la capa anterior: cabecera con acceso a postulaciones, sponsor
+   con separador, rieles sin regla intermedia, placeholder circular con dos
+   esquinas, detalle con chips/valores del frame y aside con bordes en tinta.
+   ========================================================================== */
+
+/* ---------- Cabecera ---------- */
+.jbf-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-6);
+}
+.jbf-head-text { min-width: 0; }
+body.wo-app a.jbf-head-link {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-5);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-hairline) solid var(--border-strong);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--button-s-track);
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: transform var(--duration-press), box-shadow var(--duration-press);
+}
+body.wo-app a.jbf-head-link:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-hard-sm); }
+.jbf-head-link [data-wo-icon] { width: 14px; height: 14px; }
+
+/* ---------- Sidebar ---------- */
+.jbf-quick-item { border-left: 0; padding-left: var(--space-2); gap: var(--space-3); }
+.jbf-quick-item.is-active { background: var(--neutral-200); }
+.jbf-search .wo-input { border-width: var(--border-hairline); background: var(--surface-card); }
+.jbf-side-fields .wo-select { border: var(--border-hairline) solid var(--border-strong); background-color: transparent; }
+
+/* ---------- Sponsor (103:1666) ---------- */
+#job-board-featured:not(:empty) {
+    padding-bottom: var(--space-7);
+    margin-bottom: 0;
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
+}
+.jbf-sponsor {
+    position: relative;
+    margin-bottom: 0;
+    padding-top: 26px;
+    border-top: var(--border-hairline) solid var(--border-strong);
+}
+.jbf-sponsor::before {
+    content: "";
+    position: absolute;
+    top: 26px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--yellow-300);
+    z-index: 2;
+}
+.jbf-sponsor-media.is-placeholder {
+    background: color-mix(in srgb, var(--neutral-400) 8%, transparent);
+    outline: var(--border-hairline) dashed color-mix(in srgb, var(--black) 35%, transparent);
+    outline-offset: -1px;
+    color: var(--neutral-500);
+}
+.jbf-sponsor-media.is-placeholder small { font-family: var(--font-body); font-size: 11px; text-transform: none; letter-spacing: 0; }
+.jbf-sponsor-code { font-size: 11px; letter-spacing: .04em; padding: 3px 9px; }
+.jbf-sponsor-featured { font-size: 11px; font-weight: var(--weight-bold); letter-spacing: .06em; color: var(--neutral-500); }
+.jbf-sponsor-body { padding: var(--space-7) var(--space-8); gap: 0; }
+.jbf-sponsor-kicker { font-size: 11px; font-weight: var(--weight-bold); letter-spacing: .1em; }
+.jbf-sponsor-published { font-size: 12px; }
+.jbf-sponsor-avatar { font-size: 20px; }
+.jbf-sponsor-studio strong { font-family: var(--font-display); font-weight: 400; }
+.jbf-sponsor-slots { font-size: 10px; font-weight: var(--weight-bold); letter-spacing: .08em; }
+.jbf-sponsor h2 {
+    max-width: 640px;
+    margin: var(--space-4) 0 var(--space-3);
+    font-family: var(--font-body);
+    font-weight: var(--weight-bold);
+    font-size: 23px;
+    line-height: 1.3;
+}
+.jbf-sponsor-facts { gap: var(--space-5); }
+.jbf-sponsor-facts span { font-size: 13px; }
+.jbf-sponsor-facts strong { font-family: var(--font-mono); font-size: 15px; }
+.jbf-sponsor-tags span { font-size: 12px; letter-spacing: .08em; padding: 1px 11px; }
+.jbf-sponsor-cta { font-size: 14px; letter-spacing: .08em; min-width: 0; padding: 0 30px; }
+
+/* ---------- Rieles: separados por espacio, sin regla (Figma 28:3222) ---------- */
+.jbf-rail + .jbf-rail { border-top: 0; }
+
+/* ---------- Placeholder de card: círculo + dos esquinas ---------- */
+.jbf-card-media.no-image::after { border-radius: 50%; }
+.jbf-card--dot-red .jbf-card-media.no-image::after { background: var(--red-300); }
+.jbf-card--dot-yellow .jbf-card-media.no-image::after { background: var(--yellow-300); }
+.jbf-card--dot-blue .jbf-card-media.no-image::after { background: var(--blue-400); }
+.jbf-card-media.no-image {
+    background-repeat: no-repeat;
+    background-position: right bottom;
+    background-size: 26px 26px;
+}
+.jbf-card--end-red .jbf-card-media.no-image { background-image: linear-gradient(135deg, transparent 50%, var(--red-300) 50%); }
+.jbf-card--end-yellow .jbf-card-media.no-image { background-image: linear-gradient(135deg, transparent 50%, var(--yellow-300) 50%); }
+.jbf-card--end-blue .jbf-card-media.no-image { background-image: linear-gradient(135deg, transparent 50%, var(--blue-400) 50%); }
+
+/* ---------- Detalle (801:1068) ---------- */
+.jbf-back { margin-right: var(--space-6); }
+/* Volver y el breadcrumb comparten una fila de 36 px, centrados entre sí, y
+   la fila queda a 20 px del título. */
+.jbf-detail-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 36px;
+    margin-bottom: 1.25rem;
+}
+#jbf-detail-view .jbf-detail-nav .jbf-back { margin-bottom: 0; }
+@media (min-width: 64.0625rem) {
+    /* El detalle arranca 32 px bajo la barra superior (el feed usa 40). */
+    .jbf-shell.is-detail .jbf-main { padding-top: var(--space-8); }
+}
+.jbf-chip-code { background: var(--sand-250); border: 0; color: var(--neutral-500); }
+.jbf-chip-style {
+    background: var(--yellow-100);
+    border: 0;
+    color: var(--yellow-500);
+    font-weight: var(--weight-bold);
+}
+.jbf-chip-apps {
+    background: var(--sand-250);
+    color: var(--neutral-500);
+    font-weight: var(--weight-bold);
+}
+.jbf-chip-apps b { margin-right: 4px; }
+.jbf-detail-val,
+.jbf-col-val { font-weight: var(--weight-bold); }
+.jbf-req-list {
+    list-style: none;
+    padding-left: 0;
+    font-weight: 400;
+}
+.jbf-req-list li {
+    position: relative;
+    padding-left: var(--space-3);
+}
+.jbf-req-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .62em;
+    width: 5px;
+    height: 5px;
+    background: var(--neutral-500);
+}
+.jbf-detail-cols { border-top: 0; padding-top: 0; }
+.jbf-col-val {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.jbf-col-val [data-wo-icon] { width: 15px; height: 15px; flex: none; }
+.jbf-detail-cols > div:nth-child(2) .jbf-col-val { font-family: var(--font-mono); font-size: 17px; }
+.jbf-client-card { grid-template-columns: auto minmax(0, 1fr); }
+.jbf-client-card > p { justify-self: end; text-align: right; color: var(--neutral-300); font-size: 13px; }
+.jbf-client-id strong { font-weight: var(--weight-bold); }
+.jbf-apps-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--surface-card);
+    border: var(--border-hairline) solid var(--border-subtle);
+    border-left-width: var(--border-hairline);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: var(--weight-bold);
+    color: var(--ink);
+}
+.jbf-apps-bar [data-wo-icon] { width: 17px; height: 17px; flex: none; }
+
+/* ---------- Aside "Tu propuesta" ---------- */
+.jbf-detail-aside { border-width: var(--border-hairline); }
+.jbf-detail-aside .wo-input,
+.jbf-detail-aside .wo-select,
+.jbf-detail-aside .wo-textarea {
+    border: var(--border-hairline) solid var(--border-strong);
+    background-color: transparent;
+}
+.jbf-money-sign { color: var(--ink); font-family: var(--font-body); font-weight: var(--weight-bold); }
+.jbf-input-icon { position: relative; }
+.jbf-input-icon [data-wo-icon] {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+    color: var(--neutral-300);
+    pointer-events: none;
+}
+.jbf-input-icon .wo-input { padding-left: var(--space-10); }
+.jbf-aside-form > .jbf-aside-label { margin: var(--space-6) 0 calc(var(--space-4) * -1 + var(--space-2)); color: var(--text-faint); }
+.jbf-preview { border-color: var(--border-subtle); background: var(--surface-card); }
+.jbf-preview-id { align-items: flex-start; }
+.jbf-preview-id > div { flex: 1 1 auto; min-width: 0; }
+.jbf-preview-avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    overflow: hidden;
+    background: var(--yellow-300);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 13px;
+}
+.jbf-preview-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.jbf-preview-name { font-weight: var(--weight-bold); }
+.jbf-preview-stats {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.jbf-preview-id .jbf-preview-city {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--neutral-500);
+}
+.jbf-preview-id .jbf-preview-city [data-wo-icon] { width: 11px; height: 11px; }
+.jbf-preview-shot-placeholder { outline: var(--border-hairline) dashed var(--neutral-300); outline-offset: -1px; }
+.jbf-applied-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+    padding: var(--space-3) 0;
+    border-top: var(--border-hairline) solid var(--border-subtle);
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+}
+
+/* ---------- Propuesta enviada (801:1069) ---------- */
+.jbf-sent-actions .wo-btn--secondary { border-color: var(--border-strong); }
+
+@media (max-width: 64rem) {
+    .jbf-head { flex-direction: column; gap: var(--space-3); }
+    body.wo-app a.jbf-head-link { margin-top: 0; }
+    .jbf-sponsor-body { padding: var(--space-6); }
+    .jbf-client-card > p { justify-self: start; text-align: left; }
+}
+
+/* 801:1068 / 801:1069 · ajustes finos */
+.jbf-ref--placeholder { outline: var(--border-hairline) dashed var(--neutral-300); outline-offset: -1px; }
+.jbf-detail-grid .jbf-detail-cell:nth-child(odd) { padding-left: 0; }
+.jbf-client-avatar,
+.jbf-summary-avatar { background: var(--blue-400); }
+.jbf-summary-row { align-items: center; }
+.jbf-summary-val { font-weight: var(--weight-bold); color: var(--ink); }
+.jbf-summary-client strong { font-weight: var(--weight-bold); }
+.jbf-sent-actions .wo-btn--secondary { border-width: var(--border-hairline); }
+.jbf-detail-aside .wo-select:invalid,
+.jbf-detail-aside .wo-select option[value=""] { color: var(--neutral-300); }
+.jbf-detail-aside .wo-select option { color: var(--ink); }
+
+/* ============================================================================
+   Corrección ronda 1 (auditoría Figma final · 801:1067 / 801:1068 / 801:1069)
+   ========================================================================== */
+
+/* 801:1067 · tarjetas: borde 1 px #24211d, presupuesto JetBrains Mono Bold 14,
+   "Postularme" Inter Bold 12 / tracking .96 y sin regla sobre la fila de precio. */
+.jbf-card { border-width: var(--border-hairline); }
+.jbf-card-price { font-size: 0.875rem; font-weight: var(--weight-bold); }
+.jbf-card-apply { font-size: 12px; letter-spacing: 0.96px; }
+.jbf-card-foot { border-top: 0; }
+
+/* Sidebar: los acordeones Regional / Temático / Otros no llevan divisores. */
+.jbf-style-group,
+.jbf-style-group:last-child { border-bottom: 0; }
+
+/* Rieles a sangre: la cuarta tarjeta se corta en el borde de la ventana
+   (la cabecera del riel conserva el margen del contenido). */
+.jbf-rail-track {
+    margin-right: calc(var(--space-4) * -1);
+    padding-right: var(--space-4);
+}
+@media (min-width: 48.0625rem) {
+    .jbf-rail-track {
+        margin-right: calc(var(--space-6) * -1);
+        padding-right: var(--space-6);
+    }
+}
+@media (min-width: 64.0625rem) {
+    .jbf-rail-track {
+        margin-right: calc(var(--space-12) * -1);
+        padding-right: 0;
+    }
+}
+
+/* 801:1068 · cabecera del detalle. */
+#jbf-detail-view .jbf-back + .wo-eyebrow {
+    color: var(--neutral-300);
+    font-size: 11px;
+    letter-spacing: 1.1px;
+}
+.jbf-detail-title { font-size: clamp(1.75rem, 3.2vw, 2.25rem); }
+.jbf-deadline {
+    border: 0;
+    border-left: calc(var(--border-strong-width) * 2) solid var(--yellow-300);
+}
+.jbf-deadline strong { font-size: 1rem; }
+
+/* Referencias sin imagen: ícono y texto en negro al 75 %, 13 px. */
+.jbf-ref--placeholder { color: color-mix(in srgb, var(--black) 75%, transparent); font-size: 13px; }
+.jbf-ref--placeholder span { color: inherit; }
+
+/* Cliente: check de verificado y rating con estrella outline. */
+.jbf-client-name { display: flex !important; align-items: center; gap: 6px; }
+.jbf-client-verified { width: 14px; height: 14px; color: var(--ink); flex: none; }
+.jbf-client-id .jbf-client-meta { display: flex !important; align-items: center; gap: 4px; }
+.jbf-client-meta [data-wo-icon] { width: 12px; height: 12px; flex: none; }
+.jbf-preview-stats { display: inline-flex; align-items: center; gap: 4px; }
+.jbf-preview-stats [data-wo-icon] { width: 12px; height: 12px; flex: none; }
+
+/* 801:1069 · confirmación: eyebrow y cabecera del resumen claros, borde fino,
+   filas con padding interno de 20 px y separadores insetados. */
+.jbf-sent > .wo-eyebrow { color: var(--neutral-300); }
+.jbf-sent-sub { max-width: 28.5rem; margin-inline: auto; }
+.jbf-summary { border: var(--border-hairline) solid var(--border-strong); }
+.jbf-summary-head .wo-meta-s { color: var(--neutral-100); }
+.jbf-summary-body { padding: 0 1.25rem; }
+.jbf-summary-row {
+    box-sizing: border-box;
+    min-height: 2.8125rem;
+    padding: .75rem 0;
+}
+@media (min-width: 48.0625rem) {
+    .jbf-summary-row { grid-template-columns: max-content minmax(0, 1fr); }
+}
+
+/* ============================================================================
+   Corrección ronda 2 (auditoría Figma final)
+   ========================================================================== */
+
+/* 801:1069 · resumen: cabecera de 48 px (14 px + badge de 20 px), cuerpo con
+   20 px de aire en los cuatro lados y filas de 12 px arriba/abajo (~43 px). */
+.jbf-summary-head {
+    box-sizing: border-box;
+    min-height: 3rem;
+    padding: .875rem 1.25rem;
+}
+.jbf-summary-head .wo-meta-s {
+    font-size: 11px;
+    letter-spacing: 1.1px;
+    line-height: normal;
+}
+.jbf-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 1.25rem;
+    padding: 0 .5rem;
+    font-weight: var(--weight-bold);
+    letter-spacing: .8px;
+    line-height: normal;
+}
+.jbf-summary-body { padding: 1.25rem; }
+.jbf-summary-row {
+    min-height: 0;
+    padding: .75rem 0;
+}
+.jbf-summary-key { letter-spacing: .66px; line-height: normal; }
+.jbf-summary-val { line-height: normal; }
+.jbf-summary-val.wo-mono-num { font-size: 1rem; }
+.jbf-summary-val { line-height: 1.2; }
+.jbf-summary-val.wo-mono-num { line-height: 1.3; }
+.jbf-sent-actions { margin-top: 2.25rem; }
+.jbf-sent-actions .wo-btn { box-sizing: border-box; height: 3.25rem; min-height: 3.25rem; }
+
+/* 801:1068 · cabecera del detalle: título en una caja de 680 px (Heading 1) con
+   interlineado de 39.6 px, 20 px entre "Volver" y el título, chips de 20 px
+   (JetBrains Mono Bold 10 / .8 px), aviso de plazo con padding 12/16/12/20 y
+   referencias con 93 px entre filas y 13 px hasta "La idea del tatuaje". */
+#jbf-detail-view .jbf-back { margin-bottom: 1.25rem; }
+.jbf-detail-title {
+    max-width: 42.5rem;
+    margin: 0 0 .75rem;
+    line-height: 1.1;
+}
+.jbf-chip-code,
+.jbf-chip-style,
+.jbf-chip-apps {
+    box-sizing: border-box;
+    height: 1.25rem;
+    padding: 0 .5rem;
+    font-size: 10px;
+    font-weight: var(--weight-bold);
+    letter-spacing: .8px;
+    line-height: normal;
+}
+.jbf-deadline {
+    gap: .75rem;
+    padding: .75rem 1rem .75rem 1.25rem;
+}
+.jbf-deadline > [data-wo-icon] { margin-top: 2px; }
+.jbf-deadline div { gap: 2px; }
+.jbf-deadline strong { line-height: normal; }
+.jbf-deadline span { font-size: .875rem; line-height: 1.45; }
+.jbf-deadline + .jbf-sum-label { margin-top: 1.75rem; }
+@media (min-width: 48.0625rem) {
+    .jbf-refs { row-gap: 93px; }
+}
+.jbf-refs + .jbf-sum-label { margin-top: 13px; }
+/* El aside arranca a la altura del título (en el Figma, "Volver" y el breadcrumb
+   ocupan una fila propia encima de las dos columnas): 34 px del botón + 20 px. */
+@media (min-width: 64.0625rem) {
+    .jbf-detail-aside { margin-top: 3.375rem; }
+}
+/* "La idea del tatuaje" corre en la misma caja de 680 px que el título. */
+.jbf-detail-main > .jbf-sum-text { max-width: 42.5rem; }
+
+/* 801:1067 · tarjetas (28:3246): cuerpo de 215 px como mínimo con gap de 10 px,
+   el pie anclado abajo (el Figma usa un espaciador flexible), etiquetas de
+   17.6 px separadas 6 px, meta con 14 px entre ciudad y zona, pie con 8 px
+   arriba y "Postularme" de 36 px. */
+.jbf-card-body {
+    box-sizing: border-box;
+    min-height: 13.4375rem;
+    gap: .625rem;
+}
+.jbf-card-title { min-height: 41px; }
+.jbf-card-tags { gap: 6px; }
+.jbf-card-tags .jbf-tag {
+    box-sizing: border-box;
+    height: 1.1rem;
+    padding: 0 10.8px;
+    letter-spacing: .96px;
+    line-height: normal;
+}
+.jbf-card-meta { gap: 14px; }
+.jbf-card-meta span { gap: 4px; }
+.jbf-card-foot { padding-top: .5rem; }
+.jbf-card-apply {
+    box-sizing: border-box;
+    height: 2.25rem;
+    padding-block: 0;
+    padding-inline: clamp(8px, 4.95cqi, 14.6px);
+}
+
+/* 801:1067 · sidebar (28:3087): el panel blanco y su borde llegan hasta el final
+   del contenido, y el separador sobre "Refinar" (28:3184) va a sangre, en tinta. */
+.jbf-side-rule {
+    margin-inline: calc(var(--space-5) * -1);
+    border-top: var(--border-strong-width) solid var(--border-strong);
+}
+@media (min-width: 64.0625rem) {
+    .jbf-shell:not(.is-filters-collapsed):not(.is-single-column) {
+        background:
+            linear-gradient(var(--border-strong), var(--border-strong)) calc(17.5rem - var(--border-strong-width)) 0 / var(--border-strong-width) 100% no-repeat,
+            linear-gradient(var(--surface-card), var(--surface-card)) 0 0 / calc(17.5rem - var(--border-strong-width)) 100% no-repeat;
+    }
+}

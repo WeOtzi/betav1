@@ -1,8 +1,17 @@
 /*
  * WE ÖTZI · Calendario profesional
- * Figma: 52:8311 / 52:9043 / 52:9286 / 153:4421…9373
- * Vistas propias (mes, semana, dia y agenda), CRUD real y proyecciones de
- * quotation_sessions + artist_trips a traves de WeotziData.Calendar.
+ * Figma final w3JA83CcP5ISKjyOu87mx1: 801:542 (mes), 801:544 (semana),
+ * 801:545 (día), 801:546 (elegir tipo) y 801:547…801:554 (formularios).
+ *
+ * Vistas propias (mes, semana, día y agenda) y CRUD real a través de
+ * WeotziData.Calendar:
+ *   - eventos manuales en artist_calendar_events;
+ *   - turnos con cliente = sesiones de la cotización vinculada
+ *     (quotation_sessions), creadas/editadas/borradas en su origen;
+ *   - guest spots y convenciones de Travel (artist_trips) en solo lectura.
+ *
+ * Estados por URL (ver calendar-links.js): ?view=week|day|agenda,
+ * ?date=YYYY-MM-DD, ?new=<tipo>, ?quote=<quote_id|id>, ?event=<id>, ?picker=open.
  */
 (function () {
     'use strict';
@@ -32,7 +41,9 @@
     ];
     const HOUR_START = 9;
     const HOUR_END = 21;
-    const DAY_MS = 24 * 60 * 60 * 1000;
+    const MONTH_VISIBLE_EVENTS = 3;
+    const QUOTE_HINT = 'Elegí una cotización para asociar este turno al cliente y a su proyecto.';
+    const MANUAL_QUOTE_PATH = '/my-quotations/new';
 
     const state = {
         user: null,
@@ -48,9 +59,21 @@
         editingEvent: null,
         conflictTimer: null,
         toastTimer: null,
+        quotes: null,
+        quoteSessions: new Map(),
+        quotesPromise: null,
+        quotesError: '',
+        selectedQuote: null,
+        quoteQuery: '',
+        quoteOptions: [],
+        activeQuoteId: null,
     };
 
     const el = {};
+
+    function links() {
+        return window.WeotziCalendarLinks || null;
+    }
 
     function cacheElements() {
         [
@@ -76,11 +99,10 @@
         return base && !normalized.startsWith(`${base}/`) ? `${base}${normalized}` : normalized;
     }
 
+    // Ruta canónica de inicio de sesión del artista (como cuenta, postulaciones
+    // e invitaciones); la beta cerrada de registro es "Crear cuenta".
     function buildArtistLoginUrl(returnTo = '/calendar') {
-        const params = new URLSearchParams();
-        if (returnTo) params.set('returnTo', returnTo);
-        const query = params.toString();
-        return appUrl(`/registerclosedbeta${query ? `?${query}` : ''}`);
+        return appUrl(`/artist/login${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`);
     }
 
     function escapeHtml(value) {
@@ -176,6 +198,24 @@
         return `${date.getDate()} de ${MONTHS[date.getMonth()].toLowerCase()}, ${date.getFullYear()}`;
     }
 
+    function capitalize(text) {
+        const value = String(text || '');
+        return value ? `${value.charAt(0).toLocaleUpperCase('es')}${value.slice(1)}` : value;
+    }
+
+    // Cuántos eventos del día quedan fuera de las barras de la celda del mes.
+    function hiddenEventCount(total, visible = MONTH_VISIBLE_EVENTS) {
+        return Math.max(0, Number(total || 0) - visible);
+    }
+
+    // Agenda: un evento que empezó antes del período (p. ej. un guest spot de
+    // varios días) se agrupa en el primer día visible.
+    function agendaGroupDate(start, from) {
+        const value = asDate(start);
+        if (!value) return startOfDay(from);
+        return startOfDay(value < from ? from : value);
+    }
+
     function formatShortDate(date) {
         return new Intl.DateTimeFormat('es-AR', {
             day: 'numeric', month: 'short',
@@ -184,6 +224,12 @@
 
     function formatTime(date) {
         return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function formatHours(hours) {
+        const rounded = Math.round(hours * 100) / 100;
+        if (rounded === 1) return '1 hora';
+        return `${String(rounded).replace('.', ',')} horas`;
     }
 
     function eventDates(event) {
@@ -204,7 +250,7 @@
         return state.events.filter((event) => {
             if (!state.enabledTypes.has(event.type) || event.status === 'cancelled') return false;
             if (!query) return true;
-            const haystack = [event.title, event.clientName, event.location, event.notes]
+            const haystack = [event.title, event.clientName, event.location, event.notes, event.quoteCode]
                 .filter(Boolean)
                 .join(' ')
                 .toLocaleLowerCase('es');
@@ -228,11 +274,65 @@
         ]);
     }
 
+    /* ------------------------------- URL state ------------------------------- */
+
+    function eventParam(event) {
+        if (!event) return null;
+        if (event.sourceType === 'quotation_session') return `session:${event.sourceId}`;
+        return event.baseId ? String(event.baseId) : event.id;
+    }
+
+    function findEventByParam(param) {
+        const value = String(param || '').trim();
+        if (!value) return null;
+        return state.events.find((event) => event.id === value
+            || (event.sourceType === 'manual' && String(event.baseId) === value)
+            || (event.sourceType === 'quotation_session' && (`session:${event.sourceId}` === value || event.sourceId === value))
+            || (event.sourceType === 'artist_trip' && (`trip:${event.sourceId}` === value || event.sourceId === value))) || null;
+    }
+
+    function quoteParam(quote) {
+        if (!quote) return null;
+        return quote.quote_id ? String(quote.quote_id) : String(quote.id);
+    }
+
+    function syncUrl() {
+        const L = links();
+        if (!L || !window.history || typeof window.history.replaceState !== 'function') return;
+        const editorOpen = el['calendar-editor'] && !el['calendar-editor'].hidden;
+        const focus = editorOpen ? state.selectedDate : state.currentDate;
+        const query = L.buildUrlState({
+            view: state.view,
+            date: focus && !sameDay(focus, new Date()) ? dateKey(focus) : null,
+            editor: editorOpen,
+            type: state.selectedType,
+            event: editorOpen ? eventParam(state.editingEvent) : null,
+            quote: editorOpen ? quoteParam(state.selectedQuote) : null,
+        });
+        try {
+            window.history.replaceState(window.history.state, '', `${window.location.pathname}${query}${window.location.hash || ''}`);
+        } catch (_error) {
+            /* Algunos visores (capturas, iframes) bloquean replaceState. */
+        }
+    }
+
+    function updateViewTabs() {
+        document.querySelectorAll('.cal-view-tabs [data-view]').forEach((tab) => {
+            tab.setAttribute('aria-selected', String(tab.dataset.view === state.view));
+        });
+    }
+
+    /* ------------------------------ inicialización ------------------------------ */
+
     async function initialize() {
         cacheElements();
         bindEvents();
+        watchTimedEventFit();
         renderLegend();
         setLoading(true);
+
+        const L = links();
+        const urlState = L ? L.parseUrlState(window.location.search) : { editor: false };
 
         try {
             await waitForConfig();
@@ -254,15 +354,32 @@
             if (artistError || !artist) throw artistError || new Error('No encontramos tu perfil de artista.');
             state.artist = artist;
 
-            const queryDate = parseLocalDate(new URLSearchParams(window.location.search).get('date'));
+            const queryDate = parseLocalDate(urlState.date || new URLSearchParams(window.location.search).get('date'));
+            // Fecha inicial: hoy, o ?date=YYYY-MM-DD (demos y QA).
             if (queryDate) state.currentDate = queryDate;
-            else if (String(artist.username || '').toLowerCase() === 'isainazartattoo.wo') {
-                state.currentDate = new Date(2026, 6, 7);
-            }
             state.selectedDate = startOfDay(state.currentDate);
             state.miniDate = startOfMonth(state.selectedDate);
+            if (urlState.view) state.view = urlState.view;
+            if (urlState.search) {
+                state.search = urlState.search;
+                el['calendar-search'].value = urlState.search;
+            }
+            updateViewTabs();
 
             await loadEvents();
+
+            if (urlState.event) {
+                const target = findEventByParam(urlState.event);
+                if (target && target.readonly) openEventById(target.id);
+                else if (target) await openEditor(target, null, { picker: urlState.picker });
+                else showToast('No encontramos ese evento en el período visible.', true);
+            } else if (urlState.editor) {
+                await openEditor(null, queryDate, {
+                    type: urlState.type,
+                    quote: urlState.quote,
+                    picker: urlState.picker,
+                });
+            }
         } catch (error) {
             console.error('[calendar] Error de inicialización:', error);
             el['calendar-view'].innerHTML = `<div class="cal-empty">${escapeHtml(error.message || 'No pudimos cargar el calendario.')}</div>`;
@@ -277,9 +394,8 @@
         document.querySelectorAll('.cal-view-tabs [data-view]').forEach((button) => {
             button.addEventListener('click', async () => {
                 state.view = button.dataset.view;
-                document.querySelectorAll('.cal-view-tabs [data-view]').forEach((tab) => {
-                    tab.setAttribute('aria-selected', String(tab === button));
-                });
+                updateViewTabs();
+                syncUrl();
                 await loadEvents();
             });
         });
@@ -334,11 +450,33 @@
             chooseType(next.dataset.type);
         });
         el['calendar-event-form'].addEventListener('submit', saveCurrentEvent);
-        el['event-fields'].addEventListener('input', onFormChanged);
-        el['event-fields'].addEventListener('change', onFormChanged);
+        el['event-fields'].addEventListener('input', (event) => {
+            if (event.target.id === 'event-quote-search') onQuoteSearchInput(event);
+            else onFormChanged();
+        });
+        el['event-fields'].addEventListener('change', (event) => {
+            if (event.target.id !== 'event-quote-search') onFormChanged();
+        });
+        el['event-fields'].addEventListener('focusin', (event) => {
+            if (event.target.id === 'event-quote-search') openQuotePicker();
+        });
+        el['event-fields'].addEventListener('keydown', onQuoteKeydown);
+        el['event-fields'].addEventListener('mousedown', (event) => {
+            // Evita que el input pierda el foco antes de elegir la opción.
+            if (event.target.closest('#quote-listbox')) event.preventDefault();
+        });
         el['event-fields'].addEventListener('click', (event) => {
-            if (!event.target.closest('[data-date-display]')) return;
-            el['mini-grid'].querySelector('.is-selected')?.focus();
+            const option = event.target.closest('[data-quote-id]');
+            if (option) {
+                selectQuote(option.dataset.quoteId);
+                return;
+            }
+            if (event.target.closest('[data-date-display]')) {
+                el['mini-grid'].querySelector('.is-selected')?.focus();
+            }
+        });
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.cal-quote-block')) closeQuotePicker();
         });
         el['mini-grid'].addEventListener('click', (event) => {
             const button = event.target.closest('[data-date]');
@@ -349,7 +487,7 @@
             renderMiniCalendar();
             onFormChanged();
         });
-        document.getElementById('cal-logout').addEventListener('click', async () => {
+        document.getElementById('cal-logout')?.addEventListener('click', async () => {
             const client = window.WeotziData?.getClient?.();
             if (client) await client.auth.signOut();
             window.location.assign(appUrl('/'));
@@ -365,6 +503,7 @@
             state.currentDate = addDays(state.currentDate, direction);
         }
         state.selectedDate = startOfDay(state.currentDate);
+        syncUrl();
         await loadEvents();
     }
 
@@ -383,6 +522,8 @@
             el['calendar-view'].setAttribute('aria-busy', 'false');
         }
     }
+
+    /* --------------------------------- vistas --------------------------------- */
 
     function renderAll() {
         el['calendar-page'].dataset.view = state.view;
@@ -410,16 +551,26 @@
         el['cal-period-label'].textContent = label;
     }
 
-    function updateHeaderSummary() {
+    function monthCounters() {
         const from = startOfMonth(state.currentDate);
         const to = endOfMonth(state.currentDate);
         const inMonth = state.events.filter((event) => overlaps(event, from, to));
-        const confirmed = inMonth.filter((event) => event.type === 'confirmed_session').length;
-        const pending = inMonth.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length;
-        const blocked = new Set(inMonth
-            .filter((event) => event.type === 'blocked_day')
-            .map((event) => dateKey(asDate(event.start)))).size;
-        el['calendar-summary'].textContent = `${confirmed} turnos confirmados, ${pending} solicitudes esperando respuesta y ${blocked} días bloqueados este mes.`;
+        return {
+            confirmed: inMonth.filter((event) => event.type === 'confirmed_session').length,
+            pending: inMonth.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length,
+            blocked: new Set(inMonth
+                .filter((event) => event.type === 'blocked_day')
+                .map((event) => dateKey(asDate(event.start)))).size,
+        };
+    }
+
+    function plural(count, singular, pluralForm) {
+        return `${count} ${count === 1 ? singular : pluralForm}`;
+    }
+
+    function updateHeaderSummary() {
+        const { confirmed, pending, blocked } = monthCounters();
+        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes.`;
     }
 
     function renderLegend() {
@@ -456,14 +607,15 @@
 
         const headers = WEEKDAYS.map((day) => `<div class="cal-month-weekday">${day}</div>`).join('');
         const cells = days.map((date) => {
-            const dayEvents = eventsForDay(date).slice(0, 4);
+            const dayEvents = eventsForDay(date);
             const outside = date.getMonth() !== state.currentDate.getMonth();
-            const eventsHtml = dayEvents.slice(0, 3).map((event) => `
+            const eventsHtml = dayEvents.slice(0, MONTH_VISIBLE_EVENTS).map((event) => `
                 <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(event.title)}">
                     ${escapeHtml(event.title)}
                 </button>
             `).join('');
-            const more = dayEvents.length > 3 ? `<span class="cal-more">+${dayEvents.length - 3}</span>` : '';
+            const hidden = hiddenEventCount(dayEvents.length);
+            const more = hidden ? `<span class="cal-more" title="${escapeAttr(`${hidden} ${hidden === 1 ? 'evento más' : 'eventos más'}`)}">+${hidden}</span>` : '';
             return `
                 <div class="cal-month-day${outside ? ' is-outside' : ''}${sameDay(date, new Date()) ? ' is-today' : ''}${sameDay(date, state.selectedDate) ? ' is-selected' : ''}">
                     <button type="button" class="cal-day-number" data-date="${dateKey(date)}" aria-label="Agregar evento el ${escapeAttr(formatLongDate(date))}">${date.getDate()}</button>
@@ -493,6 +645,18 @@
             const eventHtml = dayEvents.map((event) => renderTimedEvent(event, date, columns === 1)).join('');
             return `<div class="cal-time-column" data-date="${dateKey(date)}">${eventHtml}</div>`;
         }).join('');
+        // Los eventos de todo el día van en una franja propia entre la cabecera
+        // y las 09:00: no se superponen con los turnos de la mañana.
+        const allDayByDate = dates.map((date) => eventsForDay(date, visible).filter((event) => event.allDay));
+        const hasAllDay = allDayByDate.some((rows) => rows.length);
+        const allDayRow = hasAllDay ? `
+            <div class="cal-time-allday-label">Todo el día</div>
+            ${dates.map((date, index) => `
+                <div class="cal-time-allday" data-date="${dateKey(date)}">${allDayByDate[index].map((event) => `
+                    <button type="button" class="cal-event cal-event--allday ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(`Todo el día · ${event.title}`)}">${escapeHtml(event.title)}</button>
+                `).join('')}</div>
+            `).join('')}
+        ` : '';
         const dayTitle = columns === 1 ? `
             <header class="cal-day-board-title">
                 <span>${escapeHtml(new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(start))}</span>
@@ -500,13 +664,15 @@
             </header>
         ` : '';
         el['calendar-view'].innerHTML = `${dayTitle}
-            <div class="cal-time-grid${columns === 1 ? ' cal-time-grid--day' : ''}" style="--time-columns:${columns}">
+            <div class="cal-time-grid${columns === 1 ? ' cal-time-grid--day' : ''}${hasAllDay ? ' has-allday' : ''}" style="--time-columns:${columns}">
                 ${columns === 1 ? '' : '<div class="cal-time-corner"></div>'}
                 ${heads}
+                ${allDayRow}
                 <div class="cal-time-hours">${hourLabels}</div>
                 ${dayColumns}
             </div>
         `;
+        fitTimedEvents();
     }
 
     function renderTimedEvent(event, day, isDayView = false) {
@@ -527,6 +693,10 @@
             const totalMinutes = (HOUR_END - HOUR_START) * 60;
             top = Math.max(0, ((clippedStart - visibleStart) / 60000) / totalMinutes * 100);
             height = Math.max(3.5, ((clippedEnd - clippedStart) / 60000) / totalMinutes * 100);
+            if (top >= 100) {
+                top = 96.5;
+                height = 3.5;
+            }
         }
         const time = event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`;
         const eventType = TYPE_META[event.type]?.label || 'Evento';
@@ -534,12 +704,88 @@
         const client = isDayView && event.clientName
             ? `<small>${escapeHtml(event.clientName)}</small>`
             : '';
+        // La hora de inicio va aparte: en un bloque corto (formato compacto)
+        // queda "09:30 Título…" en una sola línea.
+        const startLabel = event.allDay ? time : formatTime(start);
+        const restLabel = timeLabel.slice(startLabel.length);
         return `
             <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}"
                     style="top:${top}%;height:${height}%" title="${escapeAttr(`${time} · ${event.title}`)}">
-                ${escapeHtml(timeLabel)}<strong>${escapeHtml(event.title)}</strong>${client}
+                <span class="cal-event-time">${escapeHtml(startLabel)}<span class="cal-event-time-rest">${escapeHtml(restLabel)}</span></span><strong>${escapeHtml(event.title)}</strong>${client}
             </button>
         `;
+    }
+
+    // Alto del bloque vs. contenido. Un turno de 30 min mide 26,4 px en la
+    // semana y 32,8 px en el día, y hora + título necesitan ~33 / ~47 px: en
+    // vez de cortar el texto a la mitad se elige un formato que entre.
+    //   compact     → una sola línea "09:30 Título…" (no entra hora + título)
+    //   titleLines  → líneas de título que entran completas (con elipsis)
+    //   showClient  → el cliente (vista día) entra debajo de una línea de título
+    function timedEventLayout(metrics) {
+        const m = metrics || {};
+        const num = (value) => (Number.isFinite(value) ? value : 0);
+        const titleLine = num(m.titleLine) || 13;
+        const clientLine = num(m.clientLine);
+        const tolerance = 0.5;
+        const available = num(m.height) - num(m.padding) - num(m.timeLine) - num(m.titleGap) + tolerance;
+        if (available < titleLine) return { compact: true, titleLines: 1, showClient: false };
+        const showClient = clientLine > 0 && available >= titleLine + clientLine;
+        const titleLines = Math.max(1, Math.floor((available - (showClient ? clientLine : 0)) / titleLine));
+        return { compact: false, titleLines, showClient };
+    }
+
+    function cssPx(value, fallback = 0) {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function lineHeightOf(node) {
+        if (!node) return 0;
+        const style = getComputedStyle(node);
+        return cssPx(style.lineHeight, cssPx(style.fontSize, 12) * 1.2);
+    }
+
+    function fitTimedEvents() {
+        const view = el['calendar-view'];
+        if (!view || (state.view !== 'week' && state.view !== 'day')) return;
+        view.querySelectorAll('.cal-time-column .cal-event').forEach((button) => {
+            button.classList.remove('is-compact', 'is-client-hidden');
+            button.style.removeProperty('--title-lines');
+            const height = button.clientHeight;
+            if (!height) return; // vista oculta: se vuelve a medir al mostrarse
+            const style = getComputedStyle(button);
+            const title = button.querySelector('strong');
+            const client = button.querySelector('small');
+            const layout = timedEventLayout({
+                height,
+                padding: cssPx(style.paddingTop) + cssPx(style.paddingBottom),
+                timeLine: lineHeightOf(button.querySelector('.cal-event-time')),
+                titleGap: title ? cssPx(getComputedStyle(title).marginTop) : 0,
+                titleLine: lineHeightOf(title),
+                clientLine: client ? lineHeightOf(client) + cssPx(getComputedStyle(client).marginTop) : 0,
+            });
+            button.classList.toggle('is-compact', layout.compact);
+            button.classList.toggle('is-client-hidden', !!client && !layout.showClient);
+            if (!layout.compact) button.style.setProperty('--title-lines', String(layout.titleLines));
+        });
+    }
+
+    let fitObserver = null;
+    function watchTimedEventFit() {
+        const view = el['calendar-view'];
+        if (!view) return;
+        if (typeof ResizeObserver === 'function') {
+            fitObserver = fitObserver || new ResizeObserver(() => fitTimedEvents());
+            fitObserver.observe(view);
+        } else {
+            let frame = 0;
+            window.addEventListener('resize', () => {
+                window.cancelAnimationFrame(frame);
+                frame = window.requestAnimationFrame(fitTimedEvents);
+            });
+        }
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTimedEvents).catch(() => {});
     }
 
     function renderAgenda() {
@@ -552,22 +798,24 @@
         }
         const groups = new Map();
         events.forEach((event) => {
-            const key = dateKey(asDate(event.start));
+            const key = dateKey(agendaGroupDate(event.start, from));
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push(event);
         });
-        el['calendar-view'].innerHTML = `<div class="cal-agenda">${[...groups.entries()].map(([key, rows]) => {
+        const dayFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+        el['calendar-view'].innerHTML = `<div class="cal-agenda">${[...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, rows]) => {
             const date = parseLocalDate(key);
             return `
                 <section class="cal-agenda-day">
-                    <h3>${escapeHtml(new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date))}</h3>
+                    <h3>${escapeHtml(capitalize(dayFormat.format(date)))}</h3>
                     ${rows.map((event) => {
                         const { start, end } = eventDates(event);
+                        const context = [TYPE_META[event.type]?.label, event.location, event.quoteCode].filter(Boolean).join(' · ');
                         return `
                             <button type="button" class="cal-agenda-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}">
                                 <time>${event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`}</time>
                                 <i aria-hidden="true"></i>
-                                <span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.location || TYPE_META[event.type]?.label || '')}</small></span>
+                                <span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(context)}</small></span>
                             </button>
                         `;
                     }).join('')}
@@ -591,13 +839,10 @@
                     </div>
                 </div>
             `;
-        }).join('') : '<p class="cal-upcoming-foot">Sin próximos eventos en este período.</p>';
+        }).join('') : '<p class="cal-upcoming-empty">Sin próximos eventos en este período.</p>';
 
-        const monthEvents = state.events.filter((event) => overlaps(event, startOfMonth(state.currentDate), endOfMonth(state.currentDate)));
-        const pending = monthEvents.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length;
-        const blocked = new Set(monthEvents.filter((event) => event.type === 'blocked_day').map((event) => dateKey(asDate(event.start)))).size;
-        const confirmed = monthEvents.filter((event) => event.type === 'confirmed_session').length;
-        el['upcoming-summary'].textContent = `${pending} pendientes de confirmar · ${blocked} días bloqueados · ${confirmed} turnos confirmados en total.`;
+        const { confirmed, pending, blocked } = monthCounters();
+        el['upcoming-summary'].textContent = `${pending} ${pending === 1 ? 'pendiente' : 'pendientes'} de confirmar · ${plural(blocked, 'día bloqueado', 'días bloqueados')} · ${plural(confirmed, 'turno confirmado', 'turnos confirmados')} en total.`;
     }
 
     function onBoardClick(event) {
@@ -619,18 +864,62 @@
         const event = state.events.find((row) => row.id === id);
         if (!event) return;
         if (event.readonly) {
-            const source = event.sourceType === 'quotation_session' ? 'Cotizaciones' : 'Travel';
-            showToast(`${event.title} · se administra desde ${source}.`);
+            // Las citas que agenda un estudio se gestionan desde su panel.
+            if (event.sourceType === 'studio_booking') {
+                showToast(`${event.title} · la gestiona el estudio`);
+                return;
+            }
+            // Los viajes se administran en Travel: abrimos su itinerario.
+            if (event.href) {
+                window.location.href = appUrl(event.href);
+                return;
+            }
+            showToast(`${event.title} · se administra desde Travel.`);
             return;
         }
         openEditor(event);
     }
 
-    function openEditor(event = null, date = null) {
+    /* --------------------------------- editor --------------------------------- */
+
+    function editorTypeFor(event) {
+        if (!event) return null;
+        if (event.sourceType === 'quotation_session') return 'confirmed_session';
+        if (event.type === 'reservation' && event.quotationId) return 'confirmed_session';
+        return event.type;
+    }
+
+    function editingValues() {
+        const event = state.editingEvent;
+        if (!event) return {};
+        if (event.sourceType === 'quotation_session') {
+            return {
+                title: event.title,
+                client_name: event.clientName,
+                notes: event.raw?.session?.notes || '',
+                location: event.location,
+                all_day: false,
+                recurrence_rule: 'none',
+                status: 'scheduled',
+            };
+        }
+        return event.raw || {};
+    }
+
+    function isLegacyManualTurno() {
+        const event = state.editingEvent;
+        return !!event && event.sourceType === 'manual' && event.type === 'confirmed_session' && !event.quotationId;
+    }
+
+    async function openEditor(event = null, date = null, options = {}) {
         state.editingEvent = event && !event.readonly ? event : null;
-        state.selectedType = state.editingEvent?.type || null;
+        const requestedType = options.type && MANUAL_TYPES.includes(options.type) ? options.type : null;
+        state.selectedType = state.editingEvent ? editorTypeFor(state.editingEvent) : requestedType;
         state.selectedDate = date || (state.editingEvent ? startOfDay(asDate(state.editingEvent.start)) : startOfDay(state.currentDate));
         state.miniDate = startOfMonth(state.selectedDate);
+        state.selectedQuote = null;
+        state.quoteQuery = '';
+        state.activeQuoteId = null;
         el['calendar-page'].hidden = true;
         el['calendar-editor'].hidden = false;
         el['editor-heading'].textContent = state.editingEvent ? 'Editar evento' : 'Agregar al calendario';
@@ -642,27 +931,72 @@
         renderMiniCalendar();
         updateFormSummary();
         checkConflicts();
+        syncUrl();
         window.scrollTo({ top: 0, behavior: 'instant' });
+
+        if (state.selectedType !== 'confirmed_session' && !options.quote) return;
+        await ensureQuotes();
+        if (el['calendar-editor'].hidden) return;
+
+        if (state.editingEvent?.quotationId) {
+            state.selectedQuote = findQuote(state.editingEvent.quotationId)
+                || state.editingEvent.raw?.quotation
+                || null;
+        } else if (options.quote) {
+            const quote = (state.quotes || []).find((row) => links()?.matchesQuoteParam(row, options.quote));
+            const status = quote ? links()?.classifyQuote(quote) : null;
+            if (quote && status && status.group !== 'unavailable') {
+                state.selectedQuote = quote;
+                if (state.selectedType !== 'confirmed_session') {
+                    state.selectedType = 'confirmed_session';
+                    renderTypePicker();
+                }
+            } else {
+                showToast(quote
+                    ? `${links()?.quoteCode(quote) || 'Esa cotización'} no se puede agendar: ${status?.reason || 'no está disponible'}.`
+                    : 'No encontramos esa cotización entre las tuyas.', true);
+            }
+        }
+        renderEventFields();
+        updateFormSummary();
+        checkConflicts();
+        syncUrl();
+        if (options.picker) {
+            openQuotePicker();
+            document.getElementById('event-quote-search')?.focus({ preventScroll: true });
+        }
     }
 
     function closeEditor() {
+        closeQuotePicker();
         el['calendar-editor'].hidden = true;
         el['calendar-page'].hidden = false;
         state.editingEvent = null;
         state.selectedType = null;
+        state.selectedQuote = null;
         clearConflict();
         renderAll();
+        syncUrl();
         window.scrollTo({ top: 0, behavior: 'instant' });
     }
 
     function chooseType(type) {
         if (!MANUAL_TYPES.includes(type)) return;
         state.selectedType = type;
+        if (type !== 'confirmed_session') state.selectedQuote = null;
         renderTypePicker();
         renderEventFields();
         updateFormSummary();
-        const first = el['event-fields'].querySelector('input, select, textarea');
-        first?.focus();
+        scheduleConflictCheck();
+        syncUrl();
+        const first = el['event-fields'].querySelector('input:not([type="hidden"]), select, textarea');
+        first?.focus({ preventScroll: true });
+        if (type === 'confirmed_session') {
+            ensureQuotes().then(() => {
+                renderQuoteListbox();
+                updateQuoteHint();
+            });
+        }
     }
 
     function renderTypePicker() {
@@ -678,9 +1012,13 @@
         return `<div class="cal-field ${extraClass}"><label for="${name}">${label}${required ? ' <em>*</em>' : ''}</label>${input}</div>`;
     }
 
-    function textInput(name, value, placeholder, required = false, icon = '') {
-        const input = `<input id="${name}" name="${name}" type="text" value="${escapeAttr(value || '')}" placeholder="${escapeAttr(placeholder)}" maxlength="180"${required ? ' required' : ''}>`;
+    function textInput(name, value, placeholder, required = false, icon = '', attrs = '') {
+        const input = `<input id="${name}" name="${name}" type="text" value="${escapeAttr(value || '')}" placeholder="${escapeAttr(placeholder)}" maxlength="180"${required ? ' required' : ''}${attrs}>`;
         return icon ? `<span class="cal-input-with-icon"><i data-wo-icon="${escapeAttr(icon)}" aria-hidden="true"></i>${input}</span>` : input;
+    }
+
+    function selectControl(name, optionsHtml) {
+        return `<span class="cal-select"><select id="${name}" name="${name}">${optionsHtml}</select><i data-wo-icon="chevron-down" aria-hidden="true"></i></span>`;
     }
 
     function buildCommonDateFields(raw) {
@@ -696,23 +1034,33 @@
                     <input id="event-date" name="event-date" type="hidden" value="${dateValue}">
                 </span>
             `, true),
-            time: field('Hora de inicio', 'event-time', timeSelect(timeValue), false),
+            time: field('Hora de inicio', 'event-time', timeSelect(timeValue), false, 'cal-field--time'),
             notes: field('Notas', 'event-notes', `<textarea id="event-notes" name="event-notes" placeholder="Detalles adicionales…">${escapeHtml(raw?.notes || '')}</textarea>`),
         };
     }
 
     function durationSelect(value) {
-        const durations = [0.5, 1, 1.5, 2, 3, 4, 8];
-        return `<select id="event-duration" name="event-duration">${durations.map((duration) => `
-            <option value="${duration}"${Number(value || 1) === duration ? ' selected' : ''}>${duration === 1 ? '1 hora' : `${String(duration).replace('.', ',')} horas`}</option>
-        `).join('')}</select>`;
+        const durations = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8];
+        const current = Number(value || 1);
+        const list = durations.includes(current) ? durations : [...durations, current].sort((a, b) => a - b);
+        return selectControl('event-duration', list.map((duration) => `
+            <option value="${duration}"${current === duration ? ' selected' : ''}>${formatHours(duration)}</option>
+        `).join(''));
+    }
+
+    function locationSelect() {
+        return selectControl('event-location', `
+            <option value="Estudio propio">Estudio propio</option>
+            <option value="A domicilio">A domicilio</option>
+            <option value="Otro estudio">Otro estudio</option>
+        `);
     }
 
     function toggleField(name, title, copy, checked) {
         return `
             <label class="cal-toggle-row" for="${name}">
                 <span class="cal-toggle-copy"><strong>${title}</strong><span>${copy}</span></span>
-                <span class="cal-switch"><input id="${name}" name="${name}" type="checkbox"${checked ? ' checked' : ''}><span></span></span>
+                <span class="cal-switch"><input id="${name}" name="${name}" type="checkbox" role="switch"${checked ? ' checked' : ''}><span></span></span>
             </label>
         `;
     }
@@ -736,7 +1084,40 @@
                 options.push(`<option value="${optionValue}"${optionValue === value ? ' selected' : ''}>${hour12}:${pad(minute)} ${period}</option>`);
             }
         }
+        if (!options.some((option) => option.includes(`value="${value}"`))) {
+            const [hour, minute] = String(value).split(':').map(Number);
+            options.push(`<option value="${value}" selected>${(hour % 12) || 12}:${pad(minute)} ${hour < 12 ? 'a. m.' : 'p. m.'}</option>`);
+        }
         return `<select class="cal-time-select" id="event-time" name="event-time" required>${options.join('')}</select>`;
+    }
+
+    function quoteDisplay(quote) {
+        if (!quote) return '';
+        const L = links();
+        const project = L ? L.quoteProject(quote) : '';
+        return [quote.client_full_name, project, L ? L.quoteCode(quote) : ''].filter(Boolean).join(' · ');
+    }
+
+    function renderQuoteLink() {
+        const quote = state.selectedQuote;
+        return `
+            <div class="cal-quote-block">
+                <div class="cal-quote-link">
+                    <label class="cal-quote-label" for="event-quote-search">Cotización a vincular${isLegacyManualTurno() ? '' : ' <em>*</em>'}</label>
+                    <div class="cal-quote-combo">
+                        <input id="event-quote-search" type="text" role="combobox" autocomplete="off"
+                               aria-autocomplete="list" aria-expanded="false" aria-controls="quote-listbox"
+                               aria-describedby="quote-hint"
+                               placeholder="Buscá por cliente, proyecto o número de cotización"
+                               value="${escapeAttr(quoteDisplay(quote))}">
+                        <input id="event-quote-id" name="event-quote-id" type="hidden" value="${escapeAttr(quote ? quote.id : '')}">
+                    </div>
+                    <p class="cal-quote-hint" id="quote-hint" hidden>${escapeHtml(QUOTE_HINT)}</p>
+                    <div class="cal-quote-listbox" id="quote-listbox" role="listbox" aria-label="Cotizaciones" hidden></div>
+                </div>
+                <p class="cal-quote-create" hidden>¿Todavía no cargaste este trabajo? <a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a></p>
+            </div>
+        `;
     }
 
     function renderEventFields() {
@@ -748,7 +1129,7 @@
             return;
         }
 
-        const raw = state.editingEvent?.raw || {};
+        const raw = editingValues();
         const common = buildCommonDateFields(raw);
         const durationHours = state.editingEvent
             ? Math.max(0.5, (asDate(state.editingEvent.end) - asDate(state.editingEvent.start)) / 3600000)
@@ -756,21 +1137,26 @@
         const currentTitle = raw.title || state.editingEvent?.title || '';
         let html = '';
 
-        if (state.selectedType === 'confirmed_session' || state.selectedType === 'reservation') {
+        if (state.selectedType === 'confirmed_session') {
+            const quote = state.selectedQuote;
+            const client = quote?.client_full_name || raw.client_name || state.editingEvent?.clientName || '';
+            html = `
+                ${renderQuoteLink()}
+                ${field('Cliente', 'event-client', textInput('event-client', client, 'Nombre del cliente', true, 'user', quote ? ' readonly' : ''), true)}
+                <div class="cal-field-grid">${common.date}${common.time}</div>
+                ${field('Duración', 'event-duration', durationSelect(durationHours))}
+                ${field('Ubicación', 'event-location', locationSelect())}
+                ${common.notes}
+            `;
+        } else if (state.selectedType === 'reservation') {
             const client = raw.client_name || state.editingEvent?.clientName || '';
             html = `
                 ${field('Cliente', 'event-client', textInput('event-client', client, 'Nombre del cliente', true, 'user'), true)}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${field('Duración', 'event-duration', durationSelect(durationHours))}
-                ${field('Ubicación', 'event-location', `
-                    <select id="event-location" name="event-location">
-                        <option value="Estudio propio">Estudio propio</option>
-                        <option value="A domicilio">A domicilio</option>
-                        <option value="Otro estudio">Otro estudio</option>
-                    </select>
-                `)}
+                ${field('Ubicación', 'event-location', locationSelect())}
                 ${common.notes}
-                ${state.selectedType === 'reservation' ? checkboxField('event-confirmed', 'La reserva ya está confirmada por el cliente', raw.status === 'scheduled') : ''}
+                ${checkboxField('event-confirmed', 'La reserva ya está confirmada por el cliente', raw.status === 'scheduled')}
             `;
         } else if (state.selectedType === 'availability') {
             html = `
@@ -780,15 +1166,16 @@
                 ${common.notes}
             `;
         } else if (state.selectedType === 'blocked_day') {
+            const allDay = raw.all_day !== false;
             html = `
                 ${field('Motivo', 'event-title', textInput('event-title', currentTitle, 'Ej: Vacaciones, mantenimiento…', true), true)}
-                <div class="cal-field-grid cal-field-grid--blocked">${common.date}<div class="cal-blocked-time"${raw.all_day !== false ? ' hidden' : ''}>${common.time}</div></div>
-                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', raw.all_day !== false)}
+                <div class="cal-field-grid cal-field-grid--blocked">${common.date}<div class="cal-blocked-time"${allDay ? ' hidden' : ''}>${common.time}</div></div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', allDay)}
                 ${common.notes}
             `;
         } else if (state.selectedType === 'guest_spot') {
             html = `
-                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', true, 'briefcase'), true)}
+                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', false, 'briefcase'))}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
                 ${common.notes}
@@ -816,16 +1203,303 @@
             `;
         }
 
-        el['event-fields'].innerHTML = `<div class="cal-fields">${html}</div>`;
+        el['event-fields'].innerHTML = `<div class="cal-fields cal-fields--${state.selectedType}">${html}</div>`;
         el['event-fields'].hidden = false;
         el['event-form-empty'].hidden = true;
         el['save-event'].disabled = false;
 
         const location = document.getElementById('event-location');
-        if (location && raw.location) location.value = raw.location;
+        if (location && raw.location) {
+            if (![...location.options].some((option) => option.value === raw.location)) {
+                location.insertAdjacentHTML('beforeend', `<option value="${escapeAttr(raw.location)}">${escapeHtml(raw.location)}</option>`);
+            }
+            location.value = raw.location;
+        }
+        const time = document.getElementById('event-time');
+        if (time) time.disabled = !!document.getElementById('event-all-day')?.checked;
+        if (state.selectedType === 'confirmed_session') {
+            renderQuoteListbox();
+            updateQuoteHint();
+        }
     }
 
-    function readFormPayload() {
+    /* ----------------------- cotización a vincular (801:547) ----------------------- */
+
+    function findQuote(id) {
+        return (state.quotes || []).find((quote) => String(quote.id) === String(id)) || null;
+    }
+
+    function ensureQuotes() {
+        if (state.quotes) return Promise.resolve(state.quotes);
+        if (!state.user || !window.WeotziData?.Calendar?.listLinkableQuotes) {
+            state.quotes = [];
+            return Promise.resolve(state.quotes);
+        }
+        if (!state.quotesPromise) {
+            state.quotesPromise = window.WeotziData.Calendar.listLinkableQuotes(state.user.id)
+                .then((result) => {
+                    state.quotes = result.quotes || [];
+                    state.quoteSessions = result.sessionsByQuoteId || new Map();
+                    state.quotesError = '';
+                    return state.quotes;
+                })
+                .catch((error) => {
+                    console.warn('[calendar] No se pudieron cargar las cotizaciones:', error);
+                    state.quotes = [];
+                    state.quotesError = 'No pudimos cargar tus cotizaciones. Probá de nuevo en un rato.';
+                    return state.quotes;
+                })
+                .finally(() => { state.quotesPromise = null; });
+        }
+        return state.quotesPromise;
+    }
+
+    function invalidateQuotes() {
+        state.quotes = null;
+        state.quoteSessions = new Map();
+    }
+
+    function quoteGroup(quote) {
+        return quote ? links()?.classifyQuote(quote)?.group || null : null;
+    }
+
+    function resolveSaveTarget() {
+        if (state.selectedType !== 'confirmed_session') return 'manual';
+        const editing = state.editingEvent;
+        const quote = state.selectedQuote;
+        if (editing && quote && editing.quotationId && String(editing.quotationId) === String(quote.id)) {
+            if (editing.sourceType === 'quotation_session') return 'session';
+            if (editing.type === 'reservation') return quoteGroup(quote) === 'approved' ? 'session' : 'reservation';
+        }
+        if (!quote) return editing?.sourceType === 'quotation_session' ? 'session' : 'manual';
+        return links()?.saveTarget('confirmed_session', quote) || 'manual';
+    }
+
+    function updateQuoteHint() {
+        const hint = document.getElementById('quote-hint');
+        if (!hint) return;
+        const quote = state.selectedQuote;
+        const code = quote ? links()?.quoteCode(quote) : '';
+        const target = resolveSaveTarget();
+        let text = QUOTE_HINT;
+        let tone = '';
+        if (state.quotesError) {
+            text = state.quotesError;
+            tone = 'error';
+        } else if (quote && target === 'session') {
+            text = `Se agenda como sesión de ${code}: también la vas a ver en el detalle de la cotización.`;
+        } else if (quote && target === 'reservation') {
+            text = `${code} todavía no está aprobada: el turno se guarda como reserva pendiente.`;
+            tone = 'warning';
+        } else if (isLegacyManualTurno()) {
+            text = 'Este turno no está vinculado a una cotización. Podés vincularlo ahora.';
+        }
+        hint.textContent = text;
+        hint.dataset.tone = tone;
+        // 801:547: con la lista cerrada solo se ve el campo. La ayuda genérica
+        // y la confirmación "Se agenda como sesión…" quedan como descripción
+        // accesible (aria-describedby); solo se ven los avisos que piden
+        // atención: reserva pendiente, error de carga y turno heredado.
+        hint.hidden = !isVisibleQuoteNotice(text, tone);
+        updateQuoteCreate();
+    }
+
+    function isVisibleQuoteNotice(text, tone) {
+        if (text === QUOTE_HINT) return false;
+        return tone === 'warning' || tone === 'error' || isLegacyManualTurno();
+    }
+
+    // "Crear cotización manual" fijo debajo del campo: solo cuando no hay
+    // ninguna cotización agendable. Después de intentar guardar sin cotización
+    // el link va dentro del aviso de error (no se repite acá) y en la lista
+    // abierta está en el estado vacío.
+    function updateQuoteCreate() {
+        const create = el['event-fields']?.querySelector('.cal-quote-create');
+        if (!create) return;
+        const nothingToLink = Array.isArray(state.quotes)
+            && !state.quotes.some((quote) => { const group = quoteGroup(quote); return group && group !== 'unavailable'; });
+        const errorHasLink = !!el['event-form-error']?.querySelector?.('a');
+        create.hidden = !nothingToLink || errorHasLink;
+    }
+
+    // Cotización manual desde el calendario: la hoja abre como cita y precarga
+    // la fecha elegida (?origen=cita&fecha=AAAA-MM-DD); Cancelar vuelve acá.
+    function manualQuoteHref() {
+        const params = new URLSearchParams({ origen: 'cita', fecha: dateKey(state.selectedDate || new Date()) });
+        return appUrl(`${MANUAL_QUOTE_PATH}?${params.toString()}`);
+    }
+
+    function manualQuoteLink() {
+        return `<a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a>`;
+    }
+
+    function renderQuoteListbox() {
+        const box = document.getElementById('quote-listbox');
+        if (!box) return;
+        const L = links();
+        if (!state.quotes || !L) {
+            state.quoteOptions = [];
+            box.innerHTML = '<p class="cal-quote-empty">Cargando tus cotizaciones…</p>';
+            return;
+        }
+        const groups = L.buildQuoteOptions(state.quotes, state.quoteSessions, state.quoteQuery, new Date());
+        state.quoteOptions = groups.flatMap((group) => group.options);
+        if (!groups.length) {
+            const message = state.quotes.length
+                ? 'No encontramos cotizaciones con esa búsqueda.'
+                : (state.quotesError || 'Todavía no tenés cotizaciones para vincular.');
+            // Si el aviso de error ya enlaza a crear una cotización manual, el
+            // estado vacío no repite el link (un solo acceso visible).
+            const errorHasLink = !!el['event-form-error']?.querySelector?.('a');
+            box.innerHTML = `<p class="cal-quote-empty">${escapeHtml(message)}${errorHasLink ? '' : ` ${manualQuoteLink()}`}</p>`;
+            return;
+        }
+        const enabled = state.quoteOptions.filter((option) => !option.disabled);
+        if (!enabled.some((option) => option.id === state.activeQuoteId)) {
+            const selectedId = state.selectedQuote ? String(state.selectedQuote.id) : null;
+            state.activeQuoteId = enabled.find((option) => option.id === selectedId)?.id || enabled[0]?.id || null;
+        }
+        box.innerHTML = groups.map((group) => `
+            <div class="cal-quote-group" role="group" aria-labelledby="quote-group-${group.id}">
+                <p class="cal-quote-group-label" id="quote-group-${group.id}" role="presentation">${escapeHtml(group.label)}</p>
+                ${group.options.map(renderQuoteOption).join('')}
+            </div>
+        `).join('');
+        const input = document.getElementById('event-quote-search');
+        if (input) {
+            if (state.activeQuoteId) input.setAttribute('aria-activedescendant', `quote-option-${state.activeQuoteId}`);
+            else input.removeAttribute('aria-activedescendant');
+        }
+    }
+
+    function renderQuoteOption(option) {
+        const selected = !!state.selectedQuote && String(state.selectedQuote.id) === option.id;
+        const active = state.activeQuoteId === option.id;
+        return `
+            <div class="cal-quote-option tone-${escapeAttr(option.tone)}${active ? ' is-active' : ''}" role="option"
+                 id="quote-option-${escapeAttr(option.id)}" data-quote-id="${escapeAttr(option.id)}"
+                 aria-selected="${selected}"${option.disabled ? ' aria-disabled="true"' : ''}>
+                <span class="cal-quote-option-head">
+                    <strong>${escapeHtml(option.name)}</strong>
+                    <span class="cal-quote-badge">${escapeHtml(option.badge)}</span>
+                </span>
+                <span class="cal-quote-project">${escapeHtml(option.project || 'Proyecto sin descripción')}</span>
+                <span class="cal-quote-meta">${escapeHtml(option.meta)}</span>
+            </div>
+        `;
+    }
+
+    function openQuotePicker() {
+        const box = document.getElementById('quote-listbox');
+        const input = document.getElementById('event-quote-search');
+        if (!box || !input) return;
+        renderQuoteListbox();
+        box.hidden = false;
+        box.closest('.cal-quote-block')?.classList.add('is-open');
+        input.setAttribute('aria-expanded', 'true');
+        box.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+        if (!state.quotes) {
+            ensureQuotes().then(() => {
+                if (!box.hidden) renderQuoteListbox();
+                updateQuoteHint();
+            });
+        }
+    }
+
+    function closeQuotePicker() {
+        const box = document.getElementById('quote-listbox');
+        const input = document.getElementById('event-quote-search');
+        if (box) {
+            box.hidden = true;
+            box.closest('.cal-quote-block')?.classList.remove('is-open');
+        }
+        if (input) {
+            input.setAttribute('aria-expanded', 'false');
+            input.removeAttribute('aria-activedescendant');
+            if (state.selectedQuote && document.activeElement !== input) input.value = quoteDisplay(state.selectedQuote);
+        }
+    }
+
+    function onQuoteSearchInput(event) {
+        state.quoteQuery = event.target.value;
+        if (state.selectedQuote) {
+            state.selectedQuote = null;
+            const hidden = document.getElementById('event-quote-id');
+            if (hidden) hidden.value = '';
+            const client = document.getElementById('event-client');
+            if (client) {
+                client.readOnly = false;
+                client.value = '';
+            }
+            updateQuoteHint();
+            updateFormSummary();
+            syncUrl();
+        }
+        state.activeQuoteId = null;
+        openQuotePicker();
+    }
+
+    function moveActiveQuote(direction) {
+        const enabled = state.quoteOptions.filter((option) => !option.disabled);
+        if (!enabled.length) return;
+        const current = enabled.findIndex((option) => option.id === state.activeQuoteId);
+        const next = enabled[(current + direction + enabled.length) % enabled.length];
+        state.activeQuoteId = next.id;
+        renderQuoteListbox();
+        document.getElementById(`quote-option-${next.id}`)?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function onQuoteKeydown(event) {
+        if (event.target.id !== 'event-quote-search') return;
+        const box = document.getElementById('quote-listbox');
+        const open = box && !box.hidden;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!open) openQuotePicker();
+            else moveActiveQuote(event.key === 'ArrowDown' ? 1 : -1);
+        } else if (event.key === 'Enter') {
+            if (!open) return;
+            event.preventDefault();
+            if (state.activeQuoteId) selectQuote(state.activeQuoteId);
+        } else if (event.key === 'Escape') {
+            if (!open) return;
+            event.preventDefault();
+            closeQuotePicker();
+        } else if (event.key === 'Tab') {
+            closeQuotePicker();
+        }
+    }
+
+    function selectQuote(id) {
+        const quote = findQuote(id);
+        const status = quote ? links()?.classifyQuote(quote) : null;
+        if (!quote || !status || status.group === 'unavailable') return;
+        state.selectedQuote = quote;
+        state.quoteQuery = '';
+        state.activeQuoteId = String(quote.id);
+        const input = document.getElementById('event-quote-search');
+        const hidden = document.getElementById('event-quote-id');
+        const client = document.getElementById('event-client');
+        if (input) input.value = quoteDisplay(quote);
+        if (hidden) hidden.value = quote.id;
+        if (client) {
+            client.value = quote.client_full_name || '';
+            client.readOnly = true;
+        }
+        // Con la cotización elegida desaparece el aviso de "elegí una
+        // cotización" (y su link) antes de recalcular avisos y accesos.
+        el['event-form-error'].textContent = '';
+        closeQuotePicker();
+        updateQuoteHint();
+        onFormChanged();
+        syncUrl();
+    }
+
+    /* ------------------------------ payload y resumen ------------------------------ */
+
+    // lenient: para el resumen y la vista previa de superposición no hace
+    // falta que el título esté completo.
+    function readFormPayload(options = {}) {
         if (!state.selectedType) return null;
         const dateInput = document.getElementById('event-date');
         const selectedDate = parseLocalDate(dateInput?.value);
@@ -838,29 +1512,62 @@
         if (!allDay) start.setHours(hours || 0, minutes || 0, 0, 0);
         const duration = Number(document.getElementById('event-duration')?.value || 1);
         const end = allDay ? endOfDay(start) : new Date(start.getTime() + duration * 3600000);
-        const client = document.getElementById('event-client')?.value.trim() || '';
+        const quote = state.selectedType === 'confirmed_session' ? state.selectedQuote : null;
+        const client = quote?.client_full_name || document.getElementById('event-client')?.value.trim() || '';
         const inputTitle = document.getElementById('event-title')?.value.trim() || '';
+        const target = resolveSaveTarget();
+        let eventType = state.selectedType;
+        let status = 'scheduled';
         let title = inputTitle;
-        if (state.selectedType === 'confirmed_session') title = `Sesión — ${client}`;
-        if (state.selectedType === 'reservation') title = `${client} — reserva`;
-        if (state.selectedType === 'guest_spot') title = /^Guest en\s+/i.test(inputTitle) ? inputTitle : `Guest en ${inputTitle}`;
-        if (!title) throw new Error(state.selectedType === 'confirmed_session' || state.selectedType === 'reservation'
+        if (state.selectedType === 'confirmed_session') {
+            if (target === 'reservation') {
+                eventType = 'reservation';
+                status = 'pending';
+                title = `${client} — reserva`;
+            } else {
+                title = `Sesión — ${client}`;
+            }
+        }
+        if (state.selectedType === 'reservation') {
+            title = `${client} — reserva`;
+            status = document.getElementById('event-confirmed')?.checked ? 'scheduled' : 'pending';
+        }
+        if (state.selectedType === 'guest_spot') {
+            title = !inputTitle ? 'Guest Spot' : (/^Guest en\s+/i.test(inputTitle) ? inputTitle : `Guest en ${inputTitle}`);
+        }
+        if (!title && !options.lenient) throw new Error(state.selectedType === 'confirmed_session' || state.selectedType === 'reservation'
             ? 'Ingresá el nombre del cliente.'
             : 'Ingresá un título para el evento.');
 
-        return {
-            event_type: state.selectedType,
+        const usesLocation = state.selectedType === 'confirmed_session' || state.selectedType === 'reservation';
+        const payload = {
+            event_type: eventType,
             title,
             client_name: client || null,
             starts_at: start.toISOString(),
             ends_at: end.toISOString(),
             all_day: allDay,
-            location: document.getElementById('event-location')?.value || (state.selectedType === 'confirmed_session' || state.selectedType === 'reservation' ? 'Estudio propio' : null),
+            location: usesLocation ? (document.getElementById('event-location')?.value || 'Estudio propio') : null,
             notes: document.getElementById('event-notes')?.value.trim() || null,
-            status: state.selectedType === 'reservation' && !document.getElementById('event-confirmed')?.checked ? 'pending' : 'scheduled',
+            status,
             recurrence_rule: document.getElementById('event-recurring')?.checked ? 'weekly' : 'none',
             recurrence_until: null,
         };
+        if (quote) {
+            payload.quotation_id = quote.id;
+            payload.quote_code = links()?.quoteCode(quote) || null;
+        }
+        return payload;
+    }
+
+    function validateBeforeSave() {
+        if (state.selectedType !== 'confirmed_session') return null;
+        const target = resolveSaveTarget();
+        if (target === 'blocked') return 'Esa cotización no se puede agendar. Elegí otra o creá una cotización manual.';
+        if (!state.selectedQuote && !isLegacyManualTurno() && state.editingEvent?.sourceType !== 'quotation_session') {
+            return 'Elegí la cotización a vincular. Si todavía no existe, creá una cotización manual.';
+        }
+        return null;
     }
 
     function onFormChanged() {
@@ -883,8 +1590,16 @@
         scheduleConflictCheck();
     }
 
+    function summaryTypeLabel() {
+        if (!state.selectedType) return 'Sin elegir';
+        if (state.selectedType === 'confirmed_session' && resolveSaveTarget() === 'reservation') {
+            return TYPE_META.reservation.editorLabel;
+        }
+        return TYPE_META[state.selectedType]?.editorLabel || 'Evento';
+    }
+
     function updateFormSummary() {
-        el['summary-type'].textContent = state.selectedType ? TYPE_META[state.selectedType].editorLabel : 'Sin elegir';
+        el['summary-type'].textContent = summaryTypeLabel();
         el['summary-date'].textContent = state.selectedDate ? formatLongDate(state.selectedDate) : '—';
         if (!state.selectedType) {
             el['summary-time'].textContent = '—';
@@ -893,12 +1608,12 @@
             return;
         }
         try {
-            const payload = readFormPayload();
+            const payload = readFormPayload({ lenient: true });
             const start = asDate(payload.starts_at);
             const end = asDate(payload.ends_at);
             el['summary-time'].textContent = payload.all_day ? 'Todo el día' : formatTime(start);
             const minutes = Math.round((end - start) / 60000);
-            el['summary-duration'].textContent = payload.all_day ? '1 día' : minutes >= 60 ? `${minutes / 60} h` : `${minutes} min`;
+            el['summary-duration'].textContent = payload.all_day ? '1 día' : minutes >= 60 ? formatHours(minutes / 60) : `${minutes} min`;
             el['summary-location'].textContent = payload.location || '—';
         } catch (_error) {
             el['summary-time'].textContent = document.getElementById('event-time')?.value || '—';
@@ -911,12 +1626,15 @@
         el['mini-title'].textContent = formatMonthYear(state.miniDate);
         const gridStart = mondayOfWeek(startOfMonth(state.miniDate));
         const headers = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day) => `<span>${day}</span>`).join('');
-        const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+        const lastDay = endOfMonth(state.miniDate);
+        let weeks = Math.ceil((lastDay - gridStart) / (7 * 24 * 60 * 60 * 1000));
+        weeks = Math.max(5, Math.min(6, weeks));
+        const days = Array.from({ length: weeks * 7 }, (_, index) => addDays(gridStart, index));
         const body = days.map((date) => {
             const outside = date.getMonth() !== state.miniDate.getMonth();
             const hasEvents = eventsForDay(date, state.events).length > 0;
             return `
-                <button type="button" data-date="${dateKey(date)}" class="${outside ? 'is-outside ' : ''}${sameDay(date, state.selectedDate) ? 'is-selected ' : ''}${hasEvents ? 'has-events' : ''}">
+                <button type="button" data-date="${dateKey(date)}" class="${outside ? 'is-outside ' : ''}${sameDay(date, state.selectedDate) ? 'is-selected ' : ''}${hasEvents ? 'has-events' : ''}" aria-label="${escapeAttr(formatLongDate(date))}"${sameDay(date, state.selectedDate) ? ' aria-pressed="true"' : ''}>
                     ${date.getDate()}
                 </button>
             `;
@@ -925,12 +1643,18 @@
         el['mini-grid'].innerHTML = headers + body;
     }
 
+    /* ------------------------------ superposición ------------------------------ */
+
+    function sameEvent(a, b) {
+        return !!a && !!b && a.sourceType === b.sourceType && String(a.baseId) === String(b.baseId);
+    }
+
     function localProjectedConflicts(payload) {
         const start = asDate(payload.starts_at);
         const end = asDate(payload.ends_at);
         return state.events.filter((event) => {
             if (!BLOCKING_TYPES.has(event.type)) return false;
-            if (state.editingEvent && event.baseId === state.editingEvent.baseId) return false;
+            if (state.editingEvent && sameEvent(event, state.editingEvent)) return false;
             return overlaps(event, start, end);
         });
     }
@@ -943,7 +1667,7 @@
     async function checkConflicts() {
         let payload;
         try {
-            if (state.selectedType) payload = readFormPayload();
+            if (state.selectedType) payload = readFormPayload({ lenient: true });
             else {
                 const start = startOfDay(state.selectedDate);
                 start.setHours(10, 0, 0, 0);
@@ -961,14 +1685,18 @@
         }
 
         const local = localProjectedConflicts(payload);
+        const excludeId = state.editingEvent?.sourceType === 'manual' ? state.editingEvent.baseId : null;
         try {
-            const remote = await window.WeotziData.Calendar.checkConflicts(payload, state.editingEvent?.baseId || null);
+            const remote = await window.WeotziData.Calendar.checkConflicts(payload, excludeId);
             const combined = new Map();
             local.forEach((event) => combined.set(`${event.title}:${event.start}`, event));
-            remote.forEach((event) => combined.set(`${event.title}:${event.starts_at}`, {
-                title: event.title,
-                start: event.starts_at,
-            }));
+            remote.forEach((event) => {
+                if (state.editingEvent && String(event.id) === String(excludeId)) return;
+                combined.set(`${event.title}:${new Date(event.starts_at).toISOString()}`, {
+                    title: event.title,
+                    start: event.starts_at,
+                });
+            });
             renderConflicts([...combined.values()]);
         } catch (error) {
             console.warn('[calendar] Vista previa de solapamiento no disponible:', error);
@@ -993,11 +1721,37 @@
         el['calendar-conflict-list'].innerHTML = '';
     }
 
+    /* ------------------------------- persistencia ------------------------------- */
+
+    function setSaveLabel(text) {
+        el['save-event'].innerHTML = `${escapeHtml(text)} <i data-wo-icon="arrow-right" aria-hidden="true"></i>`;
+    }
+
+    async function persist(kind, payload) {
+        const Calendar = window.WeotziData.Calendar;
+        if (kind === 'session') return Calendar.createQuoteSession(payload);
+        return Calendar.create(state.user.id, payload);
+    }
+
+    async function persistUpdate(kind, event, payload) {
+        const Calendar = window.WeotziData.Calendar;
+        if (kind === 'session') return Calendar.updateQuoteSession(event.baseId, payload);
+        return Calendar.update(event.baseId, state.user.id, payload);
+    }
+
+    async function persistRemove(event) {
+        const Calendar = window.WeotziData.Calendar;
+        if (event.sourceType === 'quotation_session') return Calendar.removeQuoteSession(event.baseId);
+        return Calendar.remove(event.baseId, state.user.id);
+    }
+
     async function saveCurrentEvent(event) {
         event.preventDefault();
         el['event-form-error'].textContent = '';
         let payload;
         try {
+            const invalid = validateBeforeSave();
+            if (invalid) throw new Error(invalid);
             payload = readFormPayload();
             const form = el['calendar-event-form'];
             if (!form.checkValidity()) {
@@ -1006,19 +1760,45 @@
             }
         } catch (error) {
             el['event-form-error'].textContent = error.message;
+            if (/cotización/i.test(error.message)) {
+                // Sin cotización elegida: el aviso enlaza a crear una manual.
+                el['event-form-error'].innerHTML = escapeHtml(error.message).replace(
+                    'creá una cotización manual',
+                    `<a href="${escapeAttr(manualQuoteHref())}">creá una cotización manual</a>`,
+                );
+                updateQuoteCreate();
+                renderQuoteListbox();
+                document.getElementById('event-quote-search')?.focus();
+            }
             return;
         }
 
+        const target = resolveSaveTarget();
+        const targetKind = target === 'session' ? 'session' : 'manual';
+        const editing = state.editingEvent;
+        const sourceKind = editing ? (editing.sourceType === 'quotation_session' ? 'session' : 'manual') : null;
+
         el['save-event'].disabled = true;
-        el['save-event'].textContent = 'Guardando…';
+        setSaveLabel('Guardando…');
         try {
-            if (state.editingEvent) {
-                await window.WeotziData.Calendar.update(state.editingEvent.baseId, state.user.id, payload);
+            if (!editing) {
+                await persist(targetKind, payload);
+                showToast(targetKind === 'session'
+                    ? `Turno agendado en ${payload.quote_code || 'la cotización'}.`
+                    : (payload.quote_code
+                        ? `Reserva pendiente guardada · ${payload.quote_code}.`
+                        : 'Evento guardado en tu calendario.'));
+            } else if (sourceKind === targetKind) {
+                await persistUpdate(targetKind, editing, payload);
                 showToast('Evento actualizado.');
             } else {
-                await window.WeotziData.Calendar.create(state.user.id, payload);
-                showToast('Evento guardado en tu calendario.');
+                // Cambió el destino (p. ej. la cotización se aprobó): se crea en
+                // la tabla correcta y se quita la fila anterior, sin duplicar.
+                await persist(targetKind, payload);
+                await persistRemove(editing);
+                showToast(targetKind === 'session' ? 'La reserva pasó a ser un turno de la cotización.' : 'Evento actualizado.');
             }
+            if (payload.quotation_id != null || sourceKind === 'session') invalidateQuotes();
             state.currentDate = startOfDay(asDate(payload.starts_at));
             closeEditor();
             await loadEvents();
@@ -1029,16 +1809,21 @@
                 : (error.message || 'No pudimos guardar el evento.');
         } finally {
             el['save-event'].disabled = false;
-            el['save-event'].textContent = 'Guardar evento →';
+            setSaveLabel('Guardar evento');
         }
     }
 
     async function deleteCurrentEvent() {
-        if (!state.editingEvent) return;
-        if (!window.confirm(`¿Eliminar “${state.editingEvent.title}”?`)) return;
+        const editing = state.editingEvent;
+        if (!editing) return;
+        const message = editing.sourceType === 'quotation_session'
+            ? `¿Eliminar “${editing.title}”? La sesión también se quita del detalle de ${editing.quoteCode || 'la cotización'}.`
+            : `¿Eliminar “${editing.title}”?${editing.recurrenceRule === 'weekly' ? ' Se borran todas las repeticiones.' : ''}`;
+        if (!window.confirm(message)) return;
         el['delete-event'].disabled = true;
         try {
-            await window.WeotziData.Calendar.remove(state.editingEvent.baseId, state.user.id);
+            await persistRemove(editing);
+            if (editing.sourceType === 'quotation_session' || editing.quotationId) invalidateQuotes();
             showToast('Evento eliminado.');
             closeEditor();
             await loadEvents();
@@ -1056,7 +1841,7 @@
     function showToast(message, isError = false) {
         window.clearTimeout(state.toastTimer);
         el['calendar-toast'].textContent = message;
-        el['calendar-toast'].style.background = isError ? 'var(--red-400)' : 'var(--ink)';
+        el['calendar-toast'].classList.toggle('is-error', !!isError);
         el['calendar-toast'].hidden = false;
         state.toastTimer = window.setTimeout(() => { el['calendar-toast'].hidden = true; }, 4200);
     }
@@ -1068,6 +1853,11 @@
         parseLocalDate,
         formatLongDate,
         overlaps,
+        capitalize,
+        hiddenEventCount,
+        agendaGroupDate,
+        buildArtistLoginUrl,
+        timedEventLayout,
     };
 
     document.addEventListener('DOMContentLoaded', initialize);

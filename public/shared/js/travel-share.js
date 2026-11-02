@@ -13,7 +13,7 @@
     if (!window._supabase) window._supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     const D = window.WeotziData;
-    const TYPE_LABELS = { guest_spot: 'Guest spot', convencion: 'Convención', estudio_invitado: 'Estudio invitado' };
+    const TYPE_LABELS = { guest_spot: 'Guest Spot', convencion: 'Convención', estudio_invitado: 'Estudio invitado' };
     const STATUS_LABELS = { planificado: 'Planificado', pendiente: 'Pendiente', confirmado: 'Confirmado', finalizado: 'Finalizado' };
     const STATUS_TAG_CLASS = {
         planificado: 'wo-tag',
@@ -77,8 +77,8 @@
 
         const status = pd(trip.end_date) < today() && trip.status !== 'cancelado' ? 'finalizado' : trip.status;
         const rows = [
+            ['Ciudad y país', `${trip.city}, ${trip.country}`],
             ['Fechas', `${fmtLong(trip.start_date)} – ${fmtLong(trip.end_date)}`],
-            ['Tipo de viaje', TYPE_LABELS[trip.trip_type] || trip.trip_type],
         ];
         if (trip.event_name) rows.push(['Evento', trip.event_name]);
         if (Number.isInteger(trip.interested_people_count) && trip.interested_people_count > 0) {
@@ -103,6 +103,10 @@
                     <span class="wo-meta tvs-row-l">${esc(l)}</span>
                     <span class="tvs-row-v">${esc(v)}</span>
                 </div>`).join('')}
+                <div class="tvs-row">
+                    <span class="wo-meta tvs-row-l">Tipo de viaje</span>
+                    <span class="wo-tag tvs-share-type">${esc(TYPE_LABELS[trip.trip_type] || trip.trip_type)}</span>
+                </div>
                 <div class="tvs-row">
                     <span class="wo-meta tvs-row-l">Estado</span>
                     <span class="${STATUS_TAG_CLASS[status] || 'wo-tag'}">${esc(STATUS_LABELS[status] || status)}</span>

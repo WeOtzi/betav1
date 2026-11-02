@@ -1,6 +1,10 @@
 // ============================================
 // Studio Dashboard
-// Perfil, sedes, roster, spots y cuenta. Operaciones lives in the companion module.
+// Shell del panel: registro de módulos (window.WeOtziStudioAdmin), pestañas,
+// badges, y las pestañas propias Perfil, Sedes, Roster, Spots y Cuenta.
+// Operaciones y los módulos nuevos (Inicio, Solicitudes, Contratos, Agenda,
+// Materiales, Finanzas, Reportes, Reposición, Tienda) viven en archivos propios
+// que se registran en el shell.
 // ============================================
 
 (function () {
@@ -25,12 +29,248 @@
         }
         const detail = { studio, ...summary, state: { ...summary.state }, errors: { ...summary.errors } };
         window.WeOtziStudioDashboardSummary = detail;
-        window.dispatchEvent(new CustomEvent('studio:dashboard-summary', { detail }));
+        if (typeof window.CustomEvent === 'function' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new window.CustomEvent('studio:dashboard-summary', { detail }));
+        }
     }
+
+    // -------------------------------------------------------------
+    // Registro de módulos: window.WeOtziStudioAdmin
+    // Se crea de forma sincrónica (antes de DOMContentLoaded) para que los
+    // módulos cargados después puedan registrarse apenas se evalúan.
+    // -------------------------------------------------------------
+    const TAB_PATTERN = /^[a-z]+$/;
+    const DEFAULT_TAB = 'resumen';
+    // 'inicio' era la pestaña de pendientes antes del DS: ahora vive en Resumen.
+    const TAB_ALIASES = { inicio: 'resumen' };
+    function tabAlias(tab) { return TAB_ALIASES[tab] || tab; }
+
+    function normalizeParams(params) {
+        if (!params || typeof params !== 'object' || Array.isArray(params)) return {};
+        const out = {};
+        Object.keys(params).forEach(key => { if (params[key] !== undefined) out[key] = params[key]; });
+        return out;
+    }
+
+    function paramsKey(params) {
+        return JSON.stringify(Object.keys(params).sort().map(key => [key, params[key]]));
+    }
+
+    // env abstrae el DOM (pestañas, paneles, hash, badges) para poder testear
+    // el registro sin navegador. Ver domEnv más abajo.
+    function createAdminRegistry(env) {
+        const modules = new Map();      // tab -> { def, mounted, mounting }
+        const rosterListeners = [];
+        let lastRoster = null;
+        let context = null;
+        let resolveContext = null;
+        const contextReady = new Promise(resolve => { resolveContext = resolve; });
+        let current = { tab: null, key: null, params: {} };
+        let seq = 0;
+
+        function register(tab, def) {
+            if (typeof tab !== 'string' || !TAB_PATTERN.test(tab) || !def || typeof def.mount !== 'function') {
+                console.warn('[studio-admin] registro inválido para la pestaña', tab);
+                return false;
+            }
+            if (modules.has(tab)) {
+                console.warn('[studio-admin] la pestaña ya tiene un módulo registrado:', tab);
+                return false;
+            }
+            modules.set(tab, { def, mounted: false, mounting: null });
+            // Registro tardío: si la pestaña ya está activa y hay contexto, se monta ya.
+            if (context && current.tab === tab) run(tab, current.params, ++seq);
+            return true;
+        }
+
+        // Único punto de entrada: click, hashchange, navigate y el arranque.
+        function activate(tab, params) {
+            const want = tabAlias(String(tab == null ? '' : tab));
+            if (!TAB_PATTERN.test(want) || !env.hasTab(want)) return false;
+            const clean = normalizeParams(params);
+            const key = paramsKey(clean);
+            if (current.tab === want && current.key === key) return true;
+            current = { tab: want, key, params: clean };
+            env.showTab(want);
+            if (context) run(want, clean, ++seq);
+            return true;
+        }
+
+        async function run(tab, params, token) {
+            const entry = modules.get(tab);
+            const root = env.rootFor(tab);
+            if (!entry) {
+                if (root) env.markUnavailable(root);
+                return;
+            }
+            if (!root) {
+                console.warn('[studio-admin] falta [data-module-root] en el panel', tab);
+                return;
+            }
+            if (!entry.mounted) {
+                try {
+                    if (!entry.mounting) entry.mounting = Promise.resolve().then(() => entry.def.mount(root, context));
+                    await entry.mounting;
+                    entry.mounted = true;
+                    env.clearPlaceholder(root);
+                } catch (err) {
+                    entry.mounting = null;
+                    if (current.tab === tab) current.key = null; // permite reintentar con otro click
+                    console.error('[studio-admin] no se pudo montar', tab, err);
+                    env.markFailed(root, err);
+                    return;
+                }
+            }
+            // Si mientras se montaba se activó otra cosa, el show lo hace esa activación.
+            if (token !== seq || current.tab !== tab || typeof entry.def.show !== 'function') return;
+            try {
+                await entry.def.show(root, context, params);
+            } catch (err) {
+                if (current.tab === tab) current.key = null;
+                console.error('[studio-admin] error al mostrar', tab, err);
+                env.reportError(err);
+            }
+        }
+
+        function navigate(tab, params) {
+            const ok = activate(tab, params);
+            if (ok) env.replaceHash(String(tab));
+            return ok;
+        }
+
+        function setBadge(tab, n) {
+            const want = tabAlias(String(tab == null ? '' : tab));
+            if (TAB_PATTERN.test(want)) env.setBadge(want, n);
+        }
+
+        function getContext() { return contextReady; }
+
+        async function notify(payload) {
+            const ctx = await contextReady;
+            return ctx.notify(payload);
+        }
+
+        async function refresh() {
+            const ctx = await contextReady;
+            return ctx.refresh();
+        }
+
+        function callRosterListener(cb, snapshot) {
+            try {
+                const out = cb(snapshot.tableEl, snapshot.members);
+                if (out && typeof out.catch === 'function') {
+                    out.catch(err => console.error('[studio-admin] onRosterRender', err));
+                }
+            } catch (err) {
+                console.error('[studio-admin] onRosterRender', err);
+            }
+        }
+
+        // cb(tableEl, members). Si el roster ya se pintó, se llama enseguida con
+        // el último render. Devuelve una función para desuscribirse.
+        function onRosterRender(cb) {
+            if (typeof cb !== 'function') return () => {};
+            rosterListeners.push(cb);
+            if (lastRoster) callRosterListener(cb, lastRoster);
+            return () => {
+                const i = rosterListeners.indexOf(cb);
+                if (i >= 0) rosterListeners.splice(i, 1);
+            };
+        }
+
+        function _emitRosterRender(tableEl, members) {
+            lastRoster = { tableEl: tableEl || null, members: Array.isArray(members) ? members : [] };
+            rosterListeners.slice().forEach(cb => callRosterListener(cb, lastRoster));
+        }
+
+        // Lo llama el shell una sola vez, cuando el estudio quedó resuelto.
+        function _setContext(ctx) {
+            if (context || !ctx) return;
+            context = ctx;
+            resolveContext(ctx);
+            if (current.tab) run(current.tab, current.params, ++seq);
+        }
+
+        return {
+            register, getContext, activate, navigate, setBadge, notify, refresh,
+            onRosterRender, _emitRosterRender, _setContext
+        };
+    }
+
+    const domEnv = {
+        hasTab(tab) {
+            return !!document.querySelector('.studio-dash-panel[data-panel="' + tab + '"]');
+        },
+        showTab(tab) {
+            document.querySelectorAll('.studio-dash-tab').forEach(el => {
+                const on = el.dataset.tab === tab;
+                el.classList.toggle('is-active', on);
+                if (on) el.setAttribute('aria-current', 'page');
+                else el.removeAttribute('aria-current');
+            });
+            document.querySelectorAll('.studio-dash-panel').forEach(panel => {
+                const on = panel.dataset.panel === tab;
+                panel.classList.toggle('is-active', on);
+                panel.hidden = !on;
+            });
+            if (domEnv._shown !== tab && typeof window.CustomEvent === 'function') {
+                window.dispatchEvent(new window.CustomEvent('studio:tabchange', { detail: { tab } }));
+            }
+            domEnv._shown = tab;
+        },
+        // El root del módulo es el PRIMER [data-module-root] del panel.
+        rootFor(tab) {
+            const panel = document.querySelector('.studio-dash-panel[data-panel="' + tab + '"]');
+            return panel ? panel.querySelector('[data-module-root]') : null;
+        },
+        replaceHash(tab) {
+            try {
+                window.history.replaceState(window.history.state, '', '#' + tab);
+            } catch (err) {
+                console.warn('[studio-admin] no se pudo actualizar el hash:', err);
+            }
+        },
+        setBadge(tab, n) {
+            const tabEl = document.querySelector('.studio-dash-tab[data-tab="' + tab + '"]');
+            if (!tabEl) return;
+            const count = Math.max(0, Math.floor(Number(n) || 0));
+            let badge = tabEl.querySelector('.sk-tab-badge');
+            if (!badge) {
+                if (!count) return;
+                badge = document.createElement('span');
+                badge.className = 'sk-tab-badge';
+                tabEl.appendChild(badge);
+            }
+            badge.textContent = count > 99 ? '99+' : String(count);
+            badge.title = count === 1 ? '1 pendiente' : count + ' pendientes';
+            badge.hidden = count === 0;
+        },
+        clearPlaceholder(root) {
+            const placeholder = root.querySelector('[data-module-loading]');
+            if (placeholder) placeholder.remove();
+        },
+        markUnavailable(root) {
+            const placeholder = root.querySelector('[data-module-loading]');
+            if (placeholder) placeholder.textContent = 'Esta sección todavía no está disponible.';
+        },
+        markFailed(root, err) {
+            root.innerHTML = '<div class="studio-status studio-status-error" role="alert">'
+                + escapeHtml(friendlyMessage(err, 'No pudimos cargar esta sección. Recargá la página e intentá nuevamente.'))
+                + '</div>';
+        },
+        reportError(err) {
+            toast(friendlyMessage(err, 'Algo salió mal. Intentá nuevamente.'), 'danger');
+        }
+    };
+
+    const admin = createAdminRegistry(domEnv);
+    window.WeOtziStudioAdmin = admin;
 
     document.addEventListener('DOMContentLoaded', async () => {
         const auth = window.WeOtziStudioAuth;
         if (!auth) return; // studio-auth.js handles redirect-on-no-session
+
+        wireTabs();
 
         await auth.ready();
         supabase = auth.getSupabase();
@@ -46,7 +286,8 @@
 
         document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
 
-        wireTabs();
+        admin._setContext(buildContext(await currentUserId()));
+
         wireAccount();
         publishSummary();
         for (const [area, load, statusId] of [
@@ -58,8 +299,42 @@
                 publishSummary(area, 'error', undefined, error);
                 showStatus(statusId, 'error', error.message || 'No se pudo cargar esta sección. Recargá la página para intentar nuevamente.');
             }
+            // Los badges dependen del roster; tragan sus propios errores.
+            if (area === 'roster') loadBadges();
         }
     });
+
+    function buildContext(userId) {
+        return {
+            studio,
+            studioId: studio.id,
+            userId,
+            client: supabase,
+            data: window.WeotziData,
+            get kit() { return window.WeOtziStudioKit; },
+            navigate: (tab, params) => admin.navigate(tab, params),
+            setBadge: (tab, n) => admin.setBadge(tab, n),
+            notify: payload => safeNotify(payload),
+            refresh: () => refreshShell()
+        };
+    }
+
+    async function currentUserId() {
+        try {
+            const { data } = await supabase.auth.getSession();
+            return data?.session?.user?.id || studio.user_id || null;
+        } catch (err) {
+            return studio.user_id || null;
+        }
+    }
+
+    // ctx.refresh(): vuelve a pintar lo que el shell muestra (roster, spots y
+    // badges) después de que un módulo cambió algo que lo afecta.
+    async function refreshShell() {
+        if (!studio) return;
+        await Promise.allSettled([renderRosterTable(), renderMySpots()]);
+        await loadBadges();
+    }
 
     function escapeHtml(v) {
         return String(v == null ? '' : v)
@@ -68,36 +343,24 @@
     }
 
     function wireTabs() {
-        let current = null;
-        function activate(want) {
-            const panels = Array.from(document.querySelectorAll('.studio-dash-panel[data-panel]'));
-            const fallback = panels.some(panel => panel.dataset.panel === 'resumen') ? 'resumen' : 'perfil';
-            if (!panels.some(panel => panel.dataset.panel === want)) want = fallback;
-            document.querySelectorAll('.studio-dash-tab').forEach(tab => {
-                const active = tab.dataset.tab === want;
-                tab.classList.toggle('is-active', active);
-                if (active) tab.setAttribute('aria-current', 'page');
-                else tab.removeAttribute('aria-current');
-            });
-            panels.forEach(panel => {
-                const active = panel.dataset.panel === want;
-                panel.classList.toggle('is-active', active);
-                panel.hidden = !active;
-            });
-            if (current !== want) window.dispatchEvent(new CustomEvent('studio:tabchange', { detail: { tab: want } }));
-            current = want;
-        }
+        // La barra la pinta <weotzi-product-nav> (puede llegar después):
+        // el click se delega y todo pasa por admin.activate().
         document.addEventListener('click', event => {
             const tab = event.target.closest('.studio-dash-tab[data-tab]');
             if (!tab || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            const want = tab.dataset.tab;
-            if (!Array.from(document.querySelectorAll('.studio-dash-panel[data-panel]')).some(panel => panel.dataset.panel === want)) return;
+            const want = tabAlias(tab.dataset.tab);
+            if (!domEnv.hasTab(want)) return;
             event.preventDefault();
-            activate(want);
+            admin.activate(want);
             if (window.location.hash !== '#' + want) window.location.hash = want;
         });
-        window.addEventListener('hashchange', () => activate(window.location.hash.slice(1)));
-        activate(window.location.hash.slice(1));
+        window.addEventListener('hashchange', () => {
+            const hash = tabAlias(window.location.hash.slice(1));
+            if (!hash) admin.activate(DEFAULT_TAB);
+            else if (TAB_PATTERN.test(hash)) admin.activate(hash);
+        });
+        const hash = tabAlias(window.location.hash.slice(1));
+        if (!(TAB_PATTERN.test(hash) && admin.activate(hash))) admin.activate(DEFAULT_TAB);
     }
 
     function wireAccount() {
@@ -130,6 +393,65 @@
         el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
     }
 
+    // Toast del kit (si está cargado). El estado del panel sigue en showStatus.
+    function toast(msg, tone) {
+        const kit = window.WeOtziStudioKit;
+        if (!kit || typeof kit.toast !== 'function') return;
+        try { kit.toast(msg, tone); } catch (err) { console.warn('[studio-dashboard] toast:', err); }
+    }
+
+    // Códigos de "falta aplicar una migración" (Reglas transversales §5).
+    const MISSING_SCHEMA_CODES = ['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'];
+    // Sin RPC o sin tabla de contratos: se cae al flujo de decisión anterior.
+    const MISSING_CONTRACTS_CODES = ['42883', 'PGRST202', 'PGRST205', '42P01'];
+
+    function errorCode(err) { return String((err && err.code) || ''); }
+    function isMissingColumnError(err) {
+        const code = errorCode(err);
+        return code === 'PGRST204' || code === '42703';
+    }
+    function isMissingContractsBackend(err) { return MISSING_CONTRACTS_CODES.includes(errorCode(err)); }
+
+    function friendlyMessage(err, fallback) {
+        const kit = window.WeOtziStudioKit;
+        if (kit && typeof kit.friendlyError === 'function') {
+            try {
+                const msg = kit.friendlyError(err, fallback);
+                if (msg) return msg;
+            } catch (e) { /* cae al mensaje local */ }
+        }
+        if (MISSING_SCHEMA_CODES.includes(errorCode(err))) {
+            return 'Esta función todavía no está disponible (falta aplicar una migración).';
+        }
+        return (err && err.message) || fallback || 'Algo salió mal. Intentá nuevamente.';
+    }
+
+    async function confirmAction(opts) {
+        const kit = window.WeOtziStudioKit;
+        if (kit && typeof kit.confirmDialog === 'function') {
+            try { return !!(await kit.confirmDialog(opts)); } catch (err) { console.warn('[studio-dashboard] confirm:', err); }
+        }
+        return window.confirm(opts.body || opts.title);
+    }
+
+    function safeUrl(u) {
+        const kit = window.WeOtziStudioKit;
+        if (kit && typeof kit.safeUrl === 'function') return kit.safeUrl(u);
+        if (!u) return null;
+        try {
+            const url = new URL(String(u));
+            return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+        } catch (err) { return null; }
+    }
+
+    // Etiqueta en español desde WeOtziStudioKit.LABELS[dict], con diccionario local de respaldo.
+    function kitLabel(dictName, value, fallbackDict) {
+        const kit = window.WeOtziStudioKit;
+        const dict = kit && kit.LABELS && kit.LABELS[dictName];
+        if (dict && dict[value]) return dict[value];
+        return (fallbackDict && fallbackDict[value]) || (value == null || value === '' ? '—' : String(value));
+    }
+
     async function getAccessToken() {
         const { data } = await supabase.auth.getSession();
         return data?.session?.access_token || null;
@@ -153,6 +475,65 @@
             throw new Error('La operación se guardó, pero el correo no pudo enviarse.');
         }
         return result;
+    }
+
+    // ctx.notify(payload): reusa notifyStudio pero nunca lanza (la acción ya
+    // quedó guardada). Devuelve { ok, data, error } como WeOtziStudioKit.postNotify.
+    async function safeNotify(payload) {
+        try {
+            const data = await notifyStudio(payload);
+            return { ok: true, data, error: null };
+        } catch (error) {
+            console.warn('[studio-dashboard] notify failed (non-fatal):', error);
+            return { ok: false, data: null, error };
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Badges de la sidebar (al iniciar y en ctx.refresh)
+    // Solicitudes = altas pedidas + cambios pedidos + contraofertas del artista.
+    // Contratos = enviados sin firmar (incluye los que están por vencer).
+    // Cualquier error (migración pendiente, método ausente) cuenta como 0.
+    // -------------------------------------------------------------
+    async function settleRows(call) {
+        try {
+            const result = await call();
+            if (!result || result.error) return [];
+            return Array.isArray(result.data) ? result.data : [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function computeBadgeCounts({ requests = [], changes = [], counters = [], contracts = [] } = {}) {
+        const open = (rows, status) => rows.filter(row => row && (!row.status || row.status === status)).length;
+        return {
+            solicitudes: open(requests, 'requested') + open(changes, 'pending') + open(counters, 'pending'),
+            contratos: open(contracts, 'sent')
+        };
+    }
+
+    async function collectBadgeCounts(D, studioId) {
+        const memberships = (D && D.StudioMemberships) || {};
+        const spots = (D && D.StudioSpots) || {};
+        const contracts = (D && D.StudioContracts) || {};
+        const [requests, changes, counters, sent] = await Promise.all([
+            settleRows(() => memberships.listRequestsForStudio?.(studioId)),
+            settleRows(() => memberships.listChangeRequestsForStudio?.(studioId)),
+            settleRows(() => spots.listArtistCounterOffersForStudio?.(studioId)),
+            settleRows(() => contracts.listForStudio?.(studioId, { status: 'sent' }))
+        ]);
+        return computeBadgeCounts({ requests, changes, counters, contracts: sent });
+    }
+
+    async function loadBadges() {
+        if (!studio) return;
+        try {
+            const counts = await collectBadgeCounts(window.WeotziData, studio.id);
+            Object.keys(counts).forEach(tab => admin.setBadge(tab, counts[tab]));
+        } catch (err) {
+            console.warn('[studio-dashboard] badges:', err);
+        }
     }
 
     // -------------------------------------------------------------
@@ -448,6 +829,165 @@
     // Spots tab — Phase B
     // -------------------------------------------------------------
     const KIND_LABELS = { resident: 'Residencia', itinerant: 'Itinerante', guest_spot: 'Guest spot' };
+    const SPOT_STATUS_LABELS = { draft: 'Borrador', open: 'Abierto', filled: 'Cubierto', closed: 'Cerrado', expired: 'Vencido' };
+    const APPLICATION_STATUS_LABELS = {
+        pending: 'Pendiente', viewed: 'Vista', shortlisted: 'Preseleccionada',
+        accepted: 'Aceptada', rejected: 'Rechazada', withdrawn: 'Retirada'
+    };
+    const COMPENSATION_LABELS = { percentage: 'Porcentaje', fixed: 'Pago fijo', mixed: 'Mixto (porcentaje + fijo)' };
+    const FIXED_PERIOD_LABELS = {
+        per_session: 'Por sesión', daily: 'Por día', weekly: 'Por semana', monthly: 'Por mes', one_time: 'Pago único'
+    };
+    const FIXED_PAYER_LABELS = {
+        artist_to_studio: 'Alquiler de puesto: el artista paga al estudio',
+        studio_to_artist: 'Pago al artista: el estudio paga'
+    };
+    const STIPEND_FREQUENCY_LABELS = { weekly: 'Por semana', monthly: 'Por mes', one_time: 'Pago único' };
+    const ISO_CURRENCIES = ['ARS', 'USD', 'EUR', 'BRL', 'CLP', 'MXN', 'COP', 'UYU', 'PEN'];
+    const ACCEPT_COPY = 'Postulación aceptada: revisá y emití el contrato para sumarlo al roster.';
+
+    // Listas del spot (columnas existentes) y sus límites de edición.
+    const SPOT_LISTS = [
+        { key: 'studio_includes', label: 'Qué incluye', placeholder: 'Ej.: Camilla y equipo', max: 20, maxLen: 200 },
+        { key: 'benefit_tags', label: 'Beneficios (hasta 6)', placeholder: 'Ej.: Agenda garantizada', max: 6, maxLen: 80 },
+        { key: 'artist_expectations', label: 'Qué esperamos', placeholder: 'Ej.: Portfolio actualizado', max: 20, maxLen: 200 },
+        { key: 'minimum_requirements', label: 'Requisitos', placeholder: 'Ej.: 2 años de experiencia', max: 20, maxLen: 200 }
+    ];
+    // Columnas de la migración 20261030201000 (no aplicada): se mandan solo si existen.
+    const SPOT_V2_COLUMNS = ['benefit_tags', 'compensation_model', 'fixed_amount', 'fixed_currency', 'fixed_period', 'fixed_payer'];
+    // null = desconocido; Set con las columnas V2 que existen (deducido del último spot leído).
+    let spotColumnSupport = null;
+
+    function spotV2ColumnsFrom(row) {
+        return new Set(SPOT_V2_COLUMNS.filter(col => row && Object.prototype.hasOwnProperty.call(row, col)));
+    }
+
+    function hasSpotV2Values(payload) {
+        return SPOT_V2_COLUMNS.some(col => {
+            const v = payload[col];
+            // El porcentaje ya vive en revenue_split_pct (columna previa).
+            if (col === 'compensation_model' && v === 'percentage') return false;
+            return Array.isArray(v) ? v.length > 0 : (v !== null && v !== undefined && v !== '');
+        });
+    }
+
+    function withoutSpotColumns(payload, keep) {
+        const copy = Object.assign({}, payload);
+        SPOT_V2_COLUMNS.forEach(col => { if (!keep || !keep.has(col)) delete copy[col]; });
+        return copy;
+    }
+
+    // Decide qué columnas V2 viajan según lo que se sabe del esquema.
+    function spotPayloadFor(payload, support) {
+        if (support === null) return hasSpotV2Values(payload) ? Object.assign({}, payload) : withoutSpotColumns(payload, null);
+        return withoutSpotColumns(payload, support);
+    }
+
+    function spotPayloadDropsValues(payload, sent) {
+        return SPOT_V2_COLUMNS.some(col => !(col in sent) && hasSpotV2Values({ [col]: payload[col] }));
+    }
+
+    // Guarda el spot; ante PGRST204/42703 reintenta sin las columnas nuevas.
+    // Devuelve { result, degraded } (degraded = hubo datos nuevos que no se guardaron).
+    async function persistSpot(spotId, payload) {
+        const write = body => spotId
+            ? WeotziData.StudioSpots.updateSpot(spotId, body)
+            : WeotziData.StudioSpots.createSpot(body);
+        let body = spotPayloadFor(payload, spotColumnSupport);
+        let result = await write(body);
+        const sentV2 = SPOT_V2_COLUMNS.some(col => col in body);
+        if (result.error && sentV2 && isMissingColumnError(result.error)) {
+            console.warn('[studio-dashboard] spot sin columnas nuevas, reintento sin ellas:', result.error);
+            spotColumnSupport = new Set();
+            body = withoutSpotColumns(payload, null);
+            result = await write(body);
+        } else if (!result.error && sentV2 && spotColumnSupport === null) {
+            spotColumnSupport = new Set(SPOT_V2_COLUMNS.filter(col => col in body));
+        }
+        return { result, degraded: !result.error && spotPayloadDropsValues(payload, body) };
+    }
+
+    function normalizeList(values) {
+        const seen = new Set();
+        const out = [];
+        (values || []).forEach(raw => {
+            const item = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
+            const key = item.toLowerCase();
+            if (!item || seen.has(key)) return;
+            seen.add(key);
+            out.push(item);
+        });
+        return out;
+    }
+
+    // Lista editable: WeOtziStudioKit.listEditor si está; si no, textarea (uno por línea).
+    function makeListEditor(opts) {
+        const kit = window.WeOtziStudioKit;
+        if (kit && typeof kit.listEditor === 'function') {
+            try {
+                const editor = kit.listEditor({
+                    items: opts.items, max: opts.max, maxLen: opts.maxLen, placeholder: opts.placeholder, label: opts.label
+                });
+                if (editor && editor.el && typeof editor.getItems === 'function') {
+                    return { el: editor.el, getItems: () => normalizeList(editor.getItems()) };
+                }
+            } catch (err) {
+                console.warn('[studio-dashboard] listEditor:', err);
+            }
+        }
+        const textarea = document.createElement('textarea');
+        textarea.className = 'studio-textarea';
+        textarea.rows = 3;
+        textarea.placeholder = opts.placeholder + ' (uno por línea)';
+        textarea.value = (opts.items || []).join('\n');
+        if (opts.labelId) textarea.setAttribute('aria-labelledby', opts.labelId);
+        return { el: textarea, getItems: () => normalizeList(textarea.value.split('\n')) };
+    }
+
+    function validateSpotLists(lists) {
+        for (const def of SPOT_LISTS) {
+            const items = lists[def.key] || [];
+            if (items.length > def.max) return def.label.replace(/\s*\(.*\)$/, '') + ': hasta ' + def.max + ' ítems.';
+            if (items.some(item => item.length > def.maxLen)) {
+                return def.label.replace(/\s*\(.*\)$/, '') + ': cada ítem puede tener hasta ' + def.maxLen + ' caracteres.';
+            }
+        }
+        return null;
+    }
+
+    // Modalidad del spot: porcentaje (split para el artista), fijo o mixto.
+    function validateSpotTerms(t) {
+        const model = t.compensation_model;
+        if (t.revenue_split_pct != null && (t.revenue_split_pct < 0 || t.revenue_split_pct > 100)) {
+            return 'El porcentaje para el artista debe estar entre 0 y 100.';
+        }
+        if ((model === 'percentage' || model === 'mixed') && t.revenue_split_pct == null) {
+            return 'Indicá el porcentaje que se queda el artista.';
+        }
+        if (model === 'fixed' || model === 'mixed') {
+            if (t.fixed_amount == null || t.fixed_amount < 0) return 'Completá el monto fijo (0 o más).';
+            if (!/^[A-Z]{3}$/.test(t.fixed_currency || '')) return 'Elegí la moneda del pago fijo.';
+            if (!FIXED_PERIOD_LABELS[t.fixed_period]) return 'Elegí cada cuánto se paga el monto fijo.';
+            if (!FIXED_PAYER_LABELS[t.fixed_payer]) return 'Elegí quién paga el monto fijo.';
+        }
+        if (t.stipend_amount != null && t.stipend_amount < 0) return 'El estipendio no puede ser negativo.';
+        return null;
+    }
+
+    function currencyOptions(selected, emptyLabel) {
+        const value = String(selected || '').toUpperCase();
+        const codes = ISO_CURRENCIES.slice();
+        if (value && !codes.includes(value)) codes.push(value);
+        return `<option value="">${escapeHtml(emptyLabel)}</option>`
+            + codes.map(code => `<option value="${escapeAttr(code)}" ${code === value ? 'selected' : ''}>${escapeHtml(code)}</option>`).join('');
+    }
+
+    function dictOptions(dict, selected, emptyLabel, kitDict) {
+        return (emptyLabel != null ? `<option value="">${escapeHtml(emptyLabel)}</option>` : '')
+            + Object.keys(dict).map(key =>
+                `<option value="${escapeAttr(key)}" ${key === selected ? 'selected' : ''}>${escapeHtml(kitLabel(kitDict, key, dict))}</option>`
+            ).join('');
+    }
 
     async function loadSpotsPanel() {
         document.getElementById('spot-new-btn').addEventListener('click', () => openSpotEditor(null));
@@ -456,6 +996,7 @@
 
     async function renderMySpots() {
         const container = document.getElementById('my-spots-list');
+        if (!container || !studio) return;
         publishSummary('spots', 'loading');
         container.innerHTML = '<p class="wo-help" role="status">Cargando spots…</p>';
         const { data: list, error } = await WeotziData.StudioSpots.listByStudio(studio.id);
@@ -471,10 +1012,10 @@
         container.innerHTML = list.map(s => `
             <div class="studio-location-row">
                 <div class="studio-location-row-head">
-                    <span class="wo-badge wo-badge--s wo-badge--outline">${escapeHtml(KIND_LABELS[s.kind] || s.kind)} · ${escapeHtml(s.status)}</span>
+                    <span class="wo-badge wo-badge--s wo-badge--outline">${escapeHtml(KIND_LABELS[s.kind] || s.kind)} · ${escapeHtml(SPOT_STATUS_LABELS[s.status] || s.status)}</span>
                     <div class="studio-actions">
                         <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="apps" data-id="${escapeAttr(s.id)}" >
-                            Postulaciones (${s.application_count || 0})
+                            Postulaciones (${Number(s.application_count) || 0})
                         </button>
                         <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="edit" data-id="${escapeAttr(s.id)}" >Editar</button>
                         <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="toggle" data-id="${escapeAttr(s.id)}" data-status="${escapeAttr(s.status)}" >
@@ -487,8 +1028,8 @@
                     ${escapeHtml(s.title)}
                 </h3>
                 <div class="wo-help studio-meta-row">
-                    <span>${s.start_date ? formatDateRange(s.start_date, s.end_date) : 'Fechas a definir'}</span>
-                    <span>Split: ${s.revenue_split_pct != null ? Number(s.revenue_split_pct).toFixed(0) + '%' : '—'}</span>
+                    <span>${s.start_date ? escapeHtml(formatDateRange(s.start_date, s.end_date)) : 'Fechas a definir'}</span>
+                    <span>Para el artista: ${s.revenue_split_pct != null ? escapeHtml(Number(s.revenue_split_pct).toFixed(0)) + '%' : '—'}</span>
                     ${s.stipend_amount ? `<span>Stipend: ${escapeHtml(String(s.stipend_amount))} ${escapeHtml(s.stipend_currency || '')}</span>` : ''}
                 </div>
             </div>
@@ -501,7 +1042,8 @@
 
     async function onSpotAction(action, id, status) {
         if (action === 'edit') {
-            const { data: spot } = await WeotziData.StudioSpots.getById(id);
+            const { data: spot, error } = await WeotziData.StudioSpots.getById(id);
+            if (error) { showStatus('spots-status', 'error', friendlyMessage(error, 'No pudimos abrir el spot.')); return; }
             if (spot) openSpotEditor(spot);
         } else if (action === 'apps') {
             openSpotApplications(id);
@@ -509,7 +1051,7 @@
             const next = status === 'open' ? 'closed' : 'open';
             const { error } = await WeotziData.StudioSpots.updateStatus(id, next);
             if (error) showStatus('spots-status', 'error', error.message);
-            else { showStatus('spots-status', 'success', 'Estado actualizado a ' + next + '.'); await renderMySpots(); }
+            else { showStatus('spots-status', 'success', next === 'open' ? 'Spot publicado.' : 'Spot cerrado.'); await renderMySpots(); }
         } else if (action === 'delete') {
             if (!confirm('¿Eliminar este spot? Las postulaciones asociadas también se eliminarán.')) return;
             const { error } = await WeotziData.StudioSpots.deleteSpot(id);
@@ -521,6 +1063,10 @@
     function openSpotEditor(existing) {
         const c = document.getElementById('spots-editor-container');
         const isEdit = !!existing;
+        // Un spot leído con '*' dice qué columnas existen hoy.
+        if (existing) spotColumnSupport = spotV2ColumnsFrom(existing);
+        const v2Missing = spotColumnSupport !== null && !spotColumnSupport.has('compensation_model');
+        const model = existing?.compensation_model || '';
         c.innerHTML = `
             <div class="studio-location-row" >
                 <div class="studio-location-row-head">
@@ -549,18 +1095,49 @@
                     <input id="sp-styles" class="wo-input" value="${escapeAttr((existing?.styles_wanted || []).join(', '))}">
                 </div>
                 <div class="wo-field">
-                    <label class="wo-label">Fecha inicio / fin</label>
+                    <label class="wo-label" for="sp-start">Fecha inicio / fin</label>
                     <div class="studio-control-row">
-                        <input id="sp-start" class="wo-input" type="date" aria-label="Fecha de inicio del spot" value="${escapeAttr(existing?.start_date || '')}">
-                        <input id="sp-end"   class="wo-input" type="date" aria-label="Fecha de fin del spot" value="${escapeAttr(existing?.end_date || '')}">
+                        <input id="sp-start" class="wo-input" type="date" value="${escapeAttr(existing?.start_date || '')}">
+                        <input id="sp-end"   class="wo-input" type="date" value="${escapeAttr(existing?.end_date || '')}" aria-label="Fecha de fin">
                     </div>
                 </div>
-                <div class="wo-field studio-form-full">
-                    <label class="wo-label">Split (%) y stipend opcional</label>
+                <div class="wo-field">
+                    <label class="wo-label" for="sp-model">Modalidad de pago</label>
+                    <select id="sp-model" class="wo-select">
+                        ${dictOptions(COMPENSATION_LABELS, model, 'Sin definir', 'compensationModel')}
+                    </select>
+                    ${v2Missing ? '<span class="wo-help">El pago fijo, el mixto y los beneficios se guardan cuando se aplique la migración pendiente.</span>' : ''}
+                </div>
+                <div class="wo-field" id="sp-pct-block">
+                    <label class="wo-label" for="sp-split">Porcentaje para el artista (%)</label>
+                    <input id="sp-split" class="wo-input" type="number" min="0" max="100" step="1" placeholder="60" value="${escapeAttr(existing?.revenue_split_pct ?? '')}">
+                    <span class="wo-help">Lo que se queda el artista de cada tatuaje.</span>
+                </div>
+                <div class="wo-field" id="sp-fixed-block">
+                    <label class="wo-label" for="sp-fixed-amount">Pago fijo</label>
                     <div class="studio-control-row">
-                        <input id="sp-split"    class="wo-input" type="number" min="0" max="100" step="1" aria-label="Reparto porcentual del spot" placeholder="60" value="${escapeAttr(existing?.revenue_split_pct ?? '')}">
-                        <input id="sp-stipend"  class="wo-input" type="number" min="0" step="1" aria-label="Estipendio del spot" placeholder="Stipend" value="${escapeAttr(existing?.stipend_amount ?? '')}">
-                        <input id="sp-currency" class="wo-input" aria-label="Moneda del estipendio" placeholder="USD" value="${escapeAttr(existing?.stipend_currency || '')}">
+                        <input id="sp-fixed-amount" class="wo-input" type="number" min="0" step="1" placeholder="Monto" value="${escapeAttr(existing?.fixed_amount ?? '')}">
+                        <select id="sp-fixed-currency" class="wo-select" aria-label="Moneda del pago fijo">
+                            ${currencyOptions(existing?.fixed_currency, 'Moneda')}
+                        </select>
+                        <select id="sp-fixed-period" class="wo-select" aria-label="Periodicidad del pago fijo">
+                            ${dictOptions(FIXED_PERIOD_LABELS, existing?.fixed_period || '', 'Periodicidad', 'fixedPeriod')}
+                        </select>
+                    </div>
+                    <select id="sp-fixed-payer" class="wo-select" aria-label="Quién paga el monto fijo">
+                        ${dictOptions(FIXED_PAYER_LABELS, existing?.fixed_payer || '', '¿Quién paga?', 'fixedPayer')}
+                    </select>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="sp-stipend">Stipend opcional</label>
+                    <div class="studio-control-row">
+                        <input id="sp-stipend"  class="wo-input" type="number" min="0" step="1" placeholder="Monto" value="${escapeAttr(existing?.stipend_amount ?? '')}">
+                        <select id="sp-currency" class="wo-select" aria-label="Moneda del stipend">
+                            ${currencyOptions(existing?.stipend_currency, 'Moneda')}
+                        </select>
+                        <select id="sp-stipend-frequency" class="wo-select" aria-label="Frecuencia del stipend">
+                            ${dictOptions(STIPEND_FREQUENCY_LABELS, existing?.stipend_frequency || '', 'Frecuencia', 'fixedPeriod')}
+                        </select>
                     </div>
                 </div>
                 <div class="wo-field">
@@ -569,6 +1146,11 @@
                         Incluye vivienda
                     </label>
                 </div>
+                ${SPOT_LISTS.map(def => `
+                    <div class="wo-field studio-form-full" role="group" aria-labelledby="sp-list-label-${def.key}">
+                        <p class="wo-label" id="sp-list-label-${def.key}">${escapeHtml(def.label)}</p>
+                        <div data-spot-list="${def.key}"></div>
+                    </div>`).join('')}
                 <div class="wo-field studio-form-full">
                     <label class="wo-label" for="sp-cover">Imagen del spot (opcional)</label>
                     <input id="sp-cover" class="wo-input" type="url" value="${escapeAttr(existing?.cover_image || '')}">
@@ -581,9 +1163,30 @@
                 </div>
             </div>
         `;
+
+        const listEditors = {};
+        SPOT_LISTS.forEach(def => {
+            const editor = makeListEditor({
+                items: Array.isArray(existing?.[def.key]) ? existing[def.key] : [],
+                max: def.max, maxLen: def.maxLen, placeholder: def.placeholder,
+                label: def.label, labelId: 'sp-list-label-' + def.key
+            });
+            c.querySelector('[data-spot-list="' + def.key + '"]').appendChild(editor.el);
+            listEditors[def.key] = editor;
+        });
+
+        const modelSelect = document.getElementById('sp-model');
+        const syncModel = () => {
+            const value = modelSelect.value;
+            document.getElementById('sp-pct-block').hidden = value === 'fixed';
+            document.getElementById('sp-fixed-block').hidden = !(value === 'fixed' || value === 'mixed');
+        };
+        modelSelect.addEventListener('change', syncModel);
+        syncModel();
+
         document.getElementById('spot-cancel').addEventListener('click', () => { c.innerHTML = ''; });
-        document.getElementById('sp-save').addEventListener('click', () => saveSpot(existing, 'draft'));
-        document.getElementById('sp-publish').addEventListener('click', () => saveSpot(existing, 'open'));
+        document.getElementById('sp-save').addEventListener('click', () => saveSpot(existing, 'draft', listEditors));
+        document.getElementById('sp-publish').addEventListener('click', () => saveSpot(existing, 'open', listEditors));
 
         // Wire uploader on the spot cover.
         if (window.WeOtziUploader) {
@@ -597,8 +1200,28 @@
         }
     }
 
-    async function saveSpot(existing, targetStatus) {
-        const payload = {
+    function readSpotTerms() {
+        const model = document.getElementById('sp-model').value || null;
+        const fixedOn = model === 'fixed' || model === 'mixed';
+        const stipendAmount = numOrNull(document.getElementById('sp-stipend').value);
+        return {
+            compensation_model: model,
+            revenue_split_pct: model === 'fixed' ? null : numOrNull(document.getElementById('sp-split').value),
+            fixed_amount:   fixedOn ? numOrNull(document.getElementById('sp-fixed-amount').value) : null,
+            fixed_currency: fixedOn ? (document.getElementById('sp-fixed-currency').value || null) : null,
+            fixed_period:   fixedOn ? (document.getElementById('sp-fixed-period').value || null) : null,
+            fixed_payer:    fixedOn ? (document.getElementById('sp-fixed-payer').value || null) : null,
+            stipend_amount: stipendAmount,
+            stipend_currency: document.getElementById('sp-currency').value || null,
+            stipend_frequency: stipendAmount != null ? (document.getElementById('sp-stipend-frequency').value || null) : null
+        };
+    }
+
+    async function saveSpot(existing, targetStatus, listEditors) {
+        const lists = {};
+        SPOT_LISTS.forEach(def => { lists[def.key] = listEditors && listEditors[def.key] ? listEditors[def.key].getItems() : []; });
+        const terms = readSpotTerms();
+        const payload = Object.assign({
             studio_id: studio.id,
             location_id: studio.primary_location_id || null,
             title: document.getElementById('sp-title').value.trim(),
@@ -608,34 +1231,37 @@
                 .split(',').map(s => s.trim()).filter(Boolean),
             start_date: document.getElementById('sp-start').value || null,
             end_date: document.getElementById('sp-end').value || null,
-            revenue_split_pct: numOrNull(document.getElementById('sp-split').value),
-            stipend_amount:    numOrNull(document.getElementById('sp-stipend').value),
-            stipend_currency:  (document.getElementById('sp-currency').value || '').trim() || null,
             includes_housing:  document.getElementById('sp-housing').checked,
             cover_image:       (document.getElementById('sp-cover')?.value || '').trim() || null,
             status: targetStatus
-        };
+        }, terms, lists);
         if (!payload.title) { showStatus('spots-status', 'error', 'El título es obligatorio.'); return; }
         if (payload.end_date && payload.start_date && payload.end_date < payload.start_date) {
             showStatus('spots-status', 'error', 'La fecha final debe ser igual o posterior al inicio.'); return;
         }
-        if (payload.revenue_split_pct != null && (payload.revenue_split_pct < 0 || payload.revenue_split_pct > 100)) {
-            showStatus('spots-status', 'error', 'El reparto debe estar entre 0 y 100.'); return;
-        }
-        if (payload.stipend_amount != null && payload.stipend_amount < 0) {
-            showStatus('spots-status', 'error', 'El estipendio no puede ser negativo.'); return;
-        }
+        const invalid = validateSpotTerms(payload) || validateSpotLists(lists);
+        if (invalid) { showStatus('spots-status', 'error', invalid); return; }
 
-        const result = existing
-            ? await WeotziData.StudioSpots.updateSpot(existing.id, payload)
-            : await WeotziData.StudioSpots.createSpot(payload);
-
+        const buttons = ['sp-save', 'sp-publish'].map(id => document.getElementById(id)).filter(Boolean);
+        buttons.forEach(b => { b.disabled = true; });
+        let saved;
+        try {
+            saved = await persistSpot(existing ? existing.id : null, payload);
+        } finally {
+            buttons.forEach(b => { b.disabled = false; });
+        }
+        const { result, degraded } = saved;
         if (result.error) {
-            showStatus('spots-status', 'error', result.error.message);
+            showStatus('spots-status', 'error', friendlyMessage(result.error, 'No se pudo guardar el spot.'));
             return;
         }
         await syncSpotCoverAttachment(result.data, payload.cover_image);
-        showStatus('spots-status', 'success', existing ? 'Spot actualizado.' : 'Spot creado.');
+        const done = existing ? 'Spot actualizado.' : 'Spot creado.';
+        if (degraded) {
+            showStatus('spots-status', 'info', done + ' La modalidad fija o mixta y los beneficios todavía no se pueden guardar (falta aplicar una migración).');
+        } else {
+            showStatus('spots-status', 'success', done);
+        }
         document.getElementById('spots-editor-container').innerHTML = '';
         await renderMySpots();
     }
@@ -665,6 +1291,20 @@
             console.warn('[studio-dashboard] spot attachment insert failed:', ins.error);
             showStatus('spots-status', 'error', 'Spot guardado, pero no pudimos registrar la imagen como adjunto.');
         }
+    }
+
+    function hasContractsModule() {
+        return !!(window.WeOtziStudioContracts && typeof window.WeOtziStudioContracts.openFromApplication === 'function');
+    }
+
+    // Acciones de una postulación según su estado. shortlisted = aceptada con
+    // contrato en preparación (se reabre el contrato).
+    function applicationActionsHtml(app, artistUserId) {
+        if (['accepted', 'rejected', 'withdrawn'].includes(app.status)) return '—';
+        const acceptLabel = app.status === 'shortlisted' && hasContractsModule() ? 'Contrato' : 'Aceptar';
+        return `
+            <button class="studio-locations-add" data-app-action="accept" data-id="${escapeAttr(app.id)}" data-artist="${escapeAttr(artistUserId || '')}" style="border-style:solid;padding:4px 8px;">${acceptLabel}</button>
+            <button class="studio-location-row-remove" data-app-action="reject" data-id="${escapeAttr(app.id)}">Rechazar</button>`;
     }
 
     async function openSpotApplications(spotId) {
@@ -697,19 +1337,16 @@
                            const ar = a.artists_db || {};
                            const styles = (ar.styles_array || []).slice(0, 2).join(', ');
                            const msg = (a.message || '').slice(0, 80) + (a.message && a.message.length > 80 ? '…' : '');
-                           const decided = ['accepted', 'rejected', 'withdrawn'].includes(a.status);
+                           const portfolio = safeUrl(a.portfolio_url);
                            return `<tr data-id="${escapeAttr(a.id)}">
                                 <td><strong>${escapeHtml(ar.name || ar.username || '—')}</strong>
-                                    ${a.portfolio_url ? `<br><a href="${escapeAttr(a.portfolio_url)}" target="_blank" rel="noopener">Ver portfolio <i data-wo-icon="external-link" aria-hidden="true"></i></a>` : ''}
+                                    ${portfolio ? `<br><a href="${escapeAttr(portfolio)}" target="_blank" rel="noopener noreferrer">Ver portfolio <i data-wo-icon="external-link" aria-hidden="true"></i></a>` : ''}
                                 </td>
                                 <td>${escapeHtml(styles)}</td>
                                 <td>${escapeHtml([ar.city, ar.country].filter(Boolean).join(', '))}</td>
                                 <td>${escapeHtml(msg)}</td>
-                                <td><span class="wo-badge wo-badge--s ${a.status === 'accepted' ? 'wo-badge--success' : (a.status === 'rejected' ? 'wo-badge--error' : 'wo-badge--outline')}">${escapeHtml(a.status)}</span></td>
-                                <td>${decided ? '—' : `
-                                    <button class="wo-btn wo-btn--secondary wo-btn--s" data-app-action="accept" data-id="${escapeAttr(a.id)}" data-artist="${escapeAttr(ar.user_id)}" >Aceptar</button>
-                                    <button class="wo-btn wo-btn--danger wo-btn--s" data-app-action="reject" data-id="${escapeAttr(a.id)}">Rechazar</button>
-                                `}</td>
+                                <td><span class="wo-badge wo-badge--s ${a.status === 'accepted' ? 'wo-badge--success' : (a.status === 'rejected' ? 'wo-badge--error' : 'wo-badge--outline')}">${escapeHtml(APPLICATION_STATUS_LABELS[a.status] || a.status)}</span></td>
+                                <td>${applicationActionsHtml(a, ar.user_id)}</td>
                            </tr>`;
                        }).join('')}
                        </tbody></table></div>`}
@@ -721,16 +1358,73 @@
         });
     }
 
+    async function afterApplicationDecision(spot) {
+        await openSpotApplications(spot.id);
+        await renderMySpots();
+        await loadRoster();
+        await loadBadges();
+    }
+
     async function onAppDecision(action, applicationId, artistUserId, spot) {
-        const newStatus = action === 'accept' ? 'accepted' : 'rejected';
         const buttons = document.querySelectorAll('#spots-editor-container button[data-app-action]');
+        const release = () => buttons.forEach(button => { button.disabled = false; });
         buttons.forEach(button => { button.disabled = true; });
-        const { error: updErr } = await supabase.rpc('decide_studio_spot_application', {
-            p_application_id: applicationId, p_status: newStatus
-        });
+
+        if (action === 'reject') {
+            const ok = await confirmAction({
+                title: 'Rechazar postulación',
+                body: '¿Rechazar esta postulación? El artista recibe un aviso.',
+                confirmLabel: 'Rechazar',
+                tone: 'danger'
+            });
+            if (!ok) { release(); return; }
+        }
+
+        // Aceptar = abrir el contrato. Sin módulo o sin RPC de contratos se usa
+        // el flujo anterior (decide_studio_spot_application + spot_decision).
+        if (action === 'accept' && hasContractsModule()) {
+            try {
+                const outcome = await window.WeOtziStudioContracts.openFromApplication(
+                    { id: applicationId, artist_user_id: artistUserId || null },
+                    { id: spot.id, title: spot.title, kind: spot.kind }
+                );
+                // Sin contrato preparado (el estudio cerró el editor antes): solo refrescar.
+                if (!outcome || !outcome.contractId) {
+                    await afterApplicationDecision(spot);
+                    return;
+                }
+                const msg = outcome.issued
+                    ? 'Contrato emitido: cuando el artista lo firme, se suma al roster.'
+                    : ACCEPT_COPY;
+                showStatus('spots-status', 'success', msg);
+                toast(msg, 'success');
+                await afterApplicationDecision(spot);
+                return;
+            } catch (err) {
+                if (!isMissingContractsBackend(err)) {
+                    release();
+                    showStatus('spots-status', 'error', friendlyMessage(err, 'No pudimos preparar el contrato.'));
+                    return;
+                }
+                console.warn('[studio-dashboard] contratos no disponibles, uso el flujo anterior:', err);
+            }
+        }
+
+        await decideApplicationLegacy(action, applicationId, spot, release);
+    }
+
+    async function decideApplicationLegacy(action, applicationId, spot, release) {
+        const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+        const spots = WeotziData.StudioSpots;
+        if (!spots || typeof spots.decideApplicationRpc !== 'function') {
+            release();
+            showStatus('spots-status', 'error', 'No pudimos registrar la decisión. Recargá la página e intentá nuevamente.');
+            return;
+        }
+        const { data, error: updErr } = await spots.decideApplicationRpc(applicationId, newStatus);
         if (updErr) {
-            buttons.forEach(button => { button.disabled = false; });
-            showStatus('spots-status', 'error', updErr.message);
+            release();
+            showStatus('spots-status', 'error', friendlyMessage(updErr, 'No pudimos registrar la decisión.'));
             return;
         }
         let emailSent = false;
@@ -748,17 +1442,20 @@
             console.warn('[studio-dashboard] notify failed (non-fatal):', err);
         }
 
-        const outcome = action === 'accept' ? '¡Aceptado y sumado al roster!' : 'Postulación rechazada.';
+        // Con contratos aplicados la RPC deja la postulación en shortlisted y
+        // prepara el borrador; sin la migración, la acepta directamente.
+        const row = Array.isArray(data) ? data[0] : data;
+        const outcome = action === 'accept'
+            ? (row && row.status === 'accepted' ? 'Postulación aceptada.' : ACCEPT_COPY)
+            : 'Postulación rechazada.';
         showStatus('spots-status', emailSent ? 'success' : 'info', outcome + (emailSent
             ? ' Email enviado al artista.' : ' La decisión está guardada; no se pudo enviar el correo al artista.'));
-        await openSpotApplications(spot.id);
-        await renderMySpots();
-        await loadRoster();
+        await afterApplicationDecision(spot);
     }
 
     function numOrNull(v) {
         const n = Number(v);
-        return Number.isFinite(n) && v !== '' ? n : null;
+        return Number.isFinite(n) && v !== '' && v != null ? n : null;
     }
     function storagePathFromUrl(url, bucket) {
         const raw = String(url || '');
@@ -800,6 +1497,77 @@
     let _rosterLocations = []; // cached list of studio_locations for the role/sede selects
     let _inviteHits = [];
 
+    const MEMBERSHIP_STATUS_LABELS = {
+        requested: 'Solicitud', pending_invite: 'Invitación pendiente', pending_acceptance: 'Invitación pendiente',
+        active: 'Activo', paused: 'En pausa', ended: 'Finalizado', rejected: 'Rechazado'
+    };
+    const ROSTER_EDITABLE = ['active', 'paused', 'pending_acceptance', 'pending_invite'];
+    const ROSTER_LOCK_COPY = 'Se edita con una nueva versión del contrato';
+
+    // Con contrato vigente, rol y split salen del contrato (el guard los vuelve inmutables).
+    function rosterRowLocked(m) { return !!(m && m.current_contract_id); }
+
+    // Acción principal por estado. Las filas ended/rejected no se reactivan:
+    // volver a activo solo pasa por RPC (solicitud, invitación o contrato).
+    function rosterActionFor(status) {
+        if (status === 'active') return 'end';
+        if (status === 'pending_acceptance' || status === 'pending_invite') return 'cancel';
+        if (status === 'paused') return 'resume';
+        if (status === 'requested') return 'review';
+        return null;
+    }
+
+    function rosterActionButton(action, id) {
+        const attr = escapeAttr(id);
+        if (action === 'end') return `<button class="studio-location-row-remove" data-action="end" data-id="${attr}">Desvincular</button>`;
+        if (action === 'cancel') return `<button class="studio-location-row-remove" data-action="cancel" data-id="${attr}">Cancelar</button>`;
+        if (action === 'resume') return `<button class="studio-locations-add" data-action="resume" data-id="${attr}" style="border-style:solid;padding:4px 8px;">Reactivar</button>`;
+        if (action === 'review') return `<button class="studio-locations-add" data-action="review" data-id="${attr}" style="border-style:solid;padding:4px 8px;">Ver solicitud</button>`;
+        return '';
+    }
+
+    function rosterRowHtml(m, locations) {
+        const a = m.artists_db || {};
+        const display = a.name || a.username || '—';
+        const locked = rosterRowLocked(m);
+        const lockId = 'roster-lock-' + m.id;
+        const lockAttrs = locked ? ` disabled aria-describedby="${escapeAttr(lockId)}"` : '';
+        const sedeOpts = '<option value="">— Sin asignar —</option>'
+            + (locations || []).map(l => `<option value="${escapeAttr(l.id)}" ${l.id === m.location_id ? 'selected' : ''}>${escapeHtml(l.label || '(sin etiqueta)')}</option>`).join('');
+        const roleOpts = ['resident', 'itinerant', 'guest', 'manager'].map(r =>
+            `<option value="${r}" ${r === m.role ? 'selected' : ''}>${escapeHtml(KIND_TO_LABEL[r] || r)}</option>`).join('');
+        const pending = m.status === 'pending_acceptance' || m.status === 'pending_invite' || m.status === 'requested';
+        const editable = ROSTER_EDITABLE.includes(m.status);
+
+        return `
+                <tr data-id="${escapeAttr(m.id)}" data-membership-id="${escapeAttr(m.id)}" data-status="${escapeAttr(m.status)}" data-role="${escapeAttr(m.role)}" data-artist-user-id="${escapeAttr(a.user_id || '')}" data-artist-name="${escapeAttr(display)}"${locked ? ' data-locked="true"' : ''}>
+                    <td>
+                        <strong>${escapeHtml(display)}</strong>
+                        <br><small style="color:var(--text-secondary);font-family:var(--studio-mono);">@${escapeHtml(a.username || '')}</small>
+                        <br><small style="color:var(--text-secondary);">${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</small>
+                    </td>
+                    <td>
+                        <span class="studio-role-pill role-${escapeAttr(m.role)}" style="margin-bottom:4px;display:inline-block;">${escapeHtml(KIND_TO_LABEL[m.role] || m.role)}</span><br>
+                        <select class="studio-input" data-field="role" aria-label="Rol"${lockAttrs} style="height:32px;font-size:.78rem;">${roleOpts}</select>
+                        ${locked ? `<br><small class="studio-help" id="${escapeAttr(lockId)}">${ROSTER_LOCK_COPY}</small>` : ''}
+                    </td>
+                    <td>
+                        <select class="studio-input" data-field="location_id" aria-label="Sede" style="height:32px;font-size:.78rem;">${sedeOpts}</select>
+                    </td>
+                    <td>
+                        <input class="studio-input" data-field="revenue_split_pct" aria-label="Porcentaje para el artista" type="number" min="0" max="100" step="1"${lockAttrs} style="height:32px;font-size:.78rem;width:70px;" value="${escapeAttr(m.revenue_split_pct ?? '')}">
+                    </td>
+                    <td>
+                        <span class="studio-role-pill" style="background:${m.status === 'active' ? 'var(--primary-yellow)' : 'var(--bg)'};border-style:${pending ? 'dashed' : 'solid'};">${escapeHtml(kitLabel('membershipStatus', m.status, MEMBERSHIP_STATUS_LABELS))}</span>
+                    </td>
+                    <td class="studio-roster-actions">
+                        ${editable ? `<button class="studio-locations-add" data-action="save" data-id="${escapeAttr(m.id)}" style="border-style:solid;padding:4px 8px;">Guardar</button>` : ''}
+                        ${rosterActionButton(rosterActionFor(m.status), m.id)}
+                    </td>
+                </tr>
+            `;
+    }
+
     async function loadRoster() {
         // Populate the sede select for invitations.
         const { data: locs } = await WeotziData.StudioLocations.listActiveByStudio(studio.id, 'id, label, is_primary');
@@ -815,7 +1583,46 @@
 
         wireInviteSearch();
 
+        // Vence contratos enviados y cierra los firmados fuera de vigencia antes de pintar.
+        await expireOverdueContracts();
         await renderRosterTable();
+    }
+
+    async function expireOverdueContracts() {
+        const repo = WeotziData.StudioContracts;
+        if (!repo || typeof repo.expireOverdue !== 'function') return;
+        try {
+            const result = await repo.expireOverdue(studio.id);
+            if (result && result.error) console.warn('[studio-dashboard] expireOverdue:', result.error);
+        } catch (err) {
+            console.warn('[studio-dashboard] expireOverdue:', err);
+        }
+    }
+
+    function registerArtistUrl() {
+        const auth = window.WeOtziStudioAuth;
+        const path = auth && typeof auth.appUrl === 'function' ? auth.appUrl('/register-artist') : '/register-artist';
+        return window.location.origin + path;
+    }
+
+    function inviteEmptyHtml() {
+        return `<div class="studio-location-row">
+                    <span class="studio-help">¿No está en We Ötzi? Compartile el link de registro.</span>
+                    <button type="button" class="studio-locations-add" data-copy-register style="border-style:solid;padding:6px 10px;">
+                        <i class="fa-solid fa-link"></i> Copiar link de registro
+                    </button>
+                </div>`;
+    }
+
+    async function copyRegisterLink() {
+        const url = registerArtistUrl();
+        try {
+            if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error('clipboard');
+            await navigator.clipboard.writeText(url);
+            showStatus('roster-status', 'success', 'Link de registro copiado: ' + url);
+        } catch (err) {
+            showStatus('roster-status', 'info', 'Copiá y compartí este link: ' + url);
+        }
     }
 
     function wireInviteSearch() {
@@ -845,7 +1652,7 @@
                         <strong>${escapeHtml(a.name || a.username)}</strong>
                         <span class="wo-help">@${escapeHtml(a.username || '')} · ${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</span>
                     </button>
-                `).join('') || '<em class="wo-help">Sin resultados.</em>';
+                `).join('') || inviteEmptyHtml();
                 suggEl.hidden = false;
                 suggEl.querySelectorAll('[data-id]').forEach(row => {
                     row.addEventListener('click', () => {
@@ -854,6 +1661,7 @@
                         suggEl.hidden = true;
                     });
                 });
+                suggEl.querySelector('[data-copy-register]')?.addEventListener('click', copyRegisterLink);
             }, 200);
         });
 
@@ -882,9 +1690,9 @@
 
             if (error) {
                 if (error.code === '23505') {
-                    showStatus('roster-status', 'error', 'Ese artista ya tiene una membership de ese rol con tu estudio.');
+                    showStatus('roster-status', 'error', 'Ese artista ya tiene una invitación o un vínculo abierto con ese rol en tu estudio.');
                 } else {
-                    showStatus('roster-status', 'error', error.message);
+                    showStatus('roster-status', 'error', friendlyMessage(error, 'No se pudo enviar la invitación.'));
                 }
                 return;
             }
@@ -910,75 +1718,53 @@
         });
     }
 
+    // listRosterV2 suma initiated_by y current_contract_id (con su propio
+    // fallback); si no existe o falla, se usa listRoster.
+    async function loadRosterRows() {
+        const repo = WeotziData.StudioMemberships;
+        if (typeof repo.listRosterV2 === 'function') {
+            try {
+                const v2 = await repo.listRosterV2(studio.id);
+                if (v2 && !v2.error) return v2;
+                console.warn('[studio-dashboard] listRosterV2 falló, uso listRoster:', v2 && v2.error);
+            } catch (err) {
+                console.warn('[studio-dashboard] listRosterV2 falló, uso listRoster:', err);
+            }
+        }
+        return repo.listRoster(studio.id);
+    }
+
     async function renderRosterTable() {
         const container = document.getElementById('roster-content');
+        if (!container || !studio) return;
         publishSummary('roster', 'loading');
         container.innerHTML = '<p class="wo-help" role="status">Cargando equipo…</p>';
-        const { data: members, error } = await WeotziData.StudioMemberships.listRoster(studio.id);
+        const { data: members, error } = await loadRosterRows();
 
         if (error) {
             publishSummary('roster', 'error', undefined, error);
-            container.innerHTML = '<p class="wo-error-msg" role="alert">No pudimos cargar el equipo. ' + escapeHtml(error.message) + '</p>'; return;
+            container.innerHTML = '<p class="wo-error-msg" role="alert">' + escapeHtml(friendlyMessage(error, 'No pudimos cargar el equipo.')) + '</p>'; return;
         }
         publishSummary('roster', 'ready', members || []);
         if (!members || members.length === 0) {
             container.innerHTML = '<p class="wo-help">Aún no hay miembros. Invitá artistas con el formulario de arriba.</p>';
+            admin._emitRosterRender(null, []);
             return;
         }
-
-        const rows = members.map(m => {
-            const a = m.artists_db || {};
-            const display = a.name || a.username || '—';
-            const sedeName = (_rosterLocations.find(l => l.id === m.location_id) || {}).label || '—';
-            const sedeOpts = '<option value="">— Sin asignar —</option>'
-                + _rosterLocations.map(l => `<option value="${escapeAttr(l.id)}" ${l.id === m.location_id ? 'selected' : ''}>${escapeHtml(l.label || '(sin etiqueta)')}</option>`).join('');
-            const roleOpts = ['resident','itinerant','guest','manager'].map(r =>
-                `<option value="${r}" ${r === m.role ? 'selected' : ''}>${KIND_TO_LABEL[r] || r}</option>`).join('');
-
-            return `
-                <tr data-id="${escapeAttr(m.id)}" data-artist-user-id="${escapeAttr(a.user_id || '')}" data-artist-name="${escapeAttr(display)}">
-                    <td>
-                        <strong>${escapeHtml(display)}</strong>
-                        <br><small class="studio-member-meta">@${escapeHtml(a.username || '')}</small>
-                        <br><small class="studio-member-meta">${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</small>
-                    </td>
-                    <td>
-                        <span class="wo-badge wo-badge--s wo-badge--outline">${escapeHtml(KIND_TO_LABEL[m.role] || m.role)}</span><br>
-                        <select class="wo-select" data-field="role" aria-label="Rol de ${escapeAttr(display)}">${roleOpts}</select>
-                    </td>
-                    <td>
-                        <select class="wo-select" data-field="location_id" aria-label="Sede de ${escapeAttr(display)}">${sedeOpts}</select>
-                    </td>
-                    <td>
-                        <input class="wo-input" data-field="revenue_split_pct" type="number" min="0" max="100" step="1" aria-label="Reparto porcentual de ${escapeAttr(display)}" value="${m.revenue_split_pct ?? ''}">
-                    </td>
-                    <td>
-                        <span class="wo-badge wo-badge--s ${m.status === 'active' ? 'wo-badge--success' : 'wo-badge--outline'}">${escapeHtml(m.status)}</span>
-                    </td>
-                    <td>
-                        <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="save"     data-id="${escapeAttr(m.id)}" >Guardar</button>
-                        ${m.status === 'active'
-                            ? `<button class="wo-btn wo-btn--danger wo-btn--s" data-action="end" data-id="${escapeAttr(m.id)}">Desvincular</button>`
-                            : (m.status === 'pending_acceptance'
-                                ? `<button class="wo-btn wo-btn--danger wo-btn--s" data-action="cancel" data-id="${escapeAttr(m.id)}">Cancelar</button>`
-                                : `<button class="wo-btn wo-btn--secondary wo-btn--s" data-action="resume" data-id="${escapeAttr(m.id)}" >Reactivar</button>`)
-                        }
-                    </td>
-                </tr>
-            `;
-        }).join('');
 
         container.innerHTML = `
             <div class="studio-table-scroll" role="region" aria-label="Equipo del estudio" tabindex="0"><table class="wo-table studio-roster-table">
                 <thead><tr>
-                    <th>Artista</th><th>Rol</th><th>Sede</th><th>Split %</th><th>Estado</th><th>Acciones</th>
+                    <th>Artista</th><th>Rol</th><th>Sede</th><th>Para el artista %</th><th>Estado</th><th>Acciones</th>
                 </tr></thead>
-                <tbody>${rows}</tbody>
+                <tbody>${members.map(m => rosterRowHtml(m, _rosterLocations)).join('')}</tbody>
             </table></div>
         `;
         container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => onRosterAction(btn));
         });
+        // Los módulos (p. ej. Contratos) agregan sus botones por fila acá.
+        admin._emitRosterRender(container.querySelector('table'), members);
     }
 
     async function onRosterAction(btn) {
@@ -989,23 +1775,30 @@
         const artistName = tr.dataset.artistName || 'Artista';
 
         if (action === 'save') {
-            const role         = tr.querySelector('select[data-field="role"]').value;
             const location_id  = tr.querySelector('select[data-field="location_id"]').value || null;
+            // Con contrato vigente solo se puede mover de sede.
+            if (tr.dataset.locked === 'true') {
+                const { error } = await WeotziData.StudioMemberships.updateMembership(id, { location_id });
+                if (error) showStatus('roster-status', 'error', friendlyMessage(error, 'No se pudo guardar.'));
+                else { showStatus('roster-status', 'success', 'Sede actualizada.'); await renderRosterTable(); }
+                return;
+            }
+            const role         = tr.querySelector('select[data-field="role"]').value;
             const splitInput   = tr.querySelector('input[data-field="revenue_split_pct"]').value;
             const split        = splitInput === '' ? null : Number(splitInput);
             if (split !== null && (!Number.isFinite(split) || split < 0 || split > 100)) {
                 showStatus('roster-status', 'error', 'El reparto debe estar entre 0 y 100.'); return;
             }
             const { error } = await WeotziData.StudioMemberships.updateMembership(id, { role, location_id, revenue_split_pct: split });
-            if (error) showStatus('roster-status', 'error', error.message);
+            if (error) showStatus('roster-status', 'error', friendlyMessage(error, 'No se pudo guardar.'));
             else { showStatus('roster-status', 'success', 'Cambios guardados.'); await renderRosterTable(); }
         } else if (action === 'end') {
             if (!confirm('¿Desvincular a este artista? Su perfil queda intacto.')) return;
             const { error } = await WeotziData.StudioMemberships.endMembership(id);
-            if (error) showStatus('roster-status', 'error', error.message);
+            if (error) showStatus('roster-status', 'error', friendlyMessage(error, 'No se pudo desvincular.'));
             else {
-                showStatus('roster-status', 'success', 'Membership finalizada.');
-                if (artistUserId && window.WeOtziReviews && confirm('Quieres calificar al artista ahora?')) {
+                showStatus('roster-status', 'success', 'Vínculo finalizado.');
+                if (artistUserId && window.WeOtziReviews && confirm('¿Querés calificar al artista ahora?')) {
                     window.WeOtziReviews.openReviewModal({
                         title: 'Calificar artista',
                         reviewerType: 'studio',
@@ -1020,12 +1813,14 @@
             }
         } else if (action === 'cancel') {
             const { error } = await WeotziData.StudioMemberships.deleteMembership(id);
-            if (error) showStatus('roster-status', 'error', error.message);
+            if (error) showStatus('roster-status', 'error', friendlyMessage(error, 'No se pudo cancelar la invitación.'));
             else { showStatus('roster-status', 'success', 'Invitación cancelada.'); await renderRosterTable(); }
         } else if (action === 'resume') {
             const { error } = await WeotziData.StudioMemberships.resumeMembership(id);
-            if (error) showStatus('roster-status', 'error', error.message);
-            else { showStatus('roster-status', 'success', 'Membership reactivada.'); await renderRosterTable(); }
+            if (error) showStatus('roster-status', 'error', friendlyMessage(error, 'No se pudo reactivar.'));
+            else { showStatus('roster-status', 'success', 'Vínculo reactivado.'); await renderRosterTable(); }
+        } else if (action === 'review') {
+            admin.navigate('solicitudes');
         }
     }
 

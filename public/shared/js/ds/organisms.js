@@ -186,42 +186,36 @@
     active = active || 'quotations';
     options = options || {};
     if (options.context === 'studio') return renderStudioProductNav(active, options);
-    var navigation = DATA.navigation.concat({ id: 'inbox', label: 'INBOX', href: '/artist/inbox' });
+    // STORE (oct 2026) no está en el Figma final: va al final, después de INBOX.
+    var navigation = DATA.navigation.concat(
+      { id: 'inbox', label: 'INBOX', href: '/artist/inbox' },
+      { id: 'store', label: 'STORE', href: '/artist/store' }
+    );
     var menuToggleId = options.menuToggleId || 'artist-product-menu-toggle';
     var menuId = options.menuId || 'artist-product-mobile-menu';
-    var spotsMenuId = menuId + '-spots';
     var profileHref = options.profileHref || '/artist/account';
     var profileLabel = options.profileLabel || 'Centro de la cuenta';
+    // Figma final: /artist/visitors y /archive se retiraron (estadísticas y el
+    // alcance "Archivadas" del listado las reemplazan).
     var mobileExtras = options.dashboardExtras ? [
-      { id: 'visitors', label: 'VISITANTES', href: '/artist/visitors/' },
-      { id: 'account', label: 'PERFIL', href: '/artist/profile/details' }
+      { id: 'account', label: 'PERFIL', href: '/artist/account' }
     ] : [];
     if (options.archiveExtra) {
-      mobileExtras.push({ label: 'ARCHIVO', href: '/archive' });
+      mobileExtras.push({ label: 'ARCHIVADAS', href: '/my-quotations?alcance=archivadas' });
     }
+    // Figma final (24:1425 y las 12 pantallas del artista): los links de
+    // escritorio no llevan contadores; el único visible es el del tile Ö
+    // (801:559). Los pendientes de COTIZACIONES siguen en el menú móvil.
+    // badge-item / badge-id se aceptan por compatibilidad pero ya no pintan
+    // nada en la barra de escritorio (los scripts que los buscan por id
+    // toleran que no existan).
     var desktopLinks = navigation.map(function (item) {
       var current = item.id === active || (item.id === 'spots' && active === 'invitations');
       var exactCurrent = item.id === active;
-      var badge = '';
-      if (item.id === 'quotations') {
-        var quoteBadgeId = options.badgeItem === item.id && options.badgeId
-          ? ' id="' + escapeHtml(options.badgeId) + '"'
-          : '';
-        var quoteBadgeClass = 'wo-org-product-nav__badge' + (options.badgeItem === item.id && options.badgeClass
-          ? ' ' + escapeHtml(options.badgeClass)
-          : '');
-        badge += '<span' + quoteBadgeId + ' class="' + quoteBadgeClass + '" data-artist-quote-count aria-label="Cotizaciones pendientes" hidden>0</span>';
-      }
-      if (item.id === options.badgeItem && item.id !== 'quotations' && options.badgeId) {
-        badge += '<span class="wo-org-product-nav__badge ' + escapeHtml(options.badgeClass || '') + '" id="' + escapeHtml(options.badgeId) + '" hidden>0</span>';
-      }
-      var link = '<a class="wo-org-product-nav__link' + (current ? ' is-active' : '') + '" href="' + item.href + '"' + (exactCurrent ? ' aria-current="page"' : '') + '>' + item.label + badge + '</a>';
-      if (item.id !== 'spots') return link;
-      return '<div class="wo-org-product-nav__item wo-org-product-nav__item--spots">' + link +
-        '<button class="wo-org-product-nav__spots-toggle" type="button" data-spots-menu-toggle aria-expanded="false" aria-haspopup="menu" aria-controls="' + escapeHtml(spotsMenuId) + '" aria-label="Abrir menú de Spots">' + icon('chevron-down') + '</button>' +
-        '<div id="' + escapeHtml(spotsMenuId) + '" class="wo-org-product-nav__spots-dropdown" role="menu" hidden>' +
-        '<a href="/artist/invitations" role="menuitem"' + (active === 'invitations' ? ' class="is-active" aria-current="page"' : '') + '>INVITACIONES</a>' +
-        '</div></div>';
+      // Figma final del flujo de artista (24:1425): SPOTS es un link plano, sin
+      // desplegable. Invitaciones se alcanza desde el menú de cuenta (tile Ö ·
+      // "Invitaciones pendientes") y desde el menú móvil (subitem de SPOTS).
+      return '<a class="wo-org-product-nav__link' + (current ? ' is-active' : '') + '" href="' + item.href + '"' + (exactCurrent ? ' aria-current="page"' : '') + '>' + item.label + '</a>';
     }).join('');
     var mobileNavigation = [];
     navigation.forEach(function (item) {
@@ -264,11 +258,14 @@
   function renderStudioProductNav(active, options) {
     var navigation = [
       { id: 'resumen', label: 'RESUMEN' }, { id: 'perfil', label: 'PERFIL' },
-      { id: 'sedes', label: 'SEDES' }, { id: 'roster', label: 'EQUIPO' },
-      { id: 'spots', label: 'SPOTS' }, { id: 'travel', label: 'VISITAS' },
-      { id: 'ops', label: 'OPERACIONES' }, { id: 'inventory', label: 'INVENTARIO' },
+      { id: 'verificacion', label: 'VERIFICACIÓN' }, { id: 'sedes', label: 'SEDES' }, { id: 'roster', label: 'EQUIPO' },
+      { id: 'solicitudes', label: 'SOLICITUDES' }, { id: 'spots', label: 'SPOTS' },
+      { id: 'contratos', label: 'CONTRATOS' }, { id: 'agenda', label: 'AGENDA' },
+      { id: 'travel', label: 'VISITAS' }, { id: 'ops', label: 'OPERACIONES' },
+      { id: 'inventory', label: 'INVENTARIO' }, { id: 'reposicion', label: 'REPOSICIÓN' },
       { id: 'suppliers', label: 'PROVEEDORES' }, { id: 'sponsors', label: 'SPONSORS' },
-      { id: 'analytics', label: 'ESTADÍSTICAS' }, { id: 'cuenta', label: 'CUENTA' }
+      { id: 'tienda', label: 'TIENDA' }, { id: 'finanzas', label: 'FINANZAS' },
+      { id: 'analytics', label: 'REPORTES' }, { id: 'cuenta', label: 'CUENTA' }
     ];
     var desktopIds = ['resumen', 'spots', 'ops', 'inventory', 'analytics'];
     var menuToggleId = options.menuToggleId || 'studio-mobile-menu-toggle';
@@ -296,13 +293,13 @@
     var studio = options && options.context === 'studio';
     var contactLinks = studio
       ? '<a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Centro de ayuda</a><a href="https://www.instagram.com/weotzi" target="_blank" rel="noopener">Instagram</a>'
-      : '<a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a><a href="mailto:artistas@weotzi.com">Soporte</a>';
+      : '<a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a><a href="/artist/inbox?filter=support">Soporte</a>';
     var helpLinks = studio
       ? '<a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Preguntas frecuentes</a><a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Centro de ayuda</a>'
-      : '<a href="/faqs">Preguntas frecuentes</a><a href="mailto:artistas@weotzi.com">Centro de ayuda</a>';
+      : '<a href="https://weotzi.com/faqs/#tatuadores" target="_blank" rel="noopener">Preguntas frecuentes</a><a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Centro de ayuda</a>';
     var legalLinks = studio
       ? '<button type="button" data-studio-document="Términos y condiciones">Términos y condiciones</button><button type="button" data-studio-document="Privacidad">Privacidad</button>'
-      : '<a href="/terminos">Términos y condiciones</a><a href="/privacidad">Privacidad</a>';
+      : '<a href="/legal/terms">Términos y condiciones</a><a href="/legal/privacy">Privacidad</a>';
     return '<div class="wo-org wo-org-product-footer" data-figma-node="24:1817" data-figma-file="UmVbDewiAHkfLedTR5uyFj">' +
       '<footer class="wo-org-product-footer__surface" aria-label="Pie de página de We Ötzi">' +
       '<div class="wo-org-product-footer__inner">' +
@@ -326,7 +323,7 @@
         '<h2>' + p.name + '</h2><p class="wo-org-profile__handle">' + p.handle + '</p>' +
         '<div class="wo-org-profile__badges"><span>' + p.verification + '</span><span>' + p.lifecycle + '</span></div>' +
         '<p class="wo-org-profile__meta">' + p.rate + ' · ' + p.styles + ' · ' + p.experience + '</p>' +
-        '<a href="/artist/profile/details">Editar perfil <b aria-hidden="true">→</b></a>' +
+        '<a href="/artist/account#perfil">Editar perfil <b aria-hidden="true">→</b></a>' +
       '</div>' +
     '</aside>';
   }
@@ -563,6 +560,31 @@
     bind() {}
   }
 
+  // Ajustes de la topbar del artista al Figma final que organisms.css (DS, no
+  // editable desde las áreas) no tiene. Se inyectan una sola vez y solo tocan
+  // <weotzi-product-nav>:
+  //  · escritorio (24:1425): tile Ö y LOG OUT separados 31px y a 33px del
+  //    borde derecho (antes 16px / 24px);
+  //  · móvil (≤480px): el contador del tile Ö queda dentro de la barra de 56px
+  //    (3px sobre el tile, que arranca 6px abajo) y a 5px de LOG OUT aun con
+  //    "99+" (gap 8px); ancho tope para que no crezca sobre el botón.
+  var PRODUCT_NAV_FINAL_CSS =
+    '@media (min-width:1280px){' +
+      'weotzi-product-nav .wo-org-product-nav{padding-right:33px}' +
+      'weotzi-product-nav .wo-org-product-nav__account{gap:31px}' +
+    '}' +
+    '@media (max-width:480px){' +
+      'weotzi-product-nav .wo-org-product-nav__account{gap:8px}' +
+      'weotzi-product-nav .wo-org-product-nav__notification-badge{top:-3px;right:-3px;min-width:16px;min-height:15px;max-width:28px;padding:0 3px;overflow:hidden;font-size:9px;line-height:15px;letter-spacing:0}' +
+    '}';
+  function ensureProductNavStyles() {
+    if (typeof document === 'undefined' || document.getElementById('wo-org-product-nav-final')) return;
+    var style = document.createElement('style');
+    style.id = 'wo-org-product-nav-final';
+    style.textContent = PRODUCT_NAV_FINAL_CSS;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   class ProductNavElement extends WeotziOrganism {
     constructor() {
       super();
@@ -574,6 +596,7 @@
       this._handleSpotsDocumentKeydown = this.handleSpotsDocumentKeydown.bind(this);
     }
     connectedCallback() {
+      ensureProductNavStyles();
       super.connectedCallback();
       if (this.getAttribute('context') !== 'studio') document.addEventListener('weotzi:artist-counts', this._handleArtistCounts);
     }

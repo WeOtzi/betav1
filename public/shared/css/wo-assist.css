@@ -1,0 +1,289 @@
+/* ============================================================================
+   We Ötzi · Modo asistido (wo-assist.js)
+   Panel del artista: bottom sheet en móvil que se pliega a una píldora y panel
+   fijo abajo a la derecha desde 768 px; marco de foco sobre el campo pendiente
+   y bienvenida final. DS Bauhaus: radius 0, tokens semánticos, sin sombras en
+   reposo (solo la dura en hover de .wo-btn--hard), mono para eyebrows y meta.
+   Capas: página < marco (1370) < panel (1380) < bienvenida (1390) < recorrido (1400).
+   Se carga lazy desde wo-demo.js (WoDemo.assets.assistCss).
+   ========================================================================== */
+
+/* ---------- Guardas: [hidden] gana sobre cualquier display de estos bloques ---------- */
+.wo-assist[hidden],.wo-assist__panel[hidden],.wo-assist__pill[hidden],.wo-assist__steps[hidden],
+.wo-assist__flash[hidden],.wo-assist-ring[hidden],.wo-assist-welcome[hidden]{display:none !important}
+
+/* ---------- Contenedor (móvil primero: hoja inferior a todo el ancho) ---------- */
+.wo-assist{
+  --wo-assist-bottom:0px;
+  position:fixed;left:0;right:0;bottom:var(--wo-assist-bottom);z-index:1380;
+  display:flex;flex-direction:column;align-items:stretch;
+  box-sizing:border-box;max-width:100vw;
+  pointer-events:none; /* solo el panel y la píldora reciben clicks */
+  font-family:var(--font-body);color:var(--text-body)
+}
+.wo-assist *,.wo-assist *::before,.wo-assist *::after{box-sizing:border-box}
+/* Sobre la bottombar del dashboard (visible hasta 640 px). */
+.wod-body .wo-assist{--wo-assist-bottom:var(--space-16)}
+/* Encima del botón flotante de soporte cuando la página lo tiene. */
+html:has(.sc-fab) .wo-assist{--wo-assist-bottom:calc(var(--sc-fab-bottom, 16px) + var(--sc-fab-size, 56px) + var(--space-2))}
+
+.wo-assist__panel{
+  pointer-events:auto;width:100%;
+  max-height:min(72vh,calc(100vh - var(--wo-assist-bottom) - var(--space-16)));
+  max-height:min(72dvh,calc(100dvh - var(--wo-assist-bottom) - var(--space-16)));
+  overflow-y:auto;overscroll-behavior:contain;
+  padding:var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  background:var(--surface-card);color:var(--text-body);
+  border-top:var(--border-strong-width) solid var(--border-strong);
+  animation:wo-assist-in var(--duration-panel) var(--ease-standard)
+}
+
+/* ---------- Píldora (panel plegado) ---------- */
+.wo-assist__pill{
+  pointer-events:auto;align-self:flex-end;
+  display:inline-flex;align-items:center;gap:var(--space-2);
+  max-width:calc(100vw - var(--space-8));min-height:var(--control-h-md);
+  margin:0 var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  padding:var(--space-2) var(--space-4);
+  background:var(--surface-inverse);color:var(--text-on-dark);
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
+  white-space:nowrap;cursor:pointer
+}
+.wo-assist__pill span{overflow:hidden;text-overflow:ellipsis}
+.wo-assist__pill:hover{background:var(--action-primary-hover);border-color:var(--action-primary-hover)}
+
+/* ---------- Encabezado ---------- */
+.wo-assist__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin:0 0 var(--space-3)}
+.wo-assist__eyebrow{
+  margin:0;min-width:0;font-family:var(--font-mono);font-size:var(--meta-s-size);
+  letter-spacing:var(--meta-wide-track);text-transform:uppercase;color:var(--text-muted)
+}
+.wo-assist__headtools{display:inline-flex;gap:var(--space-2);flex:none}
+.wo-assist__icon{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:var(--control-h-md);height:var(--control-h-md);padding:0;
+  background:var(--surface-card);color:var(--text-body);
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);cursor:pointer
+}
+.wo-assist__icon:hover{background:var(--action-ghost-hover)}
+
+/* ---------- Progreso ---------- */
+.wo-assist__bar{height:var(--space-1);margin:0 0 var(--space-4);background:var(--border-subtle)}
+.wo-assist__bar > span{display:block;height:100%;background:var(--action-accent);transition:width var(--duration-fast) var(--ease-standard)}
+
+/* ---------- Contenido del paso ---------- */
+.wo-assist__title{
+  margin:0 0 var(--space-2);font-family:var(--font-display);font-size:var(--body-l-size);line-height:1.2;
+  color:var(--text-heading);overflow-wrap:anywhere
+}
+.wo-assist__title:focus{outline:none}
+.wo-assist__title:focus-visible{outline:var(--border-strong-width) solid var(--border-focus);outline-offset:var(--space-1)}
+.wo-assist__desc{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.wo-assist__desc + .wo-assist__desc{margin-top:var(--space-2)}
+.wo-assist__note{
+  margin:0 0 var(--space-2);font-family:var(--font-mono);font-size:var(--meta-s-size);
+  letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)
+}
+.wo-assist__flash{
+  display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);
+  padding:var(--space-2) var(--space-3);
+  background:var(--status-success-bg);color:var(--status-success-fg);
+  border-left:var(--border-rule-width) solid var(--system-success);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
+  animation:wo-assist-in var(--duration-fade) var(--ease-standard)
+}
+
+/* Checklist del paso */
+.wo-assist__checks{list-style:none;margin:var(--space-3) 0 0;padding:0;border-top:var(--border-hairline) solid var(--border-subtle)}
+.wo-assist__check{border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.wo-assist__checkrow{
+  display:flex;align-items:center;gap:var(--space-3);width:100%;min-height:var(--control-h-md);
+  padding:var(--space-2) 0;margin:0;background:none;border:0;border-radius:var(--radius-none);
+  font:inherit;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-heading);text-align:left
+}
+button.wo-assist__checkrow{cursor:pointer}
+button.wo-assist__checkrow:hover .wo-assist__checklabel{text-decoration:underline;text-underline-offset:3px}
+.wo-assist__checkrow [data-wo-icon]{color:var(--text-muted)}
+.wo-assist__check.is-done .wo-assist__checkrow{color:var(--text-muted)}
+.wo-assist__check.is-done [data-wo-icon]{color:var(--system-success)}
+.wo-assist__checklabel{flex:1;min-width:0;overflow-wrap:anywhere}
+.wo-assist__opt{
+  flex:none;padding:0 var(--space-1);border:var(--border-hairline) solid var(--border-muted);
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-muted)
+}
+
+/* Acciones */
+.wo-assist__actions{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:var(--space-4) 0 0}
+.wo-assist .wo-btn{white-space:normal;text-align:center}
+.wo-assist__actions .wo-btn{flex:1 1 auto}
+
+/* ---------- Compartir (paso 3) ---------- */
+.wo-assist__share{display:flex;flex-direction:column;gap:var(--space-2);margin:var(--space-4) 0 0}
+.wo-assist__label{
+  margin:var(--space-2) 0 0;font-family:var(--font-mono);font-size:var(--meta-s-size);
+  letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)
+}
+.wo-assist__copyrow{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.wo-assist__copyrow .wo-btn{flex:1 1 auto}
+.wo-assist__field{
+  flex:1 1 12rem;min-width:0;width:100%;min-height:var(--tap-target-min);margin:0;
+  padding:var(--space-2) var(--space-3);
+  background:var(--surface-input);color:var(--text-heading);
+  border:var(--border-hairline) solid var(--border-muted);border-radius:var(--radius-none);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);line-height:1.4
+}
+textarea.wo-assist__field{resize:none;font-family:var(--font-body);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.wo-assist__field:focus{outline:none;border-color:var(--border-focus)}
+.wo-assist__field:focus-visible{box-shadow:var(--shadow-focus)}
+.wo-assist__hint{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+
+/* ---------- Herramientas: voz, velocidad y lista ---------- */
+.wo-assist__tools{
+  display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);
+  margin:var(--space-4) 0 0;padding:var(--space-3) 0 0;border-top:var(--border-hairline) solid var(--border-subtle)
+}
+/* Táctil primero: 44 px (--tap-target-min); desde 768 px vuelven a --control-h-sm. */
+.wo-assist__tool{
+  display:inline-flex;align-items:center;gap:var(--space-2);min-height:var(--tap-target-min);
+  padding:var(--space-1) var(--space-3);
+  background:var(--surface-card);color:var(--text-body);
+  border:var(--border-hairline) solid var(--border-strong);border-radius:var(--radius-none);
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;cursor:pointer
+}
+.wo-assist__tool:hover{background:var(--action-ghost-hover)}
+.wo-assist__tool[aria-pressed="true"]{background:var(--surface-inverse);color:var(--text-on-dark)}
+.wo-assist__link{
+  margin-left:auto;min-height:var(--tap-target-min);padding:var(--space-1) 0;background:none;border:0;
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
+  color:var(--text-heading);text-decoration:underline;text-underline-offset:3px;cursor:pointer
+}
+.wo-assist__link:hover{color:var(--text-link-hover)}
+/* Acceso al demo: enlace simple debajo de las herramientas (no compite con el primario). */
+.wo-assist__demo{display:block;margin:var(--space-3) 0 0;text-align:left}
+
+.wo-assist__steps{list-style:none;margin:var(--space-3) 0 0;padding:0;border-top:var(--border-strong-width) solid var(--border-strong)}
+.wo-assist__stepbtn{
+  display:grid;grid-template-columns:var(--space-6) minmax(0,1fr) auto;align-items:center;gap:var(--space-2);
+  width:100%;min-height:var(--control-h-md);margin:0;padding:var(--space-2);
+  background:none;border:0;border-bottom:var(--border-hairline) solid var(--border-subtle);border-radius:var(--radius-none);
+  font:inherit;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-heading);text-align:left;cursor:pointer
+}
+.wo-assist__stepbtn:hover{background:var(--surface-input)}
+.wo-assist__stepbtn.is-view{background:var(--surface-input-hover)}
+.wo-assist__stepn{font-family:var(--font-display);font-size:var(--body-s-size);color:var(--text-heading)}
+.wo-assist__stepbtn.is-done .wo-assist__stepn{color:var(--system-success)}
+.wo-assist__stept{min-width:0;overflow-wrap:anywhere}
+.wo-assist__stepbtn.is-done .wo-assist__stept,.wo-assist__stepbtn.is-unavailable .wo-assist__stept{color:var(--text-muted)}
+.wo-assist__stepstatus{
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);
+  text-transform:uppercase;color:var(--text-muted);white-space:nowrap
+}
+.wo-assist__stepbtn.is-done .wo-assist__stepstatus{color:var(--status-success-fg)}
+
+/* Solo lectores de pantalla */
+.wo-assist__sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- Marco de foco (no bloquea la página) ---------- */
+.wo-assist-ring{
+  position:fixed;left:0;top:0;width:0;height:0;z-index:1370;pointer-events:none;box-sizing:border-box;
+  border:var(--border-rule-width) solid var(--border-strong);
+  outline:var(--border-strong-width) solid var(--action-accent);outline-offset:0
+}
+.wo-assist-ring.is-on{animation:wo-assist-fade var(--duration-panel) var(--ease-standard)}
+.wo-assist-ring__chip{
+  position:absolute;left:calc(-1 * var(--border-rule-width));bottom:100%;margin:0 0 var(--border-strong-width);
+  max-width:min(320px,calc(100vw - var(--space-8)));padding:var(--space-1) var(--space-2);
+  background:var(--action-accent);color:var(--action-accent-fg);
+  font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);font-weight:var(--weight-bold);
+  text-transform:uppercase;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.wo-assist-ring.is-below .wo-assist-ring__chip{bottom:auto;top:100%;margin:var(--border-strong-width) 0 0}
+
+/* ---------- Bienvenida final (modal) ---------- */
+.wo-assist-welcome{
+  position:fixed;inset:0;z-index:1390;display:flex;align-items:flex-end;justify-content:center;
+  background:var(--surface-overlay);
+  background:color-mix(in srgb,var(--surface-overlay) 72%,transparent) /* 72 % = --opacity-subtle, mismo velo que .wo-overlay */
+}
+.wo-assist-welcome *,.wo-assist-welcome *::before,.wo-assist-welcome *::after{box-sizing:border-box}
+.wo-assist-welcome__card{
+  width:100%;max-height:100vh;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain;
+  padding:var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  background:var(--surface-card);color:var(--text-body);
+  border-top:var(--border-rule-width) solid var(--border-strong);
+  font-family:var(--font-body);
+  animation:wo-assist-in var(--duration-panel) var(--ease-standard)
+}
+.wo-assist-welcome__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin:0 0 var(--space-4)}
+.wo-assist-welcome__title{
+  margin:0 0 var(--space-3);font-family:var(--font-display);font-size:clamp(1.5rem,6vw,var(--h2-size));
+  line-height:var(--h2-lh);color:var(--text-heading);overflow-wrap:anywhere
+}
+.wo-assist-welcome__title:focus{outline:none}
+.wo-assist-welcome__intro{margin:0;font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-body)}
+.wo-assist-welcome__h{
+  margin:var(--space-6) 0 var(--space-3);padding:var(--space-3) 0 0;border-top:var(--border-strong-width) solid var(--border-strong);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);font-weight:var(--weight-bold);
+  letter-spacing:var(--meta-lead-track);text-transform:uppercase;color:var(--text-heading)
+}
+.wo-assist-welcome__grid{display:grid;grid-template-columns:minmax(0,1fr);gap:0;list-style:none;margin:0;padding:0}
+.wo-assist-welcome__feat{
+  display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-3) 0;
+  border-bottom:var(--border-hairline) solid var(--border-subtle)
+}
+.wo-assist-welcome__ic{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--space-8);height:var(--space-8);
+  background:var(--surface-input);color:var(--text-heading);border:var(--border-hairline) solid var(--border-strong)
+}
+.wo-assist-welcome__feattext{display:flex;flex-direction:column;gap:var(--space-1);min-width:0;font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.wo-assist-welcome__feattext b{font-family:var(--font-display);font-weight:var(--weight-regular);color:var(--text-heading)}
+.wo-assist-welcome__why{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--space-2)}
+.wo-assist-welcome__why li{display:flex;align-items:flex-start;gap:var(--space-2);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.wo-assist-welcome__why [data-wo-icon]{color:var(--system-success)}
+.wo-assist-welcome__support{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.wo-assist-welcome__support a{color:var(--text-link);overflow-wrap:anywhere}
+.wo-assist-welcome__support a:hover{color:var(--text-link-hover)}
+.wo-assist-welcome__actions{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:var(--space-6) 0 0}
+.wo-assist-welcome__actions .wo-btn{flex:1 1 auto;white-space:normal;text-align:center}
+/* `.wo-app a` (0,1,1) pinta los <a> de color enlace: el CTA accent vuelve a su texto. */
+.wo-assist-welcome a.wo-btn--accent,.wo-assist-welcome a.wo-btn--accent:hover{color:var(--action-accent-fg)}
+html.wo-assist-modal-open{overflow:hidden}
+
+/* ---------- Convivencia con el recorrido del demo ---------- */
+html.wo-tour-active .wo-assist,html.wo-tour-active .wo-assist-ring{display:none}
+
+/* ---------- Animaciones ---------- */
+@keyframes wo-assist-in{from{opacity:0;transform:translateY(var(--space-2))}to{opacity:1;transform:none}}
+@keyframes wo-assist-fade{from{opacity:0}to{opacity:1}}
+
+/* ---------- Tablet sin bottombar del dashboard ---------- */
+@media (min-width:40.0625rem){
+  .wod-body .wo-assist{--wo-assist-bottom:0px}
+  html:has(.sc-fab) .wo-assist{--wo-assist-bottom:calc(var(--sc-fab-bottom, 18px) + var(--sc-fab-size, 58px) + var(--space-2))}
+}
+
+/* ---------- Escritorio: panel flotante abajo a la derecha ---------- */
+@media (min-width:48rem){
+  .wo-assist,.wod-body .wo-assist{--wo-assist-bottom:var(--space-4)}
+  html:has(.sc-fab) .wo-assist{--wo-assist-bottom:calc(var(--sc-fab-bottom, 24px) + var(--sc-fab-size, 60px) + var(--space-3))}
+  .wo-assist{left:auto;right:var(--space-4);width:min(380px,calc(100vw - var(--space-8)));align-items:flex-end}
+  .wo-assist__panel{
+    max-height:calc(100vh - var(--wo-assist-bottom) - var(--space-12));
+    max-height:calc(100dvh - var(--wo-assist-bottom) - var(--space-12));
+    padding:var(--space-5);border:var(--border-strong-width) solid var(--border-strong)
+  }
+  .wo-assist__pill{margin:0}
+  .wo-assist__tool,.wo-assist__link,.wo-assist__field{min-height:var(--control-h-sm)}
+  .wo-assist-welcome{align-items:center;padding:var(--space-6)}
+  .wo-assist-welcome__card{
+    width:min(760px,100%);max-height:calc(100vh - var(--space-12));max-height:calc(100dvh - var(--space-12));
+    padding:var(--space-8);border:var(--border-strong-width) solid var(--border-strong)
+  }
+  .wo-assist-welcome__grid{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-6)}
+}
+
+/* ---------- Movimiento reducido ---------- */
+@media (prefers-reduced-motion:reduce){
+  .wo-assist *,.wo-assist__panel,.wo-assist-ring,.wo-assist-welcome,.wo-assist-welcome *{animation:none !important;transition:none !important}
+}

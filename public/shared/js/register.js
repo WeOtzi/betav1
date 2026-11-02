@@ -57,7 +57,13 @@ const formState = {
         address: null,
         birth_date: '',
         subscribed_newsletter: null,
-        terms_accepted: false
+        terms_accepted: false,
+        // Figma final (oct 2026): enlaces separados del grupo 04 y temas de
+        // novedades del grupo 06 (artists_db.profile_links / newsletter_topics).
+        website_url: '',
+        behance_url: '',
+        other_url: '',
+        newsletter_topics: []
     }
 };
 
@@ -85,7 +91,11 @@ const REGISTRATION_DRAFT_FIELDS = [
     'address',
     'birth_date',
     'subscribed_newsletter',
-    'terms_accepted'
+    'terms_accepted',
+    'website_url',
+    'behance_url',
+    'other_url',
+    'newsletter_topics'
 ];
 const REGISTRATION_DRAFT_BOOLEAN_FIELDS = new Set(['subscribed_newsletter', 'terms_accepted']);
 const REGISTRATION_DRAFT_NULLABLE_FIELDS = new Set(['studio_id', 'studio_location_id', 'address']);
@@ -142,6 +152,13 @@ function applyRegistrationDraftData(draftData) {
 
         if (field === 'styles') {
             formState.data.styles = Array.isArray(value)
+                ? value.filter(item => typeof item === 'string' && item.trim().length > 0)
+                : [];
+            return;
+        }
+
+        if (field === 'newsletter_topics') {
+            formState.data.newsletter_topics = Array.isArray(value)
                 ? value.filter(item => typeof item === 'string' && item.trim().length > 0)
                 : [];
             return;
@@ -378,7 +395,28 @@ function scheduleRegistrationDraftSync() {
 // Studio autocomplete state
 let studioSearchTimeout = null;
 let studioSuggestionsCache = [];
+const STUDIO_SUGGESTIONS_LIMIT = 5;
 let studioLocationsCache = [];
+// ¿El estudio elegido ya tiene cuenta (studios.user_id)? true / false, o null
+// mientras no se sabe. Define el hint de la solicitud de alta del paso 05.
+let selectedStudioHasOwner = null;
+let studioOwnerLookupId = null;
+
+// Plataforma de Estudios: el registro deja una SOLICITUD de alta (membresía
+// `requested`), no un vínculo activo. El estudio la aprueba desde su panel;
+// si todavía no tiene cuenta, la ve cuando la active.
+const STUDIO_MEMBERSHIP_HINTS = {
+    owned: 'Tu alta queda pendiente hasta que el estudio la apruebe',
+    unowned: 'Guardamos tu solicitud; el estudio la verá cuando active su cuenta'
+};
+
+// Copy del hint (lógica pura): '' oculta el hint.
+function studioMembershipHintText(workType, studioResolved, hasOwner) {
+    if (!(workType === 'studio' || workType === 'both') || !studioResolved) return '';
+    if (hasOwner === true) return STUDIO_MEMBERSHIP_HINTS.owned;
+    if (hasOwner === false) return STUDIO_MEMBERSHIP_HINTS.unowned;
+    return '';
+}
 
 // DOM Elements
 const formSteps = document.querySelectorAll('.form-step');
@@ -1026,6 +1064,13 @@ async function initializeAuth() {
 
         persistRegistrationDraft();
 
+        // Figma final (oct 2026): portfolio del grupo 04, panel de estilos y
+        // estados de QA del preview (acceso-register-final.js).
+        if (window.AccesoRegister && typeof window.AccesoRegister.afterInit === 'function') {
+            try { window.AccesoRegister.afterInit({ loadedArtistRecord }); }
+            catch (hookError) { console.warn('[register] AccesoRegister.afterInit falló:', hookError); }
+        }
+
         // Initialize Google Places if API is loaded
         if (typeof google !== 'undefined') {
             initGooglePlaces();
@@ -1077,7 +1122,7 @@ async function loadExistingArtistData() {
             formState.data.subscribed_newsletter = typeof artist.subscribed_newsletter === 'boolean'
                 ? artist.subscribed_newsletter
                 : null;
-            formState.data.experience_years = artist.years_experience || '';
+            formState.data.experience_years = normalizeExperienceValue(artist.years_experience);
             
             // Hydrate work_type from persisted column; fall back to old heuristic
             if (artist.work_type) {
@@ -1101,6 +1146,20 @@ async function loadExistingArtistData() {
         console.error('Error loading existing data:', error);
         loadedArtistRecord = null;
     }
+}
+
+// Filas legadas guardan años sueltos ("5"): se llevan al rango del selector.
+function normalizeExperienceValue(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return '';
+    if (['0-1', '1-3', '3-5', '5-10', '10+'].includes(raw)) return raw;
+    const years = Number.parseFloat(raw.replace(',', '.'));
+    if (!Number.isFinite(years)) return raw;
+    if (years < 1) return '0-1';
+    if (years < 3) return '1-3';
+    if (years < 5) return '3-5';
+    if (years < 10) return '5-10';
+    return '10+';
 }
 
 function parseResumeStepFromUrl(search) {
@@ -1188,9 +1247,17 @@ async function loadAndRenderStylesFromDB() {
         console.error('Error loading tattoo styles from DB:', err);
     }
 
+    // Figma final 801:1088: los estilos elegidos van primero y se muestran 10
+    // chips + "Ver más estilos" (abre el panel "Todos los estilos").
+    const selectedKeys = new Set((formState.data.styles || []).map(normalizeStyleName));
     const parentStyles = (_loadedDbStyles || [])
         .filter(s => !s.parent_id)
-        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        .sort((a, b) => {
+            const sa = selectedKeys.has(normalizeStyleName(a.name)) ? 0 : 1;
+            const sb = selectedKeys.has(normalizeStyleName(b.name)) ? 0 : 1;
+            if (sa !== sb) return sa - sb;
+            return (a.sort_order || 0) - (b.sort_order || 0);
+        });
 
     grid.innerHTML = '';
 
@@ -1217,7 +1284,7 @@ async function loadAndRenderStylesFromDB() {
     syncStylesMoreButton();
 }
 
-const STYLES_VISIBLE_COUNT = 5;
+const STYLES_VISIBLE_COUNT = 10;
 
 function syncStylesMoreButton() {
     const grid = document.getElementById('styles-grid');
@@ -1265,8 +1332,12 @@ function prefillFormInputs() {
         bioEditor.innerHTML = data.bio;
     }
 
-    if (data.styles && data.styles.length > 0) {
-        const gridBtns = document.querySelectorAll('#styles-grid .style-option:not(.style-option-other)');
+    // Solo se canonicaliza contra el grid ya dibujado: loadExistingArtistData
+    // llama a prefill antes de loadAndRenderStylesFromDB y, con el grid vacío,
+    // borraba los estilos guardados del artista.
+    const renderedStyleBtns = document.querySelectorAll('#styles-grid .style-option:not(.style-option-other)');
+    if (data.styles && data.styles.length > 0 && renderedStyleBtns.length > 0) {
+        const gridBtns = renderedStyleBtns;
         const normalizedMap = {};
         gridBtns.forEach(btn => {
             normalizedMap[normalizeStyleName(btn.dataset.style)] = btn;
@@ -1339,10 +1410,13 @@ function prefillFormInputs() {
         if (newsletterBtn) {
             newsletterBtn.classList.add('selected');
         }
-        // El boolean del esquema no distingue temas: al reanudar un borrador
-        // suscripto se marcan los cuatro; si no, quedan todos sin tildar.
+        // Con temas guardados (newsletter_topics) se marcan esos; si solo
+        // existe el boolean del esquema, un borrador suscripto marca los cuatro.
+        const savedTopics = Array.isArray(data.newsletter_topics) ? data.newsletter_topics : [];
         document.querySelectorAll('.newsletter-topic-input').forEach((box) => {
-            box.checked = data.subscribed_newsletter === true;
+            box.checked = savedTopics.length
+                ? savedTopics.includes(box.dataset.topic)
+                : data.subscribed_newsletter === true;
         });
     }
 
@@ -1352,7 +1426,12 @@ function prefillFormInputs() {
     const linkUrl = data.portfolio_url || '';
     const otherInput = document.getElementById('other_url');
     const siteInput = document.getElementById('portfolio_url');
-    if (linkUrl && data.portfolio_source === 'other') {
+    const behanceInput = document.getElementById('behance_url');
+    if (data.website_url || data.behance_url || data.other_url) {
+        if (siteInput && data.website_url) siteInput.value = data.website_url;
+        if (behanceInput && data.behance_url) behanceInput.value = data.behance_url;
+        if (otherInput && data.other_url) otherInput.value = data.other_url;
+    } else if (linkUrl && data.portfolio_source === 'other') {
         if (otherInput) otherInput.value = linkUrl;
     } else if (linkUrl && data.portfolio_source !== 'none') {
         if (siteInput) siteInput.value = linkUrl;
@@ -1644,13 +1723,28 @@ function initStudioAutocomplete() {
 
     studioInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
+        // Si la dirección vino del estudio elegido antes, deja de valer al
+        // cambiar de estudio: un "Crear «x»" no hereda la sede de otro.
+        const addressCameFromStudio = Boolean(formState.data.studio_id || formState.data.studio_location_id);
         formState.data.studio_name = query;
         formState.data.studio_id = null;
         formState.data.studio_location_id = null;
         formState.data.studio_location_label = '';
+        selectedStudioHasOwner = null;
         studioLocationsCache = [];
         renderStudioLocationSelect([]);
         updateStudioAddressPreview('');
+        if (addressCameFromStudio && formState.data.work_type === 'studio') {
+            formState.data.address = null;
+            const addressInput = document.getElementById('address_search');
+            if (addressPickerInstance && typeof addressPickerInstance.setValue === 'function') {
+                addressPickerInstance.setValue({ formatted_address: '' });
+            } else if (addressInput) {
+                addressInput.value = '';
+            }
+            syncAddressDetailsVisibility();
+            syncAddressHardState();
+        }
         // Al volver a tipear se descarta la selección: el picker de dirección
         // se oculta hasta elegir o crear un estudio (Figma 422-2873).
         studioAddressRequired = false;
@@ -1658,7 +1752,8 @@ function initStudioAutocomplete() {
         syncStudioHardState();
         persistRegistrationDraft();
 
-        if (query.length < 2) {
+        // Figma final 801:1095: las sugerencias aparecen desde la primera letra.
+        if (query.length < 1) {
             hideSuggestions();
             return;
         }
@@ -1694,7 +1789,8 @@ async function searchStudios(query) {
 
     try {
         const normalizedQuery = query.toUpperCase();
-        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalizedQuery, { columns: 'id, name, normalized_name, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id' });
+        // user_id dice si el estudio ya tiene cuenta (hint de la solicitud de alta).
+        const { data, error } = await WeotziData.Studios.searchByNormalizedName(normalizedQuery, { columns: 'id, name, normalized_name, user_id, country, country_code, state_province, city, locality, street, street_number, unit, postal_code, formatted_address, latitude, longitude, google_place_id' });
 
         if (error) {
             console.error('Studio search error:', error);
@@ -1728,8 +1824,9 @@ function renderSuggestions(query) {
             s => s.normalized_name === query.toUpperCase()
         );
         // Ítem del Figma 422-2873: cuadrado rojo + nombre mono caps,
-        // dirección en subrenglón sans muted.
-        let html = studioSuggestionsCache.map((s, idx) => {
+        // dirección en subrenglón sans muted. Figma final 801:1095: hasta 5
+        // resultados y "Crear «x»" siempre visible como último ítem.
+        let html = studioSuggestionsCache.slice(0, STUDIO_SUGGESTIONS_LIMIT).map((s, idx) => {
             const address = getDisplayAddress(s);
             return `
             <div class="studio-suggestion-item" data-cache-index="${idx}" data-id="${escapeHtmlSummary(s.id)}" data-name="${escapeHtmlSummary(s.name)}">
@@ -1850,6 +1947,8 @@ async function selectStudioSuggestion(item) {
         formState.data.studio_id = null;
         formState.data.studio_location_id = null;
         formState.data.studio_location_label = '';
+        // Un estudio creado desde el registro todavía no tiene cuenta.
+        selectedStudioHasOwner = false;
         renderStudioLocationSelect([]);
         updateStudioAddressPreview('');
         // Estudio nuevo: necesita que el artista cargue la dirección.
@@ -1858,6 +1957,9 @@ async function selectStudioSuggestion(item) {
         const cached = studioSuggestionsCache[Number.parseInt(item.dataset.cacheIndex, 10)] || null;
         formState.data.studio_id = item.dataset.id;
         formState.data.studio_name = item.dataset.name;
+        selectedStudioHasOwner = cached && Object.prototype.hasOwnProperty.call(cached, 'user_id')
+            ? Boolean(cached.user_id)
+            : null;
         if (studioInput) studioInput.value = item.dataset.name;
         if (cached) {
             const locations = await loadStudioLocations(item.dataset.id, cached);
@@ -1882,6 +1984,7 @@ async function selectStudioSuggestion(item) {
     syncStudioHardState();
     persistRegistrationDraft();
     hideSuggestions();
+    refreshGroupGate();
 }
 
 function hideSuggestions() {
@@ -1936,19 +2039,21 @@ async function findOrCreateStudio(studioName) {
     return created.id;
 }
 
-async function persistSelectedStudioLocation(studioIdOverride) {
+// Ubicación actual del artista. Plataforma de Estudios: nunca escribe
+// artist_tattoo_locations.studio_id; el vínculo con el estudio es la solicitud
+// de alta (membresía `requested`) y "tatúa en …" sale de la membresía activa.
+// studio_name es NOT NULL en la tabla: queda el nombre como texto.
+async function persistSelectedStudioLocation() {
     const workType = formState.data.work_type;
     if (!currentUser || workType === 'independent' || !(workType === 'studio' || workType === 'both')) return;
-    const studioId = studioIdOverride || formState.data.studio_id || null;
     const studioName = String(formState.data.studio_name || '').trim();
     if (!studioName) return;
-    const address = formState.data.address || {};
     try {
         const row = {
             artist_user_id: currentUser.id,
             period_type: 'current',
             sort_order: 0,
-            studio_id: studioId,
+            studio_id: null,
             studio_name: studioName.toUpperCase(),
             city: getRegistrationCity() || null,
             agenda_status: 'open'
@@ -1958,6 +2063,74 @@ async function persistSelectedStudioLocation(studioIdOverride) {
     } catch (error) {
         console.warn('[register] Could not persist artist tattoo location:', error);
     }
+}
+
+// ¿El estudio resuelto tiene dueño? Usa lo que trajo la búsqueda y, si no, lo
+// consulta. null = no se pudo saber.
+async function registrationStudioHasOwner(studioId) {
+    if (!studioId) return null;
+    if (formState.data.studio_id === studioId && selectedStudioHasOwner !== null) return selectedStudioHasOwner;
+    try {
+        const { data, error } = await WeotziData.Studios.getById(studioId, 'id, user_id');
+        if (error || !data) return null;
+        return Boolean(data.user_id);
+    } catch (err) {
+        return null;
+    }
+}
+
+// Registro con sesión (sin el finalize del servidor): pide el alta en el
+// estudio y avisa al dueño si tiene. Sin la migración (RPC ausente) vuelve al
+// vínculo legacy: artists_db.studio_id + estudios, como antes. Un error de
+// membresía nunca frena el registro.
+async function requestRegistrationStudioMembership(studioId, estudiosValue) {
+    const repo = window.WeotziData?.StudioMemberships;
+    if (!currentUser || !studioId) return { pending: false, legacy: false };
+    const legacyLink = async () => {
+        try {
+            const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { studio_id: studioId, estudios: estudiosValue || null });
+            if (error) throw error;
+        } catch (legacyError) {
+            console.warn('[register] Legacy studio link not saved:', legacyError);
+        }
+        return { pending: false, legacy: true };
+    };
+    if (!repo || typeof repo.requestMembership !== 'function') return legacyLink();
+    let result;
+    try {
+        result = await repo.requestMembership({
+            studioId,
+            role: 'resident',
+            locationId: formState.data.studio_location_id || null
+        });
+    } catch (err) {
+        result = { data: null, error: err };
+    }
+    const error = result && result.error;
+    if (error) {
+        const code = String(error.code || '');
+        if (['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'].includes(code)) return legacyLink();
+        // 23514: ya hay una solicitud o vínculo abierto con el estudio.
+        if (code !== '23514' && code !== '23505') console.warn('[register] Studio membership request failed:', error);
+        return { pending: false, legacy: false };
+    }
+    const row = (Array.isArray(result.data) ? result.data[0] : result.data) || {};
+    if (row.membership_id && row.studio_has_owner === true) {
+        try {
+            const { data: sessionData } = await _supabase.auth.getSession();
+            const token = sessionData?.session?.access_token || null;
+            const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+            if (token) headers.Authorization = `Bearer ${token}`;
+            fetch(appUrl('/api/artist/studio-notify'), {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ kind: 'membership_request_created', membership_id: row.membership_id })
+            }).catch((notifyError) => console.warn('[register] Studio notify failed:', notifyError));
+        } catch (notifyError) {
+            console.warn('[register] Studio notify failed:', notifyError);
+        }
+    }
+    return { pending: Boolean(row.membership_id), legacy: false };
 }
 
 let studioAutocompleteInitialized = false;
@@ -2028,11 +2201,35 @@ function applyAddressPickerVisibility(workType) {
         if (label) label.textContent = 'Tu dirección';
         if (help)  help.textContent = 'Indicá la dirección de tu espacio de trabajo: estudio propio, casa o donde recibís clientes.';
         ensureAddressPicker();
+        syncAddressInputFromState();
         syncAddressDetailsVisibility();
     } else {
         wrapper.style.display = 'none';
         syncAddressDetailsVisibility();
     }
+}
+
+// Perfil o borrador reanudado: el campo TU DIRECCIÓN muestra la ubicación ya
+// guardada (dirección completa o, si solo hay ciudad, "Ciudad, País") en vez
+// de quedar vacío mientras la revisión sí la muestra (Figma final 801:1094).
+// Solo escribe el texto visible: formState.data.address no cambia hasta que el
+// artista elija una sugerencia.
+function syncAddressInputFromState() {
+    const input = document.getElementById('address_search');
+    if (!input || String(input.value || '').trim()) return;
+    const address = formState.data.address;
+    const display = getDisplayAddress(address);
+    const city = getRegistrationCity();
+    const country = getRegistrationCountry();
+    const text = display || [city, country].filter(Boolean).join(', ');
+    if (!text) return;
+    const picker = ensureAddressPicker();
+    if (picker && typeof picker.setValue === 'function') {
+        picker.setValue(display ? { ...address, formatted_address: display } : { city, country, formatted_address: text });
+    } else {
+        input.value = text;
+    }
+    syncAddressHardState();
 }
 
 function scrollWorkTypeFollowupIntoView(workType) {
@@ -2109,6 +2306,7 @@ function selectWorkTypeOption(btn) {
             if (studioNameInput) studioNameInput.value = '';
             updateStudioAddressPreview('');
             studioAddressRequired = false;
+            selectedStudioHasOwner = null;
             syncStudioHardState();
         }
     }
@@ -3076,16 +3274,23 @@ function prefillBirthDateInput() {
 function saveLinkFields() {
     const igInput = document.getElementById('instagram_handle');
     const siteInput = document.getElementById('portfolio_url');
+    const behanceInput = document.getElementById('behance_url');
     const otherInput = document.getElementById('other_url');
     const handle = igInput ? igInput.value.trim().replace(/^@/, '') : String(formState.data.instagram_handle || '');
     const site = siteInput ? siteInput.value.trim() : '';
+    const behance = behanceInput ? behanceInput.value.trim() : '';
     const other = otherInput ? otherInput.value.trim() : '';
 
     formState.data.instagram_handle = handle;
-    formState.data.portfolio_url = site || other;
+    // Enlaces separados (Figma final): se guardan en artists_db.profile_links.
+    formState.data.website_url = site;
+    formState.data.behance_url = behance;
+    formState.data.other_url = other;
+    // `portafolio` conserva un único enlace principal: sitio > Behance > otro.
+    formState.data.portfolio_url = site || behance || other;
     if (handle) formState.data.portfolio_source = 'instagram';
     else if (site) formState.data.portfolio_source = 'website';
-    else if (other) formState.data.portfolio_source = 'other';
+    else if (behance || other) formState.data.portfolio_source = 'other';
     else formState.data.portfolio_source = 'none';
 }
 
@@ -3165,6 +3370,9 @@ function isGroupReady(groupId) {
                 const studioInput = document.getElementById('studio_name');
                 const studio = studioInput ? studioInput.value : data.studio_name;
                 if (!String(studio || '').trim()) return false;
+                // Figma final 801:1095: con texto libre sin elegir ni crear un
+                // estudio, CONTINUAR sigue deshabilitado junto al aviso.
+                if (!isStudioSelectionResolved()) return false;
             }
             return Boolean(getRegistrationCity());
         }
@@ -3193,10 +3401,57 @@ function syncTrabajoGateHint() {
     if (!hint) return;
     const workType = formState.data.work_type;
     const needsStudio = workType === 'studio' || workType === 'both';
+    hint.hidden = !(needsStudio && !formState.data.studio_id && !studioAddressRequired);
+    syncStudioMembershipHint();
+}
+
+// Hint de la solicitud de alta (ra-hint del paso 05): aparece con el estudio
+// ya elegido de la lista o creado ("Crear «x»").
+function syncStudioMembershipHint() {
+    const hint = document.getElementById('studio-membership-hint');
+    if (!hint) return;
+    const workType = formState.data.work_type;
+    const studioResolved = Boolean(formState.data.studio_id) || studioAddressRequired;
+    if (studioResolved && formState.data.studio_id && selectedStudioHasOwner === null) {
+        lookupSelectedStudioOwner(formState.data.studio_id);
+    }
+    const text = studioMembershipHintText(workType, studioResolved, selectedStudioHasOwner);
+    hint.textContent = text;
+    hint.hidden = !text;
+}
+
+// Estudio reanudado de un borrador (sin la fila de la búsqueda): se averigua
+// una sola vez si tiene dueño.
+async function lookupSelectedStudioOwner(studioId) {
+    if (!studioId || studioOwnerLookupId === studioId || !window.WeotziData?.Studios?.getById) return;
+    studioOwnerLookupId = studioId;
+    try {
+        const { data, error } = await WeotziData.Studios.getById(studioId, 'id, user_id');
+        if (error || !data || formState.data.studio_id !== studioId) return;
+        selectedStudioHasOwner = Boolean(data.user_id);
+        syncStudioMembershipHint();
+    } catch (err) {
+        console.warn('[register] Studio owner lookup failed:', err);
+    }
+}
+
+// Estudio resuelto = elegido de la lista (studio_id) o "Crear «x»" con una
+// dirección elegida en el picker. El texto libre solo no alcanza (misma regla
+// que el aviso del gate).
+function isStudioSelectionResolved() {
     const studioInput = document.getElementById('studio_name');
     const studioName = String((studioInput ? studioInput.value : formState.data.studio_name) || '').trim();
-    const studioResolved = Boolean(studioName && (formState.data.studio_id || getDisplayAddress(formState.data.address)));
-    hint.hidden = !(needsStudio && !studioResolved && !studioAddressRequired);
+    if (!studioName) return false;
+    // Sin Google Places (clave ausente, preview) el picker queda como texto
+    // libre: alcanza con una dirección escrita para no bloquear el registro.
+    const placesAvailable = Boolean(window.google && window.google.maps && window.google.maps.places);
+    const typedAddress = String(document.getElementById('address_search')?.value || '').trim();
+    const hasAddress = Boolean(getDisplayAddress(formState.data.address))
+        || (!placesAvailable && typedAddress.length >= 5);
+    // Estudio existente: resuelto aunque su sede no tenga dirección cargada (un
+    // perfil reanudado no trae la dirección; la ciudad la sigue exigiendo el gate).
+    if (formState.data.studio_id) return true;
+    return studioAddressRequired && hasAddress;
 }
 
 // ---------- Disponibilidad en vivo (email / nombre artístico / instagram) ----------
@@ -3417,6 +3672,7 @@ function commitNewsletterSelection() {
     if (!boxes.length) return;
     const anyChecked = boxes.some(box => box.checked);
     formState.data.subscribed_newsletter = anyChecked;
+    formState.data.newsletter_topics = boxes.filter(box => box.checked).map(box => box.dataset.topic);
     document.querySelectorAll('.newsletter-option').forEach((btn) => {
         btn.classList.toggle('selected', (btn.dataset.subscribe === 'true') === anyChecked);
     });
@@ -3465,6 +3721,11 @@ function setupGroupUI() {
     const stylesGrid = document.getElementById('styles-grid');
     if (moreStylesBtn && stylesGrid) {
         moreStylesBtn.addEventListener('click', () => {
+            // Figma final 2001:3897: panel "Todos los estilos" (acceso-register-final.js).
+            if (window.AccesoRegister && typeof window.AccesoRegister.openStylesPanel === 'function') {
+                window.AccesoRegister.openStylesPanel();
+                return;
+            }
             stylesGrid.classList.add('is-expanded');
             moreStylesBtn.setAttribute('aria-expanded', 'true');
             moreStylesBtn.hidden = true;
@@ -3894,6 +4155,12 @@ function validateStep(step) {
                     isValid = false;
                     errorElement = studioNameInput;
                     errorMessage = 'Contanos en qué estudio trabajás.';
+                } else if (!isStudioSelectionResolved()) {
+                    isValid = false;
+                    errorElement = studioAddressRequired ? document.getElementById('address_search') : studioNameInput;
+                    errorMessage = studioAddressRequired
+                        ? 'Elegí la dirección del estudio de la lista de sugerencias.'
+                        : 'Elegí tu estudio de la lista o creá uno nuevo.';
                 } else {
                     formState.data.studio_name = studioNameInput.value.trim();
                 }
@@ -4149,6 +4416,19 @@ function renderSuccessScreen(destinationUrl) {
     if (cta && destinationUrl) cta.setAttribute('href', appUrl(destinationUrl));
 }
 
+// Registro 08 → loader "Organizando tu agenda" (Figma 2001:4308 · v3) → panel.
+let _registrationRedirectStarted = false;
+function redirectAfterRegistration(url) {
+    if (_registrationRedirectStarted) return;
+    _registrationRedirectStarted = true;
+    if (window.WoPostAuthLoader && typeof window.WoPostAuthLoader.show === 'function') {
+        window.WoPostAuthLoader.show({ role: 'artist', targetUrl: url, variant: 'v3' });
+    } else {
+        window.location.href = url;
+    }
+}
+window.redirectAfterRegistration = redirectAfterRegistration;
+
 function startRegistrationWaitScreen() {
     goToStep('saving');
     return Date.now();
@@ -4251,7 +4531,8 @@ async function submitForm() {
                 postRegistrationUrl = loginUrl;
             }
 
-            await persistSelectedStudioLocation(finalizeData.artist?.studio_id || formState.data.studio_id);
+            // La solicitud de alta la creó el finalize del servidor.
+            await persistSelectedStudioLocation();
 
             try {
                 await persistPortfolioMedia();
@@ -4301,7 +4582,7 @@ async function submitForm() {
             renderSuccessScreen(postRegistrationUrl);
             goToStep('success');
             setTimeout(() => {
-                window.location.href = appUrl(postRegistrationUrl);
+                redirectAfterRegistration(appUrl(postRegistrationUrl));
             }, 3000);
             return;
         } catch (error) {
@@ -4368,11 +4649,17 @@ async function submitForm() {
             estudiosValue = null;
         }
 
+        // Plataforma de Estudios: con estudio, el registro pide el alta
+        // (membresía `requested`) y no escribe artists_db.studio_id ni la
+        // etiqueta "tatúa en …" hasta que el estudio la apruebe. Un estudio con
+        // dueño administra sus propios datos y sedes.
+        const studioHasOwner = resolvedStudioId ? await registrationStudioHasOwner(resolvedStudioId) : null;
+
         // Persist the structured address. For studio/both, write it to the
         // studios row we just resolved. For independent, it belongs on the
         // artist row itself (added to artistData below).
         const pickedAddress = formState.data.address || null;
-        if (resolvedStudioId && pickedAddress && pickedAddress.formatted_address && !formState.data.studio_location_id) {
+        if (resolvedStudioId && studioHasOwner !== true && pickedAddress && pickedAddress.formatted_address && !formState.data.studio_location_id) {
             try {
                 await WeotziData.Studios.updateAddress(resolvedStudioId, {
                     country:           pickedAddress.country || null,
@@ -4444,8 +4731,8 @@ async function submitForm() {
             bio_description: window.BioFormatting
                 ? (window.BioFormatting.sanitizeBioHtml(formState.data.bio) || null)
                 : (formState.data.bio || null),
-            estudios: estudiosValue,
-            studio_id: resolvedStudioId,
+            // Sin studio_id; la etiqueta espera la aprobación del estudio.
+            estudios: resolvedStudioId ? null : estudiosValue,
             work_type: formState.data.work_type || null,
             session_price: sessionPriceFormatted,
             session_price_amount: formState.data.session_price ? parseFloat(formState.data.session_price) || null : null,
@@ -4484,7 +4771,8 @@ async function submitForm() {
 
         console.log('Artist profile saved successfully:', data);
 
-        await persistSelectedStudioLocation(resolvedStudioId);
+        if (resolvedStudioId) await requestRegistrationStudioMembership(resolvedStudioId, estudiosValue);
+        await persistSelectedStudioLocation();
 
         // [CH-15] Update Supabase Auth display_name metadata
         try {
@@ -4556,9 +4844,9 @@ async function submitForm() {
         renderSuccessScreen(requestedReturnTo || authUrls.dashboard);
         goToStep('success');
 
-        // Auto-redirect to dashboard after 3 seconds
+        // Auto-redirect to dashboard after 3 seconds (loader post-auth v3)
         setTimeout(() => {
-            window.location.href = requestedReturnTo || authUrls.dashboard;
+            redirectAfterRegistration(appUrl(requestedReturnTo || authUrls.dashboard));
         }, 3000);
 
     } catch (error) {

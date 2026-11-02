@@ -1,0 +1,224 @@
+/* ============================================
+   WE ÖTZI — FINANZAS Y REPORTES DEL ESTUDIO (prefijo sfin-)
+   studio-dashboard-finance.js (pestaña finanzas) y
+   studio-dashboard-reports.js (#reports-extended en la pestaña analytics).
+   Va después de studio.css y studio-admin-kit.css: usa sus tokens y piezas
+   (sk-toolbar, sk-kpis, sk-table, sk-bars, sk-modal). Solo suma lo propio.
+   Línea del panel: radio 0, bordes duros, sombra dura solo en hover.
+   ============================================ */
+
+/* .sk-field es flex y le ganaría al atributo hidden. */
+.sfin [hidden],
+.sfin-report [hidden],
+.sfin-modal [hidden] { display: none !important; }
+
+/* ----- Libro (pestaña Finanzas) ----- */
+.sfin { min-width: 0; }
+.sfin-toolbar { margin-bottom: 10px; }
+.sfin-toolbar > .sfin-search { flex: 2 1 240px; }
+.sfin-toolbar > .sfin-voided {
+    flex: 0 0 auto;
+    min-height: 44px;
+    font-family: var(--sk-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.sfin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    min-width: 0;
+}
+.sfin-actions > .sk-toolbar-spacer { flex: 1 1 auto; }
+.sfin-actions .studio-btn { min-height: 44px; }
+.sfin-actions .studio-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.sfin-period-label {
+    margin: 0;
+    font-family: var(--sk-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.sfin-period-label:empty { display: none; }
+
+/* El detalle no se aplasta: en pantallas chicas la tabla scrollea (sk-table-wrap). */
+.sfin-ledger .sfin-col-detail { min-width: 220px; }
+.sfin-desc { display: block; font-weight: 700; overflow-wrap: break-word; }
+.sfin-ledger td small { overflow-wrap: break-word; }
+.sfin-ledger td .sk-row-actions .studio-btn { white-space: nowrap; }
+.sfin-void-reason { font-style: italic; }
+
+.sfin-amount {
+    font-family: var(--sk-mono);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+/* El signo marca el tipo; el color no carga el significado solo. */
+.sfin-amount--expense { font-weight: 600; }
+/* Igual que .sk-total.is-negative del kit (además lleva el signo menos). */
+.sfin-amount.is-negative { color: var(--primary-red); }
+
+.sfin-row--voided > td { color: var(--text-secondary); }
+.sfin-row--voided .sfin-desc,
+.sfin-row--voided .sfin-amount { text-decoration: line-through; text-decoration-thickness: 2px; }
+.sfin-row--voided .sk-badge { opacity: 0.8; }
+
+.sfin-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* ----- Modal de movimiento ----- */
+.sfin-form { min-width: 0; }
+.sfin-note {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: var(--sk-rule) solid var(--fg);
+    border-left: 10px solid var(--primary-yellow);
+    background: var(--surface-color);
+    font-family: var(--sk-mono);
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+.sfin-form input[type="file"] {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 8px 10px;
+    border: var(--sk-rule) dashed var(--fg);
+    border-radius: 0;
+    background: var(--surface-color);
+    color: var(--fg);
+    font-family: var(--sk-mono);
+    font-size: 0.75rem;
+    text-transform: none;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+.sfin-form input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    padding: 6px 12px;
+    border: var(--sk-rule) solid var(--fg);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sk-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.sfin-form input[type="file"]::file-selector-button:hover { background: var(--primary-yellow); color: var(--text-on-light); }
+.sfin-form input[type="file"]:focus-visible { outline: 3px solid var(--sk-focus); outline-offset: 2px; }
+.sfin-form :disabled { opacity: 0.6; cursor: not-allowed; }
+.sfin-receipt-current {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    margin-bottom: 6px;
+}
+.sfin-inline {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--sk-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.sfin-inline input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--fg); }
+
+/* ----- Reportes (#reports-extended) ----- */
+.sfin-report { min-width: 0; }
+.sfin-report-head { margin-bottom: 6px; }
+.sfin-report-head > .studio-h2 { margin: 0; }
+.sfin-report-toolbar { margin-bottom: 0; flex: 0 1 auto; }
+.sfin-report-toolbar > .sk-field { flex: 0 1 200px; }
+.sfin-report > .sfin-period-label { margin-bottom: 14px; }
+
+/* Seis KPIs: dos filas de tres (dos columnas en tablet). */
+.sfin-report-kpis .sk-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sfin-kpi-sub { display: block; margin-top: 6px; font-size: 0.8em; }
+.sfin-kpi-sub .sk-total + .sk-total { margin-top: 2px; }
+
+.sfin-formula { margin: -6px 0 14px; }
+.sfin-caption { margin: -6px 0 10px; }
+
+.sfin-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: var(--sk-rule) dashed var(--fg);
+    font-family: var(--sk-mono);
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+.sfin-notice--error { border-style: solid; border-left: 10px solid var(--primary-red); }
+
+.sfin-report-section .sk-section-head > .studio-h2 { margin: 0; }
+.sfin-report-section .sk-table-wrap { margin-top: 12px; }
+
+.sfin-bars {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 14px 20px;
+    min-width: 0;
+}
+.sfin-bars__group {
+    min-width: 0;
+    padding: 12px 14px;
+    border: var(--sk-rule) solid var(--fg);
+    background: var(--bg);
+}
+.sfin-bars__title {
+    margin: 0 0 10px;
+    font-family: var(--sk-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.sfin-legacy-kicker {
+    margin: 32px 0 10px;
+    padding-top: 14px;
+    border-top: var(--sk-rule-thick) solid var(--fg);
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 900px) {
+    .sfin-report-kpis .sk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+    .sfin-toolbar > .sfin-search { flex-basis: 100%; }
+    .sfin-actions > .sk-toolbar-spacer { display: none; }
+    .sfin-actions > .sfin-period-label { flex-basis: 100%; }
+    .sfin-actions > .studio-btn { flex: 1 1 auto; }
+    .sfin-report-toolbar { flex-basis: 100%; }
+    .sfin-report-toolbar > .sk-field { flex-basis: 100%; }
+}
+
+@media print {
+    .sfin-toolbar,
+    .sfin-actions .studio-btn,
+    .sfin-report-toolbar,
+    .sfin-report [data-csv],
+    .sfin-report [data-action],
+    .sfin .sk-row-actions { display: none !important; }
+}

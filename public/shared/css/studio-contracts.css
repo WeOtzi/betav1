@@ -1,0 +1,449 @@
+/* ============================================
+   WE ÖTZI — CONTRATOS Y SOLICITUDES DEL ESTUDIO (W-TEAM)
+   Pestañas "contratos" (prefijo stc-) y "solicitudes" (prefijo sreq-).
+   Va DESPUÉS de studio.css y studio-admin-kit.css: usa sus tokens y piezas
+   (sk-table, sk-chip, sk-field, sk-print-doc, modal/drawer).
+   Línea del panel: radio 0, bordes duros, sombra dura solo en hover.
+   Breakpoints: 900px y 600px (los del kit).
+   ============================================ */
+
+:where(.stc-module, .stc-editor, .stc-doc, .sreq-module) {
+    --stc-mono: var(--sk-mono, var(--studio-mono, 'IBM Plex Mono', 'Consolas', monospace));
+    --stc-display: var(--sk-display, var(--studio-display, 'Archivo Black', 'Inter', sans-serif));
+    --stc-rule: var(--sk-rule, 2px);
+    --stc-rule-thick: var(--sk-rule-thick, 3px);
+    --stc-shadow: var(--sk-shadow, 4px 4px 0 var(--fg));
+}
+
+/* =========================================================
+   Contratos: listado
+   ========================================================= */
+.stc-module { min-width: 0; }
+.stc-toolbar .stc-search { flex: 1 1 260px; max-width: 420px; }
+.stc-filters { margin-bottom: 16px; }
+
+.stc-link {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font-family: var(--stc-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.stc-link:hover { color: var(--primary-red); }
+.stc-link:focus-visible { outline: 3px solid var(--primary-blue, #1A4B8E); outline-offset: 2px; }
+
+.stc-table td { vertical-align: top; }
+.stc-expiring {
+    display: inline-block;
+    margin-top: 4px;
+    font-family: var(--stc-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--primary-red);
+}
+
+/* Botón "Contrato" que se agrega a cada fila del roster. */
+.studio-roster-actions .stc-roster-btn {
+    border-style: solid;
+    padding: 4px 8px;
+    margin-left: 4px;
+}
+
+/* =========================================================
+   Contratos: editor (drawer)
+   ========================================================= */
+.stc-editor {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
+.stc-editor__meta {
+    margin: 0;
+    font-family: var(--stc-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+.stc-block {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px;
+    border: var(--stc-rule) solid var(--fg);
+    background: var(--bg);
+}
+.stc-block__title {
+    margin: 0;
+    font-family: var(--stc-display);
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+.stc-parties {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
+    margin: 0;
+}
+.stc-parties dt {
+    font-family: var(--stc-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.stc-parties dd { margin: 2px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+
+/* Opciones (modalidad y quién paga) como tarjetas seleccionables. */
+.stc-modes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+.stc-option {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 2px 10px;
+    padding: 10px 12px;
+    border: var(--stc-rule) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    transition: background .15s, color .15s, transform .15s, box-shadow .15s;
+}
+.stc-option input {
+    grid-row: 1 / span 2;
+    margin: 2px 0 0;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--fg);
+}
+.stc-option__title {
+    font-family: var(--stc-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.3;
+}
+.stc-option__hint {
+    grid-column: 2;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+}
+.stc-option:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--stc-shadow);
+}
+.stc-option:has(input:checked) { background: var(--primary-yellow); color: var(--text-on-light); }
+.stc-option:has(input:checked) .stc-option__hint { color: var(--text-on-light); }
+.stc-option:has(input:focus-visible) { outline: 3px solid var(--primary-blue, #1A4B8E); outline-offset: 2px; }
+
+.stc-mode-panel {
+    display: grid;
+    gap: 10px;
+    padding-top: 4px;
+}
+.stc-mode-panel[hidden] { display: none; }
+.stc-share {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 14px;
+    border: var(--stc-rule) dashed var(--fg);
+    font-family: var(--stc-mono);
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.stc-payer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+.stc-payer > legend {
+    grid-column: 1 / -1;
+    margin-bottom: 6px;
+    padding: 0;
+}
+.stc-payer .stc-option { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+.stc-payer .stc-option__title { text-transform: none; letter-spacing: 0.02em; font-size: 0.76rem; }
+
+.stc-listfield .sk-list-editor { margin-top: 2px; }
+.stc-check { flex-direction: row; align-items: flex-start; gap: 10px; }
+.stc-check span { line-height: 1.4; }
+
+.stc-preview {
+    display: grid;
+    gap: 12px;
+    padding-top: 6px;
+    border-top: var(--stc-rule-thick) solid var(--fg);
+}
+.stc-preview[hidden] { display: none; }
+
+/* Pie del drawer: "Descartar borrador" a la izquierda, el resto a la derecha. */
+.stc-drawer .sk-overlay__foot .stc-discard { margin-right: auto; }
+
+/* =========================================================
+   Contratos: documento (dentro del drawer y al imprimir)
+   ========================================================= */
+.stc-doc { width: 100%; }
+.stc-doc__head { margin-bottom: 8px; }
+.stc-doc__status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 0;
+}
+.stc-doc__meta-item {
+    font-family: var(--stc-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+}
+.stc-doc__empty,
+.stc-doc__fine {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+.stc-doc__text {
+    margin: 0 0 0.8em;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.stc-doc__closure {
+    margin-top: 1em;
+    padding: 10px 12px;
+    border: var(--stc-rule) solid var(--fg);
+    background: var(--surface-color, transparent);
+    font-weight: 700;
+}
+.stc-doc__pending { color: var(--text-secondary); font-style: italic; }
+.stc-doc__sig-role {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.stc-doc__watermark {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border: var(--stc-rule) dashed var(--fg);
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+    font-family: var(--stc-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.stc-doc .sk-doc-hash { display: inline-block; max-width: 100%; }
+
+/* =========================================================
+   Solicitudes
+   ========================================================= */
+.sreq-module { min-width: 0; }
+.sreq-subtabs { margin-bottom: 16px; }
+.sreq-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 5px;
+    border: 1px solid currentColor;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+.sreq-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+    gap: 14px;
+}
+.sreq-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px;
+    border: var(--stc-rule-thick) solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    transition: transform .15s, box-shadow .15s;
+}
+.sreq-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--stc-shadow);
+}
+.sreq-card__head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+.sreq-avatar {
+    width: 48px;
+    height: 48px;
+    border: var(--stc-rule) solid var(--fg);
+    object-fit: cover;
+    background: var(--surface-color, var(--bg));
+}
+.sreq-avatar--initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--stc-display);
+    font-size: 1rem;
+    background: var(--primary-yellow);
+    color: var(--text-on-light);
+}
+.sreq-card__who { min-width: 0; }
+.sreq-card__name {
+    margin: 0;
+    font-family: var(--stc-display);
+    font-size: 1rem;
+    line-height: 1.1;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+.sreq-card__handle,
+.sreq-card__age {
+    margin: 2px 0 0;
+    font-family: var(--stc-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+}
+.sreq-card__age { align-self: start; white-space: nowrap; }
+.sreq-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin: 0;
+}
+.sreq-facts dt {
+    font-family: var(--stc-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.sreq-facts dd { margin: 2px 0 0; font-size: 0.88rem; font-weight: 700; overflow-wrap: anywhere; }
+.sreq-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sreq-tags li {
+    padding: 3px 8px;
+    border: 1px solid var(--fg);
+    font-family: var(--stc-mono);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.sreq-card__msg {
+    margin: 0;
+    padding: 10px 12px;
+    border-left: 4px solid var(--fg);
+    background: var(--surface-color, transparent);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.sreq-card__msg--empty {
+    border-left-style: dashed;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+.sreq-card__link { margin: 0; }
+.sreq-card__link a {
+    font-family: var(--stc-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--fg);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+.sreq-card__link a:hover { color: var(--primary-red); }
+.sreq-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 900px) {
+    .stc-modes { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+    .stc-toolbar .stc-search { max-width: none; }
+    .stc-parties,
+    .stc-payer,
+    .sreq-facts { grid-template-columns: 1fr; }
+    .stc-block { padding: 12px; }
+    .sreq-card { padding: 14px; }
+    .sreq-card__head { grid-template-columns: auto minmax(0, 1fr); }
+    .sreq-card__age { grid-column: 1 / -1; }
+    .sreq-card__actions .studio-btn { flex: 1 1 auto; }
+    .stc-drawer .sk-overlay__foot .stc-discard { margin-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stc-option,
+    .sreq-card { transition: none; }
+    .stc-option:hover,
+    .sreq-card:hover { transform: none; }
+}
+
+/* =========================================================
+   Impresión: el kit clona el documento en .sk-print-root.
+   ========================================================= */
+@media print {
+    .stc-doc__watermark { border-color: #000; background: none !important; color: #000 !important; }
+    .stc-doc__closure { background: none !important; border-color: #000; }
+    .stc-doc .sk-badge { border-color: #000; background: none !important; color: #000 !important; }
+    .stc-doc__meta-item,
+    .stc-doc__empty,
+    .stc-doc__fine,
+    .stc-doc__pending,
+    .stc-doc__sig-role { color: #333 !important; }
+    .stc-doc__text { break-inside: auto; }
+}

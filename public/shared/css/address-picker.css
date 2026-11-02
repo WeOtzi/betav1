@@ -25,11 +25,14 @@
 }
 
 /* Google's autocomplete dropdown — blend it with the Bauhaus style. */
+/* Páginas del DS no definen --bg/--fg: sin el fallback el dropdown quedaba
+   transparente sobre los campos de abajo (registro de estudios, paso 3). */
 .pac-container {
-    border: 2px solid var(--fg);
+    border: 2px solid var(--fg, var(--neutral-500, #0A0A0A));
     border-top: none;
-    background: var(--bg);
-    box-shadow: 4px 4px 0 var(--fg);
+    background: var(--bg, var(--surface-card, #FFFFFF));
+    color: var(--fg, var(--neutral-500, #0A0A0A));
+    box-shadow: 4px 4px 0 var(--fg, var(--neutral-500, #0A0A0A));
     font-family: var(--font-technical, 'JetBrains Mono', monospace);
     font-size: 0.85rem;
     z-index: 9999;
@@ -52,7 +55,7 @@
 
 .pac-item-query {
     font-weight: 700;
-    color: var(--fg);
+    color: var(--fg, var(--neutral-500, #0A0A0A));
 }
 
 [data-theme="dark"] .pac-container {

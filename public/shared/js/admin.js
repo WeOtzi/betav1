@@ -7801,7 +7801,52 @@ async function loadSpotApplications(spotId) {
     }
 }
 
+// ---- Postulaciones: aceptar por la RPC (máquina spot → contrato) ----
+// 'accepted' nunca se escribe directo en la tabla: pasa por
+// decide_studio_spot_application vía POST /api/admin/studio-spot-applications/:id/decide
+// (JWT del caller; la RPC exige soporte activo). Con la migración de contratos
+// aplicada, la postulación queda `shortlisted` con un borrador de contrato que el
+// estudio emite y el artista firma; sin ella, la RPC viva la acepta y suma el
+// artista al roster. 'rejected' también pasa por la RPC (cancela los contratos
+// draft/sent de la postulación); 'shortlisted' sigue por la edición de fila.
+const SPOT_APPLICATION_SUPPORT_HINT = 'Para decidir postulaciones tu cuenta tiene que estar activa en Super Admin → Usuarios Soporte.';
+const _spotApplicationsInFlight = new Set();
+
+function spotApplicationAcceptedMessage(application) {
+    const finalStatus = application && application.status;
+    if (finalStatus === 'accepted') return 'Postulación aceptada: el artista quedó sumado al roster del estudio.';
+    return 'Postulación aceptada: quedó un borrador de contrato para que el estudio lo emita. El artista entra al roster cuando lo firme.';
+}
+
+async function decideSpotApplicationViaRpc(appId, status) {
+    const id = String(appId || '');
+    if (!id || _spotApplicationsInFlight.has(id)) return null;
+    const accepting = status === 'accepted';
+    _spotApplicationsInFlight.add(id);
+    try {
+        const result = await _fetchAdminJson(`/api/admin/studio-spot-applications/${encodeURIComponent(id)}/decide`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: accepting ? 'accepted' : 'rejected' })
+        });
+        const application = result && result.application ? result.application : null;
+        showToast(escapeHtml(accepting ? spotApplicationAcceptedMessage(application) : 'Postulación rechazada.'), 'success');
+        if (sdCurrentSpotId) loadSpotApplications(sdCurrentSpotId);
+        if (document.getElementById('sd-roster-body')) loadStudioRoster();
+        return application;
+    } catch (err) {
+        const message = String((err && err.message) || 'No se pudo completar la acción.');
+        const hint = /permiso|soporte/i.test(message) ? ' ' + SPOT_APPLICATION_SUPPORT_HINT : '';
+        const verb = accepting ? 'aceptar' : 'rechazar';
+        showToast(escapeHtml('No se pudo ' + verb + ' la postulación: ' + message + hint), 'error');
+        if (sdCurrentSpotId) loadSpotApplications(sdCurrentSpotId);
+        return null;
+    } finally {
+        _spotApplicationsInFlight.delete(id);
+    }
+}
+
 async function setApplicationStatus(appId, status) {
+    if (status === 'accepted' || status === 'rejected') return decideSpotApplicationViaRpc(appId, status);
     try {
         await _fetchAdminJson('/api/admin/database/tables/studio_spot_applications/row', {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },

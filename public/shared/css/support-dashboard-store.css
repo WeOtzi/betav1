@@ -1,0 +1,224 @@
+/* ============================================
+   WE OTZI - Support Dashboard · pestaña STORE
+   Complementa support-dashboard.css con las piezas propias del plugin
+   support-dashboard-store.js. Reutiliza las clases del dashboard
+   (.quote-row, .status-badge, .drawer-section, .info-grid, .action-btn) y
+   sus variables (--fg, --bg, --bauhaus-*), sin colores sueltos, así respeta
+   el tema claro u oscuro que elija el agente.
+   ============================================ */
+
+/* Etiquetas solo para lectores de pantalla (selects del toolbar). */
+.sds-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Contador en la pestaña y en el sidebar. Esta página no carga el DS, así
+   que el display va detrás de :not([hidden]) para no pisar el atributo. */
+.sds-count:not([hidden]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4em;
+    padding: 0 0.35em;
+    margin-left: 0.35rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.5;
+    background: var(--bauhaus-red);
+    color: var(--bg);
+    border: 1.5px solid var(--fg);
+}
+
+/* Filas de la tabla. */
+.sds-row {
+    opacity: 1;
+}
+
+.sds-mono {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+}
+
+.sds-order {
+    color: var(--bauhaus-blue);
+}
+
+.sds-cell {
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.sds-sub {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    opacity: 0.7;
+    overflow-wrap: anywhere;
+}
+
+.sds-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.sds-loading {
+    padding: 2rem;
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+}
+
+.sds-error p {
+    margin-bottom: 1rem;
+}
+
+/* Drawer. */
+.sds-eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--bauhaus-red);
+}
+
+.sds-title {
+    margin: 1rem 0 0.75rem;
+    font-weight: 900;
+    font-size: 1.6rem;
+    overflow-wrap: anywhere;
+}
+
+.sds-title:focus-visible,
+.sds-form :focus-visible {
+    outline: 2px solid var(--bauhaus-blue);
+    outline-offset: 2px;
+}
+
+.sds-totals {
+    margin: 0;
+}
+
+.sds-totals > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--fg);
+    font-size: 0.85rem;
+}
+
+.sds-totals dt {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+.sds-totals dd {
+    margin: 0;
+    font-family: 'Space Mono', monospace;
+}
+
+.sds-totals .sds-total {
+    border-bottom: 0;
+    font-weight: 700;
+}
+
+.sds-payments {
+    margin: 0.5rem 0 0;
+    padding-left: 1.1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.6;
+}
+
+.sds-flags {
+    border-color: var(--bauhaus-red);
+}
+
+/* Notas internas (store_order_support_notes), la más reciente primero. */
+.sds-notes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sds-note {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--fg);
+}
+
+.sds-note:last-child {
+    border-bottom: 0;
+}
+
+.sds-note-head {
+    margin: 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    overflow-wrap: anywhere;
+}
+
+.sds-note-kind {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.sds-note-text {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.sds-form {
+    padding: 0.75rem 0 1rem;
+    border-bottom: 1px solid var(--fg);
+}
+
+.sds-form:last-of-type {
+    border-bottom: 0;
+}
+
+.sds-form-title {
+    margin: 0 0 0.35rem;
+    font-weight: 900;
+    font-size: 1rem;
+}
+
+.sds-help {
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.sds-form input,
+.sds-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sds-feedback {
+    margin: 0.75rem 0 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+}
+
+.sds-feedback:empty {
+    display: none;
+}
+
+.sds-feedback[data-tone="error"] {
+    color: var(--bauhaus-red);
+}
+
+.sds-feedback[data-tone="success"] {
+    color: var(--bauhaus-blue);
+}

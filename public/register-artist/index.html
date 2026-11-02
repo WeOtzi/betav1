@@ -115,7 +115,7 @@
                     <div id="ig-step-summary" class="ig-step-summary"></div>
                     <div class="ra-actions ra-actions--split">
                         <button type="button" id="ig-step-skip-btn" class="ra-ghost">Saltar este paso</button>
-                        <button type="button" id="ig-step-import-btn" class="ra-continue">Buscar perfil <span aria-hidden="true">→</span></button>
+                        <button type="button" id="ig-step-import-btn" class="ra-continue">Buscar perfil <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -150,7 +150,7 @@
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
-                        <button type="button" class="ra-continue" data-continue="quien" disabled>Continuar <span aria-hidden="true">→</span></button>
+                        <button type="button" class="ra-continue" data-continue="quien" disabled>Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -209,7 +209,7 @@
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
-                        <button type="button" class="ra-continue" data-continue="acceso" disabled>Continuar <span aria-hidden="true">→</span></button>
+                        <button type="button" class="ra-continue" data-continue="acceso" disabled>Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -310,7 +310,7 @@
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
-                        <button type="button" class="ra-continue" data-continue="oficio" disabled>Continuar <span aria-hidden="true">→</span></button>
+                        <button type="button" class="ra-continue" data-continue="oficio" disabled>Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -338,6 +338,7 @@
                     <div class="link-toggles" id="link-toggles">
                         <button type="button" class="link-toggle is-active" data-link="instagram" aria-pressed="true">Instagram</button>
                         <button type="button" class="link-toggle is-active" data-link="website" aria-pressed="true">Sitio web</button>
+                        <button type="button" class="link-toggle is-active" data-link="behance" aria-pressed="true">Behance</button>
                         <button type="button" class="link-toggle is-active" data-link="other" aria-pressed="true">Otro</button>
                     </div>
                     <div class="ra-fields ra-fields--narrow">
@@ -349,14 +350,63 @@
                             <label class="ra-label" for="portfolio_url">Sitio web</label>
                             <input type="url" id="portfolio_url" class="form-input" placeholder="https://tusitio.com" autocomplete="off">
                         </div>
+                        <div class="ra-field" data-link-field="behance">
+                            <label class="ra-label" for="behance_url">Behance</label>
+                            <input type="url" id="behance_url" class="form-input" placeholder="behance.net/usuario" autocomplete="off">
+                        </div>
                         <div class="ra-field" data-link-field="other">
                             <label class="ra-label" for="other_url">Otro</label>
                             <input type="url" id="other_url" class="ra-input" placeholder="Link" autocomplete="off">
                         </div>
                     </div>
+
+                    <!-- Portfolio (Figma final 801:1091 / 801:1092 / 801:1093):
+                         elegir origen → conectar Instagram o subir archivos →
+                         "Tus trabajos". Lógica en acceso-register-final.js sobre
+                         el borrador de medios de register.js. -->
+                    <div class="ra-portfolio" id="ra-portfolio" role="group" aria-labelledby="ra-portfolio-title">
+                        <h3 class="ra-portfolio-title" id="ra-portfolio-title">Portfolio</h3>
+                        <p class="ra-portfolio-lead">Agregá tu portfolio para que los clientes puedan conocer tu trabajo.</p>
+
+                        <div class="ra-portfolio-choices" id="ra-portfolio-choices">
+                            <button type="button" class="ra-portfolio-choice" data-portfolio-choice="instagram">
+                                <span class="ra-portfolio-choice-icon is-instagram" aria-hidden="true"><i data-wo-icon="instagram"></i></span>
+                                <span class="ra-portfolio-choice-kicker">Instagram</span>
+                                <span class="ra-portfolio-choice-title">Agregar desde Instagram</span>
+                                <span class="ra-portfolio-choice-hint">Traemos tus últimas publicaciones.</span>
+                            </button>
+                            <button type="button" class="ra-portfolio-choice" data-portfolio-choice="files">
+                                <span class="ra-portfolio-choice-icon is-files" aria-hidden="true"><i data-wo-icon="image"></i></span>
+                                <span class="ra-portfolio-choice-kicker">Archivos</span>
+                                <span class="ra-portfolio-choice-title">Subir manualmente</span>
+                                <span class="ra-portfolio-choice-hint">JPG, PNG o WebP · hasta 10 MB cada uno.</span>
+                            </button>
+                        </div>
+
+                        <div class="ra-ig-connect" id="ra-ig-connect" hidden>
+                            <p class="ra-ig-connect-title">Conectar Instagram</p>
+                            <label class="ra-ig-connect-label" for="ra-ig-connect-handle">Usuario</label>
+                            <input type="text" id="ra-ig-connect-handle" class="ra-ig-connect-input" placeholder="@usuario" autocomplete="off" maxlength="31">
+                            <p class="ra-ig-connect-status" id="ra-ig-connect-status" role="status" aria-live="polite" hidden></p>
+                            <div class="ra-ig-connect-actions">
+                                <button type="button" class="ra-ig-connect-go" id="ra-ig-connect-go"><i data-wo-icon="instagram" aria-hidden="true"></i>Conectar</button>
+                                <button type="button" class="ra-ig-connect-cancel" id="ra-ig-connect-cancel">Cancelar</button>
+                            </div>
+                        </div>
+
+                        <div class="ra-works" id="ra-works" hidden>
+                            <p class="ra-works-head"><span class="ra-works-title">Tus trabajos</span><span class="ra-works-count" id="ra-works-count">0 archivos</span></p>
+                            <p class="ra-works-lead">Estas son las fotos que aparecerán en tu perfil. Borrá las que no quieras y/o agregá más desde tu dispositivo.</p>
+                            <div class="ra-works-grid" id="ra-works-grid" role="list"></div>
+                            <button type="button" class="ra-works-clear" id="ra-works-clear">Quitar todo</button>
+                        </div>
+
+                        <p class="ra-portfolio-error" id="ra-portfolio-error" role="alert" hidden></p>
+                        <input type="file" id="ra-works-file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+                    </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
-                        <button type="button" class="ra-continue" data-continue="presencia">Continuar <span aria-hidden="true">→</span></button>
+                        <button type="button" class="ra-continue" data-continue="presencia">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -397,6 +447,7 @@
                         <p class="ra-hint studio-address-preview" id="studio-address-preview" hidden>
                             <span>Dirección del estudio:</span> <strong></strong>
                         </p>
+                        <p class="ra-hint studio-membership-hint" id="studio-membership-hint" role="status" aria-live="polite" hidden></p>
                     </div>
                     <div class="studio-location-select-wrapper" id="studio-location-select-wrapper" hidden>
                         <label class="ra-label" for="studio_location_select">Elegir sede</label>
@@ -405,7 +456,7 @@
                     <div class="address-picker-wrapper" id="address-picker-wrapper" style="display: none;">
                         <label class="ra-label" id="address-picker-label" for="address_search">Tu dirección</label>
                         <input type="text" id="address_search" class="form-input ra-input--hard" placeholder="Calle 123, Ciudad, País" autocomplete="off">
-                        <p class="ra-hint" id="address-picker-help">Buscá la dirección y elegí una sugerencia para ubicarla con precisión.</p>
+                        <p class="ra-hint wo-sr-only" id="address-picker-help">Buscá la dirección y elegí una sugerencia para ubicarla con precisión.</p>
                         <details class="address-details" id="address-details" hidden>
                             <summary>Ver datos completos de la dirección</summary>
                             <div class="weotzi-address-fields" id="address-preview" hidden></div>
@@ -414,7 +465,7 @@
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
                         <span class="ra-gate-hint" id="trabajo-gate-hint" hidden>Elegí tu estudio o creá uno nuevo</span>
-                        <button type="button" class="ra-continue" data-continue="trabajo" disabled>Continuar <span aria-hidden="true">→</span></button>
+                        <button type="button" class="ra-continue" data-continue="trabajo" disabled>Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -463,7 +514,7 @@
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
-                        <button type="button" class="ra-continue" data-continue="novedades">Continuar <span aria-hidden="true">→</span></button>
+                        <button type="button" class="ra-continue" data-continue="novedades">Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </section>
@@ -479,7 +530,7 @@
                     <div class="terms-container">
                         <label class="terms-checkbox-wrapper">
                             <input type="checkbox" id="terms-checkbox" class="terms-checkbox">
-                            <span class="terms-text">Acepto los <a href="/terminos" class="terms-link">Términos y Condiciones</a> y la <a href="/privacidad" class="terms-link">Política de Privacidad</a>.</span>
+                            <span class="terms-text">Acepto los <a href="/legal/terms" class="terms-link" target="_blank" rel="noopener">Términos y Condiciones</a> y la <a href="/legal/privacy" class="terms-link" target="_blank" rel="noopener">Política de Privacidad</a>.</span>
                         </label>
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
@@ -519,8 +570,8 @@
                 <span class="wo-mark-triangle"></span>
             </span>
             <h2 class="ra-success-title">Tu perfil está listo, <span id="ra-success-name">artista</span>.</h2>
-            <p class="ra-success-sub">Ya podés recibir cotizaciones e invitaciones de estudios. Te llevamos a tu panel.</p>
-            <a href="/artist/dashboard" class="ra-continue" id="ra-success-cta">Ir a tu panel <span aria-hidden="true">→</span></a>
+            <p class="ra-success-sub">Ya podés recibir cotizaciones e invitaciones de estudios.<br>Te llevamos a tu panel.</p>
+            <a href="/artist/dashboard" class="ra-continue" id="ra-success-cta">Ir a tu panel <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
         </section>
 
         <!-- Navegación legacy: register.js escribe sobre estos botones (submitForm,
@@ -613,7 +664,10 @@
     <script src="/shared/js/bauhaus-footer.js"></script>
     <script src="/shared/js/artist-registration-progress.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
+    <script src="/shared/js/data/registration-extras-repo.js"></script>
+    <script src="/shared/js/wo-postauth-loader.js"></script>
     <script src="/shared/js/register.js"></script>
+    <script src="/shared/js/acceso-register-final.js"></script>
 
     <script>
         // ============================================================

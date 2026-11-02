@@ -380,3 +380,262 @@
     .apx-twolists { grid-template-columns: minmax(0, 1fr); }
     .apx-datacell:nth-child(2n) { border-left: 0; padding-left: 0; }
 }
+
+/* ============================================================================
+   Figma final (oct 2026) · 801:1070 · 801:1071 · 801:1075
+   ========================================================================== */
+.apx-row-state .wo-tag--soft { background: var(--neutral-200); color: var(--neutral-500); }
+.apx-row-badges { flex-wrap: nowrap; white-space: nowrap; }
+
+/* Variante 01 (pestaña Job Board): acciones como enlaces de texto. */
+.apx-row-actions .apx-action-link,
+.apx-track .apx-action-link {
+    min-height: 0;
+    padding: var(--space-2) 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: var(--ink);
+}
+.apx-row-actions .apx-action-link:hover {
+    transform: none;
+    box-shadow: none;
+    color: var(--text-link);
+    text-decoration: none;
+}
+
+@media (min-width: 64rem) {
+    .apx-rows[data-tab="jobboard"] .apx-row {
+        grid-template-columns: 140px 320px 110px 150px 170px minmax(0, 1fr);
+        gap: 18px;
+    }
+    .apx-rows[data-tab="jobboard"] .apx-row-media { width: 140px; height: 94px; margin-top: 0; }
+    .apx-rows[data-tab="jobboard"] .apx-row-actions { margin-top: -6px; gap: var(--space-3); }
+}
+
+/* 801:1073 / 801:1074 · detalle y seguimiento */
+.apx-detail-tags .wo-tag {
+    background: var(--sand-050);
+    border: var(--border-hairline) solid var(--sand-350);
+    color: var(--neutral-500);
+    font-size: 11px;
+}
+.apx-detail-tags .wo-tag.apx-tag--accent { background: var(--yellow-300); border-color: var(--yellow-300); color: var(--ink); }
+.apx-track .wo-tag { border-color: transparent; }
+.apx-offerbox .wo-label {
+    font-size: 9px;
+    letter-spacing: .1em;
+    color: var(--neutral-300);
+}
+.apx-offerbox strong { font-family: var(--font-body); font-weight: var(--weight-bold); font-size: 13px; color: var(--ink); }
+.apx-offerbox p { margin: 2px 0 0; color: var(--neutral-500); }
+.apx-track-actions .wo-btn--secondary { min-height: 40px; border-width: var(--border-hairline); }
+body.wo-app a.apx-attachment { color: var(--neutral-500); font-family: var(--font-mono); }
+
+/* ============================================================================
+   Corrección ronda 1 (auditoría Figma final)
+   801:1070 · 801:1071 · 801:1075 listado — 801:1073 · 801:1074 detalle
+   Valores de get_design_context (133:16681 stepper · 133:16832 aside).
+   ========================================================================== */
+
+/* Enlaces "Volver…": Inter Bold 12 / tracking .96. */
+.apx-back {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.08em;
+}
+
+/* Pestañas: inactivas #b9ae98 a 14 px. */
+.apx-tabs .wo-tab { font-size: 14px; color: var(--neutral-300); }
+.apx-tabs .wo-tab.is-active { color: var(--neutral-500); }
+
+/* Contador "5 de 9 postulaciones" en minúsculas, mono 12. */
+.apx-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--neutral-300);
+}
+
+/* Chips: 12 px, borde de 1 px en tinta; los de cero mantienen el estilo normal. */
+.apx-chips .wo-chip {
+    border-width: var(--border-hairline);
+    font-size: 12px;
+    color: var(--neutral-500);
+}
+.apx-chips .wo-chip[aria-disabled="true"] { cursor: default; }
+.apx-chips .wo-chip[aria-disabled="true"]:hover { transform: none; box-shadow: none; }
+
+/* Fila: placeholder del DS, fecha Inter 12, estado 12. */
+.apx-photo-placeholder { gap: 4px; color: color-mix(in srgb, var(--black) 75%, transparent); }
+.apx-photo-placeholder [data-wo-icon] { width: 20px; height: 20px; }
+.apx-photo-placeholder strong { font-size: 12px; font-weight: var(--weight-medium); }
+.apx-row-date {
+    font-family: var(--font-body);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--neutral-300);
+}
+.apx-row-state .wo-tag { padding: 4px 10px; font-size: 12px; letter-spacing: 0.08em; }
+
+/* Acciones con borde (Todas / Spots): Inter Bold 12, borde 1 px, alto 36. */
+.apx-row-actions .wo-btn {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 16px;
+    gap: 8px;
+    border-width: var(--border-hairline);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+}
+.apx-row-actions .wo-btn [data-wo-icon] { width: 14px; height: 14px; }
+.apx-arrow { order: 2; }
+
+/* Variante 01 (Job Board): enlaces alineados al mismo borde derecho. */
+.apx-rows[data-tab="jobboard"] .apx-row-actions .apx-action-link {
+    height: auto;
+    min-height: 0;
+    padding: 6px 0;
+    white-space: nowrap;
+}
+@media (min-width: 64rem) {
+    .apx-rows[data-tab="jobboard"] .apx-row {
+        /* Columna de acciones fija (cabe "Ver condiciones acordadas"): todas las
+           filas comparten la grilla y los enlaces terminan en el mismo borde. */
+        grid-template-columns: 140px minmax(0, 1fr) 100px 110px 192px 15rem;
+        gap: 16px;
+    }
+    .apx-rows[data-tab="jobboard"] .apx-row-actions {
+        align-items: flex-end;
+        justify-self: stretch;
+        width: auto;
+    }
+    .apx-rows[data-tab="jobboard"] .apx-row-actions .wo-btn { max-width: none; }
+}
+
+/* ---------- Stepper (133:16681) ---------- */
+.apx-stepper { gap: 0; }
+#apx-detail-view > .apx-stepper { padding-inline: 0; }
+.apx-step {
+    width: 6rem;
+    min-width: 6rem;
+    align-items: center;
+    gap: 8px;
+}
+.apx-step-box {
+    width: 40px;
+    height: 40px;
+    background: var(--white);
+    border: var(--border-hairline) solid var(--sand-350);
+    color: var(--neutral-300);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: var(--weight-bold);
+}
+.apx-step.is-done .apx-step-box,
+.apx-step.is-active .apx-step-box { border-color: var(--neutral-500); }
+.apx-step.is-active .apx-step-box { color: var(--neutral-500); }
+.apx-step-label {
+    max-width: 6rem;
+    font-size: 10px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-align: center;
+    color: var(--neutral-300);
+}
+.apx-step.is-done .apx-step-label { color: var(--neutral-300); }
+.apx-step.is-active .apx-step-label { color: var(--ink); font-weight: var(--weight-bold); }
+.apx-step-line {
+    min-width: var(--space-6);
+    margin-top: 19px;
+    border-top-width: var(--border-strong-width);
+}
+@media (min-width: 64.0625rem) {
+    .apx-step { min-width: 6rem; }
+}
+
+/* ---------- Aside "Seguimiento" (133:16832) ---------- */
+.apx-track {
+    gap: 16px;
+    padding: 25.6px;
+    border: var(--border-hairline) solid var(--border-strong);
+}
+.apx-track .wo-h3 { font-size: 20px; line-height: normal; }
+.apx-track-row {
+    min-height: 0;
+    padding: 12px 0 12.8px;
+    align-items: center;
+    border-bottom: var(--border-hairline) solid var(--neutral-200);
+}
+.apx-track-rows > .apx-track-row:last-child { border-bottom: 0; padding-bottom: 12px; }
+.apx-track-row .wo-label { font-size: 11px; line-height: normal; letter-spacing: 0.06em; }
+.apx-track-row strong {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: var(--weight-bold);
+    line-height: normal;
+    color: var(--ink);
+}
+.apx-track-row .wo-tag {
+    padding: 0 8px;
+    border: 0;
+    font-size: 10px;
+    font-weight: var(--weight-bold);
+    line-height: 14px;
+    letter-spacing: 0.08em;
+}
+
+.apx-offerbox {
+    gap: 10px;
+    padding: 21.6px 17.6px 17.6px;
+    background: var(--yellow-100);
+    border: var(--border-hairline) dashed var(--yellow-400);
+}
+.apx-offerbox-title { font-size: 11px; line-height: normal; letter-spacing: 0.08em; color: var(--yellow-500); }
+.apx-offerbox > div { padding-top: 4px; line-height: normal; }
+.apx-offerbox > div br { display: none; }
+.apx-offerbox > div > .wo-label { display: block; margin-bottom: 1px; font-size: 11px; letter-spacing: 0; color: var(--neutral-300); }
+.apx-offerbox strong { font-size: 14px; line-height: normal; }
+.apx-offerbox p { margin: 0; font-size: 13px; line-height: 18.2px; color: var(--neutral-500); }
+.apx-offerbox .wo-btn {
+    min-height: 48px;
+    height: 48px;
+    margin-top: 0;
+    padding: 0 20px;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+}
+
+.apx-track-actions { gap: 10px; }
+.apx-track-actions > .wo-btn {
+    min-height: 44px;
+    height: 44px;
+    padding: 0 21.6px;
+    gap: 8px;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+}
+.apx-track-actions > .wo-btn--secondary {
+    background: var(--neutral-100);
+    border: var(--border-hairline) solid var(--neutral-500);
+    color: var(--neutral-500);
+}
+.apx-track-actions > .wo-btn--ghost { align-self: stretch; border-color: transparent; }
+
+/* ============================================================================
+   Corrección ronda 2 · aside "Seguimiento" (133:16832 / 132:15420)
+   Figma: título de 22 px, regla de 1.6 px pegada a las filas (sin el gap de
+   16 px), filas de ~41.6 px, contraoferta con ítems de 36 px separados 8 px,
+   botón de 48 px (Job Board) o 41 px (Spot) y 20 px (16 + 4) hasta
+   "Ver conversación".
+   ========================================================================== */
+.apx-track .wo-h3 { line-height: 22px; }
+.apx-track-rule + .apx-track-rows { margin-top: -15px; }
+.apx-track-row { padding-bottom: 12px; }
+.apx-offerbox > div > strong { display: block; }
+.apx-offerbox > div + div { margin-top: -2px; }
+.apx-track--spot .apx-offerbox .wo-btn { min-height: 41px; height: 41px; }
+.apx-track-actions > .apx-offerbox { margin-bottom: 10px; }

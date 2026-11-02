@@ -1,7 +1,34 @@
 # Estudios en We Otzi
 
-Actualizado: 2026-05-27  
+Actualizado: 2026-10-30
 Alcance: modulo local de Estudios en `C:\dev\weotzi-unified`.
+
+## Plataforma de Estudios (2026-10-30)
+
+La rama `feature/estudios-plataforma` convierte el dashboard en el sistema administrativo del estudio. El contrato completo entre modulos esta en [plans/2026-10-30-estudios-plataforma.md](plans/2026-10-30-estudios-plataforma.md). Las migraciones `20261030200000`–`20261030204000` estan **NO aplicadas**. Cada una tiene su rollback en `supabase/rollbacks/` y sus tests SQL en `supabase/tests/`. El frontend degrada mientras falten: muestra "falta aplicar una migracion" o cae al flujo anterior.
+
+| Pestaña | Que hace |
+| --- | --- |
+| Inicio | Pendientes con enlaces (solicitudes, contratos por firmar o por vencer, citas de hoy y mañana, stock bajo, pedidos en camino, postulaciones nuevas) y los KPIs del mes por moneda. |
+| Solicitudes | **Altas** que piden los artistas (aprobar, aprobar con contrato, rechazar), **cambios pedidos** a invitaciones y **contraofertas** a postulaciones. |
+| Spots | Spots para residentes, guest e itinerantes. Cada uno define que incluye, beneficios (`benefit_tags`), que se espera, requisitos y modalidad: porcentaje, fijo (con quien paga) o mixto. Aceptar una postulacion abre el editor de contrato. |
+| Contratos | Borrador → emitir y firmar (dueño) → firma del artista → membresia activa. Terminos congelados (`terms_snapshot` + `terms_hash` SHA-256), documento imprimible, cancelar, rescindir y nueva version. Los guest con fecha de fin pasan a `ended` al vencer. |
+| Agenda | Dia (columnas por artista), semana y lista. Muestra las citas y bloques "Ocupado" sin detalle de la agenda personal del artista, sus sesiones de cotizaciones y otros estudios, con chequeo de disponibilidad en vivo. Al completar una cita se crea el trabajo con el split del contrato. |
+| Inventario | Stock, movimientos y **materiales por artista**: entregas (`assignment`) y devoluciones (`return`) con costo y balance. |
+| Reposicion | Sugerencias por stock bajo, catalogo de Supplies verificados con descuento We Otzi, carrito por proveedor, pedidos y recepcion que repone stock y registra el gasto. Ver [SUPPLIES.md](SUPPLIES.md). |
+| Tienda | Sobre la Store compartida (`store_*`, traída de `feature/store-artista` hasta 0985a29): ajustes (contacto, cobro, dirección de retiro), productos físicos (merch, aftercare, joyería) con variantes y stock, publicación, pedidos online y **venta en mostrador** (`create_store_pos_order`, M6 `20261030205000`, NO aplicada). La vitrina aparece en el perfil público (`get_public_storefront('studio', slug)`). Sin Store aplicada, la merch se registra en Finanzas como `merch_manual`. |
+| Finanzas | Gastos e ingresos (alquiler de puesto, merch manual, sponsors, etc.) con comprobante privado en `studio-documents/<studio_id>/finance/` y anulacion con motivo. |
+| Reportes | Tatuajes, ingreso del estudio por tatuajes, merch, otros ingresos, gastos y resultado por moneda; resultado mensual, gastos por categoria, top artistas, materiales por artista y compras a Supplies, con CSV. Debajo sigue el Analytics anterior. |
+
+**Alta en dos sentidos.** El estudio invita y el artista acepta, o firma el contrato si la invitacion tiene uno. El artista solicita el alta desde el detalle del estudio en `/artist/invitations` o al registrarse, y el estudio aprueba. Un guard en `studio_artist_memberships` impide que el estudio active a alguien sin su consentimiento. El perfil publico y la marca "tatua en" salen solo de membresias activas (vista `studio_public_roster`).
+
+**Reclamo de estudio.** Los 40 estudios del catalogo no tienen dueño. En `/studio/register` el estudio busca su ficha y la reclama; soporte la aprueba en el backoffice (**Revisiones**).
+
+**Seguridad.**
+- Guards de escritura en membresias, postulaciones, `studios` (`is_verified`, `user_id`) y `artists_db.studio_id`.
+- RPC SECURITY DEFINER con validacion de pertenencia cruzada.
+- Arreglo de las policies de Storage de los buckets `studio-*`: comparaban `studios.name` en lugar del path del objeto, y por eso hoy solo soporte puede subir archivos.
+- Emails siempre al email de auth del dueño o del artista.
 
 ## Resumen
 
@@ -78,14 +105,25 @@ Las policies permiten que el estudio dueno gestione objetos bajo el prefijo `<st
 
 ## Flujos vinculados
 
-### Registro de estudio
+### Registro de estudio (revisión Estudios v1, nov 2026)
 
-1. El usuario completa `/studio/register`.
-2. `studio-register.js` crea Supabase Auth con `user_type=studio`.
-3. Inserta `studios` con `user_id`.
-4. Inserta sedes en `studio_locations`.
-5. Actualiza `primary_location_id`.
-6. Redirige a `/studio/dashboard`.
+Cinco pasos en `/studio/register` (`studio-register.js`):
+
+1. **Cuenta.** Al continuar, `Studios.findMatches` (RPC `find_studio_matches`) busca estudios con el mismo nombre o uno parecido (tokens sin acentos ni palabras genéricas) y muestra la advertencia con: iniciar sesión (estudio con dueño), reclamar la ficha (sin dueño, `WeOtziStudioAuth.claim`), registrar una sede (login con `?next=sedes`), cambiar el nombre o seguir como estudio distinto. Seguir pide confirmar que ninguna sede comparte dirección y, si el nombre es idéntico, uno que lo distinga (`normalized_name` sigue siendo único).
+2. **Identidad.** Año de fundación con calendario de años e idiomas con selección múltiple (`studio-register-pickers.js`). Si el Instagram ya figura en otro estudio, se avisa y se pide confirmarlo. El import de Instagram avisa que las fotos se publican cuando se valida la cuenta.
+3. **Sedes.** Buscador de Google Places (dropdown opaco en el DS) y pin arrastrable en el mapa; al mover el pin se trae la dirección desde Google Maps (`studio-location-map.js`). Ninguna sede puede coincidir con la dirección de un estudio parecido: a menos de 40 m, mismo texto, o misma calle y número a menos de 1 km.
+4. **Fotos.** Sin cambios.
+5. **Confirmación.** Vista previa del perfil editable en el lugar (nombre, tagline, bio, año, idiomas, Instagram, web, WhatsApp, nombres de sedes, portada y logo).
+
+`complete_studio_registration` repite en el servidor el control de nombre y dirección (errores 23514 reclamable, 23505 nombre idéntico, 23P01 dirección) y deja el estudio con `verification_required` y una solicitud de verificación pendiente cuando coincide con otro.
+
+### Verificación de estudios
+
+- Estado en `studios.verification_status` (unverified, pending, verified, rejected) junto a `is_verified`. Solo soporte o el servidor lo cambian (guard).
+- El dueño completa la información desde Panel → Verificación (`request_studio_verification`) y valida el Instagram con un código WO-XXXXXX que manda por DM a @weotzi (`/api/studio/verification`, `/api/studio/verification/instagram`; el webhook de DMs de artistas también resuelve códigos de estudios).
+- Soporte decide en Backoffice → Verificaciones de estudios (`/api/admin/studio-verifications`, RPC `decide_studio_verification`) y puede confirmar el Instagram en el mismo paso. El estudio recibe un email (`studio_verification_decision`).
+- El perfil público muestra el sello "Verificado" y oculta las fotos importadas de Instagram hasta validar la cuenta (`gallery-visibility.js`, misma regla que el artista).
+- Migraciones: `20261102120000_studio_verification`, `20261102130000_studio_matches_unowned_fix` y `20261102140000_studio_address_match`, APLICADAS en `flbgmlvfiejfttlawnfu` el 2026-11-02, con rollback y test SQL (`supabase/tests/studio_verification.sql`).
 
 ### Spot y postulacion
 
