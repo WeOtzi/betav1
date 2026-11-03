@@ -1,0 +1,191 @@
+/* Pantalla 12 · w3JA83CcP5ISKjyOu87mx1 / 24:1425.
+ * Page-local adaptation: shared navigation/footer and all data hooks are reused. */
+.artist-dashboard-page { --rail-w: 336px; }
+.artist-dashboard-page > weotzi-product-nav { padding-top: 12px; }
+.artist-dashboard-page > .wo-dash-hero .wo-container,
+.artist-dashboard-page > .wo-container { max-width: 1441px; padding-left: 64px; padding-right: 50px; }
+.artist-dashboard-page .wo-dash-hero { padding: 60px 0 54px; }
+.artist-dashboard-page .wo-dash-hero-date { margin: 0; font-size: 12px; line-height: 16px; letter-spacing: 1.2px; }
+.artist-dashboard-page .wo-dash-hero-title { font-size: clamp(36px, 3.89vw, 56px); line-height: 1; letter-spacing: 0; }
+.artist-dashboard-page .wo-highlight { padding: 0 10px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.artist-dashboard-page .wo-dash-layout { gap: 68px; padding: 0; }
+.artist-dashboard-page .wo-dash-section { padding: 0; }
+.artist-dashboard-page .wo-dash-sechead { flex-wrap: nowrap; gap: 12px; margin-bottom: 0; }
+.artist-dashboard-page .wo-dash-sechead .wo-h2 { margin: 0; font-size: 24px; line-height: 31px; }
+.artist-dashboard-page .wo-dash-seclink { font-size: 12px; letter-spacing: 1.2px; }
+.artist-dashboard-page .wo-dash-agendarow { grid-template-columns: 92px minmax(0,1fr) auto; gap: 24px; min-height: 88px; align-items: start; padding: 24px 0 20px; }
+.artist-dashboard-page .wo-dash-agendarow:first-child { min-height: 96px; padding-top: 30px; }
+.artist-dashboard-page .wo-dash-agendahour { font-size: 26px; }
+.artist-dashboard-page .wo-dash-agendawho { font-size: 18px; line-height: 22px; }
+.artist-dashboard-page .wo-dash-agendadetail { margin-top: 3px; font-size: 14px; line-height: 18px; }
+.artist-dashboard-page .wo-dash-state { padding: 3px 8px; font-size: 10px; line-height: 14px; }
+.artist-dashboard-page .wo-dash-agendadur { font-size: 11px; }
+.artist-dashboard-page .wo-dash-main > .wo-divider { margin: 58px 0 24px; border-top-width: 2px; }
+.artist-dashboard-page #wod-designs-section .wo-dash-sechead { margin-bottom: 24px; }
+.artist-dashboard-page .wo-dash-designs { gap: 32px; }
+.artist-dashboard-page .wo-dash-design-media { aspect-ratio: 4/3; }
+.artist-dashboard-page .wo-dash-design-media [data-wo-icon] { width: 28px; height: 28px; }
+.artist-dashboard-page .wo-dash-design-title { margin-top: 14px; font-size: 15px; line-height: 18px; }
+.artist-dashboard-page .wo-dash-design-client { margin-top: 2px; font-size: 13px; line-height: 17px; }
+.artist-dashboard-page .wo-dash-design-track { margin-top: 14px; height: 8px; }
+.artist-dashboard-page .wo-dash-design:nth-child(2) .wo-dash-design-fill { background: var(--blue-300); }
+.artist-dashboard-page .wo-dash-design-foot { margin-top: 8px; gap: 8px; font-size: 11px; letter-spacing: 1.1px; }
+.artist-dashboard-page .wo-dash-row2 { grid-template-columns: 1.7fr 1fr; gap: 40px; margin-top: 28px; }
+.artist-dashboard-page .wo-dash-row2 > .wo-dash-section { padding: 0; }
+.artist-dashboard-page .wo-dash-col--quotes .wo-dash-seclink { display: none; }
+.artist-dashboard-page .wo-dash-quotestats { margin-top: 28px; padding: 0; min-height: 140px; }
+.artist-dashboard-page .wo-dash-quotestat { display: flex; flex-direction: column; justify-content: center; padding: 12px 24px; }
+.artist-dashboard-page .wo-dash-quotestat:first-child { padding-left: 10px; }
+.artist-dashboard-page .wo-dash-quotestat-v { font-size: 44px; }
+.artist-dashboard-page .wo-dash-quotestat-l { margin-top: 8px; font-size: 10px; letter-spacing: 1px; }
+.artist-dashboard-page .wo-dash-activity-title { font-size: 22px; line-height: 31px; white-space: nowrap; }
+.artist-dashboard-page .wo-dash-col--activity .wo-dash-sechead { gap: 12px; margin-bottom: 12px; }
+.artist-dashboard-page .wo-dash-activityrow { display: flex; gap: 12px; padding: 7px 0; }
+.artist-dashboard-page .wo-dash-activityrow > [data-wo-icon] { width: 16px; height: 16px; flex: none; }
+.artist-dashboard-page .wo-dash-activitytxt { font-size: 13px; white-space: nowrap; }
+.artist-dashboard-page .wo-dash-activitywhen { font-size: 9px; letter-spacing: .9px; }
+.artist-dashboard-page .wo-dash-rail { padding: 0 0 0 27px; border-left-width: 1.6px; }
+.artist-dashboard-page .wo-dash-rail .wo-marks { gap: 7px; margin: 0 0 20px; height: 15px; }
+.artist-dashboard-page .wo-mark-square,.artist-dashboard-page .wo-mark-circle { width: 15px; height: 15px; }
+.artist-dashboard-page .wo-mark-triangle { border-left-width: 8px; border-right-width: 8px; border-bottom-width: 14px; }
+.artist-dashboard-page .wo-dash-avatar { width: 78px; height: 78px; font-size: 26px; border: 0; border-radius: 0; }
+.artist-dashboard-page .wo-dash-profile-name { margin-top: 16px; font-size: 27px; line-height: 33px; letter-spacing: -.27px; }
+.artist-dashboard-page .wo-dash-profile-handle { margin-top: 6px; font-size: 13px; line-height: 17px; }
+.artist-dashboard-page .wo-dash-profile-badges { margin-top: 12px; gap: 8px; }
+.artist-dashboard-page .wo-dash-profile-badges .wo-badge { border: 0; border-radius: 0; padding: 4px 8px; font-size: 10px; line-height: 13px; font-weight: 400; letter-spacing: .8px; }
+.artist-dashboard-page .wo-dash-profile-meta { margin-top: 13px; max-width: 270px; font-size: 12px; line-height: 20px; letter-spacing: .48px; }
+.artist-dashboard-page .wo-dash-profile-links { display: flex; justify-content: space-between; gap: 12px; width: 100%; margin: 18px 0 24px; }
+.artist-dashboard-page .wo-dash-profile-edit { margin: 0; font-size: 14px; font-weight: 600; }
+.artist-dashboard-page .wo-dash-rail > .wo-divider { margin: 0 0 20px; }
+.artist-dashboard-page .wo-dash-income { margin-bottom: 28px; }
+.artist-dashboard-page .wo-dash-income-cap { font-size: 10px; letter-spacing: 1.6px; margin-bottom: 8px; }
+.artist-dashboard-page .wo-dash-income-total { font-size: 42px; line-height: 42px; }
+.artist-dashboard-page .wo-dash-income-split { gap: 0; margin-top: 18px; }
+.artist-dashboard-page .wo-dash-income-cell { flex: 1; }
+.artist-dashboard-page .wo-dash-income-cell + .wo-dash-income-cell { padding-left: 17px; }
+.artist-dashboard-page .wo-dash-income-sub { font-size: 20px; line-height: 24px; }
+.artist-dashboard-page .wo-dash-income-sub.is-pending { color: var(--system-error); }
+.artist-dashboard-page .wo-dash-income-lbl { margin-top: 5px; font-size: 9.5px; letter-spacing: .95px; }
+.artist-dashboard-page .wo-dash-reminder-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.artist-dashboard-page .wo-dash-reminder-head p,.artist-dashboard-page .wo-dash-quick .wo-eyebrow { margin: 0; font-size: 10px; letter-spacing: 1.6px; color: var(--text-faint); }
+.artist-dashboard-page #wod-add-reminder { min-height: 26px; padding: 6px 10px; font: 9.5px var(--font-mono); letter-spacing: .76px; border-width: 1px; }
+.artist-dashboard-page .wo-dash-reminder-list { display: block; list-style: none; padding: 6px 0 0; margin: 0; }
+.artist-dashboard-page .wo-dash-reminders { margin-bottom: 0; }
+.artist-dashboard-page .wo-dash-reminder { display: flex; align-items: start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+.artist-dashboard-page .wo-dash-reminder-ic { width: 18px; flex: none; }
+.artist-dashboard-page .wo-dash-reminder-ic svg { width: 15px; height: 15px; }
+.artist-dashboard-page .wo-dash-reminder-tx { font-size: 13.5px; line-height: 17px; }
+.artist-dashboard-page .wo-dash-reminder-dot { display: inline-block; width: 6px; height: 6px; background: var(--system-error); margin-left: 6px; }
+.artist-dashboard-page .wo-dash-reminder-tx small { display: flex; gap: 8px; align-items: center; margin-top: 5px; font: 9px var(--font-mono); letter-spacing: .72px; color: var(--text-faint); }
+.artist-dashboard-page .wo-dash-reminder-priority { padding: 2px 5px; background: var(--neutral-200); color: var(--neutral-500); font-size: 8.5px; font-weight: 400; }
+.artist-dashboard-page .wo-dash-reminder-priority.is-alta { background: var(--yellow-300); }
+.artist-dashboard-page .wo-dash-reminder-priority.is-urgente { background: var(--system-error); color: var(--white); }
+.artist-dashboard-page .wo-dash-quick { margin-top: 28px; }
+.artist-dashboard-page .wo-dash-quick .wo-eyebrow { margin-bottom: 12px; }
+.artist-dashboard-page .wo-dash-quick-list { gap: 10px; }
+.artist-dashboard-page .wo-dash-quick-list .wo-btn { min-height: 44px; height: 44px; padding: 0 10px; gap: 8px; border-width: 1px; font-size: 12.5px; letter-spacing: 1px; }
+.artist-dashboard-page .wo-dash-quick-list .wo-btn svg { width: 18px; height: 18px; }
+.artist-dashboard-page .wo-dash-quick-list #wod-new-client { color: var(--neutral-100); }
+.artist-dashboard-page .wo-dash-gallery { margin-top: -32px; padding: 0 0 16px; }
+.artist-dashboard-page .wo-dash-gallery > .wo-container { max-width: 1441px; padding: 0 17px 0 23px; }
+.artist-dashboard-page .wo-dash-gallery-preview { margin: 0 0 0; font-size: 10.5px; letter-spacing: 1.26px; }
+.artist-dashboard-page .wo-dash-gallery-head { margin-top: 13px; padding: 32px 32px 20px; gap: 20px; }
+.artist-dashboard-page .wo-dash-gallery-title { font-size: 42.57px; line-height: 52px; }
+.artist-dashboard-page .wo-dash-gallery-count { margin-left: 12px; font-size: 26.6px; }
+.artist-dashboard-page .wo-dash-gallery-tools .ig-import-trigger { min-height: 30px; height: 30px; padding: 2px 28px; font-size: 18.6px; letter-spacing: 1.49px; gap: 10px; }
+.artist-dashboard-page .wo-dash-gallery-bar { margin: 0 32px; padding: 24px 0; flex-wrap: nowrap; }
+.artist-dashboard-page .wo-dash-gallery-bar .wo-meta-s { font-size: 14px; letter-spacing: .7px; }
+.artist-dashboard-page .wo-dash-gallery-hint svg { display: none; }
+.artist-dashboard-page .wo-dash-gallery-hint::before { content: '▲'; font-size: 14px; }
+.artist-dashboard-page .wo-dash-gallery-cells { padding: 26px 32px 0; gap: 18.6px; grid-auto-rows: 159.65px; }
+.artist-dashboard-page .wo-dash-gallery-grid .gallery-item { aspect-ratio: auto; }
+.artist-dashboard-page .wo-dash-gallery-grid .gallery-item-slot { aspect-ratio: auto; grid-column: 3; grid-row: 2; }
+.artist-dashboard-page .wo-dash-gallery-grid .gallery-item-slot .wo-meta-s { font-size: 11.3px; }
+.artist-dashboard-page .wo-dash-gallery-grid .wod-gal-flag { width: 50px; height: 50px; font-size: 21px; }
+.artist-dashboard-page .wo-dash-gallery-grid .wod-gal-caption { padding: 16px 19px; }
+.artist-dashboard-page .wo-dash-gallery-grid .wod-gal-captxt { font-weight: 600; font-size: 17px; }
+.artist-dashboard-page .wo-dash-gallery-grid .wod-gal-acts button { background: transparent; border-color: transparent; width: 48px; height: 26px; }
+.artist-dashboard-page .wo-dash-gallery-grid .wod-gal-acts svg { width: 21px; height: 21px; }
+.artist-dashboard-page .wo-dash-cta { padding: 74.5px 32px; border: 0; }
+.artist-dashboard-page .wo-dash-cta-inner { gap: 16px; }
+.artist-dashboard-page .wo-dash-cta-title { font-size: 34.6px; line-height: 42px; }
+.artist-dashboard-page .wo-dash-cta-copy { max-width: none; font-size: 17.3px; }
+.artist-dashboard-page .wo-dash-cta-btn { margin: 0; height: 58.5px; font-size: 18.6px; letter-spacing: 1.49px; }
+.artist-dashboard-page > weotzi-product-footer { margin: 0 5px 0 12px; }
+/* Figma presentation is visibly a simulated preview; the underlying gallery's
+ * existing upload, category, delete and reorder handlers are not replaced. */
+.artist-dashboard-reference .wo-dash-gallery-grid .gallery-item > img,
+.artist-dashboard-reference .wo-dash-gallery-grid .gallery-item > video { visibility: hidden; }
+.artist-dashboard-reference .gallery-category-badge { display: none; }
+.artist-dashboard-reference .wo-dash-gallery-grid .gallery-item { background: var(--neutral-400); }
+.artist-dashboard-reference .wo-dash-gallery-grid .gallery-item::after { display: none; }
+.artist-dashboard-reference .wo-dash-reference-media { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--neutral-100); }
+.artist-dashboard-reference .wo-dash-reference-media svg { width: 27px; height: 27px; }
+.artist-dashboard-reference .gallery-item:first-child .wo-dash-reference-media svg { width: 40px; height: 40px; }
+.artist-dashboard-reference .gallery-item:nth-child(2) { box-shadow: 10.6px 10.6px 0 rgba(0,0,0,.55); }
+.artist-dashboard-reference .gallery-item:nth-child(2)::before { content: ''; position: absolute; top: 0; left: 0; border-top: 29px solid var(--blue-300); border-right: 29px solid transparent; }
+.artist-dashboard-reference .wo-dash-reference-hover { position: absolute; right: 8px; bottom: 8px; color: var(--neutral-100); font: 11px var(--font-mono); }
+.artist-dashboard-reference .gallery-item:nth-child(3) .wo-dash-reference-media { background: rgba(0,17,37,.6); }
+.artist-dashboard-reference .gallery-item:nth-child(3) .wod-gal-acts { display: none; }
+.artist-dashboard-reference .wo-dash-reference-progress { width: 58%; height: 5px; background: var(--neutral-200); }
+.artist-dashboard-reference .wo-dash-reference-progress i { display: block; height: 100%; width: 34.11%; background: var(--blue-400); }
+.artist-dashboard-reference .wo-dash-reference-media small { font: 12.6px var(--font-mono); }
+.artist-dashboard-reference .wo-org-product-nav__badge,
+.artist-dashboard-reference .wo-org-product-nav__notification-badge { display: none; }
+/* Mode switching remains available in the existing account menu. */
+.artist-dashboard-page .wo-org-product-nav__account > [data-account-mode-switch] { display: none; }
+@media (min-width: 1101px) {
+  .artist-dashboard-page .wo-org-product-nav__links { min-width: 0; flex: 1; }
+  .artist-dashboard-page .wo-org-product-nav__links > * { flex: 0 1 auto; width: auto; }
+  .artist-dashboard-page .wo-org-product-nav__link { padding-right: clamp(10px,1.22vw,17.6px); padding-left: clamp(10px,1.22vw,17.6px); font-size: clamp(10px,.94vw,13.54px); }
+  .artist-dashboard-page .wo-org-product-nav { gap: 31px; }
+  .artist-dashboard-page .wo-org-product-nav__account { gap: 31px; }
+}
+@media (min-width: 1025px) and (max-width: 1300px) {
+  .artist-dashboard-page { --rail-w: 300px; }
+  .artist-dashboard-page > .wo-dash-hero .wo-container,.artist-dashboard-page > .wo-container { padding-left: 40px; padding-right: 40px; }
+  .artist-dashboard-page .wo-dash-layout { gap: 40px; }
+  .artist-dashboard-page .wo-dash-row2 { grid-template-columns: 1fr; gap: 24px; }
+  .artist-dashboard-page .wo-dash-gallery { margin-top: 24px; }
+  .artist-dashboard-page .wo-dash-designs { gap: 20px; }
+  .artist-dashboard-page .wo-dash-design-foot { flex-wrap: wrap; }
+}
+@media (max-width: 1024px) {
+  .artist-dashboard-page > .wo-dash-hero .wo-container,.artist-dashboard-page > .wo-container { padding-left: 32px; padding-right: 32px; }
+  .artist-dashboard-page .wo-dash-layout { gap: 32px; }
+  .artist-dashboard-page .wo-dash-hero { padding: 40px 0; }
+  .artist-dashboard-page .wo-dash-hero-title { font-size: clamp(32px,4.4vw,44px); line-height: 1.12; }
+  .artist-dashboard-page .wo-dash-rail { padding: 32px 0 0; border-left: 0; }
+  .artist-dashboard-page .wo-dash-gallery { margin-top: 32px; }
+  .artist-dashboard-page .wo-dash-gallery-head { padding: 24px 16px; }
+  .artist-dashboard-page .wo-dash-gallery-title { font-size: 32px; line-height: 40px; }
+  .artist-dashboard-page .wo-dash-gallery-tools .ig-import-trigger { height: 40px; font-size: 14px; padding: 4px 12px; }
+  .artist-dashboard-page .wo-dash-gallery-bar { flex-wrap: wrap; margin: 0 16px; }
+  .artist-dashboard-page .wo-dash-gallery-bar .wo-meta-s { font-size: 10px; }
+  .artist-dashboard-page .wo-dash-gallery-cells { grid-template-columns: repeat(4,minmax(0,1fr)); grid-auto-rows: 120px; padding: 16px; gap: 12px; }
+}
+@media (max-width: 768px) {
+  .artist-dashboard-page .wo-dash-row2 { grid-template-columns: 1fr; }
+  .artist-dashboard-page .wo-dash-agendarow { grid-template-columns: 84px minmax(0,1fr); gap: 12px; }
+  .artist-dashboard-page .wo-dash-agendameta { grid-column: 2; }
+  .artist-dashboard-page .wo-dash-designs { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+  .artist-dashboard-page .wo-dash-design-foot { flex-wrap: wrap; }
+  .artist-dashboard-page .wo-dash-gallery-head { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  .artist-dashboard-page > .wo-dash-hero .wo-container,.artist-dashboard-page > .wo-container { padding-left: 20px; padding-right: 20px; }
+  .artist-dashboard-page .wo-dash-sechead .wo-h2 { font-size: 21px; }
+  .artist-dashboard-page .wo-dash-seclink { font-size: 9px; }
+  .artist-dashboard-page .wo-dash-designs { grid-template-columns: 1fr; gap: 24px; }
+  .artist-dashboard-page .wo-dash-activitytxt { white-space: normal; }
+  .artist-dashboard-page .wo-dash-activitywhen { margin-left: auto; }
+  .artist-dashboard-page .wo-dash-gallery > .wo-container { padding: 0 12px; }
+  .artist-dashboard-page .wo-dash-gallery-cells { grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 120px; }
+  .artist-dashboard-page .wo-dash-gallery-grid .gallery-item:first-child { grid-column: span 2; grid-row: span 2; }
+  .artist-dashboard-page .wo-dash-gallery-grid .gallery-item-slot { grid-column: auto; grid-row: auto; }
+  .artist-dashboard-page .wo-dash-gallery-grid .wod-gal-acts button { width: 24px; }
+  .artist-dashboard-page .wo-dash-gallery-grid .wod-gal-captxt { font-size: 12px; }
+  .artist-dashboard-page .wo-dash-cta { padding: 48px 16px; }
+  .artist-dashboard-page .wo-dash-cta-title { font-size: 27px; line-height: 34px; }
+  .artist-dashboard-page .wo-dash-cta-btn { font-size: 14px; }
+}

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.22] - 2026-11-03
+
+- Pantalla 12: adaptar dashboard del artista al frame 24:1425
+- Composición exclusiva de /artist/dashboard/: saludo, agenda, diseños, estadísticas, actividad, lateral, galería y acciones de compartir/QR; reutiliza navegación, footer, tokens e iconos del producto. Referencia de Laura y progreso 38 % solo en presentación de preview con doble guardia; las consultas e identidad reales se conservan fuera de preview. No modifica otras pantallas ni datos compartidos.
+- Validación: npm test 450/450; seis pruebas focalizadas aprobadas, sintaxis JavaScript y git diff --check sin errores. Navegador integrado en entorno seguro: apertura/cierre de QR y mediciones DOM en viewports 1441, 1920, 1280, 1024, 768 y 390 px sin overflow ni controles fuera del ancho. Captura y comparación visual final pendientes por ventana no visible; no se acredita identidad exacta con Figma. Valentina pidió publicar este avance después de informar ese límite; quedan otros dos frames del dashboard por identificar e implementar. Nuevo recordatorio informa indisponibilidad: no existe flujo definido ni se simula guardado. Worker HEIC bloqueado por CSP preexistente. Evidencia en docs/auditoria-valentina/pantalla-12-dashboard-artista.md. Suite y check:release se repiten mediante autoentrega; integraciones y persistencia remotas no acreditadas.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.21] - 2026-11-03
 
 - Pantalla 11: integrar detalle del destino Lisboa del frame 801:1153

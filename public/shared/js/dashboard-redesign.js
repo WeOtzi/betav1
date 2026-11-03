@@ -29,6 +29,9 @@
   var todaySessions = null; // null = aún sin datos; number cuando carga agenda
   var supplementalActivity = [];
   var LIVE_QUERY_TIMEOUT_MS = 8000;
+  // Display-only fixtures are independently guarded; production always uses repositories.
+  var reference = window.WEOTZI_PREVIEW === true && window.WeotziPreview?.isSimulated
+    ? window.ArtistDashboardReference : null;
 
   /* ---------- helpers ---------------------------------------------------- */
   function $(id) { return document.getElementById(id); }
@@ -128,6 +131,11 @@
         ' · ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes());
     }
     var title = $('wod-hero-title'); if (!title) return;
+    if (reference) {
+      kicker.textContent = reference.date;
+      title.innerHTML = reference.greeting + '<br>Hoy <span class="wo-highlight">tenés 4 sesiones</span> programadas.';
+      return;
+    }
     var name = '';
     if (artist) {
       name = String(artist.name || '').trim().split(/\s+/)[0] || String(artist.username || '').replace(/^@/, '') || '';
@@ -182,6 +190,27 @@
     var ss = $('stat-styles'); if (ss && (ss.textContent === '—' || ss.textContent === '')) ss.textContent = styles.length || '—';
     var se = $('stat-experience'); if (se && (se.textContent === '—' || se.textContent === '')) se.textContent = artist.years_experience || '—';
     applyStylesWord();
+    if (reference) {
+      nm.textContent = 'LAUUMARTH'; un.textContent = '@lauumarth.wo';
+      img.style.display = 'none'; ph.style.display = ''; ph.textContent = 'LM';
+      $('stat-price').textContent = '$150'; $('stat-styles').textContent = '1';
+      $('stat-experience').textContent = '0-1'; applyStylesWord();
+    }
+  }
+
+  // dashboard.js also refreshes profile labels asynchronously. Keep only the
+  // preview's presentation stable; ownership and navigation still use artist.
+  function watchReferenceProfile() {
+    if (!reference) return;
+    var profile = document.querySelector('.wo-dash-profile');
+    if (!profile) return;
+    var apply = function () {
+      var values = { 'artist-name': 'LAUUMARTH', 'artist-username': '@lauumarth.wo',
+        'stat-price': '$150', 'stat-styles': '1', 'wod-styles-word': 'ESTILO', 'stat-experience': '0-1' };
+      Object.keys(values).forEach(function (id) { var el = $(id); if (el && el.textContent !== values[id]) el.textContent = values[id]; });
+    };
+    apply();
+    new MutationObserver(apply).observe(profile, { childList: true, subtree: true, characterData: true });
   }
 
   /* Figma: "1 ESTILO" en singular. dashboard.js escribe el número en
@@ -236,6 +265,15 @@
       });
   }
   function loadAgenda() {
+    if (reference) {
+      $('wod-agenda-rows').innerHTML = reference.sessions.map(function (s) {
+        var st = sessionState(s.status);
+        return '<div class="wo-dash-agendarow"><div class="wo-dash-agendatime"><span class="wo-dash-agendahour">' + s.hour + '</span></div>' +
+          '<div class="wo-dash-agendabody"><div class="wo-dash-agendawho">' + s.name + '</div><div class="wo-dash-agendadetail">' + s.detail + '</div></div>' +
+          '<div class="wo-dash-agendameta"><span class="wo-dash-state ' + st.cls + '">' + st.txt + '</span><span class="wo-dash-agendadur">' + s.duration + '</span></div></div>';
+      }).join('');
+      return Promise.resolve(4);
+    }
     var nowIso = new Date().toISOString();
     return withLiveTimeout(fetchAgendaRows(nowIso), 'agenda')
       .then(function (rows) {
@@ -345,6 +383,14 @@
   function renderActivity(quotes) {
     var sec = $('wod-activity-section'), list = $('wod-activity-list');
     if (!sec || !list) return;
+    if (reference) {
+      sec.hidden = false;
+      list.innerHTML = reference.activity.map(function (ev) {
+        return '<div class="wo-dash-activityrow"><i data-wo-icon="' + ev.icon + '"></i><span class="wo-dash-activitytxt">' + ev.text + '</span><span class="wo-dash-activitywhen">' + ev.when + '</span></div>';
+      }).join('');
+      if (window.WoIcons) window.WoIcons.hydrate(list);
+      return;
+    }
     var demoActivityOnly = Boolean(dashboardConfig().dashboard_demo_marker && supplementalActivity.length);
     var events = demoActivityOnly
       ? supplementalActivity.map(supplementalActivityEvent).filter(Boolean)
@@ -364,6 +410,11 @@
     if (window.WoIcons) window.WoIcons.hydrate(list);
   }
   function loadCotizaciones() {
+    if (reference) {
+      ['pending', 'approved', 'rejected'].forEach(function (key) { $('ws-' + key).textContent = reference.stats[key]; });
+      renderActivity([]); renderDesigns([]); renderIncome([]);
+      return Promise.resolve(reference.stats);
+    }
     return withLiveTimeout(WeotziData.Quotations.listForArtist(user.id, { limit: 60 }), 'cotizaciones')
       .then(function (rows) {
         var quotes = (rows || []).filter(function (q) { return !q.is_archived; });
@@ -473,6 +524,14 @@
   function renderDesigns(quotes) {
     var sec = $('wod-designs-section'), box = $('wod-designs-grid');
     if (!sec || !box) return;
+    if (reference) {
+      sec.hidden = false;
+      box.innerHTML = reference.designs.map(function (d, i) {
+        return '<article class="wo-dash-design"><div class="wo-dash-design-media"><i data-wo-icon="image"></i></div><h3 class="wo-dash-design-title">' + d.title + '</h3><p class="wo-dash-design-client">' + d.client + '</p><div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (i === 2 ? ' is-ready' : '') + '" style="width:' + d.progress + '%"></div></div><div class="wo-dash-design-foot"><span>' + d.stage + '</span><span>LÍMITE ' + d.deadline + '</span></div></article>';
+      }).join('');
+      if (window.WoIcons) window.WoIcons.hydrate(box);
+      return;
+    }
     var inWork = (quotes || []).filter(function (q) {
       return q.quote_status === 'client_approved' || q.quote_status === 'artist_completed';
     });
@@ -538,6 +597,14 @@
   function renderIncome(quotes) {
     var sec = $('wod-income');
     if (!sec || !quotes) return;
+    if (reference) {
+      sec.hidden = false;
+      $('wod-income-cap').textContent = 'INGRESOS · JUNIO';
+      $('wod-income-total').textContent = reference.income.month;
+      $('wod-income-week').textContent = reference.income.week;
+      $('wod-income-due').textContent = reference.income.due;
+      return;
+    }
     var target = String((artist && artist.session_price_currency) || 'USD').toUpperCase();
     var cur = window.WeOtziCurrency;
 
@@ -659,6 +726,17 @@
     Array.prototype.forEach.call(items, function (item, i) {
       if (item.getAttribute('data-wod-gal') === '1') return;
       item.setAttribute('data-wod-gal', '1');
+      if (reference) {
+        item.setAttribute('aria-label', 'Archivo de demostración ' + (i + 1));
+        var placeholder = document.createElement('span');
+        placeholder.className = 'wo-dash-reference-media';
+        placeholder.setAttribute('aria-hidden', 'true');
+        placeholder.innerHTML = i === 2 ? '<span class="wo-dash-reference-progress"><i></i></span><small>38%</small>' : '<i data-wo-icon="image"></i>';
+        item.appendChild(placeholder);
+        if (i === 1) {
+          var hover = document.createElement('small'); hover.className = 'wo-dash-reference-hover'; hover.textContent = 'HOVER'; item.appendChild(hover);
+        }
+      }
 
       var acts = document.createElement('div');
       acts.className = 'wod-gal-acts';
@@ -691,7 +769,7 @@
         var cap = document.createElement('div');
         cap.className = 'wod-gal-caption';
         cap.innerHTML = '<span class="wod-gal-captxt">' +
-          esc(((badge && badge.textContent) || 'Trabajo') + ' — destacado') + '</span>';
+          esc((reference ? 'Manga floral' : ((badge && badge.textContent) || 'Trabajo')) + ' — destacado') + '</span>';
         item.appendChild(cap);
       }
     });
@@ -725,7 +803,7 @@
     if (!grid || galleryWatched) return;
     galleryWatched = true;
     var apply = function () {
-      if (out) out.textContent = '— ' + grid.querySelectorAll('.gallery-item').length;
+      if (out) out.textContent = '— ' + (reference ? 12 : grid.querySelectorAll('.gallery-item').length);
       enhanceGallery();
     };
     apply();
@@ -775,7 +853,7 @@
    *  (tabla ya existente, sin migracion nueva): [{ text, type, done }].    *
    * ===================================================================== */
   var REMINDER_ICONS = {
-    stock: 'package', sketch: 'edit-3', message: 'message-circle',
+    stock: 'droplet', sketch: 'edit', message: 'message-circle',
     payment: 'dollar-sign', session: 'calendar', travel: 'map-pin'
   };
 
@@ -788,7 +866,10 @@
       var icon = REMINDER_ICONS[r.type] || 'circle';
       return '<li class="wo-dash-reminder' + (r.done ? ' is-done' : '') + '">'
         + '<span class="wo-dash-reminder-ic"><i data-wo-icon="' + icon + '"></i></span>'
-        + '<span class="wo-dash-reminder-tx">' + esc(r.text) + '</span></li>';
+        + '<span class="wo-dash-reminder-tx"><span>' + esc(r.text) + '</span>'
+        + (r.priority && r.priority !== 'NORMAL' ? '<b class="wo-dash-reminder-dot" aria-label="Prioritario"></b>' : '')
+        + (r.date || r.priority ? '<small>' + esc(r.date || '') + '<b class="wo-dash-reminder-priority is-' + esc(String(r.priority || 'NORMAL').toLowerCase()) + '">' + esc(r.priority || 'NORMAL') + '</b></small>' : '')
+        + '</span></li>';
     }).join('');
     sec.hidden = false;
     if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') {
@@ -797,6 +878,7 @@
   }
 
   function loadReminders() {
+    if (reference) { renderReminders(reference.reminders); return; }
     var P = window.WeotziData && window.WeotziData.Prefs;
     if (!P || typeof P.get !== 'function' || !user) return;
     withLiveTimeout(P.get(user.id), 'recordatorios')
@@ -824,6 +906,7 @@
     sb = detail.supabase || window._supabase;
     user = detail.currentUser;
     artist = detail.artistData || null;
+    if (reference) document.body.classList.add('artist-dashboard-reference');
 
     if (dashboardConfig().dashboard_demo_marker) {
       document.body.classList.add('wod-figma-demo');
@@ -837,6 +920,7 @@
     if (!sb || !user) { console.warn('[redesign] missing supabase/user; aborting live layer'); return; }
 
     renderProfileCard();
+    watchReferenceProfile();
     wireRailLinks();
     loadReminders();
     setTimeout(clearStaleLoadingStates, LIVE_QUERY_TIMEOUT_MS + 500);
@@ -868,13 +952,28 @@
   // El hero (fecha/saludo) no depende de datos: apenas el DOM.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
+      wireDashboardActions();
       watchIgTrigger();
       watchStylesWord();
       if (!booted) renderHero();
     });
   } else {
+    wireDashboardActions();
     watchIgTrigger();
     watchStylesWord();
     if (!booted) renderHero();
+  }
+
+  function wireDashboardActions() {
+    [['wod-share-profile', 'share-profile-btn'], ['wod-generate-qr', 'qr-profile-btn']].forEach(function (pair) {
+      var button = $(pair[0]);
+      if (button) button.addEventListener('click', function () {
+        var target = $(pair[1]); if (target) target.click();
+      });
+    });
+    var reminder = $('wod-add-reminder');
+    if (reminder) reminder.addEventListener('click', function () {
+      window.alert('La creación de recordatorios todavía no está disponible.');
+    });
   }
 })();
