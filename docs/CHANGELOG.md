@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.27] - 2026-11-03
+
+- Pantalla 13: aplicar Guest Spot, Convencion, Recordatorio y Evento personal
+- Cuatro estados nuevos de la misma página Calendario, frames 801:551–554. No son repetidos: se reutilizan el editor y once SVG idénticos por SHA-256, se incorpora el icono original de Estudio 18×18 y se ajustan las filas/tarjetas solo para estos estados. La etiqueta Estudio conserva la validación requerida sin añadir el asterisco ausente del frame. No cambia datos, contratos, repositorios, permisos, vistas previas, edición ni Día bloqueado; el límite de vinculación de .26 se conserva.
+- Validación: npm test 463/463 y check:release aprobados. Aislamiento primero fallido y después aprobado; cuatro pruebas nuevas de preservación de payload, focalizadas 20/20. Browser integrado: capturas y geometría de los cuatro frames, 32 combinaciones 390–1920 sin overflow, selección, validación nativa/mensajes, fechas, toggles, teclado y foco aprobados. Guardado por UI de los cuatro tipos, persistencia al recargar y recurrencia semanal verificados solo en simulación; cuatro registros QA limpiados y ningún otro tocado. Nueve presentaciones previas sin diferencias de CSS contra .26. Adaptador local 503 reparado reiniciando solo el proceso seguro de Dev, sin cambios de infraestructura ni CSP. Evidencia y límites en docs/auditoria-valentina/pantalla-13-calendario-estados-551-554.md. Autoentrega repite suite/política y verifica CI/SHA pública; no acredita escrituras ni integraciones remotas.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.26] - 2026-11-03
 
 - Pantalla 13: incorporar cuatro estados de agregar al calendario

@@ -1,6 +1,6 @@
-/* Pantalla 13 · Figma 801:546–549. Solo alta: elegir tipo, turno con
-   cliente, reserva y disponibilidad. El resto de tipos y la edición conservan
-   su CSS anterior. Las imágenes son los SVG originales sin modificar. */
+/* Pantalla 13 · Figma 801:546–549 y 801:551–554. Capa de alta compartida
+   para los estados aprobados. Día bloqueado y la edición conservan su CSS
+   anterior. Las imágenes son los SVG originales sin modificar. */
 body.cal-app:has(#calendar-editor[data-reference-state]:not([hidden])) { background: var(--neutral-100); }
 .cal-editor-shell[data-reference-state] { --cal-editor-selected-bg: #eef3ff; --cal-quote-placeholder: #757575; --cal-quote-progress-bg: #e1f5ee; --cal-quote-progress-fg: #085041; background: var(--neutral-100); }
 .cal-editor-shell[data-reference-state] .cal-editor-heading h1 { font-weight: 400; }
@@ -33,6 +33,7 @@ body.cal-app:has(#calendar-editor[data-reference-state]:not([hidden])) { backgro
 .cal-editor-shell[data-reference-state] .cal-input-with-icon > i svg { display: none; }
 .cal-editor-shell[data-reference-state] .cal-input-with-icon > input { min-height: 0; }
 .cal-editor-shell[data-reference-state] .cal-input-with-icon > i[data-wo-icon="user"] { flex: 0 0 18px; width: 18px; height: 18px; background: url('/shared/assets/calendar-editor/user.svg') center / 18px 18px no-repeat; }
+.cal-editor-shell[data-reference-state] .cal-input-with-icon > i[data-wo-icon="briefcase"] { flex: 0 0 18px; width: 18px; height: 18px; background: url('/shared/assets/calendar-editor/studio.svg') center / 18px 18px no-repeat; }
 .cal-editor-shell[data-reference-state] .cal-input-with-icon > i[data-wo-icon="calendar"] {
     flex: 0 0 16px; width: 16px; height: 16px;
     background-image: url('/shared/assets/calendar-editor/date-body.svg'), url('/shared/assets/calendar-editor/date-ring.svg'), url('/shared/assets/calendar-editor/date-ring.svg'), url('/shared/assets/calendar-editor/date-rule.svg');
@@ -118,6 +119,10 @@ body.cal-app:has(#calendar-editor[data-reference-state]:not([hidden])) .wo-org-p
     .cal-editor-shell[data-reference-state="confirmed_session"] #calendar-quote-help { position: absolute; top: 76.5px; left: 0; right: 0; }
     .cal-editor-shell[data-reference-state="confirmed_session"] .cal-quote-create { margin-top: 26.2px; line-height: 16.8px; }
     .cal-editor-shell[data-reference-state="confirmed_session"] .cal-quotation-picker + .cal-fields { margin-top: 8px; }
+    .cal-editor-shell:is([data-reference-state="guest_spot"], [data-reference-state="convention"], [data-reference-state="reminder"], [data-reference-state="personal"]) .cal-type-picker { grid-template-rows: 65.6px 67.2px; }
+    .cal-editor-shell:is([data-reference-state="guest_spot"], [data-reference-state="convention"], [data-reference-state="reminder"], [data-reference-state="personal"]) .cal-type-picker button:nth-child(-n+4) { height: 65.6px; min-height: 65.6px; }
+    .cal-editor-shell:is([data-reference-state="guest_spot"], [data-reference-state="convention"], [data-reference-state="reminder"], [data-reference-state="personal"]) .cal-type-picker button[aria-checked="true"] { height: 67.2px; min-height: 67.2px; }
+    .cal-editor-shell:is([data-reference-state="guest_spot"], [data-reference-state="convention"], [data-reference-state="reminder"], [data-reference-state="personal"]) [data-type="convention"] i { background: var(--yellow-300); }
     .cal-editor-shell[data-reference-state] .cal-type-picker button[aria-checked="true"] { font-weight: 700; }
     .cal-editor-shell[data-reference-state] .cal-type-picker button[aria-checked="true"]::after { top: 8.6px; right: 8.6px; }
     .cal-editor-shell[data-reference-state] .cal-field label { color: var(--neutral-400); font-size: 12px; font-weight: 400; line-height: 15px; }

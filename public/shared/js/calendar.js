@@ -928,7 +928,7 @@
             `;
         } else if (state.selectedType === 'guest_spot') {
             html = `
-                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', true, 'briefcase'), true)}
+                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', true, 'briefcase'), !el['calendar-editor'].hasAttribute('data-reference-state'))}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
                 ${common.notes}

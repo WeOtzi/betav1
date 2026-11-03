@@ -2,6 +2,8 @@
 
 > Informe de la entrega `.25`. La continuación autorizada `.26` agrega exclusivamente cuatro estados de alta (801:546–549), dentro de la misma pantalla 13. Diseño, pruebas y límite de vinculación acordado: [pantalla-13-calendario-editor.md](pantalla-13-calendario-editor.md).
 
+> Continuación `.27`: Guest Spot, Convención, Recordatorio y Evento personal, nodos 801:551–554, sin frames repetidos ni cambios en las vistas anteriores. Evidencia: [pantalla-13-calendario-estados-551-554.md](pantalla-13-calendario-estados-551-554.md).
+
 ## Alcance vigente
 
 Valentina pidió publicar **solo estos tres frames**, contados como una única pantalla 13:

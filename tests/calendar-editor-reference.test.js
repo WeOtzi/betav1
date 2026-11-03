@@ -6,17 +6,50 @@ const vm = require('node:vm');
 const file = path.join(__dirname, '../public/shared/js/calendar-editor-reference.js');
 const model = fs.existsSync(file) ? require(file) : {};
 
-test('only the four approved create states get the editor reference layer', () => {
+test('only approved create states get the editor reference layer; editing and blocked day stay isolated', () => {
   assert.equal(typeof model.referenceState, 'function', 'Missing approved-state isolation');
   assert.equal(model.referenceState(null, false), 'choose-type');
-  for (const type of ['confirmed_session', 'reservation', 'availability']) {
+  for (const type of ['confirmed_session', 'reservation', 'availability', 'guest_spot', 'convention', 'reminder', 'personal']) {
     assert.equal(model.referenceState(type, false), type);
     assert.equal(model.referenceState(type, true), null);
   }
-  for (const type of ['blocked_day', 'guest_spot', 'convention', 'reminder', 'personal']) {
+  for (const type of ['blocked_day']) {
     assert.equal(model.referenceState(type, false), null);
   }
 });
+
+for (const [type, inputTitle, allDay, recurring, expectedTitle] of [
+  ['guest_spot', 'Estudio de prueba', false, false, 'Guest en Estudio de prueba'],
+  ['convention', 'Convención de prueba', true, false, 'Convención de prueba'],
+  ['reminder', 'Recordatorio de prueba', false, true, 'Recordatorio de prueba'],
+  ['personal', 'Evento de prueba', true, false, 'Evento de prueba'],
+]) {
+  test(`reference presentation preserves the existing manual payload for ${type}`, () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/shared/js/calendar.js'), 'utf8');
+    const inputs = {
+      'event-date': { value: '2026-07-09' }, 'event-time': { value: '10:00' },
+      'event-title': { value: inputTitle }, 'event-notes': { value: 'Nota de prueba' },
+      'event-all-day': { checked: allDay }, 'event-recurring': { checked: recurring },
+    };
+    const sandbox = {
+      window: { location: { pathname: '/calendar', search: '' } },
+      document: { addEventListener() {}, getElementById(id) { return inputs[id] || null; } },
+      Date, Intl, URLSearchParams, Set, Map, console,
+    };
+    vm.runInNewContext(source.replace('window.WeotziCalendar = {',
+      'window.testPayload = readFormPayload; window.testState = state; window.WeotziCalendar = {'), sandbox);
+    sandbox.window.testState.selectedType = type;
+    const payload = sandbox.window.testPayload();
+    assert.equal(payload.event_type, type);
+    assert.equal(payload.title, expectedTitle);
+    assert.equal(payload.all_day, allDay);
+    assert.equal(payload.recurrence_rule, recurring ? 'weekly' : 'none');
+    assert.equal(payload.location, null);
+    assert.equal(payload.notes, 'Nota de prueba');
+    assert.equal(new Date(payload.starts_at).getHours(), allDay ? 0 : 10);
+    assert.equal(new Date(payload.ends_at).getDate(), allDay ? 10 : 9);
+  });
+}
 
 test('quotation choices are owned, searchable and retain numeric relationship ids', () => {
   assert.equal(typeof model.quotationOptions, 'function', 'Missing owned quotation choices');

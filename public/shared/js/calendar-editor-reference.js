@@ -6,7 +6,7 @@
     else root.WeotziCalendarEditorReference = api;
 })(typeof window === 'object' ? window : globalThis, function () {
     'use strict';
-    const supported = new Set(['confirmed_session', 'reservation', 'availability']);
+    const supported = new Set(['confirmed_session', 'reservation', 'availability', 'guest_spot', 'convention', 'reminder', 'personal']);
     function referenceState(type, editing) {
         return editing ? null : !type ? 'choose-type' : supported.has(type) ? type : null;
     }
