@@ -14,8 +14,9 @@ html:has(> .tattoo-globe-page) { scrollbar-width: none; }
 .tattoo-globe-page .tg-passport h2 { line-height: 1.325; }
 .tattoo-globe-page .tg-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .tattoo-globe-page .tg-section-head > span { color: var(--text-faint); font: .6875rem/normal var(--font-mono); letter-spacing: .055rem; text-transform: uppercase; }
-.tattoo-globe-page .tg-hero { display: grid; background: var(--surface-inverse); color: var(--figma-white); }
+.tattoo-globe-page .tg-hero { display: grid; grid-template-columns: minmax(0,1fr); background: var(--surface-inverse); color: var(--figma-white); }
 .tattoo-globe-page .tg-globe-column { position: relative; min-width: 0; padding: 1rem 0 3rem; }
+.tattoo-globe-page .tg-globe-scene { position: relative; width: 100%; }
 .tattoo-globe-page .tg-globe-open { position: relative; display: block; width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .tattoo-globe-page .tg-globe-open:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 .tattoo-globe-page .tg-globe-image { display: block; width: 100%; height: auto; }
@@ -34,6 +35,25 @@ html:has(> .tattoo-globe-page) { scrollbar-width: none; }
 .tattoo-globe-page .tg-pin img { position: absolute; display: block; max-width: none; }
 .tattoo-globe-page .tg-pin-outline { left: 2.333px; top: 0; }
 .tattoo-globe-page .tg-pin-center { left: 9.333px; top: 7px; }
+/* Destination state · Figma 801:1153. The introductory state is unchanged. */
+.tattoo-globe-page .tg-city-marker { position: absolute; left: 64.166667%; top: 17.142857%; transform: translate(-50%,-50%); display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.tattoo-globe-page .tg-city-marker span { position: absolute; bottom: 100%; padding: .375rem .625rem; color: var(--neutral-100); background: var(--neutral-500); font: .6875rem/1rem var(--font-mono); opacity: 0; pointer-events: none; }
+.tattoo-globe-page .tg-city-marker:hover span,.tattoo-globe-page .tg-city-marker:focus-visible span { opacity: 1; }
+.tattoo-globe-page .tg-intro.is-detail { align-items: flex-start; padding: 2rem 2rem 0 2.05rem; }
+.tattoo-globe-page .tg-detail { display: flex; flex-direction: column; width: 27.95rem; max-width: 100%; padding-top: .3rem; padding-bottom: 14.75rem; }
+.tattoo-globe-page .tg-detail-label { margin: 0; color: var(--blue-400); font: .625rem/.85rem var(--font-mono); letter-spacing: .0625rem; text-transform: uppercase; }
+.tattoo-globe-page .tg-detail h2 { margin: .675rem 0 0; color: var(--neutral-100); font: 400 1.875rem/2.0625rem var(--font-display); letter-spacing: 0; overflow-wrap: anywhere; }
+.tattoo-globe-page .tg-detail-country { margin: .25rem 0 0; color: var(--text-faint); font: .75rem/1rem var(--font-mono); letter-spacing: .0375rem; text-transform: uppercase; }
+.tattoo-globe-page .tg-detail-stats { display: flex; gap: 1.75rem; margin: 1.5rem 0 0; }
+.tattoo-globe-page .tg-detail-stats > div { display: flex; flex-direction: column; }
+.tattoo-globe-page .tg-detail-stats dd { order: -1; margin: 0; color: var(--neutral-100); font: 400 1.5rem/2rem var(--font-display); }
+.tattoo-globe-page .tg-detail-stats dt { color: var(--text-faint); font: .625rem/.85rem var(--font-mono); letter-spacing: .0375rem; text-transform: uppercase; }
+.tattoo-globe-page .tg-detail-featured { margin-top: 1.375rem; }
+.tattoo-globe-page .tg-detail-featured > p { margin: 0; color: var(--text-faint); font: .625rem/.8125rem var(--font-mono); letter-spacing: .0375rem; text-transform: uppercase; }
+.tattoo-globe-page .tg-detail-featured ul { display: flex; flex-direction: column; gap: .5rem; margin: .5rem 0 0; padding: 0; list-style: none; color: var(--figma-sand); font: .875rem/1.0625rem var(--font-body); overflow-wrap: anywhere; }
+.tattoo-globe-page .tg-detail-explore { width: 100%; min-height: 2.75rem; height: 2.75rem; margin-top: 1.75rem; padding: 0 1.35rem; gap: .500625rem; border: 1px solid var(--neutral-500); font: 700 .875rem/.875rem var(--font-body); letter-spacing: .07rem; }
+.tattoo-globe-page .tg-detail-explore img { display: block; max-width: none; }
+.tattoo-globe-page .tg-detail-status { margin: 1rem 0 0; font: .75rem/1.5 var(--font-body); color: var(--figma-sand-border); }
 .tattoo-globe-page .tg-passport { padding-top: 3.5625rem; }
 .tattoo-globe-page .tg-passport-row { display: flex; gap: 1.25rem; overflow-x: auto; padding: .5rem .5rem 1rem .125rem; margin-top: 1.75rem; scrollbar-width: thin; }
 .tattoo-globe-page .tg-stamp { position: relative; display: flex; box-sizing: border-box; flex: 0 0 17.375rem; height: 21.125rem; padding: 1.5rem; flex-direction: column; align-items: center; justify-content: space-between; background: var(--surface-inverse); box-shadow: 3px 3px 0 var(--neutral-500); }
@@ -112,7 +132,7 @@ html:has(> .tattoo-globe-page) { scrollbar-width: none; }
     .tattoo-globe-page .tg-section h2 { font-size: 2rem; }
     .tattoo-globe-page .tg-hero { grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); min-height: 32rem; padding-top: 2.25rem; }
     .tattoo-globe-page .tg-globe-column { padding: 0; }
-    .tattoo-globe-page .tg-globe-open { top: 50%; transform: translateY(-50%); }
+    .tattoo-globe-page .tg-globe-scene { top: 50%; transform: translateY(-50%); }
     .tattoo-globe-page .tg-intro { border-top: 0; border-left: .8px solid rgb(255 255 255 / .12); padding: 2rem; align-items: center; }
     .tattoo-globe-page .tg-stats { grid-template-columns: repeat(5,minmax(0,1fr)); }
     .tattoo-globe-page .tg-stats > div { padding-inline: .75rem; }
@@ -136,7 +156,7 @@ html:has(> .tattoo-globe-page) { scrollbar-width: none; }
     .tattoo-globe-page .wo-org-product-nav__menu { display: none; }
     .tattoo-globe-page .wo-org .wo-org-product-nav__logout { width: 102.921px; padding-inline: 18.961px; font-size: 13.543px; }
     .tattoo-globe-page .tg-hero { height: 685.158px; min-height: 0; grid-template-rows: 560px; }
-    .tattoo-globe-page .tg-globe-open { width: 98.49537%; max-width: 851px; height: auto; aspect-ratio: 851/593; }
+    .tattoo-globe-page .tg-globe-scene { width: 98.49537%; max-width: 851px; height: auto; aspect-ratio: 851/593; }
     .tattoo-globe-page .tg-globe-image { width: 100%; height: auto; aspect-ratio: 851/593; object-fit: fill; }
     .tattoo-globe-page .tg-intro { min-height: 657.2px; align-self: start; padding: 32px 32px 32px 32.8px; align-items: flex-start; }
     .tattoo-globe-page .tg-intro-copy { padding-top: 205.6px; margin-left: 0; }
@@ -154,5 +174,5 @@ html:has(> .tattoo-globe-page) { scrollbar-width: none; }
 }
 @media (min-width: 90.0625rem) {
     .tattoo-globe-page .tg-section { margin-inline: auto; }
-    .tattoo-globe-page .tg-globe-open { margin-inline: auto; }
+    .tattoo-globe-page .tg-globe-scene { margin-inline: auto; }
 }

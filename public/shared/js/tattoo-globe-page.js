@@ -13,6 +13,9 @@
     let atlasReady = false;
     let atlasImport = null;
     let selectedCity = '';
+    let selectedDestination = null;
+    let directoryArtists = [];
+    let directoryStatus = preview ? 'ready' : 'loading';
     let directoryFailed = false;
     const atlas = $('tg-atlas');
 
@@ -25,7 +28,7 @@
     function destinationCard(destination, isSaved) {
         const { id, city, country, artists, studios } = destination;
         return `<article class="tg-destination">
-            <button type="button" class="tg-destination-link" data-explore-city="${escape(city)}" aria-label="Explorar tatuadores en ${escape(city)}">
+            <button type="button" class="tg-destination-link" data-select-city="${escape(city)}" aria-label="Ver destino ${escape(city)}">
                 ${placeholder(city)}
                 <div class="tg-destination-copy"><h3>${escape(city)}</h3><p>${escape(country)} · ${artists} artistas${isSaved ? '' : ` · ${studios} estudios`}</p>${isSaved ? '' : '<span>Explore</span>'}</div>
             </button>
@@ -66,6 +69,48 @@
             ? 'No se pudo cargar el directorio. Cerrá el explorador y recargá la página para volver a intentar.' : selectedCity && !matches.length
             ? `No hay tatuadores disponibles en ${selectedCity}. Probá otra ciudad o limpiá los filtros.` : '';
     }
+    function renderDestination() {
+        const detail = model.destinationDetail(selectedDestination, { preview, artists: directoryArtists });
+        if (!detail) return;
+        $('tg-detail-title').textContent = detail.city;
+        $('tg-detail-country').textContent = detail.country;
+        $('tg-detail-artists').textContent = directoryStatus === 'ready' ? detail.artists : '—';
+        $('tg-detail-studios').textContent = directoryStatus === 'ready' ? detail.studios : '—';
+        $('tg-detail-featured').replaceChildren(...(detail.featured.length ? detail.featured : ['Sin artistas destacados en este directorio.']).map(name => {
+            const item = document.createElement('li');
+            item.textContent = name;
+            return item;
+        }));
+        $('tg-detail-status').hidden = directoryStatus === 'ready';
+        $('tg-detail-status').textContent = directoryStatus === 'loading' ? 'Cargando destino…' : 'No se pudo cargar el directorio. Podés volver a intentar desde Explore Artists.';
+        $('tg-detail-explore').dataset.exploreCity = detail.city;
+    }
+    function selectDestination(city) {
+        const detail = model.destinationDetail(city, { preview, artists: directoryArtists });
+        if (!detail) return;
+        selectedDestination = detail.city;
+        document.querySelector('.tg-intro-copy').hidden = true;
+        document.querySelector('.tg-intro').classList.add('is-detail');
+        $('tg-detail').hidden = false;
+        $('tg-lisboa-marker').setAttribute('aria-pressed', String(detail.city === 'Lisboa'));
+        document.querySelector('.tg-globe-open').setAttribute('aria-label', 'Volver a TattooGlobe');
+        renderDestination();
+        $('tg-detail-title').focus({ preventScroll: true });
+        const target = window.matchMedia('(min-width: 48rem)').matches ? document.querySelector('.tg-hero') : $('tg-detail');
+        target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+        $('tg-feedback').textContent = `Destino seleccionado: ${detail.city}. Escape o el globo vuelve a la presentación.`;
+    }
+    function clearDestination() {
+        selectedDestination = null;
+        $('tg-detail').hidden = true;
+        document.querySelector('.tg-intro-copy').hidden = false;
+        document.querySelector('.tg-intro').classList.remove('is-detail');
+        $('tg-lisboa-marker').setAttribute('aria-pressed', 'false');
+        const globe = document.querySelector('.tg-globe-open');
+        globe.setAttribute('aria-label', 'Explorar el globo interactivo');
+        globe.focus();
+        $('tg-feedback').textContent = 'Presentación de TattooGlobe.';
+    }
     async function openAtlas(city) {
         selectedCity = city;
         $('tg-atlas-title').textContent = city ? `Tatuadores en ${city}` : 'Explorar tatuadores';
@@ -89,19 +134,34 @@
             storageKey = `weotzi:tattoo-globe:saved:${preview ? (window.WEOTZI_PREVIEW_COMMIT || 'local-safe') : 'live'}:${data?.session?.user?.id || 'visitor'}`;
             try { saved = model.readSaved(localStorage.getItem(storageKey), screen.savedIds); } catch (_) { /* storage disabled */ }
             renderSaved();
-            if (preview || !client || window.ConfigManager.isDemoMode()) return;
-            let response = await window.WeotziData.Artists.listWithLocation('user_id,city,country,studio_id');
-            if (response.error) response = await window.WeotziData.Artists.listForMap('user_id,city,country,studio_id');
+            if (preview) return;
+            if (!client || window.ConfigManager.isDemoMode()) throw new Error('Directory unavailable');
+            const columns = 'user_id,city,country,studio_id,name,username,is_recommended';
+            let response = await window.WeotziData.Artists.listWithLocation(columns);
+            if (response.error) response = await window.WeotziData.Artists.listForMap(columns);
             if (response.error) throw response.error;
-            screen = model.buildScreen({ preview: false, artists: response.data || [] });
+            directoryArtists = response.data || [];
+            directoryStatus = 'ready';
+            screen = model.buildScreen({ preview: false, artists: directoryArtists });
             render();
+            if (selectedDestination) renderDestination();
         } catch (_) {
+            if (!preview) directoryStatus = 'error';
+            if (selectedDestination) renderDestination();
             $('tg-feedback').textContent = 'No se pudo cargar el directorio de destinos. Podés volver a intentarlo desde el globo.';
         }
     }
     render();
+    $('tg-lisboa-marker').hidden = !preview;
     loadSessionAndDirectory();
     document.addEventListener('click', event => {
+        const destination = event.target.closest('[data-select-city]');
+        if (destination) {
+            if (destination.id === 'tg-lisboa-marker' && selectedDestination === 'Lisboa') clearDestination();
+            else selectDestination(destination.dataset.selectCity);
+            return;
+        }
+        if (selectedDestination && event.target.closest('.tg-globe-open')) { clearDestination(); return; }
         const explore = event.target.closest('[data-explore-city]');
         if (explore) openAtlas(explore.dataset.exploreCity);
         const remove = event.target.closest('[data-remove-destination]');
@@ -152,6 +212,9 @@
             menu.hidden = true;
             toggle.setAttribute('aria-expanded', 'false');
             toggle.focus();
+        } else if (event.key === 'Escape' && !atlas.open && selectedDestination) {
+            event.preventDefault();
+            clearDestination();
         }
     });
 }());

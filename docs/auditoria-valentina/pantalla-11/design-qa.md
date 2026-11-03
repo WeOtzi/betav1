@@ -1,5 +1,7 @@
 # Pantalla 11 · TattooGlobe
 
+Este documento registra la entrega inicial `.20`. La [ampliación `.21`: detalle de destino Lisboa](destino-lisboa.md) agrega la ficha intermedia antes del atlas, conservando esta composición inicial.
+
 ## Alcance y referencia
 
 - Frame final: [801:1146](https://www.figma.com/design/w3JA83CcP5ISKjyOu87mx1/We-Otzi-Pantallas-final?node-id=801-1146), 1440 × 2445.

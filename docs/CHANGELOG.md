@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.21] - 2026-11-03
+
+- Pantalla 11: integrar detalle del destino Lisboa del frame 801:1153
+- Ficha intermedia del destino en el panel derecho de TattooGlobe, con tipografías, textos, medidas y flecha original local del frame. El punto azul superior abre Lisboa solo en preview; las tarjetas abren su propia ciudad y Explore Artists conserva el atlas filtrado. No cambia la composición inicial ni otras pantallas. Los 22 tatuadores, 7 estudios e Inês Cardoso son ejemplos exclusivos del entorno seguro; en runtime normal los conteos y destacados derivan del directorio existente.
+- Validación: npm test 448/448; tres pruebas nuevas primero fallidas y luego aprobadas para aislamiento preview/runtime, agregación única y cambio de ciudad sin datos obsoletos. Browser: Lisboa, Madrid, Explore Artists/filtro/vacío, Escape escalonado, Tab/Enter, foco visible y nueve anchos 390-1920 sin overflow de página/ficha/botón. Comparación visual y medidas de la ficha contra Figma; composición inicial conserva las coordenadas de .20. SVG 18x18 y botón 44 px en todos los tamaños. Se corrigieron el mínimo intrínseco Grid en móvil y el retorno de foco fuera del viewport. Sin errores JS propios; soporte 501 es una limitación previa de preview. Evidencia en docs/auditoria-valentina/pantalla-11/destino-lisboa.md. check:release y repetición de suite mediante entrega automática. Directorio remoto, integraciones e historial reales no acreditados.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.20] - 2026-11-03
 
 - Pantalla 11: replicar TattooGlobe del frame 801:1146

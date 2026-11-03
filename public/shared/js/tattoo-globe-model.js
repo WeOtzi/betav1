@@ -31,6 +31,21 @@
             savedIds: preview ? ['madrid', 'paris', 'barcelona'] : []
         };
     }
+    function destinationDetail(city, { preview = false, artists = [] } = {}) {
+        if (!normalize(city)) return null;
+        const reference = [...catalog, { city: 'Lisboa', country: 'Portugal', artists: 22, studios: 7 }]
+            .find(destination => normalize(destination.city) === normalize(city));
+        const rows = [...new Map(artists.filter(artist => artist.user_id && matchesCity(artist, city))
+            .map(artist => [artist.user_id, artist])).values()];
+        return {
+            city: reference?.city || String(city).trim(),
+            country: rows.find(artist => artist.country)?.country || reference?.country || '',
+            artists: preview === true && reference ? reference.artists : rows.length,
+            studios: preview === true && reference ? reference.studios : new Set(rows.map(artist => artist.studio_id).filter(Boolean)).size,
+            featured: preview === true && normalize(city) === 'lisboa' ? ['Inês Cardoso']
+                : rows.filter(artist => artist.is_recommended && (artist.name || artist.username)).map(artist => artist.name || artist.username)
+        };
+    }
     function readSaved(raw, fallback) {
         try {
             const parsed = JSON.parse(raw);
@@ -38,5 +53,5 @@
         } catch (_) { /* Corrupt/unavailable browser storage is non-fatal. */ }
         return fallback.slice();
     }
-    root.TattooGlobeModel = { buildScreen, matchesCity, readSaved };
+    root.TattooGlobeModel = { buildScreen, destinationDetail, matchesCity, readSaved };
 }(window));

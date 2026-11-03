@@ -44,9 +44,12 @@
     <main id="tattoo-globe-content" data-figma-node="801:1146">
         <section class="tg-hero" aria-labelledby="tg-title">
             <div class="tg-globe-column">
-                <button class="tg-globe-open" type="button" data-explore-city="" aria-label="Explorar el globo interactivo">
-                    <img class="tg-globe-image" src="/shared/assets/tattoo-globe/globe.png" width="960" height="700" alt="Globo con destinos visitados y por descubrir">
-                </button>
+                <div class="tg-globe-scene">
+                    <button class="tg-globe-open" type="button" data-explore-city="" aria-label="Explorar el globo interactivo">
+                        <img class="tg-globe-image" src="/shared/assets/tattoo-globe/globe.png" width="960" height="700" alt="Globo con destinos visitados y por descubrir">
+                    </button>
+                    <button class="tg-city-marker" id="tg-lisboa-marker" type="button" data-select-city="Lisboa" aria-label="Ver destino Lisboa" aria-pressed="false" hidden><span>Lisboa</span></button>
+                </div>
                 <ul class="tg-legend" aria-label="Leyenda del globo">
                     <li><span></span>Visited</li><li><span></span>Discover</li><li><span></span>Wishlist</li>
                 </ul>
@@ -60,6 +63,18 @@
                         <p>Tocá una ciudad del globo para ver<br>tatuadores, estudios y tu historial ahí.</p>
                     </div>
                 </div>
+                <section class="tg-detail" id="tg-detail" aria-labelledby="tg-detail-title" data-figma-node="801:1153" hidden>
+                    <p class="tg-detail-label">Discover</p>
+                    <h2 id="tg-detail-title" tabindex="-1"></h2>
+                    <p class="tg-detail-country" id="tg-detail-country"></p>
+                    <dl class="tg-detail-stats">
+                        <div><dt>Tatuadores</dt><dd id="tg-detail-artists">—</dd></div>
+                        <div><dt>Estudios</dt><dd id="tg-detail-studios">—</dd></div>
+                    </dl>
+                    <div class="tg-detail-featured"><p>Artistas destacados</p><ul id="tg-detail-featured"></ul></div>
+                    <p class="tg-detail-status" id="tg-detail-status" role="status" hidden></p>
+                    <button class="wo-btn wo-btn--accent tg-detail-explore" id="tg-detail-explore" type="button" data-explore-city=""><span>Explore Artists</span><img src="/shared/assets/tattoo-globe/explore-arrow.svg" alt=""></button>
+                </section>
             </div>
         </section>
 
