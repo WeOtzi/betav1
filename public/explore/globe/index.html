@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Tattoo globe — Descubrí tatuadores en el mundo</title>
+    <title>We Ötzi · TattooGlobe — Destinos y pasaporte de tatuajes</title>
     <meta name="description" content="Explorá tatuadores alrededor del mundo en un globo interactivo. Filtros por estilo, país, precio y más.">
 
     <!-- Open Graph -->
@@ -19,8 +19,13 @@
     <!-- We Ötzi Design System -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/explore-globe.css">
+    <link rel="stylesheet" href="/shared/css/tattoo-globe-figma.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
+    <script src="/shared/js/tattoo-globe-model.js" defer></script>
+    <script src="/shared/js/tattoo-globe-page.js" defer></script>
 </head>
 
 <!--
@@ -28,41 +33,68 @@
     el escenario del globo usa los tokens ink del DS (surface-stage / ink-*),
     tal como lo muestra el Figma TATTOGLOBE. No hay toggle de tema.
 -->
-<body class="wo-app globe-page">
-    <a class="skip-link" href="#globe-content">Saltar al contenido</a>
+<body class="wo-app globe-page tattoo-globe-page">
+    <a class="skip-link" href="#tattoo-globe-content">Saltar al contenido</a>
 
-    <!-- TopBar (crema, DS) -->
-    <header class="wo-topbar">
-        <div class="wo-topbar-left">
-            <a href="/" class="wo-topbar-brand">
-                <span class="wo-o-tile">Ö</span>
-                WE ÖTZI
-            </a>
-            <nav class="wo-topbar-nav" aria-label="Navegación principal">
-                <a href="/marketplace" class="wo-topbar-item">Marketplace</a>
-                <a href="/explore" class="wo-topbar-item">Mapa</a>
-                <a href="/quotation" class="wo-topbar-item">Cotizar</a>
-                <a href="/job-board" class="wo-topbar-item">Job board</a>
-                <a href="/client/login" class="wo-topbar-item">Acceder</a>
-            </nav>
-        </div>
-        <div class="wo-topbar-right">
-            <a href="/explore" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard globe-map-cta"
-               aria-label="Volver al mapa">← Vista mapa</a>
-            <button class="wo-iconbtn wo-iconbtn--s globe-burger" id="globe-menu-toggle" type="button"
-                    aria-expanded="false" aria-controls="globe-mobile-menu" aria-label="Abrir menú">
-                <i data-wo-icon="menu" class="wo-icon-18" aria-hidden="true"></i>
-            </button>
-        </div>
-    </header>
+    <!-- Shared product navigation; geometry overrides are exclusive to this page. -->
+    <weotzi-product-nav active="quotations" profile-href="/client/profile/"
+        profile-label="Perfil de cliente" logout-id="tattoo-globe-logout"
+        menu-toggle-id="globe-menu-toggle" menu-id="globe-mobile-menu"></weotzi-product-nav>
 
-    <nav class="globe-mobile-menu" id="globe-mobile-menu" aria-label="Navegación móvil" hidden>
-        <a href="/explore" class="globe-mobile-link">← Vista mapa</a>
-        <a href="/marketplace" class="globe-mobile-link">Marketplace</a>
-        <a href="/quotation" class="globe-mobile-link">Cotizar</a>
-        <a href="/job-board" class="globe-mobile-link">Job board</a>
-        <a href="/client/login" class="globe-mobile-link">Acceder</a>
-    </nav>
+    <main id="tattoo-globe-content" data-figma-node="801:1146">
+        <section class="tg-hero" aria-labelledby="tg-title">
+            <div class="tg-globe-column">
+                <button class="tg-globe-open" type="button" data-explore-city="" aria-label="Explorar el globo interactivo">
+                    <img class="tg-globe-image" src="/shared/assets/tattoo-globe/globe.png" width="960" height="700" alt="Globo con destinos visitados y por descubrir">
+                </button>
+                <ul class="tg-legend" aria-label="Leyenda del globo">
+                    <li><span></span>Visited</li><li><span></span>Discover</li><li><span></span>Wishlist</li>
+                </ul>
+            </div>
+            <div class="tg-intro">
+                <div class="tg-intro-copy">
+                    <h1 id="tg-title">TattooGlobe</h1>
+                    <p class="tg-tagline">Tus tatuajes. Tu recorrido. El mundo.</p>
+                    <div class="tg-hint">
+                        <span class="tg-pin" aria-hidden="true"><img class="tg-pin-outline" src="/shared/assets/tattoo-globe/pin-outline.svg" alt=""><img class="tg-pin-center" src="/shared/assets/tattoo-globe/pin-center.svg" alt=""></span>
+                        <p>Tocá una ciudad del globo para ver<br>tatuadores, estudios y tu historial ahí.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tg-passport tg-section" aria-labelledby="tg-passport-title">
+            <header class="tg-section-head"><h2 id="tg-passport-title">Tattoo Passport</h2><span id="tg-stamp-count">0 stamps</span></header>
+            <div class="tg-passport-row" id="tg-passport-row" role="region" aria-label="Sellos del pasaporte" tabindex="0"></div>
+            <p id="tg-history-status" class="tg-status" role="status" hidden></p>
+        </section>
+
+        <section class="tg-journey tg-section" aria-labelledby="tg-journey-title">
+            <h2 id="tg-journey-title">Your Tattoo Journey</h2>
+            <dl class="tg-stats" id="tg-stats"></dl>
+            <ol class="tg-route" id="tg-route" aria-label="Ciudades de tu recorrido"></ol>
+        </section>
+
+        <section class="tg-discover tg-section" aria-labelledby="tg-discover-title">
+            <h2 id="tg-discover-title" tabindex="-1">¿A dónde te va a llevar tu próximo tatuaje?</h2>
+            <div class="tg-destination-row" id="tg-destinations" role="region" aria-label="Destinos por descubrir" tabindex="0"></div>
+        </section>
+
+        <section class="tg-saved tg-section" aria-labelledby="tg-saved-title">
+            <h2 id="tg-saved-title">Destinos soñados</h2>
+            <div class="tg-saved-grid" id="tg-saved"></div>
+            <p id="tg-saved-empty" class="tg-status" hidden>No hay destinos soñados guardados.</p>
+        </section>
+        <p id="tg-feedback" class="wo-sr-only" role="status" aria-live="polite"></p>
+    </main>
+
+    <!-- Existing atlas, filters, artist details and quote/profile actions retained. -->
+    <dialog id="tg-atlas" class="tg-atlas" aria-labelledby="tg-atlas-title">
+        <header class="tg-atlas-header"><h2 id="tg-atlas-title">Explorar tatuadores</h2>
+            <a href="/explore/">Vista mapa →</a>
+            <button class="wo-iconbtn" id="tg-atlas-close" type="button" aria-label="Cerrar explorador"><i data-wo-icon="x" aria-hidden="true"></i></button>
+        </header>
+        <p class="tg-atlas-status" id="tg-atlas-status" role="status"></p>
 
     <!-- Banda oscura: masthead + filtros + globo + panel -->
     <div class="globe-shell">
@@ -112,7 +144,7 @@
             </div>
         </section>
 
-        <main class="globe-main" id="globe-content" role="main">
+        <div class="globe-main" id="globe-content">
 
             <!-- Escenario del globo -->
             <section class="globe-stage" aria-label="Globo interactivo">
@@ -233,7 +265,7 @@
                     <p>Sin resultados para los filtros activos.</p>
                 </div>
             </aside>
-        </main>
+        </div>
     </div>
 
     <!-- Modal de artista -->
@@ -277,6 +309,8 @@
         </div>
     </div>
 
+    </dialog>
+
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
@@ -289,7 +323,6 @@
     <script src="/shared/js/bio-formatting.js"></script>
     <!-- El geocoder resuelve entradas de itinerario sin studio_id (solo ciudad). -->
     <script src="/shared/js/geocoder.js"></script>
-    <script src="/shared/js/explore-globe.js" type="module"></script>
 
     <script>
         // Menú móvil — mismo patrón que /explore.

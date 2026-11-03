@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.20] - 2026-11-03
+
+- Pantalla 11: replicar TattooGlobe del frame 801:1146
+- Rediseño exclusivo de /explore/globe/: hero con imagen original, pasaporte, recorrido, destinos y guardados; fuentes locales, navegación compartida y nueve SVG descargados de Figma. Conserva atlas COBE, filtros, detalle de artista y cotización en un diálogo accesible. Los datos del pasaporte y cifras editoriales son exclusivos de preview; no se inventa historial real ni se cambian otras pantallas.
+- Validación: npm test 445/445, cuatro pruebas del modelo primero fallidas y luego aprobadas. Browser integrado: comparación visual y geométrica contra Figma a 1440 px, capturas desktop/768/390 y nueve anchos de 390 a 1920 sin overflow de página, navegación ni estadísticas. Fuentes e imágenes locales cargadas; menú/Escape/foco, ciudad sin resultados, limpiar filtros, seleccionar artista, detalle/Escape, Cotizar, Next stamp, quitar guardados/recarga/vacío y logout ficticio comprobados. Sin errores JS en render final; soporte remoto 501 es una limitación previa de preview. Evidencia en docs/auditoria-valentina/pantalla-11/design-qa.md. check:release y repetición de la suite mediante entrega automática. No acredita Supabase, historial, autenticación, correos ni persistencia remotos.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.19] - 2026-11-02
 
 - Pantalla 10: ajustar borde literal de Cancelar y cerrar QA
