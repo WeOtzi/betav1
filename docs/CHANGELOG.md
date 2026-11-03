@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.24] - 2026-11-03
+
+- Pantalla 13: ajustar calendario mensual al frame 801:542
+- Tipografía, leyenda, tabs, navegación de período, búsqueda, grilla, barras y panel lateral exclusivos de la vista mensual; cuatro SVG originales locales. Reutiliza el header y tokens compartidos sin cambiar sus archivos. Conserva datos, acciones, indicador de sección, cambio de modo y contadores dinámicos; no modifica otras vistas ni el editor. Cinco frames adicionales pendientes de enlaces.
+- Validación: npm test 453/453. Browser integrado en entorno seguro: comprobaciones de altura e ícono primero fallidas y después aprobadas; comparación visual y geometría contra Figma 801:542; matriz 1920/1600/1440/1366/1280/1024/768/390 sin overflow ni superposición del header. Búsqueda/con y sin resultados, filtros/restauración, mes anterior/siguiente, Enter en fecha y volver del editor aprobados. Estilos calculados de semana/día/agenda/editor idénticos con la nueva hoja activada o desactivada. Cuatro SVG cargados en sus slots y dimensiones originales. Los eventos de referencia se usaron solo en memoria de una pestaña QA; no se cambian fixtures ni datos persistidos. Soporte remoto 501 preexistente; no acredita escritura, integraciones ni autenticación reales. Evidencia y diferencias intencionales de header/datos en docs/auditoria-valentina/pantalla-13-calendario-mensual.md. Autoentrega repite suite y check:release y comprueba CI/SHA pública.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.23] - 2026-11-03
 
 - Pantalla 12: integrar menu de cuenta y notificaciones de Figma
