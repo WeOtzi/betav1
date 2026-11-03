@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.26] - 2026-11-03
+
+- Pantalla 13: incorporar cuatro estados de agregar al calendario
+- Estados 801:546–549 exclusivamente: elegir tipo, turno con cliente, reserva y disponibilidad, como continuación de la misma pantalla 13. Capa visual aislada, 17 SVG originales locales, mini calendario de semanas reales y selector de lectura de cotizaciones propias. Vinculación no disponible: Valentina eligió diseño y límite visible; se informa y bloquea antes de escribir, sin sustituirla por un evento manual. Conserva el guardado manual, datos, repositorios y permisos existentes; no modifica otras páginas, vistas anteriores, edición ni los tipos pendientes.
+- Validación: npm test 459/459 y check:release aprobados. Seis pruebas nuevas de aislamiento/propiedad/búsqueda/estados/mini calendario/guarda de submit: cinco casos de modelo primero fallidos y luego aprobados, más prueba integrada de bloqueo de escritura. Browser integrado con capturas y geometría de cuatro frames, 17 assets cargados a tamaño nativo, 32 combinaciones de estado/ancho 390–1920 sin overflow; selector, error/vacío, teclado/foco, fechas, recurrencia, validación, bloqueo de vinculación sin escrituras y guardado/persistencia simulada de una disponibilidad aprobados. Evento QA limpiado sin tocar otros registros. Nueve estados fuera de alcance sin diferencias de CSS; sin errores JS propios. Datos/estados reales se conservan aunque difieran de ejemplos del frame. Evidencia y límites en docs/auditoria-valentina/pantalla-13-calendario-editor.md. Autoentrega repite suite/política y verifica CI/SHA pública; no acredita integraciones ni escrituras remotas.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.25] - 2026-11-03
 
 - Pantalla 13: completar los frames semanal y diario del calendario

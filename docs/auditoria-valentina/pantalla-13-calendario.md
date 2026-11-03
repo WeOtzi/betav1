@@ -1,5 +1,7 @@
 # Pantalla 13 · Calendario: mes, semana y día
 
+> Informe de la entrega `.25`. La continuación autorizada `.26` agrega exclusivamente cuatro estados de alta (801:546–549), dentro de la misma pantalla 13. Diseño, pruebas y límite de vinculación acordado: [pantalla-13-calendario-editor.md](pantalla-13-calendario-editor.md).
+
 ## Alcance vigente
 
 Valentina pidió publicar **solo estos tres frames**, contados como una única pantalla 13:
