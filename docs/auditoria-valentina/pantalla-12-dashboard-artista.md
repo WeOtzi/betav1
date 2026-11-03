@@ -1,6 +1,6 @@
 # Pantalla 12 — dashboard del artista
 
-## Estado: avance autorizado para publicación; QA visual pendiente
+## Estado: principal publicado; estados adicionales implementados
 
 - Rama: `valentina/rediseno-laura`.
 - Base comprobada: `ab9ff81502f6ca6aa81aec5204047bb10f8eebcc`.
@@ -12,7 +12,16 @@
 - Valentina pidió explícitamente publicar este avance después de ser informada
   de la comparación visual pendiente. Indicó que quedan otros dos frames del
   dashboard dentro de la pantalla 12; sus enlaces todavía no se recibieron.
-- No se considera completada la fidelidad visual ni esos dos estados adicionales.
+- Al publicar `.22` no se consideró completada la fidelidad visual ni esos dos estados adicionales.
+
+Actualización: el principal `.22` se publicó con SHA
+`d8e1fbe65cedc29c8bc39e77ddc9c0eef4e090d9`, CI aprobado
+https://github.com/WeOtzi/betav1/actions/runs/41563326089 y misma SHA pública.
+Luego se recibieron los nodos `801:559` y `801:558`, se implementaron y se pudo
+capturar desde el navegador integrado. La evidencia, pruebas y diferencias del
+fondo se detallan en [pantalla-12/design-qa.md](pantalla-12/design-qa.md).
+El bloqueo de captura descrito más abajo es histórico; no se aplica a esta
+segunda entrega. Nuevo recordatorio continúa pendiente de definición funcional.
 
 | Estado | Visual | Funcional | Evidencia / límite |
 | --- | --- | --- | --- |

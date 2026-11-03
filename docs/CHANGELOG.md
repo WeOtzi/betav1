@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.23] - 2026-11-03
+
+- Pantalla 12: integrar menu de cuenta y notificaciones de Figma
+- Estados 801:559 y 801:558 del dashboard: menú 340 px y panel 440 px, textos, tipografías, contadores, fondos, iconos originales locales, foco y teclado. Reutiliza el menú compartido mediante condiciones exclusivas del dashboard; las demás rutas conservan sus defaults. Nueve ejemplos y lecturas locales aislados por triple guardia de preview; no se escriben recibos remotos ni se marcan mensajes reales. Conserva el fondo del frame principal publicado en .22; diferencias de las versiones del fondo y Nuevo recordatorio pendiente documentadas.
+- Validación: npm test 453/453; tres regresiones nuevas primero fallidas y luego aprobadas. Browser integrado: capturas comparadas con ambos frames a 1440 px; apertura/cierre, clic fuera, ArrowDown/Home/Enter, Escape, ciclo Tab/Shift+Tab y retorno de foco. Abrir notificación navega a Inbox con prefijo seguro; lectura individual y total persisten al recargar solo en preview. Matriz 1920/1440/1366/1280/1024/768/390 sin overflow de overlays, página ni lista; corregido desborde móvil de 100vw. SVG originales 18x18 y 4x4 locales; corregidos wrapper y azul del progreso. Regresión Travel/Cotizaciones mantiene menú original sin fixtures/estilos del dashboard. Sintaxis y diff aprobados; error CSP HEIC preexistente sin debilitar seguridad. Evidencia y límites en docs/auditoria-valentina/pantalla-12/design-qa.md. Autoentrega repite suite y check:release; no acredita integraciones ni lecturas remotas.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.22] - 2026-11-03
 
 - Pantalla 12: adaptar dashboard del artista al frame 24:1425

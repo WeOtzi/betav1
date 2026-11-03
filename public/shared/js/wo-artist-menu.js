@@ -21,7 +21,10 @@
 (function () {
     'use strict';
 
-    var SEEN_KEY = 'wo_notif_seen_v1';
+    var dashboard = document.body.classList.contains('artist-dashboard-page');
+    var reference = dashboard && window.ArtistDashboardMenuModel
+        ? window.ArtistDashboardMenuModel.create({ dashboard: dashboard, preview: window.WEOTZI_PREVIEW, simulated: window.WeotziPreview && window.WeotziPreview.isSimulated }) : null;
+    var SEEN_KEY = reference ? 'wo_dashboard_figma12_seen_v1' : 'wo_notif_seen_v1';
     var FEED_CAP = 20;
     var state = {
         user: null,
@@ -73,6 +76,7 @@
         }
     }
     function persistSeen(keys) {
+        if (reference) return Promise.resolve();
         var clean = Array.from(new Set((keys || []).filter(Boolean))).slice(0, 300);
         if (!clean.length || !state.user) return Promise.resolve();
         var D = window.WeotziData;
@@ -184,6 +188,12 @@
     function pushFeed(items) { state.feed = state.feed.concat(items); }
 
     async function loadAll() {
+        if (reference) {
+            state.feed = reference.feed(loadSeen());
+            state.counts = reference.counts(loadSeen());
+            state.threads = [];
+            return;
+        }
         var D = window.WeotziData;
         var uid = state.user.id;
         state.feed = [];
@@ -277,6 +287,7 @@
         if (D && D.StudioSpots && typeof D.StudioSpots.listApplicationsByArtist === 'function') {
             jobs.push(Promise.resolve(D.StudioSpots.listApplicationsByArtist(uid)).then(function (res) {
                 if (res && res.error) throw res.error;
+                if (dashboard) state.counts.apps = ((res && res.data) || []).length;
                 var weekAgo = Date.now() - 7 * 86400000;
                 pushFeed(((res && res.data) || []).filter(function (a) {
                     return (a.status === 'accepted' || a.status === 'rejected')
@@ -319,7 +330,10 @@
     }
 
     /* ------------------------------ render ------------------------------ */
-    function iconEl(name) { return '<i data-wo-icon="' + name + '" aria-hidden="true"></i>'; }
+    function iconEl(name) {
+        if (dashboard && name === 'external-link') return '<img class="wo-oam-profile-icon" src="/shared/assets/figma/artist-dashboard/public-profile.svg" alt="">';
+        return '<i data-wo-icon="' + name + '" aria-hidden="true"></i>';
+    }
 
     function activityRow(id, icon, label, count, unreadish, href) {
         var cls = 'wo-oam-row' + (count > 0 ? ' has-count' : '') + (unreadish && count > 0 ? ' has-unread' : '');
@@ -338,6 +352,10 @@
         var initials = display.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'Ö';
         var pic = a.profile_picture || '';
         var total = unreadTotal();
+        if (reference) {
+            display = reference.identity.name; initials = reference.identity.initials;
+            mail = reference.identity.email; pic = ''; total = reference.counts(loadSeen()).notifications;
+        }
         var profileHref = a.username ? '/artist/profile?artist=' + encodeURIComponent(a.username) : '/artist/profile';
 
         els.drop.innerHTML =
@@ -351,14 +369,16 @@
             + activityRow('wo-oam-notifs', 'bell', 'Notificaciones', total, true, '#')
             + activityRow('wo-oam-msgs', 'message-circle', 'Mensajes sin leer', state.counts.msgs, true, '/artist/inbox')
             + activityRow('wo-oam-inv', 'star', 'Invitaciones pendientes', state.counts.inv, false, '/artist/invitations')
-            + activityRow('wo-oam-solic', 'inbox', 'Solicitudes pendientes', state.counts.solic, false, '/my-quotations')
+            + (dashboard
+                ? activityRow('wo-oam-solic', 'briefcase', 'Postulaciones', state.counts.apps || 0, false, '/artist/applications?tab=spots')
+                : activityRow('wo-oam-solic', 'inbox', 'Solicitudes pendientes', state.counts.solic, false, '/my-quotations'))
             + activityRow('wo-oam-upd', 'zap', 'Actualizaciones de la plataforma', state.counts.updates, true, '#')
             + '</div>'
             + '<hr class="wo-oam-sep">'
             + '<div class="wo-oam-links">'
-            + '<a class="wo-oam-link" href="/artist/account"><span class="wo-oam-ic">' + iconEl('user') + '</span>Ir al centro de la cuenta</a>'
+            + '<a class="wo-oam-link" href="/artist/account"><span class="wo-oam-ic">' + iconEl('user') + '</span>' + (dashboard ? 'Ir al Centro de Cuenta' : 'Ir al centro de la cuenta') + '</a>'
             + '<a class="wo-oam-link" href="' + esc(profileHref) + '"><span class="wo-oam-ic">' + iconEl('external-link') + '</span>Ver perfil público</a>'
-            + '<a class="wo-oam-link" id="wo-oam-tour" href="/artist/dashboard?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>'
+            + (dashboard ? '' : '<a class="wo-oam-link" id="wo-oam-tour" href="/artist/dashboard?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>')
             + '<a class="wo-oam-link" href="mailto:artistas@weotzi.com"><span class="wo-oam-ic">' + iconEl('help-circle') + '</span>Ayuda</a>'
             + '</div>';
 
@@ -371,7 +391,7 @@
     function renderPanel() {
         var total = unreadTotal();
         var items = state.feed.map(function (it, i) {
-            var meta = relTime(it.ts) + (it.unread ? '<b>Sin leer</b>' : '<b style="color:var(--text-faint)">Leída</b>');
+            var meta = esc(it.timeLabel || relTime(it.ts)) + (it.unread ? '<b>Sin leer</b>' : '<b style="color:var(--text-faint)">Leída</b>');
             return '<button type="button" class="wo-oam-item' + (it.unread ? ' is-unread' : '') + '" data-i="' + i + '">'
                 + '<span class="wo-oam-iic">' + iconEl(it.icon) + '</span>'
                 + '<span class="wo-oam-ibody">'
@@ -401,7 +421,12 @@
                 var seen = loadSeen(); seen.add(it.key); saveSeen(seen);
                 persistSeen([it.key]);
                 it.unread = false;
-                if (it.href) { window.location.href = it.href; return; }
+                if (reference) state.counts = reference.counts(seen);
+                if (it.href) {
+                    var href = dashboard && window.WEOTZI_PREVIEW === true && window.WeotziPreview && typeof window.WeotziPreview.scoped === 'function'
+                        ? window.WeotziPreview.scoped(it.href) : it.href;
+                    window.location.href = href; return;
+                }
                 renderAll();
             });
         });
@@ -410,6 +435,10 @@
 
     function renderBadge() {
         var total = unreadTotal();
+        if (reference) {
+            var summary = reference.counts(loadSeen());
+            total = state.open ? summary.notifications + summary.msgs + summary.inv + summary.apps + summary.updates : unreadTotal();
+        }
         var counts = {
             quotations: Math.max(0, Number(state.counts.solic) || 0),
             notifications: Math.max(0, Number(total) || 0),
@@ -437,34 +466,54 @@
         persistSeen(state.feed.map(function (it) { return it.key; }));
         // El chat tiene lectura real: marcarlo también en la base.
         var D = window.WeotziData;
-        if (D && D.Chat && typeof D.Chat.markRead === 'function') {
+        if (!reference && D && D.Chat && typeof D.Chat.markRead === 'function') {
             state.threads.filter(function (t) { return (t.unread_for_artist || 0) > 0; }).forEach(function (t) {
                 D.Chat.markRead(t.quote_id, 'client').catch(function () { /* mejor esfuerzo */ });
             });
         }
         state.counts.msgs = 0;
         state.counts.updates = 0;
+        if (reference) state.counts = reference.counts(seen);
         renderAll();
+        if (dashboard && state.panelOpen) els.panel.querySelector('.wo-oam-mark').focus({ preventScroll: true });
     }
 
     /* --------------------------- apertura/cierre --------------------------- */
     function positionDrop() {
         var r = els.trigger.getBoundingClientRect();
-        var width = Math.min(460, window.innerWidth - 24);
-        var left = Math.max(12, Math.min(r.right - width, window.innerWidth - width - 12));
-        els.drop.style.top = (r.bottom + 10) + 'px';
+        var width = Math.min(dashboard ? 340 : 460, window.innerWidth - 24);
+        var left = Math.max(12, Math.min(r.right - width - (dashboard ? 12 : 0), window.innerWidth - width - 12));
+        els.drop.style.top = (dashboard ? document.querySelector('weotzi-product-nav').getBoundingClientRect().bottom - (window.innerWidth <= 480 ? 0 : 5) : r.bottom + 10) + 'px';
         els.drop.style.left = left + 'px';
+        if (dashboard) els.drop.style.maxHeight = Math.max(120, window.innerHeight - parseFloat(els.drop.style.top) - 12) + 'px';
     }
     function setDrop(open) {
         state.open = open;
         els.drop.hidden = !open;
         els.trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-        if (open) positionDrop();
+        if (dashboard) document.body.classList.toggle('wo-dash-menu-open', open);
+        if (open) {
+            positionDrop();
+            if (dashboard) els.drop.querySelector('a,button').focus({ preventScroll: true });
+        }
+        if (dashboard) renderBadge();
     }
     function setPanel(open) {
         state.panelOpen = open;
         els.panel.hidden = !open;
         els.scrim.hidden = !open;
+        if (dashboard) {
+            document.body.classList.toggle('wo-dash-notifications-open', open);
+            if (open) {
+                els.returnFocus = document.activeElement;
+                els.panel.setAttribute('aria-modal', 'true');
+                els.panel.querySelector('.wo-oam-x').focus({ preventScroll: true });
+            } else {
+                els.panel.removeAttribute('aria-modal');
+                var focus = els.returnFocus && !els.returnFocus.closest('.wo-oam-drop') ? els.returnFocus : els.trigger;
+                if (focus) focus.focus({ preventScroll: true });
+            }
+        }
     }
 
     /* ------------------------------ init ------------------------------ */
@@ -544,6 +593,11 @@
         els.panel = document.createElement('aside');
         els.panel.className = 'wo-oam-panel';
         els.panel.setAttribute('aria-label', 'Notificaciones');
+        if (dashboard) {
+            els.panel.setAttribute('role', 'dialog');
+            els.drop.setAttribute('data-figma-node', '801:559');
+            els.panel.setAttribute('data-figma-node', '801:558');
+        }
         els.panel.hidden = true;
         document.body.appendChild(els.panel);
 
@@ -561,6 +615,18 @@
             if (state.open && !els.drop.contains(e.target) && !els.trigger.contains(e.target)) setDrop(false);
         });
         document.addEventListener('keydown', function (e) {
+            if (dashboard && state.open && ['ArrowDown', 'ArrowUp', 'Home', 'End'].indexOf(e.key) !== -1) {
+                var links = Array.from(els.drop.querySelectorAll('a,button'));
+                var index = links.indexOf(document.activeElement);
+                var next = e.key === 'Home' ? 0 : e.key === 'End' ? links.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length;
+                e.preventDefault(); links[next].focus();
+            }
+            if (dashboard && state.panelOpen && e.key === 'Tab') {
+                var controls = Array.from(els.panel.querySelectorAll('button,a[href],[tabindex="0"]'));
+                var first = controls[0], last = controls[controls.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
             if (e.key !== 'Escape') return;
             if (state.panelOpen) { setPanel(false); return; }
             if (state.open) { setDrop(false); try { els.trigger.focus(); } catch (err) { } }

@@ -28,7 +28,7 @@
 .artist-dashboard-page .wo-dash-design-title { margin-top: 14px; font-size: 15px; line-height: 18px; }
 .artist-dashboard-page .wo-dash-design-client { margin-top: 2px; font-size: 13px; line-height: 17px; }
 .artist-dashboard-page .wo-dash-design-track { margin-top: 14px; height: 8px; }
-.artist-dashboard-page .wo-dash-design:nth-child(2) .wo-dash-design-fill { background: var(--blue-300); }
+.artist-dashboard-page .wo-dash-design:nth-child(2) .wo-dash-design-fill { background: var(--blue-400); }
 .artist-dashboard-page .wo-dash-design-foot { margin-top: 8px; gap: 8px; font-size: 11px; letter-spacing: 1.1px; }
 .artist-dashboard-page .wo-dash-row2 { grid-template-columns: 1.7fr 1fr; gap: 40px; margin-top: 28px; }
 .artist-dashboard-page .wo-dash-row2 > .wo-dash-section { padding: 0; }
@@ -123,7 +123,7 @@
 .artist-dashboard-reference .wo-dash-reference-media svg { width: 27px; height: 27px; }
 .artist-dashboard-reference .gallery-item:first-child .wo-dash-reference-media svg { width: 40px; height: 40px; }
 .artist-dashboard-reference .gallery-item:nth-child(2) { box-shadow: 10.6px 10.6px 0 rgba(0,0,0,.55); }
-.artist-dashboard-reference .gallery-item:nth-child(2)::before { content: ''; position: absolute; top: 0; left: 0; border-top: 29px solid var(--blue-300); border-right: 29px solid transparent; }
+.artist-dashboard-reference .gallery-item:nth-child(2)::before { content: ''; position: absolute; top: 0; left: 0; border-top: 29px solid var(--blue-400); border-right: 29px solid transparent; }
 .artist-dashboard-reference .wo-dash-reference-hover { position: absolute; right: 8px; bottom: 8px; color: var(--neutral-100); font: 11px var(--font-mono); }
 .artist-dashboard-reference .gallery-item:nth-child(3) .wo-dash-reference-media { background: rgba(0,17,37,.6); }
 .artist-dashboard-reference .gallery-item:nth-child(3) .wod-gal-acts { display: none; }
