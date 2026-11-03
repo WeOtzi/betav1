@@ -1,43 +1,43 @@
-/* Pantalla 13 · Figma w3JA83CcP5ISKjyOu87mx1 / 801:542.
-   Overrides exclusivos de la vista mensual. Las otras vistas y el editor
+/* Pantalla 13 · Figma w3JA83CcP5ISKjyOu87mx1 / 801:542, 801:544, 801:545.
+   Base visual compartida de las tres vistas aprobadas. Agenda y editor
    conservan calendar-figma.css y sus contratos de datos e interacciones. */
-.cal-shell[data-view="month"] {
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) {
     --cal-availability-tint: #e1f5ee;
     --cal-search-placeholder: #757575;
 }
 
-.cal-shell[data-view="month"] .cal-hero h1 { font-weight: 400; }
-.cal-shell[data-view="month"] .cal-legend button {
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-hero h1 { font-weight: 400; }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-legend button {
     flex: 0 0 auto;
     border-color: var(--neutral-500);
     color: var(--neutral-500);
     font-weight: 700;
 }
-.cal-shell[data-view="month"] .type-availability { --event-tint: var(--cal-availability-tint); }
-.cal-shell[data-view="month"] .type-reminder { --event-tint: var(--neutral-200); }
-.cal-shell[data-view="month"] .cal-search { border-color: var(--neutral-500); }
-.cal-shell[data-view="month"] .cal-search input::placeholder { color: var(--cal-search-placeholder); opacity: 1; }
-.cal-shell[data-view="month"] .cal-search:focus-within { box-shadow: var(--shadow-focus); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .type-availability { --event-tint: var(--cal-availability-tint); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .type-reminder { --event-tint: var(--neutral-200); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search { border-color: var(--neutral-500); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search input::placeholder { color: var(--cal-search-placeholder); opacity: 1; }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search:focus-within { box-shadow: var(--shadow-focus); }
 
 /* Los cuatro SVG originales, a sus dimensiones nativas (18 × 18 y
-   5.33333 × 9.33333). Los glifos previos siguen en las otras vistas. */
-.cal-shell[data-view="month"] .cal-new-event > span[aria-hidden],
-.cal-shell[data-view="month"] .cal-search > span[aria-hidden] {
+   5.33333 × 9.33333). Los glifos previos siguen en Agenda y el editor. */
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-new-event > span[aria-hidden],
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search > span[aria-hidden] {
     flex: 0 0 18px;
     width: 18px;
     height: 18px;
     font-size: 0;
     background: center / 18px 18px no-repeat;
 }
-.cal-shell[data-view="month"] .cal-new-event > span[aria-hidden] { background-image: url('/shared/assets/calendar-month/plus.svg'); }
-.cal-shell[data-view="month"] .cal-search > span[aria-hidden] { background-image: url('/shared/assets/calendar-month/search.svg'); }
-.cal-shell[data-view="month"] #cal-prev,
-.cal-shell[data-view="month"] #cal-next {
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-new-event > span[aria-hidden] { background-image: url('/shared/assets/calendar-month/plus.svg'); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search > span[aria-hidden] { background-image: url('/shared/assets/calendar-month/search.svg'); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) #cal-prev,
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) #cal-next {
     font-size: 0;
     background: var(--figma-white) center / 5.33333px 9.33333px no-repeat;
 }
-.cal-shell[data-view="month"] #cal-prev { background-image: url('/shared/assets/calendar-month/previous.svg'); }
-.cal-shell[data-view="month"] #cal-next { background-image: url('/shared/assets/calendar-month/next.svg'); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) #cal-prev { background-image: url('/shared/assets/calendar-month/previous.svg'); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) #cal-next { background-image: url('/shared/assets/calendar-month/next.svg'); }
 
 .cal-shell[data-view="month"] .cal-month-weekday { background: var(--figma-sand); }
 .cal-shell[data-view="month"] .cal-month-day.is-outside {
@@ -45,19 +45,19 @@
     opacity: 0.35;
 }
 .cal-shell[data-view="month"] .cal-month-day.is-outside .cal-day-number { color: var(--ink); }
-.cal-shell[data-view="month"] .cal-upcoming-item {
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item {
     grid-template-columns: 10px minmax(0, 1fr);
     gap: 10px;
     padding-inline: 0;
     border-bottom-color: var(--neutral-200);
 }
-.cal-shell[data-view="month"] .cal-upcoming-item::before {
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item::before {
     width: 10px;
     height: 10px;
     margin-top: 4px;
 }
-.cal-shell[data-view="month"] .cal-upcoming-item.type-pending_request { grid-template-columns: 13.2px minmax(0, 1fr); }
-.cal-shell[data-view="month"] .cal-upcoming-item.type-pending_request::before {
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item.type-pending_request { grid-template-columns: 13.2px minmax(0, 1fr); }
+.cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item.type-pending_request::before {
     width: 13.2px;
     height: 13.2px;
     border: 1px dashed var(--yellow-500);
@@ -65,22 +65,22 @@
 
 /* Se reutiliza el header compartido sin cambiar su archivo ni quitar acciones.
    El modo de cuenta y los contadores siguen reflejando la sesión real. */
-body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav {
+body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav {
     padding-inline: 12px;
 }
-body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav [data-account-mode-switch] {
+body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav [data-account-mode-switch] {
     font-size: 10px !important;
     padding: 6px !important;
 }
 
 @media (min-width: 48rem) {
-    body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav { padding-inline: 24.378px; }
-    body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav [data-account-mode-switch] { font-size: 12px !important; padding: 8px !important; }
-    .cal-shell[data-view="month"] .cal-controls {
+    body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav { padding-inline: 24.378px; }
+    body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav [data-account-mode-switch] { font-size: 12px !important; padding: 8px !important; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-controls {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
-    .cal-shell[data-view="month"] .cal-search { grid-column: 1 / -1; }
-    .cal-shell[data-view="month"] .cal-legend {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search { grid-column: 1 / -1; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-legend {
         flex-wrap: wrap;
         overflow: visible;
         height: auto;
@@ -95,24 +95,24 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
 }
 
 @media (min-width: 64rem) {
-    .cal-shell[data-view="month"] .cal-hero { gap: 14px; }
-    .cal-shell[data-view="month"] .cal-hero h1 { font-size: clamp(30px, 2.917vw, 42px); }
-    .cal-shell[data-view="month"] .cal-controls {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-hero { gap: 14px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-hero h1 { font-size: clamp(30px, 2.917vw, 42px); }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-controls {
         grid-template-columns: 250px minmax(0, 1fr) 267px;
         column-gap: 19.58px;
     }
-    .cal-shell[data-view="month"] .cal-search { grid-column: auto; }
-    .cal-shell[data-view="month"] .cal-date-nav { grid-template-columns: 35.2px 180px 35.2px; gap: 10px; }
-    .cal-shell[data-view="month"] .cal-date-nav button { width: 35.2px; height: 35.2px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search { grid-column: auto; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-date-nav { grid-template-columns: 35.2px 180px 35.2px; gap: 10px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-date-nav button { width: 35.2px; height: 35.2px; }
 }
 
 @media (min-width: 80rem) {
-    body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav { gap: 8px; }
-    body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav__links { min-width: 0; }
-    body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav__links > :nth-child(n) { flex-shrink: 1; min-width: 0; }
-    .cal-shell[data-view="month"] { padding-top: 44px; }
-    .cal-shell[data-view="month"] .cal-eyebrow { line-height: 16px; margin-bottom: 13.1px; }
-    .cal-shell[data-view="month"] .cal-new-event {
+    body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav { gap: 8px; }
+    body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav__links { min-width: 0; }
+    body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav__links > :nth-child(n) { flex-shrink: 1; min-width: 0; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) { padding-top: 44px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-eyebrow { line-height: 16px; margin-bottom: 13.1px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-new-event {
         width: auto;
         min-height: 44px;
         gap: 8px;
@@ -122,8 +122,8 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
         line-height: 14px;
         letter-spacing: 1.12px;
     }
-    .cal-shell[data-view="month"] .cal-view-tabs { position: relative; gap: 18px; }
-    .cal-shell[data-view="month"] .cal-view-tabs::after {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-view-tabs { position: relative; gap: 18px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-view-tabs::after {
         position: absolute;
         top: 8px;
         right: 0.42px;
@@ -132,7 +132,7 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
         height: 20px;
         background: var(--figma-sand-border);
     }
-    .cal-shell[data-view="month"] .cal-view-tabs button {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-view-tabs button {
         height: 33.6px;
         min-height: 0;
         padding: 8px 4px 9.6px;
@@ -140,15 +140,15 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
         font-weight: 400;
         line-height: 16px;
     }
-    .cal-shell[data-view="month"] .cal-view-tabs button[aria-selected="true"] { font-weight: 700; }
-    .cal-shell[data-view="month"] .cal-search { min-height: 47.2px; padding-inline: 17.6px; }
-    .cal-shell[data-view="month"] .cal-legend {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-view-tabs button[aria-selected="true"] { font-weight: 700; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-search { min-height: 47.2px; padding-inline: 17.6px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-legend {
         gap: 8px;
         min-height: 68px;
         padding: 14px 0 18px;
         margin-left: -2px;
     }
-    .cal-shell[data-view="month"] .cal-legend button {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-legend button {
         height: 36px;
         min-height: 36px;
         padding: 1.6px 13.6px;
@@ -156,7 +156,7 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
         line-height: 16px;
         letter-spacing: 0.96px;
     }
-    .cal-shell[data-view="month"] .cal-layout { padding-top: 8px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-layout { padding-top: 8px; }
     .cal-shell[data-view="month"] .cal-month {
         grid-template-rows: 27.2px;
         grid-auto-rows: 13.22449cqw;
@@ -184,8 +184,8 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
     .cal-shell[data-view="month"] .cal-month-events { margin-top: 8px; gap: 4px; }
     .cal-shell[data-view="month"] .cal-month-events .cal-event { height: 7px; min-height: 7px; }
     .cal-shell[data-view="month"] .cal-month-day.is-selected::after { top: 3.6px; width: 14px; height: 2.4px; }
-    .cal-shell[data-view="month"] .cal-upcoming { padding-top: 0; align-self: start; }
-    .cal-shell[data-view="month"] .cal-upcoming h2 {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming { padding-top: 0; align-self: start; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming h2 {
         margin-bottom: 14px;
         color: var(--ink);
         font-size: 11px;
@@ -193,10 +193,10 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
         line-height: 14.4px;
         letter-spacing: 1.1px;
     }
-    .cal-shell[data-view="month"] .cal-upcoming-item { padding-block: 10px 10.8px; border-bottom-width: 0.8px; }
-    .cal-shell[data-view="month"] .cal-upcoming-item time { line-height: 14px; letter-spacing: 0; text-transform: none; }
-    .cal-shell[data-view="month"] .cal-upcoming-item strong { margin-top: 0; font-weight: 600; line-height: 17px; }
-    .cal-shell[data-view="month"] .cal-upcoming-foot {
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item { padding-block: 10px 10.8px; border-bottom-width: 0.8px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item time { line-height: 14px; letter-spacing: 0; text-transform: none; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-item strong { margin-top: 0; font-weight: 600; line-height: 17px; }
+    .cal-shell:is([data-view="month"], [data-view="week"], [data-view="day"]) .cal-upcoming-foot {
         margin-top: 26px;
         padding-top: 19.2px;
         border-color: var(--figma-sand-border);
@@ -207,5 +207,5 @@ body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-produc
 }
 
 @media (min-width: 90rem) {
-    body.cal-app:has(#calendar-page[data-view="month"]:not([hidden])) .wo-org-product-nav { gap: 31.149px; }
+    body.cal-app:has(#calendar-page:is([data-view="month"], [data-view="week"], [data-view="day"]):not([hidden])) .wo-org-product-nav { gap: 31.149px; }
 }

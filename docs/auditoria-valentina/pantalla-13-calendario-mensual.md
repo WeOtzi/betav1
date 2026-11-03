@@ -1,5 +1,7 @@
 # Pantalla 13 · Calendario mensual
 
+> Evidencia histórica de la entrega `.24`. El alcance final vigente son solo tres frames (Mes, Semana y Día), contados como una única pantalla 13. La consolidación y QA de `.25` están en [pantalla-13-calendario.md](pantalla-13-calendario.md); los demás frames quedan fuera por instrucción posterior de Valentina.
+
 ## Alcance y fuente
 
 - Referencia solicitada: [Figma 801:542](https://www.figma.com/design/w3JA83CcP5ISKjyOu87mx1/We-Otzi-Pantallas-final?node-id=801-542), «Artista / Calendario - Vista mensual», 1440 × 1127.

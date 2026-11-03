@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.25] - 2026-11-03
+
+- Pantalla 13: completar los frames semanal y diario del calendario
+- Completa exclusivamente los frames 801:544 y 801:545, conservando 801:542: los tres cuentan como una única pantalla 13. Reutiliza controles/lateral/SVG originales de la mensual, ajusta offsets, fuentes, leyenda, grillas horarias y eventos de Semana/Día. El controlador solo expone porcentajes existentes como variables CSS; no cambia datos, permisos, CRUD ni navegación. Agenda, editor y otras rutas quedan fuera del alcance.
+- Validación: npm test 453/453; pruebas focalizadas 10/10; sintaxis JS y diff aprobados. Browser integrado con comparaciones visuales y geométricas de ambos frames: cuatro comprobaciones por vista primero fallidas y después aprobadas; texto de eventos alineado arriba tras detectar centrado nativo. Ocho anchos 390-1920 por vista sin overflow; búsqueda/vacío, filtros, anterior/siguiente, readonly de sesiones, entrada/salida del editor y Enter/foco aprobados. Mes idéntico a la CSS pública de .24 en ocho tamaños; Agenda/editor sin diferencias de estilos calculados. Ocho assets de los frames nuevos coinciden por SHA-256 con los cuatro SVG reutilizados. Solo datos ficticios en memoria de QA, sin escrituras ni integraciones remotas. Header y datos dinámicos conservados; soporte 501 previo. Evidencia y límites en docs/auditoria-valentina/pantalla-13-calendario.md. Autoentrega repite suite/política y verifica CI y SHA pública.
+- Rollback: revertir este commit; no cambiar datos reales desde una preview.
+
+
 ## [2.2.3-valentina.rediseno-laura.24] - 2026-11-03
 
 - Pantalla 13: ajustar calendario mensual al frame 801:542

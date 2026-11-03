@@ -536,7 +536,7 @@
             : '';
         return `
             <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}"
-                    style="top:${top}%;height:${height}%" title="${escapeAttr(`${time} · ${event.title}`)}">
+                    style="top:${top}%;height:${height}%;--cal-event-start:${top};--cal-event-span:${height}" title="${escapeAttr(`${time} · ${event.title}`)}">
                 ${escapeHtml(timeLabel)}<strong>${escapeHtml(event.title)}</strong>${client}
             </button>
         `;
