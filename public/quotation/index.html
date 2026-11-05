@@ -85,6 +85,12 @@
                     WE ÖTZI
                 </a>
                 <span class="q-topbar-tag wo-meta-s" aria-label="Cotizador para clientes">Cotizador · Cliente</span>
+                <nav class="wo-topbar-nav q-confirm-nav" aria-label="Navegación principal de cliente">
+                    <a class="wo-topbar-item is-active" href="/marketplace/">Explorar artistas</a>
+                    <a class="wo-topbar-item" href="/client/requests/">Job board</a>
+                    <a class="wo-topbar-item" href="/explore/globe/">Tattoglobe</a>
+                    <a class="wo-topbar-item" href="/client/chats/">Inbox</a>
+                </nav>
             </div>
 
             <div class="wo-topbar-right q-client-actions">
@@ -93,7 +99,9 @@
                 </button>
                 <button id="header-user-btn" class="wo-iconbtn wo-iconbtn--s hidden" aria-label="Mi cuenta" onclick="openQuotationLoginModal()">
                     <i data-wo-icon="user-check" class="wo-icon-18"></i>
+                    <span class="q-confirm-user" aria-hidden="true">Ö</span>
                 </button>
+                <button class="wo-btn wo-btn--danger wo-btn--mono q-confirm-logout" type="button" onclick="handleClientLogout()">Log out</button>
             </div>
         </header>
 

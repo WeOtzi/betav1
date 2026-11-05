@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.28] - 2026-11-05
+
+- Pantalla 14: confirmar artista según Figma con adaptación de escritorio aislada
+- Ajusta únicamente la confirmación de artista de `/quotation/?artist=usuario` al frame 2105:7177: composición, tarjeta, tipografías, colores, botones, encabezado y pie existentes. Cuatro SVG originales locales; datos/foto/precio del artista y handlers conservados. La clase visual y el copyright se restauran al continuar; no modifica otras pantallas ni contratos de datos.
+- Validación: npm test 465/465. Regresión TDD del chrome primero fallida y después aprobada; selección con/sin artista conserva su comportamiento. Playwright alternativo autorizado tras bloqueo de captura del Browser integrado: diez viewports 390–2560, 193 anchos entre 768–3840 sin overflow/solapamiento del header; capturas comparadas con Figma, cuatro assets cargados y geometría original. Confirmar, continuar, seguir sin artista, cuenta/Escape, soporte y salida aprobados solo en simulación; cero errores JS no capturados y cero HTTP fallidos en el recorrido final. Ocho capturas de otras cuatro pantallas a 1440/390 idénticas byte a byte a HEAD. Evidencia en docs/auditoria-valentina/pantalla-14/design-qa.md. Autoentrega repite suite/política y comprueba CI/SHA pública. No acredita escrituras, autenticación ni integraciones reales.
+- Rollback: revertir este commit con nueva entrega versionada para recuperar .27 (28e8062057eda17e008992b153e8641ff96ae074). Sin migraciones ni datos remotos que revertir.
+
+
 ## [2.2.3-valentina.rediseno-laura.27] - 2026-11-03
 
 - Pantalla 13: aplicar Guest Spot, Convencion, Recordatorio y Evento personal
