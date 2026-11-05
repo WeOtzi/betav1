@@ -48,8 +48,9 @@
 
     <!-- Styles -->
     <link rel="stylesheet" href="/shared/css/job-board-feed.css">
+    <link rel="stylesheet" href="/shared/css/job-board-screen15.css">
 </head>
-<body class="wo-app">
+<body class="wo-app jbf-screen15 jbf-is-feed">
 
     <!-- TopBar compartida de artista -->
     <weotzi-product-nav
@@ -73,13 +74,13 @@
             <div class="jbf-sidebar-head">
                 <span class="wo-meta-s wo-faint">Filtros</span>
                 <button type="button" class="jbf-collapse" id="btn-collapse-filters" aria-expanded="true" aria-controls="jbf-sidebar-body" aria-label="Colapsar panel de filtros">
-                    <i data-wo-icon="chevron-left" class="wo-icon-18" aria-hidden="true"></i>
+                    <img src="/shared/assets/figma/job-board-screen15/collapse.svg" width="16" height="16" alt="">
                 </button>
             </div>
 
             <div class="jbf-sidebar-body" id="jbf-sidebar-body">
                 <div class="jbf-search">
-                    <i data-wo-icon="search" class="wo-icon-18" aria-hidden="true"></i>
+                    <img src="/shared/assets/figma/job-board-screen15/search.svg" width="18" height="18" alt="">
                     <input type="text" id="smart-search" class="wo-input" placeholder="Buscá estilo, ciudad..." autocomplete="off" aria-label="Buscar solicitudes">
                 </div>
 
@@ -95,7 +96,7 @@
                             <span>Cerca tuyo</span>
                         </button>
                         <button type="button" class="jbf-quick-item" data-quick="newest">
-                            <i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i>
+                            <i data-wo-icon="zap" class="wo-icon-18" aria-hidden="true"></i>
                             <span>Recién publicados</span>
                         </button>
                         <button type="button" class="jbf-quick-item" data-quick="saved">
@@ -152,6 +153,7 @@
             <!-- Vista 1 · Feed de solicitudes -->
             <div id="jbf-feed-view">
                 <header class="jbf-head">
+                    <a href="/artist/applications?tab=jobboard" class="jbf-applications">Mis postulaciones <img src="/shared/assets/figma/job-board-screen15/applications-arrow.svg" width="14" height="14" alt=""></a>
                     <span class="wo-eyebrow">Job board</span>
                     <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
                     <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
@@ -209,6 +211,7 @@
 
     <!-- Job Board Script -->
     <script src="/shared/js/artist-auth.js"></script>
+    <script src="/shared/js/job-board-screen15-preview.js"></script>
     <script src="/shared/js/job-board-feed.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>

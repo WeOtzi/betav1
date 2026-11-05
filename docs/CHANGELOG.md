@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.29] - 2026-11-05
+
+- Pantalla 15: reproducir Explorar solicitudes de Job Board desde Figma
+- Ajusta exclusivamente el feed `/job-board/` al frame 801:1067: sidebar, encabezado, sponsor, tres rieles, tarjetas, tipografías, ocho SVG originales locales y enlace Mis postulaciones. Reutiliza DS/header sin editarlos; la capa se retira en detalle/éxito. Muestras y guardados aislados solo en preview, sin mutar fixtures de otras rutas ni sustituir datos en producción. Ver todo muestra realmente el conjunto completo.
+- Validación: npm test 469/469; cuatro regresiones nuevas primero fallidas y luego aprobadas. Playwright alternativo autorizado tras bloqueo de captura del navegador integrado: comparación con Figma 1440×1975, seis anchos 390–1920 sin overflow ni imágenes rotas; búsqueda/vacío/restaurar, guardados/recarga, filtros estilo/ciudad, ver todo, panel colapsable, duplicado y detalle/volver comprobados en simulación. Sin excepciones JS; favicon 404 preexistente. Evidencia en docs/auditoria-valentina/pantalla-15-job-board.md. Autoentrega repite suite/política y verifica CI/SHA pública; no acredita persistencia ni integraciones reales.
+- Rollback: revertir este commit con nueva entrega versionada para recuperar .28 (2dbaab9415b75742fb0c56feb9dbf45604bc8c6e). Sin migraciones ni datos remotos que revertir.
+
+
 ## [2.2.3-valentina.rediseno-laura.28] - 2026-11-05
 
 - Pantalla 14: confirmar artista según Figma con adaptación de escritorio aislada

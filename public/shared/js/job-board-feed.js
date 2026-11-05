@@ -39,6 +39,12 @@ function formatBudgetRange(min, max, currency) {
     return 'A convenir';
 }
 
+// Compact labels belong to the feed only; detail/proposal currency stays explicit.
+function formatFeedBudgetRange(min, max, currency) {
+    const value = formatBudgetRange(min, max, currency);
+    return !currency || currency === 'USD' ? value.replace(/ USD$/, '') : value;
+}
+
 function isNewRequest(createdAt, days = 7) {
     if (!createdAt) return false;
     const created = new Date(createdAt);
@@ -172,6 +178,7 @@ let currentFilters = {
 let selectedRequest = null;
 let searchDebounceTimer = null;
 let featuredOpportunity = null;
+let screen15Preview = null;
 let savedRequestIds = new Set();
 let requestClientProfiles = new Map();
 let artistPublicStats = { averageRating: null, reviewCount: 0, workCount: null };
@@ -303,7 +310,9 @@ function setupCollapseFilters() {
         shell.classList.toggle('is-filters-collapsed', collapsed);
         btn.setAttribute('aria-expanded', String(!collapsed));
         btn.setAttribute('aria-label', collapsed ? 'Abrir panel de filtros' : 'Colapsar panel de filtros');
-        btn.innerHTML = `<i data-wo-icon="${collapsed ? 'chevron-down' : (desktopFilters.matches ? 'chevron-left' : 'chevron-up')}" class="wo-icon-18" aria-hidden="true"></i>`;
+        btn.innerHTML = !collapsed && desktopFilters.matches
+            ? '<img src="/shared/assets/figma/job-board-screen15/collapse.svg" width="16" height="16" alt="">'
+            : `<i data-wo-icon="${collapsed ? 'chevron-down' : 'chevron-up'}" class="wo-icon-18" aria-hidden="true"></i>`;
     };
 
     // En tablet y móvil el panel empieza compacto para no desplazar el contenido
@@ -490,6 +499,9 @@ async function fetchRequests() {
             _parsedStyles: getStyleNames(r.tattoo_style)
         }));
 
+        screen15Preview = window.WoJobBoardScreen15Preview?.build(allRequests) || null;
+        if (screen15Preview) allRequests = screen15Preview.requests;
+
         await loadClientProfilesForRequests(allRequests);
 
     } catch (err) {
@@ -500,6 +512,10 @@ async function fetchRequests() {
 
 async function fetchFeaturedOpportunity() {
     featuredOpportunity = null;
+    if (screen15Preview) {
+        featuredOpportunity = screen15Preview.featured;
+        return;
+    }
     try {
         const api = window.WeotziData?.JobBoard?.Featured;
         if (api && typeof api.getActive === 'function') {
@@ -538,7 +554,7 @@ async function fetchFeaturedOpportunity() {
 }
 
 function savedStorageKey() {
-    return `weotzi.job-board.saved.${currentUser?.id || 'guest'}`;
+    return `weotzi.job-board.saved.${currentUser?.id || 'guest'}${screen15Preview ? ':screen15' : ''}`;
 }
 
 function readSavedFallback() {
@@ -556,6 +572,7 @@ function writeSavedFallback() {
 
 async function loadSavedRequests() {
     savedRequestIds = readSavedFallback();
+    if (screen15Preview) return;
     if (!isArtist || !artistData?.user_id) return;
     const api = window.WeotziData?.JobBoard?.SavedRequests;
     if (!api || typeof api.listForArtist !== 'function') return;
@@ -584,6 +601,8 @@ async function toggleSavedRequest(requestId, event) {
     else savedRequestIds.delete(requestId);
     writeSavedFallback();
     applyFilters();
+
+    if (screen15Preview) return; // Screen-local simulation; never mutates other previews.
 
     const api = window.WeotziData?.JobBoard?.SavedRequests;
     if (!api || typeof api.toggle !== 'function') return;
@@ -1005,7 +1024,7 @@ function clearAllFilters() {
 function hasActiveRefinement() {
     return Boolean(currentFilters.search || currentFilters.style || currentFilters.city ||
         currentFilters.size || currentFilters.budget ||
-        currentFilters.quick === 'near' || currentFilters.quick === 'saved');
+        currentFilters.quick === 'near' || currentFilters.quick === 'saved' || currentFilters.quick === 'all');
 }
 
 // Rieles derivados de datos reales: el primero cruza los estilos del artista con
@@ -1122,7 +1141,7 @@ function renderFeed() {
         <section class="jbf-rail">
             <div class="jbf-rail-head">
                 <h2 class="jbf-rail-title">${escapeHtml(rail.title)}</h2>
-                ${rail.total > rail.items.length ? `
+                ${rail.items.length ? `
                     <button type="button" class="jbf-rail-all" onclick="showAllOf(${rail.style ? `'${escapeHtml(rail.style)}'` : 'null'})">
                         Ver todo <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                     </button>
@@ -1152,7 +1171,7 @@ function renderFeaturedOpportunity() {
     const studioName = opportunity.studio_name || opportunity.sponsor_name || 'Oportunidad destacada';
     const initials = opportunity.studio_initials || initialsFor(studioName);
     const slots = Number(opportunity.slots_count || opportunity.featured_slots_count || 0);
-    const budget = formatBudgetRange(
+    const budget = formatFeedBudgetRange(
         opportunity.budget_min ?? request?.client_budget_min,
         opportunity.budget_max ?? request?.client_budget_max,
         opportunity.budget_currency || request?.client_budget_currency
@@ -1163,7 +1182,7 @@ function renderFeaturedOpportunity() {
     mount.innerHTML = `
         <section class="jbf-sponsor" aria-label="Oportunidad patrocinada">
             <div class="jbf-sponsor-media ${image ? '' : 'is-placeholder'}">
-                ${image ? `<img src="${escapeHtml(image)}" alt="Trabajo destacado de ${escapeHtml(studioName)}" loading="eager">` : '<i data-wo-icon="image" aria-hidden="true"></i><span>Foto del estudio o del trabajo destacado</span><small>o browse files</small>'}
+                ${image ? `<img src="${escapeHtml(image)}" alt="Trabajo destacado de ${escapeHtml(studioName)}" loading="eager">` : '<img class="jbf-placeholder-icon" src="/shared/assets/figma/job-board-screen15/image.svg" width="28" height="29.1" alt=""><span>Foto del estudio o del trabajo destacado</span><small>or <u>browse files</u></small>'}
                 <span class="jbf-sponsor-code">Sponsor</span>
                 <span class="jbf-sponsor-featured">Sponsor destacado</span>
             </div>
@@ -1184,7 +1203,7 @@ function renderFeaturedOpportunity() {
                     <strong class="wo-mono-num">${budget}</strong>
                 </div>
                 ${tags.length ? `<div class="jbf-sponsor-tags">${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-                ${targetId ? `<button type="button" class="jbf-sponsor-cta" onclick="handleApply('${escapeHtml(targetId)}')">${escapeHtml(opportunity.cta_label || 'Postularme')} <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>` : ''}
+                ${targetId ? `<button type="button" class="jbf-sponsor-cta" onclick="handleApply('${escapeHtml(targetId)}')">${escapeHtml(opportunity.cta_label || 'Postularme')} <img src="/shared/assets/figma/job-board-screen15/sponsor-arrow.svg" width="18" height="18" alt=""></button>` : ''}
             </div>
         </section>
     `;
@@ -1192,7 +1211,7 @@ function renderFeaturedOpportunity() {
 
 function showAllOf(style) {
     currentFilters.style = style || null;
-    if (!style) currentFilters.quick = null;
+    if (!style) currentFilters.quick = 'all';
     initStyleFilters();
     applyFilters();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1214,7 +1233,7 @@ function renderRequestCard(request) {
     const city = request.client_city ? toTitleCase(request.client_city) : '';
     const bodyPart = request.tattoo_body_part ? toTitleCase(request.tattoo_body_part.replace(/_/g, ' ')) : '';
 
-    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
+    const budgetRange = formatFeedBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
 
     const appCount = request.application_count || 0;
     const code = requestDisplayCode(request);
@@ -1230,10 +1249,11 @@ function renderRequestCard(request) {
         <article class="jbf-card jbf-card--corner-${corner}${feedClass}" onclick="viewRequest('${request.id}')">
             <div class="jbf-card-media ${!thumbnail ? 'no-image' : ''}">
                 ${thumbnail ? `<img src="${thumbnail}" alt="Referencia del tatuaje" loading="lazy" onerror="this.parentElement.classList.add('no-image'); this.remove();">` : ''}
+                <span class="jbf-card-corner" aria-hidden="true"></span>
                 <span class="jbf-card-code">${escapeHtml(code)}</span>
                 ${isNewRequest(request.created_at) ? '<span class="jbf-card-new">Nuevo</span>' : ''}
                 <button type="button" class="jbf-card-save${saved ? ' is-saved' : ''}" aria-pressed="${saved}" aria-label="${saved ? 'Quitar de guardados' : 'Guardar solicitud'}" onclick="toggleSavedRequest('${request.id}', event)">
-                    <i data-wo-icon="heart" aria-hidden="true"></i>
+                    <img src="/shared/assets/figma/job-board-screen15/heart.svg" width="16" height="16" alt="">
                 </button>
             </div>
             <div class="jbf-card-body">
@@ -1249,7 +1269,7 @@ function renderRequestCard(request) {
                         <span class="jbf-card-apps">${appCount} postulaci${appCount !== 1 ? 'ones' : 'ón'}</span>
                     </div>
                     <button type="button" class="jbf-card-apply" onclick="event.stopPropagation(); handleApply('${request.id}')">
-                        Postularme <i data-wo-icon="arrow-right" aria-hidden="true"></i>
+                        Postularme <img src="/shared/assets/figma/job-board-screen15/apply-arrow.svg" width="14" height="14" alt="">
                     </button>
                 </div>
             </div>
@@ -1295,6 +1315,7 @@ function setupSearch() {
 // ============================================
 
 function showView(name) {
+    document.body.classList.toggle('jbf-is-feed', name === 'feed');
     const map = {
         feed: document.getElementById('jbf-feed-view'),
         detail: document.getElementById('jbf-detail-view'),
