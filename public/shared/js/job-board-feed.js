@@ -1316,6 +1316,7 @@ function setupSearch() {
 
 function showView(name) {
     document.body.classList.toggle('jbf-is-feed', name === 'feed');
+    document.body.classList.toggle('jbf-is-detail', name === 'detail');
     const map = {
         feed: document.getElementById('jbf-feed-view'),
         detail: document.getElementById('jbf-detail-view'),
@@ -1373,6 +1374,7 @@ function backToFeed() {
 // ============================================
 
 function specificRequirements(request) {
+    if (window.WEOTZI_PREVIEW === true && request._screen16Requirements) return request._screen16Requirements;
     // Solo hechos reales de la solicitud; el Figma tiene una lista libre que no
     // existe como columna (ver informe: requiere backend nuevo).
     const items = [];
@@ -1384,6 +1386,7 @@ function specificRequirements(request) {
 }
 
 function sizeLabelFor(request) {
+    if (window.WEOTZI_PREVIEW === true && request._screen16Requirements) return request.tattoo_size;
     const raw = String(request.tattoo_size || '').toLowerCase().replace(/\s+/g, '_');
     if (!raw) return 'No especificado';
     const key = Object.keys(SIZE_MAP).find(k =>
@@ -1392,16 +1395,35 @@ function sizeLabelFor(request) {
     return key ? SIZE_LABELS[key] : toTitleCase(raw.replace(/_/g, ' '));
 }
 
+// Exact exported Figma SVGs. Fragment images retain their intrinsic dimensions.
+function detailIcon(name) {
+    const parts = {
+        zoom: [['zoom-circle', 1.333, 1.333], ['zoom-handle', 10.433, 10.433], ['zoom-plus-v', 6.667, 4.667], ['zoom-plus-h', 4.667, 6.667]],
+        pin: [['pin-outline', 1.25, 0], ['pin-center', 5, 3.75]],
+        clock: [['clock-outline', .625, .625], ['clock-hand', 6.875, 3.125]],
+        verified: [['verified-outline', .583, .58], ['verified-check', 4.667, 1.75]],
+        star: [['star', .542, .542]],
+        'star-small': [['star-small', .458, .458]],
+        'pin-small': [['pin-small-outline', .917, 0], ['pin-small-center', 3.667, 2.75]],
+        users: [['users-body', 0, 9.333], ['users-head', 2.667, 1.333], ['users-body-back', 12.666, 9.42], ['users-head-back', 10, 1.42]]
+    };
+    return `<span class="jbf-detail-icon jbf-detail-icon--${name}" aria-hidden="true">${parts[name].map(([file, left, top]) => `<img src="/shared/assets/figma/job-board-screen16/${file}.svg" alt="" style="left:${left}px;top:${top}px">`).join('')}</span>`;
+}
+
+function detailImagePlaceholder(label) {
+    return `<img class="jbf-slot-icon" src="/shared/assets/figma/job-board-screen16/image.svg" alt="" width="28" height="29.1"><span class="jbf-slot-label">${escapeHtml(label)}</span><small>or <u>browse files</u></small>`;
+}
+
 function referenceSlotsHtml(attachments, count = 4) {
     const sorted = [...(attachments || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     return Array.from({ length: count }, (_, index) => {
         const attachment = sorted[index];
         if (!attachment) {
-            return `<div class="jbf-ref jbf-ref--placeholder"><i data-wo-icon="image" aria-hidden="true"></i><span>Referencia ${index + 1}</span><small>or <u>browse files</u></small><button type="button" aria-label="Ampliar referencia ${index + 1}" disabled><i data-wo-icon="zoom-in" aria-hidden="true"></i></button></div>`;
+            return `<div class="jbf-ref jbf-ref--placeholder">${detailImagePlaceholder('Referencia ' + (index + 1))}<button type="button" aria-label="Ampliar referencia ${index + 1}" disabled>${detailIcon('zoom')}</button></div>`;
         }
         return `<a class="jbf-ref" href="${escapeHtml(attachment.file_url)}" target="_blank" rel="noopener">
             <img src="${escapeHtml(attachment.file_url)}" alt="${escapeHtml(attachment.file_name || 'Referencia del cliente')}" loading="lazy">
-            <span class="jbf-ref-zoom"><i data-wo-icon="zoom-in" aria-hidden="true"></i></span>
+            <span class="jbf-ref-zoom">${detailIcon('zoom')}</span>
         </a>`;
     }).join('');
 }
@@ -1415,46 +1437,52 @@ function clientCardHtml(request) {
     const since = created && !isNaN(created)
         ? created.getFullYear()
         : null;
+    const isSample = window.WEOTZI_PREVIEW === true && request._screen16Requirements;
     const rating = review?.average_rating != null
-        ? Number(review.average_rating).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        ? Number(review.average_rating).toLocaleString(isSample ? 'en-US' : 'es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
         : null;
     return `
         <div class="jbf-client-card">
             <div class="jbf-client-id">
                 <span class="jbf-client-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initialsFor(name, 'CL'))}</span>
                 <div>
-                    <strong>${escapeHtml(name)}</strong>
-                    <span>${rating ? `☆ ${escapeHtml(rating)} · ` : ''}${since ? `Cliente desde ${escapeHtml(since)}` : 'Cliente verificado'}</span>
+                    <strong>${escapeHtml(name)} ${isSample || profile.is_verified ? detailIcon('verified') : ''}</strong>
+                    <span>${rating ? `${detailIcon('star')} ${escapeHtml(rating)} · ` : ''}${since ? `Cliente desde ${escapeHtml(since)}` : 'Cliente verificado'}</span>
                 </div>
             </div>
-            <p><i data-wo-icon="lock" aria-hidden="true"></i> Los datos de contacto se habilitan cuando el cliente acepta tu propuesta.</p>
+            <p>Datos de contacto disponibles cuando el cliente acepte tu propuesta</p>
         </div>
     `;
 }
 
-function artistPreviewHtml() {
+function artistPreviewHtml(sample) {
     if (!isArtist || !artistData) return '';
-    const name = artistData.username || artistData.name || '';
+    const profile = sample?.artist || artistData;
+    const stats = sample?.stats || artistPublicStats;
+    const name = profile.username || profile.name || '';
     const initial = (name || 'A').trim().charAt(0).toUpperCase();
-    const city = artistCity();
-    const styles = artistStyles().slice(0, 3);
-    const gallery = parseStyles(artistData.gallery_images).filter(u => typeof u === 'string').slice(0, 3);
-    const avatar = artistData.profile_picture;
+    const city = sample ? profile.city : artistCity();
+    const styles = sample ? profile.styles_array : artistStyles().slice(0, 3);
+    const gallery = parseStyles(profile.gallery_images).filter(u => typeof u === 'string').slice(0, 3);
+    const avatar = profile.profile_picture;
 
     return `
+        <div class="jbf-preview-wrap">
+        <span class="jbf-aside-label wo-meta-s">Así te va a ver el cliente</span>
         <div class="jbf-preview">
-            <span class="jbf-aside-label wo-meta-s">Así te va a ver el cliente</span>
             <div class="jbf-preview-id">
                 <span class="wo-avatar wo-avatar--s">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initial)}</span>
                 <div>
                     <span class="jbf-preview-name">${escapeHtml(name)}</span>
-                    <span class="jbf-preview-city wo-meta-s">${artistPublicStats.averageRating != null ? `★ ${artistPublicStats.averageRating.toFixed(1)}` : 'Perfil verificado'}${artistPublicStats.workCount != null ? ` · ${artistPublicStats.workCount} trabajos` : ''}${city ? ` · ${escapeHtml(city)}` : ''}</span>
+                    <span class="jbf-preview-stats">${stats.averageRating != null ? `${detailIcon('star-small')} ${stats.averageRating.toFixed(1)}` : 'Perfil verificado'}${stats.workCount != null ? ` · ${stats.workCount} trabajos` : ''}</span>
                 </div>
+                ${city ? `<span class="jbf-preview-city">${detailIcon('pin-small')}${escapeHtml(city)}</span>` : ''}
             </div>
             ${styles.length ? `<div class="jbf-card-tags">${styles.map(s => `<span class="jbf-tag">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
             <div class="jbf-preview-shots">${Array.from({ length: 3 }, (_, index) => gallery[index]
                 ? `<img src="${escapeHtml(gallery[index])}" alt="Trabajo del portfolio" loading="lazy">`
-                : '<span class="jbf-preview-shot-placeholder"><i data-wo-icon="image" aria-hidden="true"></i></span>').join('')}</div>
+                : `<span class="jbf-preview-shot-placeholder">${detailImagePlaceholder('Portfolio')}</span>`).join('')}</div>
+        </div>
         </div>
     `;
 }
@@ -1466,7 +1494,8 @@ function buildDetailMain(request) {
     const daysLeft = getDaysLeft(request.expires_at);
     const bodyPart = request.tattoo_body_part ? toTitleCase(request.tattoo_body_part.replace(/_/g, ' ')) : 'No especificada';
     const city = request.client_city ? toTitleCase(request.client_city) : 'No especificada';
-    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
+    let budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
+    if (window.WEOTZI_PREVIEW === true && request._screen16Requirements) budgetRange = budgetRange.replace(/ USD$/, '');
     const reqs = specificRequirements(request);
 
     const attachments = [...(request.job_board_attachments || [])]
@@ -1474,9 +1503,9 @@ function buildDetailMain(request) {
 
     const deadlineBand = daysLeft === null ? '' : `
         <div class="jbf-deadline">
-            <i data-wo-icon="alert-triangle" aria-hidden="true"></i>
+            <img src="/shared/assets/figma/job-board-screen16/alert.svg" alt="" width="18" height="18">
             <div><strong>${daysLeft === 0 ? 'Último día para enviar tu propuesta' : `Quedan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} para enviar tu propuesta`}</strong>
-            ${request.expires_at ? `<span>El cliente cierra la recepción de propuestas el ${escapeHtml(formatDayMonth(request.expires_at))}.</span>` : ''}</div>
+            ${request.expires_at ? `<span>El cliente cierra la recepción de propuestas el ${escapeHtml(window.WEOTZI_PREVIEW === true && request._screen16Deadline || formatDayMonth(request.expires_at))}.</span>` : ''}</div>
         </div>
     `;
 
@@ -1485,11 +1514,6 @@ function buildDetailMain(request) {
         : 'El cliente prefiere no viajar — el trabajo sería en su ciudad';
 
     return `
-        <button type="button" class="jbf-back" onclick="backToFeed()">
-            <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver al job board
-        </button>
-
-        <span class="wo-eyebrow">Job board / Solicitud</span>
         <h1 class="jbf-detail-title">${escapeHtml(requestDisplayTitle(request))}</h1>
 
         <div class="jbf-detail-chips">
@@ -1529,7 +1553,7 @@ function buildDetailMain(request) {
         <div class="jbf-detail-cols">
             <div>
                 <span class="jbf-sum-label">Ciudad y modalidad</span>
-                <span class="jbf-col-val">${escapeHtml(city)}</span>
+                <span class="jbf-col-val">${detailIcon('pin')}${escapeHtml(city)}</span>
                 <span class="jbf-col-note">${escapeHtml(travelLine)}</span>
             </div>
             <div>
@@ -1539,7 +1563,7 @@ function buildDetailMain(request) {
             </div>
             <div>
                 <span class="jbf-sum-label">Publicación</span>
-                <span class="jbf-col-val">${escapeHtml(formatPublishedAgo(request.created_at))}</span>
+                <span class="jbf-col-val">${detailIcon('clock')}${escapeHtml(formatPublishedAgo(request.created_at))}</span>
                 ${daysLeft !== null ? `<span class="jbf-col-note">${daysLeft === 0 ? 'Último día para enviar tu propuesta' : `Quedan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} para enviar tu propuesta`}</span>` : ''}
             </div>
         </div>
@@ -1548,12 +1572,12 @@ function buildDetailMain(request) {
         ${clientCardHtml(request)}
 
         <div class="jbf-apps-bar">
-            ${appCount} artista${appCount !== 1 ? 's' : ''} ya ${appCount !== 1 ? 'enviaron' : 'envió'} una propuesta para este tatuaje
+            ${detailIcon('users')}<span><strong>${appCount} artista${appCount !== 1 ? 's' : ''}</strong> ya ${appCount !== 1 ? 'enviaron' : 'envió'} una propuesta para este tatuaje</span>
         </div>
     `;
 }
 
-function buildProposalAside(request) {
+function buildProposalAside(request, sample) {
     if (!isArtist) {
         return `
             <div class="jbf-login-prompt">
@@ -1602,16 +1626,16 @@ function buildProposalAside(request) {
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-availability">Disponibilidad</label>
-                <input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="Ej: Disponible desde el 10/08">
+                <div class="jbf-availability"><img src="/shared/assets/figma/job-board-screen16/calendar.svg" alt="" width="18" height="18"><input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="Ej: Disponible desde el 10/08"></div>
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-message">Mensaje para el cliente <span class="req">*</span></label>
                 <textarea id="app-message" name="message" class="wo-textarea" rows="4" required
                     placeholder="Contale por qué te gustaría hacer este tatuaje…"></textarea>
             </div>
-            ${artistPreviewHtml()}
+            ${artistPreviewHtml(sample)}
             <button type="submit" class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" id="btn-submit-application">
-                Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
+                Enviar propuesta <img src="/shared/assets/figma/job-board-screen16/send.svg" alt="" width="18" height="18">
             </button>
             <p class="jbf-aside-note wo-body-s wo-faint">Vas a poder editar tu propuesta hasta que el cliente la vea.</p>
         </form>
@@ -1623,9 +1647,15 @@ function openRequestDetail(request, options = {}) {
     if (!view || !request) return;
 
     selectedRequest = request;
+    const sample = window.WoJobBoardScreen16Preview?.build(request);
+    const visualRequest = sample?.request || request;
     view.innerHTML = `
-        <div class="jbf-detail-main">${buildDetailMain(request)}</div>
-        <aside class="jbf-detail-aside" aria-label="Enviar propuesta">${buildProposalAside(request)}</aside>
+        <div class="jbf-detail-utility">
+            <button type="button" class="jbf-back" onclick="backToFeed()"><img src="/shared/assets/figma/job-board-screen16/arrow-left.svg" alt="" width="14" height="14">Volver al job board</button>
+            <span class="wo-eyebrow">Job board / Solicitud</span>
+        </div>
+        <div class="jbf-detail-main">${buildDetailMain(visualRequest)}</div>
+        <aside class="jbf-detail-aside" aria-label="Enviar propuesta">${buildProposalAside(visualRequest, sample)}</aside>
     `;
 
     const form = document.getElementById('application-form');
@@ -1799,7 +1829,7 @@ function resetSubmitButton() {
     const submitBtn = document.getElementById('btn-submit-application');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>';
+        submitBtn.innerHTML = 'Enviar propuesta <img src="/shared/assets/figma/job-board-screen16/send.svg" alt="" width="18" height="18">';
     }
 }
 

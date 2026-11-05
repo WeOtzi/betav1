@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.30] - 2026-11-05
+
+- Pantalla 16: detalle de Job Board y envío de propuesta según Figma
+- Reproduce exclusivamente el detalle de solicitud de `/job-board/?solicitud=JB-24872`, frame 801:1068: composición, cuatro referencias, información del cliente, formulario y portfolio. Reutiliza navegación/DS sin editarlos, con 24 SVG originales locales. Estilos activados solo en detalle y muestra literal aislada en preview; conserva identidad, campos, validaciones, consultas y envío existentes.
+- Validación: npm test 473/473. Cuatro regresiones primero fallidas y luego aprobadas; Browser integrado, comparación Figma a 1440×1715, siete anchos 390–1920 sin desbordes ni controles cortados. Referencias/recursos, validación vacía y mensaje corto, envío simulado, error controlado con datos conservados, volver, menú/Escape y foco de teclado comprobados. Se corrigió la supresión del foco por la capa visual. Evidencia y límites en docs/auditoria-valentina/pantalla-16-job-board-detalle.md. Autoentrega repite suite/política y verifica CI/SHA pública; no acredita escrituras, correos ni integraciones reales.
+- Rollback: revertir este commit con nueva entrega versionada para recuperar .29 (9803bfd12c2e12caa58c9c8a61a2b6fba37ff7fe). Sin migraciones ni datos remotos que revertir.
+
+
 ## [2.2.3-valentina.rediseno-laura.29] - 2026-11-05
 
 - Pantalla 15: reproducir Explorar solicitudes de Job Board desde Figma
