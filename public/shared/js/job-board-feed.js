@@ -1834,7 +1834,7 @@ function resetSubmitButton() {
 }
 
 // ============================================
-// PROPUESTA ENVIADA (ref Figma 42)
+// PROPUESTA ENVIADA (Pantalla 17 · Figma 801:1069)
 // ============================================
 
 function renderProposalSent(request, proposal) {
@@ -1846,7 +1846,7 @@ function renderProposalSent(request, proposal) {
 
     view.innerHTML = `
         <div class="jbf-sent-tile" aria-hidden="true">
-            <i data-wo-icon="check" aria-hidden="true"></i>
+            <span class="jbf-sent-check"><img src="/shared/assets/figma/job-board-screen17/check.svg" alt="" width="24" height="17.3333"></span>
         </div>
         <span class="wo-eyebrow">Job board / Propuesta enviada</span>
         <h1 class="jbf-sent-title">Propuesta enviada</h1>
@@ -1879,7 +1879,7 @@ function renderProposalSent(request, proposal) {
 
         <div class="jbf-sent-actions">
             <a href="/artist/applications?tab=jobboard" class="wo-btn wo-btn--direct wo-btn--hard">
-                Ver mis postulaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                Ver mis postulaciones <img src="/shared/assets/figma/job-board-screen17/arrow-right.svg" alt="" width="18" height="18">
             </a>
             <button type="button" class="wo-btn wo-btn--secondary wo-btn--hard" onclick="backToFeed()">Seguir explorando solicitudes</button>
         </div>

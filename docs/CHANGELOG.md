@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3-valentina.rediseno-laura.31] - 2026-11-06
+
+- Pantalla 17: propuesta enviada fiel al frame de Figma
+- Ajusta exclusivamente el estado de éxito de `/job-board/` al nodo 801:1069: composición, tipografías, resumen, encabezado y botones. Dos SVG originales locales; reutiliza DS y navegación sin cambiarlos. Conserva proyecto, cliente, avatar, precio, moneda, fecha y acciones dinámicas.
+- Validación: npm test 474/474 y check:release aprobados. Regresión nueva primero fallida y luego aprobada. Browser integrado: envío simulado desde el formulario, confirmación, enlace a postulaciones, regreso al feed con teclado y foco visible. Comparación controlada a 1440×976 con el contenido del frame, seis anchos 390–1920 sin overflow ni botones cortados; ambos SVG cargados con geometría original. Evidencia y límites en docs/auditoria-valentina/pantalla-17/design-qa.md. Autoentrega repite pruebas y comprueba CI/SHA pública. No acredita notificaciones ni persistencia remota.
+- Rollback: revertir este commit con nueva entrega versionada para recuperar .30 (17035b3ac6a1b0853d105120b743ed28cbc1d8ad). Sin migraciones ni cambios de datos remotos.
+
+
 ## [2.2.3-valentina.rediseno-laura.30] - 2026-11-05
 
 - Pantalla 16: detalle de Job Board y envío de propuesta según Figma
