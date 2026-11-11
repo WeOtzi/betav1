@@ -30,3 +30,8 @@ test('switching back to artist restores the artist destination', () => {
   state.change('artist');
   assert.equal(state.link.href, '/artist/login/');
 });
+test('selecting studio sends Continuar to studio registration', () => {
+  const state = loadSelection('artist');
+  state.change('studio');
+  assert.equal(state.link.href, '/studio/register/');
+});
