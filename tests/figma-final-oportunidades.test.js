@@ -277,12 +277,16 @@ test('ronda 2: detalle con título en caja de 680 px y tarjetas de 437 px con el
     assert.match(css, /\.jbf-card-apply \{\s*box-sizing: border-box;\s*height: 2\.25rem;/);
 });
 
-test('ronda 3: Volver y el breadcrumb centrados en una fila de 36 px, 32 px bajo la barra (801:1068)', () => {
-    const css = read('public/shared/css/job-board-feed.css');
-    assert.match(css, /\.jbf-detail-nav \{\s*display: flex;\s*flex-wrap: wrap;\s*align-items: center;\s*min-height: 36px;\s*margin-bottom: 1\.25rem;/);
-    assert.match(css, /#jbf-detail-view \.jbf-detail-nav \.jbf-back \{ margin-bottom: 0; \}/);
-    assert.match(css, /\.jbf-shell\.is-detail \.jbf-main \{ padding-top: var\(--space-8\); \}/);
+// v2 (nov 2026): se adopta la geometría de la 2.2.6 (job-board-screen16.css), que
+// coincide con el Figma: Volver + breadcrumb en una fila utilitaria de 36 px que
+// abarca las dos columnas, 32 px bajo la barra y 20 px sobre el título.
+test('ronda 3: Volver y el breadcrumb en una fila de 36 px sobre ambas columnas, 32 px bajo la barra (801:1068)', () => {
+    const css = read('public/shared/css/job-board-screen16.css');
+    assert.match(css, /\.jbf-is-detail \.jbf-detail-utility \{ grid-column: 1 \/ -1; display: flex; align-items: center; gap: 16px; min-height: 36px; \}/);
+    assert.match(css, /\.jbf-is-detail \.jbf-main \{ padding: 32px 0 44px; \}/);
+    assert.match(css, /row-gap: 20px/);
+    assert.match(read('public/job-board/index.html'), /\/shared\/css\/job-board-screen16\.css/);
     const js = read('public/shared/js/job-board-feed.js');
-    assert.match(js, /<div class="jbf-detail-nav">\s*<button type="button" class="jbf-back"/);
+    assert.match(js, /<div class="jbf-detail-utility jbf-detail-nav">\s*<button type="button" class="jbf-back"/);
     assert.match(js, /shell\.classList\.toggle\('is-detail', name === 'detail'\)/);
 });

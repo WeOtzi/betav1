@@ -8,7 +8,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+// Normaliza CRLF → LF: en Windows (core.autocrlf=true) el checkout trae CRLF y
+// los asserts multilínea del CSS/HTML se escriben con \n.
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
 const Model = require('../public/shared/js/data/reminders-repo.js');
 
 /* ------------------------------- modelo ------------------------------- */
@@ -471,6 +473,7 @@ test('mobile topbar keeps the Ö badge inside the bar and away from LOG OUT', ()
     assert.match(block, /@media \(max-width:480px\)\{' \+\s*'weotzi-product-nav \.wo-org-product-nav__account\{gap:8px\}'/);
     assert.match(block, /notification-badge\{top:-3px;right:-3px;[^}]*max-width:28px;/);
     const ig = read('public/shared/css/instagram-import.css');
-    assert.match(ig, /box-sizing: border-box;\n    width: min\(685\.2px, 100%\);/);
+    // Figma 2003:1114: diálogo de 680 + borde → 682.2 en border-box (contenido de 621).
+    assert.match(ig, /box-sizing: border-box;\n    width: min\(682\.2px, 100%\);/);
     assert.match(ig, /z-index: 2147483000;/);
 });

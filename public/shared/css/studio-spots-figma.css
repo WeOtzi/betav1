@@ -1184,3 +1184,87 @@ body.wo-app a.sps-ribbon-cell:hover { color: var(--ink); }
 .sps-summary-mono { line-height: 1.3; }
 .sps-sent-actions { gap: 1rem; }
 .sps-sent-actions .wo-btn { box-sizing: border-box; height: 3.25rem; min-height: 3.25rem; }
+
+/* ============================================================================
+   v2 (nov 2026) · 801:537 Spots - Explorar oportunidades
+   Cabecera (565:16498): pestañas a 179 px (el bloque del título se superpone
+   12 px en el Figma), barra de 47 px, filtros de 38 px y fila de resultados
+   que arranca sobre el borde del bloque de filtros; el hero queda a 387 px.
+   Mosaico (107:5317): las tarjetas grandes alinean el contenido arriba
+   (27 px) y anclan "Postularme" abajo; la descripción corre en 400 px.
+   ========================================================================== */
+.sps-explore-head { padding-bottom: .6875rem; }
+.sps-explore-tab { padding-bottom: .875rem; }
+.sps-filter { box-sizing: border-box; }
+.sps-explore-count {
+    margin-top: -.625rem;
+    padding-block: .8125rem;
+}
+
+@media (min-width: 55.125rem) {
+    .sps-tile--large {
+        justify-content: flex-start;
+        padding-top: 27px;
+        padding-bottom: 25px;
+    }
+    .sps-tile--large .sps-tile-meta,
+    .sps-tile--large .sps-tile-desc { margin-top: 3px; }
+    .sps-tile--large .sps-tile-desc { max-width: 25rem; }
+    .sps-tile--large .sps-tile-cta { margin-top: auto; min-height: 50px; height: 50px; }
+}
+
+/* Hero (107:5113): contenido alineado arriba desde 45 px, 13.65 px entre
+   bloques, meta de 20 px y etiquetas de 28 px. */
+@media (min-width: 55.125rem) {
+    .sps-feature-body {
+        justify-content: flex-start;
+        gap: .853rem;
+        padding-top: 45px;
+    }
+    .sps-feature-meta { line-height: 20px; }
+    .sps-feature .sps-styles { align-items: flex-start; }
+
+    /* Promovida (107:5230): 7 px entre título, meta y etiquetas; imagen de
+       433 × 289 con ~48 px de aire arriba y abajo; botón de 48 px. */
+    .sps-tile--promoted { gap: 7px; }
+    .sps-tile--promoted .sps-sponsored-badge { margin-bottom: 9px; }
+    .sps-tile--promoted .sps-styles { margin-top: 5px; }
+    .sps-tile--promoted .sps-promoted-media { flex: none; height: 289px; min-height: 0; margin: 41px 0 43px; }
+    .sps-tile--promoted .sps-tile-desc { font-size: .8125rem; line-height: 1.5; }
+    .sps-tile--promoted .sps-tile-cta { min-height: 48px; height: 48px; margin-top: 3px; }
+    .sps-tile--promoted .sps-promoted-details { margin-top: 3px; }
+}
+
+/* Tarjetas grandes (107:5318, grupo escalado al 76.7 %): eyebrow mono 11.25,
+   meta mono 13, etiquetas mono 10.7 con padding 4 / 8.4, descripción Inter
+   14.5 / 22.4 y "Postularme" de 205 × 50 con texto de 16.8. */
+@media (min-width: 55.125rem) {
+    .sps-tile--large .sps-tile-city { font-size: .703rem; letter-spacing: .08em; }
+    .sps-tile--large .sps-tile-meta { font-size: .8125rem; }
+    .sps-tile--large .sps-tag { padding: 4px 8.4px; font-size: .67rem; }
+    .sps-tile--large .sps-tile-desc { font-size: .90625rem; line-height: 22.4px; }
+    .sps-tile--large .sps-tile-cta {
+        gap: var(--space-2);
+        padding-inline: 23px;
+        font-size: 1.05rem;
+        letter-spacing: .08em;
+    }
+}
+
+/* ============================================================================
+   v2 · 801:538 Spots - Detalle y postulación (109:5700)
+   "Volver" de 36 px a 32 px de la barra, título Archivo Black 40 / 42 a 10 px
+   del lugar, galería de 4 × 264.8 px con 32 px de separación, descripción a
+   24 px de la galería y subtítulo del aside pegado al título.
+   ========================================================================== */
+@media (min-width: 72rem) {
+    .sps-detail { padding-top: var(--space-8); }
+    .sps-back { min-height: 36px; box-sizing: border-box; }
+    .sps-detail-title { margin-top: 10px; font-size: 2.5rem; line-height: 42px; }
+    .sps-gallery {
+        grid-template-columns: repeat(4, minmax(0, 264.8px));
+        gap: var(--space-8);
+    }
+    .sps-detail-desc { margin-top: 0; max-width: 680px; line-height: 25.6px; }
+    .sps-aside-title + .sps-aside-sub { margin-top: calc(var(--space-4) * -1 + 2px); }
+}

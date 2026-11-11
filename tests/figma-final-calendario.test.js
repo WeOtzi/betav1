@@ -10,7 +10,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+// Normaliza CRLF → LF: con core.autocrlf=true (Windows) los fuentes salen con
+// \r\n y los patrones que fijan saltos de línea literales fallarían sin motivo.
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
 const Links = require(path.join(root, 'public/shared/js/calendar-links.js'));
 
 const html = read('public/calendar/index.html');

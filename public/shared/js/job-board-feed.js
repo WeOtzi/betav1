@@ -29,7 +29,20 @@ function formatMoney(value) {
     return Number(value).toLocaleString('es-AR');
 }
 
+// Formato explícito (siempre con moneda): confirmaciones y textos para el cliente.
 function formatBudgetRange(min, max, currency) {
+    const cur = String(currency || 'USD').toUpperCase();
+    if (min && max) {
+        return `$${formatMoney(min)} – $${formatMoney(max)} ${cur}`;
+    }
+    if (min) return `Desde $${formatMoney(min)} ${cur}`;
+    if (max) return `Hasta $${formatMoney(max)} ${cur}`;
+    return 'A convenir';
+}
+
+// Etiquetas compactas del Figma (feed y detalle): USD sin sufijo; otra moneda
+// siempre explícita.
+function formatFeedBudgetRange(min, max, currency) {
     const cur = String(currency || 'USD').toUpperCase();
     const suffix = cur === 'USD' ? '' : ` ${cur}`;
     if (min && max) {
@@ -180,6 +193,8 @@ let currentFilters = {
 let selectedRequest = null;
 let searchDebounceTimer = null;
 let featuredOpportunity = null;
+// Muestra local de la pantalla 15 (solo preview, si el adaptador está cargado).
+let screen15Preview = null;
 let savedRequestIds = new Set();
 let requestClientProfiles = new Map();
 let artistPublicStats = { averageRating: null, reviewCount: 0, workCount: null };
@@ -311,7 +326,9 @@ function setupCollapseFilters() {
         shell.classList.toggle('is-filters-collapsed', collapsed);
         btn.setAttribute('aria-expanded', String(!collapsed));
         btn.setAttribute('aria-label', collapsed ? 'Abrir panel de filtros' : 'Colapsar panel de filtros');
-        btn.innerHTML = `<i data-wo-icon="${collapsed ? 'chevron-down' : (desktopFilters.matches ? 'chevron-left' : 'chevron-up')}" class="wo-icon-18" aria-hidden="true"></i>`;
+        btn.innerHTML = !collapsed && desktopFilters.matches
+            ? '<img src="/shared/assets/figma/job-board-screen15/collapse.svg" width="16" height="16" alt="">'
+            : `<i data-wo-icon="${collapsed ? 'chevron-down' : 'chevron-up'}" class="wo-icon-18" aria-hidden="true"></i>`;
     };
 
     // En tablet y móvil el panel empieza compacto para no desplazar el contenido
@@ -498,6 +515,9 @@ async function fetchRequests() {
             _parsedStyles: getStyleNames(r.tattoo_style)
         }));
 
+        screen15Preview = window.WoJobBoardScreen15Preview?.build(allRequests) || null;
+        if (screen15Preview) allRequests = screen15Preview.requests;
+
         await loadClientProfilesForRequests(allRequests);
 
     } catch (err) {
@@ -508,6 +528,10 @@ async function fetchRequests() {
 
 async function fetchFeaturedOpportunity() {
     featuredOpportunity = null;
+    if (screen15Preview) {
+        featuredOpportunity = screen15Preview.featured;
+        return;
+    }
     try {
         const api = window.WeotziData?.JobBoard?.Featured;
         if (api && typeof api.getActive === 'function') {
@@ -546,7 +570,7 @@ async function fetchFeaturedOpportunity() {
 }
 
 function savedStorageKey() {
-    return `weotzi.job-board.saved.${currentUser?.id || 'guest'}`;
+    return `weotzi.job-board.saved.${currentUser?.id || 'guest'}${screen15Preview ? ':screen15' : ''}`;
 }
 
 function readSavedFallback() {
@@ -564,6 +588,7 @@ function writeSavedFallback() {
 
 async function loadSavedRequests() {
     savedRequestIds = readSavedFallback();
+    if (screen15Preview) return;
     if (!isArtist || !artistData?.user_id) return;
     const api = window.WeotziData?.JobBoard?.SavedRequests;
     if (!api || typeof api.listForArtist !== 'function') return;
@@ -592,6 +617,8 @@ async function toggleSavedRequest(requestId, event) {
     else savedRequestIds.delete(requestId);
     writeSavedFallback();
     applyFilters();
+
+    if (screen15Preview) return; // Simulación local de la pantalla; nunca escribe en fixtures compartidas.
 
     const api = window.WeotziData?.JobBoard?.SavedRequests;
     if (!api || typeof api.toggle !== 'function') return;
@@ -1182,7 +1209,7 @@ function renderFeaturedOpportunity() {
     const studioName = opportunity.studio_name || opportunity.sponsor_name || 'Oportunidad destacada';
     const initials = opportunity.studio_initials || initialsFor(studioName);
     const slots = Number(opportunity.slots_count || opportunity.featured_slots_count || 0);
-    const budget = formatBudgetRange(
+    const budget = formatFeedBudgetRange(
         opportunity.budget_min ?? request?.client_budget_min,
         opportunity.budget_max ?? request?.client_budget_max,
         opportunity.budget_currency || request?.client_budget_currency
@@ -1193,7 +1220,7 @@ function renderFeaturedOpportunity() {
     mount.innerHTML = `
         <section class="jbf-sponsor" aria-label="Oportunidad patrocinada">
             <div class="jbf-sponsor-media ${image ? '' : 'is-placeholder'}">
-                ${image ? `<img src="${escapeHtml(image)}" alt="Trabajo destacado de ${escapeHtml(studioName)}" loading="eager">` : '<i data-wo-icon="image" aria-hidden="true"></i><span>Foto del estudio o del trabajo destacado</span>'}
+                ${image ? `<img src="${escapeHtml(image)}" alt="Trabajo destacado de ${escapeHtml(studioName)}" loading="eager">` : '<img class="jbf-placeholder-icon" src="/shared/assets/figma/job-board-screen15/image.svg" width="28" height="29.1" alt=""><span>Foto del estudio o del trabajo destacado</span>'}
                 <span class="jbf-sponsor-code">Sponsor</span>
                 <span class="jbf-sponsor-featured">Sponsor destacado</span>
             </div>
@@ -1214,7 +1241,7 @@ function renderFeaturedOpportunity() {
                     <strong class="wo-mono-num">${budget}</strong>
                 </div>
                 ${tags.length ? `<div class="jbf-sponsor-tags">${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-                ${targetId ? `<button type="button" class="jbf-sponsor-cta" onclick="handleApply('${escapeHtml(targetId)}')">${escapeHtml(opportunity.cta_label || 'Postularme')} <i data-wo-icon="arrow-right" aria-hidden="true"></i></button>` : ''}
+                ${targetId ? `<button type="button" class="jbf-sponsor-cta" onclick="handleApply('${escapeHtml(targetId)}')">${escapeHtml(opportunity.cta_label || 'Postularme')} <img src="/shared/assets/figma/job-board-screen15/sponsor-arrow.svg" width="18" height="18" alt=""></button>` : ''}
             </div>
         </section>
     `;
@@ -1244,7 +1271,7 @@ function renderRequestCard(request) {
     const city = displayPlace(request.client_city);
     const bodyPart = request.tattoo_body_part ? displayPlace(request.tattoo_body_part.replace(/_/g, ' ')) : '';
 
-    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
+    const budgetRange = formatFeedBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
 
     const appCount = request.application_count || 0;
     const code = requestDisplayCode(request);
@@ -1255,17 +1282,16 @@ function renderRequestCard(request) {
     const cornerKinds = ['red', 'yellow', 'blue'];
     const cornerSeed = String(code || request.id || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const corner = cornerKinds[cornerSeed % cornerKinds.length];
-    const dot = cornerKinds[(cornerSeed + (Number.isFinite(feedRank) ? feedRank : 0)) % cornerKinds.length];
-    const cornerEnd = cornerKinds.filter(kind => kind !== dot)[cornerSeed % 2];
 
     return `
-        <article class="jbf-card jbf-card--corner-${corner} jbf-card--dot-${dot} jbf-card--end-${cornerEnd}${feedClass}" onclick="viewRequest('${request.id}')">
+        <article class="jbf-card jbf-card--corner-${corner}${feedClass}" onclick="viewRequest('${request.id}')">
             <div class="jbf-card-media ${!thumbnail ? 'no-image' : ''}">
                 ${thumbnail ? `<img src="${thumbnail}" alt="Referencia del tatuaje" loading="lazy" onerror="this.parentElement.classList.add('no-image'); this.remove();">` : ''}
+                <span class="jbf-card-corner" aria-hidden="true"></span>
                 <span class="jbf-card-code">${escapeHtml(code)}</span>
                 ${isNewRequest(request.created_at) ? '<span class="jbf-card-new">Nuevo</span>' : ''}
                 <button type="button" class="jbf-card-save${saved ? ' is-saved' : ''}" aria-pressed="${saved}" aria-label="${saved ? 'Quitar de guardados' : 'Guardar solicitud'}" onclick="toggleSavedRequest('${request.id}', event)">
-                    <i data-wo-icon="heart" aria-hidden="true"></i>
+                    <img src="/shared/assets/figma/job-board-screen15/heart.svg" width="16" height="16" alt="">
                 </button>
             </div>
             <div class="jbf-card-body">
@@ -1281,7 +1307,7 @@ function renderRequestCard(request) {
                         <span class="jbf-card-apps">${appCount} postulaci${appCount !== 1 ? 'ones' : 'ón'}</span>
                     </div>
                     <button type="button" class="jbf-card-apply" onclick="event.stopPropagation(); handleApply('${request.id}')">
-                        Postularme <i data-wo-icon="arrow-right" aria-hidden="true"></i>
+                        Postularme <img src="/shared/assets/figma/job-board-screen15/apply-arrow.svg" width="14" height="14" alt="">
                     </button>
                 </div>
             </div>
@@ -1327,6 +1353,8 @@ function setupSearch() {
 // ============================================
 
 function showView(name) {
+    document.body.classList.toggle('jbf-is-feed', name === 'feed');
+    document.body.classList.toggle('jbf-is-detail', name === 'detail');
     const map = {
         feed: document.getElementById('jbf-feed-view'),
         detail: document.getElementById('jbf-detail-view'),
@@ -1408,6 +1436,7 @@ function backToFeed() {
 // ============================================
 
 function specificRequirements(request) {
+    if (window.WEOTZI_PREVIEW === true && request._screen16Requirements) return request._screen16Requirements;
     // Lista libre del cliente (columna specific_requirements, migración
     // 20261028170000). Sin ella, se derivan hechos reales de la solicitud.
     const explicit = asArray(request.specific_requirements).map(item => String(item).trim()).filter(Boolean);
@@ -1435,17 +1464,37 @@ function sizeLabelFor(request) {
     return key ? SIZE_LABELS[key] : toTitleCase(raw.replace(/_/g, ' '));
 }
 
+// SVG exportados del Figma (801:1068). Los fragmentos conservan su tamaño intrínseco.
+function detailIcon(name) {
+    const parts = {
+        zoom: [['zoom-circle', 1.333, 1.333], ['zoom-handle', 10.433, 10.433], ['zoom-plus-v', 6.667, 4.667], ['zoom-plus-h', 4.667, 6.667]],
+        pin: [['pin-outline', 1.25, 0], ['pin-center', 5, 3.75]],
+        clock: [['clock-outline', .625, .625], ['clock-hand', 6.875, 3.125]],
+        verified: [['verified-outline', .583, .58], ['verified-check', 4.667, 1.75]],
+        star: [['star', .542, .542]],
+        'star-small': [['star-small', .458, .458]],
+        'pin-small': [['pin-small-outline', .917, 0], ['pin-small-center', 3.667, 2.75]],
+        users: [['users-body', 0, 9.333], ['users-head', 2.667, 1.333], ['users-body-back', 12.666, 9.42], ['users-head-back', 10, 1.42]]
+    };
+    return `<span class="jbf-detail-icon jbf-detail-icon--${name}" aria-hidden="true">${parts[name].map(([file, left, top]) => `<img src="/shared/assets/figma/job-board-screen16/${file}.svg" alt="" style="left:${left}px;top:${top}px">`).join('')}</span>`;
+}
+
+// Slot sin imagen: ícono y rótulo del image-slot del Figma, sin el enlace de carga del image-slot
+// (el artista no puede subir referencias del cliente).
+function detailImagePlaceholder(label) {
+    return `<img class="jbf-slot-icon" src="/shared/assets/figma/job-board-screen16/image.svg" alt="" width="28" height="29.1"><span class="jbf-slot-label">${escapeHtml(label)}</span>`;
+}
+
 function referenceSlotsHtml(attachments, count = 4) {
     const sorted = [...(attachments || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     return Array.from({ length: count }, (_, index) => {
         const attachment = sorted[index];
         if (!attachment) {
-            // Slot sin imagen del cliente: placeholder del DS (sin el texto del image-slot de Figma).
-            return `<div class="jbf-ref jbf-ref--placeholder" role="img" aria-label="Referencia ${index + 1}: el cliente no subió imagen"><i data-wo-icon="image" aria-hidden="true"></i><span>Referencia ${index + 1}</span></div>`;
+            return `<div class="jbf-ref jbf-ref--placeholder" role="img" aria-label="Referencia ${index + 1}: el cliente no subió imagen">${detailImagePlaceholder('Referencia ' + (index + 1))}<span class="jbf-ref-zoom">${detailIcon('zoom')}</span></div>`;
         }
         return `<a class="jbf-ref" href="${escapeHtml(attachment.file_url)}" target="_blank" rel="noopener">
             <img src="${escapeHtml(attachment.file_url)}" alt="${escapeHtml(attachment.file_name || 'Referencia del cliente')}" loading="lazy">
-            <span class="jbf-ref-zoom"><i data-wo-icon="zoom-in" aria-hidden="true"></i></span>
+            <span class="jbf-ref-zoom">${detailIcon('zoom')}</span>
         </a>`;
     }).join('');
 }
@@ -1459,18 +1508,19 @@ function clientCardHtml(request) {
     const since = created && !isNaN(created)
         ? created.getFullYear()
         : null;
+    const isSample = window.WEOTZI_PREVIEW === true && request._screen16Requirements;
     const rating = review?.average_rating != null
-        ? Number(review.average_rating).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        ? Number(review.average_rating).toLocaleString(isSample ? 'en-US' : 'es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
         : null;
     // Check de "cliente verificado" (801:1068): perfil público completo del cliente.
-    const verified = !!profile.profile_completed_at;
+    const verified = !!(isSample || profile.profile_completed_at || profile.is_verified);
     return `
         <div class="jbf-client-card">
             <div class="jbf-client-id">
                 <span class="jbf-client-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initialsFor(name, 'CL'))}</span>
                 <div>
-                    <strong class="jbf-client-name">${escapeHtml(name)}${verified ? '<i data-wo-icon="check-circle" class="jbf-client-verified" aria-label="Cliente verificado" role="img"></i>' : ''}</strong>
-                    <span class="jbf-client-meta">${rating ? `<i data-wo-icon="star" aria-hidden="true"></i>${escapeHtml(rating)} · ` : ''}${since ? `Cliente desde ${escapeHtml(since)}` : 'Cliente de We Ötzi'}</span>
+                    <strong class="jbf-client-name">${escapeHtml(name)} ${verified ? `<span role="img" aria-label="Cliente verificado">${detailIcon('verified')}</span>` : ''}</strong>
+                    <span class="jbf-client-meta">${rating ? `${detailIcon('star')} ${escapeHtml(rating)} · ` : ''}${since ? `Cliente desde ${escapeHtml(since)}` : 'Cliente de We Ötzi'}</span>
                 </div>
             </div>
             <p>Datos de contacto disponibles cuando el cliente acepte tu propuesta</p>
@@ -1478,38 +1528,42 @@ function clientCardHtml(request) {
     `;
 }
 
-function artistPreviewHtml() {
+function artistPreviewHtml(sample) {
     if (!isArtist || !artistData) return '';
-    const name = artistData.username || artistData.name || '';
+    const profile = sample?.artist || artistData;
+    const stats = sample?.stats || artistPublicStats;
+    const name = profile.username || profile.name || '';
     const initial = (name || 'A').trim().charAt(0).toUpperCase();
-    const city = artistCity();
-    const styles = artistStyles().slice(0, 3);
-    const gallery = parseStyles(artistData.gallery_images).filter(u => typeof u === 'string').slice(0, 3);
-    const avatar = artistData.profile_picture;
+    const city = sample ? profile.city : artistCity();
+    const styles = sample ? profile.styles_array : artistStyles().slice(0, 3);
+    const gallery = parseStyles(profile.gallery_images).filter(u => typeof u === 'string').slice(0, 3);
+    const avatar = profile.profile_picture;
 
-    const hasRating = artistPublicStats.averageRating != null;
+    const hasRating = stats.averageRating != null;
     const rating = hasRating
-        ? artistPublicStats.averageRating.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        ? Number(stats.averageRating).toLocaleString(sample ? 'en-US' : 'es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
         : 'Perfil verificado';
-    const works = artistPublicStats.workCount != null
-        ? ` · ${artistPublicStats.workCount} trabajo${artistPublicStats.workCount === 1 ? '' : 's'}`
+    const works = stats.workCount != null
+        ? ` · ${stats.workCount} trabajo${stats.workCount === 1 ? '' : 's'}`
         : '';
 
     return `
+        <div class="jbf-preview-wrap">
         <span class="jbf-aside-label wo-meta-s">Así te va a ver el cliente</span>
         <div class="jbf-preview">
             <div class="jbf-preview-id">
-                <span class="jbf-preview-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initial)}</span>
+                <span class="wo-avatar wo-avatar--s">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initial)}</span>
                 <div>
                     <span class="jbf-preview-name">${escapeHtml(name)}</span>
-                    <span class="jbf-preview-stats">${hasRating ? '<i data-wo-icon="star" aria-hidden="true"></i>' : ''}${escapeHtml(rating + works)}</span>
+                    <span class="jbf-preview-stats">${hasRating ? `${detailIcon('star-small')} ` : ''}${escapeHtml(rating + works)}</span>
                 </div>
-                ${city ? `<span class="jbf-preview-city"><i data-wo-icon="map-pin" aria-hidden="true"></i>${escapeHtml(city)}</span>` : ''}
+                ${city ? `<span class="jbf-preview-city">${detailIcon('pin-small')}${escapeHtml(city)}</span>` : ''}
             </div>
             ${styles.length ? `<div class="jbf-card-tags">${styles.map(s => `<span class="jbf-tag">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
             <div class="jbf-preview-shots">${Array.from({ length: 3 }, (_, index) => gallery[index]
                 ? `<img src="${escapeHtml(gallery[index])}" alt="Trabajo del portfolio" loading="lazy">`
-                : '<span class="jbf-preview-shot-placeholder"><i data-wo-icon="image" aria-hidden="true"></i></span>').join('')}</div>
+                : `<span class="jbf-preview-shot-placeholder">${detailImagePlaceholder('Portfolio')}</span>`).join('')}</div>
+        </div>
         </div>
     `;
 }
@@ -1521,7 +1575,7 @@ function buildDetailMain(request) {
     const daysLeft = getDaysLeft(request.expires_at);
     const bodyPart = request.tattoo_body_part ? toTitleCase(request.tattoo_body_part.replace(/_/g, ' ')) : 'No especificada';
     const city = displayPlace(request.client_city) || 'No especificada';
-    const budgetRange = formatBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
+    const budgetRange = formatFeedBudgetRange(request.client_budget_min, request.client_budget_max, request.client_budget_currency);
     const reqs = specificRequirements(request);
 
     const attachments = [...(request.job_board_attachments || [])]
@@ -1529,9 +1583,9 @@ function buildDetailMain(request) {
 
     const deadlineBand = daysLeft === null ? '' : `
         <div class="jbf-deadline">
-            <i data-wo-icon="alert-triangle" aria-hidden="true"></i>
+            <img src="/shared/assets/figma/job-board-screen16/alert.svg" alt="" width="18" height="18">
             <div><strong>${daysLeft === 0 ? 'Último día para enviar tu propuesta' : `Quedan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} para enviar tu propuesta`}</strong>
-            ${request.expires_at ? `<span>El cliente cierra la recepción de propuestas el ${escapeHtml(formatDayMonth(request.expires_at))}.</span>` : ''}</div>
+            ${request.expires_at ? `<span>El cliente cierra la recepción de propuestas el ${escapeHtml(window.WEOTZI_PREVIEW === true && request._screen16Deadline || formatDayMonth(request.expires_at))}.</span>` : ''}</div>
         </div>
     `;
 
@@ -1540,12 +1594,6 @@ function buildDetailMain(request) {
         : 'El cliente prefiere no viajar — el trabajo sería en su ciudad';
 
     return `
-        <div class="jbf-detail-nav">
-            <button type="button" class="jbf-back" onclick="backToFeed()">
-                <i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver al job board
-            </button>
-            <span class="wo-eyebrow">Job board / Solicitud</span>
-        </div>
         <h1 class="jbf-detail-title">${escapeHtml(requestDisplayTitle(request))}</h1>
 
         <div class="jbf-detail-chips">
@@ -1585,7 +1633,7 @@ function buildDetailMain(request) {
         <div class="jbf-detail-cols">
             <div>
                 <span class="jbf-sum-label">Ciudad y modalidad</span>
-                <span class="jbf-col-val"><i data-wo-icon="map-pin" aria-hidden="true"></i>${escapeHtml(city)}</span>
+                <span class="jbf-col-val">${detailIcon('pin')}${escapeHtml(city)}</span>
                 <span class="jbf-col-note">${escapeHtml(travelLine)}</span>
             </div>
             <div>
@@ -1595,7 +1643,7 @@ function buildDetailMain(request) {
             </div>
             <div>
                 <span class="jbf-sum-label">Publicación</span>
-                <span class="jbf-col-val"><i data-wo-icon="clock" aria-hidden="true"></i>${escapeHtml(formatPublishedAgo(request.created_at))}</span>
+                <span class="jbf-col-val">${detailIcon('clock')}${escapeHtml(formatPublishedAgo(request.created_at))}</span>
                 ${daysLeft !== null ? `<span class="jbf-col-note">${daysLeft === 0 ? 'Último día para enviar tu propuesta' : `Quedan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} para enviar tu propuesta`}</span>` : ''}
             </div>
         </div>
@@ -1604,13 +1652,12 @@ function buildDetailMain(request) {
         ${clientCardHtml(request)}
 
         <div class="jbf-apps-bar">
-            <i data-wo-icon="users" aria-hidden="true"></i>
-            <span>${appCount} artista${appCount !== 1 ? 's' : ''} ya ${appCount !== 1 ? 'enviaron' : 'envió'} una propuesta para este tatuaje</span>
+            ${detailIcon('users')}<span><strong>${appCount} artista${appCount !== 1 ? 's' : ''}</strong> ya ${appCount !== 1 ? 'enviaron' : 'envió'} una propuesta para este tatuaje</span>
         </div>
     `;
 }
 
-function buildProposalAside(request) {
+function buildProposalAside(request, sample) {
     if (!isArtist) {
         return `
             <div class="jbf-login-prompt">
@@ -1659,19 +1706,16 @@ function buildProposalAside(request) {
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-availability">Disponibilidad</label>
-                <div class="jbf-input-icon">
-                    <i data-wo-icon="calendar" aria-hidden="true"></i>
-                    <input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="Ej: Disponible desde el 10/08">
-                </div>
+                <div class="jbf-availability"><img src="/shared/assets/figma/job-board-screen16/calendar.svg" alt="" width="18" height="18"><input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="Ej: Disponible desde el 10/08"></div>
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-message">Mensaje para el cliente</label>
                 <textarea id="app-message" name="message" class="wo-textarea" rows="4" required
                     placeholder="Contale por qué te gustaría hacer este tatuaje…"></textarea>
             </div>
-            ${artistPreviewHtml()}
+            ${artistPreviewHtml(sample)}
             <button type="submit" class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" id="btn-submit-application">
-                Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
+                Enviar propuesta <img src="/shared/assets/figma/job-board-screen16/send.svg" alt="" width="18" height="18">
             </button>
             <p class="jbf-aside-note wo-body-s wo-faint">Vas a poder editar tu propuesta hasta que el cliente la vea.</p>
         </form>
@@ -1683,9 +1727,16 @@ function openRequestDetail(request, options = {}) {
     if (!view || !request) return;
 
     selectedRequest = request;
+    const sample = window.WoJobBoardScreen16Preview?.build(request);
+    const visualRequest = sample?.request || request;
+    // Fila utilitaria (Volver + breadcrumb) a lo ancho, encima de las dos columnas.
     view.innerHTML = `
-        <div class="jbf-detail-main">${buildDetailMain(request)}</div>
-        <aside class="jbf-detail-aside" aria-label="Enviar propuesta">${buildProposalAside(request)}</aside>
+        <div class="jbf-detail-utility jbf-detail-nav">
+            <button type="button" class="jbf-back" onclick="backToFeed()"><img src="/shared/assets/figma/job-board-screen16/arrow-left.svg" alt="" width="14" height="14">Volver al job board</button>
+            <span class="wo-eyebrow">Job board / Solicitud</span>
+        </div>
+        <div class="jbf-detail-main">${buildDetailMain(visualRequest)}</div>
+        <aside class="jbf-detail-aside" aria-label="Enviar propuesta">${buildProposalAside(visualRequest, sample)}</aside>
     `;
 
     const form = document.getElementById('application-form');
@@ -1920,12 +1971,12 @@ function resetSubmitButton() {
     const submitBtn = document.getElementById('btn-submit-application');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>';
+        submitBtn.innerHTML = 'Enviar propuesta <img src="/shared/assets/figma/job-board-screen16/send.svg" alt="" width="18" height="18">';
     }
 }
 
 // ============================================
-// PROPUESTA ENVIADA (ref Figma 42)
+// PROPUESTA ENVIADA (Pantalla 17 · Figma 801:1069)
 // ============================================
 
 function renderProposalSent(request, proposal) {
@@ -1937,7 +1988,7 @@ function renderProposalSent(request, proposal) {
 
     view.innerHTML = `
         <div class="jbf-sent-tile" aria-hidden="true">
-            <i data-wo-icon="check" aria-hidden="true"></i>
+            <span class="jbf-sent-check"><img src="/shared/assets/figma/job-board-screen17/check.svg" alt="" width="24" height="17.3333"></span>
         </div>
         <span class="wo-eyebrow">Job board / Propuesta enviada</span>
         <h1 class="jbf-sent-title">Propuesta enviada</h1>
@@ -1970,7 +2021,7 @@ function renderProposalSent(request, proposal) {
 
         <div class="jbf-sent-actions">
             <a href="/artist/applications?tab=jobboard" class="wo-btn wo-btn--direct wo-btn--hard">
-                Ver mis postulaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                Ver mis postulaciones <img src="/shared/assets/figma/job-board-screen17/arrow-right.svg" alt="" width="18" height="18">
             </a>
             <button type="button" class="wo-btn wo-btn--secondary wo-btn--hard" onclick="backToFeed()">Seguir explorando solicitudes</button>
         </div>

@@ -291,7 +291,8 @@ test('correos de recuperación: el círculo de la marca es una celda del mismo t
         assert.doesNotMatch(html, /&#9679;/, file);
         assert.match(html, /background:#F2B519;border-radius:50%/, file);
     }
-    assert.match(read('templates/email/supabase-recovery.html'), /margin:0 0 100px;[^>]*>Recibimos una solicitud/);
+    // 801:1116: párrafo → caja del código 77.8px (Figma v2)
+    assert.match(read('templates/email/supabase-recovery.html'), /margin:0 0 78px;[^>]*>Recibimos una solicitud/);
 });
 
 // ------------------------------------------------------------ correcciones de auditoría (ronda 2)

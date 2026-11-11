@@ -156,6 +156,14 @@ body.tvm-open{overflow:hidden}
 .tvl-stamp--next:hover{background:var(--neutral-200)}
 .tvl-stamp-plus{display:grid;place-content:center;width:22px;height:22px;color:var(--neutral-500)}
 .tvl-stamp-plus [data-wo-icon]{width:22px;height:22px}
+/* Figma 419:2416: tres bloques (sello · ciudad/país/conteo · año) repartidos con
+   space-between → el bloque central queda centrado; filete interno a 10px, blanco 30%. */
+.tvl-stamp:not(.tvl-stamp--next){gap:0}
+.tvl-stamp:not(.tvl-stamp--next)::before{inset:10px;border-color:color-mix(in srgb,var(--white) 30%,transparent)}
+.tvl-stamp:not(.tvl-stamp--next) .tvl-stamp-ic{margin-bottom:auto}
+.tvl-stamp-city{line-height:normal}
+.tvl-stamp:not(.tvl-stamp--next) .tvl-stamp-country{margin-top:2px;line-height:normal}
+.tvl-stamp:not(.tvl-stamp--next) .tvl-stamp-line{margin-top:14px;line-height:normal}
 .tvl-stamp-next-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--neutral-400)}
 
 /* ---------- Footer banda ink ---------- */
@@ -233,6 +241,33 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
 .tvd-info-l{font-family:var(--font-mono);font-size:11px;letter-spacing:0;text-transform:uppercase;color:var(--neutral-300);display:block;margin-bottom:4px}
 .tvd-info-v{font-weight:var(--weight-bold);color:var(--neutral-500);display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
 .tvd-info-v--body{font-weight:var(--weight-regular);display:block}
+/* Figma 132:14905: etiqueta mono 11 · valor Inter bold 15 (interlineado normal), celdas
+   16/16.8; condiciones y notas en 14/21, 12px debajo de la grilla y 12px entre sí. */
+.tvd-info-cell:not(.tvd-info-cell--full){padding:16px 0 16.8px}
+.tvd-info-l{line-height:15px}
+.tvd-info-v{font-size:15px;line-height:18px}
+.tvd-info-v--body{font-size:14px;line-height:21px;color:var(--neutral-500)}
+.tvd-info-cell--full .tvd-info-l{margin-bottom:6px}
+/* Medido contra 801:1079: con el filete de 2px del DS, 4px de aire iguala la posición de Figma (1.6 + 5.6). */
+.tvd-info{padding-top:4px}
+.tvd-info-cell--full[data-fieldcell]{padding-top:18px}
+.tvd-info-cell--full[data-fieldcell] + .tvd-info-cell--full[data-fieldcell]{padding-top:12px}
+/* Figma 172:24893: la etiqueta «Esperando confirmación» mide 19.4px y no agranda la fila. */
+.tvd-info-v .tvd-link-status{display:inline-flex;align-items:center;height:19.4px;min-height:0;box-sizing:border-box;padding:0 8px;margin-block:-1px;line-height:1}
+/* El lápiz de edición no debe inflar la línea de la etiqueta (13px en Figma). */
+.tvd-info-l .tvd-edit-btn{padding:0 var(--space-1);vertical-align:top;line-height:1}
+.tvd-info-l .tvd-edit-btn [data-wo-icon],.tvd-info-l .tvd-edit-btn svg{width:13px;height:13px}
+@media (min-width:769px){
+  .tvd-info-cell:nth-child(3):not(.tvd-info-cell--full),.tvd-info-cell:nth-child(4):not(.tvd-info-cell--full){border-bottom:0}
+}
+/* Figma 132:14939/132:14947/132:14996: 12px de gap + 24.8px de aire entre bloques;
+   16px de la fila de título a los documentos; filas de 58.8px (12 · 34 · 12.8). */
+.tvd-block{margin-bottom:36.8px}
+.tvd-blockhead{margin-bottom:16px}
+.tvd-doc{padding:12px 0 12.8px}
+.tvd-doc > div{line-height:normal}
+.tvd-doc-name{display:block;line-height:normal}
+.tvd-doc-cat{line-height:normal}
 .tvd-linkactions{display:flex;gap:var(--space-2);margin-top:var(--space-3);flex-wrap:wrap}
 .tvd-edit-btn{margin-left:var(--space-2);opacity:0}
 .tvd-info-cell:hover .tvd-edit-btn,.tvd-edit-btn:focus-visible{opacity:1}
@@ -506,6 +541,10 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
   .tvm--cancel .tvm-body{padding:37px 0 0;gap:37px}
   .tvm-warnrow{height:24px}
   .tvm-warnrow>div{width:427px;flex:none;min-width:auto}
+  /* Figma 173:28975: el texto (2 líneas, 44px) va centrado sobre la fila de 24px del ícono. */
+  .tvm-warnrow>div{margin-top:-11.6px}
+  /* Figma 801:1082: 20px de los campos de fecha al pie (sin el extra de Editar). */
+  .tvm--dates .tvm-foot{margin-top:0}
   .tvm-foot{flex-direction:row}
   .tvm-foot .wo-btn{width:auto}
   .tvm-sharerow{flex-direction:row}
@@ -521,7 +560,16 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
   .tvl-globegrid{grid-template-columns:minmax(0,3fr) minmax(0,1fr);gap:0;height:auto;aspect-ratio:1280/988;margin-bottom:16px}
   .tvl-globe,.tvl-agenda{height:100%}
   .tvl-globe svg{padding:clamp(28px,1.3671875vw,35px)}
-  .tvl-section[aria-label="Cronología de viajes"]{margin-bottom:15px}
+  /* Figma 801:1076 (130:12517 · 130:12536): titular → fila de tabs/CTA 49px; el CTA
+     cae 7px por debajo del filete de tabs; filtros pegados (6px) y contador a 12px. */
+  .tvl-headline{margin-bottom:49px}
+  .tvl-tabsrow{align-items:flex-start;margin-bottom:6px}
+  .tvl-tabs{margin-top:6.6px}
+  .tvl-tabs .wo-tab{line-height:1.2;padding-bottom:12px}
+  .tvl-filters{margin-bottom:12px}
+  .tvl-counters{margin-bottom:10px}
+  .tvl-section[aria-label="Cronología de viajes"]{margin-bottom:30px}
+  .tvl-section[aria-label="Tattoo Passport"] .wo-h2{font-size:32px;line-height:normal}
   .tvl-section[aria-label="Cronología de viajes"] .tvl-sechead{margin-bottom:17px}
   .tvl-section[aria-label="Cronología de viajes"] .wo-h2{font-size:24px;line-height:1.2}
   .tvl-section[aria-label="Tattoo Passport"] .tvl-sechead{margin-bottom:28px}
@@ -551,7 +599,6 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
   padding:.6px;
   background:var(--figma-white);
   box-shadow:none;
-  transform:none;
 }
 #tv-modal-link .tvm-title{line-height:24px}
 #tv-modal-link .tvm-body{gap:20px;flex:none}
@@ -586,7 +633,8 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
 }
 #tv-modal-link .tvm-empty [data-wo-icon]{width:26px;height:26px;flex:none;color:var(--neutral-500)}
 #tv-modal-link .tvm-empty .wo-empty-title{
-  margin:15.3px 0 0;
+  /* Medido contra 801:1081: 39px del centro de la lupa al título. */
+  margin:8.3px 0 0;
   font:700 15px/22.5px var(--font-body);
 }
 #tv-modal-link .tvm-empty p{

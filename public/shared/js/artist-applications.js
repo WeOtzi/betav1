@@ -530,7 +530,7 @@
         return '<button type="button" class="wo-chip' + (isActive ? ' is-active' : '') + '"' +
             ' data-chip="' + key + '"' + (dim ? ' aria-disabled="true"' : '') +
             ' aria-pressed="' + isActive + '">' +
-            escapeHtml(label) + ' (' + count + ')</button>';
+            escapeHtml(label) + ' <span class="apx-chip-count">(' + count + ')</span></button>';
     }
 
     function searchTextOf(it) {

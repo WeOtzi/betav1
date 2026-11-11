@@ -18,7 +18,7 @@
 .wal-h3{margin:0;font-family:var(--font-display);font-weight:400;font-size:16px;color:var(--text-heading)}
 
 /* ---------- Estado de la cuenta (chip blanco con 3 ítems) ---------- */
-.wal-status{display:inline-flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) 14px;min-height:40.8px;padding:var(--space-2) 18px;box-sizing:border-box;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle);max-width:100%}
+.wal-status{display:inline-flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) 18px;min-height:40.8px;padding:var(--space-2) 18px;box-sizing:border-box;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle);max-width:100%}
 .wal-status-item{display:inline-flex;align-items:center;gap:var(--space-2);font-family:var(--font-body);font-size:13px;color:var(--text-muted)}
 .wal-status-item [data-wo-icon]{width:15px;height:15px;flex:none}
 .wal-status-item.is-ok [data-wo-icon]{color:var(--system-success)}
@@ -30,7 +30,7 @@
 .wal-mode[hidden]{display:none}
 
 /* ---------- Saldo + 4 estados ---------- */
-.wal-balance{display:flex;flex-direction:column;margin-top:var(--space-6);padding:20px 1px 1px;border:var(--border-hairline) solid var(--border-subtle)}
+.wal-balance{display:flex;flex-direction:column;margin-top:6px;padding:20px 1px 1px;border:var(--border-hairline) solid var(--border-subtle)}
 .wal-balance-main{display:flex;flex-direction:column;justify-content:space-between;gap:30px;box-sizing:border-box;padding:30px 32px 32px;background:var(--surface-inverse)}
 .wal-balance-copy{display:flex;flex-direction:column;gap:12px}
 .wal-balance-value{font-family:var(--font-display);font-weight:400;font-size:clamp(2rem,9vw,46px);line-height:1;letter-spacing:-0.01em;color:var(--yellow-300);overflow-wrap:anywhere}
@@ -211,7 +211,10 @@
 .wal-soon-title{padding-top:14px;font-size:9.5px}
 .wal-soon{display:flex;flex-wrap:wrap;gap:var(--space-2) 10px;padding-bottom:var(--space-3)}
 .wal-soon-chip{display:inline-flex;align-items:center;gap:var(--space-2);padding:8.8px 12.8px;border:var(--border-hairline) dashed var(--border-muted);font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
-.wal-soon-chip span{padding:3px 6px;background:var(--sand-050);font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted)}
+.wal-soon-chip span{padding:3px 6px;background:var(--sand-050);font-family:var(--font-mono);font-size:9px;line-height:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted)}
+/* 801:569: el bloque CBU/IBAN lleva 6px extra arriba; chips de 34,8px de alto */
+.wal-form-row + .wal-form-field{padding-top:6px}
+.wal-soon-chip{line-height:15px}
 .wal-cancel{min-height:44px;border:0;background:none;font-family:var(--font-body);font-size:13px;color:var(--text-muted);cursor:pointer}
 .wal-cancel:hover{color:var(--text-heading);text-decoration:underline}
 .wal-details{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-3) var(--space-5);margin:0}
@@ -223,9 +226,15 @@
 /* ---------- Modal: We Ötzi Card (801:570) ---------- */
 .wal-card-dialog-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding-top:1.6px}
 .wal-card-dialog-title{margin:0;font-family:var(--font-display);font-weight:400;font-size:24px;color:var(--figma-white)}
-.wal-card-dialog-text{margin:0;font-family:var(--font-body);font-size:14px;line-height:1.6;color:var(--text-muted)}
-.wal-card-benefits{display:flex;flex-direction:column;gap:12px;margin:0;padding:18.8px 0;list-style:none;border-top:var(--border-hairline) solid var(--border-subtle);border-bottom:var(--border-hairline) solid var(--border-subtle)}
-.wal-card-benefits li{display:flex;align-items:flex-start;gap:10px;font-family:var(--font-body);font-size:13.5px;color:var(--text-muted)}
+/* Figma usa #3B3730 (entre neutral-500 y neutral-400): se mezcla desde los tokens. */
+#wal-card-dialog{--wal-card-text:color-mix(in srgb,var(--neutral-500) 60%,var(--neutral-400))}
+.wal-card-dialog-text{margin:0;font-family:var(--font-body);font-size:14px;line-height:22.4px;color:var(--wal-card-text,var(--text-muted))}
+.wal-card-benefits{display:flex;flex-direction:column;gap:12px;margin:0;padding:18.8px 0;list-style:none;border-top:0.8px solid var(--figma-sand-border);border-bottom:0.8px solid var(--figma-sand-border)}
+.wal-card-benefits li{display:flex;align-items:flex-start;gap:10px;font-family:var(--font-body);font-size:13.5px;color:var(--wal-card-text,var(--text-muted))}
+.wal-card-benefits li{min-height:18px}
+.wal-card-signup{display:flex;flex-direction:column;gap:12px;padding-top:2px}
+.wal-card-signup .wal-input{padding:0 14.8px}
+.wal-card-signup .wal-input::placeholder{color:var(--text-muted)}
 .wal-bullet{display:block;flex:none;width:10px;height:10px;margin-top:4px}
 .wal-bullet--square{background:var(--yellow-300)}
 .wal-bullet--triangle{background:var(--blue-400);clip-path:polygon(50% 0,100% 100%,0 100%)}

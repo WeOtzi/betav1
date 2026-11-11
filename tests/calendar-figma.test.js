@@ -49,7 +49,7 @@ test('calendar expands proportionally beyond the Figma desktop width', () => {
   assert.match(css, /\.cal-month-weekday\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*1/);
   assert.match(css, /\.cal-month-day\s*\{[\s\S]*aspect-ratio:\s*14\s*\/\s*13;[\s\S]*min-height:\s*0/);
   assert.match(css, /\.cal-time-grid\s*\{[\s\S]*--hour-height:\s*5\.306122cqw/);
-  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{[\s\S]*--hour-height:\s*6\.938776cqw/);
+  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{[\s\S]*--hour-height:\s*6\.612245cqw/);
   assert.match(css, /\.cal-editor-shell\s*\{[\s\S]*max-width:\s*none/);
   assert.match(css, /\.cal-editor-layout\s*\{\s*grid-template-columns:\s*minmax\(0, 2\.428fr\) minmax\(0, 1fr\);\s*gap:\s*3\.114877%/);
 });
@@ -90,7 +90,7 @@ test('calendar reproduces the Figma final desktop geometry (801:542…554) and e
   assert.match(calendarJs, /textInput\('event-title',[\s\S]*'briefcase'\)/);
   assert.match(calendarJs, /if \(state\.selectedType\) payload = readFormPayload\(\{ lenient: true \}\)/);
   assert.doesNotMatch(calendarJs, /function localProjectedConflicts\(payload\)\s*\{\s*if \(!BLOCKING_TYPES/);
-  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{\s*--hour-height:\s*65\.6px;\s*grid-template-rows:/);
+  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{\s*--hour-height:\s*64\.8px;\s*grid-template-rows:/);
 });
 
 test('calendar editor heading belongs to the main column while the summary starts beside it', () => {

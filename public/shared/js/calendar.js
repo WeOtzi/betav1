@@ -1557,6 +1557,11 @@
 
     function validateBeforeSave() {
         if (state.selectedType !== 'confirmed_session') return null;
+        // Sin el módulo de vínculos no se puede saber si va como sesión o reserva:
+        // una cotización elegida nunca se guarda como evento manual suelto.
+        if (state.selectedQuote && !links()) {
+            return 'La vinculación con cotizaciones no está disponible en este momento. No se guardó el turno: recargá la página o quitá la selección para crear un evento manual.';
+        }
         const target = resolveSaveTarget();
         if (target === 'blocked') return 'Esa cotización no se puede agendar. Elegí otra o creá una cotización manual.';
         if (!state.selectedQuote && !isLegacyManualTurno() && state.editingEvent?.sourceType !== 'quotation_session') {

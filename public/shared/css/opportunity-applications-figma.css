@@ -639,3 +639,41 @@ body.wo-app a.apx-attachment { color: var(--neutral-500); font-family: var(--fon
 .apx-offerbox > div + div { margin-top: -2px; }
 .apx-track--spot .apx-offerbox .wo-btn { min-height: 41px; height: 41px; }
 .apx-track-actions > .apx-offerbox { margin-bottom: 10px; }
+
+/* ============================================================================
+   v2 (nov 2026) · 801:1070 / 801:1071 / 801:1075 · chips de estado (164:15298)
+   JetBrains Mono 12 / tracking .96 px, padding lateral 13.6 px, contador al
+   60 % separado 8 px; con esas medidas los siete chips entran en una fila.
+   ========================================================================== */
+.apx-chips .wo-chip {
+    gap: var(--space-2);
+    padding: 0 13.6px;
+    letter-spacing: 0.96px;
+}
+.apx-chips .wo-chip.is-active { font-weight: var(--weight-bold); }
+.apx-chip-count { opacity: 0.6; }
+/* 801:1070 y 801:1075: la fila de chips va en una sola línea y sobresale unos
+   px de la regla de 1144 px (en 801:1071 el Figma la parte en dos; se sigue la
+   mayoría). Solo en escritorio ancho, donde sobra margen lateral. */
+@media (min-width: 80rem) {
+    .apx-chips { flex-wrap: nowrap; align-items: flex-start; overflow: visible; }
+}
+
+/* v2 · 801:1073 / 801:1074 · columna principal del detalle (133:16710):
+   título Archivo Black 36 / 39.6 en caja de 680 px, referencia 680 × 453
+   (3:2), descripción Inter 16 / 25.6 en 680 px y etiquetas JetBrains Mono 12 /
+   .96 con padding 1 / 10.8 sobre arena. */
+@media (min-width: 64.0625rem) {
+    .apx-detail-title { max-width: 680px; font-size: 36px; line-height: 39.6px; }
+    .apx-refmedia { width: min(100%, 680px); aspect-ratio: 3 / 2; }
+    .apx-detail-desc { max-width: 680px; font-size: var(--body-m-size); line-height: 25.6px; }
+}
+.apx-detail-tags .wo-tag {
+    padding: 1px 10.8px;
+    background: var(--figma-sand);
+    border-color: var(--figma-sand-border);
+    color: var(--ink);
+    font-size: 12px;
+    letter-spacing: 0.96px;
+    line-height: normal;
+}

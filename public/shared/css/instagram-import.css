@@ -56,7 +56,8 @@ body.igi-open { overflow: hidden; }
     padding: 32px 16px;
     overflow-y: auto;
     overscroll-behavior: contain;
-    background: color-mix(in srgb, var(--neutral-500, #24211D) 55%, transparent);
+    /* Figma 2003:1113: rgba(26,26,26,.55) = --figma-panel-ink al 55%. */
+    background: color-mix(in srgb, var(--figma-panel-ink, #1A1A1A) 55%, transparent);
     animation: igi-fade .16s ease-out;
 }
 @keyframes igi-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -64,9 +65,10 @@ body.igi-open { overflow: hidden; }
     flex: none;
     margin: auto;
     /* border-box: los 685px del Figma incluyen borde y padding; así en
-       pantallas angostas el diálogo no se pasa del overlay. */
+       pantallas angostas el diálogo no se pasa del overlay. Figma 2003:1114:
+       680 de marco + borde → contenido de 621px como en el Figma. */
     box-sizing: border-box;
-    width: min(685.2px, 100%);
+    width: min(682.2px, 100%);
     padding: 1.6px;
     border: 1px solid var(--neutral-500, #24211D);
     background: var(--neutral-100, #FAF8F3);
@@ -111,6 +113,7 @@ body.igi-open { overflow: hidden; }
     border-bottom: 2.4px solid var(--figma-sand-border, #D8D0BF);
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 10.5px;
+    line-height: normal;
     letter-spacing: 0.12em;
     color: var(--neutral-300, #B9AE98);
     white-space: nowrap;
@@ -120,8 +123,12 @@ body.igi-open { overflow: hidden; }
 
 .igi-body { display: flex; flex-direction: column; gap: 8px; padding: 24px 28px 28px; }
 .igi-title { margin: 0; font-family: var(--font-display, 'Archivo Black', sans-serif); font-weight: 400; font-size: 28px; line-height: 30.8px; color: var(--ink, #001125); }
-.igi-title--s { margin-top: 14px; font-size: 24px; line-height: 1.2; }
-.igi-sub { margin: 0; font-size: 15px; line-height: 1.35; color: var(--neutral-400, #5A5449); }
+/* Archivo Black: el interlineado "normal" del Figma mide ~1.09 (en Chrome ~1.36). */
+.igi-title--s { margin-top: 14px; font-size: 24px; line-height: 26px; }
+.igi-sub { margin: 0; font-size: 15px; line-height: normal; color: var(--neutral-400, #5A5449); }
+/* Paso 02 (Figma 2003:1806): columna con gap 6 y bajada de 14px. */
+.igi-body:has(> .igi-title--s) { gap: 6px; }
+.igi-title--s + .igi-sub { font-size: 14px; }
 .igi-fields { display: flex; flex-direction: column; gap: 20px; padding-top: 16px; }
 .igi-field { display: flex; flex-direction: column; }
 .igi-label {
@@ -163,12 +170,12 @@ body.igi-open { overflow: hidden; }
 .igi-select { appearance: none; -webkit-appearance: none; padding: 0 44px 0 17.6px; cursor: pointer; }
 .igi-select-chev { position: absolute; right: 17.6px; width: 18px; height: 18px; pointer-events: none; }
 .igi-help { margin: 7px 0 0; font-size: 14px; line-height: 18.2px; color: var(--neutral-300, #B9AE98); }
-.igi-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 11.8px; border: 1px solid var(--figma-sand-border, #D8D0BF); }
+.igi-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 11.8px; padding: 1px; border: 1px solid var(--figma-sand-border, #D8D0BF); }
 .igi-facts > div { padding: 10px 12px; }
 .igi-facts > div + div { border-left: 0.8px solid var(--figma-sand-border, #D8D0BF); }
-.igi-fact-l { margin: 0 0 4px; font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; letter-spacing: 0.12em; color: var(--neutral-300, #B9AE98); }
-.igi-fact-v { margin: 0; font-family: var(--font-display, 'Archivo Black', sans-serif); font-size: 20px; color: var(--ink, #001125); }
-.igi-note { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--neutral-400, #5A5449); }
+.igi-fact-l { margin: 0 0 4px; font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; line-height: normal; letter-spacing: 0.12em; color: var(--neutral-300, #B9AE98); }
+.igi-fact-v { margin: 0; font-family: var(--font-display, 'Archivo Black', sans-serif); font-size: 20px; line-height: 1.1; color: var(--ink, #001125); }
+.igi-note { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; line-height: normal; color: var(--neutral-400, #5A5449); }
 .igi-note .igi-ic { width: 15px; height: 15px; }
 .igi-confirm {
     position: relative;
@@ -275,8 +282,8 @@ body.igi-open { overflow: hidden; }
 .igi-status > div { display: flex; flex-direction: column; padding: 10px 14px; }
 .igi-status > div + div { border-left: 1.6px solid var(--neutral-500, #24211D); }
 .igi-status > div.is-on { background: var(--yellow-300, #F2B519); }
-.igi-status strong { font-family: var(--font-display, 'Archivo Black', sans-serif); font-weight: 400; font-size: 22px; color: var(--ink, #001125); }
-.igi-status span { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; letter-spacing: 0.12em; color: var(--neutral-400, #5A5449); }
+.igi-status strong { font-family: var(--font-display, 'Archivo Black', sans-serif); font-weight: 400; font-size: 22px; line-height: 1.1; color: var(--ink, #001125); }
+.igi-status span { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; line-height: normal; letter-spacing: 0.12em; color: var(--neutral-400, #5A5449); }
 .igi-status > div.is-on span { color: var(--ink, #001125); }
 .igi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding-top: 8px; }
 .igi-tile {

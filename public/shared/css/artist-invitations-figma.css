@@ -1639,3 +1639,23 @@ body.wo-app .wo-topbar-item:hover { color: var(--neutral-500); }
     .inv-btn,
     .inv-drawer-layer * { transition: none !important; }
 }
+
+/* v2 (nov 2026) · 801:540: la marca amarilla de "estudios" mide 67 px de alto
+   (no 71) y el título arranca 16 px bajo el eyebrow; así la primera línea no
+   se separa más que las otras dos (paso de 59 px). */
+.inv-eyebrow { margin-bottom: 10px; }
+.inv-title-mark { padding-block: 5px; margin-left: -.24em; }
+
+/* v2 · 801:1101 / 801:1102 / 801:1103: en pantallas de hasta ~412 px el aside
+   ocupa el ancho completo desde arriba (el frame del Figma es el panel de 380
+   px sin márgenes); en pantallas mayores sigue siendo el modal centrado. */
+@media (max-width: 25.75rem) {
+    .inv-drawer-layer { padding: 0; place-items: start stretch; }
+    .inv-drawer {
+        width: 100%;
+        max-height: 100vh;
+        box-shadow: none;
+    }
+    .inv-drawer:focus,
+    .inv-drawer:focus-visible { box-shadow: none; }
+}

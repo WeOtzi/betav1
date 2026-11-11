@@ -15,7 +15,10 @@
   --wod-rule: var(--sand-250);                                                  /* #dcd6c9 */
   --wod-rule-soft: var(--sand-150);                                             /* #ede8dc */
   --wod-unread-bg: color-mix(in srgb, var(--blue-100) 30%, var(--white));       /* #f5f8ff */
-  --wod-scrim: color-mix(in srgb, var(--neutral-500) 42%, transparent);
+  /* Scrims del Figma: modales rgba(26,26,26,.55) (512:2015) y paneles de
+     compartir al 35% (801:561/562), sobre --figma-panel-ink (#1A1A1A). */
+  --wod-scrim: color-mix(in srgb, var(--figma-panel-ink) 55%, transparent);
+  --wod-drawer-scrim: color-mix(in srgb, var(--figma-panel-ink) 35%, transparent);
 }
 
 /* ---------------------------------------------------------------- rail --- */
@@ -266,7 +269,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 36px 16px 32px;
+  padding: 60px 20px 32px; /* Figma 512:2015: px 20 · py 60 */
   overflow-y: auto;
   background: var(--wod-scrim);
 }
@@ -538,7 +541,7 @@ body.wod-modal-open, body.wod-drawer-open { overflow: hidden; }
   position: fixed;
   inset: var(--wod-drawer-top, 76px) 0 0 0;
   z-index: 1240;
-  background: var(--wod-scrim);
+  background: var(--wod-drawer-scrim);
 }
 .wod-drawer {
   position: fixed;

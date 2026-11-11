@@ -2178,12 +2178,14 @@
         height: 130px;
     }
 
+    /* Figma 344:1407: el contenedor (pt 71.2) arranca 19.6px antes del fin de la banda
+       azul → título a 51.6px del borde; 32px de gap hasta el filete. */
     .specialties-band {
-        padding-block: 70px 22px;
+        padding-block: 51.6px 22px;
     }
 
     .specialty-table {
-        margin-top: 30px;
+        margin-top: 32px;
         border-top-color: var(--ink);
     }
 
@@ -2270,8 +2272,9 @@
         transform: none;
     }
 
+    /* Figma 345:2002: el bloque del portafolio arranca ~19px bajo la banda roja con pt 24. */
     .gallery-band {
-        padding-block: 62px 70px;
+        padding-block: 45px 70px;
     }
 
     .gallery-band > .profile-shell {
@@ -2291,8 +2294,9 @@
         margin-top: 32px;
     }
 
+    /* Figma 801:1108: ~81px del último destino al rótulo «Dónde tatué». */
     .presence-band {
-        padding-block: 22px 48px;
+        padding-block: 22px 58px;
     }
 
     .presence-head {
@@ -2304,7 +2308,7 @@
     }
 
     .cities-band {
-        padding-block: 16px 66px;
+        padding-block: 16px 60px;
     }
 
     .cities-head {

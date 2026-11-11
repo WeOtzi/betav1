@@ -166,7 +166,8 @@ body.quotation-detail-page {
 
 /* ---------------------------------- layout ---------------------------------- */
 .qd-main {
-    width: min(100%, 1368px);
+    /* Figma 557:8046: contenedor de 1398px con 44px de lado → columna útil de 1310px. */
+    width: min(100%, 1398px);
     min-height: calc(100vh - 142px);
     margin-inline: auto;
     padding: 0 calc(var(--space-1) * 11) var(--space-16);

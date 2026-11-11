@@ -1311,3 +1311,107 @@ body.igi-open .ra-topbar{z-index:0}
 .ra-group[data-group="trabajo"] .ra-actions{column-gap:20px}
 .ra-group[data-group="trabajo"] .ra-continue:disabled{height:46px;min-height:46px;padding:0 22px;gap:12px;font-size:13px;letter-spacing:0.08em}
 .ra-group[data-group="trabajo"] .ra-continue:disabled [data-wo-icon]{width:16px;height:16px}
+
+/* ============================================================================
+   Ronda 3 (g1-acceso · Figma v2)
+   ========================================================================== */
+
+/* 03 · Panel "Todos los estilos" (2001:3897): en desktop el panel se muestra
+   completo (863×2061 en el frame) y scrollea el velo, no el cuerpo del panel.
+   El pie con CANCELAR / APLICAR queda fijo abajo mientras se recorre la lista. */
+@media (min-width:769px){
+  .ra-styles-overlay{padding-bottom:var(--space-8)}
+  .ra-styles-panel{max-height:none;flex:none}
+  .ra-styles-body{overflow:visible;flex:none}
+  .ra-styles-foot{position:sticky;bottom:0;z-index:1}
+}
+.ra-styles-panel:focus,.ra-styles-panel:focus-visible{outline:none;box-shadow:none}
+/* Cabecera: el frame la muestra con el título a 15.8px del borde (cabecera de
+   158.8px) y 24px de aire antes del primer grupo; cuerpo 26 / 41.2 de lados. */
+.ra-styles-head{padding-top:15.8px}
+.ra-styles-body{padding:var(--space-6) 41.2px 0 26px}
+/* Pie de 64px: borde 1.6 + 8.2 + botón 46 + 8.2 */
+.ra-styles-foot{min-height:64px;padding:8.2px 26px}
+/* Grupos de 154.8px: el 22.8 del frame ya incluye el filete de 0.8 */
+.ra-styles-group{padding-bottom:22px}
+
+/* El registro del Figma final (801:1086–801:1098) no tiene pie de página:
+   la página termina con 140px de aire bajo el último grupo. */
+body.register-page .bauhaus-footer{display:none}
+
+/* Cabecera "Armemos tu perfil." (801:1086 / 801:1097): eyebrow 15 + 9.1,
+   título de 45px de alto. */
+.ra-intro-eyebrow{margin-bottom:8.1px}
+.ra-intro-title{line-height:45px}
+@media (max-width:768px){
+  .ra-intro-title{line-height:1.06}
+}
+
+/* Filas resumen de 78.8px (filete 1.6 + 16 + eyebrow 21.2 + valor 24 + 16) */
+.ra-row{padding:16px 0}
+.ra-row-eyebrow{margin:0;line-height:21.2px}
+.ra-row-value{line-height:24px}
+
+/* Panel activo: eyebrow → título 10.8px y título de 30px de alto (Heading 2) */
+.ra-eyebrow{margin-bottom:10.4px}
+.ra-title{line-height:1.07}
+
+/* 07 · Revisión: filas de 41.8px (el 12.8 del frame incluye el filete de 0.8) */
+.summary-row{padding:12px 0}
+
+/* Aire final: sección 28px + contenedor 140px bajo el último CONTINUAR */
+@media (min-width:769px){
+  .register-container{padding-bottom:152px}
+}
+
+/* 04 · Tu presencia (801:1091–801:1093) */
+/* Presentación: 99.2px de alto, texto a 13.6 / 17.6 del borde */
+.ra-textarea{height:99.2px;min-height:99.2px;padding:12.6px 17.6px}
+/* "¿Dónde mostrás tu trabajo?": 22px bajo el campo, 10px hasta los toggles */
+.ra-sublabel{margin:22px 0 10px;line-height:17px}
+/* Toggles de 31.6px con 10px de separación */
+.link-toggles{gap:10px}
+.link-toggle{min-height:31.6px;padding:7.6px 12.6px;line-height:14.4px}
+/* Links: 14px bajo los toggles y 12px entre campos */
+.link-toggles + .ra-fields{margin-top:14px;gap:12px}
+/* Portfolio: filete a 28px del último campo; título de 25px y bajada de 23px */
+.ra-portfolio{margin-top:28px}
+.ra-portfolio-title{line-height:25px}
+.ra-portfolio-lead{line-height:23px}
+/* Labels mono de 15px de alto (Label 15 en todos los frames del registro) */
+.ra-label{line-height:15px}
+
+/* 05 · Buscar estudio (801:1095): sugerencias de 63.8px (el 14.8 del frame
+   incluye el filete inferior) */
+.studio-suggestion-item{padding-bottom:14px}
+
+/* 06 · Novedades (801:1096): tarjetas de 374×77.4 (gap 12 / 12.6), borde ink
+   sin relleno; fila check 25.2 + título Inter 16 regular, y debajo la
+   descripción mono 10 alineada con el check (no con el título). */
+.newsletter-topics{gap:12.6px 12px}
+.newsletter-topic{display:grid;grid-template-columns:25.2px minmax(0,1fr);align-items:center;column-gap:12px;row-gap:8px;padding:14.6px;background:transparent;border-color:var(--ink)}
+.newsletter-topic-body{display:contents}
+.newsletter-topic-input{width:25.2px;height:25.2px}
+.newsletter-topic-title{grid-column:2;font-size:16px;font-weight:var(--weight-regular);line-height:normal;color:var(--text-body)}
+.newsletter-topic-sub{grid-column:1 / -1;line-height:13px;letter-spacing:0}
+/* CONTINUAR de este grupo: 40px de alto */
+.ra-group[data-group="novedades"] .ra-continue{height:40px;min-height:40px}
+
+/* 03 · Tu oficio (801:1088): bajada 17px a 7.6 del título, chips a 14px,
+   chips de 36px con 12.6 de lado y 8px de separación; el elegido se levanta
+   2px (translate -2/-2) con su sombra dura, como en el frame. */
+.ra-group[data-group="oficio"] .ra-title{margin-bottom:7.6px}
+.ra-group[data-group="oficio"] .ra-hint{margin-bottom:14px;line-height:17px}
+.styles-grid,
+.experience-options{gap:8px}
+.style-option,
+.experience-option,
+.ra-more-styles{padding:9px 12.6px}
+.style-option.selected,
+.experience-option.selected{padding:8px 11.6px;transform:translate(-2px,-2px)}
+.style-option.selected:active,
+.experience-option.selected:active{transform:none}
+.ra-group[data-group="oficio"] .ra-sublabel{margin:36px 0 17px}
+@media (min-width:769px){
+  .ra-fields--price{grid-template-columns:minmax(0,260px) minmax(0,164px);column-gap:12px}
+}

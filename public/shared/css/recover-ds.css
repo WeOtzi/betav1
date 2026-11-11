@@ -185,3 +185,7 @@
 .wo-app .rc-inputwrap .wo-input::placeholder{color:color-mix(in srgb,var(--neutral-400) 75%,var(--neutral-300));opacity:1}
 /* 801:1105: el email de destino va en peso regular, color ink */
 .rc-copy strong#rc-code-email{font-weight:var(--weight-regular);color:var(--ink)}
+
+/* Ronda 3 (Figma v2 · 801:1107): el bloque de éxito lleva 24px arriba y abajo
+   y 19.2px entre check, títulos y botón (contenedor de 297.6px). */
+.rc-success{margin-top:0;padding:24px 0;gap:19.2px}

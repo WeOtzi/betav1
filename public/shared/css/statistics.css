@@ -765,3 +765,15 @@
 .stats-main .funnel {
     padding-top: 14px;
 }
+
+/* Figma 801:543 (122:10778 · 122:10851 · 122:10864 · 122:10873): cabeceras de Embudo
+   (pt 10) y Evolución (pt 6.8); fila de métricas de 46px exactos; la cifra del gráfico
+   arriba a la izquierda y el delta a 21.6px del tope. */
+@media (min-width: 769px) {
+    .stats-section[aria-labelledby="funnel-title"] > .stats-section-head { padding-top: 8px; }
+    .stats-section[aria-labelledby="evolution-title"] > .stats-section-head { padding-top: 6.8px; }
+    #evolution-metrics { height: 43px; min-height: 0; box-sizing: border-box; }
+    .evolution-head { align-items: flex-start; }
+    .evolution-delta { margin-top: 21.6px; }
+    .stats-section--performance { padding-top: 40px; }
+}

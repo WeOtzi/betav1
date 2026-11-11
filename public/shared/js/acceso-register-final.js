@@ -256,7 +256,7 @@
         overlay.className = 'ra-styles-overlay';
         overlay.hidden = true;
         overlay.innerHTML = `
-            <div class="ra-styles-panel" role="dialog" aria-modal="true" aria-labelledby="ra-styles-title">
+            <div class="ra-styles-panel" role="dialog" aria-modal="true" aria-labelledby="ra-styles-title" tabindex="-1">
                 <header class="ra-styles-head">
                     <div class="ra-styles-head-row">
                         <div>
@@ -384,7 +384,8 @@
         panelState.open = true;
         const moreBtn = $('styles-more-btn');
         if (moreBtn) moreBtn.setAttribute('aria-expanded', 'true');
-        setTimeout(() => { try { $('ra-styles-query').focus({ preventScroll: true }); } catch (_) { /* foco opcional */ } }, 30);
+        // Foco en el diálogo (no en el buscador): el frame 2001:3897 abre con el buscador en reposo.
+        setTimeout(() => { try { overlay.querySelector('.ra-styles-panel').focus({ preventScroll: true }); } catch (_) { /* foco opcional */ } }, 30);
     }
 
     function closeStylesPanel() {

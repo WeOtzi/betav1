@@ -44,6 +44,7 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
     margin: 0;
     font-family: var(--font-mono);
     font-size: var(--font-size-min);
+    line-height: normal;
     letter-spacing: 0.16em;
     text-transform: uppercase;
 }
@@ -84,8 +85,9 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2) 7px;
-    padding: var(--space-3) var(--space-6) calc(var(--space-1) * 3.5);
+    /* Figma 564:12769: filas de chips a 31.8px (7px de gap) y 81.4px de alto total. */
+    gap: 7px;
+    padding: var(--space-3) var(--space-6);
     border-bottom: var(--border-hairline) solid var(--sand-250);
 }
 /* Avance por carácter igual al del Figma (9.5px + tracking 0.95px ≈ 10px + 0.06em):
@@ -106,6 +108,7 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
     padding: 6px var(--space-3);
     font-family: var(--font-mono);
     font-size: var(--font-size-min);
+    line-height: normal;
     letter-spacing: 0.025em;
     text-transform: uppercase;
     cursor: pointer;
@@ -113,6 +116,8 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
 .wn-chip:hover { background: var(--yellow-300); color: var(--neutral-500); }
 
 /* cuerpo */
+/* Figma 559:11412 (801:578, en contexto): primer bloque a ~4px del filete de plantillas.
+   Las plantillas sueltas 801:1111–1115 lo dibujan a 20px; se sigue la pantalla en contexto. */
 .wn-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--space-1) calc(var(--space-1) * 10) var(--space-6) var(--space-6); }
 .wn-blocks { display: grid; padding-bottom: var(--space-4); }
 .wn-block { display: flex; align-items: flex-start; gap: calc(var(--space-1) * 2.75); padding: 7px 0; }
@@ -180,7 +185,9 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
 .wn-icon-btn:hover { color: var(--red-300); }
 .wn-icon-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
-.wn-section { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) 7px; padding: var(--space-4) 0 var(--space-5); border-top: var(--border-hairline) solid var(--sand-250); }
+.wn-section { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: var(--space-4) 0 var(--space-5); border-top: var(--border-hairline) solid var(--sand-250); }
+/* Figma 564:12862/564:12869: etiqueta de sección a 18.8px del filete. */
+.wn-section.wn-tags, .wn-section.wn-history { padding-top: calc(var(--space-4) + 3px); }
 .wn-add-btn {
     border: var(--border-hairline) solid var(--neutral-500);
     background: var(--figma-white);
@@ -188,6 +195,7 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
     padding: 6px var(--space-3);
     font-family: var(--font-mono);
     font-size: var(--font-size-min);
+    line-height: normal;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     cursor: pointer;
@@ -195,7 +203,8 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
 .wn-add-btn:hover { background: var(--neutral-500); color: var(--neutral-100); }
 
 .wn-tags { display: grid; gap: calc(var(--space-1) * 2.75); }
-.wn-tags .wn-section-label { padding-top: var(--space-1); }
+.wn-tags .wn-section-label { padding-top: 0; line-height: normal; }
+.wn-history .wn-section-label { line-height: normal; }
 .wn-tag-list { display: flex; flex-wrap: wrap; gap: 7px; }
 .wn-tag {
     display: inline-flex;
@@ -218,6 +227,7 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
     padding: 6px var(--space-3);
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
+    line-height: normal;
     letter-spacing: 0.1em;
 }
 .wn-tag-input::placeholder { color: var(--neutral-400); }
@@ -263,7 +273,8 @@ html.wn-lock, html.wn-lock body { overflow: hidden; }
 .wn-foot-link:hover { color: var(--blue-500); text-decoration: underline; }
 .wn-chip:focus-visible, .wn-add-btn:focus-visible, .wn-open:focus-visible, .wn-foot-btn:focus-visible, .wn-foot-link:focus-visible, .wn-close:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
-@media (max-width: 640px) {
+/* El panel mide 620px: el ajuste angosto aplica solo cuando no entra entero. */
+@media (max-width: 619px) {
     .wn-panel { border-left: 0; }
     .wn-head, .wn-templates, .wn-foot { padding-inline: var(--space-4); }
     .wn-body { padding-inline: var(--space-4); }

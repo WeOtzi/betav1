@@ -148,3 +148,10 @@
 
 /* Logo de Facebook relleno (asset de marca del Figma 801:585, 16.66px) */
 .wo-auth-social-btn .wo-auth-brand-logo{width:16.66px;height:16.66px;flex:none;display:block}
+
+/* Ronda 3 (Figma v2 · 801:585 / 2001:3334): el formulario arranca en y=226
+   (5px más abajo que el centrado exacto) y ENTRAR queda a 24px de la contraseña. */
+@media (min-width:1025px){
+  .artist-login-page .wo-auth-panel-inner{margin-top:10px}
+}
+.artist-login-page .wo-auth-form .wo-auth-btn{margin-top:2px}

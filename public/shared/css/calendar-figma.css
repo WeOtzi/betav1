@@ -909,7 +909,8 @@ body.cal-app:has(#calendar-editor:not([hidden])) { background: var(--neutral-100
     .cal-time-allday .cal-event { height: 20px; padding: 3px 6px; font: 700 10px/14px var(--font-mono); }
 
     /* 801:545 · día: título arena separado 8 px, filas de 65,6 px y bloque con aire */
-    .cal-time-grid.cal-time-grid--day { --hour-height: 65.6px; grid-template-rows: calc(var(--hour-height) * 12); border-top: 0; }
+    /* 801:545 · día: filas de 64,8 px (Figma 52:8970…8981) */
+    .cal-time-grid.cal-time-grid--day { --hour-height: 64.8px; grid-template-rows: calc(var(--hour-height) * 12); border-top: 0; }
     .cal-day-board-title { height: auto; min-height: 82px; margin-bottom: 8px; padding: 17.6px 21.6px; border-bottom: 0.0625rem solid var(--ink); background: var(--figma-sand); }
     .cal-day-board-title span { font-size: 10px; line-height: 12px; letter-spacing: 0.8px; }
     .cal-day-board-title strong { margin-top: 1px; font-size: 32px; line-height: 33px; }
@@ -1063,7 +1064,7 @@ body.cal-app:has(#calendar-editor:not([hidden])) { background: var(--neutral-100
     }
 
     .cal-time-grid.cal-time-grid--day {
-        --hour-height: 6.938776cqw;
+        --hour-height: 6.612245cqw;
         grid-template-rows: calc(var(--hour-height) * 12);
     }
 

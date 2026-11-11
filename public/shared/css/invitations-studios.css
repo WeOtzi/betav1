@@ -1493,3 +1493,21 @@ legend.isc-label { margin-bottom: 10px; }
     .isc-btn,
     .ism-marker { transition: none !important; }
 }
+
+/* v2 (nov 2026) · 2007:5795: en el Figma el pie del diálogo mide 50 px y sus
+   botones 21.2 px de alto (14.8 + 21.2 + 14). En pantallas táctiles se
+   conservan los 36 px. */
+@media (min-width: 48rem) and (hover: hover) {
+    .isc-foot .isc-btn { height: 21.2px; }
+}
+
+/* v2 · 2007:5794 / 2007:5795: "Mapa de estudios" es un enlace de texto de 16 px
+   (2007:5483) y la sección arranca 19.5 px debajo; con la caja de 36 px todo
+   el detalle bajaba 18 px. En táctil se conserva el área de 36 px. */
+@media (min-width: 48rem) and (hover: hover) {
+    .isd-back { min-height: 16px; margin-bottom: 3.5px; }
+}
+/* 2007:5792 / 2007:5793: mismo enlace de texto de 16 px sobre el título. */
+@media (min-width: 48rem) and (hover: hover) {
+    .ism-back { min-height: 16px; margin-bottom: 4px; }
+}

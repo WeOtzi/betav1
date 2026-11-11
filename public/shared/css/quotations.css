@@ -983,7 +983,8 @@ body.wo-app {
     border-bottom: var(--border-strong-width) solid var(--border-strong);
 }
 
-.q-listado .q-group-title { font-size: 13px; letter-spacing: 0.1em; }
+/* Figma 99:1082: párrafo de 27.6px (texto de 17.6px + 10px) sobre la regla. */
+.q-listado .q-group-title { font-size: 13px; line-height: 1.35; letter-spacing: 0.1em; }
 .q-listado .q-group-sum { font-size: 11px; letter-spacing: 0; color: var(--text-faint); }
 
 .q-listado .q-card {
@@ -2830,6 +2831,7 @@ html.qs-open { overflow: hidden; }
     margin: 0;
     font-family: var(--font-mono);
     font-size: var(--meta-m-size);
+    line-height: normal;
     color: var(--neutral-400);
 }
 
@@ -2884,25 +2886,27 @@ html.qs-open { overflow: hidden; }
 .qs-close:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
 /* Referencia + selects de estado y prioridad (el Figma los pega a 6px del borde) */
-.qs-controls { padding: 6px 6px 0; }
+.qs-controls { padding: 2px 6px 0; }
 
 .qs-ref {
     margin: 0;
     padding-top: 6px;
     font-family: var(--font-mono);
     font-size: 10.5px;
+    line-height: normal;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--text-faint);
 }
 
-.qs-selects { display: flex; gap: calc(var(--space-2) + 2px); margin-top: var(--space-3); }
+.qs-selects { display: flex; gap: calc(var(--space-2) + 2px); margin-top: calc(var(--space-2) + 2px); }
 
 .qs-select-field { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
 .qs-select-label {
     font-family: var(--font-mono);
     font-size: 9px;
+    line-height: normal;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-faint);
@@ -2953,7 +2957,7 @@ html.qs-open { overflow: hidden; }
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
-    padding: var(--space-8) var(--space-6) var(--space-6);
+    padding: var(--space-10) var(--space-6) var(--space-6);
 }
 
 .qs-section { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -2970,16 +2974,20 @@ html.qs-open { overflow: hidden; }
 .qs-section-title span {
     font-family: var(--font-mono);
     font-size: var(--meta-m-size);
+    line-height: normal;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-faint);
     white-space: nowrap;
 }
 
-.qs-tattoo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0; }
+/* Figma 99:733: título → grilla a 14px; la descripción va pegada a la grilla (53px). */
+.qs-section:first-child { gap: calc(var(--space-3) + 2px); }
+.qs-section:first-child .qs-desc { margin-top: calc(-1 * (var(--space-3) + 2px)); }
+.qs-tattoo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0; padding-top: 2px; }
 .qs-tattoo-cell { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.qs-tattoo dt { font-family: var(--font-mono); font-size: var(--meta-s-size); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.qs-tattoo dd { margin: 0; font-size: var(--body-s-size); font-weight: var(--weight-semibold); color: var(--surface-ink); overflow-wrap: anywhere; }
+.qs-tattoo dt { font-family: var(--font-mono); font-size: var(--meta-s-size); line-height: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.qs-tattoo dd { margin: 0; font-size: var(--body-s-size); line-height: normal; font-weight: var(--weight-semibold); color: var(--surface-ink); overflow-wrap: anywhere; }
 
 .qs-desc { margin: 0; font-size: var(--body-s-size); line-height: 1.5; color: var(--neutral-500); }
 
@@ -3062,6 +3070,7 @@ html.qs-open { overflow: hidden; }
     margin-top: var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
+    line-height: normal;
     letter-spacing: 0.05em;
     text-align: center;
     text-transform: uppercase;
@@ -3101,6 +3110,7 @@ html.qs-open { overflow: hidden; }
 .qs-msg-meta {
     font-family: var(--font-mono);
     font-size: var(--meta-s-size);
+    line-height: normal;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-faint);
@@ -3113,7 +3123,7 @@ html.qs-open { overflow: hidden; }
     background: var(--figma-sand);
     border: var(--border-hairline) solid var(--neutral-200);
     font-size: 13px;
-    line-height: 1.35;
+    line-height: normal;
     color: var(--surface-ink);
     overflow-wrap: anywhere;
 }
