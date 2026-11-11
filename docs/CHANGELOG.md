@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.8] - 2026-11-11
+
+- Logger de sesión: no intenta guardar session_logs sin sesión (la RLS lo rechazaba con 401 en consola en login, registro y recuperar).
+- Validación: node --test 1280/1280; beta 2.2.7 mostraba el 401 en 2001:3334, 801:1086 y siguientes.
+- Rollback: controlador a la release 2.2.7 (23a507dc802705c84134f2bfed8e0bca1d75d9fe). Sin migraciones.
+
+
 ## [2.2.7] - 2026-11-11
 
 - Flujo de artista fiel al Figma final (w3JA83CcP5ISKjyOu87mx1): integra feature/figma-final-artista (acceso, registro, recuperación, dashboard, cotizaciones y notas, calendario, cuenta y wallet, perfil, estadísticas, job board, postulaciones, spots, invitaciones, travel, inbox, store) sobre 2.2.6, con una ronda de ajustes visuales contra las 109 pantallas del Figma. favicon.ico para la app.
