@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.5] - 2026-11-10
+
+- Backoffice: permitir borrar artistas con registros relacionados, con aviso y confirmación
+- El DELETE de artists_db fallaba (23503) por FKs sin acción ON DELETE: job_board_requests.accepted_artist_id, studio_bookings y studio_jobs_log. /api/admin/delete-artist ahora tiene modo preview con conteo por tabla; con force desvincula (nullable) o elimina (NOT NULL) las filas que bloquean y luego borra. admin.js muestra las relaciones y su efecto antes de confirmar.
+- Validación: tests/artist-relations.test.js 3/3; node --check server.js/admin.js. FKs y nulabilidad leídas del proyecto Supabase vivo. Sin migraciones.
+- Rollback: git revert en rama y PR, o controlador a la release 2.2.4 (13b4cb2ff0763ecb75a3d1ef63c3db9bcc59ad1c). Las filas desvinculadas/eliminadas en borrados ya hechos no se recuperan con el rollback.
+
 ## [2.2.4] - 2026-11-01
 
 - Unificar el acceso y todo el panel de Estudios con los componentes visuales del artista

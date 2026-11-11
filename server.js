@@ -1674,7 +1674,36 @@ app.post('/api/admin/delete-artist', async (req, res) => {
             return res.status(403).json({ success: false, error: 'No se puede eliminar la cuenta superadmin.' });
         }
 
-        // Step 2: delete. return=representation makes PostgREST echo the deleted
+        // Step 2: relaciones. `preview` solo informa; sin `force` no se borra
+        // si hay relaciones (el cliente debe mostrarlas y pedir confirmación).
+        const { countArtistRelations, clearBlockingRelations } = require('./lib/artist-relations');
+        const artistKeys = { id: rows[0].id, user_id: rows[0].user_id };
+        let relations;
+        try {
+            relations = await countArtistRelations(pgrest, artistKeys);
+        } catch (relErr) {
+            console.error('[Admin API] delete-artist relations lookup failed:', relErr.status, relErr.message);
+            return res.status(502).json({ success: false, error: 'No se pudieron consultar las relaciones del artista.' });
+        }
+        const { preview, force } = req.body || {};
+        if (preview || (!force && relations.length > 0)) {
+            return res.status(preview ? 200 : 409).json({
+                success: !!preview,
+                needsConfirmation: relations.length > 0,
+                relations,
+                error: preview ? undefined : 'El artista tiene registros relacionados; confirma el borrado forzado.'
+            });
+        }
+        if (relations.some((r) => r.blocking)) {
+            try {
+                await clearBlockingRelations(pgrest, artistKeys);
+            } catch (clrErr) {
+                console.error('[Admin API] delete-artist clear relations failed:', clrErr.status, clrErr.message);
+                return res.status(502).json({ success: false, error: `No se pudieron liberar las relaciones: ${String(clrErr.message || '').slice(0, 300)}` });
+            }
+        }
+
+        // Step 3: delete. return=representation makes PostgREST echo the deleted
         // row so we can distinguish a real delete from a 0-row no-op.
         let deleted;
         try {
@@ -1694,7 +1723,8 @@ app.post('/api/admin/delete-artist', async (req, res) => {
             return res.status(404).json({ success: false, error: 'No se eliminó ninguna fila.' });
         }
 
-        console.log(`[Admin API] Artist deleted by superadmin ${auth.email}: ${column}=${value}`);
+        console.log(`[Admin API] Artist deleted by superadmin ${auth.email}: ${column}=${value}` +
+            (relations.length ? ` (relaciones: ${relations.map((r) => `${r.table}=${r.count}`).join(', ')})` : ''));
         return res.json({ success: true, message: 'Artista eliminado correctamente' });
 
     } catch (error) {
