@@ -1,0 +1,440 @@
+{
+  "area": "acceso",
+  "frames": [
+    {
+      "node": "797:269",
+      "name": "Artista / Inicio - Elegir experiencia",
+      "route": "/bienvenida",
+      "result": "rediseñada",
+      "summary": "Título '¡Bienvenido!', cards con radio 20px, slot de ilustración punteado, estado elegido azul con check circular y sombra dura, CTA ink y nota del pie del Figma. ?role=artist|client preselecciona; navegación con prefijo /beta o preview y loader post-auth.",
+      "figma_png": "output/figma-final-artista/frames/797-269_inicio-elegir-experiencia.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/797-269.png",
+      "state_url": "/bienvenida/?role=artist",
+      "fidelity": "alta",
+      "fidelity_notes": "Sin cambios en la ronda 1 (captura de la ronda anterior). Las ilustraciones editoriales siguen siendo assets faltantes: slot punteado con ícono image. 'Solicitar cotizaciones' conserva el ícono file-text (en el Figma le falta; se lee como descuido del mockup, pendiente de confirmar con diseño). Radio 20px y fondo #EEF3FF (color-mix de tokens) son excepción al DS, tomadas del mockup."
+    },
+    {
+      "node": "801:585",
+      "name": "Artista / Iniciar sesión - Email y redes sociales",
+      "route": "/artist/login",
+      "result": "rediseñada",
+      "summary": "Póster 728px con marcas y triángulo; formulario de 422px con inputs con ícono, ENTRAR, ¿Olvidaste tu contraseña? (→ /recover), 'O continuá con', Recomendado + Instagram/Email/Facebook y '¿Sin cuenta? Registrate'. Ronda 1: placeholders grises (ahora le ganan a la regla del DS), logo de Facebook relleno del Figma e INSTAGRAM abre el inicio rápido de registro con Instagram (/register-artist/?source=instagram).",
+      "figma_png": "output/figma-final-artista/frames/801-585_login-email-redes.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-585.png",
+      "state_url": "/artist/login/?state=login",
+      "fidelity": "alta",
+      "fidelity_notes": "Placeholder: no hay token gris neutro para el gris 757575 del Figma; se usa color-mix(--neutral-400 75%, --neutral-300), apenas más cálido. El logo de Facebook es el SVG del Figma servido desde /artist/login/assets/facebook.svg (asset de marca, excepción a Feather). INSTAGRAM no inicia sesión (Meta/Supabase no lo permiten para cuentas personales): lleva al inicio rápido de registro; las cuentas existentes entran con email. La captura incluye la barra amarilla del preview (62px)."
+    },
+    {
+      "node": "2001:3334",
+      "name": "Artista / Iniciar sesión - usuario registrado",
+      "route": "/artist/login",
+      "result": "estado-nuevo",
+      "summary": "Vista 'Ya iniciaste sesión' / 'Continuá desde tu panel de artista' con DASHBOARD (ink, flecha, loader v2), MIS COTIZACIONES y JOB BOARD (contorno) y CERRAR SESIÓN en rojo mono. Se mantienen los subestados existentes (perfil incompleto, cuenta cliente, sin perfil) con el mismo estilo.",
+      "figma_png": "output/figma-final-artista/frames/2001-3334_login-usuario-registrado.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/2001-3334.png",
+      "state_url": "/artist/login/",
+      "fidelity": "exacta",
+      "fidelity_notes": "Posiciones verificadas a ±2px contra el frame."
+    },
+    {
+      "node": "801:1099",
+      "name": "Artista / Registro - 09 Organizando tu agenda - Variante 01",
+      "route": "/artist/login (post-login)",
+      "result": "rediseñada",
+      "summary": "wo-postauth-loader.js rehecho: spinner 120px con arco azul, marca WE ÖTZI 44px y 'ORGANIZANDO TU AGENDA…' mono 13. Variante v1 = login con email/contraseña → dashboard.",
+      "figma_png": "output/figma-final-artista/frames/801-1099_registro-09-agenda-v1.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1099.png",
+      "state_url": "/artist/login/?postauth=v1",
+      "fidelity": "exacta",
+      "fidelity_notes": "El arco usa --blue-500 (#0041C4) como token más cercano a #0057B8. Cliente ve 'Explorando artistas…'."
+    },
+    {
+      "node": "2001:3335",
+      "name": "Artista / Registro - 09 Organizando tu agenda - Variante 2",
+      "route": "/artist/login (Ya iniciaste sesión → Dashboard)",
+      "result": "estado-nuevo",
+      "summary": "Mismo diseño que v1 (las 3 variantes del Figma son idénticas); se dispara desde el botón DASHBOARD de la vista de sesión activa (data-variant=v2).",
+      "figma_png": "output/figma-final-artista/frames/2001-3335_registro-09-agenda-v2.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/2001-3335.png",
+      "state_url": "/artist/login/?postauth=v2",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    },
+    {
+      "node": "2001:4308",
+      "name": "Artista / Registro - 09 Organizando tu agenda - Variante 3",
+      "route": "/register-artist (08 → panel)",
+      "result": "estado-nuevo",
+      "summary": "Registro 08: 'Ir a tu panel' y el redirect automático a los 3 s pasan por el loader v3 (redirectAfterRegistration en register.js).",
+      "figma_png": "output/figma-final-artista/frames/2001-4308_registro-09-agenda-v3.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/2001-4308.png",
+      "state_url": "/artist/login/?postauth=v3",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    },
+    {
+      "node": "801:536",
+      "name": "Artista / Crear cuenta - Email y redes sociales",
+      "route": "/registerclosedbeta",
+      "result": "rediseñada",
+      "summary": "Sin topbar ni menú; póster con marcas + '[ ACCESO ANTICIPADO · BETA CERRADA ]', titular, manifiesto y triángulo; formulario de 468px; banda de términos (→ /legal/terms), REGISTRARME, redes y '¿Ya tenés cuenta? Ingresá'. Ronda 1: placeholders grises, logo de Facebook relleno, validación propia con mensajes del DS (form novalidate), botón sin estilos inline (el texto cambia en .btn-text, la flecha queda, los errores van a #form-message), póster sin superposiciones entre 1024 y 1279px y, con sesión activa, redirección a /artist/login ('Ya iniciaste sesión', 2001:3334) en lugar del aviso azul.",
+      "figma_png": "output/figma-final-artista/frames/801-536_crear-cuenta.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-536.png",
+      "state_url": "/registerclosedbeta/?state=signup",
+      "fidelity": "alta",
+      "fidelity_notes": "Placeholder con color-mix de tokens (ver 801:585). Entre 1024 y 1279px el eyebrow baja debajo de las marcas y el manifiesto se angosta (el Figma solo define 1440). /legal/terms todavía no existe (ver missing_functions). Capturas extra: 801-536-1024.png (póster a 1024px) y 801-536-sesion-activa.png (con sesión termina en 'Ya iniciaste sesión')."
+    },
+    {
+      "node": "801:1086",
+      "name": "Artista / Registro - 01 Quién sos",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Topbar del registro corregida (marca a 32px, figuras de 14px separadas 10px, nav mono 10px con tracking 0.05em y check pegado), subtítulo 16/24 de 525px (corta después de 'Podés'), labels mono 12px, inputs de 47px, placeholders grises, título→campos 20px y campos→CONTINUAR 22px, CONTINUAR con flecha Feather y deshabilitado ink al 40%.",
+      "figma_png": "output/figma-final-artista/frames/801-1086_registro-01-quien-sos.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1086.png",
+      "state_url": "/register-artist/?step=1",
+      "fidelity": "alta",
+      "fidelity_notes": "La nav arranca en x≈218 (el Figma varía entre 214 y 243 según el frame). En preview los campos vienen precargados con la artista ficticia (el Figma los muestra vacíos), por eso CONTINUAR aparece habilitado."
+    },
+    {
+      "node": "801:1087",
+      "name": "Artista / Registro - 02 Tu acceso",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Email, contraseña y repetir. La regla de fuerza y el aviso de coincidencia ahora aparecen solo al escribir (el frame muestra los campos limpios).",
+      "figma_png": "output/figma-final-artista/frames/801-1087_registro-02-acceso.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1087.png",
+      "state_url": "/register-artist/?step=2&state=nuevo",
+      "fidelity": "alta",
+      "fidelity_notes": "Se conserva el botón ojo (mostrar/ocultar contraseña) dentro de los campos, que no figura en el mockup: decisión de accesibilidad pendiente de validar con diseño. Placeholders en el gris del Figma vía color-mix de tokens."
+    },
+    {
+      "node": "801:1088",
+      "name": "Artista / Registro - 03 Tu oficio",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "10 chips visibles con los elegidos primero (amarillo + sombra dura), 'VER MÁS ESTILOS' abre el panel; experiencia elegida en azul claro con sombra. Ronda 1: subtítulo pegado al título, 80px entre la tarifa y CONTINUAR, inputs de 47px.",
+      "figma_png": "output/figma-final-artista/frames/801-1088_registro-03-oficio.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1088.png",
+      "state_url": "/register-artist/?step=3",
+      "fidelity": "alta",
+      "fidelity_notes": "El preview solo siembra 6 estilos en tattoo_styles, por eso hay menos chips que en el frame. Medidas verificadas contra el design context (tarifa→CONTINUAR 80px)."
+    },
+    {
+      "node": "2001:3897",
+      "name": "Artista / Registro - 03 Tu oficio - Selector de estilos abierto",
+      "route": "/register-artist",
+      "result": "creada",
+      "summary": "Panel 'Todos los estilos' con buscador, contador, Limpiar selección, 12 categorías (estilos + subestilos) cruzadas con tattoo_styles, 'Agregar «x»' para estilos que no existen (registra vía /api/tattoo-styles/ensure), Cancelar / Aplicar N estilos. Esc, foco atrapado y click afuera cierran.",
+      "figma_png": "output/figma-final-artista/frames/2001-3897_registro-03-selector-estilos.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/2001-3897.png",
+      "state_url": "/register-artist/?step=3&state=estilos",
+      "fidelity": "alta",
+      "fidelity_notes": "Las categorías viven en una taxonomía de frontend (tattoo_styles no tiene categorías); los estilos del catálogo que no están en la taxonomía van a 'Otros estilos'. El panel tiene alto máximo de viewport con scroll interno (el frame lo muestra entero)."
+    },
+    {
+      "node": "801:1091",
+      "name": "Artista / Registro - 04 Tu presencia - Elegir cómo subir el portafolio",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Behance (toggle + campo) y la sección Portfolio con las cards 'Agregar desde Instagram' y 'Subir manualmente'. La card de archivos dice 'JPG, PNG o WebP' y el input acepta solo esas imágenes (la galería no publica PDF). Ronda 2: los mensajes de validación nombran los mismos formatos ('Usá JPG, PNG o WebP').",
+      "figma_png": "output/figma-final-artista/frames/801-1091_registro-04-elegir-portafolio.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1091.png",
+      "state_url": "/register-artist/?step=4",
+      "fidelity": "alta",
+      "fidelity_notes": "Desvío de copy pendiente de aprobación de diseño (no es una corrección ortográfica): el Figma dice 'JPG, PNG o PDF · hasta 10 MB cada uno.' y la página dice 'JPG, PNG o WebP · hasta 10 MB cada uno.' porque la galería pública solo publica imágenes y un PDF se rechazaría (ver missing_functions). El resto coincide. CONTINUAR queda alineado a la columna de 760px como en los otros pasos (en este frame está desplazado a x≈1043, parece un desajuste del mockup). El textarea mide 760px (en el frame desborda a 795px). En el preview los 4 toggles de links vienen activos (fixtures), por eso la página es más alta que el frame."
+    },
+    {
+      "node": "801:1092",
+      "name": "Artista / Registro - 04 Tu presencia - Conectar Instagram",
+      "route": "/register-artist",
+      "result": "estado-nuevo",
+      "summary": "Panel 'Conectar Instagram' con usuario, CONECTAR (abre el importador IG existente con el @ precargado; lo elegido entra al borrador y se sube al finalizar) y CANCELAR (rojo).",
+      "figma_png": "output/figma-final-artista/frames/801-1092_registro-04-conectar-ig.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1092.png",
+      "state_url": "/register-artist/?step=4&state=instagram",
+      "fidelity": "alta",
+      "fidelity_notes": "El importador (instagram-import.js, área dashboard) abre como modal propio. Ronda 1: mientras está abierto (body.igi-open) la topbar del registro baja a z-index 0 y queda bajo el velo (verificado con elementFromPoint)."
+    },
+    {
+      "node": "801:1093",
+      "name": "Artista / Registro - 04 Tu presencia - Portafolio cargado",
+      "route": "/register-artist",
+      "result": "estado-nuevo",
+      "summary": "'Tus trabajos' con contador, miniaturas de 102px con × rojo, nombre del archivo, tile AGREGAR y QUITAR TODO. Valida JPG/PNG/WebP ≤10 MB; los PDF se rechazan con mensaje.",
+      "figma_png": "output/figma-final-artista/frames/801-1093_registro-04-portafolio-cargado.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1093.png",
+      "state_url": "/register-artist/?step=4&state=cargado",
+      "fidelity": "alta",
+      "fidelity_notes": "Las imágenes de ejemplo son las ilustraciones demo del preview (contenido dinámico del usuario)."
+    },
+    {
+      "node": "801:1094",
+      "name": "Artista / Registro - 05 Cómo trabajás - Independiente",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Opción elegida en ink; sin el texto de ayuda bajo TU DIRECCIÓN (queda para lectores de pantalla), valor en Inter y ubicación guardada al reanudar. Ronda 2: tarjetas de 84.2px con borde de 1px ink, sin relleno, kicker mono 10 y valor 24px, elegida sin sombra (la sombra dura de 3px queda para hover); TU DIRECCIÓN con borde de 1px, sombra 3px 3px y 8px entre etiqueta y campo (el picker compartido le ponía 2px + 4px 4px en reposo).",
+      "figma_png": "output/figma-final-artista/frames/801-1094_registro-05-independiente.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1094.png",
+      "state_url": "/register-artist/?step=5",
+      "fidelity": "alta",
+      "fidelity_notes": "Verificado en el navegador: tarjetas 244×84.2 con texto a 19.6px del borde, título→tarjetas 20px, tarjetas→etiqueta 20px, etiqueta→campo 8px, campo 420×47.2 y campo→CONTINUAR 22px. Las tres tarjetas tienen el mismo ancho (244px); el frame las dibuja de 250/257/224. El preview solo tiene la ciudad de la artista ficticia, así que el campo muestra 'Buenos Aires, Argentina' (el Figma muestra una calle). Sin Google Places en el preview el picker es texto libre. No hay token para la sombra de 3px: se usa 3px 3px 0 var(--neutral-500)."
+    },
+    {
+      "node": "801:1095",
+      "name": "Artista / Registro - 05 Cómo trabajás - Buscar estudio",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "CONTINUAR deshabilitado hasta elegir un estudio de la lista o crear uno con dirección; hasta 5 sugerencias con 'Crear «x»' al pie; input de 560×52; nombres en mono bold. Ronda 2: CONTINUAR deshabilitado de 46px (padding 15/22, texto 13px, flecha de 16px separada 12px) con el aviso a 20px, lista sobre arena (surface-input) en vez de blanco, input con borde ink de 1px y sombra 3px 3px (también mientras se escribe) y 10px entre etiqueta e input.",
+      "figma_png": "output/figma-final-artista/frames/801-1095_registro-05-buscar-estudio.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1095.png",
+      "state_url": "/register-artist/?step=5&state=estudio",
+      "fidelity": "alta",
+      "fidelity_notes": "Verificado en el navegador: CONTINUAR 162×46 (el frame 160.65×46; la diferencia es el ancho del texto renderizado), aviso a 20px, etiqueta→input 10px, lista con fondo neutral-100 y sombra 3px 5px ink, input con sombra 3px 3px. Diferencias que quedan: la tarjeta elegida no lleva sombra ni desplazamiento en reposo (este frame la dibuja con sombra 3px y -2px; 801:1094 la dibuja sin sombra, así que la sombra quedó para hover) y el kicker va en 10px ink como en 801:1094 (este frame usa 11px gris). Los estudios listados son los del preview (fixtures de otras áreas). Sin Google Places (preview) una dirección escrita de 5+ caracteres alcanza para 'Crear «x»'; con Places hay que elegir una sugerencia. Al habilitarse, CONTINUAR vuelve a 33px como en el resto de los pasos (el frame solo define el estado deshabilitado de 46px)."
+    },
+    {
+      "node": "801:1096",
+      "name": "Artista / Registro - 06 Novedades y comunicaciones",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Los 4 temas ahora se persisten (artists_db.newsletter_topics, migración nueva) además del boolean subscribed_newsletter.",
+      "figma_png": "output/figma-final-artista/frames/801-1096_registro-06-novedades.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1096.png",
+      "state_url": "/register-artist/?step=6&state=todas",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    },
+    {
+      "node": "801:1097",
+      "name": "Artista / Registro - 07 Revisá y confirmá",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Filas de revisión de 12/12.8px, valor 14px, términos sin links azules que abren /legal/terms y /legal/privacy en otra pestaña, CONFIRMAR Y CREAR PERFIL de 37px con check. Ronda 2: columnas 140 + 581 + 39 sin gap, así que el valor arranca en x+140 como en el frame (antes había 16px de gap y arrancaba en x+156); en mobile vuelve el layout apilado (etiqueta arriba, valor + EDITAR abajo).",
+      "figma_png": "output/figma-final-artista/frames/801-1097_registro-07-revisa.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1097.png",
+      "state_url": "/register-artist/?step=7&state=aceptado",
+      "fidelity": "alta",
+      "fidelity_notes": "Verificado en el navegador: etiqueta 0–140, valor 140–721 y EDITAR 721–760 en una fila de 760px; filas de 42.4px (el frame 41.8). A 390px las filas se apilan y scrollWidth da 390 (la regla de la ronda 1 forzaba 140px también en mobile). Las rutas legales todavía no existen (ver missing_functions). Datos de la artista ficticia del preview."
+    },
+    {
+      "node": "801:1098",
+      "name": "Artista / Registro - 08 Perfil creado",
+      "route": "/register-artist",
+      "result": "rediseñada",
+      "summary": "Figuras de 18px, título 36px, gap 18px y CTA IR A TU PANEL de 44px con flecha Feather; CTA y redirect pasan por el loader v3. Ronda 1: el CTA ya no desborda a 390px (box-sizing + max-width; scrollWidth 390).",
+      "figma_png": "output/figma-final-artista/frames/801-1098_registro-08-perfil-creado.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1098.png",
+      "state_url": "/register-artist/?step=8",
+      "fidelity": "alta",
+      "fidelity_notes": "Con el nombre largo de la artista ficticia ('valentina-preview') el título ocupa dos líneas; con un nombre corto queda en una como el frame."
+    },
+    {
+      "node": "801:1104",
+      "name": "Artista / Recuperar acceso - 01 Ingresar email",
+      "route": "/recover",
+      "result": "rediseñada",
+      "summary": "Split 680/760, marcas del póster arriba a la izquierda, stepper de ítems 96px con líneas de 2px, botón deshabilitado ink al 40%, copy del Figma.",
+      "figma_png": "output/figma-final-artista/frames/801-1104_recuperar-01-email.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1104.png",
+      "state_url": "/recover/?from=artist&step=1",
+      "fidelity": "exacta",
+      "fidelity_notes": "Placeholder en el gris del Figma vía color-mix de tokens. redirectTo ahora usa appPath (respeta /beta aunque falte WEOTZI_BASE_PATH)."
+    },
+    {
+      "node": "801:1105",
+      "name": "Artista / Recuperar acceso - 02 Verificar código",
+      "route": "/recover",
+      "result": "rediseñada",
+      "summary": "OTP de 6 cajas 59×65, 'Te enviamos un código de 6 dígitos a <email>.', reenviar con cuenta regresiva, VOLVER.",
+      "figma_png": "output/figma-final-artista/frames/801-1105_recuperar-02-codigo.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1105.png",
+      "state_url": "/recover/?from=artist&step=2&email=lalal3647@gmail.com",
+      "fidelity": "exacta",
+      "fidelity_notes": "Ronda 1: el email de destino va en peso regular, color ink, como el frame."
+    },
+    {
+      "node": "801:1106",
+      "name": "Artista / Recuperar acceso - 03 Nueva contraseña",
+      "route": "/recover",
+      "result": "rediseñada",
+      "summary": "Barra de fuerza, requisitos con check-circle, confirmación y ACTUALIZAR CONTRASEÑA.",
+      "figma_png": "output/figma-final-artista/frames/801-1106_recuperar-03-nueva-contrasena.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1106.png",
+      "state_url": "/recover/?from=artist&step=3",
+      "fidelity": "alta",
+      "fidelity_notes": "Se conserva el botón ojo en los campos de contraseña (accesibilidad, pendiente de validar con diseño)."
+    },
+    {
+      "node": "801:1107",
+      "name": "Artista / Recuperar acceso - 04 Contraseña actualizada",
+      "route": "/recover",
+      "result": "rediseñada",
+      "summary": "'¡Contraseña actualizada!' + 'Ya podés iniciar sesión con tu nueva contraseña.' + INICIAR SESIÓN (con la sesión de recuperación activa lleva al panel según rol con el loader; sin sesión, al login de origen).",
+      "figma_png": "output/figma-final-artista/frames/801-1107_recuperar-04-actualizada.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1107.png",
+      "state_url": "/recover/?from=artist&step=4",
+      "fidelity": "exacta",
+      "fidelity_notes": ""
+    },
+    {
+      "node": "801:1116",
+      "name": "Artista / Correo - Código para recuperar acceso",
+      "route": "Supabase Auth · Reset Password",
+      "result": "rediseñada",
+      "summary": "templates/email/supabase-recovery.html rehecho con el diseño del Figma ({{ .Token }}, {{ .ConfirmationURL }}, {{ .SiteURL }}, {{ .Data.full_name }}). Se pega a mano en Supabase.",
+      "figma_png": "output/figma-final-artista/frames/801-1116_correo-codigo-recuperar.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/801-1116.png",
+      "state_url": "templates/email/supabase-recovery.html",
+      "fidelity": "alta",
+      "fidelity_notes": "Ronda 1: el círculo amarillo de la cabecera es una celda de 13×13 con border-radius (igual que el cuadrado; en Outlook de escritorio cae a cuadrado) y hay 100px entre 'Recibimos una solicitud…' y la caja del código. Render local con datos de ejemplo; tipografías web con fallback a Arial/Consolas. 'Vence en 10 minutos' requiere Email OTP Expiration = 600 s en Supabase."
+    },
+    {
+      "node": "2001:3351",
+      "name": "Artista / Recuperar acceso - 05 Correo contraseña actualizada",
+      "route": "(sin evento de envío)",
+      "result": "creada",
+      "summary": "templates/email/password-updated.html (variables {{nombre}} {{fecha}} {{hora}} {{zona_horaria}} {{login_url}} {{recover_url}} {{año}}) y variante Supabase templates/email/supabase-password-changed.html ({{ .Email }}).",
+      "figma_png": "output/figma-final-artista/frames/2001-3351_correo-contrasena-actualizada.png",
+      "impl_png": "output/figma-final-artista/shots/acceso/2001-3351.png",
+      "state_url": "templates/email/password-updated.html",
+      "fidelity": "alta",
+      "fidelity_notes": "Ronda 1: círculo de la marca del mismo tamaño que el cuadrado. Sigue sin enviarse: falta elegir y configurar el canal (ver missing_functions)."
+    }
+  ],
+  "removed_in_page": [
+    "/artist/login: vista embebida 'Recuperar contraseña' (contraseña temporal, código muerto) — el link va a /recover",
+    "/artist/login: botón 'Google' (reemplazado por Instagram / Email / Facebook del Figma)",
+    "/artist/login: link '¿Sos cliente? Ingresá acá'",
+    "/artist/login: eyebrow 'Sesión activa' de la vista con sesión",
+    "/registerclosedbeta: topbar con nav de artista, botón LOG IN/LOG OUT y menú móvil",
+    "/registerclosedbeta: markup del modal de login legado (Ingresá ahora va a /artist/login)",
+    "/registerclosedbeta: banner fijo oscuro de sesión activa (reemplazado por aviso wo-alert dentro del panel)",
+    "/registerclosedbeta: 'y la política de privacidad' en el texto de términos (el Figma solo dice 'términos y condiciones')",
+    "/register-artist: expansión inline 'Ver más estilos' (ahora abre el panel) y el chip '+ Otro' visible (reemplazado por 'Agregar «x»' dentro del panel)",
+    "/register-artist: regla de fuerza y aviso de coincidencia de contraseña visibles en reposo (ahora aparecen al escribir)",
+    "/registerclosedbeta: aviso wo-alert de sesión activa (#active-session-note) y su render en main.js; con sesión se redirige a /artist/login",
+    "/registerclosedbeta: estados del botón REGISTRARME con colores inline ('ERROR' rojo, amarillo, verde) y el tooltip nativo de campos requeridos",
+    "/register-artist: texto de ayuda visible bajo TU DIRECCIÓN (queda como texto para lectores de pantalla)",
+    "/register-artist: 'application/pdf' del input de archivos del portfolio"
+  ],
+  "routes_to_delete": [],
+  "missing_functions": [
+    {
+      "title": "Páginas legales inexistentes (/legal/terms y /legal/privacy)",
+      "detail": "Crear cuenta, Registro 07, los correos y el footer del cliente apuntan a /legal/terms y /legal/privacy (en esta ronda /terminos y /privacidad del registro pasaron a /legal/*), pero no hay página en public/, ni ruta en server.js/legacy-routes.js, ni en el sitio corporativo (landing/ solo tiene home, about-us y faqs): hoy devuelven 404 y el usuario acepta términos que no puede leer. Hace falta el texto legal (producto/legal) y crear public/legal/terms y public/legal/privacy, o redirigir esas rutas a la URL legal definitiva. No se redactó texto legal.",
+      "severity": "alta"
+    },
+    {
+      "title": "Correo 'Contraseña actualizada' sin envío (elegir canal)",
+      "detail": "Recomendado: opción A, sin código: Supabase → Authentication → Emails → Security notifications → 'Password changed' con templates/email/supabase-password-changed.html (Supabase lo manda al email real de la cuenta). La opción B (evento n8n password_updated con fecha/hora) requiere tocar services/email-event-mapping.js y validar en el servidor que el destinatario sea el email de la sesión: /api/email/:eventId toma el destinatario del payload, así que llamarlo desde recover.js permitiría mandar el aviso a cualquier dirección. Ninguna de las dos se completa desde los archivos del área.",
+      "severity": "alta"
+    },
+    {
+      "title": "Ingreso con Instagram",
+      "detail": "Supabase no tiene proveedor Instagram y la API de login de Meta exige cuentas Business/Creator con revisión. En /artist/login el botón INSTAGRAM (Recomendado) ahora abre el inicio rápido de registro con Instagram (/register-artist/?source=instagram, igual que en Crear cuenta); si el email ya tiene cuenta, el paso 02 lo avisa. Validar con producto si el login debe conservar 'Recomendado' sobre una opción que registra.",
+      "severity": "media"
+    },
+    {
+      "title": "Facebook OAuth",
+      "detail": "Conectado a supabase.auth.signInWithOAuth({provider:'facebook'}) en /artist/login (y desde Crear cuenta vía /artist/login?oauth=facebook). Requiere habilitar el proveedor Facebook (app de Meta) en Supabase y agregar https://beta.weotzi.com/artist/login a Redirect URLs. No se puede probar en el preview (OAuth bloqueado).",
+      "severity": "media"
+    },
+    {
+      "title": "Link de acceso por email (botón EMAIL del login)",
+      "detail": "Usa signInWithOtp({shouldCreateUser:false}); requiere el proveedor Email con OTP/Magic Link habilitado y su plantilla en Supabase. No simulado en el preview.",
+      "severity": "baja"
+    },
+    {
+      "title": "Migración de extras del registro sin aplicar",
+      "detail": "supabase/migrations/20261028100000_acceso_registro_extras.sql agrega artists_db.profile_links y newsletter_topics. Hasta aplicarla, WeotziData.Registration.saveProfileExtras devuelve missingColumns y solo deja un console.warn; el sitio principal sigue en `portafolio` y la suscripción en `subscribed_newsletter`.",
+      "severity": "media"
+    },
+    {
+      "title": "Crear cuenta y borrador no probables en preview",
+      "detail": "/api/register/artist-draft, check-uniqueness, artist-finalize, resetPasswordForEmail y verifyOtp están bloqueados por el preview: el formulario muestra el error controlado. El flujo con sesión del wizard sí se completó end-to-end en el preview (03→08→loader v3→dashboard).",
+      "severity": "baja"
+    },
+    {
+      "title": "Formatos del portfolio: el Figma promete PDF (decisión de diseño pendiente)",
+      "detail": "801:1091 dice 'JPG, PNG o PDF · hasta 10 MB cada uno.' La galería pública (bucket artist-gallery + artists_db.portafolio) solo publica imágenes y video, así que la página dice 'JPG, PNG o WebP', el input acepta image/jpeg,image/png,image/webp y un PDF se rechaza con 'Por ahora la galería publica imágenes: subí tus trabajos en JPG, PNG o WebP.' Opciones: (a) diseño aprueba el copy actual y actualiza el frame; (b) se vuelve al copy del Figma y se agrega soporte de PDF (rasterizar las páginas a imágenes antes de subir o publicar el PDF como documento descargable en el perfil). Mientras no se decida, el frame no coincide en esa palabra.",
+      "severity": "media"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028100000_acceso_registro_extras.sql",
+      "rollback": "supabase/rollbacks/20261028100000_acceso_registro_extras.down.sql",
+      "purpose": "artists_db.profile_links (jsonb {website, behance, other}) y artists_db.newsletter_topics (text[]) para Behance/Otro y los 4 temas de novedades del registro; backfill desde portafolio y subscribed_newsletter.",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "TU PROXIMÓ → TU PRÓXIMO",
+    "ESTA ACÁ → ESTÁ ACÁ",
+    "Crea tu cuenta → Creá tu cuenta",
+    "Empieza hoy como artista. → Empezá hoy como artista.",
+    "Seleccioná tú estilo principal → Seleccioná tu estilo principal",
+    "¿Ya tienes CUENTA? Ingresar → ¿Ya tenés cuenta? Ingresá",
+    "Continua desde tu panel de artista → Continuá desde tu panel de artista",
+    "te mandamos un código para reestablecer tu contraseña → …para restablecer tu contraseña",
+    "Seleccion� todos los estilos que representen tu trabajo. → Seleccioná todos los estilos que representen tu trabajo. (encoding)",
+    "Bioorg�nico / Bioorgánico (encoding)",
+    "Registro 05: 'NOMBRE DEL ESTUDIO DONDE TRABAJAS' → 'Nombre del estudio donde trabajás' (tilde)"
+  ],
+  "missing_assets": [
+    "Ilustración editorial: persona buscando inspiración para un tatuaje (/bienvenida, card Cliente)",
+    "Ilustración editorial: tatuador trabajando (/bienvenida, card Artista)"
+  ],
+  "files_changed": [
+    "public/bienvenida/index.html",
+    "public/shared/css/bienvenida-ds.css",
+    "public/shared/js/bienvenida.js",
+    "public/artist/login/index.html",
+    "public/shared/css/artist-auth-ds.css",
+    "public/shared/js/artist-login.js",
+    "public/registerclosedbeta/index.html",
+    "public/shared/css/registerclosedbeta-ds.css",
+    "public/shared/js/main.js",
+    "public/register-artist/index.html",
+    "public/shared/css/register-artist-ds.css",
+    "public/shared/js/register.js",
+    "public/recover/index.html",
+    "public/shared/css/recover-ds.css",
+    "public/shared/js/recover.js",
+    "public/shared/js/wo-postauth-loader.js",
+    "public/shared/js/demo-fixtures/acceso.js",
+    "templates/email/supabase-recovery.html",
+    "templates/email/password-updated.html",
+    "templates/email/supabase-password-changed.html",
+    "tests/figma-final-acceso.test.js"
+  ],
+  "files_created": [
+    "public/shared/js/acceso-register-final.js",
+    "public/shared/js/data/registration-extras-repo.js",
+    "supabase/migrations/20261028100000_acceso_registro_extras.sql",
+    "supabase/rollbacks/20261028100000_acceso_registro_extras.down.sql",
+    "templates/email/password-updated.html",
+    "templates/email/supabase-password-changed.html",
+    "tests/figma-final-acceso.test.js",
+    "public/artist/login/assets/facebook.svg"
+  ],
+  "tests": "node --test \"tests/*.test.js\" (ronda 2): 608 tests, 604 pass, 3 fail, 1 skipped. Las 3 fallas son las preexistentes de PowerShell 7 (onboarding parse, stderr de CLI nativo y plan de verificación manual de Dev). tests/figma-final-acceso.test.js 22/22 (2 nuevos de la ronda 2: mensajes del portfolio coherentes con la card y medidas de 05/07) y artist-registration-responsive.test.js 13/13 (incluye 'solo tokens del DS').",
+  "notes": [
+    "Parámetros de QA (solo con window.WEOTZI_PREVIEW o modo demo; en producción se ignoran): /artist/login?state=login, ?postauth=v1|v2|v3 (cualquier página que cargue el loader), /registerclosedbeta?state=signup, /register-artist?step=1..8&state=nuevo|estilos|instagram|cargado|estudio|todas|aceptado, /recover?step=1..4&email=…. /bienvenida?role=artist|client funciona también en producción (preselección inofensiva).",
+    "Paso manual en Supabase (Authentication → Emails → Reset Password): asunto 'Tu código para recuperar el acceso a We Ötzi' y cuerpo = templates/email/supabase-recovery.html. Opcional: Email OTP Expiration = 600 s para que coincida 'vence en 10 minutos'.",
+    "Bug preexistente corregido en register.js: prefillFormInputs corría antes de dibujar el grid de estilos y vaciaba formState.data.styles al reanudar un perfil existente. También se normalizan años sueltos legados ('5' → '5-10').",
+    "Los enlaces generados por JS en login, bienvenida y recover ahora respetan el prefijo /beta y el del preview (antes iban a la raíz).",
+    "Excepción al DS en /bienvenida: radio 20px de las cards y check circular, tomados del Figma final.",
+    "templates/email/password-reset.html(.min) (contraseña temporal por n8n, evento password_reset_temp solo admin) no se modificó: lo genera scripts/redesign-email-templates.js y lo cubre email-templates.test.js; /recover ya no lo usa.",
+    "Ronda 1 (corrector): se corrigieron los P1 que caían en archivos del área (CTA a 390px, gate del estudio, Instagram del login y links legales unificados) y los P2 de CSS/markup. Quedan abiertos las páginas legales y el canal del correo 'contraseña actualizada', ambos fuera de los archivos del área.",
+    "Gate del grupo 05: isGroupReady('trabajo'), validateStep(9) y el aviso usan la misma regla (isStudioSelectionResolved): estudio elegido de la lista, o 'Crear «x»' con dirección elegida. Al volver a tipear después de elegir un estudio se descarta la dirección que vino de esa sede.",
+    "Con sesión activa /registerclosedbeta redirige a /artist/login conservando returnTo (el estado 'Ya iniciaste sesión' del Figma 2001:3334 resuelve perfil incompleto, cuenta de cliente y cerrar sesión). En el preview usar ?state=signup para ver el formulario.",
+    "Placeholders: la regla del DS .wo-app input::placeholder (--neutral-300) les ganaba a las de página; ahora las de página llevan .wo-app o body.register-page. No hay token gris neutro para el gris del Figma: color-mix(--neutral-400 75%, --neutral-300).",
+    "Las capturas incluyen la barra amarilla del preview (38–62px arriba); las posiciones se compararon descontándola.",
+    "El hook de diseño marca bajo contraste en textos beige (neutral-300) y mono de 10–11px: son los valores del Figma final (eyebrows, etiquetas y avisos) y no se cambiaron.",
+    "Ronda 2 (corrector): se corrigieron los P1 de layout de 801:1097 (valor en x+140), 801:1094 (tarjetas de 84.2px con borde de 1px y TU DIRECCIÓN 1px + sombra 3px + 8px de separación) y 801:1095 (CONTINUAR deshabilitado de 46px, lista sobre arena, sombra 3px del input). En 801:1091 se unificaron los mensajes de validación con el copy de la card; el reemplazo PDF→WebP pasó de copy_fixes a missing_functions como desvío pendiente de aprobación de diseño.",
+    "801:1094 y 801:1095 dibujan distinto las tarjetas de modalidad (84.2px, kicker 10px ink, elegida sin sombra vs. 87.2px, kicker 11px gris, elegida con sombra 3px y -2px). Se tomó 801:1094 para el reposo y la sombra de 801:1095 para hover. Conviene que diseño unifique el componente.",
+    "Los campos 'duros' del paso 05 (TU DIRECCIÓN y nombre del estudio) mantienen el borde de 1px al foco, como el estudio mientras se escribe en 801:1095. El foco se nota por la sombra de 3px (con el campo vacío) y el fondo blanco del DS; si accesibilidad pide más contraste de foco, sumar un anillo --shadow-focus."
+  ]
+}

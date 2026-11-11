@@ -23,7 +23,12 @@
     let mounting = false;
     async function mount() {
         if (mounting || document.querySelector('[data-account-mode-switch]')) return;
-        const selector = '.wo-org-product-nav__account, .client-topbar .wo-topbar-right, .cpa-topbar .wo-topbar-right, header .wo-topbar-right';
+        // La topbar del artista (<weotzi-product-nav>, .wo-org-product-nav__account)
+        // ya no lleva el botón: el Figma final del flujo de artista (oct 2026)
+        // no lo incluye ni en la topbar ni en el menú de cuenta. Cliente y
+        // estudio conservan su selector.
+        const selector = '.client-topbar .wo-topbar-right, .cpa-topbar .wo-topbar-right, header .wo-topbar-right';
+        if (document.querySelector('weotzi-product-nav, .wo-org-product-nav')) return;
         if (!document.querySelector(selector)) return;
         mounting = true;
         try {

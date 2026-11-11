@@ -20,6 +20,7 @@ const artistRegistration = require('./lib/artist-registration');
 const emailService = require('./services/email-service');
 const emailEventMapping = require('./services/email-event-mapping');
 const { startLocalNgrok } = require('./lib/local-ngrok');
+const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
@@ -29,6 +30,8 @@ const { CurrenciesRepo } = require('./lib/repos/currencies');
 const { InstagramRepo } = require('./lib/repos/instagram');
 const { AnalyticsRepo } = require('./lib/repos/analytics');
 const { summarizeArtistPublicProfileMetrics } = require('./lib/artist-public-profile-metrics');
+// Store: descargas firmadas, checkout, mantenimiento y webhook de pagos (docs/plans/2026-10-30-store-artista.md §7)
+const storeOrders = require('./services/store-orders');
 
 function ensureCronApiToken() {
     if (process.env.CRON_API_TOKEN && String(process.env.CRON_API_TOKEN).trim()) {
@@ -201,7 +204,19 @@ const apiLimiter = rateLimit({
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
+    // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter).
+    skip: (req) => storeOrders.isStoreWebhookRequest(req),
     message: { success: false, error: 'Too many requests, please try again later.' }
+});
+
+// Rate limiting: webhook de pagos de la Store. Los proveedores mandan ráfagas
+// y reintentos desde pocas IPs; no comparte bucket con el resto de /api/.
+const storeWebhookLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Demasiados avisos de pago. Probá de nuevo en un minuto.' }
 });
 
 // Rate limiting: Sensitive endpoints that create or modify auth credentials.
@@ -216,6 +231,17 @@ const authLimiter = rateLimit({
     message: { success: false, error: 'Too many authentication attempts, please try again later.' }
 });
 
+// Rate limiting: descargas firmadas de la Store (original, stencil). Bucket
+// propio para no consumir la cuota de authLimiter (reset de contraseña y
+// alta de cuentas); el tope de 50 por licencia y por día lo aplica el handler.
+const storeDownloadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Demasiadas descargas seguidas. Probá de nuevo en unos minutos.' }
+});
+
 // Apply rate limits
 app.use('/api/', apiLimiter);
 app.use('/api/admin/update-user-password', authLimiter);
@@ -227,10 +253,19 @@ app.use('/api/email/events', authLimiter);
 // here because that one actually creates the auth.users entry.
 app.use('/api/register/artist-finalize', authLimiter);
 
+// Store: webhook de pagos con body crudo (la firma HMAC se calcula sobre los
+// bytes exactos). Tiene que quedar ANTES de express.json para que el parser
+// JSON no consuma el cuerpo. Lo fija tests/store-server.test.js.
+app.post('/api/store/payments/webhook/:provider', storeWebhookLimiter, express.raw({ type: '*/*', limit: '1mb' }), storeOrders.handleWebhook);
+
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.post('/api/quotations/intake', require('./services/quotation-intake').handleIntake);
+// Store: descarga firmada de archivos de licencia, checkout y mantenimiento por cron.
+app.post('/api/store/licenses/:licenseId/assets/:assetId/url', storeDownloadLimiter, storeOrders.handleDownloadUrl);
+app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
+app.post('/api/store/maintenance', storeOrders.handleMaintenance);
 const accountModes = require('./services/account-modes');
 app.get('/api/account/testing', (req, res) => res.json({ registrationOpen: accountModes.testingEnabled() }));
 app.post('/api/account/mode', accountModes.activate);
@@ -5965,6 +6000,38 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
         return res.status(m.status).json(m.body);
     }
 });
+
+// ============================================
+// INSTAGRAM VALIDATION + ARTIST ONBOARDING
+// The artist asks for a WO-XXXXXX code (sent by email) and DMs it to @weotzi;
+// the DM automation confirms it through the webhook, or support confirms it
+// by hand. Until then imported Instagram photos stay hidden from clients
+// (public/shared/js/gallery-visibility.js). Logic lives in
+// services/instagram-verification.js and services/artist-onboarding.js.
+// ============================================
+const igVerification = require('./services/instagram-verification');
+const artistOnboarding = require('./services/artist-onboarding');
+
+// Every request sends an email: cap each IP at 5 codes / hour.
+const igVerifyLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Esperá un rato y probá de nuevo.' }
+});
+
+app.get('/api/artist/onboarding', artistOnboarding.getOnboarding);
+app.post('/api/artist/onboarding', artistOnboarding.patchOnboarding);
+app.get('/api/artist/instagram-verification', igVerification.getArtistVerification);
+app.post('/api/artist/instagram-verification', igVerifyLimiter, igVerification.requestArtistVerification);
+// DM automation webhook (n8n + Meta), authenticated with X-Weotzi-Webhook-Token.
+app.post('/api/instagram-verification/inbound', igVerification.handleInbound);
+// Support queue (active agent in support_users_db).
+app.get('/api/support/instagram-verifications', igVerification.listForSupport);
+app.post('/api/support/instagram-verifications/:id/confirm', igVerification.confirmForSupport);
+app.post('/api/support/instagram-verifications/:id/reject', igVerification.rejectForSupport);
+
 // ============================================
 // EMAIL ROUTING (BillionMail / n8n / dual / off)
 // Centralized dispatcher for all transactional emails.
@@ -6124,6 +6191,16 @@ app.get('/travel/t/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'travel', 'share', 'index.html'));
 });
 
+// Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
+// solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const target = legacyRedirectFor(req.path, path.join(__dirname, 'public'));
+    if (!target) return next();
+    const search = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    return res.redirect(301, legacyLocation(target, search, { prefix: req.weotziBasePath || '' }));
+});
+
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -6188,14 +6265,10 @@ const packageInfo = require('./package.json');
 
 const routeDescriptions = {
     '/': 'Redirects to quotation form',
-    '/archive': 'Archived quotations',
     '/artist/dashboard': 'Artist dashboard',
     '/artist/invitations': 'Artist invitations',
     '/artist/login': 'Artist login',
     '/artist/profile': 'Public artist profile',
-    '/artist/profile/details': 'Artist profile details',
-    '/artist/profile/gallery': 'Artist profile gallery',
-    '/artist/visitors': 'Artist visitors',
     '/backoffice': 'Admin panel',
     '/backoffice/login': 'Admin login',
     '/calendar': 'Calendar view',
@@ -6206,7 +6279,6 @@ const routeDescriptions = {
     '/explore/globe': 'Explore globe',
     '/job-board': 'Job board public feed',
     '/job-board/request': 'Publish tattoo request',
-    '/landing-tatuador': 'Landing page for tattoo artists',
     '/marketplace': 'Artists marketplace',
     '/migration-log': 'Migration log',
     '/my-quotations': 'Artist quotations panel',
@@ -6223,7 +6295,6 @@ const routeDescriptions = {
     '/studio-spots': 'Studio spots',
     '/support/dashboard': 'Support dashboard',
     '/support/login': 'Support login',
-    '/tutorial': 'Interactive tour'
 };
 
 function titleFromRoute(routePath) {

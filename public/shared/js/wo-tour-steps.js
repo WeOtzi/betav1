@@ -6,6 +6,8 @@
  * selectores, gana el primero visible) y trae el texto que se muestra y se
  * lee en voz alta. `before`/`after` abren y cierran estados de la interfaz
  * (menú Ö, editor del calendario, secciones del centro de la cuenta).
+ * `exitLabel` agrega el botón de salida del demo; con `exitAssist: true` esa
+ * salida entrega al modo asistido (WoDemo.disable({ assist: true })).
  *
  * Copy: español rioplatense (voseo), sentence case, sin signos de exclamación
  * (regla 10 del DS). Para cambiar el guion alcanza con editar este archivo.
@@ -47,7 +49,7 @@
                         'Este es el primer paso para impulsar tu carrera como artista del tatuaje. A continuación vamos a hacer un recorrido por la interfaz y sus funciones.',
                         'Mientras dure el modo demo vas a ver cotizaciones, turnos y mensajes de ejemplo. Nada de lo que hagas se guarda: es un espacio para probar sin miedo.'
                     ],
-                    hint: 'Podés avanzar con las flechas del teclado o esperar a que termine la narración.',
+                    hint: 'Podés avanzar con las flechas del teclado o esperar a que termine la narración. Con el botón 1× cambiás la velocidad de la voz.',
                     nextLabel: 'EMPEZAR EL RECORRIDO →'
                 },
                 {
@@ -96,7 +98,7 @@
                 },
                 {
                     id: 'menu', target: '.wo-oam-drop', title: 'El menú Ö', before: openArtistMenu, after: closeArtistMenu,
-                    text: 'El tile Ö abre tu menú: notificaciones, mensajes sin leer, invitaciones pendientes y solicitudes, más accesos al centro de la cuenta y a tu perfil público. Desde acá también podés volver a ver este recorrido.'
+                    text: 'El tile Ö abre tu menú: notificaciones, mensajes sin leer, invitaciones pendientes y solicitudes, más accesos al centro de la cuenta y a tu perfil público. Desde acá también podés volver a ver este recorrido y activar el Modo asistido, que te guía paso a paso para configurar tu perfil. Y si no querés que te sugiramos el modo demo, lo desactivás desde este mismo menú.'
                 },
                 {
                     id: 'go-quotes', target: null, title: 'Vamos a Cotizaciones',
@@ -107,22 +109,22 @@
         {
             id: 'quotations', title: 'Cotizaciones', path: '/my-quotations',
             steps: [
-                { id: 'hero', target: '.q-hero', title: 'Tu bandeja de cotizaciones', text: 'Esta es tu bandeja de cotizaciones: todo lo que te pidieron tus clientes en un solo lugar. Desde acá también podés crear una cotización manual, exportar el listado o configurar tu cotizador.' },
-                { id: 'aside', target: '.q-hero-aside', title: 'Moneda y alcance', text: 'Elegí en qué moneda ver los montos y si querés ver todas las cotizaciones, solo las abiertas o solo las cerradas.' },
+                { id: 'hero', target: '.q-hero', title: 'Tu bandeja de cotizaciones', text: 'Esta es tu bandeja de cotizaciones: todo lo que te pidieron tus clientes en un solo lugar. Desde acá también podés crear una cotización manual o exportar el listado.' },
+                { id: 'aside', target: '.q-hero-aside', title: 'Moneda y alcance', text: 'Elegí en qué moneda ver los montos y qué cotizaciones ver: todas, solo las abiertas o las cerradas, tus borradores o las archivadas.' },
                 { id: 'stats', target: '.stats-strip', title: 'Los indicadores', text: 'Los indicadores muestran el total de cotizaciones, las pendientes de respuesta, tu tasa de respuesta, los ingresos confirmados y cuántas son de alta prioridad.' },
                 { id: 'toolbar', target: '.table-toolbar', title: 'Buscar y filtrar', text: 'Buscá por cliente, ciudad o ID, filtrá con los chips rápidos y ordená la lista. En Más filtros podés combinar estado y prioridad.' },
-                { id: 'legend', target: '.table-legend', title: 'La leyenda', text: 'La leyenda explica los colores de estado y las formas de prioridad. Desde acá también entrás a las cotizaciones archivadas.' },
-                { id: 'list', target: '#quotes-table-body', title: 'El listado', text: 'Cada fila es una cotización: cliente, idea, zona del cuerpo, estado y prioridad. Tocá una fila para abrir el expediente completo.' },
+                { id: 'legend', target: '.table-legend', title: 'La leyenda', text: 'La leyenda explica los colores de estado y las formas de prioridad.' },
+                { id: 'list', target: '#quotes-table-body', title: 'El listado', text: 'Cada fila es una cotización: cliente, idea, zona del cuerpo, estado y prioridad. Tocá una fila para ver el resumen lateral y responder rápido, o Ver detalle para abrir el expediente completo.' },
                 { id: 'go-detail', target: null, title: 'Abramos un expediente', text: 'Abramos una cotización para ver el expediente completo.' }
             ]
         },
         {
-            id: 'detail', title: 'Expediente', path: '/my-quotations/detail?quote=DEMO-P01',
+            id: 'detail', title: 'Expediente', path: '/my-quotations/detail?id=DEMO-P01',
             steps: [
                 { id: 'commandbar', target: '#quotation-commandbar', title: 'La barra de comandos', text: 'La barra de comandos muestra la referencia y el estado, y concentra las acciones: aceptar, rechazar, agendar sesiones o contactar al cliente.' },
                 { id: 'identity', target: '.qd-identity', title: 'Quién pide el tatuaje', text: 'Arriba, quién pide el tatuaje y las etiquetas que resumen el proyecto.' },
                 { id: 'proposal', target: '.qd-proposal', title: 'La propuesta', text: 'La propuesta: zona del cuerpo, estilo, tamaño estimado, presupuesto del cliente y las referencias que adjuntó.' },
-                { id: 'evaluation', target: '.qd-evaluation', title: 'Tu evaluación', text: 'Tu evaluación: cargá tu presupuesto, las sesiones estimadas y tu disponibilidad, y dejá notas privadas que solo ves vos.' },
+                { id: 'evaluation', target: '.qd-evaluation', title: 'Tu evaluación', text: 'Tu evaluación: cargá tu presupuesto, las sesiones estimadas y tu disponibilidad, y dejá notas privadas que solo ves vos. Con Abrir notas armás notas de trabajo desde plantillas.' },
                 { id: 'timeline', target: '.qd-timeline-section', title: 'El timeline', text: 'El timeline registra cada cambio de estado de la cotización, desde que llegó hasta que se completa.' },
                 { id: 'messages', target: '.qd-messages', title: 'Mensajes con el cliente', text: 'Y acá conversás con el cliente sin salir del expediente. El chat completo vive en tu Inbox.' },
                 { id: 'go-calendar', target: null, title: 'Sigamos con el Calendario', text: 'Sigamos con el Calendario, donde se organizan las sesiones.' }
@@ -159,10 +161,11 @@
         {
             id: 'spots', title: 'Spots', path: '/studio-spots',
             steps: [
+                { id: 'explore', target: ['.sps-explore-filters', '.sps-explore'], title: 'Buscar y filtrar', text: 'Buscá por estudio, ciudad o país y filtrá por país, ciudad, fecha o tipo de spot. El contador muestra cuántas oportunidades encontraste.' },
                 { id: 'feature', target: '#spots-feature', title: 'El spot destacado', text: 'Spots son posiciones que publican los estudios: guest spots, residencias y vacantes. El destacado aparece primero.' },
                 { id: 'mosaic', target: '#spots-mosaic', title: 'Spots abiertos', text: 'El mosaico muestra los spots abiertos con los estilos buscados, las fechas, el reparto de ingresos y si incluyen alojamiento.' },
                 { id: 'ribbon', target: '#spots-ribbon', title: 'Cierran pronto', text: 'Los que cierran pronto se marcan en esta franja para que no se te pasen.' },
-                { id: 'invitations-link', target: ['.wo-org-product-nav__item--spots', '.wo-org-product-nav__menu'], title: 'Invitaciones', text: 'Desde Spots también entrás a Invitaciones, donde los estudios te proponen sumarte a su equipo.' },
+                { id: 'invitations-link', target: ['#spots-invitations-tab', '.wo-org-product-nav__item--spots', '.wo-org-product-nav__menu'], title: 'Invitaciones', text: 'Desde Spots también entrás a Invitaciones, donde los estudios te proponen sumarte a su equipo.' },
                 { id: 'go-invitations', target: null, title: 'Vamos a Invitaciones', text: 'Vamos a ver las invitaciones que te mandaron los estudios para sumarte a su equipo.' }
             ]
         },
@@ -190,7 +193,7 @@
             steps: [
                 { id: 'hero', target: '.stats-hero', title: 'Tu negocio en We Ötzi', text: 'Tu negocio en We Ötzi: un vistazo a cómo crece tu actividad. Podés exportar el informe en CSV.' },
                 { id: 'kpis', target: '.kpi-row', title: 'Seis indicadores', text: 'Seis indicadores: visualizaciones del perfil, visitas al portfolio, solicitudes recibidas, cotizaciones enviadas, reservas confirmadas e ingresos generados.' },
-                { id: 'funnel', target: 'section[aria-labelledby="funnel-title"]', title: 'Embudo de conversión', text: 'El embudo muestra dónde se pierden las oportunidades, desde la visita hasta la reserva.' },
+                { id: 'funnel', target: 'section[aria-labelledby="funnel-title"]', title: 'Embudo de conversión', text: 'El embudo muestra dónde se pierden las oportunidades, desde la visita hasta el trabajo realizado.' },
                 { id: 'evolution', target: 'section[aria-labelledby="evolution-title"]', title: 'Evolución', text: 'Evolución compara semana, mes o año y cambia la métrica: visitas, solicitudes, reservas o ingresos.' },
                 { id: 'performance', target: 'section[aria-labelledby="performance-title"]', title: 'Rendimiento del perfil', text: 'Rendimiento del perfil: trabajos más vistos, estilos más buscados, ciudades con más visitas y horarios de mayor actividad.' },
                 { id: 'dual', target: '.stats-dual', title: 'Actividad y oportunidades', text: 'Actividad reciente y Oportunidades: sugerencias concretas para mejorar tu conversión.' },
@@ -223,10 +226,19 @@
         {
             id: 'account', title: 'Centro de la cuenta', path: '/artist/account',
             steps: [
-                { id: 'sidebar', target: '.aac-sidebar', title: 'Nueve secciones', text: 'El centro de la cuenta tiene nueve secciones: perfil, portafolio, cobros, disponibilidad, notificaciones, seguridad, integraciones, verificación y configuración.' },
-                { id: 'perfil', target: '#aac-perfil', title: 'Mi perfil', before: showAccountSection('perfil'), text: 'Mi perfil es cómo te van a ver clientes y estudios: nombre, usuario, idiomas, biografía, ciudad y redes.' },
-                { id: 'portafolio', target: '#aac-portafolio', title: 'Portafolio', before: showAccountSection('portafolio'), text: 'Portafolio administra los trabajos de tu perfil público.' },
-                { id: 'cobros', target: '#aac-cobros', title: 'Cobros y facturación', before: showAccountSection('cobros'), text: 'Cobros y facturación: saldo, ingresos del mes, historial, datos fiscales y métodos de pago.' },
+                { id: 'sidebar', target: '.aac-sidebar', title: 'Las secciones de tu cuenta', text: 'El menú lateral del centro de la cuenta reúne todo lo tuyo: perfil, portafolio, cobros, disponibilidad, notificaciones, seguridad, verificación y configuración.' },
+                { id: 'perfil', target: '#aac-perfil', title: 'Mi perfil', before: showAccountSection('perfil'), text: 'Mi perfil es cómo te van a ver clientes y estudios: nombre, usuario, idiomas, biografía, ciudad, redes, estilos y tarifa. Sumá también tu WhatsApp y email de contacto, para que sepan cómo escribirte.' },
+                { id: 'portafolio', target: '#aac-portafolio', title: 'Portafolio', before: showAccountSection('portafolio'), text: 'Portafolio administra los trabajos de tu perfil público: subilos, ordenalos, elegí su categoría o importalos desde Instagram.' },
+                {
+                    id: 'ig-verify', target: '#aac-ig-verify', title: 'Validá tu Instagram', before: showAccountSection('portafolio'), timeout: 4000,
+                    text: 'Para mostrar las fotos que importás de Instagram, validá que la cuenta es tuya: te mandamos un código por email, seguís a @weotzi desde la cuenta importada y nos enviás el código por mensaje directo. Hasta que la valides, esas fotos quedan ocultas para los clientes.'
+                },
+                { id: 'cobros', target: '#aac-cobros', title: 'We Ötzi Wallet', before: showAccountSection('cobros'), text: 'El Wallet muestra tu saldo disponible, los fondos por liberar y la actividad. Desde acá retirás a tus destinos y cargás tus datos fiscales.' },
+                {
+                    id: 'modalidad', target: '#aac-modalidad', title: 'Cómo trabajás', before: showAccountSection('disponibilidad'),
+                    text: 'Elegí tu modalidad: Estudio si tatuás en un estudio, Independiente si trabajás por tu cuenta, o Ambos. Si elegís Estudio o Ambos, indicá en qué estudio estás, así los clientes saben dónde encontrarte.'
+                },
+                { id: 'disponibilidad', target: '#aac-disponibilidad', title: 'Disponibilidad por ubicación', before: showAccountSection('disponibilidad'), text: 'Definí días y horarios para cada estudio y destino Travel, y pausá una ubicación cuando no tomes clientes ahí.' },
                 { id: 'verificacion', target: '#aac-verificacion', title: 'Verificación', before: showAccountSection('verificacion'), after: showAccountSection('perfil'), text: 'Verificación: subí tus documentos para obtener el sello de perfil verificado, que da confianza a los clientes.' },
                 { id: 'go-profile', target: null, title: 'Cómo te ven los clientes', text: 'Para cerrar, veamos cómo te ven los clientes en tu perfil público.' }
             ]
@@ -241,14 +253,14 @@
                 { id: 'about', target: '.sobre-band', title: 'Sobre el artista', text: 'Sobre el artista: tu biografía, idiomas, sesión mínima y tiempo de respuesta.' },
                 { id: 'reviews', target: '#artist-reviews-panel', title: 'Reseñas', text: 'Reseñas verificadas de clientes con los que completaste un trabajo.' },
                 { id: 'availability', target: '.cta-band', title: 'Disponibilidad', text: 'Disponibilidad invita a reservar cuando tu agenda está abierta.' },
-                { id: 'gallery', target: '#block-gallery', title: 'Tu portafolio', text: 'Y tu portafolio completo, filtrable por categoría.' },
+                { id: 'gallery', target: '#block-gallery', title: 'Tu portafolio', text: 'Y tu portafolio completo, filtrable por estilo.' },
                 {
                     id: 'end', target: null, title: 'Fin del recorrido',
                     text: [
-                        'Ya conocés las secciones principales de We Ötzi. Cuando quieras, salí del modo demo para empezar a cargar tus datos reales.',
-                        'Podés volver a ver este recorrido desde el menú Ö, en Recorrido guiado.'
+                        'Ya conocés las secciones principales de We Ötzi. Cuando salgas del modo demo, el modo asistido te guía paso a paso para configurar tu perfil con tus datos reales: perfil, portafolio, cobros, disponibilidad, notificaciones y verificación.',
+                        'Si más adelante querés repasar este recorrido, volvé a activar el modo demo y tocá Recorrido guiado.'
                     ],
-                    nextLabel: 'SEGUIR EXPLORANDO EL DEMO', exitLabel: 'Salir del demo y empezar con mis datos →'
+                    nextLabel: 'SEGUIR EXPLORANDO EL DEMO', exitLabel: 'Salir del demo y configurar mi perfil →', exitAssist: true
                 }
             ]
         }

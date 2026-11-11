@@ -26,10 +26,10 @@ function call(store, method, p, search, headers, body) {
 const ARTIST_PAGES = [
     'public/artist/dashboard/index.html', 'public/artist/account/index.html', 'public/artist/applications/index.html',
     'public/artist/inbox/index.html', 'public/artist/invitations/index.html', 'public/artist/profile/index.html',
-    'public/artist/profile/details/index.html', 'public/artist/travel/index.html', 'public/artist/visitors/index.html',
+    'public/artist/travel/index.html', 'public/artist/store/index.html',
     'public/calendar/index.html', 'public/job-board/index.html', 'public/my-quotations/index.html',
-    'public/my-quotations/detail/index.html', 'public/my-quotations/statistics/index.html', 'public/studio-spots/index.html',
-    'public/archive/index.html',
+    'public/my-quotations/detail/index.html', 'public/my-quotations/new/index.html', 'public/my-quotations/statistics/index.html',
+    'public/studio-spots/index.html',
 ];
 
 /* ------------------------------ emulador ------------------------------ */
@@ -199,11 +199,26 @@ test('el bootstrap del demo parchea fetch antes de que exista el cliente y bloqu
     assert.ok(js.includes('rest\\/v1'), 'intercepta /rest/v1/');
     assert.ok(js.includes('storage\\/v1\\/object'), 'bloquea subidas a /storage/v1/object/');
     assert.match(js, /Escritura ignorada en modo demo/);
+    // Si el emulador falla (fixtures que no cargan), solo GET/HEAD caen al
+    // backend real; cualquier escritura responde 503 sin salir del navegador.
+    assert.match(js, /if \(method === 'GET' \|\| method === 'HEAD'\) \{\s*warn\('fallo del emulador, la lectura va al backend real', err\);\s*return nativeFetch\.call\(window, input, init\);\s*\}\s*warn\('fallo del emulador, escritura bloqueada en modo demo:'[^;]*;\s*return demoUnavailable\(\);/);
+    assert.match(js, /code: 'DEMO_UNAVAILABLE'/);
+    assert.doesNotMatch(js, /\.catch\(function \(err\) \{\s*warn\('fallo del emulador, se usa el backend real', err\);\s*return nativeFetch/, 'sin el fallback ciego de antes');
     assert.match(js, /sb-\.\+-auth-token/);
     assert.doesNotMatch(js, /createClient\(/, 'el bootstrap no crea clientes propios');
     const menu = read('public/shared/js/wo-artist-menu.js');
     assert.match(menu, /Recorrido guiado · modo demo/);
-    assert.match(menu, /\/artist\/dashboard\?demo=1&amp;tour=1/);
+    // Oct 2026: el acceso al recorrido está siempre visible (el final del tour
+    // remite al menú Ö); con el demo activo arranca el recorrido sin navegar.
+    assert.match(menu, /window\.WoDemo && window\.WoDemo\.enabled/);
+    assert.match(menu, /appPath\('\/artist\/dashboard'\)\) \+ '\?demo=1&amp;tour=1/);
+    assert.doesNotMatch(menu, /\(demo \? '<a class="wo-oam-link" id="wo-oam-tour"/, 'el link al recorrido no depende del demo');
+    assert.match(menu, /W\.startTour\(\)/);
+    // Salida del demo, modo asistido y switch de la sugerencia (role=switch).
+    assert.match(menu, /Salir del modo demo/);
+    assert.match(menu, /Modo asistido · configurá tu perfil/);
+    assert.match(menu, /role="switch" aria-checked="/);
+    assert.match(menu, /Sugerir el modo demo/);
 });
 
 test('el CSS del recorrido usa solo tokens del DS (sin hex sueltos ni [hidden] con display)', () => {
@@ -272,4 +287,28 @@ test('cada selector del guion existe en el markup o en el script que lo pinta', 
             assert.ok(found, ch.id + '/' + st.id + ': ningún selector resuelve (' + targets.join(' | ') + ')');
         }
     }
+});
+
+test('un throw en un handler de RPC responde 400 P0001 como PostgREST (el demo ya no cae al backend real)', () => {
+    const store = Postgrest.createStore({
+        tables: { t: [{ id: 1, v: 1 }] },
+        rpcs: {
+            reservar: (args, st) => {
+                if (!args.p_ok) throw new Error('store:out_of_stock');
+                st.update('t', [{ col: 'id', op: 'eq', value: '1', negated: false }], { v: 2 });
+                return { ok: true };
+            },
+            rara: () => { throw 'sin Error'; } // eslint-disable-line no-throw-literal
+        }
+    });
+    const bad = call(store, 'POST', 'rpc/reservar', '', {}, JSON.stringify({}));
+    assert.equal(bad.status, 400);
+    assert.deepEqual(bad.body, { code: 'P0001', message: 'store:out_of_stock', details: null, hint: null });
+    assert.equal(store.rows('t')[0].v, 1, 'el handler que lanza no muta');
+    const odd = call(store, 'POST', 'rpc/rara', '', {}, '{}');
+    assert.deepEqual([odd.status, odd.body.code, odd.body.message], [400, 'P0001', 'sin Error']);
+    const good = call(store, 'POST', 'rpc/reservar', '', {}, JSON.stringify({ p_ok: true }));
+    assert.equal(good.status, 200);
+    assert.deepEqual(good.body, { ok: true });
+    assert.equal(store.rows('t')[0].v, 2);
 });

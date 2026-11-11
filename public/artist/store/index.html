@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
+    <title>We Ötzi · Store</title>
+    <meta name="description" content="Tu Store en We Ötzi: vendé merch y diseños con licencia de uso, confirmá pagos y prepará tus pedidos.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
+    <link rel="stylesheet" href="/shared/css/artist-store-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app ast-page">
+
+    <!-- ============================ TOPBAR ARTISTA COMPARTIDA ============================ -->
+    <weotzi-product-nav
+        active="store"
+        menu-toggle-id="st-mobile-menu-toggle"
+        menu-id="st-mobile-menu"
+        menu-class="ast-mobile-menu"
+        profile-label="Centro de la cuenta"
+        logout-id="st-logout">
+    </weotzi-product-nav>
+
+    <main id="ast-main" class="wo-container ast-shell">
+
+        <!-- ============================ CARGANDO ============================ -->
+        <div id="ast-loading" class="ast-loading" role="status" aria-live="polite">
+            <span class="wo-sr-only">Cargando tu Store…</span>
+            <span class="wo-skeleton ast-skel ast-skel--eyebrow" aria-hidden="true"></span>
+            <span class="wo-skeleton ast-skel ast-skel--title" aria-hidden="true"></span>
+            <span class="wo-skeleton ast-skel ast-skel--line" aria-hidden="true"></span>
+            <span class="ast-skel-stats" aria-hidden="true">
+                <span class="wo-skeleton ast-skel ast-skel--stat"></span>
+                <span class="wo-skeleton ast-skel ast-skel--stat"></span>
+                <span class="wo-skeleton ast-skel ast-skel--stat"></span>
+                <span class="wo-skeleton ast-skel ast-skel--stat"></span>
+            </span>
+        </div>
+
+        <!-- ============================ ESTADOS DE BLOQUEO ============================ -->
+        <!-- Sin registro completo, Store no habilitada o error de conexión. -->
+        <section id="ast-gate" class="ast-gate" aria-labelledby="ast-gate-title" hidden>
+            <p class="wo-eyebrow">Store</p>
+            <h1 class="wo-h1 ast-gate-title" id="ast-gate-title" tabindex="-1">La Store todavía no está habilitada</h1>
+            <p class="wo-body-l ast-gate-text" id="ast-gate-text">Estamos terminando de prepararla. Cuando esté lista, vas a poder vender merch y diseños con licencia desde acá.</p>
+            <div class="ast-gate-actions">
+                <a class="wo-btn wo-btn--ghost" id="ast-gate-action" href="/artist/dashboard">Volver al dashboard →</a>
+            </div>
+        </section>
+
+        <!-- ============================ VISTA PRINCIPAL ============================ -->
+        <div id="ast-app" hidden>
+
+            <header class="ast-header">
+                <div class="ast-header-copy">
+                    <p class="wo-eyebrow">Store</p>
+                    <h1 class="wo-h1 ast-title" id="ast-title" tabindex="-1">Tu Store</h1>
+                    <p class="wo-body-l ast-sub">Vendé merch y diseños con licencia de uso.</p>
+                </div>
+                <div class="ast-header-actions">
+                    <button type="button" class="wo-btn wo-btn--accent wo-btn--hard" id="ast-new-design">
+                        <i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>Nuevo diseño
+                    </button>
+                    <button type="button" class="wo-btn wo-btn--ghost" id="ast-new-merch">
+                        <i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>Nuevo producto
+                    </button>
+                    <a class="wo-btn wo-btn--ghost" id="ast-public-link" href="/store/">Ver tu Store pública →</a>
+                </div>
+            </header>
+
+            <!-- Alerta de primer uso: faltan instrucciones de pago o contacto -->
+            <div class="wo-alert wo-alert--warning ast-setup-alert" id="ast-setup-alert" role="status" hidden>
+                <i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i>
+                <div class="ast-setup-alert-body">
+                    <p class="ast-setup-alert-title">Completá tus Ajustes para empezar a vender</p>
+                    <p id="ast-setup-alert-text">Te faltan las instrucciones de pago y el canal de contacto. Sin eso no podés publicar productos.</p>
+                    <button type="button" class="ast-linkbtn" id="ast-setup-alert-go">Ir a Ajustes →</button>
+                </div>
+            </div>
+
+            <!-- Resumen -->
+            <section class="ast-stats" aria-label="Resumen de tu Store">
+                <div class="ast-stat">
+                    <p class="ast-stat-label" id="ast-stat-sales-label">Ventas del mes</p>
+                    <p class="ast-stat-value" id="ast-stat-sales" aria-describedby="ast-stat-sales-label">—</p>
+                    <p class="ast-stat-sub" id="ast-stat-sales-sub"></p>
+                </div>
+                <div class="ast-stat">
+                    <p class="ast-stat-label" id="ast-stat-payments-label">Pagos por confirmar</p>
+                    <p class="ast-stat-value" id="ast-stat-payments" aria-describedby="ast-stat-payments-label">—</p>
+                    <p class="ast-stat-sub" id="ast-stat-payments-sub"></p>
+                </div>
+                <div class="ast-stat">
+                    <p class="ast-stat-label" id="ast-stat-prepare-label">Pedidos por preparar</p>
+                    <p class="ast-stat-value" id="ast-stat-prepare" aria-describedby="ast-stat-prepare-label">—</p>
+                    <p class="ast-stat-sub" id="ast-stat-prepare-sub"></p>
+                </div>
+                <div class="ast-stat">
+                    <p class="ast-stat-label" id="ast-stat-active-label">Productos publicados</p>
+                    <p class="ast-stat-value" id="ast-stat-active" aria-describedby="ast-stat-active-label">—</p>
+                    <p class="ast-stat-sub" id="ast-stat-active-sub"></p>
+                </div>
+            </section>
+
+            <!-- Tabs -->
+            <div class="wo-tabs ast-tabs" role="tablist" aria-label="Secciones de tu Store" id="ast-tabs">
+                <button type="button" class="wo-tab is-active" role="tab" id="ast-tab-disenos" data-tab="disenos" aria-selected="true" aria-controls="ast-panel-disenos">Diseños <span class="ast-tabcount" data-count="disenos">0</span></button>
+                <button type="button" class="wo-tab" role="tab" id="ast-tab-merch" data-tab="merch" aria-selected="false" aria-controls="ast-panel-merch" tabindex="-1">Merch <span class="ast-tabcount" data-count="merch">0</span></button>
+                <button type="button" class="wo-tab" role="tab" id="ast-tab-pedidos" data-tab="pedidos" aria-selected="false" aria-controls="ast-panel-pedidos" tabindex="-1">Pedidos <span class="ast-tabcount" data-count="pedidos">0</span></button>
+                <button type="button" class="wo-tab" role="tab" id="ast-tab-ajustes" data-tab="ajustes" aria-selected="false" aria-controls="ast-panel-ajustes" tabindex="-1">Ajustes <span class="ast-tabflag" data-count="ajustes" hidden>Falta completar</span></button>
+            </div>
+
+            <!-- Panel · Diseños -->
+            <section class="ast-panel" role="tabpanel" id="ast-panel-disenos" aria-labelledby="ast-tab-disenos" tabindex="0">
+                <div class="ast-panel-head">
+                    <p class="ast-panel-intro">Diseños para tatuar con licencia de uso: Personal, Artista o Exclusiva. Quien compra recibe el original, el stencil y un certificado.</p>
+                </div>
+                <div class="ast-grid" id="ast-list-disenos"></div>
+            </section>
+
+            <!-- Panel · Merch -->
+            <section class="ast-panel" role="tabpanel" id="ast-panel-merch" aria-labelledby="ast-tab-merch" tabindex="0" hidden>
+                <div class="ast-panel-head">
+                    <p class="ast-panel-intro">Remeras, prints, stickers y todo lo que despachás vos. Cada producto tiene variantes con su stock.</p>
+                </div>
+                <div class="ast-grid" id="ast-list-merch"></div>
+            </section>
+
+            <!-- Panel · Pedidos -->
+            <section class="ast-panel" role="tabpanel" id="ast-panel-pedidos" aria-labelledby="ast-tab-pedidos" tabindex="0" hidden>
+                <div class="ast-chips" id="ast-order-chips" role="group" aria-label="Filtrar pedidos por estado"></div>
+                <p class="wo-meta wo-muted ast-order-count" id="ast-order-count" aria-live="polite"></p>
+                <div id="ast-order-list"></div>
+            </section>
+
+            <!-- Panel · Ajustes -->
+            <section class="ast-panel" role="tabpanel" id="ast-panel-ajustes" aria-labelledby="ast-tab-ajustes" tabindex="0" hidden>
+                <form class="ast-settings" id="ast-settings-form" novalidate>
+                    <div class="wo-alert wo-alert--info ast-settings-alert" id="ast-settings-alert" hidden>
+                        <i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i>
+                        <span id="ast-settings-alert-text">Para publicar necesitás instrucciones de pago y un canal de contacto.</span>
+                    </div>
+
+                    <fieldset class="ast-fieldset">
+                        <legend class="ast-legend">Tu Store</legend>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-set-tagline">Frase de presentación</label>
+                            <input type="text" class="wo-input" id="ast-set-tagline" maxlength="160" placeholder="Ej: Flash propio, prints y merch del estudio" aria-describedby="ast-set-tagline-help">
+                            <p class="wo-help" id="ast-set-tagline-help">Aparece arriba de tu Store pública. Hasta 160 caracteres.</p>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-set-contact">Canal de contacto <span class="req" aria-hidden="true">*</span></label>
+                            <input type="text" class="wo-input" id="ast-set-contact" maxlength="200" placeholder="Ej: WhatsApp +54 9 11 5555-0100 o @usuario en Instagram" aria-describedby="ast-set-contact-help ast-set-contact-err">
+                            <p class="wo-help" id="ast-set-contact-help">Lo ve quien te compra, junto con el pedido. Requerido para publicar.</p>
+                            <p class="wo-error-msg" id="ast-set-contact-err" hidden></p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="ast-fieldset">
+                        <legend class="ast-legend">Cobros</legend>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-set-payment">Instrucciones de pago <span class="req" aria-hidden="true">*</span></label>
+                            <textarea class="wo-textarea" id="ast-set-payment" maxlength="2000" rows="4" placeholder="Ej: Transferí al alias MI.ALIAS y mandame el comprobante por WhatsApp." aria-describedby="ast-set-payment-help ast-set-payment-err"></textarea>
+                            <p class="wo-help" id="ast-set-payment-help">Indicá cómo pagar el monto exacto en la moneda del producto. Quien compra te paga directo a vos y vos confirmás el pago desde Pedidos.</p>
+                            <p class="wo-error-msg" id="ast-set-payment-err" hidden></p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="ast-fieldset">
+                        <legend class="ast-legend">Envíos, cambios y retiro</legend>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-set-shipping">Política de envíos</label>
+                            <textarea class="wo-textarea" id="ast-set-shipping" maxlength="2000" rows="3" placeholder="Ej: Despacho en 3 días hábiles por correo con seguimiento."></textarea>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-set-returns">Política de cambios y devoluciones</label>
+                            <textarea class="wo-textarea" id="ast-set-returns" maxlength="2000" rows="3" placeholder="Ej: Cambios de talle dentro de los 10 días, con la prenda sin uso."></textarea>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-set-pickup">Dirección de retiro</label>
+                            <input type="text" class="wo-input" id="ast-set-pickup" maxlength="300" placeholder="Ej: Av. Corrientes 1234, piso 2 · CABA" aria-describedby="ast-set-pickup-help">
+                            <p class="wo-help" id="ast-set-pickup-help">Privada: solo la ve quien compra con retiro en el estudio, después de que confirmás el pago. Es obligatoria para publicar productos con retiro.</p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="ast-fieldset">
+                        <legend class="ast-legend">Autoría</legend>
+                        <label class="wo-check ast-attest">
+                            <input type="checkbox" id="ast-set-authorship" aria-describedby="ast-set-authorship-help">
+                            <span id="ast-set-authorship-label">Confirmo que los diseños son de mi autoría y no infringen derechos de terceros.</span>
+                        </label>
+                        <p class="wo-help" id="ast-set-authorship-help">Es obligatoria para publicar diseños con licencia.</p>
+                    </fieldset>
+
+                    <p class="wo-error-msg" id="ast-settings-error" role="alert" hidden></p>
+                    <div class="ast-form-actions">
+                        <button type="submit" class="wo-btn wo-btn--direct" id="ast-settings-save">Guardar ajustes</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <!-- ============================ FOOTER ============================ -->
+    <weotzi-product-footer></weotzi-product-footer>
+
+    <!-- ============================ DRAWER · EDITOR DE PRODUCTO ============================ -->
+    <div class="wo-overlay ast-drawer-overlay" id="ast-editor" hidden>
+        <div class="ast-drawer" role="dialog" aria-modal="true" aria-labelledby="ast-ed-title" tabindex="-1">
+            <header class="ast-drawer-head">
+                <div class="ast-drawer-heading">
+                    <p class="wo-eyebrow" id="ast-ed-eyebrow">Diseño</p>
+                    <h2 class="ast-drawer-title" id="ast-ed-title">Nuevo diseño</h2>
+                    <span class="wo-tag wo-tag--soft ast-tag-s" id="ast-ed-status">Borrador</span>
+                </div>
+                <button type="button" class="ast-x" id="ast-ed-close" aria-label="Cerrar el editor"><i data-wo-icon="x" aria-hidden="true"></i></button>
+            </header>
+
+            <form class="ast-drawer-body" id="ast-ed-form" novalidate>
+                <p class="wo-error-msg ast-form-error" id="ast-ed-error" role="alert" hidden></p>
+
+                <!-- Datos -->
+                <fieldset class="ast-fieldset">
+                    <legend class="ast-legend">Datos</legend>
+                    <div class="wo-field">
+                        <label class="wo-label" for="ast-ed-f-title">Título <span class="req" aria-hidden="true">*</span></label>
+                        <input type="text" class="wo-input" id="ast-ed-f-title" maxlength="120" required aria-describedby="ast-ed-f-title-err">
+                        <p class="wo-error-msg" id="ast-ed-f-title-err" hidden></p>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="ast-ed-f-description">Descripción</label>
+                        <textarea class="wo-textarea" id="ast-ed-f-description" maxlength="4000" rows="4" aria-describedby="ast-ed-f-description-err"></textarea>
+                        <p class="wo-error-msg" id="ast-ed-f-description-err" hidden></p>
+                    </div>
+                    <div class="ast-grid2">
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-category">Categoría</label>
+                            <input type="text" class="wo-input" id="ast-ed-f-category" maxlength="40" placeholder="Ej: Flash" aria-describedby="ast-ed-f-category-err">
+                            <p class="wo-error-msg" id="ast-ed-f-category-err" hidden></p>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-currency">Moneda</label>
+                            <select class="wo-select" id="ast-ed-f-currency" aria-describedby="ast-ed-f-currency-help ast-ed-f-currency-err"></select>
+                            <p class="wo-help" id="ast-ed-f-currency-help">Quien compra paga en esta moneda, sin conversión.</p>
+                            <p class="wo-error-msg" id="ast-ed-f-currency-err" hidden></p>
+                        </div>
+                    </div>
+                    <div class="wo-field">
+                        <label class="wo-label" for="ast-ed-f-tags">Etiquetas</label>
+                        <input type="text" class="wo-input" id="ast-ed-f-tags" placeholder="Ej: fine line, aves, tradicional" aria-describedby="ast-ed-f-tags-help ast-ed-f-tags-err">
+                        <p class="wo-help" id="ast-ed-f-tags-help">Separalas con comas. Hasta 12.</p>
+                        <p class="wo-error-msg" id="ast-ed-f-tags-err" hidden></p>
+                    </div>
+                    <div class="ast-grid2" data-only="design">
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-width">Ancho (cm)</label>
+                            <input type="text" inputmode="decimal" class="wo-input" id="ast-ed-f-width" placeholder="Ej: 9" aria-describedby="ast-ed-f-width-err">
+                            <p class="wo-error-msg" id="ast-ed-f-width-err" hidden></p>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-height">Alto (cm)</label>
+                            <input type="text" inputmode="decimal" class="wo-input" id="ast-ed-f-height" placeholder="Ej: 7" aria-describedby="ast-ed-f-height-err">
+                            <p class="wo-error-msg" id="ast-ed-f-height-err" hidden></p>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-style">Estilo</label>
+                            <input type="text" class="wo-input" id="ast-ed-f-style" maxlength="60" placeholder="Ej: Fine line" aria-describedby="ast-ed-f-style-err">
+                            <p class="wo-error-msg" id="ast-ed-f-style-err" hidden></p>
+                        </div>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-placement">Zona sugerida</label>
+                            <input type="text" class="wo-input" id="ast-ed-f-placement" maxlength="120" placeholder="Ej: Antebrazo interno o tobillo" aria-describedby="ast-ed-f-placement-err">
+                            <p class="wo-error-msg" id="ast-ed-f-placement-err" hidden></p>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Licencias (diseño) -->
+                <fieldset class="ast-fieldset" data-only="design">
+                    <legend class="ast-legend">Licencias</legend>
+                    <p class="wo-help">Activá los niveles que querés ofrecer y ponele precio a cada uno.</p>
+                    <div class="ast-tiers" id="ast-ed-tiers"></div>
+                </fieldset>
+
+                <!-- Precio (merch) -->
+                <fieldset class="ast-fieldset" data-only="merch">
+                    <legend class="ast-legend">Precio</legend>
+                    <div class="wo-field">
+                        <label class="wo-label" for="ast-ed-f-price">Precio base</label>
+                        <input type="text" inputmode="decimal" class="wo-input" id="ast-ed-f-price" placeholder="Ej: 28000" aria-describedby="ast-ed-f-price-help ast-ed-f-price-err">
+                        <p class="wo-help" id="ast-ed-f-price-help">Cada variante puede tener su propio precio; si no, usa este.</p>
+                        <p class="wo-error-msg" id="ast-ed-f-price-err" hidden></p>
+                    </div>
+                </fieldset>
+
+                <!-- Archivos privados (diseño) -->
+                <fieldset class="ast-fieldset" data-only="design">
+                    <legend class="ast-legend">Archivos privados</legend>
+                    <p class="wo-help">Solo los descarga quien compra una licencia, con enlaces temporales.</p>
+                    <div class="ast-files" id="ast-ed-files"></div>
+                </fieldset>
+
+                <!-- Imágenes -->
+                <fieldset class="ast-fieldset">
+                    <legend class="ast-legend">Imágenes</legend>
+                    <p class="wo-help" id="ast-ed-images-help">Hasta 8. La primera es la portada.</p>
+                    <ul class="ast-images" id="ast-ed-images" aria-label="Imágenes del producto"></ul>
+                    <div class="wo-field ast-upload">
+                        <label class="wo-label" for="ast-ed-images-input">Agregar imágenes</label>
+                        <input type="file" class="ast-file-input" id="ast-ed-images-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple aria-describedby="ast-ed-images-help ast-ed-images-status">
+                        <p class="wo-meta-s wo-muted ast-upload-status" id="ast-ed-images-status" aria-live="polite"></p>
+                        <p class="wo-error-msg" id="ast-ed-images-input-err" hidden></p>
+                    </div>
+                </fieldset>
+
+                <!-- Variantes (merch) -->
+                <fieldset class="ast-fieldset" data-only="merch">
+                    <legend class="ast-legend">Variantes y stock</legend>
+                    <p class="wo-help">Talles, colores o modelos. Dejá el stock vacío si no tiene límite. El stock de una variante guardada se ajusta al guardar y, si cambió por una venta, te avisamos.</p>
+                    <div class="ast-variants" id="ast-ed-variants"></div>
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" id="ast-ed-variant-add"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>Agregar variante</button>
+                </fieldset>
+
+                <!-- Envío y retiro (merch) -->
+                <fieldset class="ast-fieldset" data-only="merch">
+                    <legend class="ast-legend">Envío y retiro</legend>
+                    <label class="ast-switch">
+                        <span class="wo-toggle"><input type="checkbox" id="ast-ed-ship-on" role="switch" aria-describedby="ast-ed-ship-on-err"><span class="knob" aria-hidden="true"></span></span>
+                        <span class="ast-switch-label">Hacés envíos</span>
+                    </label>
+                    <div class="ast-subfields" id="ast-ed-ship-fields">
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-ship-price">Precio del envío</label>
+                            <input type="text" inputmode="decimal" class="wo-input" id="ast-ed-f-ship-price" placeholder="0 = envío gratis" aria-describedby="ast-ed-f-ship-price-help ast-ed-f-ship-price-err">
+                            <p class="wo-help" id="ast-ed-f-ship-price-help">Por pedido, en la moneda del producto.</p>
+                            <p class="wo-error-msg" id="ast-ed-f-ship-price-err" hidden></p>
+                        </div>
+                        <fieldset class="ast-countries-box" aria-describedby="ast-ed-countries-help ast-ed-countries-summary">
+                            <legend class="wo-label">Países a los que enviás</legend>
+                            <p class="wo-help" id="ast-ed-countries-help">Si no marcás ninguno, enviás a cualquier país. Primero van Latinoamérica, España y Estados Unidos; el resto del mundo, debajo.</p>
+                            <div class="ast-countries-status">
+                                <p class="wo-meta-s ast-countries-summary" id="ast-ed-countries-summary">Sin países marcados: enviás a cualquier país.</p>
+                                <button type="button" class="ast-linkbtn" id="ast-ed-countries-clear" hidden>Desmarcar todos</button>
+                            </div>
+                            <div class="wo-field ast-countries-search">
+                                <label class="wo-label" for="ast-ed-countries-search">Buscar país</label>
+                                <input type="search" class="wo-input" id="ast-ed-countries-search" placeholder="Ej: Chile o Japón" autocomplete="off" spellcheck="false" aria-controls="ast-ed-countries" aria-describedby="ast-ed-countries-count">
+                                <p class="wo-meta-s wo-muted ast-countries-count" id="ast-ed-countries-count" aria-live="polite"></p>
+                            </div>
+                            <div class="ast-countries" id="ast-ed-countries"></div>
+                            <p class="wo-error-msg" id="ast-ed-countries-err" hidden></p>
+                        </fieldset>
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-ship-note">Nota de envío</label>
+                            <input type="text" class="wo-input" id="ast-ed-f-ship-note" maxlength="200" placeholder="Ej: Argentina y Uruguay, en 5 días hábiles" aria-describedby="ast-ed-f-ship-note-err">
+                            <p class="wo-error-msg" id="ast-ed-f-ship-note-err" hidden></p>
+                        </div>
+                    </div>
+                    <label class="ast-switch">
+                        <span class="wo-toggle"><input type="checkbox" id="ast-ed-pickup-on" role="switch"><span class="knob" aria-hidden="true"></span></span>
+                        <span class="ast-switch-label">Se puede retirar en el estudio</span>
+                    </label>
+                    <div class="ast-subfields" id="ast-ed-pickup-fields">
+                        <div class="wo-field">
+                            <label class="wo-label" for="ast-ed-f-pickup-note">Nota pública de retiro</label>
+                            <input type="text" class="wo-input" id="ast-ed-f-pickup-note" maxlength="300" placeholder="Ej: Palermo · martes a sábado de 12 a 19 h" aria-describedby="ast-ed-f-pickup-note-help ast-ed-f-pickup-note-err">
+                            <p class="wo-help" id="ast-ed-f-pickup-note-help">Zona y horario. La dirección exacta va en Ajustes y es privada.</p>
+                            <p class="wo-error-msg" id="ast-ed-f-pickup-note-err" hidden></p>
+                        </div>
+                    </div>
+                    <p class="wo-error-msg" id="ast-ed-ship-on-err" hidden></p>
+                </fieldset>
+
+                <!-- Checklist de publicación -->
+                <section class="ast-checklist" aria-labelledby="ast-ed-checklist-title">
+                    <h3 class="ast-checklist-title" id="ast-ed-checklist-title">Checklist de publicación</h3>
+                    <ul class="ast-checklist-list" id="ast-ed-checklist" aria-live="polite"></ul>
+                </section>
+            </form>
+
+            <footer class="ast-drawer-foot">
+                <p class="wo-meta-s wo-muted ast-foot-hint" id="ast-ed-publish-hint">Completá el checklist para publicar.</p>
+                <div class="ast-foot-actions">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="ast-ed-cancel">Cerrar</button>
+                    <button type="submit" form="ast-ed-form" class="wo-btn" id="ast-ed-save">Guardar borrador</button>
+                    <button type="button" class="wo-btn wo-btn--direct" id="ast-ed-publish" aria-describedby="ast-ed-publish-hint" disabled>Publicar</button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ============================ DRAWER · DETALLE DE PEDIDO ============================ -->
+    <div class="wo-overlay ast-drawer-overlay" id="ast-order" hidden>
+        <div class="ast-drawer" role="dialog" aria-modal="true" aria-labelledby="ast-or-title" tabindex="-1">
+            <header class="ast-drawer-head">
+                <div class="ast-drawer-heading">
+                    <p class="wo-eyebrow">Pedido</p>
+                    <h2 class="ast-drawer-title" id="ast-or-title">Pedido</h2>
+                    <span class="ast-drawer-tags" id="ast-or-tags"></span>
+                </div>
+                <button type="button" class="ast-x" id="ast-or-close" aria-label="Cerrar el pedido"><i data-wo-icon="x" aria-hidden="true"></i></button>
+            </header>
+            <div class="ast-drawer-body" id="ast-or-body"></div>
+        </div>
+    </div>
+
+    <!-- ============================ DIÁLOGO · CONFIRMAR PAGO ============================ -->
+    <div class="wo-overlay ast-dialog-overlay" id="ast-dlg-payment" hidden>
+        <div class="wo-modal ast-dialog" role="dialog" aria-modal="true" aria-labelledby="ast-pay-title" aria-describedby="ast-pay-intro" tabindex="-1">
+            <h2 class="wo-modal-title" id="ast-pay-title">Confirmar pago recibido</h2>
+            <p class="ast-dialog-text" id="ast-pay-intro">Confirmalo solo cuando el dinero ya esté en tu cuenta.</p>
+            <dl class="ast-kv" id="ast-pay-summary"></dl>
+            <form class="ast-dialog-form" id="ast-pay-form" novalidate>
+                <div class="wo-field">
+                    <label class="wo-label" for="ast-pay-reference">Referencia del pago</label>
+                    <input type="text" class="wo-input" id="ast-pay-reference" maxlength="200" placeholder="Ej: Transferencia 0001234" aria-describedby="ast-pay-reference-help">
+                    <p class="wo-help" id="ast-pay-reference-help">Número de operación o comprobante. Te sirve para encontrar el pago después.</p>
+                </div>
+                <div class="wo-field">
+                    <label class="wo-label" for="ast-pay-note">Nota interna (opcional)</label>
+                    <textarea class="wo-textarea" id="ast-pay-note" maxlength="500" rows="3"></textarea>
+                </div>
+                <p class="wo-error-msg" id="ast-pay-error" role="alert" hidden></p>
+                <div class="wo-modal-actions">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="ast-pay-cancel">Volver</button>
+                    <button type="submit" class="wo-btn wo-btn--direct" id="ast-pay-submit">Confirmar pago</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================ DIÁLOGO · CONFIRMACIÓN GENÉRICA ============================ -->
+    <div class="wo-overlay ast-dialog-overlay" id="ast-dlg-confirm" hidden>
+        <div class="wo-modal ast-dialog" role="alertdialog" aria-modal="true" aria-labelledby="ast-confirm-title" aria-describedby="ast-confirm-message" tabindex="-1">
+            <h2 class="wo-modal-title" id="ast-confirm-title">¿Confirmás?</h2>
+            <p class="ast-dialog-text" id="ast-confirm-message"></p>
+            <form class="ast-dialog-form" id="ast-confirm-form" novalidate>
+                <div class="wo-field" id="ast-confirm-field" hidden>
+                    <label class="wo-label" for="ast-confirm-input" id="ast-confirm-label">Motivo</label>
+                    <textarea class="wo-textarea" id="ast-confirm-input" rows="3" maxlength="300"></textarea>
+                </div>
+                <p class="wo-error-msg" id="ast-confirm-error" role="alert" hidden></p>
+                <div class="wo-modal-actions">
+                    <button type="button" class="wo-btn wo-btn--ghost" id="ast-confirm-cancel">Volver</button>
+                    <button type="submit" class="wo-btn wo-btn--danger" id="ast-confirm-ok">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Avisos (resultado de acciones): el texto se anuncia por dos regiones
+         vivas que están desde la carga y nunca se ocultan (los errores, por la
+         de role=alert). El toast es solo visual. -->
+    <div class="wo-sr-only" id="ast-live-status" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="wo-sr-only" id="ast-live-alert" role="alert" aria-live="assertive" aria-atomic="true"></div>
+    <div class="ast-toast" id="ast-toast" aria-hidden="true" hidden></div>
+
+    <!-- ============================ SCRIPTS ============================ -->
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/store-model.js"></script>
+    <script src="/shared/js/store-watermark.js"></script>
+    <!-- La conversión de HEIC/HEIF se carga a demanda desde artist-store.js. -->
+    <script src="/shared/js/data/store-repo.js"></script>
+    <script src="/shared/js/artist-store.js"></script>
+    <script src="/shared/js/wo-artist-menu.js" defer></script>
+</body>
+</html>

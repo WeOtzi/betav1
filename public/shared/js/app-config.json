@@ -189,7 +189,8 @@
     "features": {
         "demoMode": false,
         "emailNotifications": true,
-        "imageUpload": true
+        "imageUpload": true,
+        "store": true
     },
     "routes": {
         "quotation": "/quotation",
@@ -197,13 +198,13 @@
         "dashboard": "/artist/dashboard",
         "myQuotations": "/my-quotations",
         "calendar": "/calendar",
-        "archive": "/archive",
+        "archive": "/my-quotations?alcance=archivadas",
         "backoffice": "/backoffice",
         "registerClosedBeta": "/registerclosedbeta",
         "registerArtist": "/register-artist",
         "supportLogin": "/support/login",
         "supportDashboard": "/support/dashboard",
-        "tutorial": "/tutorial",
+        "tutorial": "/my-quotations?demo=1&tour=1",
         "clientLogin": "/client/login",
         "clientRegister": "/client/register",
         "clientDashboard": "/client/dashboard",

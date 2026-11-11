@@ -1,0 +1,67 @@
+/* Client login only · final Figma frame 801:1124, 1440 × 1024.
+   Exact frame dimensions supplement DS primitives without changing registration. */
+@font-face{font-family:'Archivo Black';src:url('/shared/fonts/artist-login/ArchivoBlack-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Inter;src:url('/shared/fonts/artist-login/Inter.ttf') format('truetype');font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('/shared/fonts/artist-login/JetBrainsMono.ttf') format('truetype');font-weight:100 800;font-style:normal;font-display:swap}
+
+.client-login-page{--login-placeholder:#757575}
+.client-login-page .ca-split{grid-template-columns:minmax(0,728fr) minmax(0,716fr)}
+.client-login-page .ca-hero{box-sizing:border-box;justify-content:center;padding:var(--space-12)}
+.client-login-page .ca-hero-inner{gap:0}
+.client-login-page .ca-hero .wo-marks{position:absolute;left:46px;top:48px;gap:8px}
+.client-login-page .ca-hero .wo-mark-triangle{border-left-width:9.6px;border-right-width:9.6px}
+.client-login-page .ca-hero-title{width:327px;font-size:72px;line-height:69px;letter-spacing:0}
+.client-login-page .ca-hero-deco{right:56px;bottom:55.8px;width:0;height:0;border:0;border-left:44px solid transparent;border-right:44px solid transparent;border-bottom:80px solid var(--bauhaus-square)}
+.client-login-page .ca-form-col{box-sizing:border-box;align-items:flex-start;padding:max(64px,calc((100svh - 572px)/2)) 32px 64px 34px}
+.client-login-page .ca-form{max-width:422px;gap:0}
+.client-login-page .ca-brand{gap:13.326px;height:30.206px}
+.client-login-page .ca-brand .wo-marks{gap:6.663px}
+.client-login-page .ca-brand .wo-mark-square,.client-login-page .ca-brand .wo-mark-circle{width:22.211px;height:22.211px}
+.client-login-page .ca-brand .wo-mark-triangle{border-left-width:10.661px;border-right-width:10.661px;border-bottom-width:22.211px}
+.client-login-page .ca-wordmark{font-size:22.211px;letter-spacing:.8px;color:var(--ink)}
+.client-login-page .ca-head{margin-top:30.43px;gap:4.442px}
+.client-login-page .ca-title{font-size:35.537px;line-height:37.314px;letter-spacing:0;font-weight:400;color:var(--ink)}
+.client-login-page .ca-subtitle{font-size:16.658px;line-height:normal}
+.client-login-page .ca-fields{margin-top:22.673px;gap:22.878px}
+.client-login-page .wo-field{gap:8.884px}
+.client-login-page .wo-label{font-size:13.326px;line-height:15.992px;letter-spacing:.96px;color:var(--text-muted)}
+.client-login-page .wo-input{height:52.417px;min-height:0;border-width:1.111px;padding:0 19.545px 0 48.418px;font-size:17.768px;line-height:normal}
+.client-login-page .wo-input::placeholder{color:var(--login-placeholder)}
+.client-login-page .wo-input:focus{border-width:1.111px;padding:0 19.545px 0 48.418px;box-shadow:var(--shadow-focus)}
+.client-login-page .ca-field-icon{position:absolute;left:19.545px;top:50%;transform:translateY(-50%);pointer-events:none}
+.client-login-page #btn-login{height:48.863px;min-height:0;padding:0 23.988px;gap:8.884px;border-width:1.111px;color:var(--neutral-100);font-size:15.547px;line-height:15.547px;letter-spacing:1.12px}
+.client-login-page .ca-divider{height:17.768px;margin-top:22.211px;gap:13.326px;font-size:13.326px;line-height:normal;letter-spacing:.96px}
+.client-login-page .ca-oauth{margin-top:44.422px;gap:0;width:100%}
+.client-login-page .ca-reco{box-sizing:border-box;width:101.132px;height:22.211px;min-height:0;padding:0 4.66px;gap:0;border:0;border-radius:0;font-size:10.622px;line-height:normal;letter-spacing:.5739px;font-weight:600}
+.client-login-page .ca-social-buttons{display:grid;grid-template-columns:151.032fr 113.274fr 131.042fr;gap:13.326px;width:100%}
+.client-login-page .ca-social-buttons .wo-btn{height:23.543px;min-height:0;padding:0;gap:8.884px;border-width:1.111px;font-size:15.547px;line-height:15.547px;letter-spacing:1.12px}
+.client-login-page .ca-links{margin-top:31.091px}
+.client-login-page .ca-links p{font-size:12.216px;line-height:normal;letter-spacing:.66px}
+.client-login-page .ca-links a{color:var(--bauhaus-square)}
+.client-login-page .ca-links a:hover{color:var(--red-700)}
+.client-login-page .form-message{margin-top:var(--space-4)}
+.client-login-page .form-message:empty{margin:0}
+.client-login-page .ca-social-notice{width:100%;margin-top:var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.client-login-page .ca-social-notice p{margin:0 0 var(--space-2)}
+
+/* Align the browser font baseline with Figma's 69px text boxes. */
+@media(min-width:1101px){.client-login-page .ca-hero-title{transform:translate(-1px,-3.5px)}}
+@media(max-width:1100px){
+  .client-login-page .ca-hero-title{width:auto;font-size:56px;line-height:.95}
+  .client-login-page .ca-form-col{padding-left:24px;padding-right:24px}
+  .client-login-page .ca-title{font-size:30px;line-height:1.05}
+  .client-login-page .ca-social-buttons{gap:8px}
+  .client-login-page .ca-social-buttons .wo-btn{font-size:12px;letter-spacing:.5px;gap:4px}
+}
+@media(min-width:801px){.client-login-page .ca-hero{display:flex}}
+@media(max-width:800px){
+  .client-login-page .ca-split{grid-template-columns:1fr;align-content:start}
+  .client-login-page .ca-hero{display:flex;min-height:260px;padding:64px 24px 32px}
+  .client-login-page .ca-hero .wo-marks{top:24px;left:24px}
+  .client-login-page .ca-hero-title{font-size:48px;line-height:.95}
+  .client-login-page .ca-hero-deco{right:24px;bottom:24px;border-left-width:18px;border-right-width:18px;border-bottom-width:33px}
+  .client-login-page .ca-form-col{padding:40px 24px 48px}
+  .client-login-page .ca-title{font-size:clamp(26px,7vw,35.537px);line-height:1.05}
+  .client-login-page .ca-subtitle{font-size:15px;line-height:1.4}
+  .client-login-page .ca-social-buttons .wo-btn{height:44px}
+}

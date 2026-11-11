@@ -1,0 +1,85 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "instructions": [
+    "docs/VALENTINA-AUTOENTREGA.md"
+  ],
+  "permission": {
+    "bash": {
+      "*": "ask",
+      "git push*": "deny",
+      "git * push*": "deny",
+      "git commit*": "deny",
+      "git branch*": "deny",
+      "git switch*": "deny",
+      "git checkout*": "deny",
+      "git worktree*": "deny",
+      "git merge*": "deny",
+      "gh pr merge*": "deny",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git rev-parse*": "allow",
+      "git branch --show-current": "allow",
+      "git fetch origin": "allow",
+      "git pull --ff-only": "allow",
+      "rg *": "allow",
+      "node --check *": "allow",
+      "npm test": "allow",
+      "npm run check:release": "allow",
+      "npm run version:delivery *": "allow",
+      "npm run dev:safe": "allow",
+      "npm run valen:status": "allow",
+      "npm run valen:verify": "allow",
+      "npm run valen:wait": "allow",
+      "node scripts/release/valentina-delivery.cjs *": "allow"
+    }
+  },
+  "agent": {
+    "build": {
+      "permission": {
+        "bash": {
+          "*": "ask",
+          "git push*": "deny",
+          "git * push*": "deny",
+          "git commit*": "deny",
+          "git branch*": "deny",
+          "git switch*": "deny",
+          "git checkout*": "deny",
+          "git worktree*": "deny",
+          "git merge*": "deny",
+          "gh pr merge*": "deny",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git rev-parse*": "allow",
+          "git branch --show-current": "allow",
+          "git fetch origin": "allow",
+          "git pull --ff-only": "allow",
+          "rg *": "allow",
+          "node --check *": "allow",
+          "npm test": "allow",
+          "npm run check:release": "allow",
+          "npm run version:delivery *": "allow",
+          "npm run dev:safe": "allow",
+          "npm run valen:status": "allow",
+          "npm run valen:verify": "allow",
+          "npm run valen:wait": "allow",
+          "node scripts/release/valentina-delivery.cjs *": "allow"
+        }
+      }
+    }
+  },
+  "command": {
+    "verificar-valen": {
+      "description": "Comprobar Windows Dev, cuenta, rama y commit publicado",
+      "agent": "build",
+      "template": "Ejecuta npm run valen:verify. Es una comprobación de solo lectura: no edites, no hagas commit ni push. Explica canPublishHere, pendingChanges, ciPassed y synchronized. Si no es Windows Dev o no coincide la cuenta valen-rozes, indica que se abra el proyecto desde la sesión RDP de Valen. Lee docs/VALENTINA-AUTOENTREGA.md."
+    },
+    "publicar-valen": {
+      "description": "Completar pruebas, commit, push y publicación de la tarea actual",
+      "agent": "build",
+      "template": "Completa la entrega de la tarea actual según docs/VALENTINA-AUTOENTREGA.md. Revisa el alcance y los archivos pendientes, prueba la UI cuando corresponda, prepara versión y changelog, y ejecuta node scripts/release/valentina-delivery.cjs publish con --title, --validation y --files explícitos de esta tarea. No crees ramas, no mezcles a main, no uses SSH ni otra cuenta. No finalices diciendo publicado hasta que la herramienta confirme CI y la misma SHA en la preview. $ARGUMENTS"
+    }
+  }
+}

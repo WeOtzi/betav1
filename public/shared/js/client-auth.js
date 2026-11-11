@@ -14,6 +14,129 @@ const _supabase = (window._supabase = window._supabase || supabase.createClient(
 
 let currentClientData = null;
 
+// ============================================
+// returnTo (Store: /store/checkout, /store/purchases, /store/license…)
+// ============================================
+// Solo se aceptan paths del mismo origen bajo /store/ (sin base path, sin
+// esquema, sin //host, sin barras invertidas, sin segmentos . o ..). Sin un
+// returnTo válido, todo sigue yendo a /client/dashboard como siempre.
+
+const RETURN_TO_PARAM = 'returnTo';
+const RETURN_TO_PREFIX = '/store/';
+
+function clientBasePath() {
+    const w = typeof window !== 'undefined' ? window : {};
+    if (w.WEOTZI_BASE_PATH) return String(w.WEOTZI_BASE_PATH).replace(/\/$/, '');
+    const pathname = (w.location && w.location.pathname) || '';
+    return /^\/beta(?:\/|$)/.test(pathname) ? '/beta' : '';
+}
+
+// Agrega el base path (/beta, preview) a una ruta absoluta del producto. Idempotente.
+function clientAppPath(path) {
+    const base = clientBasePath();
+    const s = String(path || '');
+    if (!base || s.charAt(0) !== '/' || s.charAt(1) === '/' || s === base || s.indexOf(base + '/') === 0) return s;
+    return base + s;
+}
+
+// '/store/item/?id=1' → '/store/item/?id=1' · 'https://otro.com/x', '//x',
+// '/client/dashboard', '/store/../client' → null.
+function normalizeReturnTo(value) {
+    if (value == null) return null;
+    let s = String(value).trim();
+    if (!s || s.length > 2048) return null;
+    // Controles, espacios internos y barras invertidas ('/\otro.com' = //otro.com).
+    if (/[\u0000-\u001F\u007F\s\\]/.test(s)) return null;
+    // Solo paths: nada de esquemas (https:, javascript:, data:) ni //host.
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s) || s.charAt(0) !== '/' || s.charAt(1) === '/') return null;
+    const base = clientBasePath();
+    if (base && (s === base || s.indexOf(base + '/') === 0)) s = s.slice(base.length) || '/';
+    const cut = s.search(/[?#]/);
+    let pathPart = cut === -1 ? s : s.slice(0, cut);
+    const rest = cut === -1 ? '' : s.slice(cut);
+    // Puntos y barras codificados: se rechazan para no resolver «..» escondidos.
+    if (/%(2e|2f|5c)/i.test(pathPart)) return null;
+    if (pathPart.split('/').some((seg) => seg === '.' || seg === '..')) return null;
+    if (pathPart === '/store') pathPart = RETURN_TO_PREFIX;
+    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0) return null;
+    return pathPart + rest;
+}
+
+function readReturnTo(search) {
+    try {
+        const source = search != null ? search : ((typeof window !== 'undefined' && window.location && window.location.search) || '');
+        return normalizeReturnTo(new URLSearchParams(source).get(RETURN_TO_PARAM));
+    } catch (_) {
+        return null;
+    }
+}
+
+// Destino después de ingresar: el returnTo (con base path) o el default de siempre.
+function postAuthDestination(fallback = '/client/dashboard') {
+    const returnTo = readReturnTo();
+    return returnTo ? clientAppPath(returnTo) : fallback;
+}
+
+function isOAuthCallbackUrl() {
+    const loc = (typeof window !== 'undefined' && window.location) || {};
+    return String(loc.hash || '').includes('access_token') || String(loc.search || '').includes('code=');
+}
+
+// Links entre login y registro: conservan ?returnTo= (también los que se
+// insertan después, como el «Ingresá» del mensaje de email ya registrado).
+function withReturnTo(href, returnTo) {
+    if (!href || !returnTo) return href;
+    const raw = String(href);
+    const hashAt = raw.indexOf('#');
+    const main = hashAt === -1 ? raw : raw.slice(0, hashAt);
+    const hash = hashAt === -1 ? '' : raw.slice(hashAt);
+    const qAt = main.indexOf('?');
+    const path = qAt === -1 ? main : main.slice(0, qAt);
+    const params = new URLSearchParams(qAt === -1 ? '' : main.slice(qAt + 1));
+    params.set(RETURN_TO_PARAM, returnTo);
+    return path + '?' + params.toString() + hash;
+}
+
+function isClientAuthLink(href) {
+    const raw = String(href || '');
+    if (!raw || raw.charAt(0) !== '/' || raw.charAt(1) === '/') return false;
+    const base = clientBasePath();
+    let path = raw.split(/[?#]/)[0];
+    if (base && path.indexOf(base + '/') === 0) path = path.slice(base.length);
+    return /^\/client\/(login|register)\/?$/.test(path);
+}
+
+function propagateReturnTo(root) {
+    const returnTo = readReturnTo();
+    if (!returnTo || !root || typeof root.querySelectorAll !== 'function') return;
+    root.querySelectorAll('a[href]').forEach((a) => {
+        const href = a.getAttribute('href');
+        if (isClientAuthLink(href)) a.setAttribute('href', withReturnTo(href, returnTo));
+    });
+    // CTA de la pantalla de éxito del registro: vuelve a la Store.
+    root.querySelectorAll('[data-ca-return-link]').forEach((a) => {
+        a.setAttribute('href', clientAppPath(returnTo));
+        const label = a.getAttribute('data-ca-return-label');
+        if (!label) return;
+        const textNode = Array.prototype.find.call(a.childNodes, (n) => n.nodeType === 3 && n.textContent.trim());
+        if (textNode) textNode.textContent = label + ' ';
+    });
+}
+
+if (typeof document !== 'undefined' && document && typeof document.addEventListener === 'function') {
+    document.addEventListener('DOMContentLoaded', () => propagateReturnTo(document));
+    document.addEventListener('click', (e) => {
+        const target = e && e.target;
+        const a = target && typeof target.closest === 'function' ? target.closest('a[href]') : null;
+        if (!a) return;
+        const returnTo = readReturnTo();
+        const href = a.getAttribute('href');
+        if (returnTo && isClientAuthLink(href) && href.indexOf(RETURN_TO_PARAM + '=') === -1) {
+            a.setAttribute('href', withReturnTo(href, returnTo));
+        }
+    }, true);
+}
+
 async function ensureClientMode(session) {
     const response = await fetch('/api/account/mode', {method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({mode:'client'})});
     const result = await response.json();
@@ -54,20 +177,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function checkClientAuthState() {
     const currentPath = window.location.pathname;
+    const onAuthPage = currentPath.includes('/client/login') || currentPath.includes('/client/register');
+    const returnTo = readReturnTo();
     
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         
         if (session) {
+            // Volviendo de Google con returnTo: handleOAuthCallback crea el
+            // perfil si falta y después redirige a la Store.
+            if (returnTo && onAuthPage && isOAuthCallbackUrl()) return;
+
             // User is logged in - check if they are a client
             const { data: client, error } = await WeotziData.Clients.getByUserId(session.user.id);
 
             if (client) {
                 void sendPendingClientWelcome(session.user);
                 // User is a valid client
-                if (currentPath.includes('/client/login') || currentPath.includes('/client/register')) {
-                    // Redirect to dashboard if trying to access login/register
-                    window.location.href = '/client/dashboard';
+                if (onAuthPage) {
+                    // Redirect to dashboard (o al returnTo de la Store) if trying to access login/register
+                    window.location.href = postAuthDestination();
                     return;
                 }
                 currentClientData = client;
@@ -76,6 +205,12 @@ async function checkClientAuthState() {
                 const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
 
                 if (artist) {
+                    // La Store acepta cuentas de artista: con returnTo vuelve
+                    // ahí sin cambiar el modo de la cuenta.
+                    if (returnTo && onAuthPage) {
+                        window.location.href = postAuthDestination();
+                        return;
+                    }
                     // They are an artist, redirect to artist dashboard
                     if (currentPath.includes('/client/')) {
                         await ensureClientMode(session);
@@ -200,7 +335,7 @@ async function handleClientRegistration(payload) {
                 health_conditions: currentClientData?.client_health_conditions || '',
                 allergies: currentClientData?.client_allergies || ''
             },
-            emailRedirectTo: window.location.origin + '/client/dashboard'
+            emailRedirectTo: window.location.origin + postAuthDestination()
         }
     });
 
@@ -369,17 +504,20 @@ async function handleClientLogin(e) {
             showFormMessage('Sesión iniciada correctamente.', 'success');
             
             setTimeout(() => {
-                window.location.href = '/client/dashboard';
+                window.location.href = postAuthDestination();
             }, 1500);
         } else {
             // Check if they are an artist
             const { data: artist } = await WeotziData.Artists.getByUserId(data.user.id, 'user_id, name');
 
             if (artist) {
-                await ensureClientMode(data.session);
-                showFormMessage('Modo cliente activado.', 'success');
+                // Con returnTo (Store) el artista vuelve a comprar sin cambiar
+                // el modo de su cuenta.
+                const returnTo = readReturnTo();
+                if (!returnTo) await ensureClientMode(data.session);
+                showFormMessage(returnTo ? 'Sesión iniciada correctamente.' : 'Modo cliente activado.', 'success');
                 setTimeout(() => {
-                    window.location.href = '/client/dashboard';
+                    window.location.href = postAuthDestination();
                 }, 1500);
             } else {
                 // No profile exists - create one
@@ -399,7 +537,7 @@ async function handleClientLogin(e) {
                 btn.style.borderColor = 'var(--system-success)';
 
                 setTimeout(() => {
-                    window.location.href = '/client/dashboard';
+                    window.location.href = postAuthDestination();
                 }, 1500);
             }
         }
@@ -425,10 +563,16 @@ async function handleClientLogin(e) {
 
 async function handleGoogleLogin() {
     try {
+        // Con returnTo, Google vuelve al login (que crea el perfil si falta y
+        // redirige a la Store); sin returnTo, al dashboard como siempre.
+        const returnTo = readReturnTo();
+        const redirectTo = returnTo
+            ? window.location.origin + withReturnTo(clientAppPath('/client/login'), returnTo)
+            : window.location.origin + '/client/dashboard';
         const { data, error } = await _supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin + '/client/dashboard',
+                redirectTo,
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent'
@@ -562,8 +706,9 @@ async function handleOAuthCallback() {
             const { data: artist } = await WeotziData.Artists.getByUserId(session.user.id, 'user_id');
 
             if (artist) {
-                // User is an artist, redirect to artist dashboard
-                window.location.href = '/artist/dashboard';
+                // User is an artist, redirect to artist dashboard (o a la Store
+                // si vino con returnTo: la Store acepta cuentas de artista)
+                window.location.href = readReturnTo() ? postAuthDestination() : '/artist/dashboard';
                 return;
             }
             
@@ -592,6 +737,8 @@ async function handleOAuthCallback() {
             }
         }
         void sendPendingClientWelcome(session.user);
+        // Google con returnTo: después de crear o vincular el perfil, a la Store.
+        if (readReturnTo()) window.location.href = postAuthDestination();
     }
 }
 
@@ -659,6 +806,11 @@ window.ClientAuth = {
         await linkQuotationsByEmail(userId, email);
         if (quoteId) await linkQuotationById(userId, quoteId);
     },
+
+    // returnTo de la Store (ver normalizeReturnTo arriba).
+    normalizeReturnTo,
+    readReturnTo,
+    postAuthDestination,
 
     async resetPassword(email) {
         // Recovery verifies ownership before changing the password. It shares the

@@ -37,8 +37,6 @@ test('all authenticated artist surfaces mount the same product-navigation compon
     const pages = [
         { parts: ['public', 'artist', 'dashboard', 'index.html'], active: 'quotations', menu: 'dashboard-mobile-menu' },
         { parts: ['public', 'artist', 'account', 'index.html'], active: 'account', menu: 'aac-mobile-menu' },
-        { parts: ['public', 'artist', 'profile', 'details', 'index.html'], active: 'account', menu: 'dashboard-mobile-menu' },
-        { parts: ['public', 'artist', 'visitors', 'index.html'], active: 'visitors', menu: 'dashboard-mobile-menu' },
         { parts: ['public', 'calendar', 'index.html'], active: 'calendar', menu: 'admin-mobile-menu' },
         { parts: ['public', 'my-quotations', 'statistics', 'index.html'], active: 'statistics', menu: 'admin-mobile-menu' },
         { parts: ['public', 'artist', 'travel', 'index.html'], active: 'travel', menu: 'tv-mobile-menu' },
@@ -49,6 +47,7 @@ test('all authenticated artist surfaces mount the same product-navigation compon
         { parts: ['public', 'artist', 'invitations', 'index.html'], active: 'invitations', menu: 'inv-mobile-menu' },
         { parts: ['public', 'my-quotations', 'index.html'], active: 'quotations', menu: 'admin-mobile-menu' },
         { parts: ['public', 'my-quotations', 'detail', 'index.html'], active: 'quotations', menu: 'admin-mobile-menu' },
+        { parts: ['public', 'artist', 'store', 'index.html'], active: 'store', menu: 'st-mobile-menu' },
     ];
 
     pages.forEach(({ parts, active, menu }) => {
@@ -67,8 +66,6 @@ test('all authenticated artist surfaces share live menu counters and the Dashboa
     const pages = [
         ['public', 'artist', 'dashboard', 'index.html'],
         ['public', 'artist', 'account', 'index.html'],
-        ['public', 'artist', 'profile', 'details', 'index.html'],
-        ['public', 'artist', 'visitors', 'index.html'],
         ['public', 'calendar', 'index.html'],
         ['public', 'my-quotations', 'statistics', 'index.html'],
         ['public', 'artist', 'travel', 'index.html'],
@@ -79,6 +76,7 @@ test('all authenticated artist surfaces share live menu counters and the Dashboa
         ['public', 'artist', 'invitations', 'index.html'],
         ['public', 'my-quotations', 'index.html'],
         ['public', 'my-quotations', 'detail', 'index.html'],
+        ['public', 'artist', 'store', 'index.html'],
     ];
 
     pages.forEach((parts) => {

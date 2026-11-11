@@ -1,3 +1,6 @@
 # Preserve shell scripts for the Linux controller and avoid treating PDFs as text.
 *.sh text eol=lf
 *.pdf binary
+
+# Preserve vendored asset bytes and their upstream checksums on Windows.
+scripts/release/preview-assets/** -text

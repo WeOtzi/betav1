@@ -151,7 +151,9 @@
    * ===================================================================== */
   function renderProfileCard() {
     if (!artist) return;
-    var name = artist.username || artist.name || 'Tu perfil';
+    // Figma 24:1425: "LAUUMARTH" en el título y "@lauumarth.wo" aparte; el
+    // sufijo .wo del username no va en mayúsculas en el nombre.
+    var name = String(artist.username || artist.name || 'Tu perfil').replace(/^@/, '').replace(/\.wo$/i, '');
     var rawUsername = String(artist.username || '').replace(/^@/, '').trim();
     var handle = rawUsername
       ? '@' + (rawUsername.toLowerCase().endsWith('.wo') ? rawUsername : rawUsername + '.wo')
@@ -212,8 +214,15 @@
     // 'rescheduled' y 'no_show' son estados reales de quotation_sessions: sin
     // esto caian al fallback y se mostraban crudos en ingles.
     if (s === 'pending' || s === 'tentative' || s === 'pending_confirmation' || s === 'rescheduled') return { cls: 'is-warn', txt: 'POR CONFIRMAR' };
-    if (s === 'no_show') return { cls: 'is-warn', txt: 'NO ASISTIO' };
+    if (s === 'no_show') return { cls: 'is-warn', txt: 'NO ASISTIÓ' };
     return { cls: 'is-warn', txt: (status || 'POR CONFIRMAR').toString().toUpperCase() };
+  }
+  // "Sesión 2/3" (Figma 24:1425); sin número, "Sesión"; sin total, "Sesión 2".
+  function sessionLabel(number, total) {
+    var n = parseInt(number, 10);
+    var t = parseInt(total, 10);
+    if (!isFinite(n) || n <= 0) return 'Sesión';
+    return 'Sesión ' + n + (isFinite(t) && t >= n && t > 1 ? '/' + t : '');
   }
   // Duración real de la sesión: 3H / 1.5H → 90M. Sin dato, sin chip.
   function durationLabel(hours) {
@@ -228,7 +237,7 @@
   // no degradar la agenda entera por un campo opcional.
   function fetchAgendaRows(nowIso) {
     var cols = 'id, session_date, session_number, status, notes, duration_hours, quotation_id, ' +
-      'quotations_db(quote_id, client_full_name, tattoo_style, tattoo_body_part)';
+      'quotations_db(quote_id, client_full_name, tattoo_style, tattoo_body_part, final_sessions, tattoo_estimated_sessions)';
     return WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 30, select: cols })
       .catch(function (e) {
         console.warn('[redesign] agenda sin duration_hours', e);
@@ -285,7 +294,7 @@
           if (s.notes) {
             detailParts.push(s.notes);
           } else {
-            detailParts.push(s.session_number ? 'Sesion ' + s.session_number : 'Sesion');
+            detailParts.push(sessionLabel(s.session_number, q.final_sessions || q.tattoo_estimated_sessions));
             var style = styleList(q.tattoo_style)[0];
             if (style) detailParts.push(style);
             if (q.tattoo_body_part) detailParts.push(q.tattoo_body_part);
@@ -450,6 +459,12 @@
       ? String(q.current_step).toUpperCase()
       : (DESIGN_STAGES[q.quote_status] || String(q.quote_status || '').toUpperCase());
     var ready = q.quote_status === 'artist_completed';
+    // Color de la barra por etapa (Figma 24:1425): BOCETO azul, ENTINTADO
+    // amarillo, FINAL / lista para el cliente verde.
+    var stageKey = String(q.current_step || '').toLowerCase();
+    var stageCls = stageKey === 'boceto' ? ' is-boceto'
+      : (stageKey === 'final' || ready) ? ' is-final'
+      : stageKey === 'entintado' ? ' is-entintado' : '';
     var deadline = q.client_preferred_date ? new Date(q.client_preferred_date + 'T12:00:00') : null;
     if (!deadline || isNaN(deadline)) deadline = next;
 
@@ -462,7 +477,7 @@
       '<h3 class="wo-dash-design-title">' + esc(designTitle(q)) + '</h3>' +
       '<p class="wo-dash-design-client">' + esc(designClient(q.client_full_name)) + '</p>' +
       (pct === null ? '' :
-        '<div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (ready ? ' is-ready' : '') +
+        '<div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (ready ? ' is-ready' : '') + stageCls +
         '" style="width:' + pct + '%"></div></div>') +
       '<div class="wo-dash-design-foot">' +
         '<span>' + esc(stage) + '</span>' +
@@ -590,135 +605,12 @@
   }
 
   /* ===================================================================== *
-   *  GALERÍA — contador + realce del grid que pinta dashboard.js           *
-   *  (card destacada 2×2 con bandera ★, caption y cluster de acciones,     *
-   *  y la dropzone SUBIR MÁS dentro de la grilla, como en el Figma).       *
-   *  Se opera sobre el DOM ya pintado: dashboard.js sigue siendo el dueño  *
-   *  del markup y de la persistencia del feed.                             *
+   *  GALERÍA — la grilla del Figma 2003:862 (nombre + papelera por celda,  *
+   *  insignias VIDEO / NUEVO · IG, dropzone SUBIR MÁS · N LIBRES, ★ para   *
+   *  destacar y arrastrar para reordenar) la pinta dashboard-gallery.js    *
+   *  desde renderGalleryAdmin(). Acá solo queda el contador "— N" como     *
+   *  respaldo si la grilla cambia por otra vía.                            *
    * ===================================================================== */
-  var GALLERY_CATEGORIES = [
-    ['realizados', 'Trabajos realizados'],
-    ['flash', 'Flash disponibles'],
-    ['proyectos', 'Proyectos']
-  ];
-  function galleryFeed() {
-    return typeof window.normalizeDashboardGalleryFeedItems === 'function'
-      ? window.normalizeDashboardGalleryFeedItems() : null;
-  }
-  function persistFeed(next) {
-    if (typeof window.persistDashboardGalleryFeed !== 'function') return Promise.resolve();
-    return Promise.resolve(window.persistDashboardGalleryFeed(next)).then(function () {
-      if (typeof window.renderGalleryAdmin === 'function') window.renderGalleryAdmin();
-    }).catch(function (e) { console.warn('[redesign] galería', e); });
-  }
-  // ★ Destacar = mover el archivo al primer lugar del feed (la card 2×2).
-  function featureGalleryItem(index) {
-    var feed = galleryFeed();
-    if (!feed || index <= 0 || index >= feed.length) return;
-    var next = feed.slice();
-    next.unshift(next.splice(index, 1)[0]);
-    persistFeed(next);
-  }
-  // ✎ Editar = cambiar la categoría del archivo (único metadato editable).
-  function openCategoryEditor(item, index) {
-    if (item.querySelector('.wod-gal-catsel')) return;
-    var feed = galleryFeed();
-    if (!feed || !feed[index]) return;
-    var sel = document.createElement('select');
-    sel.className = 'wod-gal-catsel';
-    sel.setAttribute('aria-label', 'Categoría del archivo');
-    GALLERY_CATEGORIES.forEach(function (pair) {
-      var o = document.createElement('option');
-      o.value = pair[0]; o.textContent = pair[1];
-      sel.appendChild(o);
-    });
-    sel.value = feed[index].category || 'realizados';
-    sel.addEventListener('click', function (e) { e.stopPropagation(); });
-    sel.addEventListener('change', function (e) {
-      e.stopPropagation();
-      var next = galleryFeed();
-      if (!next || !next[index]) { sel.remove(); return; }
-      next[index] = Object.assign({}, next[index], { category: sel.value });
-      persistFeed(next);
-    });
-    sel.addEventListener('blur', function () { sel.remove(); });
-    item.appendChild(sel);
-    sel.focus();
-  }
-  function actionButton(icon, label) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.setAttribute('aria-label', label);
-    b.innerHTML = '<i data-wo-icon="' + icon + '"></i>';
-    return b;
-  }
-  function enhanceGallery() {
-    var grid = $('gallery-admin-grid');
-    if (!grid) return;
-    var items = grid.querySelectorAll('.gallery-item');
-    Array.prototype.forEach.call(items, function (item, i) {
-      if (item.getAttribute('data-wod-gal') === '1') return;
-      item.setAttribute('data-wod-gal', '1');
-
-      var acts = document.createElement('div');
-      acts.className = 'wod-gal-acts';
-
-      var star = actionButton('star', i === 0 ? 'Ya es el trabajo destacado' : 'Destacar este trabajo');
-      if (i === 0) {
-        star.setAttribute('aria-disabled', 'true');
-        star.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); });
-      } else {
-        star.addEventListener('click', function (e) { e.stopPropagation(); featureGalleryItem(i); });
-      }
-      acts.appendChild(star);
-
-      var pen = actionButton('edit-2', 'Cambiar la categoría del archivo');
-      pen.addEventListener('click', function (e) { e.stopPropagation(); openCategoryEditor(item, i); });
-      acts.appendChild(pen);
-
-      var del = item.querySelector('.gallery-item-delete');
-      if (del) acts.appendChild(del);
-      item.appendChild(acts);
-
-      if (i === 0) {
-        var flag = document.createElement('span');
-        flag.className = 'wod-gal-flag';
-        flag.setAttribute('aria-hidden', 'true');
-        flag.textContent = '★';
-        item.appendChild(flag);
-
-        var badge = item.querySelector('.gallery-category-badge');
-        var cap = document.createElement('div');
-        cap.className = 'wod-gal-caption';
-        cap.innerHTML = '<span class="wod-gal-captxt">' +
-          esc(((badge && badge.textContent) || 'Trabajo') + ' — destacado') + '</span>';
-        item.appendChild(cap);
-      }
-    });
-
-    // dashboard.js emite un slot vacío por hueco libre; el Figma dibuja una
-    // sola dropzone "SUBIR MÁS" (el resto se oculta por CSS).
-    var slot = grid.querySelector('.gallery-item-slot');
-    if (slot && slot.getAttribute('data-wod-gal') !== '1') {
-      slot.setAttribute('data-wod-gal', '1');
-      slot.removeAttribute('aria-hidden');
-      slot.setAttribute('role', 'button');
-      slot.setAttribute('tabindex', '0');
-      slot.setAttribute('aria-label', 'Subir más archivos');
-      slot.innerHTML = '<i data-wo-icon="image"></i><span class="wo-meta-s">SUBIR MÁS</span>';
-      var pick = function (e) {
-        e.stopPropagation();
-        var input = $('gallery-input');
-        if (input) input.click();
-      };
-      slot.addEventListener('click', pick);
-      slot.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); }
-      });
-    }
-
-    if (window.WoIcons) window.WoIcons.hydrate(grid);
-  }
   var galleryWatched = false;
   function watchGalleryCount() {
     var grid = $('gallery-admin-grid'), out = $('wod-gallery-count');
@@ -726,33 +618,14 @@
     galleryWatched = true;
     var apply = function () {
       if (out) out.textContent = '— ' + grid.querySelectorAll('.gallery-item').length;
-      enhanceGallery();
     };
     apply();
     try { new MutationObserver(apply).observe(grid, { childList: true }); } catch (e) { /* opcional */ }
   }
 
-  /* ---- Botón IMPORTAR INSTAGRAM (lo monta instagram-import.js) ---------- */
-  /* El componente compartido inyecta un ícono de Font Awesome, que esta página
-     no carga, y el label "Importar desde Instagram". El Figma pide el glifo
-     Feather y "IMPORTAR INSTAGRAM": se normaliza acá, sin tocar el módulo. */
-  function enhanceIgTrigger() {
-    var mount = $('ig-import-mount-dashboard');
-    if (!mount) return;
-    var btn = mount.querySelector('.ig-import-trigger');
-    if (!btn || btn.getAttribute('data-wod-ig') === '1') return;
-    btn.setAttribute('data-wod-ig', '1');
-    btn.innerHTML = '<i data-wo-icon="instagram"></i><span>IMPORTAR INSTAGRAM</span>';
-    if (window.WoIcons) window.WoIcons.hydrate(btn);
-  }
-  var igWatched = false;
-  function watchIgTrigger() {
-    var mount = $('ig-import-mount-dashboard');
-    if (!mount || igWatched) return;
-    igWatched = true;
-    enhanceIgTrigger();
-    try { new MutationObserver(enhanceIgTrigger).observe(mount, { childList: true }); } catch (e) { /* opcional */ }
-  }
+  /* El botón IMPORTAR INSTAGRAM lo monta instagram-import.js con el label y
+     el glifo del Figma (opción triggerLabel que pasa dashboard.js). */
+  function watchIgTrigger() { /* sin override: ver instagram-import.js */ }
 
   /* El dropdown del tile Ö y el panel de notificaciones viven ahora en el
    * componente compartido /shared/js/wo-artist-menu.js (Figma 167:24120 y
@@ -770,54 +643,30 @@
    *  BOOTSTRAP                                                             *
    * ===================================================================== */
   /* ===================================================================== *
-   *  RECORDATORIOS + LINKS DEL RAIL (Figma 24:1424)                        *
-   *  Los recordatorios viven en user_preferences.app_settings.reminders    *
-   *  (tabla ya existente, sin migracion nueva): [{ text, type, done }].    *
+   *  ACTIVIDAD COMPLEMENTARIA + LINKS DEL RAIL (Figma 24:1425)             *
+   *  Los recordatorios ahora los maneja dashboard-reminders.js (tabla      *
+   *  artist_reminders). Acá solo queda la actividad extra que vive en      *
+   *  user_preferences.app_settings.dashboard_activity.                     *
    * ===================================================================== */
-  var REMINDER_ICONS = {
-    stock: 'package', sketch: 'edit-3', message: 'message-circle',
-    payment: 'dollar-sign', session: 'calendar', travel: 'map-pin'
-  };
-
-  function renderReminders(list) {
-    var sec = $('wod-reminders'), ul = $('wod-reminder-list');
-    if (!sec || !ul) return;
-    var items = (list || []).filter(function (r) { return r && r.text; }).slice(0, 6);
-    if (!items.length) { sec.hidden = true; return; }
-    ul.innerHTML = items.map(function (r) {
-      var icon = REMINDER_ICONS[r.type] || 'circle';
-      return '<li class="wo-dash-reminder' + (r.done ? ' is-done' : '') + '">'
-        + '<span class="wo-dash-reminder-ic"><i data-wo-icon="' + icon + '"></i></span>'
-        + '<span class="wo-dash-reminder-tx">' + esc(r.text) + '</span></li>';
-    }).join('');
-    sec.hidden = false;
-    if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') {
-      try { window.WoIcons.hydrate(ul); } catch (e) { /* iconos opcionales */ }
-    }
-  }
-
-  function loadReminders() {
+  function loadActivityPrefs() {
     var P = window.WeotziData && window.WeotziData.Prefs;
     if (!P || typeof P.get !== 'function' || !user) return;
-    withLiveTimeout(P.get(user.id), 'recordatorios')
+    withLiveTimeout(P.get(user.id), 'actividad')
       .then(function (row) {
         var app = (row && row.app_settings) || {};
-        renderReminders(app.reminders || []);
         supplementalActivity = app.dashboard_activity || [];
         renderActivity(lastQuotes);
       })
-      .catch(function (e) { console.warn('[redesign] recordatorios', e); });
+      .catch(function (e) { console.warn('[redesign] actividad', e); });
   }
 
-  // Links del rail que dependen del username: perfil publico y alta manual de
-  // cliente (abre el cotizador con el artista ya seleccionado).
+  // Link del rail que depende del username: perfil público. "Nuevo cliente" y
+  // "Nueva cita" van a la cotización manual (/my-quotations/new?origen=…).
   function wireRailLinks() {
     var username = artist && String(artist.username || '').replace(/^@/, '').trim();
     if (!username) return;
     var pub = $('wod-profile-public');
     if (pub) pub.href = '/artist/profile?artist=' + encodeURIComponent(username);
-    var nc = $('wod-new-client');
-    if (nc) nc.href = '/quotation?artist=' + encodeURIComponent(username);
   }
 
   function boot(detail) {
@@ -838,7 +687,7 @@
 
     renderProfileCard();
     wireRailLinks();
-    loadReminders();
+    loadActivityPrefs();
     setTimeout(clearStaleLoadingStates, LIVE_QUERY_TIMEOUT_MS + 500);
     loadAgenda();
     loadCotizaciones();

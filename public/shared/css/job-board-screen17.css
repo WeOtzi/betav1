@@ -1,0 +1,47 @@
+/* Pantalla 17 · Figma 801:1069. Geometry is local to the sent state only. */
+.jbf-is-sent { --surface-card: var(--figma-white); background: var(--surface-page); }
+html:has(.jbf-is-sent) { scrollbar-width: none; }
+.jbf-is-sent weotzi-product-footer { display: none; }
+/* Topbar compartida sin overrides (ver job-board-screen15.css). */
+.jbf-is-sent .jbf-shell { display: block; max-width: none; }
+.jbf-is-sent .jbf-shell .jbf-main { max-width: none; min-height: calc(100vh - 76px); padding: 92px 32px 120px; }
+.jbf-is-sent .jbf-sent { width: min(100%, 576px); padding: 0; }
+.jbf-is-sent .jbf-sent-tile { margin-bottom: 28px; }
+.jbf-is-sent .jbf-sent-check { position: relative; display: block; width: 32px; height: 32px; }
+.jbf-is-sent .jbf-sent-check img { position: absolute; left: 4px; top: 6.6667px; max-width: none; }
+.jbf-is-sent .jbf-sent > .wo-eyebrow { display: block; font: 400 11px/normal var(--font-mono); letter-spacing: 1.1px; color: var(--text-faint); }
+.jbf-is-sent .jbf-sent-title { margin: 10px 0 12px; font: 400 36px/39.6px var(--font-display); letter-spacing: 0; }
+.jbf-is-sent .jbf-sent-sub { max-width: 460px; margin: 0 auto 36px; font: 400 16px/24px var(--font-body); }
+.jbf-is-sent .jbf-summary { border: 1px solid var(--neutral-500); padding: 1.6px; background: var(--figma-white); }
+.jbf-is-sent .jbf-summary-head { min-height: 48px; box-sizing: border-box; padding: 14px 20px; gap: 12px; color: var(--surface-page); }
+.jbf-is-sent .jbf-summary-head .wo-meta-s { font: 400 11px/normal var(--font-mono); letter-spacing: 1.1px; }
+.jbf-is-sent .jbf-summary-badge { display: flex; align-items: center; height: 20px; box-sizing: border-box; padding: 0 8px; font: 700 10px/normal var(--font-mono); letter-spacing: .8px; }
+.jbf-is-sent .jbf-summary-body { padding: 20px; }
+.jbf-is-sent .jbf-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom-width: .8px; }
+.jbf-is-sent .jbf-summary-key { flex: none; font: 400 11px/normal var(--font-mono); letter-spacing: .66px; }
+.jbf-is-sent .jbf-summary-val { font: 700 15px/normal var(--font-body); }
+.jbf-is-sent .jbf-summary-val.wo-mono-num { font: 700 16px/normal var(--font-mono); }
+.jbf-is-sent .jbf-summary-client { gap: 8px; min-width: 0; font: 700 15px/normal var(--font-body); }
+.jbf-is-sent .jbf-summary-client strong { overflow-wrap: anywhere; }
+.jbf-is-sent .jbf-summary-avatar { flex: none; background: var(--blue-400); font: 400 11.5px/11.52px var(--font-display); }
+.jbf-is-sent .jbf-sent-actions { margin-top: 36px; gap: 16px; }
+.jbf-is-sent .jbf-sent-actions .wo-btn { height: 52px; padding: 0 20px; font: 700 14px/14px var(--font-body); letter-spacing: 1.12px; box-shadow: none; }
+.jbf-is-sent .jbf-sent-actions .wo-btn--direct { border: 0; background: var(--blue-300); color: var(--figma-white); gap: 8px; }
+.jbf-is-sent .jbf-sent-actions .wo-btn--direct:hover { background: var(--blue-500); }
+.jbf-is-sent .jbf-sent-actions .wo-btn--secondary { border: 1px solid var(--neutral-500); background: var(--surface-page); color: var(--neutral-500); padding-inline: 12px; }
+.jbf-is-sent .jbf-sent-actions .wo-btn--secondary:hover { background: var(--neutral-200); }
+.jbf-is-sent .jbf-sent-actions .wo-btn:focus-visible { box-shadow: var(--shadow-focus); }
+@media (min-width: 1024px) {
+    .jbf-is-sent .jbf-sent { position: relative; left: -11px; }
+}
+@media (max-width: 639px) {
+    .jbf-is-sent .jbf-shell .jbf-main { padding: 48px 16px 64px; }
+    .jbf-is-sent .jbf-sent-title { font-size: 28px; line-height: 1.1; }
+    .jbf-is-sent .jbf-summary-body { padding: 16px; }
+    .jbf-is-sent .jbf-summary-row { flex-wrap: wrap; gap: 8px; }
+    .jbf-is-sent .jbf-summary-val { margin-left: auto; max-width: 100%; }
+    .jbf-is-sent .jbf-summary-client { margin-left: auto; }
+    .jbf-is-sent .jbf-summary-head { padding-inline: 12px; gap: 8px; }
+    .jbf-is-sent .jbf-summary-head .wo-meta-s { font-size: 10px; }
+    .jbf-is-sent .jbf-sent-actions .wo-btn { font-size: 12px; letter-spacing: .8px; }
+}

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800" role="img" aria-label="Tote «Ojo»">
+<rect width="800" height="800" fill="#24211D"/>
+<path d="M300 270 C 300 120, 500 120, 500 270" fill="none" stroke="#FAF8F3" stroke-width="18"/>
+<rect x="210" y="260" width="380" height="390" fill="#FAF8F3"/>
+<polygon points="400,330 520,560 280,560" fill="none" stroke="#E42121" stroke-width="10"/>
+<ellipse cx="400" cy="480" rx="62" ry="30" fill="#FAF8F3" stroke="#001125" stroke-width="6"/><circle cx="400" cy="480" r="18" fill="#001125"/>
+<g fill="#FAF8F3" fill-opacity=".12" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="22" letter-spacing="4" transform="rotate(-30 400 400)"><text x="20" y="230">WE ÖTZI · DEMO</text><text x="400" y="400">WE ÖTZI · DEMO</text><text x="40" y="590">WE ÖTZI · DEMO</text></g>
+<text x="56" y="712" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="16" letter-spacing="3" fill="#FAF8F3">MERCH · MARA INK</text>
+<text x="56" y="754" font-family="'Archivo Black', Impact, sans-serif" font-size="34" fill="#FAF8F3">Tote «Ojo»</text>
+</svg>

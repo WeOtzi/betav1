@@ -72,9 +72,14 @@ test('serves app pages, static assets and API routes under /beta base path', asy
         assert.equal(page.status, 200);
         assert.match(await page.text(), /registerclosedbeta-page/);
 
-        const visitorsPage = await fetch(`${baseUrl}/beta/artist/visitors/`);
-        assert.equal(visitorsPage.status, 200);
-        assert.match(await visitorsPage.text(), /block-visitors-map/);
+        // /artist/visitors se retiró con el Figma final: redirige a estadísticas
+        // conservando el base path.
+        const visitorsPage = await fetch(`${baseUrl}/beta/artist/visitors/`, { redirect: 'manual' });
+        assert.equal(visitorsPage.status, 301);
+        assert.equal(visitorsPage.headers.get('location'), '/beta/my-quotations/statistics');
+
+        const statisticsPage = await fetch(`${baseUrl}/beta/my-quotations/statistics/`);
+        assert.equal(statisticsPage.status, 200);
 
         const asset = await fetch(`${baseUrl}/beta/shared/js/config-manager.js`);
         assert.equal(asset.status, 200);
