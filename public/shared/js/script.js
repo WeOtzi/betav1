@@ -776,6 +776,7 @@ function renderCurrentStep() {
     container.innerHTML = '';
 
     const screen = getCurrentScreen();
+    syncArtistConfirmationChrome(screen);
     if (!screen) return;
 
     const stepEl = document.createElement('section');
@@ -837,6 +838,32 @@ function renderCurrentStep() {
     if (screen.initialReference) setTimeout(() => { setupFileUpload(); renderPreviews(); }, 0);
 
     updateFootbar(screen);
+}
+
+// El chrome de Pantalla 14 se activa solo mientras se confirma el artista.
+function syncArtistConfirmationChrome(screen) {
+    const active = !!screen && screen.id === 'artist';
+    document.body.classList.toggle('q-artist-confirm-page', active);
+    const footer = document.querySelector('.quotation-client-footer');
+    const copyright = footer && footer.querySelector('.footer-copyright');
+    if (copyright) {
+        if (!footer.dataset.originalCopyright) footer.dataset.originalCopyright = copyright.textContent;
+        copyright.textContent = active
+            ? '© 2026 We Ötzi. Todos los derechos reservados.'
+            : footer.dataset.originalCopyright;
+    }
+    if (active && footer) {
+        const assets = { TikTok: 'tiktok', 'X/Twitter': 'x', YouTube: 'youtube' };
+        footer.querySelectorAll('.social-icon').forEach(link => {
+            const asset = assets[link.getAttribute('aria-label')];
+            if (!asset || link.querySelector('.q-confirm-social')) return;
+            const image = document.createElement('img');
+            image.className = 'q-confirm-social';
+            image.alt = '';
+            image.src = `/shared/assets/quotation-confirm/${asset}.svg`;
+            link.appendChild(image);
+        });
+    }
 }
 
 // Bloque de una pregunta: etiqueta mono + control (o template completo).

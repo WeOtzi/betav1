@@ -28,10 +28,10 @@ const ARTIST_PUBLIC_FIELDS_LEGACY = [
 
 const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items`;
 
-// Figma: grilla de 3 columnas con 12 slots; nunca menos de 9 (3 filas llenas).
-const MIN_GALLERY_SLOTS = 9;
+// Figma 801:1155: cuatro filas de tres espacios, también con portafolios parciales.
+const MIN_GALLERY_SLOTS = 12;
 const MAX_GALLERY_SLOTS = 12;
-const GALLERY_PLACEHOLDER_SRC = '/shared/assets/placeholders/gallery-default.svg';
+const GALLERY_PLACEHOLDER_SRC = '/shared/assets/artist-profile-figma/portfolio-empty.svg';
 const REVIEW_QUOTE_COUNT = 3;
 const GALLERY_ALL_FILTER = 'todos';
 // Tope de la primera oración de la bio para promoverla a titular-manifiesto.
@@ -956,8 +956,8 @@ function renderGalleryGrid() {
         } else {
             html += `
                 <div class="gallery-image-item is-placeholder" aria-hidden="true">
-                    <img src="${GALLERY_PLACEHOLDER_SRC}" alt="" loading="lazy" width="1200" height="800">
-                    <span class="gallery-placeholder-meta"><span>Disponible</span><span>Slot libre</span></span>
+                    <img src="${GALLERY_PLACEHOLDER_SRC}" alt="" loading="lazy" width="28" height="29.1">
+                    <span class="gallery-placeholder-meta">Foto de portafolio</span>
                 </div>
             `;
         }

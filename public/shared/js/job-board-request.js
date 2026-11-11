@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await waitForConfigManager();
     _supabase = window.ConfigManager?.getSupabaseClient();
     setupSessionChrome();
+    setupInspirationMenu();
     await loadConfig();
 
     const draft = loadDraft();
@@ -177,6 +178,7 @@ function clearDraft() {
 function renderResumePrompt() {
     const container = document.getElementById('jbrq-view');
     if (!container) return;
+    setInspirationChrome(false);
     const stepper = document.getElementById('jbrq-stepper');
     if (stepper) stepper.hidden = true;
 
@@ -226,15 +228,35 @@ window.setView = function(next) {
 function renderView() {
     const container = document.getElementById('jbrq-view');
     if (!container) return;
+    setInspirationChrome(view === 'inspiration');
+    const isForm = view === 'form';
+    const isReview = view === 'review';
+    document.body.classList.toggle('jbrq-is-form', isForm);
+    document.body.classList.toggle('jbrq-is-review', isReview);
+    if (isForm || isReview) {
+        document.getElementById('jbrq-client-nav').hidden = true;
+        document.getElementById('jbrq-inspiration-nav').hidden = false;
+    }
     const stepper = document.getElementById('jbrq-stepper');
     const back = document.getElementById('jbrq-back');
 
     if (view === 'inspiration') {
         if (stepper) stepper.hidden = true;
-        if (back) { back.textContent = '← Volver al dashboard'; back.href = '/client/dashboard'; }
+        if (back) {
+            back.innerHTML = '<img src="/shared/assets/job-board-inspiration/arrow-left.svg" alt="" width="14" height="14">Volver al dashboard';
+            back.href = '/client/dashboard';
+        }
     } else {
         if (stepper) stepper.hidden = false;
         if (back) { back.textContent = '← Volver a mis solicitudes'; back.href = '/client/requests'; }
+        if (isForm && back) {
+            back.innerHTML = '<img src="/shared/assets/job-board-form/arrow-left.svg" alt="" width="14" height="14">Volver a Job Board';
+            back.href = '/client/requests';
+        }
+        if (isReview && back) {
+            back.innerHTML = '<img src="/shared/assets/job-board-review/arrow-left.svg" alt="" width="14" height="14">Volver a Job Board';
+            back.href = '/client/requests';
+        }
     }
 
     container.innerHTML = '';
@@ -249,8 +271,58 @@ function renderView() {
     }
 
     container.appendChild(pane);
+    // Los hijos deben estar montados antes de buscarlos por ID.
+    if (view === 'inspiration') {
+        renderGalleryChips();
+        renderGallery();
+        updateSelCount();
+    }
+    if (isForm) {
+        bindFormEvents();
+        renderCalendar();
+        renderRefSlots();
+    }
     window.scrollTo({ top: 0 });
 }
+
+function setInspirationChrome(active) {
+    document.body.classList.toggle('jbrq-is-inspiration', active);
+    const clientNav = document.getElementById('jbrq-client-nav');
+    const inspirationNav = document.getElementById('jbrq-inspiration-nav');
+    if (clientNav) clientNav.hidden = active;
+    if (inspirationNav) inspirationNav.hidden = !active;
+}
+
+// El organismo compartido deja el menú móvil a cargo del controlador de página.
+function setupInspirationMenu() {
+    const toggle = document.getElementById('jbrq-inspiration-menu-toggle');
+    const menu = document.getElementById('jbrq-inspiration-menu');
+    if (!toggle || !menu) return;
+    const close = () => {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+    };
+    toggle.addEventListener('click', event => {
+        event.stopPropagation();
+        const open = toggle.getAttribute('aria-expanded') !== 'true';
+        menu.hidden = !open;
+        toggle.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', event => {
+        if (!menu.hidden && !menu.contains(event.target) && !toggle.contains(event.target)) close();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !menu.hidden) {
+            close();
+            toggle.focus();
+        }
+    });
+}
+
+window.logoutInspiration = async function() {
+    if (_supabase) await _supabase.auth.signOut();
+    window.location.href = '/inicio';
+};
 
 // ============================================
 // TÍTULO DERIVADO DE LA PUBLICACIÓN
@@ -286,23 +358,23 @@ function renderInspiration(el) {
 
         <section class="jbrq-ai" aria-label="Inspiración con IA">
             <div class="jbrq-ai-copy">
-                <span class="wo-eyebrow jbrq-ai-eyebrow"><span class="jbrq-ai-mark" aria-hidden="true"></span>Inspiración con IA</span>
+                <span class="wo-eyebrow jbrq-ai-eyebrow"><span class="jbrq-ai-mark" aria-hidden="true"></span>AI INSPIRATION</span>
                 <h2 class="wo-h2 jbrq-ai-title">¿No sabés exactamente qué buscás?</h2>
                 <p>Contanos tu idea y dejá que We Ötzi encuentre referencias y estilos que puedan inspirarte.</p>
             </div>
             <div class="jbrq-ai-form">
-                <label class="wo-label" for="jbrq-ai-prompt">Quiero un tatuaje de…</label>
+                <label class="wo-label" for="jbrq-ai-prompt">"QUIERO UN TATUAJE DE…"</label>
                 <textarea id="jbrq-ai-prompt" class="wo-textarea" rows="3" maxlength="400" placeholder="Ej: olas del mar, minimalista, delicado, para el antebrazo"></textarea>
                 <div class="jbrq-ai-actions">
                     <span class="wo-error-msg wo-hidden" id="jbrq-ai-error">No pudimos generar la imagen. Probá de nuevo en un rato.</span>
-                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">Inspirarme con IA →</button>
+                    <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18"></button>
                 </div>
                 <div class="jbrq-ai-result wo-hidden" id="jbrq-ai-result"></div>
             </div>
         </section>
 
         <div class="jbrq-search">
-            <i data-wo-icon="search" class="wo-icon-18 jbrq-search-icon" aria-hidden="true"></i>
+            <img src="/shared/assets/job-board-inspiration/search.svg" class="jbrq-search-icon" alt="" width="18" height="18">
             <input type="search" id="jbrq-gallery-search" class="wo-input" placeholder="Buscar estilos, ideas, tatuajes…" value="${escapeHtml(gallerySearch)}" aria-label="Buscar referencias">
         </div>
 
@@ -313,6 +385,7 @@ function renderInspiration(el) {
         <p class="wo-meta-s wo-muted jbrq-selcount wo-hidden" id="jbrq-selcount"></p>
 
         <div class="jbrq-masonry" id="jbrq-gallery"></div>
+        <input type="file" id="jbrq-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple class="wo-hidden" onchange="handleFileSelect(event)">
     `;
 
     const search = el.querySelector('#jbrq-gallery-search');
@@ -323,9 +396,6 @@ function renderInspiration(el) {
         });
     }
 
-    renderGalleryChips();
-    renderGallery();
-    updateSelCount();
 }
 
 function renderGalleryChips() {
@@ -333,7 +403,7 @@ function renderGalleryChips() {
     if (!wrap) return;
     const chips = ['Todos'].concat(INSPIRATION_STYLES);
     wrap.innerHTML = chips.map(name => `
-        <button type="button" class="wo-chip ${galleryFilter === name ? 'is-active' : ''}" data-style="${escapeHtml(name)}" onclick="setGalleryFilter(this)">${escapeHtml(name)}</button>
+        <button type="button" class="wo-chip ${galleryFilter === name ? 'is-active' : ''}" data-style="${escapeHtml(name)}" onclick="setGalleryFilter(this)" aria-pressed="${galleryFilter === name}">${escapeHtml(name)}</button>
     `).join('');
 }
 
@@ -398,6 +468,9 @@ function renderGallery() {
         return;
     }
 
+    // Los espacios de Figma son cargas locales, no artistas ni URLs ficticias.
+    // Si existen trabajos públicos, se conserva siempre la galería real.
+    if (galleryItems.length === 0 && renderInspirationSlots(wrap)) return;
     const visible = galleryItems.filter(galleryMatches);
     if (visible.length === 0) {
         wrap.innerHTML = `
@@ -424,6 +497,32 @@ function renderGallery() {
             </button>
         `;
     }).join('');
+}
+
+function renderInspirationSlots(wrap) {
+    const columns = [
+        ['Blackwork', 'Fine line', 'Japonés', 'Japonés'],
+        ['Realismo', 'Ornamental', 'Blackwork', 'Japonés'],
+        ['Blackwork', 'Minimalista', 'Blackwork'],
+        ['Blackwork', 'Fine line', 'Japonés', 'Japonés']
+    ];
+    let count = 0;
+    const html = columns.map((styles, column) => {
+        const slots = styles.map((style, row) => {
+            if (!galleryMatches({ style, styles: [style], artist: '' })) return '';
+            count++;
+            const tall = (column === 0 && row === 0) || (column === 1 && row === 2) || (column === 2 && row !== 1);
+            return `<button type="button" class="jbrq-upload-slot${tall ? ' jbrq-upload-slot--tall' : ''}" onclick="triggerFileInput()" aria-label="Subir referencia: tatuaje ${escapeHtml(style.toLowerCase())}">
+                <img src="/shared/assets/job-board-inspiration/image.svg" alt="" width="28" height="29.1">
+                <span class="jbrq-upload-title">Tatuaje ${escapeHtml(style.toLowerCase())}</span>
+                <span class="jbrq-upload-browse">or <u>browse files</u></span>
+            </button>`;
+        }).join('');
+        return `<div class="jbrq-gallery-column">${slots}</div>`;
+    }).join('');
+    if (!count) return false;
+    wrap.innerHTML = `<div class="jbrq-slot-grid">${html}</div>`;
+    return true;
 }
 
 window.toggleGalleryRef = function(card) {
@@ -528,7 +627,7 @@ window.generateInspiration = async function() {
         if (errEl) errEl.classList.remove('wo-hidden');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Inspirarme con IA →';
+        btn.innerHTML = 'INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18">';
     }
 };
 
@@ -558,8 +657,9 @@ window.useAiReference = async function(btnEl) {
 // ============================================
 
 function zonesList() {
-    if (Array.isArray(bodyPartsData) && bodyPartsData.length > 0) {
-        return bodyPartsData.map((zone, i) => ({
+    const configured = Array.isArray(bodyPartsData) ? bodyPartsData.filter(zone => zone.label || zone.id) : [];
+    if (configured.length > 0) {
+        return configured.map((zone, i) => ({
             label: zone.label || zone.id,
             icon: ZONE_ICONS[i % ZONE_ICONS.length]
         }));
@@ -589,9 +689,8 @@ function renderForm(el) {
         const active = formData.tattoo_body_part === zone.label;
         return `
             <button type="button" class="jbrq-zone ${active ? 'is-active' : ''}" data-zone="${escapeHtml(zone.label)}" onclick="selectZone(this)" aria-pressed="${active}">
-                <span class="jbrq-zone-check" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>
-                <i data-wo-icon="${zone.icon}" aria-hidden="true"></i>
-                <span class="jbrq-zone-label">${escapeHtml(zone.label)}</span>
+                <span class="jbrq-zone-frame" aria-hidden="true"><span class="jbrq-zone-check"><img src="/shared/assets/job-board-form/check.svg" alt=""></span></span>
+                <span class="jbrq-zone-label">${escapeHtml(zone.label === 'Torso (Frente)' ? 'Torso' : zone.label)}</span>
             </button>
         `;
     }).join('');
@@ -629,44 +728,41 @@ function renderForm(el) {
 
         <div class="jbrq-form">
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-description-field">
                 <label class="wo-label" for="jbrq-description">Descripción de la idea</label>
                 <textarea id="jbrq-description" class="wo-textarea jbrq-desc" maxlength="1000" placeholder="Ej: quiero un lobo aullando, estilo blackwork, en el antebrazo. Busco líneas gruesas y buen contraste…">${escapeHtml(descVal)}</textarea>
-                <div class="jbrq-count"><span id="jbrq-desc-count">${descVal.length}</span> / 1000</div>
-                <div class="jbrq-checks">
-                    <label class="wo-check">
-                        <input type="checkbox" id="jbrq-first-tattoo" ${formData.is_first_tattoo ? 'checked' : ''}>
-                        <span>Es mi primer tatuaje</span>
-                    </label>
-                    <label class="wo-check">
-                        <input type="checkbox" id="jbrq-cover-up" ${formData.is_cover_up ? 'checked' : ''}>
-                        <span>Es un cover-up</span>
-                    </label>
-                </div>
+                <div class="jbrq-count" aria-live="off"><span id="jbrq-desc-count">${descVal.length}</span> / 1000</div>
+            </div>
+
+            <div class="jbrq-row jbrq-row--style-size">
+            <div class="wo-field">
+                <span class="wo-label" id="jbrq-style-label">Estilo</span>
+                <details class="jbrq-style-select" id="jbrq-style-select">
+                    <summary aria-labelledby="jbrq-style-label jbrq-style-value"><span id="jbrq-style-value">${escapeHtml(selectedStyles.join(', ') || 'Elegí un estilo')}</span><img src="/shared/assets/job-board-form/chevron-down.svg" alt="" width="18" height="18"></summary>
+                    <div class="jbrq-style-options">
+                        <div class="jbrq-chiprow" id="jbrq-style-chips">${styleChips}</div>
+                        <p class="wo-help">Podés elegir uno o varios · opcional</p>
+                    </div>
+                </details>
             </div>
 
             <div class="wo-field">
-                <span class="wo-label">Estilo</span>
-                <div class="jbrq-chiprow" id="jbrq-style-chips">${styleChips}</div>
-                <p class="wo-help">Podés elegir uno o varios · opcional</p>
-            </div>
-
-            <div class="wo-field jbrq-field-half">
                 <label class="wo-label" for="jbrq-size">Tamaño aproximado</label>
-                <select id="jbrq-size" class="wo-select">${sizeOptions}</select>
+                <div class="jbrq-select-wrap"><select id="jbrq-size" class="wo-select">${sizeOptions}</select><img src="/shared/assets/job-board-form/chevron-down.svg" alt="" width="18" height="18"></div>
+            </div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-zone-field">
                 <span class="wo-label">Parte del cuerpo</span>
                 <div class="jbrq-zones" id="jbrq-zones">${zoneCards}</div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-side-field">
                 <span class="wo-label">¿De qué lado?</span>
                 <div class="jbrq-chiprow" id="jbrq-side-chips">${sideChips}</div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-color-field">
                 <span class="wo-label">Color</span>
                 <div class="jbrq-radios">${colorRadios}</div>
             </div>
@@ -687,28 +783,20 @@ function renderForm(el) {
                     </div>
                 </div>
                 <div class="wo-field">
-                    <label class="wo-label" for="jbrq-currency">Moneda</label>
-                    <select id="jbrq-currency" class="wo-select">${currencyOptions}</select>
-                </div>
-                <div class="wo-field">
                     <label class="wo-label" for="city-input">Ciudad</label>
                     <div class="jbrq-city">
-                        <i data-wo-icon="map-pin" class="wo-icon-18 jbrq-city-icon" aria-hidden="true"></i>
+                        <img src="/shared/assets/job-board-form/map-pin.svg" class="jbrq-city-icon" alt="" width="18" height="18">
                         <input type="text" id="city-input" class="wo-input" placeholder="Tu ciudad" value="${escapeHtml(formData.client_city || '')}" autocomplete="off">
                     </div>
                 </div>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-date-field">
                 <span class="wo-label">Fecha aproximada</span>
                 <div class="jbrq-cal" id="jbrq-calendar"></div>
-                <label class="wo-check jbrq-flex-check">
-                    <input type="checkbox" id="jbrq-flexible-dates" ${formData.flexible_dates ? 'checked' : ''}>
-                    <span>Tengo fechas flexibles</span>
-                </label>
             </div>
 
-            <div class="wo-field">
+            <div class="wo-field jbrq-refs-field">
                 <span class="wo-label">Imágenes de referencia</span>
                 <div class="jbrq-refs" id="jbrq-refs"></div>
                 <input type="file" id="jbrq-file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple class="wo-hidden" onchange="handleFileSelect(event)">
@@ -719,24 +807,41 @@ function renderForm(el) {
                     <p class="jbrq-toggle-title">Permitir que el artista proponga su propia interpretación</p>
                     <p class="wo-help">El tatuador podrá sugerir cambios creativos manteniendo tu idea base.</p>
                 </div>
-                <label class="wo-toggle">
+                <label class="wo-toggle" aria-label="Permitir interpretación del artista">
                     <input type="checkbox" id="jbrq-open-interp" ${openInterp ? 'checked' : ''}>
                     <span class="knob"></span>
                 </label>
             </div>
 
             <div class="jbrq-form-foot">
-                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="continueToReview()">Continuar →</button>
+                <details class="jbrq-extra-options">
+                    <summary>Opciones adicionales</summary>
+                    <div class="jbrq-extra-fields">
+                        <label class="wo-check"><input type="checkbox" id="jbrq-first-tattoo" ${formData.is_first_tattoo ? 'checked' : ''}><span>Es mi primer tatuaje</span></label>
+                        <label class="wo-check"><input type="checkbox" id="jbrq-cover-up" ${formData.is_cover_up ? 'checked' : ''}><span>Es un cover-up</span></label>
+                        <label class="wo-check"><input type="checkbox" id="jbrq-flexible-dates" ${formData.flexible_dates ? 'checked' : ''}><span>Tengo fechas flexibles</span></label>
+                        <div class="wo-field"><label class="wo-label" for="jbrq-currency">Moneda</label><select id="jbrq-currency" class="wo-select">${currencyOptions}</select></div>
+                    </div>
+                </details>
+                <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="continueToReview()">Continuar <img src="/shared/assets/job-board-form/arrow-right.svg" alt="" width="18" height="18"></button>
             </div>
         </div>
     `;
-
-    bindFormEvents();
-    renderCalendar();
-    renderRefSlots();
 }
 
 function bindFormEvents() {
+    const stylePicker = document.getElementById('jbrq-style-select');
+    if (stylePicker) {
+        stylePicker.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && stylePicker.open) {
+                stylePicker.open = false;
+                stylePicker.querySelector('summary').focus();
+            }
+        });
+        stylePicker.addEventListener('focusout', event => {
+            if (event.relatedTarget && !stylePicker.contains(event.relatedTarget)) stylePicker.open = false;
+        });
+    }
     const textarea = document.getElementById('jbrq-description');
     const counter = document.getElementById('jbrq-desc-count');
     if (textarea) {
@@ -840,6 +945,8 @@ window.toggleStyle = function(chip) {
     }
     chip.setAttribute('aria-pressed', chip.classList.contains('is-active') ? 'true' : 'false');
     formData.tattoo_style = selected;
+    const summary = document.getElementById('jbrq-style-value');
+    if (summary) summary.textContent = selected.join(', ') || 'Elegí un estilo';
     saveDraft();
 };
 
@@ -877,6 +984,7 @@ function renderCalendar() {
 
     // Lunes como primer día de la semana
     const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+    wrap.classList.toggle('jbrq-cal--five-weeks', firstDow + new Date(year, month + 1, 0).getDate() <= 35);
     const gridStart = new Date(year, month, 1 - firstDow);
     const sel = selectedDate();
 
@@ -896,9 +1004,9 @@ function renderCalendar() {
 
     wrap.innerHTML = `
         <div class="jbrq-cal-head">
-            <button type="button" class="jbrq-cal-nav" onclick="calShift(-1)" ${canGoPrev ? '' : 'disabled'} aria-label="Mes anterior"><i data-wo-icon="chevron-left" class="wo-icon-18"></i></button>
+            <button type="button" class="jbrq-cal-nav" onclick="calShift(-1)" ${canGoPrev ? '' : 'disabled'} aria-label="Mes anterior"><img src="/shared/assets/job-board-form/calendar-left.svg" alt=""></button>
             <span class="jbrq-cal-title">${monthLabel}</span>
-            <button type="button" class="jbrq-cal-nav" onclick="calShift(1)" aria-label="Mes siguiente"><i data-wo-icon="chevron-right" class="wo-icon-18"></i></button>
+            <button type="button" class="jbrq-cal-nav" onclick="calShift(1)" aria-label="Mes siguiente"><img src="/shared/assets/job-board-form/calendar-right.svg" alt=""></button>
         </div>
         <div class="jbrq-cal-grid">
             ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="jbrq-cal-dow" aria-hidden="true">${d}</span>`).join('')}
@@ -939,8 +1047,8 @@ function renderRefSlots() {
             `;
         } else if (i === uploadedFiles.length) {
             html += `
-                <div class="wo-dropzone jbrq-refslot jbrq-refslot--drop" id="jbrq-dropzone" onclick="triggerFileInput()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" role="button" tabindex="0" aria-label="Subir imagen de referencia">
-                    <i data-wo-icon="arrow-up" aria-hidden="true"></i>
+                <div class="wo-dropzone jbrq-refslot jbrq-refslot--drop" id="jbrq-dropzone" onclick="triggerFileInput()" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); triggerFileInput(); }" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" role="button" tabindex="0" aria-label="Subir imagen de referencia">
+                    <img class="jbrq-upload-icon" src="/shared/assets/job-board-form/upload.svg" alt="" width="28" height="28">
                     <p class="jbrq-drop-title">Arrastrá o hacé click</p>
                     <p class="jbrq-drop-help">PNG, JPG o WebP · máx. 5 MB</p>
                 </div>
@@ -948,8 +1056,9 @@ function renderRefSlots() {
         } else {
             html += `
                 <button type="button" class="jbrq-refslot is-placeholder" onclick="triggerFileInput()">
-                    <i data-wo-icon="image" aria-hidden="true"></i>
-                    <span class="wo-meta-s">Referencia ${i + 1}</span>
+                    <img src="/shared/assets/job-board-form/image.svg" alt="" width="28" height="29.1">
+                    <span class="jbrq-reference-label">Referencia ${i + 1}</span>
+                    <span class="jbrq-reference-browse">or <u>browse files</u></span>
                 </button>
             `;
         }
@@ -1014,6 +1123,9 @@ async function addFiles(files) {
     }
 
     renderRefSlots();
+    if (view === 'inspiration' && uploadedFiles.length > 0) {
+        showFormNotice(uploadedFiles.length + ' referencia(s) cargada(s) · continuá con Crear mi idea');
+    }
 }
 
 window.removeFile = function(index) {
@@ -1127,15 +1239,20 @@ function formatDateDisplay() {
 }
 
 function renderReview(el) {
-    const title = deriveRequestTitle(formData.tattoo_idea_description, selectedStylesArray(), formData.tattoo_body_part);
     const zone = [formData.tattoo_body_part, formData.tattoo_body_side ? 'lado ' + String(formData.tattoo_body_side).toLowerCase() : null]
         .filter(Boolean).join(' · ');
     const openInterp = formData.open_interpretation !== false;
 
-    const refsHtml = uploadedFiles.length > 0
-        ? `<div class="jbrq-preview-refs">${uploadedFiles.map((file, i) =>
-            `<img src="${URL.createObjectURL(file)}" alt="Referencia ${i + 1}">`).join('')}</div>`
-        : '';
+    const refsHtml = `<div class="jbrq-preview-refs">${Array.from({ length: Math.max(3, uploadedFiles.length) }, (_, i) => {
+        const file = uploadedFiles[i];
+        return file
+            ? `<div class="jbrq-review-reference has-image"><img src="${URL.createObjectURL(file)}" alt="Referencia ${i + 1}"></div>`
+            : `<div class="jbrq-review-reference">
+                <img src="/shared/assets/job-board-review/reference.svg" alt="" width="28" height="29.1">
+                <span class="jbrq-review-reference-label">Referencia ${i + 1}</span>
+                <span class="jbrq-review-reference-help">or <u>browse files</u></span>
+            </div>`;
+    }).join('')}</div>`;
 
     const cell = (label, value, extraClass) => `
         <div class="jbrq-cell">
@@ -1152,7 +1269,6 @@ function renderReview(el) {
 
         <article class="wo-card wo-card--flat jbrq-preview">
             <span class="wo-eyebrow">Tu idea</span>
-            ${title ? `<h2 class="wo-h3 jbrq-preview-title">${escapeHtml(title)}</h2>` : ''}
             <p class="jbrq-preview-desc">${escapeHtml(formData.tattoo_idea_description || '–')}</p>
             ${refsHtml}
             <hr class="wo-divider">
@@ -1173,8 +1289,8 @@ function renderReview(el) {
         <div class="jbrq-review-actions">
             <p class="wo-meta-s wo-muted jbrq-logged-as" id="jbrq-logged-as"></p>
             <div class="jbrq-review-btns">
-                <button type="button" class="wo-btn wo-btn--secondary" onclick="setView('form')"><i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i>Editar</button>
-                <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-btn-publish" onclick="startPublish()">Publicar idea →</button>
+                <button type="button" class="wo-btn wo-btn--secondary" onclick="setView('form')"><img src="/shared/assets/job-board-review/edit.svg" alt="" width="18" height="18">Editar</button>
+                <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-btn-publish" onclick="startPublish()">Publicar idea<img src="/shared/assets/job-board-review/arrow-right.svg" alt="" width="18" height="18"></button>
             </div>
         </div>
     `;

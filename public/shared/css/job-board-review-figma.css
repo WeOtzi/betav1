@@ -1,0 +1,97 @@
+/* Pantalla [8] · Figma w3JA83CcP5ISKjyOu87mx1 / 801:1131.
+   Medidas del frame de 1440 px. Solo se aplica a la revisión del borrador. */
+body.jbrq-is-review {
+    --font-display: 'Jbrq Form Archivo', sans-serif;
+    --font-body: 'Jbrq Form Inter', sans-serif;
+    --font-mono: 'Jbrq Form Mono', monospace;
+    margin: 0;
+    min-height: 1122px;
+    background: var(--surface-page);
+    color: var(--text-body);
+}
+.jbrq-is-review *, .jbrq-is-review *::before, .jbrq-is-review *::after { box-sizing: border-box; }
+.jbrq-is-review .wo-org-product-nav { height: 75.842px; padding-right: 33px; }
+.jbrq-is-review .wo-org-product-nav__links { min-width: 0; }
+.jbrq-is-review .wo-org-product-nav__account { gap: 31.149px; }
+.jbrq-is-review .wo-org-product-nav a { color: var(--text-body); text-decoration: none; }
+.jbrq-is-review .wo-org-product-nav__item > .wo-org-product-nav__link { padding: 0 17.606px 2.167px; }
+.jbrq-is-review .wo-org-product-nav__spots-toggle { display: none; }
+.jbrq-is-review #sc-fab, .jbrq-is-review [data-account-mode-switch] { display: none !important; }
+.jbrq-is-review .jbrq-main { padding: 36.158px 0 88px; }
+.jbrq-is-review .jbrq-main > .wo-container { width: auto; max-width: 1920px; margin: 0 auto; padding: 0 32px; }
+.jbrq-is-review .jbrq-utility { height: 20px; margin: 0 54px 42px 0; }
+.jbrq-is-review .jbrq-back { display: inline-flex; align-items: center; gap: 11px; font: 700 12px/12px var(--font-body); letter-spacing: .96px; text-transform: uppercase; }
+.jbrq-is-review .jbrq-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 0; background: var(--neutral-200); color: var(--text-body); font: 700 10px/normal var(--font-mono); letter-spacing: .8px; }
+.jbrq-is-review .jbrq-stepper { height: 64.8px; gap: 0; margin: 0 0 50.2px 54px; max-width: 1195px; overflow: visible; }
+.jbrq-is-review .jbrq-step { width: 96px; gap: 8px; }
+.jbrq-is-review .jbrq-step-box { width: 43.2px; height: 43.2px; border: 1px solid var(--figma-sand-border); background: var(--figma-white); color: var(--neutral-300); font: 700 16px/normal var(--font-mono); }
+.jbrq-is-review .jbrq-step.is-active .jbrq-step-box { border-color: var(--text-body); background: var(--action-accent); color: var(--text-body); }
+.jbrq-is-review .jbrq-step-label { max-width: 96px; font: 400 10px/13px var(--font-mono); letter-spacing: .8px; }
+.jbrq-is-review .jbrq-step.is-active .jbrq-step-label { color: var(--ink); font-weight: 700; }
+.jbrq-is-review .jbrq-step-line { height: 2px; margin-top: 19px; border: 0; background: var(--neutral-200); min-width: 12px; }
+.jbrq-is-review #jbrq-view { margin: 0 59px 0 57px; }
+.jbrq-is-review .jbrq-head { margin: 0 0 30px; }
+.jbrq-is-review .jbrq-title { position: relative; top: -2px; margin: 0 0 6px; color: var(--ink); font: 400 36px/43px var(--font-display); letter-spacing: 0; }
+.jbrq-is-review .jbrq-sub { max-width: none; margin: 0; color: var(--text-muted); font: 400 15px/18px var(--font-body); }
+.jbrq-is-review .jbrq-preview { max-width: none; min-height: 584.98px; padding: 27.8px 31.8px 33px; border: 1px solid var(--figma-sand-border); background: var(--figma-white); }
+.jbrq-is-review .jbrq-preview > .wo-eyebrow { display: block; margin: 0 0 11px; color: var(--text-faint); font: 400 10px/13px var(--font-mono); letter-spacing: .8px; }
+.jbrq-is-review .jbrq-preview-desc { max-width: none; margin: 0; color: var(--text-body); font: 400 16px/25.6px var(--font-body); }
+.jbrq-is-review .jbrq-preview-refs { grid-template-columns: repeat(3,minmax(0,25.49%)); gap: 41.6px; max-width: none; width: 100%; margin: 32.6px 0 0 5.2px; }
+.jbrq-is-review .jbrq-review-reference:nth-child(3) { transform: translateX(-10px); width: calc(100% - 1px); }
+.jbrq-is-review .jbrq-review-reference { aspect-ratio: 3 / 2; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4.9px; background: color-mix(in srgb,gray 8%,transparent); border: 1px dashed color-mix(in srgb,var(--text-body) 35%,transparent); }
+.jbrq-is-review .jbrq-review-reference > img { flex: none; max-width: none; object-fit: contain; border: 0; background: transparent; width: 28px; height: 29.1px; }
+.jbrq-is-review .jbrq-review-reference-label { opacity: .75; font: 600 13px/16.9px var(--font-body); letter-spacing: .13px; }
+.jbrq-is-review .jbrq-review-reference-help { opacity: .75; font: 400 11px/14.3px 'Segoe UI',sans-serif; }
+.jbrq-is-review .jbrq-review-reference.has-image { overflow: hidden; border-style: solid; }
+.jbrq-is-review .jbrq-review-reference.has-image > img { width: 100%; height: 100%; object-fit: cover; min-height: 0; }
+.jbrq-is-review .jbrq-preview > .wo-divider { margin: 10px 0 16px; border: 0; height: 1px; background: var(--neutral-200); }
+.jbrq-is-review .jbrq-preview-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.jbrq-is-review .jbrq-cell { min-width: 0; }
+.jbrq-is-review .jbrq-cell dt { margin: 0 0 4px; color: var(--text-faint); font: 400 10px/13px var(--font-mono); letter-spacing: .6px; }
+.jbrq-is-review .jbrq-cell dd { color: var(--ink); font: 600 14px/17px var(--font-body); overflow-wrap: anywhere; }
+.jbrq-is-review .jbrq-cell dd.is-success { color: var(--success-fg); }
+.jbrq-is-review .jbrq-review-actions { max-width: none; margin-top: 24px; padding-right: 2px; justify-content: flex-end; }
+.jbrq-is-review .jbrq-logged-as { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.jbrq-is-review .jbrq-review-btns { flex-direction: row; gap: 16px; }
+.jbrq-is-review .jbrq-review-btns .wo-btn { height: 42px; min-height: 42px; padding: 0 20.6px; gap: 8px; font: 700 14px/14px var(--font-body); letter-spacing: 1.12px; }
+.jbrq-is-review .jbrq-review-btns .wo-btn--secondary { border: 1px solid var(--text-body); background: var(--surface-page); color: var(--text-body); }
+.jbrq-is-review .jbrq-review-btns .wo-btn--direct { border: 1px solid var(--blue-300); background: var(--blue-300); color: var(--surface-page); }
+.jbrq-is-review .jbrq-review-btns .wo-btn--secondary:hover { background: var(--neutral-200); }
+.jbrq-is-review .jbrq-review-btns .wo-btn--direct:hover { background: var(--blue-500); }
+@media (min-width: 1600px) {
+    .jbrq-is-review .jbrq-stepper { max-width: none; margin-right: 126px; }
+}
+@media (max-width: 1200px) {
+    .jbrq-is-review #jbrq-view { margin: 0 24px; }
+    .jbrq-is-review .jbrq-stepper { margin-left: 0; }
+    .jbrq-is-review .jbrq-preview-refs { width: 100%; margin-left: 0; gap: 24px; }
+    .jbrq-is-review .jbrq-preview-refs { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    .jbrq-is-review .jbrq-review-reference:nth-child(3) { transform: none; width: auto; }
+}
+@media (max-width: 900px) {
+    .jbrq-is-review .wo-org-product-nav { padding: 0 24px; }
+    .jbrq-is-review .wo-org-product-nav__account { gap: 16px; }
+    .jbrq-is-review .jbrq-preview { min-height: 0; }
+    .jbrq-is-review .jbrq-utility { margin-right: 0; }
+}
+@media (max-width: 600px) {
+    body.jbrq-is-review { min-height: 100vh; }
+    .jbrq-is-review .jbrq-main { padding: 28px 0 64px; }
+    .jbrq-is-review .jbrq-main > .wo-container { padding: 0 20px; }
+    .jbrq-is-review #jbrq-view { margin: 0; }
+    .jbrq-is-review .jbrq-utility { margin-bottom: 32px; }
+    .jbrq-is-review .jbrq-back { gap: 8px; font-size: 10px; }
+    .jbrq-is-review .jbrq-stepper { height: auto; margin-bottom: 44px; }
+    .jbrq-is-review .jbrq-step { width: 50px; }
+    .jbrq-is-review .jbrq-step-box { width: 36px; height: 36px; }
+    .jbrq-is-review .jbrq-step-label { font-size: 8px; line-height: 11px; letter-spacing: 0; max-width: 56px; overflow-wrap: anywhere; }
+    .jbrq-is-review .jbrq-step-line { min-width: 2px; margin-top: 17px; }
+    .jbrq-is-review .jbrq-title { font-size: 30px; line-height: 36px; }
+    .jbrq-is-review .jbrq-sub { line-height: 23px; }
+    .jbrq-is-review .jbrq-head { margin-bottom: 28px; }
+    .jbrq-is-review .jbrq-preview { padding: 24px 20px; }
+    .jbrq-is-review .jbrq-preview-refs { grid-template-columns: 1fr; gap: 16px; }
+    .jbrq-is-review .jbrq-preview-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .jbrq-is-review .jbrq-review-btns { width: 100%; flex-direction: column; }
+    .jbrq-is-review .jbrq-review-btns .wo-btn { width: 100%; min-height: 44px; }
+}

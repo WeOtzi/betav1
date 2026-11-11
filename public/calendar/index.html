@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/calendar-figma.css">
+    <link rel="stylesheet" href="/shared/css/calendar-month.css">
+    <link rel="stylesheet" href="/shared/css/calendar-time.css">
+    <link rel="stylesheet" href="/shared/css/calendar-editor.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -34,7 +37,7 @@
         logout-class="cal-logout">
     </weotzi-product-nav>
 
-    <main class="cal-shell" id="calendar-page">
+    <main class="cal-shell" id="calendar-page" data-view="month">
         <section class="cal-hero" aria-labelledby="cal-title">
             <div>
                 <p class="cal-eyebrow">Calendario · Gestión profesional</p>
@@ -80,7 +83,7 @@
     <main class="cal-editor-shell" id="calendar-editor" hidden>
         <div class="cal-editor-layout">
             <section class="cal-editor-main">
-                <button type="button" class="cal-back" id="editor-back">← Volver</button>
+                <button type="button" class="cal-back" id="editor-back"><span class="cal-back-symbol" aria-hidden="true">←</span> Volver</button>
                 <header class="cal-editor-heading">
                     <h1 id="editor-heading">Agregar al calendario</h1>
                     <p>Elegí el tipo de evento y completá la información correspondiente.</p>
@@ -133,7 +136,7 @@
                     </dl>
                 </section>
                 <section class="cal-conflict" id="calendar-conflict" hidden aria-live="polite">
-                    <h2>△ Posible superposición</h2>
+                    <h2><span class="cal-conflict-symbol" aria-hidden="true">△</span> Posible superposición</h2>
                     <div id="calendar-conflict-list"></div>
                 </section>
             </aside>
@@ -149,6 +152,7 @@
     <div class="cal-toast" id="calendar-toast" role="status" aria-live="polite" hidden></div>
 
     <script src="/shared/js/admin-mobile-menu.js"></script>
+    <script src="/shared/js/calendar-editor-reference.js"></script>
     <script src="/shared/js/calendar.js"></script>
     <script src="/shared/js/header-effects.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>

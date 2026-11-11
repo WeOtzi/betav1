@@ -1885,7 +1885,7 @@
 }
 
 /* ============================================================================
-   Figma 344:1184 · Perfil publico del artista
+   Figma 801:1155 · Perfil publico del artista (Pantalla 9)
    La pagina conserva datos y acciones reales; este bloque fija la composicion
    editorial del frame de referencia y sus ajustes responsive.
    ========================================================================== */
@@ -1910,8 +1910,8 @@
 
 .specialty-description {
     margin: 0;
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.5;
     color: var(--text-muted);
     overflow-wrap: anywhere;
 }
@@ -1919,8 +1919,8 @@
 .specialty-media {
     position: relative;
     display: grid;
-    width: 116px;
-    height: 66px;
+    width: 96px;
+    height: 64px;
     place-items: center;
     justify-self: end;
     overflow: hidden;
@@ -1938,6 +1938,168 @@
 
 .avatar-image.loaded {
     z-index: 1;
+}
+
+/* El selector queda limitado a este perfil: no cambia el organismo global. */
+@media (min-width: 1025px) and (max-width: 1350px) {
+    .public-profile-view > weotzi-product-nav .wo-org-product-nav__links {
+        display: none;
+    }
+
+    .public-profile-view > weotzi-product-nav .wo-org-product-nav__menu {
+        display: inline-flex;
+    }
+
+    .public-profile-view > weotzi-product-nav .wo-org-product-nav__mobile:not([hidden]) {
+        display: flex;
+    }
+}
+
+@media (max-width: 480px) {
+    .public-profile-view > weotzi-product-nav .wo-topbar.wo-org-product-nav {
+        height: auto;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+    }
+
+    .public-profile-view > weotzi-product-nav .wo-org-product-nav__account {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .public-profile-view > weotzi-product-nav .wo-org-product-nav__mobile {
+        top: 100%;
+    }
+}
+
+/* Las medidas literales de esta capa provienen del frame 801:1155.
+   Los colores y las fuentes siguen usando los tokens compartidos. */
+.public-profile-view a.hero-cta-primary {
+    background: var(--neutral-500);
+    border-color: var(--neutral-500);
+    color: var(--neutral-100);
+}
+
+.public-profile-view a.hero-cta-primary:hover {
+    background: var(--black);
+    color: var(--neutral-100);
+}
+
+.public-profile-view a.hero-cta-secondary {
+    color: var(--neutral-500);
+}
+
+.hero-cta-row .wo-btn,
+.cta-actions .wo-btn {
+    min-height: 52px;
+    padding-inline: 29.6px;
+    font-size: 14px;
+    letter-spacing: .08em;
+}
+
+.hero-eyebrow {
+    color: var(--red-300);
+}
+
+.hero-agenda {
+    padding: 10.6px 15.6px;
+    font-size: 10px;
+    letter-spacing: .12em;
+}
+
+.hero-verified {
+    font-size: 9px;
+    letter-spacing: .1em;
+}
+
+.sobre-fact dt {
+    font-size: 9px;
+    letter-spacing: .14em;
+}
+
+.sobre-fact dd {
+    font-weight: var(--weight-semibold);
+}
+
+.cta-copy {
+    max-width: 460px;
+    line-height: 1.6;
+}
+
+.cta-actions {
+    gap: 24px;
+}
+
+.cta-month {
+    padding: 13.6px 19.6px;
+    letter-spacing: .1em;
+}
+
+.public-profile-view a.cta-btn,
+.public-profile-view .profile-actionbar a.actionbar-btn {
+    background: var(--yellow-300);
+    border-color: var(--neutral-500);
+    color: var(--neutral-500);
+}
+
+.public-profile-view a.cta-btn:hover,
+.public-profile-view .profile-actionbar a.actionbar-btn:hover {
+    background: var(--yellow-400);
+    color: var(--neutral-500);
+}
+
+.profile-actionbar .actionbar-dot {
+    border-radius: var(--radius-circle);
+}
+
+.gallery-band .gallery-chip {
+    font-size: 12px;
+    letter-spacing: .08em;
+}
+
+.portfolio-intro-chips {
+    gap: 8px;
+}
+
+.portfolio-intro-chips .gallery-chip {
+    background: transparent;
+    font-weight: var(--weight-regular);
+    font-size: 10px;
+    letter-spacing: .1em;
+}
+
+.portfolio-intro-chips .gallery-chip[aria-pressed="true"] {
+    border-bottom-width: 2px;
+}
+
+#gallery-grid .gallery-image-item.is-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4.9px;
+    background: color-mix(in srgb, var(--neutral-400) 8%, var(--surface-page));
+    border: 1px dashed color-mix(in srgb, var(--neutral-500) 35%, transparent);
+}
+
+#gallery-grid .gallery-image-item.is-placeholder img {
+    width: 28px;
+    height: 29.1px;
+    object-fit: contain;
+    opacity: 1;
+}
+
+#gallery-grid .gallery-placeholder-meta {
+    position: static;
+    display: block;
+    font-family: 'Segoe UI', var(--font-body);
+    font-size: 13px;
+    line-height: 16.9px;
+    letter-spacing: .13px;
+    text-transform: none;
+    color: var(--neutral-500);
+    opacity: .75;
 }
 
 .specialty-media-empty {
@@ -1964,7 +2126,7 @@
 @media (min-width: 1280px) {
     .profile-shell {
         max-width: none;
-        padding-inline: 92px;
+        padding-inline: 6.416667%;
     }
 
     .profile-band {
@@ -1973,21 +2135,21 @@
 
     .section-title {
         font-size: 62px;
-        line-height: .92;
-        letter-spacing: -.025em;
+        line-height: .9;
+        letter-spacing: -.02em;
     }
 
     .hero-band {
-        min-height: 632px;
+        min-height: 630.65px;
         margin-top: 0;
         padding: 0;
         box-sizing: border-box;
     }
 
     .hero-grid {
-        grid-template-columns: minmax(0, 660px) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
         gap: 0;
-        min-height: 632px;
+        min-height: 630.65px;
         align-items: start;
         padding-top: 70px;
         box-sizing: border-box;
@@ -1995,7 +2157,7 @@
 
     .hero-copy {
         display: flex;
-        min-height: 542px;
+        min-height: 561px;
         flex-direction: column;
         align-items: flex-start;
         padding: 56px 40px 48px 0;
@@ -2012,7 +2174,7 @@
         margin-bottom: 18px;
         font-size: 104px;
         line-height: .86;
-        letter-spacing: -.035em;
+        letter-spacing: -.02em;
     }
 
     .hero-ident {
@@ -2023,14 +2185,16 @@
         width: 100%;
         margin-top: auto;
         padding-block: 14px;
+        border-bottom: 0;
     }
 
     .hero-styles .style-tag {
-        font-size: 21px;
+        font-size: 19px;
     }
 
     .hero-cta-row {
-        margin-top: 27px;
+        margin-top: 28px;
+        gap: 14px;
     }
 
     .hero-portrait {
@@ -2038,12 +2202,20 @@
         padding: 56px 0 0;
     }
 
-    .hero-portrait::before {
-        top: 0;
-        right: -92px;
-        left: 26px;
-        width: auto;
+    .hero-band::after {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        top: 70px;
+        left: 54%;
+        right: 0;
         height: 370px;
+        background: var(--bauhaus-square);
+        pointer-events: none;
+    }
+
+    .hero-portrait::before {
+        content: none;
     }
 
     .hero-portrait-frame {
@@ -2051,10 +2223,11 @@
     }
 
     .hero-portrait::after {
-        left: -20px;
-        bottom: -23px;
-        width: 92px;
-        height: 92px;
+        left: -21.6px;
+        bottom: -21.94px;
+        width: 92.8px;
+        height: 92.8px;
+        box-sizing: border-box;
     }
 
     .hero-agenda {
@@ -2077,8 +2250,8 @@
         min-height: 92px;
         flex-direction: row;
         align-items: center;
-        gap: 14px;
-        padding: 22px 24px;
+        gap: 12px;
+        padding: 26px 24px;
         border-left: 0;
         border-right: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 20%, transparent);
         box-sizing: border-box;
@@ -2103,88 +2276,95 @@
     }
 
     .portfolio-intro-band {
-        min-height: 140px;
-        padding-block: 38px 30px;
+        min-height: 140.65px;
+        padding-block: 42px;
         box-sizing: border-box;
     }
 
     .portfolio-intro-grid {
-        min-height: 72px;
+        min-height: 55.8px;
     }
 
     .portfolio-intro-chips .gallery-chip {
-        min-height: 34px;
-        padding: 7px 15px;
+        min-height: 32px;
+        padding: 8px 14px;
     }
 
     .portfolio-intro-chips {
         margin: 0;
     }
 
+    .portfolio-intro-band .portfolio-intro-chips {
+        margin: 0;
+    }
+
     .sobre-band {
-        min-height: 478px;
-        padding-block: 70px 64px;
+        min-height: 478.4px;
+        padding-block: 72px;
         box-sizing: border-box;
     }
 
     .sobre-grid {
-        grid-template-columns: minmax(0, 720px) minmax(0, 1fr);
-        gap: 62px;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+        gap: 56px;
     }
 
     .sobre-copy {
-        max-width: 690px;
+        max-width: none;
     }
 
     .sobre-manifesto {
         max-width: 680px;
-        margin-bottom: 24px;
+        margin-bottom: 22px;
         font-size: 40px;
-        line-height: 1.08;
+        line-height: 1.14;
+        letter-spacing: -.01em;
     }
 
     .bio-text {
-        max-width: 645px;
-        font-size: 15px;
-        line-height: 1.55;
+        max-width: 620px;
+        font-size: 16px;
+        line-height: 1.7;
     }
 
     .sobre-fact {
         min-height: 67px;
         justify-content: center;
-        padding: 11px 0;
+        padding: 16px 0;
+        gap: 4px;
         box-sizing: border-box;
     }
 
     .band-block--sobre-yellow {
-        top: -74px;
-        left: -68px;
-        width: 222px;
-        height: 222px;
+        top: -60px;
+        left: -60px;
+        width: 220px;
+        height: 220px;
         border-radius: var(--radius-circle);
     }
 
     .band-block--sobre-red {
-        right: 92px;
-        bottom: -42px;
+        right: 120px;
+        bottom: -40px;
         width: 130px;
         height: 130px;
     }
 
     .specialties-band {
-        padding-block: 70px 22px;
+        padding-block: 71.2px 0;
     }
 
     .specialty-table {
-        margin-top: 30px;
+        margin-top: 32px;
         border-top-color: var(--ink);
+        border-top-width: 1.6px;
     }
 
     .specialty-row {
-        grid-template-columns: 48px 22px minmax(230px, .9fr) minmax(260px, 1.3fr) 116px;
-        gap: 20px;
+        grid-template-columns: 48px 22px minmax(0, 1fr) minmax(0, 1fr) 96px;
+        gap: 24px;
         min-height: 109px;
-        padding: 18px 20px 18px 0;
+        padding: 22px 0;
         box-sizing: border-box;
     }
 
@@ -2193,20 +2373,32 @@
     }
 
     .specialty-name {
-        font-size: 33px;
+        font-size: 34px;
     }
 
     .reviews-band {
-        padding-block: 20px 70px;
+        padding-block: 72px;
     }
 
     .reviews-box {
         min-height: 286px;
+        grid-template-columns: minmax(0, .85fr) minmax(0, 2fr);
+        background: var(--surface-page);
     }
 
     .reviews-panel,
     .review-quote-card {
         padding: 32px;
+    }
+
+    .review-quote-text {
+        line-height: 1.6;
+    }
+
+    .review-quote-avatar {
+        border-radius: 0;
+        font-family: var(--font-display);
+        font-size: 12px;
     }
 
     .studio-band {
@@ -2220,7 +2412,7 @@
 
     .studio-photo,
     .studio-panel {
-        min-height: 438px;
+        min-height: 433px;
     }
 
     .studio-photo {
@@ -2228,7 +2420,7 @@
     }
 
     .studio-panel {
-        padding: 76px 54px;
+        padding: 64px 36px;
         box-sizing: border-box;
     }
 
@@ -2239,23 +2431,25 @@
     }
 
     .cta-grid {
-        min-height: 182px;
-        padding-right: 240px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        gap: 48px;
+        min-height: 210.88px;
         box-sizing: border-box;
     }
 
     .cta-copy-col {
-        max-width: 620px;
+        max-width: none;
     }
 
     .cta-title {
         max-width: 560px;
         font-size: 46px;
-        line-height: 1;
+        line-height: .94;
     }
 
     .band-block--cta-yellow {
-        top: -58px;
+        top: -70px;
         right: 60px;
         width: 210px;
         height: 210px;
@@ -2264,11 +2458,11 @@
     }
 
     .gallery-band {
-        padding-block: 62px 70px;
+        padding-block: 44px 0;
     }
 
     .gallery-band > .profile-shell {
-        padding-inline: 138px;
+        padding-inline: 9.583333%;
     }
 
     .gallery-chips {
@@ -2277,6 +2471,7 @@
 
     .gallery-grid {
         gap: 32px;
+        row-gap: 32px;
         margin-top: 0;
     }
 
@@ -2285,7 +2480,7 @@
     }
 
     .presence-band {
-        padding-block: 22px 48px;
+        padding-block: 72px 0;
     }
 
     .presence-head {
@@ -2297,7 +2492,7 @@
     }
 
     .cities-band {
-        padding-block: 16px 66px;
+        padding-block: 72px 66px;
     }
 
     .cities-head {
@@ -2311,7 +2506,7 @@
     .profile-actionbar-inner {
         max-width: none;
         min-height: 65px;
-        padding-inline: 92px;
+        padding-inline: 6.416667%;
         padding-block: 9px;
     }
 }
@@ -2356,7 +2551,7 @@
     }
 
     .hero-name {
-        font-size: clamp(54px, 19vw, 82px);
+        font-size: clamp(44px, 15vw, 82px);
         line-height: .88;
     }
 
