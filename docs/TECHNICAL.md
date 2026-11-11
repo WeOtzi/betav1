@@ -71,6 +71,25 @@ El archivo `server.js` expone los siguientes endpoints API:
 *   `GET /api/client-info`: Retorna IP y timestamp del cliente.
 *   `POST /api/session-log`: Endpoint para `sendBeacon` (logs de sesión al cerrar pestaña).
 
+### Store
+Contrato completo en [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30-store-artista.md) (§7). Handlers en [`services/store-orders.js`](../services/store-orders.js) (testeables con `createHandlers(deps)`), datos en [`lib/repos/store.js`](../lib/repos/store.js) (service role), firma de Storage en [`lib/storage-sign.js`](../lib/storage-sign.js) y adaptadores de pago en [`services/store-payments.js`](../services/store-payments.js). Todas las respuestas son `{ success, error? }` con `Cache-Control: no-store`; los 500 son genéricos (el detalle queda en el log). Los ids de la URL tienen que ser UUID (si no, 400).
+
+> **`features.store` es solo un gate de UI.** Ni estos endpoints ni las RPC/policies de `store_core` lo consultan: con la migración aplicada, la Store se puede operar por API (publicar productos, crear pedidos, ver la vitrina pública) aunque el flag esté en `false`. La migración está aplicada desde el 31 oct 2026 y el flag encendido; un gate propio en el SQL queda pendiente.
+
+*   `POST /api/store/licenses/:licenseId/assets/:assetId/url`: URL firmada para bajar el original o el stencil de una licencia.
+    *   Headers: `Authorization: Bearer <supabase_access_token>`. Rate limit: `storeDownloadLimiter` (60 cada 15 min por IP).
+    *   Lógica: la licencia tiene que ser del titular (`holder_user_id`) o del comprador del pedido (si no, o si no existe, 403) y no estar revocada (410). El asset tiene que ser del mismo producto (404). Tope de 50 descargas por licencia en una ventana móvil de 24 h (429): primero registra la fila en `store_download_events` y después recuenta incluyéndola; si se pasó del tope, la borra y responde 429. Así, ni con requests en paralelo se emiten más de 50 URLs (en una ráfaga justo en el tope puede rechazar de más). Después firma en `store-design-files` por **300 s fijos** con `download = downloadFileName(asset)`: `sanitizeFilename` (de `store-model.js`) sobre la base sin su extensión, más la extensión del `mime_type` real (`DOWNLOAD_EXTENSIONS`, igual a `v_exts` de `store_design_assets_guard`). Es defensa en profundidad además del guard SQL: se conserva la extensión propia solo si es de ese MIME, otra conocida se reemplaza («scan.png» en JPEG → «scan.jpg»), una desconocida queda en la base («x.exe» → «x.exe.png») y un MIME fuera del bucket baja como `.bin`.
+    *   Respuesta: `{ success: true, url, expires_in: 300 }`.
+*   `POST /api/store/orders/:id/checkout`: inicia el pago con el adaptador del pedido (`payment_provider`).
+    *   Headers: `Authorization: Bearer <supabase_access_token>`. Solo el comprador dueño (si no, 404) y con el pedido `pending_payment` y sin vencer (409). Adaptador no registrado o sin configurar: 503.
+    *   Respuesta: `{ success: true, checkout: { mode, instructions?, redirectUrl? } }`. `redirectUrl` siempre es `https://`. En modo `manual` el front no lo llama: pinta las instrucciones desde la fila.
+*   `POST /api/store/maintenance`: corre `run_store_maintenance()` (vencimientos, pagos informados vencidos, entregas automáticas y liberación de fondos). Lo dispara un job de n8n cada hora. Un pago informado vencido tiene 7 días de gracia: se marca `needs_support` y recién después se vence. La RPC usa `lock_timeout = 5s` y `skip locked`; el error de un pedido va a `store_order_support_notes` (`maintenance_error`) y no corta la corrida.
+    *   Headers: `X-Cron-Token: <CRON_API_TOKEN>` (comparación en tiempo constante). Token ausente o distinto: 401; sin `CRON_API_TOKEN` en el servidor: 503.
+    *   Respuesta: `{ success: true, result: { expired, flagged, delivered, released, failed: [ids] } }`.
+*   `POST /api/store/payments/webhook/:provider`: aviso de pago de un proveedor real (Stripe, Mercado Pago; hoy ninguno registrado, así que responde 404).
+    *   Body crudo (`express.raw({ type: '*/*', limit: '1mb' })`), registrado **antes** de `app.use(express.json(...))` para que la firma se calcule sobre los bytes exactos. `apiLimiter` lo saltea (`skip`) y tiene su propio limiter (120/min).
+    *   Lógica: sin adaptador con `parseWebhook` → 404. Con adaptador: `verifyWebhook(rawBody, headers)` (HMAC con `crypto.timingSafeEqual`; si falla, 401) → `parseWebhook` (`null` o un evento que no es `payment_succeeded` → 200 `{ ignored: true }`; ilegible o inválido → 400) → RPC `confirm_store_order_payment_as_provider` → 200. La RPC también reabre un pedido `expired` (webhook tardío con un cobro real). Un error `store:<código>` de la RPC responde 422; cualquier otro, 500 (el proveedor reintenta). Con `store:cannot_reopen` (venció y ya no hay stock, o el diseño se reservó o vendió para otro pedido) el cobro queda huérfano: además del 422, el handler deja un `log.error` «COBRO HUÉRFANO» con pedido, proveedor, referencia y monto, para que soporte devuelva el pago o lo resuelva a mano.
+
 ## 4. Flujos de Datos Críticos
 
 ### Creación de Cotización

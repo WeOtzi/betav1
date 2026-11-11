@@ -2545,19 +2545,19 @@ body.wod-profile-details-page .wod-footer {
 .wo-app .wo-dash-quick-list a.wo-btn { color: var(--action-ghost-fg); text-decoration: none; }
 .wo-app .wo-dash-quick-list a.wo-btn:hover { color: var(--action-ghost-fg); text-decoration: none; }
 
-/* ---- Galería de trabajos -------------------------------------------------- */
-.wo-dash-gallery { padding: var(--space-6) 0 var(--space-8); }
-.wo-dash-gallery > .wo-container { max-width: 1440px; padding-left: 22px; padding-right: 22px; }
+/* ---- Galería de trabajos (Figma 2003:862 · estados 2003:1191/1902/2583) ---- */
+/* La grilla la pinta dashboard-gallery.js: mosaicos de 180px con leyenda
+   (nombre + papelera), insignias VIDEO / NUEVO · IG, bandera ★ del destacado y
+   la dropzone punteada SUBIR MÁS · N LIBRES. #3a362f del fondo de video se
+   resuelve con --dark-rule (#3c3a36), el token más cercano. */
+.wo-dash-gallery { padding: var(--space-6) 0 var(--space-16); }
+.wo-dash-gallery > .wo-container { max-width: 1440px; padding-left: var(--space-6); padding-right: var(--space-6); }
 .wo-dash-gallery-frame { border: none; }
-.wo-dash-gallery-preview {
-  margin: 0 0 var(--space-8) var(--space-8);
-  color: var(--text-faint);
-}
 .wo-dash-gallery-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-5);
+  gap: var(--space-5) var(--space-6);
   padding: 0 var(--space-8) var(--space-6);
   background: var(--surface-page);
   flex-wrap: wrap;
@@ -2565,241 +2565,272 @@ body.wod-profile-details-page .wod-footer {
 .wo-dash-gallery-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(26px, 3vw, 42px);
-  line-height: 1.05;
+  font-weight: var(--weight-regular);
+  font-size: 40px;
+  line-height: 54.4px;
   color: var(--ink);
 }
-.wo-dash-gallery-count { font-family: var(--font-mono); font-size: 0.62em; color: var(--text-faint); font-weight: var(--weight-regular); }
+.wo-dash-gallery-count {
+  margin-left: 6px;
+  font-family: var(--font-body);
+  font-weight: var(--weight-regular);
+  font-size: 26px;
+  color: var(--neutral-300);
+  white-space: nowrap;
+}
 .wo-dash-gallery-tools { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-/* Botón que monta instagram-import.js: crema con borde ink, Inter bold uppercase
-   (el ícono lo reemplaza dashboard-redesign.js por el Feather `instagram`). */
+/* Botón que monta instagram-import.js (2003:868): 52px, Inter bold 14 · 1.12px. */
 .wo-dash-gallery-tools .ig-import-trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  min-height: var(--control-h-md);
-  background: var(--surface-page);
-  border: var(--border-hairline) solid var(--ink);
+  justify-content: center;
+  gap: var(--space-2);
+  height: 52px;
+  min-height: 52px;
+  padding: 0 29.6px;
+  background: var(--neutral-100);
+  border: var(--border-hairline) solid var(--neutral-500);
   border-radius: var(--radius-none);
-  color: var(--ink);
+  color: var(--neutral-500);
   font-family: var(--font-body);
   font-weight: var(--weight-bold);
-  font-size: 18px;
-  letter-spacing: var(--button-m-track);
+  font-size: 14px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
 }
-.wo-dash-gallery-tools .ig-import-trigger:hover { background: var(--neutral-200); color: var(--ink); }
-.wo-dash-gallery-tools .ig-import-trigger svg { width: 22px; height: 22px; flex: none; }
-.wo-dash-gallery-stage { background: var(--surface-dark); }
+.wo-dash-gallery-tools .ig-import-trigger:hover { background: var(--neutral-200); color: var(--neutral-500); }
+.wo-dash-gallery-tools .ig-import-trigger svg,
+.wo-dash-gallery-tools .ig-import-trigger .igi-ic { width: 18px; height: 18px; flex: none; }
+.wo-dash-gallery-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-7) var(--space-8) var(--space-8);
+  background: var(--neutral-500);
+}
 .wo-dash-gallery-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-8);
-  border-bottom: var(--border-hairline) solid var(--dark-rule);
+  gap: var(--space-4) var(--space-6);
+  padding: 0 0 20.8px;
+  border-bottom: 0.8px solid var(--neutral-400);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--neutral-100);
   flex-wrap: wrap;
 }
-.wo-dash-gallery-hint { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-accent); }
-/* Grilla del Figma: 4 columnas, celdas 2:1, primera card destacada 2×2 y la
-   dropzone SUBIR MÁS + la card "subiendo" DENTRO de la grilla. `display:contents`
-   sobre #gallery-admin-grid deja que sus celdas y el bloque de progreso compartan
-   el mismo grid sin tocar el innerHTML que reescribe dashboard.js. */
+.wo-dash-gallery-side { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+.wo-dash-gallery-hint { color: var(--yellow-300); }
+/* `display:contents` en #gallery-admin-grid: sus celdas y la card "subiendo"
+   comparten la grilla de 4 columnas sin tocar el innerHTML del módulo. */
 .wo-dash-gallery-cells {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-5);
-  padding: var(--space-8);
+  grid-auto-rows: 180px;
+  gap: var(--space-4);
 }
 .wo-dash-gallery-grid { display: contents; }
-.wo-dash-gallery-grid .gallery-item {
+
+.wod-gal-cell {
   position: relative;
-  aspect-ratio: 2 / 1;
-  background: var(--neutral-400);
+  min-width: 0;
   overflow: hidden;
-  cursor: pointer;
+  background: var(--neutral-400);
 }
-.wo-dash-gallery-grid .gallery-item:first-child { grid-column: span 2; grid-row: span 2; }
-.wod-figma-demo .wo-dash-gallery-grid .gallery-item:nth-child(n + 6) { display: none; }
-.wo-dash-gallery-grid .gallery-item img,
-.wo-dash-gallery-grid .gallery-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.wo-dash-gallery-grid .gallery-item::after {
+.wod-gal-cell.is-featured { grid-column: span 2; grid-row: span 2; }
+.wod-gal-cell.is-video { background: var(--dark-rule); }
+.wod-gal-cell > img,
+.wod-gal-cell > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Recién importado de IG: borde interno amarillo de 3px (2003:2430). */
+.wod-gal-cell.is-new::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: var(--protection-bottom);
+  z-index: 4;
+  box-shadow: inset 0 0 0 3px var(--yellow-300);
   pointer-events: none;
 }
-.wo-dash-gallery-grid .gallery-item.dragging { outline: var(--border-strong-width) solid var(--yellow-300); opacity: var(--opacity-subtle); }
-.wo-dash-gallery-grid .gallery-category-badge {
-  position: absolute;
-  left: var(--space-2);
-  bottom: var(--space-2);
-  z-index: 1;
-  padding: 3px 7px;
-  background: var(--neutral-500);
-  color: var(--neutral-100);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.wo-dash-gallery-grid .gallery-video-badge {
-  position: absolute;
-  right: var(--space-2);
-  top: var(--space-2);
-  z-index: 1;
-  padding: 3px 7px;
-  background: var(--blue-400);
-  color: var(--white);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-}
-.wo-dash-gallery-grid .gallery-video-play {
+.wod-gal-cell.is-dragging { opacity: var(--opacity-muted); }
+.wod-gal-cell.is-drop-target { outline: var(--border-strong-width) dashed var(--yellow-300); outline-offset: 3px; }
+.wod-gal-open {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--white);
-  font-size: 22px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.wod-gal-open:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--blue-400); }
+.wod-gal-eye { display: inline-flex; color: var(--neutral-300); }
+.wod-gal-eye [data-wo-icon],
+.wod-gal-eye svg { width: 26px; height: 26px; }
+.wod-gal-tags {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
   pointer-events: none;
 }
-/* Bandera de esquina ★ + caption de la card destacada (Figma) */
-.wo-dash-gallery-grid .wod-gal-flag {
+.wod-gal-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 13.6px;
+  padding: 0 var(--space-2);
+  background: var(--neutral-500);
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-weight: var(--weight-bold);
+  font-size: 10px;
+  line-height: 13.6px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.wod-gal-tag.is-new { background: var(--yellow-300); color: var(--neutral-500); }
+/* Bandera ★ del destacado (2003:899/900) y su versión interactiva en el resto. */
+.wod-gal-flag,
+.wod-gal-feature {
   position: absolute;
   left: 0;
   top: 0;
   z-index: 3;
-  width: var(--corner-flag-sm);
-  height: var(--corner-flag-sm);
-  display: grid;
-  place-items: center;
-  padding-right: var(--space-3);
-  padding-bottom: var(--space-3);
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
   background: var(--yellow-300);
-  color: var(--neutral-500);
-  font-size: 18px;
-  line-height: 1;
   clip-path: polygon(0 0, 100% 0, 0 100%);
-  pointer-events: none;
 }
-.wo-dash-gallery-grid .wod-gal-caption {
+.wod-gal-flag { pointer-events: none; }
+.wod-gal-flag b,
+.wod-gal-feature b {
   position: absolute;
-  inset: auto 0 0 0;
+  left: 7px;
+  top: 6px;
+  font-family: var(--font-body);
+  font-weight: var(--weight-regular);
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--ink);
+}
+.wod-gal-feature { opacity: 0; cursor: pointer; transition: opacity var(--duration-press) var(--ease-standard); }
+.wod-gal-cell:hover .wod-gal-feature,
+.wod-gal-feature:focus-visible { opacity: 1; }
+.wod-gal-feature:focus-visible { outline: none; background: var(--yellow-200); }
+/* Leyenda inferior (2003:901): Inter semibold 13 sobre #24211d al 88 %. */
+.wod-gal-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 2;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-8) var(--space-5) var(--space-5);
-  background: var(--protection-bottom);
-  pointer-events: none;
+  gap: var(--space-2);
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--neutral-500) 88%, transparent);
 }
-.wo-dash-gallery-grid .wod-gal-captxt {
+.wod-gal-name {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
   font-family: var(--font-body);
-  font-weight: var(--weight-bold);
-  font-size: 17px;
+  font-weight: var(--weight-semibold);
+  font-size: 13px;
+  line-height: 28px;
   color: var(--neutral-100);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  cursor: text;
 }
-/* En la card destacada la categoría ya viaja en el caption. */
-.wo-dash-gallery-grid .gallery-item:first-child .gallery-category-badge { display: none; }
-
-/* Cluster de acciones abajo-derecha (destacar · categoría · eliminar) */
-.wo-dash-gallery-grid .wod-gal-acts {
-  position: absolute;
-  right: var(--space-3);
-  bottom: var(--space-3);
-  z-index: 4;
-  display: flex;
-  gap: var(--space-1);
-  opacity: 0;
-  transition: opacity var(--duration-press);
-}
-.wo-dash-gallery-grid .gallery-item:hover .wod-gal-acts,
-.wo-dash-gallery-grid .gallery-item:focus-within .wod-gal-acts,
-.wo-dash-gallery-grid .gallery-item:first-child .wod-gal-acts { opacity: 1; }
-.wo-dash-gallery-grid .wod-gal-acts button {
-  width: 30px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  background: var(--neutral-100);
-  color: var(--neutral-500);
-  border: var(--border-hairline) solid var(--neutral-500);
-  cursor: pointer;
-}
-.wo-dash-gallery-grid .wod-gal-acts button:hover { background: var(--yellow-300); }
-.wo-dash-gallery-grid .wod-gal-acts button[aria-disabled="true"] { background: var(--yellow-300); cursor: default; }
-.wo-dash-gallery-grid .wod-gal-acts svg { width: 15px; height: 15px; }
-.wo-dash-gallery-grid .gallery-item-delete {
-  position: static;
-  width: 30px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  background: var(--neutral-100);
-  color: var(--neutral-500);
-  border: var(--border-hairline) solid var(--neutral-500);
-  cursor: pointer;
-  opacity: 1;
-}
-.wo-dash-gallery-grid .gallery-item-delete:hover { background: var(--red-300); color: var(--white); }
-
-/* Selector de categoría en la card (acción del lápiz) */
-.wo-dash-gallery-grid .wod-gal-catsel {
-  position: absolute;
-  left: var(--space-2);
-  bottom: var(--space-2);
-  z-index: 5;
-  max-width: calc(100% - var(--space-16));
-  padding: var(--space-1) var(--space-2);
-  background: var(--neutral-100);
-  color: var(--neutral-500);
-  border: var(--border-hairline) solid var(--neutral-500);
+.wod-gal-name[hidden] { display: none; }
+.wod-gal-name:hover span { text-decoration: underline dotted; text-underline-offset: 3px; }
+.wod-gal-name:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--blue-400); }
+.wod-gal-cell.is-untitled .wod-gal-name { color: var(--neutral-300); }
+.wod-gal-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: var(--border-hairline) solid var(--yellow-300);
   border-radius: var(--radius-none);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  background: var(--neutral-500);
+  color: var(--neutral-100);
+  font-family: var(--font-body);
+  font-weight: var(--weight-semibold);
+  font-size: 13px;
 }
-
-/* Dropzone SUBIR MÁS: una sola celda punteada amarilla dentro de la grilla.
-   dashboard.js emite un slot por hueco libre; el Figma dibuja uno solo. */
-.wo-dash-gallery-grid .gallery-item-slot {
-  aspect-ratio: 2 / 1;
+.wod-gal-input:focus { outline: none; box-shadow: 0 0 0 2px var(--blue-400); }
+.wod-gal-del {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: var(--border-hairline) solid transparent;
+  background: none;
+  color: var(--neutral-300);
+  cursor: pointer;
+}
+.wod-gal-del [data-wo-icon],
+.wod-gal-del svg { width: 15px; height: 15px; }
+.wod-gal-del:hover { color: var(--red-200); border-color: currentColor; }
+.wod-gal-del:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--blue-400); }
+/* Dropzone SUBIR MÁS · N LIBRES (2003:884). */
+.wod-gal-add {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 10px;
+  min-width: 0;
+  padding: var(--space-4);
   border: var(--border-hairline) dashed var(--yellow-300);
-  color: var(--yellow-300);
   background: transparent;
+  color: var(--yellow-300);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
 }
-.wo-dash-gallery-grid .gallery-item-slot ~ .gallery-item-slot { display: none; }
-.wo-dash-gallery-grid .gallery-item-slot svg { width: 24px; height: 24px; }
-.wo-dash-gallery-grid #gallery-empty {
-  grid-column: 1 / -1;
-  padding: var(--space-16) var(--space-6);
-  text-align: center;
-  color: var(--neutral-200);
-  font-family: var(--font-mono);
-  font-size: var(--body-s-size);
-}
+.wod-gal-add [data-wo-icon],
+.wod-gal-add svg { width: 20px; height: 20px; }
+.wod-gal-add:hover,
+.wod-gal-add.is-drop-target { background: color-mix(in srgb, var(--yellow-300) 10%, transparent); }
+.wod-gal-add.is-drop-target { border-style: solid; }
+.wod-gal-add:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-400); }
 
-/* Card "subiendo" · celda propia de la grilla, no un bloque debajo (Figma) */
+/* Card "subiendo" · celda propia de la grilla. */
 .wo-dash-gallery-cells .gallery-admin-loading {
   position: relative;
-  aspect-ratio: 2 / 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2829,23 +2860,43 @@ body.wod-profile-details-page .wod-footer {
 }
 .wo-dash-gallery-cells .gallery-progress-fill { height: 100%; width: 0; background: var(--blue-400); transition: width var(--duration-fast) var(--ease-standard); }
 
-/* ---- CTA · subí tu trabajo ------------------------------------------------ */
+/* ---- CTA · subí tu trabajo (2003:1033) ------------------------------------ */
 .wo-dash-cta {
   background: transparent;
-  padding: var(--space-12) var(--space-8) var(--space-16);
-  border-top: var(--border-hairline) solid var(--dark-rule);
+  padding: 64.8px var(--space-4) var(--space-6);
+  border-top: 0.8px solid var(--neutral-400);
 }
-.wo-dash-cta-inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-5); }
-.wo-dash-cta-icon { width: 40px; height: 40px; color: var(--white); }
+.wo-dash-cta-inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+.wo-dash-cta-icon { display: inline-flex; width: 28px; height: 28px; color: var(--neutral-100); }
+.wo-dash-cta-icon svg { width: 28px; height: 28px; }
 .wo-dash-cta-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(26px, 3vw, 36px);
-  line-height: 1.05;
+  font-weight: var(--weight-regular);
+  font-size: 32px;
+  line-height: normal;
   color: var(--neutral-100);
 }
-.wo-dash-cta-copy { margin: 0; font-size: 17px; color: var(--text-on-dark); max-width: 520px; }
-.wo-dash-cta-btn { margin-top: var(--space-2); }
+.wo-dash-cta-copy { margin: 0; font-size: 16px; line-height: normal; color: var(--figma-sand-border); max-width: 560px; }
+.wo-dash-cta .wo-dash-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 52px;
+  min-height: 52px;
+  margin-top: 0;
+  padding: 0 29.6px;
+  border: var(--border-hairline) solid var(--neutral-500);
+  background: var(--yellow-300);
+  color: var(--neutral-500);
+  font-family: var(--font-body);
+  font-weight: var(--weight-bold);
+  font-size: 14px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+}
+.wo-dash-cta .wo-dash-cta-btn [data-wo-icon],
+.wo-dash-cta .wo-dash-cta-btn svg { width: 18px; height: 18px; }
 
 /* ---- Footer --------------------------------------------------------------- */
 .wo-dash-footer {
@@ -2920,8 +2971,14 @@ body.wod-profile-details-page .wod-footer {
   .wo-dash-quotestat { padding: var(--space-4) var(--space-5); }
   .wo-dash-row2 { grid-template-columns: 1fr; gap: var(--space-2); }
   .wo-dash-designs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .wo-dash-gallery-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-4); }
-  .wo-dash-gallery-head, .wo-dash-gallery-bar { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .wo-dash-gallery > .wo-container { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .wo-dash-gallery-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .wo-dash-gallery-head { padding-left: 0; padding-right: 0; }
+  .wo-dash-gallery-stage { padding: var(--space-5) var(--space-4) var(--space-6); }
+  .wo-dash-gallery-title { font-size: 32px; line-height: 1.2; }
+  .wo-dash-gallery-count { font-size: 22px; }
+  .wo-dash-cta { padding-top: var(--space-10); }
+  .wo-dash-cta-title { font-size: 26px; }
   .wo-dash-footer-frame { padding: var(--space-8) var(--space-5) var(--space-5); }
   .wo-dash-footer-cols { grid-template-columns: 1fr 1fr; gap: var(--space-6); }
   .wo-dash-footer-brand { grid-column: 1 / -1; }
@@ -2942,9 +2999,11 @@ body.wod-profile-details-page .wod-footer {
   .wo-dash-topbar .wo-topbar-right { gap: var(--space-2); }
   .wo-dash-logout { padding: var(--space-3); }
   .wo-dash-designs { grid-template-columns: 1fr; gap: var(--space-8); }
-  .wo-dash-gallery-cells { grid-template-columns: 1fr; }
-  .wo-dash-gallery-grid .gallery-item:first-child { grid-column: span 1; grid-row: span 1; }
-  .wo-dash-gallery-tools .ig-import-trigger { width: 100%; justify-content: center; font-size: 15px; }
+  .wo-dash-gallery-cells { grid-template-columns: 1fr; grid-auto-rows: 200px; }
+  .wod-gal-cell.is-featured { grid-column: span 1; grid-row: span 2; }
+  .wo-dash-gallery-tools, .wo-dash-gallery-tools > div { width: 100%; }
+  .wo-dash-gallery-tools .ig-import-trigger { width: 100%; }
+  .wo-dash-gallery-title { font-size: 28px; }
   .wo-dash-income-total { font-size: 48px; }
 }
 

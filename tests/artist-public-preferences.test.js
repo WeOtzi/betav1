@@ -25,20 +25,22 @@ test('public preference RPC exposes only profile-safe fields while the source ro
 });
 
 test('artist profile consumes privacy, public profile extras and weekly availability', () => {
-    assert.match(js, /rpc\('get_artist_public_profile_preferences'/);
+    // La RPC vive en el repo del área (capa PostgREST) y la página la consume por nombre.
+    const repo = read('public', 'shared', 'js', 'data', 'profile-public-repo.js');
+    assert.match(repo, /rpc\('get_artist_public_profile_preferences'/);
+    assert.match(js, /ProfilePublic\.getPreferences\(artistUserId\)/);
+    assert.match(html, /\/shared\/js\/data\/profile-public-repo\.js/);
     assert.match(js, /privacy\.show_city === false/);
-    assert.match(js, /privacy\.show_socials === false/);
     assert.match(js, /allow_search_indexing === true/);
     assert.match(js, /publicProfilePreferences\.availability\?\.weekly/);
     assert.match(js, /profileExtras\.banner_url/);
-    assert.match(js, /profileExtras\?\.tiktok/);
     assert.match(html, /id="profile-robots"/);
-    assert.match(html, /id="hero-socials"/);
 });
 
-test('banner and social links preserve the existing responsive hero structure', () => {
+test('Figma final 801:1108 retira la fila de redes del hero sin perder el banner responsive', () => {
+    assert.doesNotMatch(html, /id="hero-socials"/);
+    assert.doesNotMatch(js, /renderPublicSocials/);
+    assert.doesNotMatch(css, /\.hero-socials\s*\{/);
     assert.match(css, /\.hero-band\.has-profile-banner::before/);
-    assert.match(css, /\.hero-socials\s*\{/);
-    assert.match(css, /\.hero-socials\[hidden\]/);
     assert.match(css, /@media \(max-width: 900px\)[\s\S]*\.hero-grid/);
 });

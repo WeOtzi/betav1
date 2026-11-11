@@ -28,7 +28,7 @@
 
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
-    <link rel="stylesheet" href="/shared/css/registerclosedbeta-ds.css?v=20261006-buttons">
+    <link rel="stylesheet" href="/shared/css/registerclosedbeta-ds.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
     <script src="/shared/js/wo-icons.js" defer></script>
 
@@ -49,67 +49,30 @@
 <a class="wo-skip-link" href="#register-content">Saltar al contenido</a>
 
 <!-- =====================================================
-     TOPBAR · solo visible con sesión activa
-     (main.js togglea body.menu-authenticated + [hidden])
-     ===================================================== -->
-<header class="wo-topbar wo-beta-topbar">
-    <div class="wo-topbar-left">
-        <a class="wo-topbar-brand" href="/" aria-label="We Ötzi — inicio">
-            <span class="wo-marks" aria-hidden="true">
-                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
-            </span>
-            <span class="wo-beta-brand-name">We Ötzi</span>
-        </a>
-        <nav class="wo-topbar-nav" id="dashboard-nav-links-col" aria-label="Navegación de artista" hidden>
-            <a class="wo-topbar-item" href="/artist/dashboard">Dashboard</a>
-            <a class="wo-topbar-item" href="/my-quotations">Cotizaciones</a>
-            <a class="wo-topbar-item" href="/job-board">Job board</a>
-            <a class="wo-topbar-item" href="/calendar">Calendario</a>
-            <a class="wo-topbar-item" href="/my-quotations/statistics">Estadísticas</a>
-        </nav>
-    </div>
-    <div class="wo-topbar-right">
-        <button id="login-btn" class="wo-btn wo-btn--s" type="button" onclick="openLoginModal()">Log in</button>
-        <button id="dashboard-mobile-menu-toggle" class="wo-iconbtn wo-iconbtn--s wo-beta-burger" type="button"
-            aria-label="Abrir menú" aria-expanded="false" aria-controls="dashboard-mobile-menu">
-            <i data-wo-icon="menu" aria-hidden="true"></i>
-        </button>
-    </div>
-</header>
-
-<!-- Menú móvil de sesión activa: main.js lo abre/cierra vía [hidden] -->
-<nav id="dashboard-mobile-menu" class="wo-beta-mobile-menu" aria-label="Navegación de artista (móvil)" hidden>
-    <a href="/artist/dashboard">Dashboard</a>
-    <a href="/my-quotations">Cotizaciones</a>
-    <a href="/job-board">Job board</a>
-    <a href="/calendar">Calendario</a>
-    <a href="/my-quotations/statistics">Estadísticas</a>
-</nav>
-
-<!-- =====================================================
-     SPLIT 50/50 · póster ink + panel crema (Figma n22-1106)
+     Figma final (oct 2026) · 801:536 "Crear cuenta - Email y
+     redes sociales": póster ink 720px + panel crema con el
+     formulario de 468px. Sin topbar.
      ===================================================== -->
 <div class="wo-auth-split">
 
     <aside class="wo-auth-poster" aria-hidden="true">
-        <div class="wo-auth-poster-top">
-            <span class="wo-marks">
-                <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
-            </span>
-            <span class="wo-auth-poster-eyebrow">[ Acceso anticipado · beta cerrada ]</span>
-        </div>
+        <span class="wo-marks wo-auth-poster-marks">
+            <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
+        </span>
+        <span class="wo-auth-poster-eyebrow">[ Acceso anticipado · beta cerrada ]</span>
         <p class="wo-auth-poster-title">
             <span class="line">Tu próximo</span>
             <span class="line hl-blue">Proyecto</span>
             <span class="line hl-yellow">Está acá</span>
         </p>
         <p class="wo-auth-poster-manifesto">El artista merece más apoyo y menos complicaciones. Crecer y conectar — gratis para siempre.</p>
+        <span class="wo-auth-poster-triangle"></span>
     </aside>
 
     <main class="wo-auth-panel" id="register-content" tabindex="-1">
         <div class="wo-auth-panel-inner">
 
-            <a class="wo-auth-brand" href="/" aria-label="We Ötzi — inicio">
+            <a class="wo-auth-brand" href="/bienvenida" aria-label="We Ötzi — inicio">
                 <span class="wo-marks" aria-hidden="true">
                     <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
                 </span>
@@ -117,48 +80,52 @@
             </a>
 
             <div class="wo-auth-view">
-                <h1 class="wo-auth-title">Creá tu cuenta</h1>
-                <p class="wo-auth-copy">Empezá hoy como artista.</p>
+                <div class="wo-auth-head">
+                    <h1 class="wo-auth-title">Creá tu cuenta</h1>
+                    <p class="wo-auth-copy">Empezá hoy como artista.</p>
+                </div>
 
-                <!-- El flujo de beta captura nombre, email, ciudad y estilo
-                     (Figma 22-1106): crea/reanuda el borrador con esos datos y
-                     deriva al wizard /register-artist, donde se completa el resto. -->
-                <form id="beta-form" class="wo-auth-form" onsubmit="handleRegistration(event)">
-                    <div class="wo-field">
-                        <label class="wo-label" for="beta-fullname">Nombre completo <span class="req">*</span></label>
-                        <input id="beta-fullname" type="text" class="wo-input input-fullname" placeholder="Tu nombre"
+                <!-- Sesión activa: main.js deriva a /artist/login, que muestra
+                     "Ya iniciaste sesión" (Figma 2001:3334). -->
+
+                <!-- El flujo de beta captura nombre, email, ciudad y estilo:
+                     crea/reanuda el borrador con esos datos y deriva al wizard
+                     /register-artist, donde se completa el resto. -->
+                <form id="beta-form" class="wo-auth-form" onsubmit="handleRegistration(event)" novalidate>
+                    <div class="wo-beta-field">
+                        <label class="wo-beta-label" for="beta-fullname">Nombre completo <span class="req">*</span></label>
+                        <input id="beta-fullname" type="text" class="wo-beta-input input-fullname" placeholder="Tu nombre"
                             required autocomplete="name" data-clarity-mask="true">
                     </div>
 
                     <div class="wo-auth-fieldrow">
-                        <div class="wo-field">
-                            <label class="wo-label" for="beta-email">Email <span class="req">*</span></label>
-                            <input id="beta-email" type="email" class="wo-input input-email" placeholder="tu@email.com"
+                        <div class="wo-beta-field">
+                            <label class="wo-beta-label" for="beta-email">Email <span class="req">*</span></label>
+                            <input id="beta-email" type="email" class="wo-beta-input input-email" placeholder="tu@email.com"
                                 required autocomplete="email" data-clarity-mask="true">
                         </div>
-                        <div class="wo-field">
-                            <label class="wo-label" for="beta-city">Ciudad</label>
-                            <input id="beta-city" type="text" class="wo-input input-city" placeholder="Buenos Aires"
+                        <div class="wo-beta-field">
+                            <label class="wo-beta-label" for="beta-city">Ciudad</label>
+                            <input id="beta-city" type="text" class="wo-beta-input input-city" placeholder="Buenos Aires"
                                 autocomplete="address-level2">
                         </div>
                     </div>
 
-                    <div class="wo-field">
-                        <label class="wo-label" for="beta-style">Estilo <span class="req">*</span></label>
-                        <select id="beta-style" class="wo-select input-style" required>
+                    <div class="wo-beta-field">
+                        <label class="wo-beta-label" for="beta-style">Estilo <span class="req">*</span></label>
+                        <select id="beta-style" class="wo-beta-input wo-beta-select input-style" required>
                             <option value="" selected disabled>Seleccioná tu estilo principal</option>
                         </select>
                     </div>
 
-                    <label class="wo-check wo-beta-terms" for="beta-terms">
+                    <label class="wo-beta-terms" for="beta-terms">
                         <input type="checkbox" id="beta-terms" required>
-                        <span>Acepto los <a href="/legal/terms" target="_blank" rel="noopener">términos y condiciones</a>
-                            y la <a href="/legal/privacy" target="_blank" rel="noopener">política de privacidad</a></span>
+                        <span>Acepto los <a href="/legal/terms" target="_blank" rel="noopener">términos y condiciones</a></span>
                     </label>
 
-                    <button type="submit" class="wo-btn wo-btn--block wo-btn--hard btn-register btn-register-primary">
+                    <button type="submit" class="wo-beta-submit btn-register btn-register-primary">
                         <span class="btn-text">Registrarme</span>
-                        <img src="/shared/assets/figma/registerclosedbeta/arrow-right.svg" alt="">
+                        <i data-wo-icon="arrow-right" aria-hidden="true"></i>
                     </button>
 
                     <div id="form-message" class="form-message" role="status"></div>
@@ -167,28 +134,28 @@
                 <div class="wo-auth-or" role="separator">O continuá con</div>
 
                 <div class="wo-auth-social">
-                    <span class="wo-badge wo-badge--accent wo-badge--s wo-auth-reco"><img src="/shared/assets/figma/registerclosedbeta/star.svg" alt="">Recomendado</span>
+                    <span class="wo-auth-reco"><i data-wo-icon="star" aria-hidden="true"></i>Recomendado</span>
                     <div class="wo-auth-social-row">
-                        <button type="button" class="wo-btn wo-btn--ghost social-btn"
+                        <button type="button" class="wo-beta-social social-btn" data-social="instagram"
                             onclick="handleSocialLogin('instagram')" aria-label="Continuar con Instagram">
-                            <img src="/shared/assets/figma/registerclosedbeta/instagram.svg" alt="">
+                            <i data-wo-icon="instagram" aria-hidden="true"></i>
                             <span class="btn-text">Instagram</span>
                         </button>
-                        <button type="button" class="wo-btn wo-btn--ghost social-btn"
+                        <button type="button" class="wo-beta-social social-btn" data-social="email"
                             onclick="focusBetaForm()" aria-label="Continuar con email">
-                            <img src="/shared/assets/figma/registerclosedbeta/email.svg" alt="">
+                            <i data-wo-icon="mail" aria-hidden="true"></i>
                             <span class="btn-text">Email</span>
                         </button>
-                        <button type="button" class="wo-btn wo-btn--ghost social-btn"
-                            onclick="handleFacebookComingSoon()" aria-label="Continuar con Facebook">
-                            <img src="/shared/assets/figma/registerclosedbeta/facebook.svg" alt="">
+                        <button type="button" class="wo-beta-social social-btn" data-social="facebook"
+                            onclick="handleFacebookSignup()" aria-label="Continuar con Facebook">
+                            <img class="wo-auth-brand-logo" src="/artist/login/assets/facebook.svg" width="17" height="17" alt="" aria-hidden="true">
                             <span class="btn-text">Facebook</span>
                         </button>
                     </div>
                 </div>
 
-                <p class="wo-meta wo-beta-haveaccount">¿Ya tenés cuenta?
-                    <a href="#" onclick="event.preventDefault(); openLoginModal();">Ingresá</a>
+                <p class="wo-beta-haveaccount">¿Ya tenés cuenta?
+                    <a href="/artist/login" onclick="event.preventDefault(); openLoginModal();">Ingresá</a>
                 </p>
             </div>
 
@@ -197,44 +164,10 @@
 
 </div>
 
-<!-- =====================================================
-     LOGIN · vista existente (main.js: openLoginModal deriva
-     a /artist/login; el markup queda para handleLogin y
-     closeLoginModal, que lo referencian sin guardas)
-     ===================================================== -->
-<div id="login-modal" class="wo-overlay modal-overlay" onclick="closeLoginModalOnOverlay(event)">
-    <div class="wo-modal wo-beta-modal">
-        <button class="wo-iconbtn wo-iconbtn--s wo-beta-modal-close" type="button" onclick="closeLoginModal()" aria-label="Cerrar">
-            <i data-wo-icon="x" aria-hidden="true"></i>
-        </button>
-        <h2 class="wo-modal-title">Iniciá sesión</h2>
-        <p class="wo-auth-copy">Accedé a tu cuenta de artista.</p>
-        <form id="login-form" class="wo-auth-form" onsubmit="handleLogin(event)">
-            <div class="wo-field">
-                <label class="wo-label" for="login-email">Email</label>
-                <input type="email" id="login-email" class="wo-input" placeholder="vos@email.com" required
-                    autocomplete="email" data-clarity-mask="true">
-            </div>
-            <div class="wo-field">
-                <label class="wo-label" for="login-password">Contraseña</label>
-                <input type="password" id="login-password" class="wo-input" placeholder="••••••••" required
-                    autocomplete="current-password" data-clarity-mask="true">
-            </div>
-            <div id="login-message" class="form-message" role="status"></div>
-            <button type="submit" class="wo-btn wo-btn--block wo-btn--hard btn-modal-submit">
-                <span class="btn-text">Entrar</span>
-                <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
-            </button>
-        </form>
-        <p class="wo-meta wo-beta-modal-link"><a href="/recover?from=artist" onclick="handlePasswordRecovery(event); return false;">Olvidé mi contraseña</a></p>
-        <p class="wo-meta wo-beta-modal-link">¿Sin cuenta? <a href="#" onclick="closeLoginModal(); return false;">Registrate arriba</a></p>
-    </div>
-</div>
-
 <script src="/shared/js/artist-auth.js"></script>
 <script src="/shared/js/artist-registration-progress.js"></script>
 <script src="/shared/js/instagram-import.js"></script>
-<script src="/shared/js/main.js"></script>
+<script src="/shared/js/main.js?v=20261028-figma-final"></script>
 
 </body>
 

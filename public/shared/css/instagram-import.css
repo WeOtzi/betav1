@@ -1,500 +1,383 @@
-/* Instagram Import — modal + 3 screens (input → preview → result).
-   Hooked up by public/shared/js/instagram-import.js via IGImport.mount(). */
+/* Instagram Import — diálogo de 3 pasos (Figma final oct 2026: 2003:1191 /
+   2003:1902 / 2003:2583). Lo monta public/shared/js/instagram-import.js.
+   Se usa también en /registerclosedbeta, /register-artist y /studio/register
+   (esta última no carga ds/tokens.css): cada token lleva su valor del DS como
+   respaldo para que el componente se vea igual en todas las páginas. */
 
+/* ---- Botón disparador ---------------------------------------------------- */
 .ig-import-trigger {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #C13584, #833AB4, #405DE6);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 18px;
+    border: 1px solid var(--neutral-500, #24211D);
+    border-radius: 0;
+    background: var(--neutral-100, #FAF8F3);
+    color: var(--neutral-500, #24211D);
+    font-family: var(--font-body, Inter, system-ui, sans-serif);
+    font-weight: 700;
     font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform .08s cubic-bezier(.4,0,.2,1), box-shadow .08s cubic-bezier(.4,0,.2,1), background-color .12s ease;
 }
-.ig-import-trigger:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(193, 53, 132, 0.35);
-}
-.ig-import-trigger:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
+.ig-import-trigger .igi-ic { width: 18px; height: 18px; flex: none; }
+.ig-import-trigger:hover { background: var(--neutral-200, #E8E3D7); transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--neutral-500, #24211D); }
+.ig-import-trigger:active { transform: none; box-shadow: none; }
+.ig-import-trigger:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.ig-import-trigger:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-.ig-import-overlay {
+/* Registro (estética de la página de alta, sin cambios funcionales). */
+body.register-page .ig-import-trigger {
+    min-height: 52px;
+    border: 1.5px solid var(--ink, #15110D);
+    background: var(--ink, #15110D);
+    color: var(--cream, #F2EFE6);
+    font-size: 12px;
+    font-weight: 900;
+}
+body.register-page .ig-import-trigger:hover { background: var(--red, #E63A1F); box-shadow: none; transform: translateY(-2px); }
+
+/* ---- Diálogo ---------------------------------------------------------------- */
+body.igi-open { overflow: hidden; }
+/* Centrado en el viewport como en el Figma (2003:1191 empieza en y≈116, el
+   paso 03 corto en y≈250): `margin:auto` centra el diálogo y, si es más alto
+   que la ventana, lo deja arriba con scroll. z-index por encima de cualquier
+   barra fija de la página (topbar del wizard /register-artist, 120). */
+.igi-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    z-index: 2147483000;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    z-index: 9999;
-    padding: 16px;
-    animation: ig-fade 0.18s ease-out;
+    padding: 32px 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: color-mix(in srgb, var(--neutral-500, #24211D) 55%, transparent);
+    animation: igi-fade .16s ease-out;
 }
-@keyframes ig-fade { from { opacity: 0; } to { opacity: 1; } }
-
-.ig-import-modal {
-    background: #1a1a1a;
-    color: #f0f0f0;
-    border: 1px solid #2a2a2a;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 520px;
-    max-height: calc(100vh - 32px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+@keyframes igi-fade { from { opacity: 0; } to { opacity: 1; } }
+.igi-dialog {
+    flex: none;
+    margin: auto;
+    /* border-box: los 685px del Figma incluyen borde y padding; así en
+       pantallas angostas el diálogo no se pasa del overlay. */
+    box-sizing: border-box;
+    width: min(685.2px, 100%);
+    padding: 1.6px;
+    border: 1px solid var(--neutral-500, #24211D);
+    background: var(--neutral-100, #FAF8F3);
+    box-shadow: 8px 8px 0 var(--neutral-500, #24211D);
+    color: var(--neutral-500, #24211D);
+    font-family: var(--font-body, Inter, system-ui, sans-serif);
 }
-
-.ig-import-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid #2a2a2a;
-}
-.ig-import-header h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    display: flex;
+.igi-dialog:focus { outline: none; }
+/* El contenedor recibe foco al cambiar de paso (tabindex -1): sin anillo azul
+   del DS (`.wo-app :focus-visible`), conserva la sombra dura del Figma. */
+.igi-overlay .igi-dialog:focus-visible { outline: none; box-shadow: 8px 8px 0 var(--neutral-500, #24211D); }
+.igi-ic { width: 16px; height: 16px; flex: none; display: inline-block; vertical-align: middle; }
+.igi-top { display: flex; flex-direction: column; gap: 18px; padding: 20px 28px 0; }
+.igi-top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.igi-kicker {
+    display: inline-flex;
     align-items: center;
     gap: 10px;
+    margin: 0;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--neutral-400, #5A5449);
 }
-.ig-import-header h3 i {
-    background: linear-gradient(135deg, #C13584, #833AB4);
-    color: #fff;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+.igi-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-}
-.ig-import-close {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--neutral-500, #24211D);
     background: transparent;
-    border: none;
-    color: #aaa;
+    color: var(--neutral-500, #24211D);
     cursor: pointer;
-    font-size: 18px;
-    padding: 4px 8px;
-    line-height: 1;
 }
-.ig-import-close:hover { color: #fff; }
+.igi-close .igi-ic { width: 18px; height: 18px; }
+.igi-close:hover { background: var(--neutral-200, #E8E3D7); }
+.igi-close:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.igi-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.igi-steps li {
+    padding-bottom: 12.4px;
+    border-bottom: 2.4px solid var(--figma-sand-border, #D8D0BF);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    color: var(--neutral-300, #B9AE98);
+    white-space: nowrap;
+}
+.igi-steps li.is-done { border-bottom-color: var(--neutral-500, #24211D); color: var(--ink, #001125); }
+.igi-steps li.is-current { border-bottom-color: var(--yellow-300, #F2B519); color: var(--ink, #001125); font-weight: 700; }
 
-.ig-import-body {
-    padding: 20px;
-    overflow-y: auto;
-    flex: 1;
-}
-
-.ig-import-body label {
-    display: block;
-    font-size: 13px;
-    color: #ccc;
-    margin-bottom: 6px;
-}
-.ig-import-body input[type="text"],
-.ig-import-body select {
-    width: 100%;
-    padding: 10px 12px;
-    background: #0f0f0f;
-    border: 1px solid #333;
-    border-radius: 6px;
-    color: #f0f0f0;
-    font-size: 14px;
-    margin-bottom: 14px;
-    box-sizing: border-box;
-}
-.ig-import-body input[type="text"]:focus,
-.ig-import-body select:focus {
-    outline: none;
-    border-color: #C13584;
-}
-.ig-import-body small {
-    display: block;
-    color: #888;
-    font-size: 11px;
-    margin: -10px 0 14px;
-    line-height: 1.4;
-}
-
-.ig-import-disclaimer {
-    background: #2a1f15;
-    border: 1px solid #5a3d20;
-    color: #ddc7a8;
-    padding: 10px 12px;
-    border-radius: 6px;
+.igi-body { display: flex; flex-direction: column; gap: 8px; padding: 24px 28px 28px; }
+.igi-title { margin: 0; font-family: var(--font-display, 'Archivo Black', sans-serif); font-weight: 400; font-size: 28px; line-height: 30.8px; color: var(--ink, #001125); }
+.igi-title--s { margin-top: 14px; font-size: 24px; line-height: 1.2; }
+.igi-sub { margin: 0; font-size: 15px; line-height: 1.35; color: var(--neutral-400, #5A5449); }
+.igi-fields { display: flex; flex-direction: column; gap: 20px; padding-top: 16px; }
+.igi-field { display: flex; flex-direction: column; }
+.igi-label {
+    margin: 0 0 8px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 12px;
-    line-height: 1.5;
-    margin-bottom: 16px;
+    letter-spacing: 0.08em;
+    line-height: 14.4px;
+    color: var(--neutral-400, #5A5449);
 }
-
-.ig-preview-profile {
+.igi-input-wrap, .igi-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 17.6px;
+    border: 1px solid var(--neutral-500, #24211D);
+    background: var(--neutral-100, #FAF8F3);
+}
+.igi-input-wrap:focus-within, .igi-select-wrap:focus-within { box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.igi-at { font-size: 16px; font-weight: 700; color: var(--neutral-500, #24211D); }
+.igi-input, .igi-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 16px;
+    color: var(--neutral-500, #24211D);
+    outline: none;
+}
+/* El anillo de foco lo dibuja el contenedor (gana a las reglas globales de input). */
+.igi-dialog .igi-input:focus, .igi-dialog .igi-input:focus-visible,
+.igi-dialog .igi-select:focus, .igi-dialog .igi-select:focus-visible { outline: none; box-shadow: none; border: 0; }
+.igi-input::placeholder { color: color-mix(in srgb, var(--neutral-400, #5A5449) 75%, var(--neutral-100, #FAF8F3)); opacity: 1; }
+.igi-select-wrap { padding: 0; }
+.igi-select { appearance: none; -webkit-appearance: none; padding: 0 44px 0 17.6px; cursor: pointer; }
+.igi-select-chev { position: absolute; right: 17.6px; width: 18px; height: 18px; pointer-events: none; }
+.igi-help { margin: 7px 0 0; font-size: 14px; line-height: 18.2px; color: var(--neutral-300, #B9AE98); }
+.igi-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 11.8px; border: 1px solid var(--figma-sand-border, #D8D0BF); }
+.igi-facts > div { padding: 10px 12px; }
+.igi-facts > div + div { border-left: 0.8px solid var(--figma-sand-border, #D8D0BF); }
+.igi-fact-l { margin: 0 0 4px; font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; letter-spacing: 0.12em; color: var(--neutral-300, #B9AE98); }
+.igi-fact-v { margin: 0; font-family: var(--font-display, 'Archivo Black', sans-serif); font-size: 20px; color: var(--ink, #001125); }
+.igi-note { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--neutral-400, #5A5449); }
+.igi-note .igi-ic { width: 15px; height: 15px; }
+.igi-confirm {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
-    background: #0f0f0f;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    margin-bottom: 16px;
+    padding: 16.8px 0 4px;
+    border-top: 0.8px solid var(--figma-sand-border, #D8D0BF);
+    font-size: 16px;
+    line-height: 1.35;
+    color: var(--neutral-500, #24211D);
+    cursor: pointer;
 }
-.ig-preview-profile img {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 2px solid #C13584;
-    object-fit: cover;
+.igi-confirm input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.igi-box {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--neutral-500, #24211D);
+    background: var(--white, #FCFCFC);
+    color: var(--neutral-500, #24211D);
 }
-.ig-preview-profile .ig-preview-name {
-    font-weight: 600;
-    font-size: 15px;
-}
-.ig-preview-profile .ig-preview-handle {
-    color: #999;
-    font-size: 12px;
-}
+.igi-box .igi-ic { width: 16px; height: 16px; opacity: 0; }
+.igi-confirm input:checked + .igi-box { background: var(--yellow-300, #F2B519); }
+.igi-confirm input:checked + .igi-box .igi-ic { opacity: 1; }
+.igi-confirm input:focus-visible + .igi-box { box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.igi-error { margin: 0; padding: 10px 12px; border: 1px solid var(--system-error, #E42121); background: var(--error-bg, #FFF2EF); color: var(--red-700, #991E0D); font-size: 14px; }
+.igi-error[hidden] { display: none; }
 
-.ig-checkbox-list {
+.igi-foot {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 17.6px 28px 16px;
+    border-top: 1.6px solid var(--neutral-500, #24211D);
+    background: var(--figma-white, #FFFFFF);
+}
+.igi-foot.is-end { justify-content: flex-end; }
+.igi-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     gap: 8px;
-    margin-bottom: 16px;
-}
-.ig-checkbox-list label {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    background: #0f0f0f;
-    border: 1px solid #2a2a2a;
-    border-radius: 6px;
-    cursor: pointer;
-    margin: 0;
-    transition: border-color 0.15s ease;
-}
-.ig-checkbox-list label:hover { border-color: #444; }
-.ig-checkbox-list label.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-.ig-checkbox-list input[type="checkbox"] {
-    margin: 2px 0 0 0;
-    accent-color: #C13584;
-    cursor: pointer;
-}
-.ig-checkbox-list label.disabled input { cursor: not-allowed; }
-.ig-checkbox-list .ig-cb-title {
+    min-height: 44px;
+    padding: 0 21.6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--neutral-500, #24211D);
+    font-family: var(--font-body, Inter, system-ui, sans-serif);
+    font-weight: 700;
     font-size: 14px;
-    font-weight: 500;
-    color: #f0f0f0;
-    display: block;
-}
-.ig-checkbox-list .ig-cb-detail {
-    font-size: 12px;
-    color: #999;
-    display: block;
-    margin-top: 2px;
-    word-break: break-word;
-}
-
-.ig-import-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 14px 20px;
-    border-top: 1px solid #2a2a2a;
-    background: #141414;
-}
-.ig-btn {
-    padding: 10px 18px;
-    border-radius: 6px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-}
-.ig-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.ig-btn-primary {
-    background: linear-gradient(135deg, #C13584, #833AB4);
-    color: #fff;
-}
-.ig-btn-secondary {
-    background: #2a2a2a;
-    color: #ddd;
-}
-.ig-btn-secondary:hover { background: #333; }
-
-.ig-status {
-    text-align: center;
-    padding: 32px 20px;
-    color: #ccc;
-}
-.ig-status .ig-spinner {
-    display: inline-block;
-    width: 32px;
-    height: 32px;
-    border: 3px solid #2a2a2a;
-    border-top-color: #C13584;
-    border-radius: 50%;
-    animation: ig-spin 0.8s linear infinite;
-    margin-bottom: 14px;
-}
-@keyframes ig-spin { to { transform: rotate(360deg); } }
-.ig-status .ig-progress-text {
-    font-size: 13px;
-    color: #aaa;
-    margin-top: 8px;
-}
-
-.ig-error-box {
-    background: #2a1515;
-    border: 1px solid #5a2020;
-    color: #f5b8b8;
-    padding: 12px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    line-height: 1.5;
-    margin-bottom: 14px;
-}
-
-.ig-success-box {
-    background: #15291a;
-    border: 1px solid #2d5530;
-    color: #b8e8c0;
-    padding: 14px 16px;
-    border-radius: 6px;
-    font-size: 13px;
-    line-height: 1.6;
-    margin-bottom: 14px;
-}
-.ig-success-box strong { color: #d8f7df; }
-
-/* Artist registration keeps the Bauhaus form language instead of the
-   dashboard dark/Instagram treatment. */
-body.register-page .ig-import-trigger {
-    border: 1.5px solid var(--ink, #15110D);
-    border-radius: 0;
-    background: var(--ink, #15110D);
-    color: var(--cream, #F2EFE6);
-    min-height: 52px;
-    padding: 0 18px;
-    font-family: var(--sans, "Inter", sans-serif);
-    font-size: 12px;
-    font-weight: 900;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    box-shadow: none;
+    cursor: pointer;
+    transition: transform .08s cubic-bezier(.4,0,.2,1), box-shadow .08s cubic-bezier(.4,0,.2,1), background-color .12s ease;
 }
-body.register-page .ig-import-trigger:hover {
-    transform: translateY(-2px);
-    background: var(--red, #E63A1F);
-    box-shadow: none;
-}
-body.register-page .ig-import-overlay {
-    background: rgba(21, 17, 13, 0.64);
-    padding: 18px;
-}
-body.register-page .ig-import-modal {
-    width: min(720px, 94vw);
-    max-height: min(720px, calc(100vh - 36px));
-    border: 1.5px solid var(--ink, #15110D);
-    border-radius: 0;
-    background: var(--cream, #F2EFE6);
-    color: var(--ink, #15110D);
-    box-shadow: none;
-}
-body.register-page .ig-import-header {
-    min-height: 86px;
-    padding: 18px 20px;
-    border-bottom: 1.5px solid var(--ink, #15110D);
-    background: var(--cream, #F2EFE6);
-}
-body.register-page .ig-import-header h3 {
-    font-family: var(--display, "Archivo Black", sans-serif);
-    font-size: clamp(26px, 4.5vw, 42px);
-    line-height: 0.94;
-    font-weight: 900;
-    letter-spacing: 0;
-    text-transform: uppercase;
-}
-body.register-page .ig-import-header h3 i {
-    width: 38px;
-    height: 38px;
-    border-radius: 0;
-    border: 1.5px solid var(--ink, #15110D);
-    background: var(--red, #E63A1F);
-    color: var(--cream, #F2EFE6);
+.igi-btn .igi-ic { width: 18px; height: 18px; }
+.igi-btn.is-text:hover { background: var(--neutral-200, #E8E3D7); }
+.igi-btn.is-accent { border-color: var(--neutral-500, #24211D); background: var(--yellow-300, #F2B519); }
+.igi-btn.is-accent:hover:not(:disabled) { background: var(--yellow-400, #D99200); transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--neutral-500, #24211D); }
+.igi-btn:active:not(:disabled) { transform: none; box-shadow: none; }
+.igi-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.igi-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---- 02 · Selección ---------------------------------------------------------- */
+.igi-account { display: flex; align-items: center; gap: 14px; padding-bottom: 18.8px; border-bottom: 0.8px solid var(--figma-sand-border, #D8D0BF); }
+.igi-avatar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    overflow: hidden;
+    background: var(--yellow-300, #F2B519);
+    color: var(--ink, #001125);
+    font-family: var(--font-display, 'Archivo Black', sans-serif);
     font-size: 18px;
-    flex: 0 0 38px;
 }
-body.register-page .ig-import-close {
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border: 1.5px solid var(--ink, #15110D);
-    background: var(--ink, #15110D);
-    color: var(--cream, #F2EFE6);
-    font-size: 30px;
-    line-height: 1;
-    flex: 0 0 44px;
-}
-body.register-page .ig-import-close:hover {
-    background: var(--red, #E63A1F);
-    color: var(--cream, #F2EFE6);
-}
-body.register-page .ig-import-body {
-    padding: 22px 20px;
-}
-body.register-page .ig-import-body label {
-    margin: 0 0 8px;
-    color: var(--ink-2, #2A2520);
-    font-family: var(--mono, ui-monospace, monospace);
+.igi-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.igi-account-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.igi-account-id strong { font-size: 16px; color: var(--ink, #001125); }
+.igi-account-id small { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 11px; letter-spacing: 0.06em; color: var(--neutral-300, #B9AE98); }
+.igi-link {
+    flex: none;
+    padding: 6px 0;
+    border: 0;
+    background: none;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--blue-400, #0055FF);
+    text-decoration: underline;
+    cursor: pointer;
 }
-body.register-page .ig-import-body input[type="text"],
-body.register-page .ig-import-body select {
-    min-height: 52px;
-    margin-bottom: 16px;
-    padding: 0 14px;
-    border: 1.5px solid var(--ink, #15110D);
-    border-radius: 0;
-    background: transparent;
-    color: var(--ink, #15110D);
-    font-family: var(--sans, "Inter", sans-serif);
-    font-size: 18px;
-    font-weight: 800;
+.igi-link:hover { color: var(--blue-500, #0041C4); }
+.igi-link:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.igi-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; padding: 1.6px; border: 1px solid var(--neutral-500, #24211D); }
+.igi-status > div { display: flex; flex-direction: column; padding: 10px 14px; }
+.igi-status > div + div { border-left: 1.6px solid var(--neutral-500, #24211D); }
+.igi-status > div.is-on { background: var(--yellow-300, #F2B519); }
+.igi-status strong { font-family: var(--font-display, 'Archivo Black', sans-serif); font-weight: 400; font-size: 22px; color: var(--ink, #001125); }
+.igi-status span { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; letter-spacing: 0.12em; color: var(--neutral-400, #5A5449); }
+.igi-status > div.is-on span { color: var(--ink, #001125); }
+.igi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding-top: 8px; }
+.igi-tile {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid var(--figma-sand-border, #D8D0BF);
+    background: var(--sand-050, #EFEBE1);
+    cursor: pointer;
 }
-body.register-page .ig-import-body select {
-    background-color: var(--cream, #F2EFE6);
-}
-body.register-page .ig-import-body input[type="text"]::placeholder {
-    color: rgba(21, 17, 13, 0.4);
-}
-body.register-page .ig-import-body input[type="text"]:focus,
-body.register-page .ig-import-body select:focus {
-    border-color: var(--red, #E63A1F);
-    box-shadow: inset 0 -4px 0 var(--red, #E63A1F);
-}
-body.register-page .ig-import-disclaimer {
-    margin-bottom: 18px;
-    padding: 14px 16px;
-    border: 1.5px solid var(--ink, #15110D);
-    border-left: 10px solid var(--yellow, #F2B519);
-    border-radius: 0;
-    background: transparent;
-    color: var(--ink, #15110D);
-    font-family: var(--sans, "Inter", sans-serif);
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1.45;
-}
-body.register-page .ig-preview-profile,
-body.register-page .ig-checkbox-list label,
-body.register-page .ig-error-box,
-body.register-page .ig-success-box {
-    border: 1.5px solid var(--ink, #15110D);
-    border-radius: 0;
-    background: transparent;
-    color: var(--ink, #15110D);
-}
-body.register-page .ig-preview-profile img {
-    border: 1.5px solid var(--ink, #15110D);
-    border-radius: 0;
-}
-body.register-page .ig-preview-profile .ig-preview-name,
-body.register-page .ig-checkbox-list .ig-cb-title,
-body.register-page .ig-success-box strong {
-    color: var(--ink, #15110D);
-    font-weight: 900;
-}
-body.register-page .ig-preview-profile .ig-preview-handle,
-body.register-page .ig-checkbox-list .ig-cb-detail,
-body.register-page .ig-status,
-body.register-page .ig-status .ig-progress-text {
-    color: var(--ink-2, #2A2520);
-}
-body.register-page .ig-checkbox-list label:hover {
-    border-color: var(--red, #E63A1F);
-}
-body.register-page .ig-checkbox-list input[type="checkbox"] {
-    accent-color: var(--red, #E63A1F);
-}
-body.register-page .ig-import-footer {
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 14px 20px;
-    border-top: 1.5px solid var(--ink, #15110D);
-    background: var(--cream, #F2EFE6);
-}
-body.register-page .ig-btn {
-    min-height: 56px;
-    padding: 0 28px;
-    border: 1.5px solid var(--ink, #15110D);
-    border-radius: 0;
-    font-family: var(--sans, "Inter", sans-serif);
-    font-size: 12px;
-    font-weight: 900;
+.igi-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.igi-tile-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--neutral-300, #B9AE98); }
+.igi-tile-ph .igi-ic { width: 28px; height: 28px; }
+.igi-tile.is-on { border: 2px solid var(--neutral-500, #24211D); box-shadow: 4px 4px 0 var(--yellow-300, #F2B519); overflow: visible; }
+.igi-tile.is-on img { inset: 0; }
+.igi-tile.is-blocked { opacity: .45; cursor: not-allowed; }
+.igi-tile:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-400, #0055FF); }
+.igi-tile-kind {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    background: var(--neutral-500, #24211D);
+    color: var(--neutral-100, #FAF8F3);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 9.5px;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
-body.register-page .ig-btn-primary {
-    background: var(--red, #E63A1F);
-    color: var(--cream, #F2EFE6);
+.igi-play { width: 10px; height: 10px; fill: currentColor; }
+.igi-tile-n {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--neutral-500, #24211D);
+    background: var(--yellow-300, #F2B519);
+    color: var(--ink, #001125);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 700;
+    font-size: 12px;
 }
-body.register-page .ig-btn-secondary {
-    background: transparent;
-    color: var(--ink, #15110D);
+.igi-tile-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--neutral-500, #24211D);
+    background: color-mix(in srgb, var(--neutral-100, #FAF8F3) 90%, transparent);
 }
-body.register-page .ig-btn:hover {
-    transform: translateY(-2px);
-    background: var(--ink, #15110D);
-    color: var(--cream, #F2EFE6);
+.igi-tile-block {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 5px 6px;
+    background: var(--neutral-500, #24211D);
+    color: var(--yellow-300, #F2B519);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-align: left;
 }
-body.register-page .ig-status .ig-spinner {
-    border-color: rgba(21, 17, 13, 0.18);
-    border-top-color: var(--red, #E63A1F);
-}
-body.register-page .ig-error-box {
-    border-left: 10px solid var(--red, #E63A1F);
-}
-body.register-page .ig-success-box {
-    border-left: 10px solid var(--blue, #1E3FA6);
-}
+.igi-empty { margin: 8px 0 0; font-size: 14px; color: var(--neutral-400, #5A5449); }
+
+/* ---- 03 · Importación / estados ----------------------------------------------- */
+.igi-done { display: flex; flex-direction: column; align-items: flex-start; gap: 13.9px; padding: 24px 0 8px; }
+.igi-done-ic { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: var(--system-success, #1E9F74); color: var(--white, #FCFCFC); }
+.igi-done-ic .igi-ic { width: 30px; height: 30px; }
+.igi-warn { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; background: var(--warning-bg, #FFF2CF); color: var(--warning-fg, #A86A00); font-size: 13px; }
+.igi-loading { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 24px 0; }
+.igi-spinner { width: 28px; height: 28px; border: 3px solid var(--neutral-200, #E8E3D7); border-top-color: var(--neutral-500, #24211D); border-radius: 999px; animation: igi-spin .8s linear infinite; }
+@keyframes igi-spin { to { transform: rotate(360deg); } }
+.igi-fail { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; color: var(--red-700, #991E0D); }
+.igi-fail .igi-ic { width: 22px; height: 22px; margin-top: 2px; }
+.igi-fail-t { margin: 0 0 6px; font-weight: 700; font-size: 16px; color: var(--ink, #001125); }
 
 @media (max-width: 600px) {
-    body.register-page .ig-import-overlay {
-        align-items: flex-end;
-        padding: 12px;
-    }
-    body.register-page .ig-import-modal {
-        width: 100%;
-        max-height: calc(100vh - 24px);
-    }
-    body.register-page .ig-import-header h3 {
-        font-size: 24px;
-    }
-    body.register-page .ig-import-header h3 i {
-        width: 34px;
-        height: 34px;
-        flex-basis: 34px;
-    }
-    body.register-page .ig-import-footer {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-    body.register-page .ig-btn {
-        width: 100%;
-    }
+    /* 8px más a la derecha para la sombra dura de 8px: diálogo + sombra
+       entran en 390px sin scroll horizontal dentro del overlay. */
+    .igi-overlay { padding: 12px 16px 24px 8px; }
+    .igi-top { padding: 16px 16px 0; }
+    .igi-body { padding: 18px 16px 22px; }
+    .igi-foot { padding: 14px 16px; }
+    .igi-title { font-size: 23px; line-height: 1.15; }
+    .igi-steps li { font-size: 9px; letter-spacing: 0.06em; white-space: normal; }
+    .igi-facts, .igi-status { grid-template-columns: 1fr; }
+    .igi-facts > div + div, .igi-status > div + div { border-left: 0; border-top: 0.8px solid var(--figma-sand-border, #D8D0BF); }
+    .igi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .igi-account { flex-wrap: wrap; }
+    .igi-foot .igi-btn { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .igi-overlay, .igi-spinner { animation: none; }
+    .ig-import-trigger, .igi-btn { transition: none; }
 }

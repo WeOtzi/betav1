@@ -1,0 +1,292 @@
+{
+  "area": "dashboard",
+  "frames": [
+    {
+      "node": "24:1425",
+      "name": "Dashboard - Contenido principal",
+      "route": "/artist/dashboard",
+      "result": "rediseñada",
+      "summary": "Ronda 2: espaciado vertical de la columna principal medido al píxel contra el Figma a 1440 (desde el borde de la topbar). Filas de agenda de 87px alineadas arriba (hora, nombre y chip comparten la línea superior), la primera de 96px; 56px entre la última fila y la regla negra (antes 32px: todo lo de abajo subía 38px); título de Diseños 2px más arriba; card → título 17px; barra de avance de 8px (el Figma no la tiene de 6px); Cotizaciones a 42px del pie de las cards y cifras a 98px del título; columnas Cotizaciones/Actividad de 560/320px (actividad en x=663) con celdas de 216/232/112px; la hora de cada actividad va pegada al texto como en el Figma. Base de la ronda 1: tipografías escaladas al render (hero 56/58, h2 24, agenda 26/18/14, cards 15/13/11, cifras 46), rail y topbar.",
+      "figma_png": "output/figma-final-artista/frames/24-1425_dashboard-1440.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/24-1425.png",
+      "state_url": "/artist/dashboard/",
+      "fidelity": "alta",
+      "fidelity_notes": "Posiciones (impl vs Figma, px desde el borde de la topbar): filas 10:00/13:30/16:00/18:30 en 308/395/482/569 vs 308/395/483/570 · regla negra 685 vs 685 · título Diseños 722 vs 723 · cards 766-979 vs 766-980 · título de card 996 vs 997 · pie 1065 vs 1066 · título Cotizaciones 1107 vs 1108 · cifras 1205 vs 1206 · etiquetas 1255 vs 1255 · Actividad reciente 1115 vs 1116 · filas de actividad 1157/1191/1226 vs 1157/1191/1226. En x: cifras 77/308/542 vs 76/307/541, divisores 279/511 vs 280/512, columna de actividad 663 vs 664. Quedan diferencias de datos del artista ficticio (nombre largo en 2 líneas en el rail, \"Sin título\" en la galería, barra de BOCETO vacía porque no hay sesiones completadas, textos de actividad distintos). La galería sigue el frame más nuevo 2003:862, no la versión vieja de 24:1425 (VISTA PREVIA, HOVER, card \"subiendo\"). Móvil (390, viewport exacto por CDP): sin scroll horizontal; la fecha ya no se monta sobre el saludo y las cifras de Cotizaciones quedan alineadas (shots/dashboard/24-1425-390.png)."
+    },
+    {
+      "node": "801:559",
+      "name": "Dashboard - Menú de cuenta abierto",
+      "route": "/artist/dashboard (todas las páginas del artista)",
+      "result": "rediseñada",
+      "summary": "Menú del tile Ö a 340px: identidad, ACTIVIDAD RECIENTE (Notificaciones / Mensajes sin leer con SIN LEER, Invitaciones pendientes, Postulaciones con conteo real de job board + spots, Actualizaciones de la plataforma) y accesos Ir al Centro de Cuenta / Ver perfil público / Ayuda.",
+      "figma_png": "output/figma-final-artista/frames/801-559_menu-cuenta.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-559.png",
+      "state_url": "/artist/dashboard/?menu=cuenta",
+      "fidelity": "alta",
+      "fidelity_notes": "El badge del tile muestra notificaciones sin leer (el mock suma las filas: 13). Ayuda lleva al Inbox (el soporte vive ahí). El link 'Recorrido guiado' solo aparece con el modo demo activo. Ronda 1: COTIZACIONES ya no lleva el badge rojo de pendientes en escritorio (el único contador visible es el del tile Ö); en ≤480px el contador del tile queda dentro de la barra y no se monta sobre LOG OUT."
+    },
+    {
+      "node": "801:558",
+      "name": "Dashboard - Notificaciones abiertas",
+      "route": "/artist/dashboard (todas las páginas del artista)",
+      "result": "rediseñada",
+      "summary": "Panel de 440px debajo de la topbar con scrim, contador rojo, MARCAR TODAS COMO LEÍDAS, ítems con caja de ícono, marca azul y SIN LEER / LEÍDA. Nuevos tipos: Reserva confirmada y Recordatorio de artist_reminders (vence hoy/mañana) además de sesiones a 48 h. Ronda 1: los ítems \"Recordatorio\" usan el ícono de calendario como en el Figma.",
+      "figma_png": "output/figma-final-artista/frames/801-558_notificaciones.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-558.png",
+      "state_url": "/artist/dashboard/?menu=notificaciones",
+      "fidelity": "alta",
+      "fidelity_notes": "'Contraoferta recibida' no se genera: no hay método por artista para contraofertas. El panel recibe foco (anillo del DS visible en capturas)."
+    },
+    {
+      "node": "801:563",
+      "name": "Recordatorios - Ver detalle",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Modal 563px: ícono amarillo, título, fecha larga, chips de prioridad e importancia, detalle, adjuntos (descarga con URL firmada), ELIMINAR (doble confirmación) y EDITAR.",
+      "figma_png": "output/figma-final-artista/frames/801-563_recordatorio-ver.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-563.png",
+      "state_url": "/artist/dashboard/?modal=recordatorio&id=0000c0de-0000-4000-8000-d45b00000001",
+      "fidelity": "alta",
+      "fidelity_notes": "Se mantiene el botón MARCAR HECHO / REABRIR (no está en el Figma): completar un recordatorio es un requisito funcional y el rail del Figma no tiene otro control. Queda pendiente de decisión de diseño (ver notes)."
+    },
+    {
+      "node": "801:560",
+      "name": "Recordatorios - Nuevo recordatorio",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Formulario completo: ícono + título, fecha (hoy por defecto), detalle, + ADJUNTAR ARCHIVOS (imágenes/PDF hasta 10 MB), prioridad urgente/alta/normal/baja, importancia, CANCELAR / GUARDAR RECORDATORIO, validación inline.",
+      "figma_png": "output/figma-final-artista/frames/801-560_recordatorio-nuevo.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-560.png",
+      "state_url": "/artist/dashboard/?modal=nuevo-recordatorio",
+      "fidelity": "exacta",
+      "fidelity_notes": "El input de fecha es nativo (dd/mm/aaaa según el navegador)."
+    },
+    {
+      "node": "801:1109",
+      "name": "Recordatorios - Editar detalle y prioridad",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Mismo formulario en modo edición con el selector de 18 íconos (6×3) abierto; GUARDAR CAMBIOS; CANCELAR vuelve al detalle.",
+      "figma_png": "output/figma-final-artista/frames/801-1109_recordatorio-editar.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-1109.png",
+      "state_url": "/artist/dashboard/?modal=editar-recordatorio&id=0000c0de-0000-4000-8000-d45b00000004&iconos=1",
+      "fidelity": "exacta",
+      "fidelity_notes": "La prioridad elegida toma el color de su chip (alta amarillo, normal arena, urgente rojo, baja azul)."
+    },
+    {
+      "node": "801:561",
+      "name": "Compartir perfil - Generar tarjeta QR",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Panel lateral 441px: PERFIL / GALERÍA, tarjeta con QR + marcas + WE ÖTZI, URL, ↓ DESCARGAR PNG (tarjeta completa) / ↓ DESCARGAR SVG, COPIAR URL, COMPARTIR (Web Share con la imagen si el navegador lo permite; si no, copia).",
+      "figma_png": "output/figma-final-artista/frames/801-561_compartir-qr.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-561.png",
+      "state_url": "/artist/dashboard/?panel=qr (galería: &destino=galeria)",
+      "fidelity": "alta",
+      "fidelity_notes": "La URL es la real (/artist/profile?artist=<u>; galería = #block-gallery), más larga que 'weotzi.com/lauumarth', por eso el QR es más denso. Ronda 1: íconos de COMPARTIR / WHATSAPP / INSTAGRAM / MAIL / CÓDIGO QR / COPIAR URL y la X centrados con el texto (la caja del <i> del DS era de 24px); el nombre de la vista previa va sin \".wo\" (LAUUMARTH); sin anillo azul de foco sobre el panel al abrirlo."
+    },
+    {
+      "node": "801:562",
+      "name": "Compartir perfil - Enlace y redes sociales",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Panel lateral: PERFIL / GALERÍA, vista previa (banda arena + marcas, avatar, nombre, URL), enlace público con botón copiar, COPIAR ENLACE, COMPARTIR, WhatsApp (wa.me), Instagram (copia el link y abre Instagram), Mail (mailto) y Código QR (abre 801:561).",
+      "figma_png": "output/figma-final-artista/frames/801-562_compartir-enlace.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/801-562.png",
+      "state_url": "/artist/dashboard/?panel=compartir",
+      "fidelity": "alta",
+      "fidelity_notes": "Instagram no acepta compartir enlaces por URL: se copia el link con aviso. Ronda 1: íconos de COMPARTIR / WHATSAPP / INSTAGRAM / MAIL / CÓDIGO QR / COPIAR URL y la X centrados con el texto (la caja del <i> del DS era de 24px); el nombre de la vista previa va sin \".wo\" (LAUUMARTH); sin anillo azul de foco sobre el panel al abrirlo."
+    },
+    {
+      "node": "2003:1191",
+      "name": "01 Importar IG",
+      "route": "/artist/dashboard (IMPORTAR INSTAGRAM)",
+      "result": "rediseñada",
+      "summary": "Diálogo centrado en el viewport (margin:auto: paso 01 en y=109, Figma ≈116) y por encima de cualquier barra fija (también la del wizard /register-artist). Galería de la página con el diseño nuevo 2003:862: mosaicos de 180px (4 col, gap 16) con leyenda Inter 13 semibold sobre #24211d 88% y papelera de 28px, contador \"N/12 ARCHIVOS · N/2 VIDEOS\" en la barra, insignia \"VIDEO · 0:24\" con ojo, dropzone \"+ / SUBIR MÁS · / N LIBRES\", ★ del destacado, IMPORTAR INSTAGRAM de 52px/14px y CTA 32/16px #d8d0bf. Se quitaron VISTA PREVIA, las etiquetas REALIZADO y el grupo ★/✎/×.",
+      "figma_png": "output/figma-final-artista/frames/2003-1191_importar-ig-01.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/2003-1191.png",
+      "state_url": "/artist/dashboard/?ig=1",
+      "fidelity": "alta",
+      "fidelity_notes": "Captura compuesta como el frame: viewport 1440×900 con el diálogo (y=108, Figma ≈116) pegado sobre la página completa, tomada por CDP a escala 1 (1440px). Ronda 2: el diálogo es border-box (685px con borde, igual que antes en escritorio) y en 390px entra con su sombra sin scroll horizontal dentro del overlay. En /register-artist el overlay (z-index 2147483000) tapa la topbar del wizard y el diálogo queda centrado: shots/dashboard/2003-1191-register-artist-1440.png y -390.png. Datos: 3 trabajos sin nombre (el Figma muestra 8 con nombre)."
+    },
+    {
+      "node": "2003:1902",
+      "name": "02 Importar IG",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Selección por publicación: cuenta + CAMBIAR CUENTA, contadores SELECCIONADAS / ESPACIOS LIBRES / VIDEOS EN GALERÍA, grilla 4 col con orden de selección, bloqueo por duración (> 30 s), cupo y límite de videos; IMPORTAR N PUBLICACIONES envía allowed_permalinks.",
+      "figma_png": "output/figma-final-artista/frames/2003-1902_importar-ig-02.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/2003-1902.png",
+      "state_url": "/artist/dashboard/?ig=2 (muestra del preview)",
+      "fidelity": "alta",
+      "fidelity_notes": "El servidor hoy no devuelve la lista de publicaciones en /api/instagram/preview (solo conteos): con la API real el paso cae a selección por tipo (fotos / videos) hasta que se agregue summary.media (ver missing_functions). Diálogo centrado (y=39 porque mide 823px en un viewport de 900). Captura compuesta por CDP a escala 1."
+    },
+    {
+      "node": "2003:2583",
+      "name": "03 Importar IG",
+      "route": "/artist/dashboard",
+      "result": "estado-nuevo",
+      "summary": "Éxito centrado en el viewport (y=247, Figma ≈250). En el preview ?ig=3 ahora corre la importación simulada de la selección por defecto, así la galería de atrás muestra los 3 trabajos nuevos con borde amarillo de 3px, \"NUEVO · IG\" y \"VIDEO · 0:18\", y la barra pasa a \"6/12 ARCHIVOS · 1/2 VIDEOS\" / \"6 LIBRES\".",
+      "figma_png": "output/figma-final-artista/frames/2003-2583_importar-ig-03.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/2003-2583.png",
+      "state_url": "/artist/dashboard/?ig=3 (muestra del preview; importa de verdad en el preview)",
+      "fidelity": "alta",
+      "fidelity_notes": "Captura compuesta (viewport con el diálogo + página completa, CDP a escala 1). La galería tiene 6 trabajos en vez de 11 (datos del artista ficticio). En el preview el reel se importa con su miniatura como póster (no hay archivo de video), por eso el ojo se ve sobre una ilustración y la insignia NUEVO · IG amarilla queda sobre una miniatura amarilla."
+    },
+    {
+      "node": "2003:862",
+      "name": "Galería de trabajos (sección de 2003:1191 / 1902 / 2583)",
+      "route": "/artist/dashboard",
+      "result": "rediseñada",
+      "summary": "Grilla funcional: subir (input SUBIR FOTOS/VIDEOS o soltar archivos sobre SUBIR MÁS), borrar (papelera), destacar (★ en hover/foco o arrastrar al primer lugar), reordenar (arrastrar o Alt + flechas) y renombrar (click en el nombre; Enter guarda, Escape cancela). Ronda 2: la subida pasa por uploadDashboardGalleryFile() (bucket artist-gallery en producción; en el preview, que no emula Storage, el archivo queda como data: URL en el navegador, con las imágenes reducidas a 900px), informa éxito, subida parcial o fallo (antes un fallo no mostraba nada) y el tope de videos usa la misma regla que el contador N/2 VIDEOS (el kind del ítem, así cuentan los reels de IG con miniatura .jpg). La captura muestra la galería después de importar 3 publicaciones con ?ig=3 y subir un PNG por #gallery-input: 7/12 ARCHIVOS · 1/2 VIDEOS, NUEVO · IG con borde amarillo, VIDEO · 0:18 y SUBIR MÁS · 5 LIBRES.",
+      "figma_png": "output/figma-final-artista/frames/2003-862_galeria.png",
+      "impl_png": "output/figma-final-artista/shots/dashboard/2003-862.png",
+      "state_url": "/artist/dashboard/?ig=3 (galería con NUEVO · IG; después subir un archivo con SUBIR FOTOS/VIDEOS) · /artist/dashboard/ (galería base)",
+      "fidelity": "alta",
+      "fidelity_notes": "Verificado con Chrome por CDP sobre un perfil limpio: subir por el input (2 PNG + 1 MP4 → 6/12 · 1/2 VIDEOS), soltar un PNG sobre SUBIR MÁS, destacar con ★, Alt+→ (el foco sigue al trabajo), renombrar y borrar; todo persiste al recargar. Con 2 reels de IG (.jpg con kind video) subir un MP4 responde \"Ya tenés el máximo de 2 videos en tu galería.\". Sin errores de consola. Limitación del preview: su CSP (default-src self, sin media-src) no deja reproducir data: ni blob: de video, así que un video subido se ve como celda oscura con ojo y VIDEO sin duración; en producción el archivo va a Storage y la duración sale de la metadata. Datos ficticios: 7 trabajos, varios \"Sin título\". El fondo #3a362f de video usa --dark-rule (#3c3a36). En móvil (≤480px) la grilla pasa a 1 columna; arrastrar no funciona con touch (se reordena con ★)."
+    }
+  ],
+  "removed_in_page": [
+    "Botón MODO CLIENTE de la topbar del artista (account-modes.js ya no lo monta en <weotzi-product-nav>; no está en la topbar ni en el menú de cuenta del Figma). Cliente y estudio lo conservan.",
+    "Chevron/desplegable de SPOTS en la topbar de escritorio (Invitaciones queda en el menú de cuenta y en el menú móvil).",
+    "Modal QR legacy (#qr-modal) del dashboard → paneles laterales nuevos; openQRModal() apunta al panel.",
+    "Fila 'Solicitudes pendientes' del menú de cuenta → reemplazada por 'Postulaciones' (Figma).",
+    "Link 'Recorrido guiado · modo demo' del menú de cuenta (ahora solo con el demo activo).",
+    "Acción rápida 'Nuevo cliente' hacia /quotation?artist= (cotizador público) → /my-quotations/new?origen=cliente.",
+    "Sobrescritura del botón IMPORTAR INSTAGRAM desde dashboard-redesign.js (ahora el componente trae el label/ícono del Figma).",
+    "Ronda 1 · Galería: rótulo VISTA PREVIA, etiquetas de categoría REALIZADO por celda, caption \"Realizado — destacado\" basado en la categoría, grupo de acciones ★ / ✎ / × con fondos y el selector de categoría por celda (el Figma 2003:862 no los tiene).",
+    "Ronda 1 · Topbar (todas las páginas del artista): badge rojo de cotizaciones pendientes en COTIZACIONES y badge del INBOX en los links de escritorio. Los pendientes siguen en el menú móvil."
+  ],
+  "routes_to_delete": [
+    {
+      "route": "/artist/visitors",
+      "reason": "No está en el Figma final; el menú móvil del producto (dashboard-extras en organisms.js) todavía tiene el link VISITANTES: quitarlo al eliminar la ruta.",
+      "redirect_to": "/my-quotations/statistics"
+    },
+    {
+      "route": "/artist/profile/details",
+      "reason": "Reemplazada por /artist/account; dashboard.js todavía se carga ahí (hooks ocultos). PERFIL del menú móvil ya apunta a /artist/account.",
+      "redirect_to": "/artist/account#perfil"
+    },
+    {
+      "route": "/artist/profile/gallery",
+      "reason": "El QR/compartir de galería ahora usa /artist/profile?artist=<u>#block-gallery.",
+      "redirect_to": "/artist/profile?artist=<u>#block-gallery"
+    }
+  ],
+  "missing_functions": [
+    {
+      "title": "URL corta weotzi.com/<usuario>",
+      "detail": "El Figma muestra 'https://weotzi.com/lauumarth'. No existe esa ruta: se comparte /artist/profile?artist=<u>. Haría falta un redirect en server.js (/:username → /artist/profile?artist=).",
+      "severity": "media"
+    },
+    {
+      "title": "Flujo 'Registrar pago'",
+      "detail": "REGISTRAR PAGO sigue llevando a /artist/account#cobros. No se implementó un registro manual: la única tabla de movimientos (artist_financial_entries) es el ledger de la wallet y una entrada \"income\" se muestra como fondos liberados/retirables (wallet-model.js fromFinancialEntries), así que anotar pagos en efectivo ahí inflaría el saldo. Además el RLS solo permite lectura al artista. Hace falta definir con producto/diseño dónde vive un cobro manual (p. ej. tabla quotation_payments por cotización que descuente SALDO PEND.) y su frame.",
+      "severity": "media"
+    },
+    {
+      "title": "Notificación 'Contraoferta recibida'",
+      "detail": "No hay método por artista para contraofertas de job board/spots (solo por postulación). Agregar listPendingCounterOffersForArtist en jobboard-repo/studios-repo.",
+      "severity": "baja"
+    },
+    {
+      "title": "Avisos de recordatorios fuera de la app",
+      "detail": "Los recordatorios aparecen en el panel de notificaciones (hoy/mañana); no hay email/push programado.",
+      "severity": "baja"
+    },
+    {
+      "title": "Adjuntos de recordatorios en preview",
+      "detail": "La subida a Storage no está simulada en el preview local: el formulario muestra 'La subida de archivos no está disponible en esta vista previa'. Con la migración aplicada usa el bucket privado artist-reminder-files.",
+      "severity": "baja"
+    },
+    {
+      "title": "Ayuda → Inbox",
+      "detail": "El Inbox ya acepta ?filter=support (inbox-deeplink.js): el footer usa /artist/inbox?filter=support para \"Soporte\". El link Ayuda del menú de cuenta sigue en /artist/inbox.",
+      "severity": "baja"
+    },
+    {
+      "title": "Fecha de importación de IG en el servidor",
+      "detail": "lib/instagram-import.js commit() no guarda source/imported_at en gallery_feed_items; el dashboard los sella después de onComplete (una escritura extra). Conviene que el servidor agregue source:\"instagram\", imported_at y video_duration→duration.",
+      "severity": "baja"
+    },
+    {
+      "title": "Reordenar con touch",
+      "detail": "El reordenamiento usa HTML5 drag & drop (mouse) y Alt + flechas (teclado). En pantallas táctiles solo se puede destacar con ★; falta un modo de arrastre táctil o botones mover.",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028110000_artist_reminders.sql",
+      "rollback": "supabase/rollbacks/20261028110000_artist_reminders.down.sql",
+      "purpose": "Tabla public.artist_reminders (título, detalle, ícono de 18, fecha, prioridad urgente/alta/normal/baja, importante, adjuntos jsonb, completed_at) con RLS por dueño, grants mínimos, bucket privado artist-reminder-files con políticas por carpeta = uid, y copia de los recordatorios existentes en user_preferences.app_settings.reminders. Hasta aplicarla, reminders-repo.js guarda en user_preferences (mismo formato) y los adjuntos se deshabilitan con mensaje.",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "Te quedan 1 espacio libre. → Te queda 1 espacio libre. (plural según cantidad)",
+    "1 ESPACIOS LIBRES → 1 ESPACIO LIBRE (plural según cantidad; también SELECCIONADA/S y PUBLICACIÓN/ES)",
+    "IMPORTAR 3 PUBLICACIONES / Sumamos 3 publicaciones → cantidades reales",
+    "Lauumarth.wo (menú de cuenta) → usuario real con inicial en mayúscula",
+    "\"Sesion N\" (sin tilde ni total) → \"Sesión N/T\" usando final_sessions o tattoo_estimated_sessions",
+    "NO ASISTIO → NO ASISTIÓ",
+    "VALENTINA-PREVIEW.WO (rail y vista previa de compartir) → nombre sin el sufijo .wo, como \"LAUUMARTH\" del Figma",
+    "180,00 US$ / SESIÓN → $180 / SESIÓN (símbolo adelante, sin decimales si el monto es entero)",
+    "Footer: Preguntas frecuentes /faqs (404) → https://weotzi.com/faqs/#tatuadores · Centro de ayuda mailto duplicado → https://weotzi.com/faqs/ · Soporte mailto duplicado → /artist/inbox?filter=support · /terminos y /privacidad → /legal/terms y /legal/privacy (mismas rutas que el registro; ver missing_functions)"
+  ],
+  "missing_assets": [
+    "Miniaturas de 'Diseños en proceso' y de la galería: contenido dinámico (adjuntos/feed reales; en el preview, ilustraciones de demo).",
+    "Imagen del QR del Figma: se genera en vivo con qrcode-generator.js."
+  ],
+  "files_changed": [
+    "public/artist/dashboard/index.html",
+    "public/shared/css/dashboard-figma-final.css",
+    "public/shared/css/dashboard-redesign.css",
+    "public/shared/css/instagram-import.css",
+    "public/shared/js/account-modes.js",
+    "public/shared/js/dashboard-redesign.js",
+    "public/shared/js/dashboard-share.js",
+    "public/shared/js/dashboard.js",
+    "public/shared/js/demo-fixtures/dashboard.js",
+    "public/shared/js/ds/organisms.js",
+    "public/shared/js/instagram-import.js",
+    "public/shared/js/wo-artist-menu.js",
+    "tests/components-catalog.test.js",
+    "tests/demo-tour.test.js",
+    "tests/figma-final-dashboard.test.js",
+    "public/shared/js/dashboard-gallery.js"
+  ],
+  "files_created": [
+    "public/shared/css/dashboard-figma-final.css",
+    "public/shared/js/dashboard-gallery.js",
+    "public/shared/js/dashboard-reminders.js",
+    "public/shared/js/dashboard-share.js",
+    "public/shared/js/data/reminders-repo.js",
+    "supabase/migrations/20261028110000_artist_reminders.sql",
+    "supabase/rollbacks/20261028110000_artist_reminders.down.sql",
+    "tests/figma-final-dashboard.test.js"
+  ],
+  "tests": "node --test \"tests/*.test.js\": 620 tests · 616 pass · 3 fail (las 3 preexistentes de PowerShell 7: onboarding parse/stderr y Manual Dev verification). tests/figma-final-dashboard.test.js 26/26 (5 nuevos en la ronda 2: conteo de videos igual al contador, subida a artist-gallery con mensajes de éxito/parcial/fallo, subida en el preview con data:/blob:, espaciados de la columna principal, badge del tile Ö en móvil + diálogo IG border-box).",
+  "notes": [
+    "<weotzi-product-nav> y <weotzi-product-footer> están definidos en public/shared/js/ds/organisms.js (no en site-components.js): los cambios de topbar (sin chevron en SPOTS, PERFIL móvil → /artist/account) se hicieron ahí, solo en renderProductNav. El footer ya coincidía con el Figma (sin cambios). bauhaus-footer.js no se usa en páginas del artista (sin cambios).",
+    "Burbuja de soporte: los frames 2003:* incluyen un botón 'Abrir soporte' amarillo abajo a la derecha; 24:1425 / 801:* no. El orquestador ya la quitó desde support-loader.js.",
+    "Estados QA por URL: ?menu=cuenta · ?menu=notificaciones · ?modal=nuevo-recordatorio · ?modal=recordatorio[&id=] · ?modal=editar-recordatorio[&id=][&iconos=1] · ?panel=compartir · ?panel=qr[&destino=galeria] · ?ig=1|2|3.",
+    "Contraste: los grises claros del Figma (#b9ae98 sobre crema en captions/meta, blanco sobre verde en NUEVO) no llegan a WCAG AA; se respetó el Figma. Revisar en el DS.",
+    "Al editar, el tool convirtió algunos archivos a CRLF; se restauraron los finales de línea originales para que el diff quede limpio.",
+    "Los modales/paneles nuevos toman foco en el contenedor (Escape cierra y devuelve el foco al disparador); no hay trampa de foco completa.",
+    "Ronda 1 (corrector): QA de la galería por URL: ?ig=3 importa (simulado) 3 trabajos de la muestra y deja la galería con NUEVO · IG. Las capturas 2003:* son compuestas: viewport 1440×900 con el diálogo pegado arriba de la captura de página completa (como el frame del Figma); se tomaron con Chrome DevTools (DPR 1.25 normalizado a 1442px).",
+    "Ronda 1: la topbar de escritorio cambió para todas las páginas del artista (organisms.js): sin contadores en los links y con tile Ö / LOG OUT a 31px y 33px del borde. Como ds/organisms.css no se edita desde las áreas, esos dos ajustes (más el contador del tile en ≤480px) se inyectan una vez como <style id=\"wo-org-product-nav-final\"> desde organisms.js. Conviene pasarlos a organisms.css en el próximo ciclo del DS.",
+    "Ronda 1: badge-item / badge-id de <weotzi-product-nav> se aceptan pero ya no pintan nada en escritorio; /artist/inbox (ai-nav-unread) y el dashboard (wod-nav-msg-badge) toleran que el elemento no exista.",
+    "Ronda 1: normalizeDashboardGalleryFeedItems() ahora conserva title, caption, permalink, source, imported_at, duration, id e is_featured. Antes los descartaba y cualquier guardado desde el dashboard (borrar, subir) perdía el permalink de IG, que el servidor usa para no duplicar importaciones.",
+    "Ronda 1: hallazgos fuera de los archivos del área: body.aac-page de /artist/account conserva el margin de 8px del navegador (topbar y footer quedan inset) → agregar margin:0 en public/shared/css/artist-account-ds.css (área cuenta).",
+    "Ronda 1: se borró por error output/figma-final-artista/shots/dashboard/before.png (captura de trabajo de la ronda anterior, no referenciada en el reporte).",
+    "Ronda 1: los tamaños nuevos del hero/columna principal viven en dashboard-figma-final.css; dashboard-redesign.css conserva los nominales como base.",
+    "Ronda 2 · columna principal: se agregaron las clases wo-dash-section--agenda y wo-dash-section--designs en index.html para fijar los espacios del Figma sin tocar las otras secciones. La hora de la actividad ya no se alinea a la derecha: va pegada al texto (grid 14px / max-content / auto).",
+    "Ronda 2 · subida de la galería: handleGalleryUpload y handleGalleryEditUpload (sección legacy oculta) usan uploadDashboardGalleryFile(); el preview se detecta con window.WEOTZI_PREVIEW y nunca llama a Storage. Los data: URL del preview se guardan en el almacenamiento local del preview (imágenes reducidas a 900px / JPEG 0.78 para no llenar la cuota); \"Reiniciar datos\" los borra.",
+    "Ronda 2 · topbar móvil (≤480px, todas las páginas del artista): el contador del tile Ö queda 3px arriba / 3px a la derecha del tile, dentro de la barra de 56px y a 5px de LOG OUT aun con \"99+\" (gap 8px, ancho tope 28px). Evidencia con viewport exacto en shots/dashboard/topbar-badge-mobile-320-360-390.png. shot.sh con ancho 390 no sirve para revisar móvil: Chrome headless arma la página con un ancho mínimo de ~500px y recorta la captura a 390, por eso en verify2/24-1425-390.png el badge y el saludo parecían desbordar. Para móvil usar un viewport exacto (CDP Emulation.setDeviceMetricsOverride) o el navegador integrado.",
+    "Ronda 2 · diálogo de Instagram: la z-index alta y body.igi-open .ra-topbar{z-index:0} ya estaban de la ronda 1; se verificó en /register-artist (?step=4&state=instagram + CONECTAR) que el overlay tapa la topbar del wizard a 1440 y 390 y que el diálogo queda centrado (x 377-1062, y 108-792 a 1440×900). Se corrigió el ancho en móvil (border-box) y el padding del overlay para que entre la sombra.",
+    "Ronda 2 · capturas 801:* re-tomadas con shot.sh después de los cambios de la columna principal (los estados no cambiaron).",
+    "Ronda 2 · footer: Términos y condiciones / Privacidad siguen apuntando a /legal/terms y /legal/privacy, que dan 404 (sin contenido ni ruta en el repo; ver missing_functions \"Páginas legales\")."
+  ]
+}

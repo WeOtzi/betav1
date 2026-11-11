@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
-    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>WE ÖTZI | Mi cuenta</title>
-    <meta name="description" content="Centro de la cuenta del artista: perfil, portafolio, cobros, disponibilidad, notificaciones, seguridad, integraciones, verificación y configuración.">
+    <meta name="description" content="Centro de la cuenta del artista: perfil, portafolio, wallet y cobros, disponibilidad por ubicación, notificaciones, seguridad, verificación y configuración.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,13 +16,15 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
-    <link rel="stylesheet" href="/shared/css/artist-account-ds.css">
+    <link rel="stylesheet" href="/shared/css/instagram-import.css">
+    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261030-1">
+    <link rel="stylesheet" href="/shared/css/wallet-account.css?v=20261028-3">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="wo-app">
+<body class="wo-app aac-page">
 
     <!-- ==================== Topbar compartida; la cuenta activa el tile Ö ==================== -->
     <weotzi-product-nav
@@ -38,411 +40,606 @@
 
     <div class="aac-shell">
 
-        <!-- ==================== Sidebar de 9 secciones ==================== -->
-        <nav class="wo-sidebar aac-sidebar" aria-label="Secciones de la cuenta">
-            <a class="wo-sidebar-item is-active" href="#perfil" data-aac-nav="perfil"><i data-wo-icon="user" aria-hidden="true"></i>Mi perfil</a>
-            <a class="wo-sidebar-item" href="#portafolio" data-aac-nav="portafolio"><i data-wo-icon="image" aria-hidden="true"></i>Portafolio</a>
-            <a class="wo-sidebar-item" href="#cobros" data-aac-nav="cobros"><i data-wo-icon="dollar-sign" aria-hidden="true"></i>Cobros y facturación</a>
-            <a class="wo-sidebar-item" href="#disponibilidad" data-aac-nav="disponibilidad"><i data-wo-icon="calendar" aria-hidden="true"></i>Disponibilidad</a>
-            <a class="wo-sidebar-item" href="#notificaciones" data-aac-nav="notificaciones"><i data-wo-icon="bell" aria-hidden="true"></i>Notificaciones</a>
-            <a class="wo-sidebar-item" href="#seguridad" data-aac-nav="seguridad"><i data-wo-icon="lock" aria-hidden="true"></i>Seguridad y privacidad</a>
-            <a class="wo-sidebar-item" href="#integraciones" data-aac-nav="integraciones"><i data-wo-icon="link-2" aria-hidden="true"></i>Integraciones</a>
-            <a class="wo-sidebar-item" href="#verificacion" data-aac-nav="verificacion"><i data-wo-icon="check-circle" aria-hidden="true"></i>Verificación</a>
-            <a class="wo-sidebar-item" href="#configuracion" data-aac-nav="configuracion"><i data-wo-icon="settings" aria-hidden="true"></i>Configuración</a>
+        <!-- ==================== Sidebar de 8 secciones (Figma 801:565…801:575) ==================== -->
+        <nav class="aac-sidebar" aria-label="Secciones de la cuenta">
+            <div class="aac-sidebar-list">
+                <a class="aac-side-item is-active" href="#perfil" data-aac-nav="perfil"><i data-wo-icon="user" aria-hidden="true"></i><span>Mi Perfil</span></a>
+                <a class="aac-side-item" href="#portafolio" data-aac-nav="portafolio"><i data-wo-icon="image" aria-hidden="true"></i><span>Portafolio</span></a>
+                <a class="aac-side-item" href="#cobros" data-aac-nav="cobros"><i data-wo-icon="dollar-sign" aria-hidden="true"></i><span>Cobros y facturación</span></a>
+                <a class="aac-side-item" href="#disponibilidad" data-aac-nav="disponibilidad"><i data-wo-icon="calendar" aria-hidden="true"></i><span>Disponibilidad</span></a>
+                <a class="aac-side-item" href="#notificaciones" data-aac-nav="notificaciones"><i data-wo-icon="bell" aria-hidden="true"></i><span>Notificaciones</span></a>
+                <a class="aac-side-item" href="#seguridad" data-aac-nav="seguridad"><i data-wo-icon="lock" aria-hidden="true"></i><span>Seguridad y Privacidad</span></a>
+                <a class="aac-side-item" href="#verificacion" data-aac-nav="verificacion"><i data-wo-icon="check-circle" aria-hidden="true"></i><span>Verificación</span></a>
+                <a class="aac-side-item" href="#configuracion" data-aac-nav="configuracion"><i data-wo-icon="settings" aria-hidden="true"></i><span>Configuración</span></a>
+            </div>
+            <div class="aac-side-note" data-aac-only="cobros" hidden>
+                <p class="aac-side-note-title">Facturación e impuestos</p>
+                <p class="aac-side-note-text">Mantené tus datos fiscales actualizados y listos.</p>
+                <button type="button" class="aac-link-mono" data-open-fiscal>Ver datos fiscales →</button>
+            </div>
         </nav>
 
         <main class="aac-content" id="aac-content">
 
-            <!-- ==================== 1 · Mi perfil (156:10014) ==================== -->
-            <section class="aac-section" id="aac-perfil">
-                <h1 class="aac-title">Mi perfil</h1>
-                <p class="aac-sub">Así te van a ver los clientes y estudios en We Ötzi.</p>
+            <!-- ==================== 1 · Mi perfil y redes sociales (801:565) ==================== -->
+            <section class="aac-section aac-section--narrow" id="aac-perfil" aria-labelledby="aac-perfil-title" data-assist="perfil">
+                <header class="aac-head">
+                    <h1 class="aac-title" id="aac-perfil-title">Mi perfil</h1>
+                    <p class="aac-sub">Así te van a ver los clientes y estudios en We Ötzi.</p>
+                </header>
 
                 <div class="aac-banner">
-                    <label class="wo-dropzone aac-drop aac-banner-drop" id="aac-banner-drop">
+                    <label class="aac-drop aac-banner-drop" id="aac-banner-drop" data-assist="perfil.banner">
                         <i data-wo-icon="image" aria-hidden="true"></i>
                         <span class="aac-drop-title">Banner de perfil (opcional)</span>
-                        <span class="aac-drop-hint">o buscá archivos</span>
+                        <span class="aac-drop-hint">o <u>buscá archivos</u></span>
                         <input type="file" id="aac-banner-input" accept="image/*">
                     </label>
-                    <label class="wo-dropzone aac-drop aac-photo-drop" id="aac-photo-drop">
+                    <label class="aac-drop aac-photo-drop" id="aac-photo-drop" data-assist="perfil.foto">
                         <span class="aac-drop-title">Foto</span>
-                        <span class="aac-drop-hint">o buscá archivos</span>
+                        <span class="aac-drop-hint">o <u>buscá archivos</u></span>
                         <input type="file" id="aac-photo-input" accept="image/*">
                     </label>
                 </div>
 
-                <div class="aac-grid2">
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-name">Nombre artístico</label>
-                        <input class="wo-input" id="aac-name" type="text" autocomplete="off">
+                <div class="aac-grid2 aac-grid2--first">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-name">Nombre artístico</label>
+                        <input class="aac-input" id="aac-name" type="text" autocomplete="off">
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-fullname">Nombre completo</label>
-                        <input class="wo-input" id="aac-fullname" type="text" autocomplete="name">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-fullname">Nombre completo</label>
+                        <input class="aac-input" id="aac-fullname" type="text" autocomplete="name">
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-username">Nombre de usuario</label>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-username">Nombre de usuario</label>
                         <div class="aac-inputwrap">
                             <i data-wo-icon="user" aria-hidden="true"></i>
-                            <input class="wo-input" id="aac-username" type="text" autocomplete="off" spellcheck="false">
+                            <input class="aac-input" id="aac-username" type="text" autocomplete="off" spellcheck="false" aria-describedby="aac-username-error">
                         </div>
-                        <p class="wo-error-msg" id="aac-username-error" hidden></p>
+                        <p class="aac-error" id="aac-username-error" hidden></p>
                     </div>
-                    <div class="wo-field">
-                        <span class="wo-label" id="aac-langs-label">Idiomas</span>
-                        <div class="aac-chips" id="aac-langs" role="group" aria-labelledby="aac-langs-label"></div>
+                    <div class="aac-field">
+                        <span class="aac-label" id="aac-langs-label">Idiomas</span>
+                        <div class="aac-multi" id="aac-langs" data-placeholder="Elegí tus idiomas"></div>
                     </div>
-                    <div class="wo-field aac-field-full">
-                        <label class="wo-label" for="aac-bio">Biografía</label>
-                        <textarea class="wo-textarea" id="aac-bio" rows="4"></textarea>
+                    <div class="aac-field aac-field-full" data-assist="perfil.bio">
+                        <label class="aac-label" for="aac-bio">Biografía</label>
+                        <textarea class="aac-input aac-textarea" id="aac-bio" rows="4" maxlength="1200"></textarea>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-city">Ciudad</label>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-city">Ciudad</label>
                         <div class="aac-inputwrap">
                             <i data-wo-icon="map-pin" aria-hidden="true"></i>
-                            <input class="wo-input" id="aac-city" type="text" autocomplete="address-level2">
+                            <input class="aac-input" id="aac-city" type="text" autocomplete="address-level2">
                         </div>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-country">País</label>
-                        <input class="wo-input" id="aac-country" type="text" autocomplete="country-name">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-country">País</label>
+                        <input class="aac-input" id="aac-country" type="text" autocomplete="country-name">
                     </div>
                 </div>
 
-                <span class="wo-eyebrow aac-eyebrow">Redes sociales</span>
-                <div class="aac-grid2">
-                    <div class="wo-field aac-field-full">
-                        <label class="wo-label" for="aac-instagram">Instagram</label>
+                <span class="aac-eyebrow">Redes sociales</span>
+                <div class="aac-stack" data-assist="perfil.redes">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-instagram">Instagram</label>
                         <div class="aac-inputwrap">
                             <i data-wo-icon="instagram" aria-hidden="true"></i>
-                            <input class="wo-input" id="aac-instagram" type="text" placeholder="@usuario" spellcheck="false">
+                            <input class="aac-input" id="aac-instagram" type="text" placeholder="@usuario" spellcheck="false">
                         </div>
                     </div>
-                    <div class="wo-field aac-field-full">
-                        <label class="wo-label" for="aac-tiktok">TikTok</label>
-                        <input class="wo-input" id="aac-tiktok" type="text" placeholder="@usuario" spellcheck="false">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-tiktok">TikTok</label>
+                        <input class="aac-input" id="aac-tiktok" type="text" placeholder="@usuario" spellcheck="false">
                     </div>
-                    <div class="wo-field aac-field-full">
-                        <label class="wo-label" for="aac-website">Sitio web</label>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-website">Sitio web</label>
                         <div class="aac-inputwrap">
                             <i data-wo-icon="external-link" aria-hidden="true"></i>
-                            <input class="wo-input" id="aac-website" type="text" placeholder="tusitio.com" spellcheck="false">
+                            <input class="aac-input" id="aac-website" type="text" placeholder="tusitio.com" spellcheck="false">
                         </div>
                     </div>
                 </div>
 
+                <!-- Contacto (modo asistido · paso perfil): WhatsApp → artists_db.whatsapp_number
+                     en formato internacional (account-contact-model.js); Email = correo de
+                     acceso, se cambia con auth.updateUser y se aplica al confirmar el enlace. -->
+                <span class="aac-eyebrow">Contacto</span>
+                <div class="aac-stack aac-contact" id="aac-contact">
+                    <div class="aac-field" data-assist="perfil.whatsapp">
+                        <label class="aac-label" for="aac-contact-whatsapp">WhatsApp</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="phone" aria-hidden="true"></i>
+                            <input class="aac-input" id="aac-contact-whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="+54 9 11 1234 5678" spellcheck="false" aria-describedby="aac-contact-whatsapp-help aac-contact-whatsapp-error">
+                        </div>
+                        <p class="aac-help" id="aac-contact-whatsapp-help">Con código de país. Se guarda con “Guardar cambios”.</p>
+                        <p class="aac-error" id="aac-contact-whatsapp-error" role="alert" hidden></p>
+                    </div>
+                    <div class="aac-field" data-assist="perfil.email">
+                        <label class="aac-label" for="aac-contact-email">Email</label>
+                        <div class="aac-inputwrap">
+                            <i data-wo-icon="mail" aria-hidden="true"></i>
+                            <input class="aac-input" id="aac-contact-email" type="email" autocomplete="email" spellcheck="false" aria-describedby="aac-contact-email-help aac-contact-email-error">
+                        </div>
+                        <p class="aac-help" id="aac-contact-email-help" aria-live="polite">Es el correo con el que entrás a We Ötzi. Si lo cambiás, te mandamos un enlace para confirmarlo.</p>
+                        <p class="aac-error" id="aac-contact-email-error" role="alert" hidden></p>
+                    </div>
+                </div>
+
                 <div class="aac-actions">
-                    <button type="button" class="wo-btn wo-btn--direct" id="aac-profile-save">Guardar cambios <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></button>
+                    <button type="button" class="aac-btn aac-btn--direct" id="aac-profile-save">Guardar cambios <i data-wo-icon="check" aria-hidden="true"></i></button>
+                </div>
+
+                <!-- Oficio y tarifa: NO está en el Figma 801:565. Cubre lo que antes se
+                     editaba en /artist/profile/details (estilos, experiencia y tarifa;
+                     ruta retirada; el WhatsApp pasó a Contacto). Va plegado debajo del formulario para que
+                     el frame coincida en reposo; desvío pendiente de aprobación de diseño.
+                     QA: ?vista=oficio#perfil lo abre. -->
+                <details class="aac-more" id="aac-oficio">
+                    <summary class="aac-more-summary"><span>Oficio y tarifa</span><i data-wo-icon="chevron-down" aria-hidden="true"></i></summary>
+                <div class="aac-grid2 aac-more-body">
+                    <div class="aac-field aac-field-full">
+                        <span class="aac-label" id="aac-styles-label">Estilos</span>
+                        <div class="aac-multi" id="aac-styles" data-placeholder="Elegí tus estilos"></div>
+                    </div>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-experience">Experiencia</label>
+                        <select class="aac-input aac-select" id="aac-experience">
+                            <option value="">Elegí un rango</option>
+                            <option value="0-1">Menos de 1 año</option>
+                            <option value="1-3">1 - 3 años</option>
+                            <option value="3-5">3 - 5 años</option>
+                            <option value="5-10">5 - 10 años</option>
+                            <option value="10+">Más de 10 años</option>
+                        </select>
+                    </div>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-price">Tarifa por sesión</label>
+                        <div class="aac-pricewrap">
+                            <input class="aac-input" id="aac-price" type="number" min="0" step="1" inputmode="decimal" placeholder="150">
+                            <select class="aac-input aac-select" id="aac-price-currency" aria-label="Moneda de la tarifa"></select>
+                        </div>
+                    </div>
+                    <div class="aac-field aac-field-full aac-more-actions">
+                        <button type="button" class="aac-btn aac-btn--outline" id="aac-oficio-save">Guardar oficio y tarifa</button>
+                    </div>
+                </div>
+                </details>
+            </section>
+
+            <!-- ==================== 2 · Gestionar portafolio (801:566) ==================== -->
+            <section class="aac-section aac-section--wide" id="aac-portafolio" aria-labelledby="aac-portafolio-title" data-assist="portafolio" hidden>
+                <header class="aac-head">
+                    <h1 class="aac-title" id="aac-portafolio-title">Portafolio</h1>
+                    <p class="aac-sub">Los trabajos que se muestran en tu perfil público.</p>
+                </header>
+
+                <!-- Validación de Instagram (GET/POST /api/artist/instagram-verification):
+                     las fotos importadas se publican cuando la cuenta está validada.
+                     Estados: no disponible · sin validar · pendiente · validado. -->
+                <div class="aac-ig" id="aac-ig-verify" data-assist="portafolio.instagram_validado portafolio.portafolio_validado">
+                    <p class="aac-ig-text">Revisando la validación de tu Instagram…</p>
+                </div>
+                <p class="aac-works-summary" id="aac-works-summary" role="status" hidden></p>
+
+                <div class="aac-works" id="aac-works" data-assist="portafolio.trabajos"></div>
+
+                <div class="aac-actions aac-actions--row">
+                    <button type="button" class="aac-btn aac-btn--outline" id="aac-works-add"><i data-wo-icon="plus" aria-hidden="true"></i>Agregar trabajo</button>
+                    <button type="button" class="aac-btn aac-btn--outline" id="aac-works-ig"><i data-wo-icon="instagram" aria-hidden="true"></i>Importar Instagram</button>
+                    <input type="file" id="aac-works-input" accept="image/*,video/mp4,video/quicktime" multiple hidden>
                 </div>
             </section>
 
-            <!-- ==================== 2 · Portafolio (156:10807) ==================== -->
-            <section class="aac-section" id="aac-portafolio" hidden>
-                <h1 class="aac-title">Portafolio</h1>
-                <p class="aac-sub">Los trabajos que se muestran en tu perfil público.</p>
+            <!-- ==================== 3 · Cobros · We Ötzi Wallet (801:568 · 801:569 · 801:570) ==================== -->
+            <section class="aac-section aac-section--wallet" id="aac-cobros" aria-labelledby="aac-cobros-title" data-assist="retiro" hidden>
+                <header class="aac-head">
+                    <h1 class="aac-title wal-title" id="aac-cobros-title">We Ötzi Wallet</h1>
+                    <p class="aac-sub wal-sub">Administrá tus ingresos, liberaciones y retiros dentro de We Ötzi.</p>
+                </header>
 
-                <div class="aac-works" id="aac-works"></div>
+                <div class="wal-status" id="wal-status" aria-live="polite">
+                    <span class="wal-status-item" id="wal-status-verified"><i data-wo-icon="check-circle" aria-hidden="true"></i><span>Cuenta verificada</span></span>
+                    <span class="wal-status-sep" aria-hidden="true">·</span>
+                    <span class="wal-status-item" id="wal-status-disputes"><i data-wo-icon="alert-triangle" aria-hidden="true"></i><span>Sin disputas activas</span></span>
+                    <span class="wal-status-sep" aria-hidden="true">·</span>
+                    <span class="wal-status-item" id="wal-status-release"><i data-wo-icon="clock" aria-hidden="true"></i><span>Sin liberaciones pendientes</span></span>
+                </div>
+                <p class="wal-mode" id="wal-mode" hidden></p>
 
-                <div class="aac-actions">
-                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-works-add"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i> Agregar trabajo</button>
-                    <input type="file" id="aac-works-input" accept="image/*" multiple hidden>
+                <div class="wal-balance">
+                    <div class="wal-balance-main">
+                        <div class="wal-balance-copy">
+                            <span class="wal-eyebrow wal-eyebrow--dark">Saldo disponible</span>
+                            <strong class="wal-balance-value" id="wal-available">USD 0</strong>
+                            <span class="wal-balance-sub">Disponible para retirar</span>
+                        </div>
+                        <button type="button" class="wal-cta" id="wal-withdraw-open"><span>Retirar fondos</span><span aria-hidden="true">→</span></button>
+                    </div>
+                    <div class="wal-stats">
+                        <div class="wal-stat">
+                            <div class="wal-stat-head"><span class="wal-eyebrow">Pendiente por servicio</span><span class="wal-dot wal-dot--yellow" aria-hidden="true"></span></div>
+                            <strong class="wal-stat-value" id="wal-pending">USD 0</strong>
+                            <span class="wal-stat-sub">A confirmar por el cliente</span>
+                        </div>
+                        <div class="wal-stat">
+                            <div class="wal-stat-head"><span class="wal-eyebrow">Esperando liberación</span><span class="wal-dot wal-dot--blue" aria-hidden="true"></span></div>
+                            <strong class="wal-stat-value" id="wal-awaiting">USD 0</strong>
+                            <span class="wal-stat-sub" id="wal-awaiting-sub">Sin liberaciones programadas</span>
+                        </div>
+                        <div class="wal-stat">
+                            <div class="wal-stat-head"><span class="wal-eyebrow">Bloqueado</span><span class="wal-dot wal-dot--red" aria-hidden="true"></span></div>
+                            <strong class="wal-stat-value wal-stat-value--danger" id="wal-blocked-total">USD 0</strong>
+                            <span class="wal-stat-sub" id="wal-blocked-sub">Sin disputas activas</span>
+                        </div>
+                        <div class="wal-stat">
+                            <div class="wal-stat-head"><span class="wal-eyebrow">En retiro</span><span class="wal-dot wal-dot--green" aria-hidden="true"></span></div>
+                            <strong class="wal-stat-value" id="wal-withdrawing">USD 0</strong>
+                            <span class="wal-stat-sub">En proceso de transferencia</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wal-columns">
+                    <div class="wal-main">
+                        <div class="wal-block-head">
+                            <h2 class="wal-h2">Próximas liberaciones</h2>
+                            <button type="button" class="aac-link-mono" id="wal-releases-all" aria-expanded="false">Ver todas →</button>
+                        </div>
+                        <div class="wal-releases" id="wal-releases"></div>
+
+                        <div class="wal-block-head wal-block-head--tabs">
+                            <h2 class="wal-h2">Actividad reciente</h2>
+                            <div class="wal-tabs" role="tablist" aria-label="Filtrar actividad">
+                                <button type="button" class="wal-tab is-active" role="tab" aria-selected="true" data-wal-filter="todos">Todos</button>
+                                <button type="button" class="wal-tab" role="tab" aria-selected="false" data-wal-filter="liberaciones">Liberaciones</button>
+                                <button type="button" class="wal-tab" role="tab" aria-selected="false" data-wal-filter="retiros">Retiros</button>
+                                <button type="button" class="wal-tab" role="tab" aria-selected="false" data-wal-filter="comisiones">Comisiones</button>
+                                <button type="button" class="wal-tab" role="tab" aria-selected="false" data-wal-filter="disputas">Disputas</button>
+                            </div>
+                        </div>
+                        <div class="wal-activity" id="wal-activity" role="tabpanel"></div>
+                        <button type="button" class="aac-link-mono wal-more" id="wal-activity-all" aria-expanded="false">Ver toda la actividad →</button>
+                    </div>
+
+                    <aside class="wal-side" aria-label="Retiros y fondos bloqueados">
+                        <form class="wal-quick" id="wal-quick-form" novalidate>
+                            <div class="wal-quick-head"><i data-wo-icon="zap" aria-hidden="true"></i><h2 class="wal-h3">Retiro rápido</h2></div>
+                            <label class="wal-eyebrow wal-quick-label" for="wal-quick-dest">Destino predeterminado</label>
+                            <select class="wal-select wal-select--plain" id="wal-quick-dest"></select>
+                            <span class="wal-quick-hint" id="wal-quick-dest-hint"></span>
+                            <label class="wal-eyebrow wal-quick-label" for="wal-quick-amount">Monto a retirar</label>
+                            <div class="wal-amount">
+                                <span class="wal-amount-cur" id="wal-quick-cur">USD</span>
+                                <input class="wal-amount-input" id="wal-quick-amount" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
+                            </div>
+                            <span class="wal-quick-available" id="wal-quick-available">Disponible: USD 0</span>
+                            <p class="wal-quick-error" id="wal-quick-error" role="alert" hidden></p>
+                            <button type="submit" class="wal-cta wal-cta--s" id="wal-quick-submit"><span>Retirar ahora</span><span aria-hidden="true">→</span></button>
+                        </form>
+
+                        <div class="wal-blocked" id="wal-blocked" hidden>
+                            <div class="wal-blocked-head"><i data-wo-icon="lock" aria-hidden="true"></i><strong>Fondos bloqueados</strong></div>
+                            <span class="wal-blocked-count" id="wal-blocked-count">1 disputa activa</span>
+                            <strong class="wal-blocked-value" id="wal-blocked-value">USD 0</strong>
+                            <span class="wal-blocked-text" id="wal-blocked-text"></span>
+                            <a class="aac-link-mono aac-link-mono--danger" id="wal-blocked-link" href="/artist/inbox">Ver disputa →</a>
+                        </div>
+                    </aside>
+                </div>
+
+                <div class="wal-dest" data-assist="retiro.destino">
+                    <div class="wal-dest-head">
+                        <div>
+                            <h2 class="wal-h2">Destinos de retiro</h2>
+                            <p class="wal-dest-sub">Elegí dónde recibir los fondos disponibles de tu Wallet.</p>
+                        </div>
+                        <button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="wal-dest-add"><i data-wo-icon="plus" aria-hidden="true"></i>Agregar destino</button>
+                    </div>
+                    <div class="wal-dest-list" id="wal-dest-list"></div>
+                </div>
+
+                <div class="wal-bottom">
+                    <div class="wal-card-promo">
+                        <div class="wal-card-copy">
+                            <span class="wal-tag">Próximamente</span>
+                            <h2 class="wal-card-title">We Ötzi Card</h2>
+                            <p class="wal-card-text">Usá tu saldo en cualquier parte del mundo y accedé a beneficios exclusivos para artistas.</p>
+                            <button type="button" class="wal-ink-btn" id="wal-card-open">Conocer más</button>
+                        </div>
+                        <div class="wal-card-art" aria-hidden="true">
+                            <span class="wal-card-brand">WE ÖTZI</span>
+                            <span class="wal-card-ring"></span>
+                            <span class="wal-card-foot"><span class="wal-card-debit">DEBIT</span><span class="wal-card-dots"><span></span><span></span></span></span>
+                        </div>
+                    </div>
+                    <div class="wal-fiscal">
+                        <span class="wal-eyebrow">Facturación e impuestos</span>
+                        <p class="wal-fiscal-text">Mantené tus datos fiscales actualizados y listos para tus retiros.</p>
+                        <button type="button" class="aac-link-mono" data-open-fiscal>Ver datos fiscales →</button>
+                    </div>
                 </div>
             </section>
 
-            <!-- ==================== 3 · Cobros y facturación (156:11993) ==================== -->
-            <section class="aac-section" id="aac-cobros" hidden>
-                <h1 class="aac-title">Cobros y facturación</h1>
-                <p class="aac-sub">Tu actividad financiera dentro de We Ötzi.</p>
-
-                <div class="wo-statstrip aac-statstrip">
-                    <div class="wo-stat aac-stat-ink">
-                        <span class="wo-stat-label">Saldo disponible</span>
-                        <span class="wo-stat-value" id="aac-stat-balance">—</span>
-                    </div>
-                    <div class="wo-stat">
-                        <span class="wo-stat-label">Ingresos del mes</span>
-                        <span class="wo-stat-value" id="aac-stat-month">—</span>
-                    </div>
-                    <div class="wo-stat">
-                        <span class="wo-stat-label">Próximo pago</span>
-                        <span class="wo-stat-value" id="aac-stat-next">—</span>
-                    </div>
-                </div>
-
-                <span class="wo-eyebrow aac-eyebrow">Historial de transacciones</span>
-                <div class="aac-moves" id="aac-ledger"></div>
-
-                <span class="wo-eyebrow aac-eyebrow">Datos fiscales</span>
-                <div class="aac-grid2">
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-legal-name">Razón social / nombre fiscal</label>
-                        <input class="wo-input" id="aac-legal-name" type="text" autocomplete="off">
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-tax-id">CUIT / identificación fiscal</label>
-                        <input class="wo-input" id="aac-tax-id" type="text" autocomplete="off" spellcheck="false">
-                    </div>
-                </div>
-                <div class="aac-actions">
-                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-billing-save">Guardar datos fiscales</button>
-                </div>
-
-                <div class="aac-methods-head">
+            <!-- ==================== 4 · Disponibilidad por ubicación (801:571 · 801:1110) ==================== -->
+            <section class="aac-section aac-section--dispo" id="aac-disponibilidad" aria-labelledby="aac-dispo-title" data-assist="disponibilidad" hidden>
+                <header class="aac-head aac-head--actions">
                     <div>
-                        <h2 class="aac-h2">Métodos de pago</h2>
-                        <p class="aac-sub" style="margin-bottom:0">Dónde recibís los pagos de tus clientes y estudios.</p>
+                        <h1 class="aac-title" id="aac-dispo-title">Disponibilidad</h1>
+                        <p class="aac-sub">Definí cuándo estás disponible para tomar clientes, en cada estudio y destino Travel.</p>
                     </div>
-                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-method-add"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i> Agregar método</button>
+                    <div class="av-head-actions">
+                        <button type="button" class="aac-btn aac-btn--outline" id="av-edit"><i data-wo-icon="edit" aria-hidden="true"></i>Editar disponibilidad</button>
+                        <button type="button" class="aac-btn aac-btn--line" id="av-cancel" hidden>Cancelar</button>
+                        <button type="button" class="aac-btn aac-btn--accent" id="av-save" hidden>Guardar cambios</button>
+                    </div>
+                </header>
+                <p class="av-saved" id="av-saved" role="status" hidden><span aria-hidden="true">✓</span> Disponibilidad actualizada para <strong id="av-saved-name"></strong>.</p>
+                <p class="aac-error" id="av-error" role="alert" hidden></p>
+
+                <!-- Modalidad de trabajo (artists_db.work_type / estudios / studio_id) y
+                     estudio base (artist_tattoo_locations current · sort_order 0). -->
+                <div class="av-mode" id="aac-modalidad" data-assist="disponibilidad.modalidad">
+                    <span class="aac-eyebrow av-mode-eyebrow" id="aac-modalidad-title">Modalidad de trabajo</span>
+                    <div class="av-mode-options" role="radiogroup" aria-labelledby="aac-modalidad-title" aria-describedby="aac-modalidad-hint">
+                        <label class="av-mode-option"><input type="radio" name="aac-modalidad" value="studio"><span>Estudio</span></label>
+                        <label class="av-mode-option"><input type="radio" name="aac-modalidad" value="independent"><span>Independiente</span></label>
+                        <label class="av-mode-option"><input type="radio" name="aac-modalidad" value="both"><span>Ambos</span></label>
+                    </div>
+                    <p class="aac-help" id="aac-modalidad-hint">Elegí si tatuás en un estudio, en tu propio espacio o en los dos.</p>
+                    <div class="aac-field av-mode-studio" id="aac-modalidad-studio-field" data-assist="disponibilidad.estudio" hidden>
+                        <label class="aac-label" for="aac-modalidad-studio">Estudio</label>
+                        <div class="aac-typeahead">
+                            <input class="aac-input" id="aac-modalidad-studio" type="text" autocomplete="off" spellcheck="false" placeholder="Buscá tu estudio" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="aac-modalidad-studio-list" aria-describedby="aac-modalidad-studio-help">
+                            <ul class="aac-typeahead-list" id="aac-modalidad-studio-list" role="listbox" aria-label="Estudios" hidden></ul>
+                        </div>
+                        <p class="aac-help" id="aac-modalidad-studio-help">Si no aparece en la lista, agregalo con su nombre.</p>
+                    </div>
+                    <p class="aac-error" id="aac-modalidad-error" role="alert" hidden></p>
+                    <div class="av-mode-actions">
+                        <button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-modalidad-save">Guardar modalidad</button>
+                    </div>
                 </div>
-                <div class="aac-methods" id="aac-methods"></div>
-                <p class="aac-footnote">Solo guardamos referencias tokenizadas del proveedor. Nunca ingreses el número completo de tu tarjeta ni el código de seguridad.</p>
+
+                <span class="aac-eyebrow av-eyebrow">Ubicaciones</span>
+                <div class="av-tabs-wrap" id="av-tabs-wrap">
+                    <div class="av-tabs" id="av-tabs" role="tablist" aria-label="Ubicaciones"></div>
+                    <!-- Solo visibles cuando las pestañas no entran (p. ej. 5+ ubicaciones). -->
+                    <button type="button" class="av-tabs-arrow av-tabs-arrow--prev" data-av-scroll="-1" aria-label="Ver ubicaciones anteriores" tabindex="-1" hidden><i data-wo-icon="chevron-left" aria-hidden="true"></i></button>
+                    <button type="button" class="av-tabs-arrow av-tabs-arrow--next" data-av-scroll="1" aria-label="Ver más ubicaciones" tabindex="-1" hidden><i data-wo-icon="chevron-right" aria-hidden="true"></i></button>
+                </div>
+                <div class="av-current" id="av-current"></div>
+
+                <span class="aac-eyebrow av-eyebrow av-eyebrow--days" id="av-days-title">Días laborales</span>
+                <div class="av-days" id="av-days" data-assist="disponibilidad.horarios"></div>
+
+                <div class="aac-grid2 av-vac">
+                    <div class="aac-field">
+                        <label class="aac-eyebrow av-label" for="aac-vac-from">Vacaciones — desde</label>
+                        <input class="aac-input av-date" id="aac-vac-from" type="date">
+                    </div>
+                    <div class="aac-field">
+                        <label class="aac-eyebrow av-label" for="aac-vac-to">Vacaciones — hasta</label>
+                        <input class="aac-input av-date" id="aac-vac-to" type="date">
+                    </div>
+                </div>
+                <p class="av-help">Las vacaciones pausan la agenda en todas tus ubicaciones.</p>
+
+                <span class="aac-eyebrow av-eyebrow">Sincronización externa</span>
+                <div class="av-sync" data-integration-row="google_calendar">
+                    <div class="av-sync-main"><i data-wo-icon="calendar" aria-hidden="true"></i><strong>Google Calendar</strong></div>
+                    <div class="av-sync-side">
+                        <span class="av-sync-note" id="av-sync-note">Sincroniza las ubicaciones activas</span>
+                        <button type="button" class="av-sync-action" data-integration-action="google_calendar">Conectar</button>
+                    </div>
+                </div>
+
+                <div class="av-travel">
+                    <div class="av-travel-copy">
+                        <strong>Agregar un destino Travel</strong>
+                        <p>Definí fechas y horarios para una ciudad donde vas a tatuar temporalmente. Aparecerá en tu perfil público solo durante ese período.</p>
+                    </div>
+                    <button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="av-travel-add"><i data-wo-icon="plus" aria-hidden="true"></i>Agregar destino Travel</button>
+                </div>
             </section>
 
-            <!-- ==================== 4 · Disponibilidad (156:12247) ==================== -->
-            <section class="aac-section" id="aac-disponibilidad" hidden>
-                <h1 class="aac-title">Disponibilidad</h1>
-                <p class="aac-sub">Definí cuándo estás disponible para tomar clientes.</p>
-
-                <span class="wo-eyebrow aac-eyebrow" style="margin-top:0">Días laborales</span>
-                <div id="aac-days"></div>
-
-                <div class="aac-grid2" style="margin-top:var(--space-6)">
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-vac-from">Vacaciones — desde</label>
-                        <input class="wo-input" id="aac-vac-from" type="date">
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-vac-to">Vacaciones — hasta</label>
-                        <input class="wo-input" id="aac-vac-to" type="date">
-                    </div>
-                </div>
-
-                <span class="wo-eyebrow aac-eyebrow">Sincronización externa</span>
-                <div class="aac-row" data-integration-row="google_calendar">
-                    <span class="aac-row-tile"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
-                    <div class="aac-row-main"><div class="aac-row-title">Google Calendar</div></div>
-                    <div class="aac-row-side"><button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-integration-action="google_calendar">Conectar</button></div>
-                </div>
-                <div class="aac-row" data-integration-row="apple_calendar">
-                    <span class="aac-row-tile"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
-                    <div class="aac-row-main"><div class="aac-row-title">Apple Calendar</div></div>
-                    <div class="aac-row-side"><button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-integration-action="apple_calendar">Conectar</button></div>
-                </div>
-            </section>
-
-            <!-- ==================== 5 · Notificaciones (158:13029) ==================== -->
-            <section class="aac-section" id="aac-notificaciones" hidden>
-                <h1 class="aac-title">Notificaciones</h1>
-                <p class="aac-sub">Elegí cómo y cuándo querés que te avisemos.</p>
-
-                <div class="aac-matrix-head">
+            <!-- ==================== 5 · Preferencias de notificaciones (801:572) ==================== -->
+            <section class="aac-section aac-section--notif" id="aac-notificaciones" aria-labelledby="aac-notif-title" data-assist="notificaciones" hidden>
+                <header class="aac-head">
+                    <h1 class="aac-title" id="aac-notif-title">Notificaciones</h1>
+                    <p class="aac-sub">Elegí cómo y cuándo querés que te avisemos.</p>
+                </header>
+                <div class="aac-matrix-head" aria-hidden="true">
                     <span></span>
                     <span class="aac-matrix-col">Email</span>
                     <span class="aac-matrix-col">Push</span>
                     <span class="aac-matrix-col">SMS</span>
                 </div>
-                <div id="aac-notif-rows"></div>
-                <p class="aac-footnote">Las preferencias se aplican a cada canal configurado para tu cuenta.</p>
+                <div id="aac-notif-rows" data-assist="notificaciones.preferencias"></div>
             </section>
 
-            <!-- ==================== 6 · Seguridad y Privacidad (158:13480) ==================== -->
-            <section class="aac-section" id="aac-seguridad" hidden>
-                <h1 class="aac-title">Seguridad</h1>
-                <p class="aac-sub">Protegé el acceso a tu cuenta.</p>
+            <!-- ==================== 6 · Seguridad y recuperación (801:575) ==================== -->
+            <section class="aac-section aac-section--narrow" id="aac-seguridad" aria-labelledby="aac-seg-title" hidden>
+                <header class="aac-head">
+                    <h1 class="aac-title" id="aac-seg-title">Seguridad</h1>
+                    <p class="aac-sub">Protegé el acceso a tu cuenta.</p>
+                </header>
 
-                <span class="wo-eyebrow aac-eyebrow" style="margin-top:0">Contraseña</span>
-                <div class="aac-grid2">
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-pass-current">Contraseña actual</label>
-                        <input class="wo-input" id="aac-pass-current" type="password" autocomplete="current-password">
+                <span class="aac-eyebrow aac-eyebrow--tight">Contraseña</span>
+                <div class="aac-grid2 aac-grid2--pass">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-pass-current">Contraseña actual</label>
+                        <input class="aac-input" id="aac-pass-current" type="password" autocomplete="current-password">
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-pass-new">Nueva contraseña</label>
-                        <input class="wo-input" id="aac-pass-new" type="password" autocomplete="new-password">
-                        <p class="wo-help">Mínimo 8 caracteres.</p>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-pass-new">Nueva contraseña</label>
+                        <input class="aac-input" id="aac-pass-new" type="password" autocomplete="new-password" minlength="8">
                     </div>
                 </div>
-                <p class="wo-error-msg" id="aac-pass-error" hidden></p>
-                <div class="aac-actions" style="margin-top:var(--space-4)">
-                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-pass-save">Actualizar contraseña</button>
+                <p class="aac-error" id="aac-pass-error" role="alert" hidden></p>
+                <button type="button" class="aac-btn aac-btn--outline" id="aac-pass-save">Actualizar contraseña</button>
+
+                <div class="aac-mfa-row">
+                    <div class="aac-mfa-copy">
+                        <strong class="aac-row-title">Autenticación en dos pasos</strong>
+                        <span class="aac-row-sub">Pedimos un código extra cada vez que iniciás sesión desde un dispositivo nuevo.</span>
+                        <span class="aac-row-note" id="aac-mfa-status" hidden></span>
+                    </div>
+                    <label class="aac-switch">
+                        <input type="checkbox" id="aac-mfa-toggle" aria-label="Autenticación en dos pasos">
+                        <span class="aac-switch-knob" aria-hidden="true"></span>
+                    </label>
                 </div>
 
-                <div class="aac-togglerow">
-                    <div class="aac-togglerow-main">
-                        <div class="aac-row-title">Autenticación en dos pasos</div>
-                        <div class="aac-row-sub">Vamos a pedir un código extra cada vez que inicies sesión desde un dispositivo nuevo.</div>
-                    </div>
-                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" id="aac-mfa-action">Configurar</button>
-                </div>
-                <p class="aac-footnote" id="aac-mfa-status">Consultando el estado de seguridad…</p>
-
-                <span class="wo-eyebrow aac-eyebrow">Dispositivos conectados</span>
-                <div id="aac-sessions"></div>
-                <div class="aac-actions" style="margin-top:var(--space-4)">
-                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-close-others">Cerrar las demás sesiones</button>
-                </div>
+                <span class="aac-eyebrow">Dispositivos conectados</span>
+                <div class="aac-sessions" id="aac-sessions"></div>
+                <button type="button" class="aac-btn aac-btn--text" id="aac-close-others">Cerrar todas las demás sesiones</button>
 
                 <div class="aac-danger">
                     <p class="aac-danger-title">Eliminar cuenta</p>
-                    <p>Esta acción es permanente. Se elimina tu perfil, portafolio y todo tu historial en We Ötzi.</p>
-                    <button type="button" class="wo-btn wo-btn--ghost" id="aac-delete-request">Eliminar mi cuenta</button>
-                    <p class="aac-footnote" id="aac-delete-status"></p>
+                    <p class="aac-danger-text">Esta acción es permanente. Se elimina tu perfil, portafolio y todo tu historial en We Ötzi.</p>
+                    <button type="button" class="aac-btn aac-btn--text" id="aac-delete-request">Eliminar mi cuenta</button>
+                    <p class="aac-row-note" id="aac-delete-status"></p>
                 </div>
 
-                <div class="aac-block-gap">
-                    <h1 class="aac-title">Privacidad</h1>
-                    <p class="aac-sub">Controlá qué información es pública en tu perfil.</p>
-                    <div id="aac-privacy-rows"></div>
-                </div>
-            </section>
-
-            <!-- ==================== 7 · Integraciones (161:14150) ==================== -->
-            <section class="aac-section" id="aac-integraciones" hidden>
-                <h1 class="aac-title">Integraciones</h1>
-                <p class="aac-sub">Conectá We Ötzi con otras herramientas que ya usás.</p>
-
-                <div class="aac-row" data-integration-row="google_calendar">
-                    <span class="aac-row-tile"><i data-wo-icon="calendar" aria-hidden="true"></i></span>
-                    <div class="aac-row-main">
-                        <div class="aac-row-title">Google Calendar</div>
-                        <div class="aac-row-sub">Sincronizá tu disponibilidad automáticamente.</div>
+                <div class="aac-recovery">
+                    <h2 class="aac-title">Recuperación</h2>
+                    <p class="aac-sub">Configurá cómo recuperar el acceso a tu cuenta.</p>
+                    <div class="aac-rec-list">
+                        <div class="aac-rec-row">
+                            <div><strong class="aac-row-title">Verificación telefónica</strong><span class="aac-row-sub" id="aac-phone-status">Sin configurar</span></div>
+                            <button type="button" class="aac-btn aac-btn--text aac-btn--xs" id="aac-phone-edit">Editar</button>
+                        </div>
+                        <div class="aac-rec-row">
+                            <div><strong class="aac-row-title">Pregunta de seguridad</strong><span class="aac-row-sub" id="aac-question-status">Configurar</span></div>
+                            <button type="button" class="aac-btn aac-btn--text aac-btn--xs" id="aac-question-edit">Editar</button>
+                        </div>
                     </div>
-                    <div class="aac-row-side"><button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-integration-action="google_calendar">Conectar</button></div>
-                </div>
-                <div class="aac-row" data-integration-row="instagram">
-                    <span class="aac-row-tile"><i data-wo-icon="instagram" aria-hidden="true"></i></span>
-                    <div class="aac-row-main">
-                        <div class="aac-row-title">Instagram</div>
-                        <div class="aac-row-sub" id="aac-ig-sub">Importá publicaciones a tu portafolio. <a href="/artist/dashboard">Gestioná la importación desde tu dashboard →</a></div>
-                    </div>
-                    <div class="aac-row-side"><button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-integration-action="instagram">Conectar</button></div>
-                </div>
-                <div class="aac-row" data-integration-row="stripe">
-                    <span class="aac-row-tile"><i data-wo-icon="dollar-sign" aria-hidden="true"></i></span>
-                    <div class="aac-row-main">
-                        <div class="aac-row-title">Stripe</div>
-                        <div class="aac-row-sub">Procesá pagos internacionales de clientes.</div>
-                    </div>
-                    <div class="aac-row-side"><button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-integration-action="stripe">Conectar</button></div>
-                </div>
-                <div class="aac-row" data-integration-row="whatsapp_business">
-                    <span class="aac-row-tile"><i data-wo-icon="message-circle" aria-hidden="true"></i></span>
-                    <div class="aac-row-main">
-                        <div class="aac-row-title">WhatsApp Business</div>
-                        <div class="aac-row-sub">Recibí notificaciones de mensajes por WhatsApp.</div>
-                    </div>
-                    <div class="aac-row-side"><button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-integration-action="whatsapp_business">Conectar</button></div>
                 </div>
             </section>
 
-            <!-- ==================== 8 · Verificación (161:14507) ==================== -->
-            <section class="aac-section" id="aac-verificacion" hidden>
-                <h1 class="aac-title">Verificación</h1>
-                <p class="aac-sub">Un perfil verificado genera más confianza y prioridad en el Job board.</p>
-
-                <div id="aac-verif-alert"></div>
-
-                <span class="wo-eyebrow aac-eyebrow">Documentos</span>
-                <div id="aac-docs"></div>
-                <p class="aac-footnote" id="aac-docs-note" hidden>No pudimos acceder al almacenamiento documental. Aplicá la migración del Centro de Cuenta.</p>
+            <!-- ==================== 7 · Verificación y documentos (801:573) ==================== -->
+            <section class="aac-section aac-section--verif" id="aac-verificacion" aria-labelledby="aac-verif-title" data-assist="verificacion" hidden>
+                <header class="aac-head">
+                    <h1 class="aac-title" id="aac-verif-title">Verificación</h1>
+                    <p class="aac-sub">Un perfil verificado genera más confianza y prioridad en el Job Board.</p>
+                </header>
+                <div id="aac-verif-alert" data-assist="verificacion.solicitud"></div>
+                <span class="aac-eyebrow">Documentos</span>
+                <div class="aac-docs" id="aac-docs"></div>
+                <p class="aac-row-note" id="aac-docs-note" hidden>Todavía no podemos guardar documentos en este entorno. Escribinos por soporte para completar la verificación.</p>
             </section>
 
-            <!-- ==================== 9 · Configuración (162:15088) ==================== -->
-            <section class="aac-section" id="aac-configuracion" hidden>
-                <h1 class="aac-title">Configuración</h1>
-                <p class="aac-sub">Preferencias generales de la plataforma.</p>
+            <!-- ==================== 8 · Configuración y accesibilidad (801:574) ==================== -->
+            <section class="aac-section aac-section--config" id="aac-configuracion" aria-labelledby="aac-config-title" data-assist="configuracion" hidden>
+                <header class="aac-head">
+                    <h1 class="aac-title" id="aac-config-title">Configuración</h1>
+                    <p class="aac-sub">Preferencias generales de la plataforma.</p>
+                </header>
 
-                <span class="wo-eyebrow aac-eyebrow" style="margin-top:0">Región</span>
-                <div class="aac-grid2">
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-setting-country">País</label>
-                        <input class="wo-input" id="aac-setting-country" type="text" autocomplete="country-name">
+                <span class="aac-eyebrow">Región</span>
+                <div class="aac-grid2" data-assist="configuracion.region">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-setting-country">País</label>
+                        <select class="aac-input aac-select" id="aac-setting-country"></select>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-setting-city">Ciudad</label>
-                        <input class="wo-input" id="aac-setting-city" type="text" autocomplete="address-level2">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-setting-city">Ciudad</label>
+                        <input class="aac-input" id="aac-setting-city" type="text" autocomplete="address-level2">
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-timezone">Zona horaria</label>
-                        <select class="wo-select" id="aac-timezone"></select>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-timezone">Zona horaria</label>
+                        <select class="aac-input aac-select" id="aac-timezone"></select>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-currency">Moneda preferida</label>
-                        <select class="wo-select" id="aac-currency"></select>
+                    <div class="aac-field" data-assist="configuracion.moneda">
+                        <label class="aac-label" for="aac-currency">Moneda predeterminada</label>
+                        <select class="aac-input aac-select" id="aac-currency"></select>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-dateformat">Formato de fecha</label>
-                        <select class="wo-select" id="aac-dateformat">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-dateformat">Formato de fecha</label>
+                        <select class="aac-input aac-select" id="aac-dateformat">
                             <option value="DD/MM/AAAA">DD/MM/AAAA</option>
                             <option value="MM/DD/AAAA">MM/DD/AAAA</option>
                             <option value="AAAA-MM-DD">AAAA-MM-DD</option>
                         </select>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-timeformat">Formato de hora</label>
-                        <select class="wo-select" id="aac-timeformat">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-timeformat">Formato de hora</label>
+                        <select class="aac-input aac-select" id="aac-timeformat">
                             <option value="24h">24 horas</option>
                             <option value="12h">12 horas</option>
                         </select>
                     </div>
                 </div>
 
-                <span class="wo-eyebrow aac-eyebrow">Apariencia</span>
-                <div class="aac-setting-stack">
-                    <fieldset class="aac-choice-field">
-                        <legend class="wo-label">Tema</legend>
-                        <div class="aac-segment" data-setting-group="theme">
-                            <button type="button" data-setting="theme" data-value="light">Claro</button>
-                            <button type="button" data-setting="theme" data-value="dark">Oscuro</button>
-                            <button type="button" data-setting="theme" data-value="system">Sistema</button>
-                        </div>
-                    </fieldset>
-                    <fieldset class="aac-choice-field">
-                        <legend class="wo-label">Densidad de la interfaz</legend>
-                        <div class="aac-segment" data-setting-group="density">
-                            <button type="button" data-setting="density" data-value="compact">Compacta</button>
-                            <button type="button" data-setting="density" data-value="comfortable">Cómoda</button>
-                        </div>
-                    </fieldset>
-                    <div class="aac-grid2">
-                        <div class="wo-field">
-                            <label class="wo-label" for="aac-text-size">Tamaño de texto</label>
-                            <select class="wo-select" id="aac-text-size"><option value="small">Pequeño</option><option value="medium">Mediano</option><option value="large">Grande</option></select>
-                        </div>
-                        <div class="aac-togglerow aac-togglerow--compact"><div class="aac-togglerow-main">Mostrar animaciones</div><label class="wo-toggle"><input type="checkbox" id="aac-animations"><span class="knob"></span></label></div>
+                <span class="aac-eyebrow">Apariencia</span>
+                <fieldset class="aac-choice-field">
+                    <legend class="aac-label aac-label--s">Tema</legend>
+                    <div class="aac-segment" data-setting-group="theme">
+                        <button type="button" data-setting="theme" data-value="light">Claro</button>
+                        <button type="button" data-setting="theme" data-value="dark">Oscuro</button>
+                        <button type="button" data-setting="theme" data-value="system">Sistema</button>
+                    </div>
+                </fieldset>
+                <fieldset class="aac-choice-field">
+                    <legend class="aac-label aac-label--s">Densidad de la interfaz</legend>
+                    <div class="aac-segment" data-setting-group="density">
+                        <button type="button" data-setting="density" data-value="compact">Compacta</button>
+                        <button type="button" data-setting="density" data-value="comfortable">Cómoda</button>
+                    </div>
+                </fieldset>
+                <div class="aac-grid2 aac-grid2--center">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-text-size">Tamaño de texto</label>
+                        <select class="aac-input aac-select" id="aac-text-size"><option value="small">Pequeño</option><option value="medium">Mediano</option><option value="large">Grande</option></select>
+                    </div>
+                    <div class="aac-togglerow aac-togglerow--inline">
+                        <span class="aac-togglerow-main">Mostrar animaciones</span>
+                        <label class="aac-switch"><input type="checkbox" id="aac-animations" aria-label="Mostrar animaciones"><span class="aac-switch-knob" aria-hidden="true"></span></label>
                     </div>
                 </div>
 
-                <span class="wo-eyebrow aac-eyebrow">Plataforma</span>
+                <span class="aac-eyebrow">Plataforma</span>
                 <div class="aac-grid2">
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-start-page">Página de inicio al iniciar sesión</label>
-                        <select class="wo-select" id="aac-start-page"><option value="dashboard">Dashboard</option><option value="quotations">Cotizaciones</option><option value="calendar">Calendario</option><option value="inbox">Inbox</option></select>
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-start-page">Página de inicio al iniciar sesión</label>
+                        <select class="aac-input aac-select" id="aac-start-page"><option value="dashboard">Dashboard</option><option value="quotations">Cotizaciones</option><option value="calendar">Calendario</option><option value="inbox">Inbox</option></select>
                     </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="aac-language">Idioma de la plataforma</label>
-                        <select class="wo-select" id="aac-language">
+                    <div class="aac-field">
+                        <label class="aac-label" for="aac-language">Idioma de la plataforma</label>
+                        <select class="aac-input aac-select" id="aac-language">
                             <option value="es">Español</option>
                             <option value="en" disabled>English · próximamente</option>
                         </select>
                     </div>
                 </div>
-                <div class="aac-togglerow aac-togglerow--compact"><div class="aac-togglerow-main"><div class="aac-row-title">Confirmación antes de cerrar sesión</div><div class="aac-row-sub">Te preguntamos antes de cerrar tu sesión.</div></div><label class="wo-toggle"><input type="checkbox" id="aac-confirm-logout"><span class="knob"></span></label></div>
-                <div class="aac-actions"><button type="button" class="wo-btn wo-btn--ghost" id="aac-reset-settings">Restablecer preferencias de la aplicación</button></div>
-
-                <span class="wo-eyebrow aac-eyebrow">Accesibilidad</span>
-                <div class="aac-togglerow aac-togglerow--compact"><div class="aac-togglerow-main">Reducir movimiento</div><label class="wo-toggle"><input type="checkbox" id="aac-reduce-motion"><span class="knob"></span></label></div>
-                <div class="aac-togglerow aac-togglerow--compact"><div class="aac-togglerow-main">Aumentar contraste</div><label class="wo-toggle"><input type="checkbox" id="aac-high-contrast"><span class="knob"></span></label></div>
-                <div class="wo-field aac-scale-field"><label class="wo-label" for="aac-interface-scale">Escala de la interfaz</label><select class="wo-select" id="aac-interface-scale"><option value="90">90%</option><option value="100">100%</option><option value="110">110%</option><option value="125">125%</option></select></div>
-
-                <span class="wo-eyebrow aac-eyebrow">Preferencias de visualización</span>
-                <fieldset class="aac-choice-field"><legend class="wo-label">Nombre mostrado por defecto</legend><div class="aac-segment" data-setting-group="display_name"><button type="button" data-setting="display_name" data-value="full">Nombre completo</button><button type="button" data-setting="display_name" data-value="artistic">Nombre artístico</button></div></fieldset>
-                <div class="aac-grid2 aac-view-grid">
-                    <div class="wo-field"><label class="wo-label" for="aac-page-size">Elementos por página en tablas y listados</label><select class="wo-select" id="aac-page-size"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></div>
-                    <div class="wo-field"><label class="wo-label" for="aac-default-sort">Orden predeterminado de listados</label><select class="wo-select" id="aac-default-sort"><option value="recent">Más recientes</option><option value="oldest">Más antiguos</option><option value="alphabetical">Alfabético</option></select></div>
+                <div class="aac-togglerow">
+                    <div class="aac-togglerow-main"><span class="aac-togglerow-title">Confirmación antes de cerrar sesión</span><span class="aac-row-sub">Te preguntamos antes de cerrar tu sesión.</span></div>
+                    <label class="aac-switch"><input type="checkbox" id="aac-confirm-logout" aria-label="Confirmación antes de cerrar sesión"><span class="aac-switch-knob" aria-hidden="true"></span></label>
                 </div>
-                <p class="aac-footnote">Los cambios se guardan automáticamente.</p>
+                <button type="button" class="aac-btn aac-btn--text" id="aac-reset-settings">Restablecer preferencias de la aplicación</button>
+
+                <span class="aac-eyebrow aac-eyebrow--tight">Accesibilidad</span>
+                <div class="aac-togglerow"><span class="aac-togglerow-main">Reducir movimiento</span><label class="aac-switch"><input type="checkbox" id="aac-reduce-motion" aria-label="Reducir movimiento"><span class="aac-switch-knob" aria-hidden="true"></span></label></div>
+                <div class="aac-togglerow"><span class="aac-togglerow-main">Aumentar contraste</span><label class="aac-switch"><input type="checkbox" id="aac-high-contrast" aria-label="Aumentar contraste"><span class="aac-switch-knob" aria-hidden="true"></span></label></div>
+                <div class="aac-field aac-scale-field">
+                    <label class="aac-label" for="aac-interface-scale">Escala de la interfaz</label>
+                    <select class="aac-input aac-select" id="aac-interface-scale"><option value="90">90%</option><option value="100">100%</option><option value="110">110%</option><option value="125">125%</option></select>
+                </div>
+
+                <span class="aac-eyebrow">Preferencias de visualización</span>
+                <fieldset class="aac-choice-field">
+                    <legend class="aac-label aac-label--s">Nombre mostrado por defecto</legend>
+                    <div class="aac-segment" data-setting-group="display_name">
+                        <button type="button" data-setting="display_name" data-value="full">Nombre completo</button>
+                        <button type="button" data-setting="display_name" data-value="artistic">Nombre artístico</button>
+                    </div>
+                </fieldset>
+                <div class="aac-grid2 aac-grid2--narrow">
+                    <div class="aac-field"><label class="aac-label" for="aac-page-size">Elementos por página en tablas y listados</label><select class="aac-input aac-select" id="aac-page-size"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></div>
+                    <div class="aac-field"><label class="aac-label" for="aac-default-sort">Orden predeterminado de listados</label><select class="aac-input aac-select" id="aac-default-sort"><option value="recent">Más recientes</option><option value="oldest">Más antiguos</option><option value="alphabetical">Alfabético</option></select></div>
+                </div>
             </section>
 
         </main>
@@ -456,35 +653,216 @@
         <span id="aac-toast-text">Cambios guardados</span>
     </div>
 
-    <dialog class="aac-dialog" id="aac-method-dialog" aria-labelledby="aac-method-dialog-title">
-        <form method="dialog" class="aac-dialog-card" id="aac-method-form">
-            <div class="aac-dialog-head"><h2 class="aac-h2" id="aac-method-dialog-title">Agregar método</h2><button type="button" class="wo-iconbtn" data-dialog-close="aac-method-dialog" aria-label="Cerrar"><i data-wo-icon="x"></i></button></div>
-            <input type="hidden" id="aac-method-id">
-            <div class="wo-field"><label class="wo-label" for="aac-method-provider">Proveedor</label><select class="wo-select" id="aac-method-provider" required><option value="stripe">Stripe / tarjeta tokenizada</option><option value="mercado_pago">Mercado Pago</option><option value="paypal">PayPal</option><option value="wise">Wise</option><option value="bank_transfer">Transferencia bancaria tokenizada</option></select></div>
-            <div class="wo-field"><label class="wo-label" for="aac-method-name">Nombre visible</label><input class="wo-input" id="aac-method-name" required placeholder="Ej. Visa terminada en 4242"></div>
-            <div class="wo-field"><label class="wo-label" for="aac-method-reference">Referencia tokenizada del proveedor</label><input class="wo-input" id="aac-method-reference" required autocomplete="off" placeholder="pm_… / account_…"><p class="wo-help">Pegá el identificador seguro que entrega el proveedor; nunca un número de tarjeta.</p></div>
-            <div class="aac-grid2"><div class="wo-field"><label class="wo-label" for="aac-method-last4">Últimos 4 (opcional)</label><input class="wo-input" id="aac-method-last4" maxlength="4" pattern="[0-9A-Za-z]{4}" autocomplete="off"></div><div class="wo-field"><label class="wo-label" for="aac-method-hint">Detalle (opcional)</label><input class="wo-input" id="aac-method-hint" placeholder="Email o cuenta enmascarada"></div></div>
-            <label class="aac-check"><input type="checkbox" id="aac-method-default"> Usar como método predeterminado</label>
-            <div class="aac-dialog-actions"><button type="button" class="wo-btn wo-btn--ghost" data-dialog-close="aac-method-dialog">Cancelar</button><button type="submit" class="wo-btn wo-btn--direct">Guardar método</button></div>
+    <!-- ==================== Diálogos del Wallet ==================== -->
+    <dialog class="aac-dialog" id="wal-dest-dialog" aria-labelledby="wal-dest-dialog-title">
+        <form method="dialog" class="aac-dialog-card" id="wal-dest-form" novalidate>
+            <div class="aac-dialog-bar">
+                <h2 class="aac-dialog-bar-title" id="wal-dest-dialog-title" tabindex="-1" autofocus>Agregar destino de retiro</h2>
+                <button type="button" class="aac-dialog-x" data-dialog-close="wal-dest-dialog" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body">
+                <input type="hidden" id="wal-dest-id">
+                <span class="wal-eyebrow">Métodos disponibles</span>
+                <div class="wal-methods" id="wal-methods" role="radiogroup" aria-label="Métodos disponibles"></div>
+                <div class="wal-form-row">
+                    <div class="wal-form-field">
+                        <label class="wal-eyebrow" for="wal-dest-holder">Titular de la cuenta</label>
+                        <input class="wal-input" id="wal-dest-holder" type="text" autocomplete="name" required>
+                    </div>
+                    <div class="wal-form-field">
+                        <label class="wal-eyebrow" for="wal-dest-currency">Moneda</label>
+                        <select class="wal-select wal-select--plain" id="wal-dest-currency">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="ARS">ARS</option>
+                            <option value="MXN">MXN</option>
+                            <option value="GBP">GBP</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="wal-form-field">
+                    <label class="wal-eyebrow" for="wal-dest-identifier">CBU / IBAN / Alias</label>
+                    <input class="wal-input" id="wal-dest-identifier" type="text" autocomplete="off" spellcheck="false" placeholder="Ingresá el identificador de la cuenta" aria-describedby="wal-dest-identifier-help wal-dest-error" required>
+                    <!-- El Figma no muestra esta ayuda: queda para lectores de pantalla; la validación rechaza números de tarjeta. -->
+                    <span class="wo-sr-only" id="wal-dest-identifier-help">Nunca ingreses datos de tarjeta. Verificamos el destino antes del primer retiro.</span>
+                </div>
+                <p class="wal-quick-error" id="wal-dest-error" role="alert" hidden></p>
+                <span class="wal-eyebrow wal-soon-title">Próximamente</span>
+                <div class="wal-soon" id="wal-soon">
+                    <span class="wal-soon-chip">PayPal <span>Próximamente</span></span>
+                    <span class="wal-soon-chip">Wise <span>Próximamente</span></span>
+                    <span class="wal-soon-chip">USDT <span>Próximamente</span></span>
+                    <span class="wal-soon-chip">Mercado Pago <span>Próximamente</span></span>
+                </div>
+                <button type="submit" class="wal-cta wal-cta--center" id="wal-dest-submit">Agregar destino</button>
+                <button type="button" class="wal-cancel" data-dialog-close="wal-dest-dialog">Cancelar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="aac-dialog" id="wal-dest-details" aria-labelledby="wal-dest-details-title">
+        <div class="aac-dialog-card">
+            <div class="aac-dialog-bar">
+                <h2 class="aac-dialog-bar-title" id="wal-dest-details-title" tabindex="-1" autofocus>Detalle del destino</h2>
+                <button type="button" class="aac-dialog-x" data-dialog-close="wal-dest-details" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body"><dl class="wal-details" id="wal-dest-details-body"></dl></div>
+        </div>
+    </dialog>
+
+    <dialog class="aac-dialog" id="wal-withdraw-dialog" aria-labelledby="wal-withdraw-title">
+        <form method="dialog" class="aac-dialog-card" id="wal-withdraw-form">
+            <div class="aac-dialog-bar">
+                <h2 class="aac-dialog-bar-title" id="wal-withdraw-title" tabindex="-1" autofocus>Confirmar retiro</h2>
+                <button type="button" class="aac-dialog-x" data-dialog-close="wal-withdraw-dialog" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body">
+                <p class="wal-confirm-amount" id="wal-withdraw-amount"></p>
+                <p class="wal-confirm-text" id="wal-withdraw-dest"></p>
+                <p class="wal-form-help">El retiro queda en proceso hasta que el proveedor de pagos confirme la transferencia.</p>
+                <button type="submit" class="wal-cta wal-cta--center" id="wal-withdraw-confirm">Confirmar retiro</button>
+                <button type="button" class="wal-cancel" data-dialog-close="wal-withdraw-dialog">Cancelar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="aac-dialog aac-dialog--card" id="wal-card-dialog" aria-labelledby="wal-card-title">
+        <form method="dialog" class="aac-dialog-card" id="wal-card-form" novalidate>
+            <div class="aac-dialog-bar aac-dialog-bar--tall">
+                <div class="wal-card-dialog-head">
+                    <span class="wal-tag">Próximamente</span>
+                    <h2 class="wal-card-dialog-title" id="wal-card-title" tabindex="-1" autofocus>We Ötzi Card</h2>
+                </div>
+                <button type="button" class="aac-dialog-x" data-dialog-close="wal-card-dialog" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body aac-dialog-body--card">
+                <p class="wal-card-dialog-text">Usá tu saldo en cualquier parte del mundo y accedé a beneficios exclusivos para artistas. Todavía estamos terminando de construirla: dejanos tu correo y te avisamos apenas esté disponible.</p>
+                <ul class="wal-card-benefits">
+                    <li><span class="wal-bullet wal-bullet--square" aria-hidden="true"></span>Pagá con tu saldo disponible sin retirar.</li>
+                    <li><span class="wal-bullet wal-bullet--triangle" aria-hidden="true"></span>Sin comisiones en compras dentro del ecosistema.</li>
+                    <li><span class="wal-bullet wal-bullet--circle" aria-hidden="true"></span>Beneficios en estudios y proveedores asociados.</li>
+                </ul>
+                <label class="wo-sr-only" for="wal-card-email">Tu correo</label>
+                <input class="wal-input wal-input--l" id="wal-card-email" type="email" autocomplete="email" required>
+                <p class="wal-quick-error" id="wal-card-error" role="alert" hidden></p>
+                <p class="wal-card-done" id="wal-card-done" role="status" hidden></p>
+                <button type="submit" class="wal-cta wal-cta--center" id="wal-card-submit">Avisame cuando esté disponible</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="aac-dialog" id="wal-fiscal-dialog" aria-labelledby="wal-fiscal-title">
+        <form method="dialog" class="aac-dialog-card" id="wal-fiscal-form">
+            <div class="aac-dialog-bar">
+                <h2 class="aac-dialog-bar-title" id="wal-fiscal-title" tabindex="-1" autofocus>Facturación e impuestos</h2>
+                <button type="button" class="aac-dialog-x" data-dialog-close="wal-fiscal-dialog" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body">
+                <p class="wal-form-help">Mantené tus datos fiscales actualizados y listos para tus retiros.</p>
+                <div class="wal-form-field">
+                    <label class="wal-eyebrow" for="aac-legal-name">Razón social / nombre fiscal</label>
+                    <input class="wal-input" id="aac-legal-name" type="text" autocomplete="off">
+                </div>
+                <div class="wal-form-field">
+                    <label class="wal-eyebrow" for="aac-tax-id">CUIT / identificación fiscal</label>
+                    <input class="wal-input" id="aac-tax-id" type="text" autocomplete="off" spellcheck="false">
+                </div>
+                <button type="submit" class="wal-cta wal-cta--center" id="aac-billing-save">Guardar datos fiscales</button>
+                <button type="button" class="wal-cancel" data-dialog-close="wal-fiscal-dialog">Cancelar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- ==================== Diálogos de disponibilidad, seguridad y recuperación ==================== -->
+    <dialog class="aac-dialog" id="av-travel-dialog" aria-labelledby="av-travel-title">
+        <form method="dialog" class="aac-dialog-card" id="av-travel-form" novalidate>
+            <div class="aac-dialog-bar">
+                <h2 class="aac-dialog-bar-title" id="av-travel-title" tabindex="-1" autofocus>Agregar destino Travel</h2>
+                <button type="button" class="aac-dialog-x" data-dialog-close="av-travel-dialog" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body">
+                <div class="wal-form-row">
+                    <div class="wal-form-field"><label class="wal-eyebrow" for="av-travel-city">Ciudad</label><input class="wal-input" id="av-travel-city" type="text" required></div>
+                    <div class="wal-form-field"><label class="wal-eyebrow" for="av-travel-studio">Estudio o lugar</label><input class="wal-input" id="av-travel-studio" type="text" required></div>
+                </div>
+                <div class="wal-form-row">
+                    <div class="wal-form-field"><label class="wal-eyebrow" for="av-travel-country">País</label><input class="wal-input" id="av-travel-country" type="text" autocomplete="country-name" placeholder="México"></div>
+                    <div class="wal-form-field"><label class="wal-eyebrow" for="av-travel-status">Agenda</label>
+                        <select class="wal-select" id="av-travel-status">
+                            <option value="open">Agenda abierta</option>
+                            <option value="waitlist">Lista de espera</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="wal-form-row">
+                    <div class="wal-form-field"><label class="wal-eyebrow" for="av-travel-start">Desde</label><input class="wal-input" id="av-travel-start" type="date" required></div>
+                    <div class="wal-form-field"><label class="wal-eyebrow" for="av-travel-end">Hasta</label><input class="wal-input" id="av-travel-end" type="date" required></div>
+                </div>
+                <p class="wal-form-help">Después definí los días y horarios con “Editar disponibilidad”. Para coordinar viaje, estudio y documentos usá <a href="/artist/travel">Travel</a>.</p>
+                <p class="wal-quick-error" id="av-travel-error" role="alert" hidden></p>
+                <button type="submit" class="wal-cta wal-cta--center">Agregar destino</button>
+                <button type="button" class="wal-cancel" data-dialog-close="av-travel-dialog">Cancelar</button>
+            </div>
         </form>
     </dialog>
 
     <dialog class="aac-dialog" id="aac-mfa-dialog" aria-labelledby="aac-mfa-dialog-title">
         <form method="dialog" class="aac-dialog-card" id="aac-mfa-form">
-            <div class="aac-dialog-head"><h2 class="aac-h2" id="aac-mfa-dialog-title">Autenticación en dos pasos</h2><button type="button" class="wo-iconbtn" data-dialog-close="aac-mfa-dialog" aria-label="Cerrar"><i data-wo-icon="x"></i></button></div>
-            <div id="aac-mfa-enrollment"></div>
-            <div class="wo-field"><label class="wo-label" for="aac-mfa-code">Código de 6 dígitos</label><input class="wo-input" id="aac-mfa-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></div>
-            <div class="aac-dialog-actions"><button type="button" class="wo-btn wo-btn--ghost" data-dialog-close="aac-mfa-dialog">Cancelar</button><button type="submit" class="wo-btn wo-btn--direct">Verificar y activar</button></div>
+            <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-mfa-dialog-title" tabindex="-1" autofocus>Autenticación en dos pasos</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-mfa-dialog" aria-label="Cerrar">×</button></div>
+            <div class="aac-dialog-body">
+                <div id="aac-mfa-enrollment"></div>
+                <div class="wal-form-field"><label class="wal-eyebrow" for="aac-mfa-code">Código de 6 dígitos</label><input class="wal-input" id="aac-mfa-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></div>
+                <button type="submit" class="wal-cta wal-cta--center">Verificar y activar</button>
+                <button type="button" class="wal-cancel" data-dialog-close="aac-mfa-dialog">Cancelar</button>
+            </div>
         </form>
     </dialog>
 
     <dialog class="aac-dialog" id="aac-delete-dialog" aria-labelledby="aac-delete-dialog-title">
         <form method="dialog" class="aac-dialog-card" id="aac-delete-form">
-            <div class="aac-dialog-head"><h2 class="aac-h2" id="aac-delete-dialog-title">Solicitar eliminación</h2><button type="button" class="wo-iconbtn" data-dialog-close="aac-delete-dialog" aria-label="Cerrar"><i data-wo-icon="x"></i></button></div>
-            <p>Registraremos la solicitud para que soporte la revise. Tu cuenta no se borra de inmediato.</p>
-            <div class="wo-field"><label class="wo-label" for="aac-delete-reason">Motivo (opcional)</label><textarea class="wo-textarea" id="aac-delete-reason" rows="3" maxlength="1000"></textarea></div>
-            <label class="aac-check"><input type="checkbox" id="aac-delete-confirm" required> Entiendo que la eliminación aprobada es permanente.</label>
-            <div class="aac-dialog-actions"><button type="button" class="wo-btn wo-btn--ghost" data-dialog-close="aac-delete-dialog">Cancelar</button><button type="submit" class="wo-btn wo-btn--danger">Enviar solicitud</button></div>
+            <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-delete-dialog-title" tabindex="-1" autofocus>Solicitar eliminación</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-delete-dialog" aria-label="Cerrar">×</button></div>
+            <div class="aac-dialog-body">
+                <p class="wal-confirm-text">Registramos la solicitud para que soporte la revise. Tu cuenta no se borra de inmediato.</p>
+                <div class="wal-form-field"><label class="wal-eyebrow" for="aac-delete-reason">Motivo (opcional)</label><textarea class="wal-input wal-textarea" id="aac-delete-reason" rows="3" maxlength="1000"></textarea></div>
+                <label class="aac-check"><input type="checkbox" id="aac-delete-confirm" required> Entiendo que la eliminación aprobada es permanente.</label>
+                <button type="submit" class="wal-cta wal-cta--center wal-cta--danger">Enviar solicitud</button>
+                <button type="button" class="wal-cancel" data-dialog-close="aac-delete-dialog">Cancelar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="aac-dialog" id="aac-phone-dialog" aria-labelledby="aac-phone-title">
+        <form method="dialog" class="aac-dialog-card" id="aac-phone-form" novalidate>
+            <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-phone-title" tabindex="-1" autofocus>Verificación telefónica</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-phone-dialog" aria-label="Cerrar">×</button></div>
+            <div class="aac-dialog-body">
+                <div class="wal-form-field"><label class="wal-eyebrow" for="aac-phone-number">Número de celular</label><input class="wal-input" id="aac-phone-number" type="tel" autocomplete="tel" placeholder="+54 9 11 1234 5678" required></div>
+                <div class="wal-form-field" id="aac-phone-code-field" hidden><label class="wal-eyebrow" for="aac-phone-code">Código que te enviamos por SMS</label><input class="wal-input" id="aac-phone-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+                <p class="wal-form-help" id="aac-phone-help">Te enviamos un código por SMS para confirmar el número.</p>
+                <p class="wal-quick-error" id="aac-phone-error" role="alert" hidden></p>
+                <button type="submit" class="wal-cta wal-cta--center" id="aac-phone-submit">Enviar código</button>
+                <button type="button" class="wal-cancel" data-dialog-close="aac-phone-dialog">Cancelar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="aac-dialog" id="aac-question-dialog" aria-labelledby="aac-question-title">
+        <form method="dialog" class="aac-dialog-card" id="aac-question-form" novalidate>
+            <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-question-title" tabindex="-1" autofocus>Pregunta de seguridad</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-question-dialog" aria-label="Cerrar">×</button></div>
+            <div class="aac-dialog-body">
+                <div class="wal-form-field"><label class="wal-eyebrow" for="aac-question-select">Pregunta</label>
+                    <select class="wal-select" id="aac-question-select">
+                        <option value="Nombre de tu primer estudio">Nombre de tu primer estudio</option>
+                        <option value="Ciudad donde hiciste tu primer tatuaje">Ciudad donde hiciste tu primer tatuaje</option>
+                        <option value="Nombre de tu primera mascota">Nombre de tu primera mascota</option>
+                        <option value="Apellido de tu maestro o maestra de tatuaje">Apellido de tu maestro o maestra de tatuaje</option>
+                    </select>
+                </div>
+                <div class="wal-form-field"><label class="wal-eyebrow" for="aac-question-answer">Respuesta</label><input class="wal-input" id="aac-question-answer" type="text" autocomplete="off" minlength="3" required></div>
+                <p class="wal-form-help">Guardamos la respuesta cifrada; nadie de We Ötzi puede leerla.</p>
+                <p class="wal-quick-error" id="aac-question-error" role="alert" hidden></p>
+                <button type="submit" class="wal-cta wal-cta--center">Guardar pregunta</button>
+                <button type="button" class="wal-cancel" data-dialog-close="aac-question-dialog">Cancelar</button>
+            </div>
         </form>
     </dialog>
 
@@ -492,10 +870,16 @@
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
-    <script src="/shared/js/data/account-repo.js"></script>
+    <script src="/shared/js/data/account-repo.js?v=20261030-1"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
-    <script src="/shared/js/artist-account.js"></script>
+    <script src="/shared/js/gallery-visibility.js?v=20261030-1"></script>
+    <script src="/shared/js/account-contact-model.js?v=20261030-1"></script>
+    <script src="/shared/js/wallet-model.js?v=20261028-3"></script>
+    <script src="/shared/js/account-availability-model.js?v=20261028-3"></script>
+    <script src="/shared/js/instagram-import.js"></script>
+    <script src="/shared/js/wallet-account.js?v=20261030-1"></script>
+    <script src="/shared/js/artist-account.js?v=20261030-1"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
 </html>

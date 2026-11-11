@@ -25,6 +25,8 @@
         'pendiente', 'pending',
         'confirmado', 'confirmada', 'confirmed',
     ]);
+    const FINISHED_STATUSES = new Set(['finalizado', 'finalizada', 'finished', 'completed', 'completado']);
+    const CANCELLED_STATUSES = new Set(['cancelado', 'cancelada', 'cancelled', 'canceled']);
     const CONFIRMED_LINK_STATUSES = new Set([
         'confirmada', 'confirmado', 'confirmed', 'accepted', 'aceptada', 'aceptado',
     ]);
@@ -92,6 +94,36 @@
                 if (leftEnd !== rightEnd) return leftEnd - rightEnd;
                 return String(left.id || '').localeCompare(String(right.id || ''));
             });
+    }
+
+    // Figma final 801:1076: el globo dibuja todas las paradas de la vista
+    // (confirmadas, pendientes y también las finalizadas, en gris), no solo
+    // los próximos destinos. Se excluyen las canceladas y las fechas inválidas.
+    // Orden: próximos primero (en curso, luego por fecha) y después el
+    // historial del más reciente al más antiguo.
+    function buildGlobeDestinations(trips, { today = new Date() } = {}) {
+        const todayDay = dayOrdinal(today);
+        if (todayDay == null) return [];
+        const upcoming = buildUpcomingDestinations(trips, { today });
+        const upcomingRows = new Set(upcoming);
+        const past = (Array.isArray(trips) ? trips : [])
+            .filter(function (trip) {
+                if (!trip || upcomingRows.has(trip)) return false;
+                const status = normalized(trip.status);
+                if (CANCELLED_STATUSES.has(status) || trip.cancelled_at) return false;
+                const startDay = dayOrdinal(trip.start_date);
+                const endDay = dayOrdinal(trip.end_date) ?? startDay;
+                if (startDay == null || endDay == null || endDay < startDay) return false;
+                return FINISHED_STATUSES.has(status) || UPCOMING_STATUSES.has(status);
+            })
+            .slice()
+            .sort(function (left, right) {
+                const leftStart = dayOrdinal(left.start_date);
+                const rightStart = dayOrdinal(right.start_date);
+                if (leftStart !== rightStart) return rightStart - leftStart;
+                return String(left.id || '').localeCompare(String(right.id || ''));
+            });
+        return upcoming.concat(past);
     }
 
     function createDestinationNavigator(destinations, initialDestinationId) {
@@ -194,8 +226,13 @@
             })
             .map(destinationCoordinateKey));
         const queued = new Set();
+        // includePast: también geocodifica las paradas finalizadas que el
+        // globo dibuja en gris (los próximos destinos quedan primero en la cola).
+        const source = options && options.includePast
+            ? buildGlobeDestinations(trips, options)
+            : buildUpcomingDestinations(trips, options);
 
-        return buildUpcomingDestinations(trips, options).reduce(function (queries, trip) {
+        return source.reduce(function (queries, trip) {
             const key = destinationCoordinateKey(trip);
             if (!key || known.has(key) || queued.has(key)) return queries;
             queued.add(key);
@@ -216,6 +253,7 @@
 
     return {
         buildUpcomingDestinations,
+        buildGlobeDestinations,
         createDestinationNavigator,
         buildDestinationMetrics,
         buildMissingDestinationQueries,

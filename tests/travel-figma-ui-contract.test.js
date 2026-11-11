@@ -37,12 +37,13 @@ test('Travel hero renders every Figma metric from persisted fields', () => {
     const script = read('public/shared/js/artist-travel.js');
     const model = read('public/shared/js/travel-dashboard-model.js');
 
+    // Figma 801:1076 corta las etiquetas en dos líneas ("Días de / estadía").
     for (const label of [
         'Días restantes',
-        'Personas interesadas',
-        'Días de estadía',
-        'Clima en',
-        'Estudios donde tatuarás',
+        'Personas<br>interesadas',
+        'Días de<br>estadía',
+        'Clima en<br>',
+        'Estudios<br>donde tatuarás',
     ]) assert.match(page, new RegExp(label, 'i'), label);
 
     assert.match(page, /id="tv-stat-interested"/i);
@@ -82,7 +83,10 @@ test('Travel dialogs preserve keyboard focus and responsive content', () => {
     assert.match(page, /aria-modal="true"/i);
     assert.match(page, /<label[^>]*for="tvs-url"[^>]*>[^<]*Enlace público del itinerario[^<]*<\/label>/i);
     assert.match(page, /id="tvs-url"[^>]*readonly[^>]*disabled/i);
-    assert.match(page, /id="tvs-copy"[^>]*data-modal-initial-focus/i);
+    // Figma 801:1077–801:1084: los diálogos abren sin un campo enfocado; el foco va al diálogo.
+    assert.doesNotMatch(page, /data-modal-initial-focus/i);
+    assert.match(script, /dialog\?\.focus\(\{ preventScroll: true \}\)/);
+    assert.match(script, /document\.activeElement === dialog/);
     assert.match(script, /Escape/);
     assert.match(script, /Tab/);
     assert.match(script, /focus(?:able|ables|Selector|Trap)/i);
@@ -94,12 +98,16 @@ test('Travel dialogs preserve keyboard focus and responsive content', () => {
     assert.match(script, /focusViewTarget\('tvd-title'\)/i);
     assert.match(script, /act === 'reactivate'[\s\S]*?await refreshDetail\(\);\s*focusViewTarget\('tvd-title'\);\s*} else if \(act === 'edit-field'\)/i);
     assert.match(script, /STATUS_TAG_CLASS\[detailStatus\][\s\S]*STATUS_LABELS\[detailStatus\]/i);
-    assert.match(script, /\['tv-modal-edit', 'tv-modal-dates', 'tv-modal-link', 'tv-modal-share', 'tv-modal-cancel'\]\.includes\(id\)[\s\S]*setDetailHeaderStatus\('confirmado'\)/i);
+    // El estado del encabezado siempre refleja el dato real (antes se forzaba
+    // "Confirmado" al abrir un modal para imitar el Figma anterior).
+    assert.doesNotMatch(script, /setDetailHeaderStatus\('confirmado'\)/i);
     assert.match(script, /id="tvd-status-tag"/i);
     assert.match(script, /guest_spot:\s*'Guest Spot'/i);
     assert.match(page, /<weotzi-travel-globe\b[^>]*id="tv-globe"/i);
     assert.match(script, /setTravelData\s*\(/);
-    assert.match(script, /https:\/\/weotzi\.com\/travel\/t\//i);
+    // El enlace público lo sirve la app (/travel/t/:slug), no el sitio corporativo.
+    assert.doesNotMatch(script, /https:\/\/weotzi\.com\/travel\/t\//i);
+    assert.match(script, /window\.location\.origin\}\$\{travelPrefix\(\)\}\/travel\/t\//);
     assert.match(script, /Agregar tarea…/);
     assert.match(script, /data-act="doc-del"[^>]*data-doc=/i);
     assert.match(script, /Teléfono \/ contacto/i);
@@ -107,7 +115,7 @@ test('Travel dialogs preserve keyboard focus and responsive content', () => {
     assert.match(script, /Tus notas/i);
     assert.match(css, /\.tvs-title:focus,\.tvd-title:focus\{outline:none\}/i);
     assert.match(css, /body\.wo-app\{margin:0\}/i);
-    assert.match(css, /\.tvl-shell\{width:100%;max-width:1688px;padding:40px 44px 0\}/i);
+    assert.match(css, /\.tvl-shell\{width:100%;max-width:1368px;margin-inline:auto;padding:40px 44px 0\}/i);
     assert.doesNotMatch(css, /\.wo-app \.wo-oam-badge\{display:none\}/i);
     assert.match(css, /\.wo-app \.wo-btn--direct\{background:var\(--blue-300\);border-color:var\(--blue-300\)\}/i);
     assert.match(css, /#tv-modal-create\{align-items:flex-start;padding:275px 24px 24px\}/i);

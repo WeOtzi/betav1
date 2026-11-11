@@ -1,88 +1,185 @@
 // ================================================================
-// WE OTZI - INVITACIONES DEL ARTISTA
-// Figma: 42:6903, 120:9027, 120:10391, 120:10117, 120:10676
-// Datos: studio_artist_memberships + invitation_details embebido.
+// WE OTZI - INVITACIONES DEL ARTISTA (/artist/invitations)
+// Figma final del flujo de artista (oct 2026), archivo w3JA83CcP5ISKjyOu87mx1:
+//   801:540  listado · 801:541 detalle y condiciones
+//   801:1101 solicitar cambios · 801:1102 aceptada · 801:1103 rechazada
+//   2007:5792/5793 mapa (invitations-map.js) · 2007:5794 estudio y
+//   2007:5795 escribir al estudio (invitations-studio.js)
+//
+// Rutas internas (parámetros de URL, también útiles para QA):
+//   ?invitacion=<membership_id>[&drawer=cambios|aceptada|rechazada]
+//   ?vista=mapa[&estudio=<studio_id>][&grupo=<studio_id>,<studio_id>…]
+//   ?estudio=<studio_id>[&contactar=1]
+// Datos: WeotziData.StudioMemberships (+ invitation_details embebido) y
+// WeotziData.Invitations (invitations-repo.js).
 // ================================================================
 
 (function () {
     'use strict';
 
-    const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnfu.supabase.co';
-    const supabaseKey = window.CONFIG?.supabase?.anonKey
-        || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
-    if (!window._supabase) window._supabase = supabase.createClient(supabaseUrl, supabaseKey);
-    const _supabase = window._supabase;
+    const M = window.WoInvitationsModel;
+    const D = window.WeotziData || {};
+    const PLACEHOLDER = '—';
 
-    const FIGMA_FEATURE_IMAGE = '/shared/assets/figma/opportunities/invitation-bang-bang.jpeg';
-    const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const COMPACT_MENU_QUERY = window.matchMedia('(min-width: 80rem)');
+    const state = {
+        userId: null,
+        items: [],
+        contacts: [],
+        loaded: false,
+        activeTab: 'all',
+        sortMode: 'recent',
+        searchTerm: '',
+        detailTab: 'roster',
+        current: null,
+        returnFocus: null,
+    };
 
-    // Fallbacks para filas historicas anteriores al contrato invitation_details.
-    // El embed administrable siempre tiene prioridad sobre estos textos Figma.
-    const FIGMA_DETAIL_DEFAULTS = Object.freeze({
-        styles: ['Blackwork', 'Dotwork'],
-        response_due_at: '2026-08-03T12:00:00Z',
-        proposed_start_date: '2026-08-01',
-        duration_label: 'Indefinida — miembro estable del roster',
-        benefits: ['Materiales incluidos', 'Piso mínimo garantizado'],
-        studio_provides: [
-            'Materiales e insumos de bioseguridad',
-            'Piso mínimo garantizado los primeros 3 meses',
-            'Difusión en redes del estudio',
-            'Agenda gestionada por recepción'
-        ],
-        artist_expectations: [
-            'Disponibilidad de al menos 4 días por semana',
-            'Buen manejo de blackwork y dotwork',
-            'Compromiso con la agenda y los tiempos del estudio'
-        ],
-        requirements: [
-            'Portfolio activo en el Job Board',
-            'Mínimo 2 años de experiencia profesional',
-            'Residencia legal o permiso de trabajo en Argentina'
-        ],
-        acceptance_steps: [
-            'Coordinamos tu primera semana de agenda',
-            'Te sumamos al grupo del estudio',
-            'Firmamos el acuerdo de roster'
-        ],
-        contact_name: 'Nico Ferro',
-        contact_email: 'nico@fierronegrotattoo.com',
-        contact_title: 'Fundador, Fierro Negro Tattoo',
-        message: 'Vimos tu portfolio en el Job Board y creemos que encajás con la casa. Nos encantaría sumarte al roster.',
-        split_artist_pct: 60
-    });
+    /* ----------------------------- utilidades ----------------------------- */
+    function basePath() {
+        return window.WEOTZI_BASE_PATH ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '') : '';
+    }
 
-    let userId = null;
-    let items = [];
-    let activeTab = 'all';
-    let sortMode = 'recent';
-    let searchTerm = '';
-    let currentItem = null;
-    let drawerReturnFocus = null;
+    function appUrl(path) {
+        const value = String(path || '/');
+        if (!value.startsWith('/') || value.startsWith('//')) return value;
+        const base = basePath();
+        return base && !value.startsWith(base + '/') ? base + value : value;
+    }
 
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function cssUrl(value) {
+        return String(value).replace(/["'()\\\s]/g, (ch) => encodeURIComponent(ch));
+    }
+
+    function icon(name, extra) {
+        return `<i data-wo-icon="${name}"${extra ? ` class="${extra}"` : ''} aria-hidden="true"></i>`;
+    }
+
+    function studioOf(membership) { return (membership && (membership.studios || membership.studio)) || {}; }
+    function studioName(membership) { return studioOf(membership).name || 'Estudio'; }
+    function locationOf(membership) { return (membership && membership.location) || {}; }
+
+    function cityOf(membership) {
+        const location = locationOf(membership);
+        return location.city || location.label || studioOf(membership).city || '';
+    }
+
+    function locationText(membership) {
+        const location = locationOf(membership);
+        return [location.city, location.country].filter(Boolean).join(', ')
+            || location.formatted_address || studioOf(membership).city || '';
+    }
+
+    function detailsOf(membership) {
+        const raw = Array.isArray(membership && membership.invitation_details)
+            ? (membership.invitation_details[0] || {})
+            : ((membership && membership.invitation_details) || {});
+        const split = M.numberOrNull(raw.split_artist_pct != null ? raw.split_artist_pct : membership && membership.revenue_split_pct);
+        return {
+            isFeatured: raw.is_featured === true,
+            styles: M.toList(raw.styles || raw.specialty_styles),
+            responseDueAt: raw.response_due_at || raw.deadline_at || null,
+            startDate: raw.proposed_start_date || raw.start_date || null,
+            duration: M.text(raw.duration_label || raw.duration),
+            benefits: M.toList(raw.benefits || raw.benefits_summary),
+            provides: M.toList(raw.studio_provides || raw.studio_includes),
+            expectations: M.toList(raw.artist_expectations),
+            requirements: M.toList(raw.requirements),
+            steps: M.toList(raw.acceptance_steps),
+            contactName: M.text(raw.contact_name),
+            contactEmail: M.text(raw.contact_email),
+            contactTitle: M.text(raw.contact_title),
+            message: M.text(raw.message) || M.text(membership && membership.notes),
+            split,
+        };
+    }
+
+    function eventDate(membership) {
+        if (membership._state === 'active') return membership.started_at || membership.invited_at || null;
+        if (membership._state === 'rejected') return membership.ended_at || membership.invited_at || null;
+        return membership.invited_at || membership.created_at || null;
+    }
+
+    function styleMeta(membership) {
+        return [cityOf(membership)].concat(detailsOf(membership).styles).filter(Boolean).join(' · ');
+    }
+
+    function termsLine(membership) {
+        const details = detailsOf(membership);
+        const parts = [];
+        if (details.split != null) {
+            const artist = Math.round(details.split);
+            parts.push(`${100 - artist}/${artist} comisión`);
+        }
+        return parts.concat(details.benefits).join(' · ');
+    }
+
+    function countBy(stateName) { return state.items.filter((item) => item._state === stateName).length; }
+
+    function findItem(id) { return state.items.find((item) => String(item.id) === String(id)) || null; }
+
+    function membershipForStudio(studioId) {
+        const rows = state.items.filter((item) => String(studioOf(item).id || item.studio_id) === String(studioId));
+        return rows.sort((a, b) => M.dateValue(b.invited_at) - M.dateValue(a.invited_at))[0] || null;
+    }
+
+    function contactForStudio(studioId) {
+        return M.contactsByStudio(state.contacts)[String(studioId)] || null;
+    }
+
+    /* ------------------------------ arranque ------------------------------ */
     document.addEventListener('DOMContentLoaded', async () => {
         setupMobileMenu();
-        const { data: { session } } = await _supabase.auth.getSession();
-        if (!session) {
-            window.location.href = '/artist/login?returnTo=' + encodeURIComponent('/artist/invitations');
+        wireStaticControls();
+        const client = await resolveClient();
+        if (!client || !M) {
+            renderLoadError('No pudimos cargar las invitaciones en este momento.');
             return;
         }
-        userId = session.user.id;
+        let session = null;
+        try {
+            const { data } = await client.auth.getSession();
+            session = data && data.session;
+        } catch (error) {
+            console.warn('[invitaciones] session:', error);
+        }
+        if (!session) {
+            const returnTo = '/artist/invitations' + window.location.search;
+            window.location.href = appUrl('/artist/login?returnTo=' + encodeURIComponent(returnTo));
+            return;
+        }
+        state.userId = session.user.id;
         document.getElementById('auth-logout')?.classList.remove('hidden');
-        wireLogout();
-        wireControls();
-        window.addEventListener('popstate', () => openFromQuery({ push: false }));
+        wireLogout(client);
+        window.addEventListener('popstate', () => route({ fromHistory: true }));
         await load();
+        route({ initial: true });
     });
 
-    function wireLogout() {
+    // config-manager.js crea el cliente singleton de forma asíncrona (lee la
+    // configuración remota): esperamos a que esté listo en vez de crear otro.
+    async function resolveClient() {
+        const start = Date.now();
+        while (Date.now() - start < 6000) {
+            const manager = window.ConfigManager;
+            const client = (manager && typeof manager.getSupabaseClient === 'function' && manager.getSupabaseClient()) || window._supabase;
+            if (client) return client;
+            await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+        return typeof D.getClient === 'function' ? D.getClient() : null;
+    }
+
+    function wireLogout(client) {
         const button = document.getElementById('auth-logout');
         if (!button) return;
         button.addEventListener('click', async () => {
-            try { await _supabase.auth.signOut(); } catch (error) { console.warn('[invitaciones] logout:', error); }
-            window.location.href = '/artist/login?returnTo=%2Fartist%2Finvitations';
+            try { await client.auth.signOut(); } catch (error) { console.warn('[invitaciones] logout:', error); }
+            window.location.href = appUrl('/artist/login?returnTo=%2Fartist%2Finvitations');
         });
     }
 
@@ -90,10 +187,7 @@
         const toggle = document.getElementById('inv-mobile-menu-toggle');
         const menu = document.getElementById('inv-mobile-menu');
         if (!toggle || !menu) return;
-        const close = () => {
-            menu.hidden = true;
-            toggle.setAttribute('aria-expanded', 'false');
-        };
+        const close = () => { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); };
         close();
         toggle.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -104,119 +198,172 @@
         document.addEventListener('click', (event) => {
             if (!menu.hidden && !menu.contains(event.target) && !toggle.contains(event.target)) close();
         });
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') close();
-        });
-        COMPACT_MENU_QUERY.addEventListener?.('change', (event) => {
-            if (event.matches) close();
-        });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
     }
 
     async function load() {
-        const repo = window.WeotziData?.StudioMemberships;
+        const repo = D.StudioMemberships;
         if (!repo) {
             renderLoadError('No pudimos cargar las invitaciones en este momento.');
             return;
         }
-        const [pending, active, rejected] = await Promise.all([
-            repo.listPendingForArtist(userId),
-            repo.listActiveForArtist(userId),
-            typeof repo.listRejectedForArtist === 'function'
-                ? repo.listRejectedForArtist(userId)
-                : Promise.resolve({ data: [], error: null })
+        const safe = async (fn) => {
+            try { return (await fn()) || { data: [], error: null }; } catch (error) { return { data: [], error }; }
+        };
+        const [pending, active, rejected, contacts] = await Promise.all([
+            safe(() => repo.listPendingForArtist(state.userId)),
+            safe(() => repo.listActiveForArtist(state.userId)),
+            safe(() => (typeof repo.listRejectedForArtist === 'function' ? repo.listRejectedForArtist(state.userId) : null)),
+            safe(() => (D.Invitations ? D.Invitations.listStudioContacts() : null)),
         ]);
         const firstError = pending.error || active.error || rejected.error;
         if (firstError) {
-            renderLoadError(firstError.message);
-            return;
+            renderLoadError(firstError.message || 'No pudimos cargar las invitaciones.');
+            state.items = [];
+        } else {
+            state.items = [
+                ...(pending.data || []).map((m) => ({ ...m, _state: 'pending' })),
+                ...(active.data || []).map((m) => ({ ...m, _state: 'active' })),
+                ...(rejected.data || []).map((m) => ({ ...m, _state: 'rejected' })),
+            ];
         }
-        items = [
-            ...(pending.data || []).map((membership) => ({ ...membership, _state: 'pending' })),
-            ...(active.data || []).map((membership) => ({ ...membership, _state: 'active' })),
-            ...(rejected.data || []).map((membership) => ({ ...membership, _state: 'rejected' }))
-        ];
+        state.contacts = contacts.error ? [] : (contacts.data || []);
+        state.loaded = true;
         renderHero();
         renderIndex();
         renderList();
-        openFromQuery({ push: false });
+    }
+
+    async function refreshContacts() {
+        if (!D.Invitations) return state.contacts;
+        const result = await D.Invitations.listStudioContacts();
+        if (!result.error) state.contacts = result.data || [];
+        return state.contacts;
     }
 
     function renderLoadError(message) {
         const list = document.getElementById('invitations-list');
-        if (list) list.innerHTML = `<div class="wo-alert wo-alert--error">${escapeHtml(message)}</div>`;
+        if (list) list.innerHTML = `<p class="inv-alert" role="alert">${escapeHtml(message)}</p>`;
     }
 
-    function countBy(state) {
-        return items.filter((membership) => membership._state === state).length;
+    /* ------------------------------- router ------------------------------- */
+    const ROUTE_KEYS = ['invitacion', 'drawer', 'vista', 'estudio', 'grupo', 'contactar'];
+
+    function params() { return new URLSearchParams(window.location.search); }
+
+    function navigate(next, options = {}) {
+        const url = new URL(window.location.href);
+        ROUTE_KEYS.forEach((key) => url.searchParams.delete(key));
+        Object.entries(next || {}).forEach(([key, value]) => {
+            if (value != null && value !== '') url.searchParams.set(key, value);
+        });
+        if (window.history && window.history.pushState) {
+            if (options.replace) window.history.replaceState(null, '', url);
+            else window.history.pushState(null, '', url);
+            route({ preserveScroll: options.preserveScroll });
+        } else {
+            window.location.href = url.toString();
+        }
     }
 
-    function eventDate(membership) {
-        if (membership._state === 'active') return membership.started_at || membership.invited_at || null;
-        if (membership._state === 'rejected') return membership.rejected_at || membership.ended_at || membership.invited_at || null;
-        return membership.invited_at || membership.created_at || null;
+    function hrefFor(next) {
+        const url = new URL(window.location.href);
+        ROUTE_KEYS.forEach((key) => url.searchParams.delete(key));
+        Object.entries(next || {}).forEach(([key, value]) => { if (value != null && value !== '') url.searchParams.set(key, value); });
+        return url.pathname + url.search;
     }
 
-    function studioOf(membership) { return membership?.studios || membership?.studio || {}; }
-    function studioName(membership) { return studioOf(membership).name || 'Estudio'; }
-    function locationOf(membership) { return membership?.location || {}; }
-
-    function locationText(membership) {
-        const location = locationOf(membership);
-        return [location.city, location.country].filter(Boolean).join(', ')
-            || location.formatted_address || location.label || studioOf(membership).city || '';
+    function showView(name) {
+        const views = { feed: 'inv-feed-view', detail: 'inv-detail-view', map: 'inv-map-view', studio: 'inv-studio-view' };
+        Object.entries(views).forEach(([key, id]) => {
+            const node = document.getElementById(id);
+            if (node) node.hidden = key !== name;
+        });
+        document.body.dataset.invView = name;
     }
 
-    function cityOf(membership) {
-        const location = locationOf(membership);
-        return location.city || location.label || studioOf(membership).city || '';
+    function route(options = {}) {
+        if (!state.loaded) return;
+        const query = params();
+        closeDrawer({ restoreFocus: false });
+        if (query.get('vista') === 'mapa') {
+            window.WoInvitationsStudio?.hide();
+            showView('map');
+            window.WoInvitationsMap?.show({
+                studioId: query.get('estudio'),
+                groupIds: (query.get('grupo') || '').split(',').map((id) => id.trim()).filter(Boolean),
+            });
+        } else if (query.get('estudio')) {
+            window.WoInvitationsMap?.hide();
+            showView('studio');
+            window.WoInvitationsStudio?.show(query.get('estudio'), { contact: query.get('contactar') === '1' });
+        } else if (query.get('invitacion')) {
+            window.WoInvitationsMap?.hide();
+            window.WoInvitationsStudio?.hide();
+            const item = findItem(query.get('invitacion'));
+            if (!item) { navigate({}, { replace: true }); return; }
+            showView('detail');
+            renderDetail(item);
+            openDrawerFromQuery(item, query.get('drawer'));
+        } else {
+            window.WoInvitationsMap?.hide();
+            window.WoInvitationsStudio?.hide();
+            state.current = null;
+            showView('feed');
+        }
+        if (!options.preserveScroll && !options.initial) window.scrollTo({ top: 0, behavior: 'auto' });
     }
 
-    function detailsOf(membership) {
-        const embedded = Array.isArray(membership?.invitation_details)
-            ? (membership.invitation_details[0] || {})
-            : (membership?.invitation_details || {});
-        const styles = toList(embedded.styles || embedded.specialty_styles);
-        const benefits = toList(embedded.benefits || embedded.benefits_summary);
-        const split = numberOrNull(embedded.split_artist_pct ?? membership?.revenue_split_pct);
-        return {
-            ...embedded,
-            is_featured: embedded.is_featured === true,
-            styles: styles.length ? styles : [...FIGMA_DETAIL_DEFAULTS.styles],
-            response_due_at: embedded.response_due_at || embedded.deadline_at || FIGMA_DETAIL_DEFAULTS.response_due_at,
-            proposed_start_date: embedded.proposed_start_date || embedded.start_date || FIGMA_DETAIL_DEFAULTS.proposed_start_date,
-            duration_label: embedded.duration_label || embedded.duration || FIGMA_DETAIL_DEFAULTS.duration_label,
-            benefits: benefits.length ? benefits : [...FIGMA_DETAIL_DEFAULTS.benefits],
-            studio_provides: listOrFallback(embedded.studio_provides || embedded.studio_includes, FIGMA_DETAIL_DEFAULTS.studio_provides),
-            artist_expectations: listOrFallback(embedded.artist_expectations, FIGMA_DETAIL_DEFAULTS.artist_expectations),
-            requirements: listOrFallback(embedded.requirements, FIGMA_DETAIL_DEFAULTS.requirements),
-            acceptance_steps: listOrFallback(embedded.acceptance_steps, FIGMA_DETAIL_DEFAULTS.acceptance_steps),
-            contact_name: embedded.contact_name || FIGMA_DETAIL_DEFAULTS.contact_name,
-            contact_email: embedded.contact_email || FIGMA_DETAIL_DEFAULTS.contact_email,
-            contact_title: embedded.contact_title || FIGMA_DETAIL_DEFAULTS.contact_title,
-            message: embedded.message || membership?.notes || FIGMA_DETAIL_DEFAULTS.message,
-            split_artist_pct: split == null ? FIGMA_DETAIL_DEFAULTS.split_artist_pct : split
-        };
+    function openDrawerFromQuery(item, drawer) {
+        if (drawer === 'cambios' && item._state === 'pending') showChangeRequestDrawer(item, null);
+        else if (drawer === 'aceptada' && item._state === 'active') showAcceptedDrawer(item, null);
+        else if (drawer === 'rechazada' && item._state === 'rejected') showRejectedDrawer(item, null);
     }
 
-    function styleMeta(membership) {
-        return [cityOf(membership), ...detailsOf(membership).styles].filter(Boolean).join(' · ');
-    }
-
-    function termsLine(membership) {
-        const details = detailsOf(membership);
-        const artistPct = Math.round(details.split_artist_pct);
-        return [`${100 - artistPct}/${artistPct} comisión`, ...details.benefits].filter(Boolean).join(' · ');
+    /* ------------------------------- listado ------------------------------- */
+    function wireStaticControls() {
+        document.querySelectorAll('#inv-tabs [data-tab]').forEach((button) => {
+            button.addEventListener('click', () => {
+                state.activeTab = button.dataset.tab;
+                document.querySelectorAll('#inv-tabs [data-tab]').forEach((candidate) => {
+                    const selected = candidate === button;
+                    candidate.classList.toggle('is-active', selected);
+                    candidate.setAttribute('aria-selected', String(selected));
+                });
+                renderList();
+            });
+        });
+        const sort = document.getElementById('inv-sort');
+        sort?.addEventListener('change', () => {
+            state.sortMode = sort.value;
+            sort.classList.toggle('has-value', sort.value !== 'recent');
+            renderList();
+        });
+        document.getElementById('inv-search')?.addEventListener('input', (event) => {
+            state.searchTerm = M ? M.normalize(event.target.value) : String(event.target.value || '').toLowerCase();
+            renderList();
+        });
+        document.addEventListener('click', (event) => {
+            const link = event.target.closest('[data-inv-nav]');
+            if (!link || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.button > 0) return;
+            event.preventDefault();
+            const target = link.dataset.invNav;
+            if (target === 'map') navigate({ vista: 'mapa' });
+            else if (target === 'feed') navigate({});
+            else if (target === 'studio') navigate({ estudio: link.dataset.studio });
+            else if (target === 'invitation') navigate({ invitacion: link.dataset.invitation });
+        });
     }
 
     function renderHero() {
-        const editionDate = [...items].map(eventDate).filter(Boolean).map(parseDate)
-            .filter((date) => date && !Number.isNaN(date.getTime())).sort((a, b) => b - a)[0] || new Date();
+        const dates = state.items.map(eventDate).map(M.parseDate).filter(Boolean).sort((a, b) => b - a);
+        const edition = dates[0] || new Date();
         const eyebrow = document.getElementById('inv-eyebrow');
-        if (eyebrow) eyebrow.textContent = `Invitaciones · Edición ${MONTHS[editionDate.getMonth()]} ${editionDate.getFullYear()}`;
-        const countEl = document.getElementById('inv-count');
-        if (countEl) countEl.textContent = String(items.length).padStart(2, '0');
-        const subEl = document.getElementById('inv-sub');
-        if (subEl) subEl.textContent = summarySentence();
+        if (eyebrow) eyebrow.textContent = `Invitaciones · Edición ${M.MONTHS[edition.getMonth()]} ${edition.getFullYear()}`;
+        const count = document.getElementById('inv-count');
+        if (count) count.textContent = String(state.items.length).padStart(2, '0');
+        const sub = document.getElementById('inv-sub');
+        if (sub) sub.textContent = summarySentence();
     }
 
     function summarySentence() {
@@ -232,72 +379,64 @@
         return `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}.`;
     }
 
+    // Invitación del mes: se elige sobre todas las invitaciones (no sobre lo
+    // filtrado), así un filtro o una búsqueda nunca promueve otra pendiente.
+    function featuredItem() {
+        return M.featuredInvitation(state.items, (item) => detailsOf(item).isFeatured, eventDate);
+    }
+
     function renderIndex() {
         const nav = document.getElementById('inv-index');
         if (!nav) return;
-        const ordered = [...items].sort((a, b) => dateValue(eventDate(b)) - dateValue(eventDate(a)));
-        nav.innerHTML = ordered.map((membership, index) => `
-            <button type="button" class="inv-index-item" data-open="${escapeAttr(membership.id)}">
-                <span class="inv-index-name"><i class="inv-dot inv-dot--${escapeAttr(membership._state)}" aria-hidden="true"></i><span>${String(index + 1).padStart(2, '0')} ${escapeHtml(studioName(membership))}</span></span>
+        const ordered = M.indexOrder(state.items, featuredItem(), eventDate);
+        nav.innerHTML = ordered.map((membership, index) => {
+            const number = String(index + 1).padStart(2, '0');
+            const full = studioName(membership);
+            return `
+            <button type="button" class="inv-index-item" data-open="${escapeHtml(membership.id)}" title="${escapeHtml(full)}" aria-label="${escapeHtml(`${number} ${full}, ${cityOf(membership)}`)}">
+                <span class="inv-index-name"><i class="inv-dot inv-dot--${escapeHtml(membership._state)}" aria-hidden="true"></i><span>${number} ${escapeHtml(M.shortStudioName(full))}</span></span>
                 <span class="inv-index-city">${escapeHtml(cityOf(membership))}</span>
-            </button>`).join('');
+            </button>`;
+        }).join('');
         nav.querySelectorAll('[data-open]').forEach((button) => {
-            button.addEventListener('click', () => openDetailById(button.dataset.open));
-        });
-    }
-
-    function wireControls() {
-        document.querySelectorAll('#inv-tabs [data-tab]').forEach((button) => {
-            button.addEventListener('click', () => {
-                activeTab = button.dataset.tab;
-                document.querySelectorAll('#inv-tabs [data-tab]').forEach((candidate) => {
-                    const selected = candidate === button;
-                    candidate.classList.toggle('is-active', selected);
-                    candidate.setAttribute('aria-selected', String(selected));
-                });
-                renderList();
-            });
-        });
-        document.getElementById('inv-sort')?.addEventListener('change', (event) => {
-            sortMode = event.target.value;
-            renderList();
-        });
-        document.getElementById('inv-search')?.addEventListener('input', (event) => {
-            searchTerm = event.target.value.trim().toLocaleLowerCase('es');
-            renderList();
-        });
-        document.getElementById('inv-preferences')?.addEventListener('click', () => {
-            window.location.href = '/artist/account?section=notifications';
+            button.addEventListener('click', () => navigate({ invitacion: button.dataset.open }));
         });
     }
 
     function visibleItems() {
-        let visible = items.filter((membership) => activeTab === 'all' || membership._state === activeTab);
-        if (searchTerm) {
-            visible = visible.filter((membership) =>
-                studioName(membership).toLocaleLowerCase('es').includes(searchTerm)
-                || locationText(membership).toLocaleLowerCase('es').includes(searchTerm));
+        let visible = state.items.filter((item) => state.activeTab === 'all' || item._state === state.activeTab);
+        if (state.searchTerm) {
+            visible = visible.filter((item) => M.normalize(studioName(item)).includes(state.searchTerm)
+                || M.normalize(locationText(item)).includes(state.searchTerm));
         }
-        if (sortMode === 'oldest') visible.sort((a, b) => dateValue(eventDate(a)) - dateValue(eventDate(b)));
-        else if (sortMode === 'studio') visible.sort((a, b) => studioName(a).localeCompare(studioName(b), 'es'));
-        else visible.sort((a, b) => dateValue(eventDate(b)) - dateValue(eventDate(a)));
         return visible;
     }
 
     function renderList() {
         const list = document.getElementById('invitations-list');
-        if (!list) return;
+        if (!list || !state.loaded) return;
         const visible = visibleItems();
         if (!visible.length) {
-            list.innerHTML = `<div class="wo-empty"><i data-wo-icon="mail" aria-hidden="true"></i><span class="wo-empty-title">No hay invitaciones para mostrar</span><p>Cuando un estudio te quiera en su roster, la invitación va a aparecer acá.</p></div>`;
+            const filtered = state.items.length > 0;
+            list.innerHTML = `<div class="inv-empty"><strong>${filtered ? 'No hay invitaciones con estos filtros' : 'Todavía no hay invitaciones'}</strong><p>${filtered
+                ? 'Probá con otra pestaña o borrá la búsqueda.'
+                : 'Cuando un estudio te quiera en su roster, la invitación va a aparecer acá. Mientras tanto, explorá el mapa de estudios.'}</p></div>`;
             return;
         }
-        const pending = visible.filter((membership) => membership._state === 'pending');
-        const active = visible.filter((membership) => membership._state === 'active');
-        const rejected = visible.filter((membership) => membership._state === 'rejected');
-        const feature = pending.find((membership) => detailsOf(membership).is_featured) || pending[0];
-        const otherPending = pending.filter((membership) => membership !== feature);
-        list.innerHTML = [feature ? renderFeature(feature) : '', ...active.map(renderMember), ...otherPending.map(renderRow), ...rejected.map(renderRejected)].join('');
+        // 'Ordenar' por defecto = bloques del Figma; con otro orden, una sola lista
+        // ordenada de punta a punta (sin tarjeta del mes).
+        const layout = M.listLayout(visible, {
+            sortMode: state.sortMode,
+            featured: featuredItem(),
+            dateOf: eventDate,
+            nameOf: studioName,
+        });
+        const renderByState = (item) => (item._state === 'active' ? renderMember(item)
+            : item._state === 'rejected' ? renderRejected(item) : renderRow(item));
+        list.innerHTML = [
+            layout.feature ? renderFeature(layout.feature) : '',
+            ...layout.items.map(renderByState),
+        ].join('');
         list.querySelectorAll('[data-action]').forEach((button) => {
             button.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -306,364 +445,411 @@
             });
         });
         list.querySelectorAll('[data-open-card]').forEach((card) => {
-            const open = () => openDetailById(card.dataset.openCard);
+            const open = () => navigate({ invitacion: card.dataset.openCard });
             card.addEventListener('click', (event) => {
                 if (!event.target.closest('button, a, input, select, textarea')) open();
             });
             card.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    open();
-                }
+                if (event.target !== card) return;
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
             });
         });
+    }
+
+    function studioLink(membership, label) {
+        const studio = studioOf(membership);
+        if (!studio.id) return '';
+        return `<a class="inv-link" href="${escapeHtml(hrefFor({ estudio: studio.id }))}" data-inv-nav="studio" data-studio="${escapeHtml(studio.id)}">${escapeHtml(label || 'Ver estudio →')}</a>`;
     }
 
     function renderFeature(membership) {
         const details = detailsOf(membership);
         const studio = studioOf(membership);
-        const cover = studio.cover_image || FIGMA_FEATURE_IMAGE;
+        const photo = M.studioPhotos(studio)[0];
+        const when = M.shortDate(eventDate(membership)).toUpperCase();
+        const media = photo
+            ? `<div class="inv-feature-media" style="background-image:url('${cssUrl(photo)}')" role="img" aria-label="Foto de ${escapeHtml(studioName(membership))}"></div>`
+            : `<div class="inv-feature-media inv-photo--empty" aria-hidden="true">${icon('image')}</div>`;
         return `
-            <article class="inv-feature" tabindex="0" role="button" data-open-card="${escapeAttr(membership.id)}">
+            <article class="inv-feature" tabindex="0" role="link" aria-label="Ver invitación de ${escapeHtml(studioName(membership))}" data-open-card="${escapeHtml(membership.id)}">
                 <div class="inv-feature-body">
-                    <div class="inv-feature-top"><span class="inv-feature-eyebrow">Invitación del mes${eventDate(membership) ? ` · ${escapeHtml(shortDate(eventDate(membership)))}` : ''}</span><span class="inv-badge inv-badge--accent">Pendiente</span></div>
+                    <div class="inv-feature-top"><span class="inv-feature-eyebrow">Invitación del mes${when ? ` · ${escapeHtml(when)}` : ''}</span><span class="inv-badge inv-badge--accent">Pendiente</span></div>
                     <h2 class="inv-feature-name">${escapeHtml(studioName(membership))}</h2>
                     <span class="inv-feature-meta">${escapeHtml(styleMeta(membership))}</span>
-                    <p class="inv-quote">“${escapeHtml(details.message)}”</p>
-                    <span class="inv-terms">${escapeHtml(termsLine(membership))}</span>
+                    ${details.message ? `<div class="inv-quote-row"><span class="inv-quote-mark" aria-hidden="true"></span><p class="inv-quote">${escapeHtml(details.message)}</p></div>` : ''}
+                    ${termsLine(membership) ? `<span class="inv-terms">${escapeHtml(termsLine(membership))}</span>` : ''}
                     <div class="inv-feature-actions">
-                        <button class="wo-btn wo-btn--accent wo-btn--hard" data-action="accept" data-id="${escapeAttr(membership.id)}"><i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i> Aceptar</button>
-                        <button class="wo-btn inv-btn-ghost-dark" data-action="reject" data-id="${escapeAttr(membership.id)}"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Rechazar</button>
-                        ${studioLinkHtml(studio, 'inv-link-dark')}
+                        <button type="button" class="inv-btn inv-btn--accent" data-action="accept" data-id="${escapeHtml(membership.id)}">${icon('check')} Aceptar</button>
+                        <button type="button" class="inv-btn" data-action="reject" data-id="${escapeHtml(membership.id)}">${icon('x')} Rechazar</button>
+                        ${studioLink(membership)}
                     </div>
                 </div>
-                <div class="inv-feature-media" style="background-image:url('${cssEscape(cover)}')" aria-hidden="true"></div>
+                ${media}
             </article>`;
     }
 
     function renderMember(membership) {
         const details = detailsOf(membership);
+        const when = M.shortDate(eventDate(membership)).toUpperCase();
         return `
-            <article class="inv-member" tabindex="0" role="button" data-open-card="${escapeAttr(membership.id)}">
-                <div><span class="inv-member-eyebrow">Miembro del roster${eventDate(membership) ? ` · ${escapeHtml(shortDate(eventDate(membership)))}` : ''}</span><h3 class="inv-member-name">${escapeHtml(studioName(membership))}</h3><span class="inv-member-meta">${escapeHtml(styleMeta(membership))}</span></div>
-                <div class="inv-member-side"><p class="inv-member-quote">“${escapeHtml(details.message)}”</p><div class="inv-member-actions">${studioLinkHtml(studioOf(membership), 'inv-link-on-blue')}</div></div>
+            <article class="inv-member" tabindex="0" role="link" aria-label="Ver invitación de ${escapeHtml(studioName(membership))}" data-open-card="${escapeHtml(membership.id)}">
+                <div>
+                    <span class="inv-member-eyebrow">Miembro del roster${when ? ` · ${escapeHtml(when)}` : ''}</span>
+                    <h3 class="inv-member-name">${escapeHtml(studioName(membership))}</h3>
+                    <span class="inv-member-meta">${escapeHtml(styleMeta(membership))}</span>
+                </div>
+                <div class="inv-member-side">
+                    ${details.message ? `<p class="inv-member-quote">“${escapeHtml(details.message)}”</p>` : ''}
+                    ${studioLink(membership)}
+                </div>
             </article>`;
     }
 
     function renderRow(membership) {
         const details = detailsOf(membership);
         return `
-            <article class="inv-row" tabindex="0" role="button" data-open-card="${escapeAttr(membership.id)}">
-                <span class="inv-row-date">${escapeHtml(shortDate(eventDate(membership))) || '—'}</span>
-                <div class="inv-row-main"><h3 class="inv-row-name">${escapeHtml(studioName(membership))}</h3><div class="inv-row-meta">${escapeHtml(styleMeta(membership))}</div><p class="inv-row-quote">“${escapeHtml(details.message)}”</p></div>
+            <article class="inv-row" tabindex="0" role="link" aria-label="Ver invitación de ${escapeHtml(studioName(membership))}" data-open-card="${escapeHtml(membership.id)}">
+                <span class="inv-row-date">${escapeHtml(M.shortDate(eventDate(membership)).toUpperCase() || PLACEHOLDER)}</span>
+                <h3 class="inv-row-name${studioName(membership).length > 16 ? ' inv-row-name--long' : ''}">${escapeHtml(studioName(membership))}</h3>
+                <span class="inv-row-meta">${escapeHtml(styleMeta(membership))}</span>
+                <p class="inv-row-quote">${details.message ? `“${escapeHtml(details.message)}”` : ''}</p>
                 <span class="inv-badge inv-badge--pending inv-row-badge">Pendiente</span>
-                <div class="inv-row-actions"><button class="wo-btn wo-btn--s" data-action="accept" data-id="${escapeAttr(membership.id)}">Aceptar</button><button class="wo-btn wo-btn--secondary wo-btn--s" data-action="reject" data-id="${escapeAttr(membership.id)}">Rechazar</button></div>
+                <div class="inv-row-actions">
+                    <button type="button" class="inv-btn inv-btn--ink inv-btn--row" data-action="accept" data-id="${escapeHtml(membership.id)}">Aceptar</button>
+                    <button type="button" class="inv-btn inv-btn--row" data-action="reject" data-id="${escapeHtml(membership.id)}">Rechazar</button>
+                </div>
             </article>`;
     }
 
     function renderRejected(membership) {
         const name = studioName(membership);
-        const initials = name.split(/\s+/).slice(0, 2).map((word) => word.charAt(0)).join('').toUpperCase();
-        const meta = [cityOf(membership), ...detailsOf(membership).styles, shortDate(eventDate(membership))].filter(Boolean).join(' · ');
+        const meta = [cityOf(membership)].concat(detailsOf(membership).styles, M.shortDate(eventDate(membership)).toUpperCase()).filter(Boolean).join(' · ');
         return `
-            <article class="inv-rejected" data-id="${escapeAttr(membership.id)}">
-                <div class="inv-rejected-id"><span class="inv-rejected-avatar" aria-hidden="true">${escapeHtml(initials)}</span><div><span class="inv-rejected-name">${escapeHtml(name)}</span><span class="inv-rejected-meta">${escapeHtml(meta)}</span></div></div>
-                <div class="inv-rejected-side"><span class="inv-badge inv-badge--rejected">Rechazada</span>${studioLinkHtml(studioOf(membership), 'inv-link inv-link--faint')}</div>
+            <article class="inv-rejected" data-id="${escapeHtml(membership.id)}">
+                <div class="inv-rejected-id">
+                    <span class="inv-rejected-avatar" aria-hidden="true">${escapeHtml(M.initials(name))}</span>
+                    <a class="inv-rejected-name" href="${escapeHtml(hrefFor({ invitacion: membership.id }))}" data-inv-nav="invitation" data-invitation="${escapeHtml(membership.id)}">${escapeHtml(name)}</a>
+                    <span class="inv-rejected-meta">${escapeHtml(meta)}</span>
+                </div>
+                <div class="inv-rejected-side"><span class="inv-rejected-status-label">Rechazada</span>${studioLink(membership)}</div>
             </article>`;
     }
 
-    function studioLinkHtml(studio, className) {
-        if (!studio.slug) return '';
-        return `<a class="${className}" href="/studio/profile/?studio=${encodeURIComponent(studio.slug)}" target="_blank" rel="noopener">Ver estudio →</a>`;
-    }
-
-    function showView(name) {
-        document.getElementById('inv-feed-view')?.classList.toggle('hidden', name !== 'feed');
-        document.getElementById('inv-detail-view')?.classList.toggle('hidden', name !== 'detail');
-        window.scrollTo({ top: 0, behavior: 'auto' });
-    }
-
-    function syncUrl(item, push) {
-        if (!window.history?.pushState) return;
-        const url = new URL(window.location.href);
-        if (item) url.searchParams.set('invitacion', item.id);
-        else url.searchParams.delete('invitacion');
-        if (push) window.history.pushState(null, '', url);
-        else window.history.replaceState(null, '', url);
-    }
-
-    function openFromQuery(options = {}) {
-        const id = new URLSearchParams(window.location.search).get('invitacion');
-        if (!id) { currentItem = null; showView('feed'); return; }
-        const item = items.find((membership) => String(membership.id) === String(id));
-        if (!item) { currentItem = null; syncUrl(null, false); showView('feed'); return; }
-        openDetail(item, { push: options.push === true });
-    }
-
-    function openDetailById(id) {
-        const item = items.find((membership) => String(membership.id) === String(id));
-        if (item) openDetail(item);
-    }
-
-    function backToList() {
-        currentItem = null;
-        syncUrl(null, true);
-        showView('feed');
-    }
-
-    function stepperHtml(state) {
+    /* ------------------------------- detalle ------------------------------- */
+    function stepperHtml(itemState) {
         const steps = ['Invitación recibida', 'En revisión', 'Respondida', 'Confirmada'];
-        const reached = state === 'active' ? 4 : 3;
-        return `<div class="inv-stepper" aria-label="Progreso de la invitación">${steps.map((label, index) => {
+        const reached = itemState === 'active' ? 4 : 3;
+        return `<div class="inv-stepper" role="list" aria-label="Progreso de la invitación">${steps.map((label, index) => {
             const number = index + 1;
-            const done = number < reached;
-            const current = number === reached;
-            return `${index ? `<span class="inv-step-line ${number <= reached ? 'is-done' : ''}" aria-hidden="true"></span>` : ''}<span class="inv-step ${done ? 'is-done' : ''} ${current ? 'is-current' : ''}"><span class="inv-step-dot">${done ? '<i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>' : number}</span><span>${escapeHtml(label)}</span></span>`;
+            const done = number < reached || (itemState === 'active' && number === 4);
+            const current = number === reached && itemState !== 'active';
+            const line = index ? `<span class="inv-step-line ${number <= reached ? 'is-done' : ''}" aria-hidden="true"></span>` : '';
+            return `${line}<span class="inv-step ${done ? 'is-done' : ''} ${current ? 'is-current' : ''}" role="listitem"${current ? ' aria-current="step"' : ''}><span class="inv-step-dot">${done ? icon('check') : number}</span><span>${escapeHtml(label)}</span></span>`;
         }).join('')}</div>`;
-    }
-
-    function photosOf(membership) {
-        const studio = studioOf(membership);
-        const feed = Array.isArray(studio.photo_feed_items) ? studio.photo_feed_items : [];
-        const values = [studio.cover_image, ...feed.map((photo) => typeof photo === 'string' ? photo : (photo?.url || photo?.image_url || photo?.src || '')), studio.logo_image].filter(Boolean);
-        return [...new Set(values)].slice(0, 4);
     }
 
     function galleryHtml(membership) {
-        const photos = photosOf(membership);
+        const photos = M.studioPhotos(studioOf(membership));
         return `<div class="inv-detail-gallery">${Array.from({ length: 4 }, (_, index) => {
             const photo = photos[index];
             return photo
-                ? `<span class="inv-detail-photo" style="background-image:url('${cssEscape(photo)}')" role="img" aria-label="Foto ${index + 1} del estudio"></span>`
-                : `<span class="inv-detail-photo"><span class="inv-photo-placeholder"><i data-wo-icon="image" class="wo-icon-24" aria-hidden="true"></i><span>Foto ${index + 1}</span><small>or browse files</small></span></span>`;
+                ? `<span class="inv-photo" style="background-image:url('${cssUrl(photo)}')" role="img" aria-label="Foto ${index + 1} de ${escapeHtml(studioName(membership))}"></span>`
+                : `<span class="inv-photo inv-photo--empty">${icon('image')}<span>Foto ${index + 1}</span></span>`;
         }).join('')}</div>`;
     }
 
-    function offerGridHtml(membership) {
-        const details = detailsOf(membership);
-        const start = dateWithoutYear(details.proposed_start_date);
-        const cells = [
-            ['Fechas propuestas', start ? `Incorporación a partir del ${start}` : 'A coordinar'],
-            ['Duración', details.duration_label],
-            ['Split para vos', `${Math.round(details.split_artist_pct)}% para el artista`],
-            ['Stipend / beneficios', details.benefits.join(' · ')]
-        ];
-        return `<div class="inv-offer-grid">${cells.map(([key, value]) => `<div class="inv-offer-cell"><span class="inv-offer-key">${escapeHtml(key)}</span><span class="inv-offer-value">${escapeHtml(value)}</span></div>`).join('')}</div>`;
-    }
-
-    function bulletColumn(title, values) {
-        return `<section><span class="inv-section-label">${escapeHtml(title)}</span><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul></section>`;
-    }
-
-    function contactInitials(details) {
-        return details.contact_name.split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase() || 'WO';
-    }
-
-    function buildDetailMain(membership) {
-        const studio = studioOf(membership);
-        const details = detailsOf(membership);
-        const instagram = studio.instagram || 'fierronegro.tattoo';
-        const website = studio.website || 'https://fierronegrotattoo.com';
-        const description = studio.bio || studio.tagline || 'Estudio de blackwork y dotwork en Palermo, con seis años de trayectoria y roster estable de tres artistas. Ambiente under, agenda propia y fuerte presencia en redes.';
-        return `
-            <div class="inv-detail-kicker"><span class="inv-detail-status">${membership._state === 'pending' ? 'Invitación recibida' : membership._state === 'active' ? 'Invitación aceptada' : 'Invitación rechazada'}</span>${locationText(membership) ? `<span class="inv-detail-place"><i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i>${escapeHtml(locationText(membership))}</span>` : ''}</div>
-            <h1 class="inv-detail-title">${escapeHtml(studioName(membership))}</h1>
-            ${galleryHtml(membership)}
-            <p class="inv-detail-desc">${escapeHtml(description)}</p>
-            <div class="inv-detail-links">
-                <a href="https://instagram.com/${encodeURIComponent(String(instagram).replace(/^@/, ''))}" target="_blank" rel="noopener"><i data-wo-icon="instagram" class="wo-icon-18" aria-hidden="true"></i>@${escapeHtml(String(instagram).replace(/^@/, ''))}</a>
-                <a href="${escapeAttr(website)}" target="_blank" rel="noopener"><i data-wo-icon="external-link" class="wo-icon-18" aria-hidden="true"></i>${escapeHtml(String(website).replace(/^https?:\/\//, ''))}</a>
-                <span id="inv-roster"><i data-wo-icon="users" class="wo-icon-18" aria-hidden="true"></i>3 artistas residentes</span>
-            </div>
-            <div class="inv-detail-styles">${details.styles.map((style) => `<span class="inv-detail-style">${escapeHtml(style)}</span>`).join('')}</div>
-            <div class="inv-detail-tabs" role="tablist" aria-label="Información del estudio y de la invitación"><button type="button" class="inv-detail-tab is-active" role="tab" aria-selected="true">Roster</button><button type="button" class="inv-detail-tab" role="tab" aria-selected="false">Detalles de la invitación</button></div>
-            ${offerGridHtml(membership)}
-            <div class="inv-detail-bullets">${bulletColumn('Qué incluye el estudio', details.studio_provides)}${bulletColumn('Qué espera del artista', details.artist_expectations)}${bulletColumn('Requisitos', details.requirements)}</div>
-            <section class="inv-message-card"><span class="inv-section-label">Mensaje del estudio</span><blockquote>“${escapeHtml(details.message)}”</blockquote><div class="inv-message-person"><span class="inv-message-avatar" aria-hidden="true">${escapeHtml(contactInitials(details))}</span><strong>${escapeHtml(details.contact_name)}</strong><span>— ${escapeHtml(details.contact_title)}</span></div></section>`;
-    }
-
-    function stateLabel(state) {
-        if (state === 'active') return 'Invitación aceptada';
-        if (state === 'rejected') return 'Invitación rechazada';
+    function stateLabel(itemState) {
+        if (itemState === 'active') return 'Invitación aceptada';
+        if (itemState === 'rejected') return 'Invitación rechazada';
         return 'Invitación recibida';
     }
 
-    function buildDetailAside(membership) {
+    function offerPanel(membership) {
+        const details = detailsOf(membership);
+        const start = M.dayMonth(details.startDate);
+        const cells = [
+            ['Fechas propuestas', start ? `Incorporación a partir del ${start}` : 'A coordinar con el estudio'],
+            ['Duración', details.duration || 'A coordinar'],
+            ['Split para vos', details.split != null ? `${Math.round(details.split)}% para el artista` : 'A coordinar'],
+            ['Stipend / beneficios', details.benefits.length ? details.benefits.join(' · ') : 'Sin beneficios publicados'],
+        ];
+        const columns = [
+            ['Qué incluye el estudio', details.provides],
+            ['Qué espera del artista', details.expectations],
+            ['Requisitos', details.requirements],
+        ].filter(([, values]) => values.length);
+        return `
+            <div class="inv-offer-grid">${cells.map(([key, value]) => `<div class="inv-offer-cell"><span class="inv-key">${escapeHtml(key)}</span><span class="inv-offer-value">${escapeHtml(value)}</span></div>`).join('')}</div>
+            ${columns.length ? `<div class="inv-detail-bullets">${columns.map(([title, values]) => `<section><span class="inv-key">${escapeHtml(title)}</span><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul></section>`).join('')}</div>` : ''}`;
+    }
+
+    function infoPanel(membership) {
+        const details = detailsOf(membership);
+        const location = locationOf(membership);
+        const rows = [
+            ['Invitación enviada', M.longDate(membership.invited_at) || PLACEHOLDER],
+            ['Fecha límite', M.longDate(details.responseDueAt) || 'Sin fecha límite'],
+            ['Rol propuesto', membership.role === 'guest' ? 'Guest artist' : membership.role === 'manager' ? 'Manager' : 'Artista residente'],
+            ['Sede', [location.label, location.formatted_address || locationText(membership)].filter(Boolean).join(' · ') || PLACEHOLDER],
+        ];
+        if (details.contactName || details.contactEmail) {
+            rows.push(['Contacto', `${escapeHtml(details.contactName || 'Estudio')}${details.contactTitle ? `<small>${escapeHtml(details.contactTitle)}</small>` : ''}${details.contactEmail ? `<small><a href="mailto:${escapeHtml(details.contactEmail)}">${escapeHtml(details.contactEmail)}</a></small>` : ''}`, true]);
+        }
+        return `<dl class="inv-info-list">${rows.map(([key, value, html]) => `<div><dt class="inv-key">${escapeHtml(key)}</dt><dd>${html ? value : escapeHtml(value)}</dd></div>`).join('')}</dl>`;
+    }
+
+    function detailMain(membership) {
+        const studio = studioOf(membership);
+        const details = detailsOf(membership);
+        const instagram = M.text(studio.instagram).replace(/^@/, '');
+        const website = M.text(studio.website);
+        const description = M.text(studio.bio) || M.text(studio.tagline);
+        const tab = state.detailTab;
+        const contactInitials = M.initials(details.contactName || studioName(membership));
+        return `
+            <div class="inv-detail-kicker">
+                <span class="inv-detail-status inv-detail-status--${escapeHtml(membership._state)}">${escapeHtml(stateLabel(membership._state))}</span>
+                ${locationText(membership) ? `<span class="inv-detail-place">${icon('map-pin')}${escapeHtml(locationText(membership))}</span>` : ''}
+            </div>
+            <h1 class="inv-detail-title">${escapeHtml(studioName(membership))}</h1>
+            ${galleryHtml(membership)}
+            ${description ? `<p class="inv-detail-desc">${escapeHtml(description)}</p>` : ''}
+            <div class="inv-detail-links">
+                ${instagram ? `<a href="https://instagram.com/${encodeURIComponent(instagram)}" target="_blank" rel="noopener">${icon('instagram')}@${escapeHtml(instagram)}</a>` : ''}
+                ${website ? `<a href="${escapeHtml(/^https?:\/\//.test(website) ? website : 'https://' + website)}" target="_blank" rel="noopener">${icon('external-link')}${escapeHtml(website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a>` : ''}
+                <span id="inv-roster" hidden>${icon('users')}<span></span></span>
+            </div>
+            ${details.styles.length ? `<div class="inv-chips">${details.styles.map((style) => `<span class="inv-chip">${escapeHtml(style)}</span>`).join('')}</div>` : ''}
+            <div class="inv-detail-tabs" role="tablist" aria-label="Información de la invitación">
+                <button type="button" class="inv-detail-tab ${tab === 'roster' ? 'is-active' : ''}" role="tab" id="inv-tab-roster" aria-controls="inv-panel" aria-selected="${tab === 'roster'}" data-detail-tab="roster">Roster</button>
+                <button type="button" class="inv-detail-tab ${tab === 'details' ? 'is-active' : ''}" role="tab" id="inv-tab-details" aria-controls="inv-panel" aria-selected="${tab === 'details'}" data-detail-tab="details">Detalles de la invitación</button>
+            </div>
+            <div id="inv-panel" role="tabpanel" aria-labelledby="inv-tab-${tab === 'roster' ? 'roster' : 'details'}">${tab === 'roster' ? offerPanel(membership) : infoPanel(membership)}</div>
+            ${details.message ? `<section class="inv-message-card">
+                <span class="inv-key">Mensaje del estudio</span>
+                <blockquote>“${escapeHtml(details.message)}”</blockquote>
+                ${details.contactName ? `<div class="inv-message-person"><span class="inv-message-avatar" aria-hidden="true">${escapeHtml(contactInitials)}</span><strong>${escapeHtml(details.contactName)}</strong>${details.contactTitle ? `<span>— ${escapeHtml(details.contactTitle)}</span>` : ''}</div>` : ''}
+            </section>` : ''}`;
+    }
+
+    function detailAside(membership) {
         const details = detailsOf(membership);
         const studio = studioOf(membership);
+        const sub = membership._state === 'pending'
+            ? 'El estudio te seleccionó. Revisá las condiciones y respondé.'
+            : membership._state === 'active'
+                ? 'Ya formás parte del roster de este estudio.'
+                : 'Rechazaste esta invitación. El estudio puede volver a invitarte.';
         let actions = '';
         if (membership._state === 'pending') {
             actions = `
-                <button class="wo-btn wo-btn--block inv-accept-btn" data-action="accept" data-id="${escapeAttr(membership.id)}"><i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i> Aceptar invitación</button>
-                <a class="wo-btn wo-btn--ghost wo-btn--block" href="mailto:${escapeAttr(details.contact_email)}"><i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i> Contactar al estudio</a>
-                <button class="wo-btn wo-btn--block inv-aside-link-btn" data-action="request-changes" data-id="${escapeAttr(membership.id)}"><i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i> Solicitar cambios</button>
-                <button class="wo-btn wo-btn--block inv-aside-link-btn" data-action="reject" data-id="${escapeAttr(membership.id)}"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Rechazar invitación</button>`;
-        } else if (membership._state === 'active') {
-            actions = `${studio.slug ? `<a class="wo-btn wo-btn--ghost wo-btn--block" href="/studio/profile/?studio=${encodeURIComponent(studio.slug)}" target="_blank" rel="noopener">Ver estudio</a>` : ''}<button class="wo-btn wo-btn--block inv-aside-link-btn" data-action="leave" data-id="${escapeAttr(membership.id)}">Salir del roster</button>`;
-        } else if (studio.slug) {
-            actions = `<a class="wo-btn wo-btn--ghost wo-btn--block" href="/studio/profile/?studio=${encodeURIComponent(studio.slug)}" target="_blank" rel="noopener">Ver estudio</a>`;
+                <button type="button" class="inv-aside-btn inv-aside-btn--primary" data-action="accept" data-id="${escapeHtml(membership.id)}">${icon('check')} Aceptar invitación</button>
+                <button type="button" class="inv-aside-btn inv-aside-btn--outline" data-action="contact" data-id="${escapeHtml(membership.id)}">${icon('message-circle')} Contactar al estudio</button>
+                <button type="button" class="inv-aside-btn" data-action="request-changes" data-id="${escapeHtml(membership.id)}">${icon('edit')} Solicitar cambios</button>
+                <button type="button" class="inv-aside-btn" data-action="reject" data-id="${escapeHtml(membership.id)}">${icon('x')} Rechazar invitación</button>`;
+        } else {
+            actions = `
+                <button type="button" class="inv-aside-btn inv-aside-btn--outline" data-action="contact" data-id="${escapeHtml(membership.id)}">${icon('message-circle')} Contactar al estudio</button>
+                ${studio.id ? `<a class="inv-aside-btn" href="${escapeHtml(hrefFor({ estudio: studio.id }))}" data-inv-nav="studio" data-studio="${escapeHtml(studio.id)}">Ver estudio ${icon('arrow-right')}</a>` : ''}
+                ${membership._state === 'active' ? `<button type="button" class="inv-aside-btn" data-action="leave" data-id="${escapeHtml(membership.id)}">${icon('log-out')} Salir del roster</button>` : ''}`;
         }
         return `
             <h2 class="inv-aside-title">Resumen de la invitación</h2>
-            <p class="inv-aside-sub">${membership._state === 'pending' ? 'El estudio te seleccionó. Revisá las condiciones y respondé.' : membership._state === 'active' ? 'Ya formás parte del roster de este estudio.' : 'Rechazaste esta invitación. El estudio puede volver a invitarte.'}</p>
+            <p class="inv-aside-sub">${escapeHtml(sub)}</p>
             <div class="inv-aside-rows">
-                <div class="inv-aside-row"><span class="inv-offer-key">Estado</span><span class="inv-aside-status">${escapeHtml(stateLabel(membership._state))}</span></div>
-                <div class="inv-aside-row"><span class="inv-offer-key">Fecha límite</span><span class="inv-aside-value">${escapeHtml(longDate(details.response_due_at))}</span></div>
-                <div class="inv-aside-row"><span class="inv-offer-key">Contacto</span><span class="inv-aside-value">${escapeHtml(details.contact_name)}</span></div>
+                <div class="inv-aside-row"><span class="inv-key">Estado</span><span class="inv-detail-status inv-detail-status--${escapeHtml(membership._state)}">${escapeHtml(stateLabel(membership._state))}</span></div>
+                <div class="inv-aside-row"><span class="inv-key">Fecha límite</span><span class="inv-aside-value">${escapeHtml(M.longDate(details.responseDueAt) || 'Sin fecha límite')}</span></div>
+                <div class="inv-aside-row"><span class="inv-key">Contacto</span><span class="inv-aside-value">${escapeHtml(details.contactName || studioName(membership))}</span></div>
             </div>
-            ${membership._state === 'pending' ? `<section class="inv-aside-section"><span class="inv-section-label">Si aceptás</span><ul class="inv-accept-list">${details.acceptance_steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ul></section>` : ''}
+            ${membership._state === 'pending' && details.steps.length ? `<section class="inv-aside-section"><span class="inv-key">Si aceptás</span><ul class="inv-accept-list">${details.steps.map((step) => `<li>${icon('arrow-right')}<span>${escapeHtml(step)}</span></li>`).join('')}</ul></section>` : ''}
             <div class="inv-aside-actions">${actions}</div>`;
     }
 
-    function openDetail(membership, options = {}) {
+    function renderDetail(membership) {
         const view = document.getElementById('inv-detail-view');
         if (!view || !membership) return;
-        currentItem = membership;
+        if (!state.current || state.current.id !== membership.id) state.detailTab = 'roster';
+        state.current = membership;
         view.innerHTML = `
             <div class="inv-detail-header">
-                <button type="button" class="inv-detail-back" id="inv-back"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i> Volver a invitaciones</button>
+                <a class="inv-detail-back" href="${escapeHtml(hrefFor({}))}" data-inv-nav="feed">${icon('arrow-left')} Volver a invitaciones</a>
                 ${stepperHtml(membership._state)}
             </div>
-            <div class="inv-detail-main">${buildDetailMain(membership)}</div>
-            <aside class="inv-detail-aside" aria-label="Resumen de la invitación">${buildDetailAside(membership)}</aside>`;
-        document.getElementById('inv-back')?.addEventListener('click', backToList);
-        view.querySelectorAll('[data-action]').forEach((button) => {
+            <div class="inv-detail-main">${detailMain(membership)}</div>
+            <aside class="inv-detail-aside" aria-label="Resumen de la invitación">${detailAside(membership)}</aside>`;
+        view.querySelectorAll('[data-detail-tab]').forEach((button) => {
+            button.addEventListener('click', () => {
+                state.detailTab = button.dataset.detailTab;
+                renderDetail(membership);
+                view.querySelector(`[data-detail-tab="${state.detailTab}"]`)?.focus();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+                event.preventDefault();
+                state.detailTab = state.detailTab === 'roster' ? 'details' : 'roster';
+                renderDetail(membership);
+                view.querySelector(`[data-detail-tab="${state.detailTab}"]`)?.focus();
+            });
+        });
+        view.querySelectorAll('.inv-aside-actions [data-action]').forEach((button) => {
             button.addEventListener('click', () => {
                 const { action, id } = button.dataset;
                 if (action === 'request-changes') showChangeRequestDrawer(membership, button);
+                else if (action === 'contact') openContact(membership, button);
                 else if (action === 'leave') leave(id, button);
                 else decide(action, id, button);
             });
         });
-        syncUrl(membership, options.push !== false);
-        showView('detail');
         loadRosterCount(membership);
     }
 
     async function loadRosterCount(membership) {
         const studioId = studioOf(membership).id;
-        const repo = window.WeotziData?.StudioMemberships;
-        if (!studioId || typeof repo?.listActiveRosterWithArtists !== 'function') return;
-        const { data, error } = await repo.listActiveRosterWithArtists(studioId);
-        if (error || !Array.isArray(data) || !data.length || currentItem?.id !== membership.id) return;
+        if (!studioId || !D.Invitations) return;
+        const { data, error } = await D.Invitations.listStudioRoster(studioId);
+        if (error || !Array.isArray(data) || !data.length || state.current?.id !== membership.id) return;
         const roster = document.getElementById('inv-roster');
-        if (roster) roster.innerHTML = `<i data-wo-icon="users" class="wo-icon-18" aria-hidden="true"></i>${data.length} artista${data.length === 1 ? '' : 's'} residente${data.length === 1 ? '' : 's'}`;
+        if (!roster) return;
+        roster.querySelector('span').textContent = `${data.length} artista${data.length === 1 ? '' : 's'} residente${data.length === 1 ? '' : 's'}`;
+        roster.hidden = false;
     }
 
+    function openContact(membership, trigger) {
+        const studio = studioOf(membership);
+        if (!window.WoInvitationsStudio || !studio.id) return;
+        window.WoInvitationsStudio.openContact({
+            studioId: studio.id,
+            studioName: studioName(membership),
+            reason: membership.role === 'guest' ? 'guest_spot' : 'resident',
+            trigger,
+        });
+    }
+
+    /* ------------------------------ acciones ------------------------------ */
     async function decide(action, membershipId, trigger) {
         if (action !== 'accept' && action !== 'reject') return;
-        const membership = items.find((item) => String(item.id) === String(membershipId));
-        if (!membership) return;
+        const membership = findItem(membershipId);
+        if (!membership || !D.StudioMemberships) return;
         setBusy(trigger, true);
-        const { error } = await window.WeotziData.StudioMemberships.respondToInvitation(membershipId, userId, action);
+        let result;
+        try {
+            result = await D.StudioMemberships.respondToInvitation(membershipId, state.userId, action);
+        } catch (error) {
+            result = { error };
+        }
         setBusy(trigger, false);
-        if (error) { showInlineError(trigger, error.message); return; }
-        const resultItem = { ...membership, _state: action === 'accept' ? 'active' : 'rejected' };
-        currentItem = null;
-        syncUrl(null, false);
-        showView('feed');
-        if (action === 'accept') showAcceptedDrawer(resultItem, trigger);
-        else showRejectedDrawer(resultItem, trigger);
-        document.dispatchEvent(new CustomEvent('weotzi:invitation-response', { detail: { membershipId, action, studioId: studioOf(membership).id || null } }));
+        const error = (result && result.error) || (result && result.data && result.data.success === false ? { message: result.data.message } : null);
+        if (error) { showInlineError(trigger, error.message || 'No pudimos registrar tu respuesta.'); return; }
+        document.dispatchEvent(new CustomEvent('weotzi:invitation-response', {
+            detail: { membershipId, action, studioId: studioOf(membership).id || null },
+        }));
         await load();
+        const updated = findItem(membershipId) || { ...membership, _state: action === 'accept' ? 'active' : 'rejected' };
+        navigate({}, { replace: !!params().get('invitacion') });
+        if (action === 'accept') showAcceptedDrawer(updated, trigger);
+        else showRejectedDrawer(updated, trigger);
     }
 
     async function leave(membershipId, trigger) {
         if (!window.confirm('¿Salir del roster de este estudio? Tu perfil personal queda intacto.')) return;
         setBusy(trigger, true);
-        const { error } = await window.WeotziData.StudioMemberships.endMembership(membershipId);
+        let result;
+        try { result = await D.StudioMemberships.endMembership(membershipId); } catch (error) { result = { error }; }
         setBusy(trigger, false);
-        if (error) { showInlineError(trigger, error.message); return; }
-        currentItem = null;
-        syncUrl(null, false);
-        showView('feed');
+        if (result && result.error) { showInlineError(trigger, result.error.message); return; }
         await load();
+        navigate({}, { replace: true });
     }
 
+    /* ------------------------------- drawers ------------------------------- */
     function showAcceptedDrawer(membership, trigger) {
         const details = detailsOf(membership);
         openDrawer(`
-                <aside class="inv-drawer inv-drawer--accepted" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
-                <h2 class="inv-drawer-heading" id="inv-drawer-title"><span class="inv-drawer-icon"><i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></span>Invitación aceptada</h2>
-                <div class="inv-drawer-status"><i data-wo-icon="check-circle" class="wo-icon-18" aria-hidden="true"></i><div><strong>¡Bienvenido al equipo!</strong><p>${escapeHtml(studioName(membership))} te va a contactar para coordinar los próximos pasos.</p></div></div>
-                <div class="inv-contact-block"><span class="inv-section-label">Datos de contacto</span><strong>${escapeHtml(details.contact_name)}</strong><a href="mailto:${escapeAttr(details.contact_email)}"><i data-wo-icon="mail" class="wo-icon-18" aria-hidden="true"></i>${escapeHtml(details.contact_email)}</a></div>
+            <aside class="inv-drawer inv-drawer--accepted" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
+                <button type="button" class="inv-drawer-close" data-drawer-close aria-label="Cerrar">${icon('x')}</button>
+                <h2 class="inv-drawer-heading" id="inv-drawer-title"><span class="inv-drawer-icon">${icon('check')}</span>Invitación aceptada</h2>
+                <div class="inv-drawer-status" role="status">${icon('check-circle')}<div><strong>¡Bienvenido al equipo!</strong><p>${escapeHtml(studioName(membership))} te va a contactar para coordinar los próximos pasos.</p></div></div>
+                ${details.contactName || details.contactEmail ? `<div class="inv-contact-block"><span class="inv-key">Datos de contacto</span>${details.contactName ? `<strong>${escapeHtml(details.contactName)}</strong>` : ''}${details.contactEmail ? `<a href="mailto:${escapeHtml(details.contactEmail)}">${icon('mail')}${escapeHtml(details.contactEmail)}</a>` : ''}</div>` : ''}
             </aside>`, trigger);
     }
 
     function showRejectedDrawer(membership, trigger) {
         openDrawer(`
-                <aside class="inv-drawer inv-drawer--rejected" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
-                <div class="inv-rejected-status"><i data-wo-icon="alert-circle" class="wo-icon-18" aria-hidden="true"></i><div><strong id="inv-drawer-title">Invitación rechazada</strong><p>Le avisamos a ${escapeHtml(studioName(membership))} que no vas a sumarte esta vez.</p></div></div>
-                <button class="inv-other-invitations" type="button" data-drawer-close>Ver otras invitaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
+            <aside class="inv-drawer inv-drawer--rejected" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
+                <div class="inv-rejected-status" role="status">${icon('alert-circle')}<div><strong id="inv-drawer-title">Invitación rechazada</strong><p>Le avisamos a ${escapeHtml(studioName(membership))} que no vas a sumarte esta vez.</p></div></div>
+                <button class="inv-other-invitations" type="button" data-other-invitations>Ver otras invitaciones ${icon('arrow-right')}</button>
             </aside>`, trigger);
+        // Abierto desde el detalle (?invitacion=…&drawer=rechazada) vuelve al listado;
+        // desde Rechazar ya estamos en el listado y solo cierra.
+        document.querySelector('#inv-drawer-layer [data-other-invitations]')?.addEventListener('click', () => {
+            const onDetail = !!params().get('invitacion');
+            closeDrawer({ restoreFocus: !onDetail });
+            if (onDetail) navigate({});
+        });
     }
 
     function showChangeRequestDrawer(membership, trigger) {
         openDrawer(`
-                <aside class="inv-drawer inv-drawer--change" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
+            <aside class="inv-drawer inv-drawer--change" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
                 <h2 class="inv-drawer-heading" id="inv-drawer-title">Solicitar cambios</h2>
                 <p class="inv-change-copy">Contale al estudio qué te gustaría ajustar antes de aceptar.</p>
-                <form class="inv-change-form" id="inv-change-form">
-                    <label class="inv-section-label" for="inv-change-message">Tu propuesta de cambios</label>
-                    <textarea class="inv-change-textarea" id="inv-change-message" name="message" required placeholder="Ej: ¿podríamos mover las fechas dos semanas y subir el split a 45/55?"></textarea>
+                <form class="inv-change-form" id="inv-change-form" novalidate>
+                    <label class="inv-key" for="inv-change-message">Tu propuesta de cambios</label>
+                    <textarea class="inv-change-textarea" id="inv-change-message" name="message" required maxlength="2000" placeholder="Ej: ¿podríamos mover las fechas dos semanas y subir el split a 45/55?"></textarea>
                     <p class="inv-drawer-error" id="inv-change-error" role="alert" hidden></p>
-                    <div class="inv-change-actions"><button class="wo-btn wo-btn--direct" type="submit">Enviar propuesta <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i></button><button class="wo-btn inv-aside-link-btn" type="button" data-drawer-close>Volver</button></div>
+                    <div class="inv-change-actions">
+                        <button class="inv-change-submit" type="submit">Enviar propuesta ${icon('send')}</button>
+                        <button class="inv-aside-btn" type="button" data-drawer-close>Volver</button>
+                    </div>
                 </form>
             </aside>`, trigger);
         const form = document.getElementById('inv-change-form');
         const textarea = document.getElementById('inv-change-message');
         textarea?.focus();
-            form?.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const membershipId = membership.id;
-                const message = textarea.value.trim();
+        form?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const message = textarea.value.trim();
             const errorEl = document.getElementById('inv-change-error');
             const submit = form.querySelector('[type="submit"]');
-            if (!message) {
-                errorEl.textContent = 'Escribí los cambios que querés proponer.';
-                errorEl.hidden = false;
-                textarea.focus();
-                return;
-            }
-            const repo = window.WeotziData?.StudioMemberships;
-            if (typeof repo?.requestChanges !== 'function') {
-                errorEl.textContent = 'La propuesta no está disponible en este momento.';
-                errorEl.hidden = false;
-                return;
-            }
+            const fail = (text) => { errorEl.textContent = text; errorEl.hidden = false; };
+            if (!message) { fail('Escribí los cambios que querés proponer.'); textarea.focus(); return; }
+            const repo = D.StudioMemberships;
+            if (!repo || typeof repo.requestChanges !== 'function') { fail('La propuesta no está disponible en este momento.'); return; }
             setBusy(submit, true);
-                const { error } = await window.WeotziData.StudioMemberships.requestChanges(membershipId, userId, message);
+            let result;
+            try { result = await D.StudioMemberships.requestChanges(membership.id, state.userId, message); } catch (error) { result = { error }; }
             setBusy(submit, false);
-            if (error) {
-                errorEl.textContent = error.message;
-                errorEl.hidden = false;
-                return;
-            }
-                document.dispatchEvent(new CustomEvent('weotzi:invitation-change-requested', { detail: { membershipId, studioId: studioOf(membership).id || null } }));
-            closeDrawer();
+            if (result && result.error) { fail(result.error.message || 'No pudimos enviar tu propuesta.'); return; }
+            document.dispatchEvent(new CustomEvent('weotzi:invitation-change-requested', {
+                detail: { membershipId: membership.id, studioId: studioOf(membership).id || null },
+            }));
+            form.outerHTML = `<p class="inv-drawer-done" role="status">Le enviamos tu propuesta a ${escapeHtml(studioName(membership))}. Te avisamos cuando responda.</p>
+                <button class="inv-aside-btn inv-aside-btn--outline" type="button" data-drawer-close>Volver</button>`;
+            document.querySelectorAll('#inv-drawer-layer [data-drawer-close]').forEach((button) => button.addEventListener('click', () => closeDrawer()));
+            document.querySelector('#inv-drawer-layer [data-drawer-close]')?.focus();
         });
     }
 
     function openDrawer(content, trigger) {
         closeDrawer({ restoreFocus: false });
-        drawerReturnFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
+        state.returnFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
         const layer = document.createElement('div');
         layer.className = 'inv-drawer-layer';
         layer.id = 'inv-drawer-layer';
         layer.innerHTML = `<div class="inv-drawer-scrim" data-drawer-close aria-hidden="true"></div>${content}`;
-            document.body.appendChild(layer);
-            document.body.classList.add('inv-drawer-open');
-            layer.querySelectorAll('[data-drawer-close]').forEach((button) => button.addEventListener('click', () => closeDrawer()));
-            layer.addEventListener('keydown', trapDrawerFocus);
-            document.addEventListener('keydown', drawerEscapeHandler);
-            layer.querySelector('[role="dialog"]')?.focus({ preventScroll: true });
-        }
+        document.body.appendChild(layer);
+        document.body.classList.add('inv-drawer-open');
+        layer.querySelectorAll('[data-drawer-close]').forEach((button) => button.addEventListener('click', () => closeDrawer()));
+        layer.addEventListener('keydown', trapFocus);
+        document.addEventListener('keydown', escapeHandler);
+        layer.querySelector('[role="dialog"]')?.focus({ preventScroll: true });
+    }
 
-    function drawerEscapeHandler(event) { if (event.key === 'Escape') closeDrawer(); }
+    function escapeHandler(event) { if (event.key === 'Escape') closeDrawer(); }
 
-    function trapDrawerFocus(event) {
+    function trapFocus(event) {
         if (event.key !== 'Tab') return;
-        const focusable = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href], textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+        const focusable = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href], textarea:not([disabled]), input:not([disabled]), select:not([disabled])')];
         if (!focusable.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -676,9 +862,15 @@
         if (!layer) return;
         layer.remove();
         document.body.classList.remove('inv-drawer-open');
-        document.removeEventListener('keydown', drawerEscapeHandler);
-        if (options.restoreFocus !== false && drawerReturnFocus?.focus) drawerReturnFocus.focus();
-        drawerReturnFocus = null;
+        document.removeEventListener('keydown', escapeHandler);
+        const query = params();
+        if (query.get('drawer')) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('drawer');
+            window.history.replaceState(null, '', url);
+        }
+        if (options.restoreFocus !== false && state.returnFocus && state.returnFocus.isConnected) state.returnFocus.focus();
+        state.returnFocus = null;
     }
 
     function setBusy(button, busy) {
@@ -692,72 +884,25 @@
         if (!host) return;
         host.querySelector('.inv-action-error')?.remove();
         const error = document.createElement('p');
-        error.className = 'wo-alert wo-alert--error inv-action-error';
+        error.className = 'inv-alert inv-action-error';
         error.setAttribute('role', 'alert');
         error.textContent = message || 'No pudimos completar la acción.';
         host.appendChild(error);
     }
 
-    function toList(value) {
-        if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
-        if (typeof value === 'string') {
-            const trimmed = value.trim();
-            if (!trimmed) return [];
-            if (trimmed.startsWith('[')) {
-                try { return toList(JSON.parse(trimmed)); } catch (_) { /* texto plano */ }
-            }
-            return trimmed.split(/[,|]/).map((item) => item.trim()).filter(Boolean);
-        }
-        return [];
-    }
-
-    function listOrFallback(value, fallback) {
-        const list = toList(value);
-        return list.length ? list : [...fallback];
-    }
-
-    function numberOrNull(value) {
-        if (value === '' || value == null) return null;
-        const number = Number(value);
-        return Number.isFinite(number) ? number : null;
-    }
-
-    function parseDate(value) {
-        if (!value) return null;
-        if (value instanceof Date) return value;
-        const raw = String(value);
-        return new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00` : raw);
-    }
-
-    function dateValue(value) {
-        const date = parseDate(value);
-        return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
-    }
-
-    function shortDate(value) {
-        const date = parseDate(value);
-        if (!date || Number.isNaN(date.getTime())) return '';
-        return `${String(date.getDate()).padStart(2, '0')} ${MONTHS[date.getMonth()].slice(0, 3)}`;
-    }
-
-    function longDate(value) {
-        const date = parseDate(value);
-        if (!date || Number.isNaN(date.getTime())) return '';
-        return `${date.getDate()} de ${MONTHS[date.getMonth()]}, ${date.getFullYear()}`;
-    }
-
-    function dateWithoutYear(value) {
-        const date = parseDate(value);
-        if (!date || Number.isNaN(date.getTime())) return '';
-        return `${date.getDate()} de ${MONTHS[date.getMonth()]}`;
-    }
-
-    function escapeHtml(value) {
-        return String(value == null ? '' : value)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-
-    function escapeAttr(value) { return escapeHtml(value); }
-    function cssEscape(value) { return String(value).replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+    // API compartida con invitations-map.js e invitations-studio.js.
+    window.WoInvitationsApp = {
+        appUrl,
+        escapeHtml,
+        cssUrl,
+        icon,
+        navigate,
+        hrefFor,
+        refreshContacts,
+        membershipForStudio,
+        contactForStudio,
+        getItems: () => state.items.slice(),
+        getContacts: () => state.contacts.slice(),
+        get userId() { return state.userId; },
+    };
 })();

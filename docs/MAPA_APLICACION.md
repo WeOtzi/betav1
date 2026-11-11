@@ -105,18 +105,23 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/registerclosedbeta` | Artista | `public/registerclosedbeta/index.html` | Landing/registro de beta cerrada para artistas. |
 | `/artist/dashboard` | Artista | `public/artist/dashboard/index.html` | Panel de artista: perfil, ubicaciones, galeria, QR, cotizaciones, aplicaciones y ajustes. |
 | `/artist/profile` | Artista/publico | `public/artist/profile/index.html` | Perfil publico del artista por username/user id. |
-| `/artist/profile/gallery` | Artista/publico | `public/artist/profile/gallery/index.html` | Galeria publica categorizada del artista. |
 | `/artist/invitations` | Artista | `public/artist/invitations/index.html` | Invitaciones y membresias pendientes/activas con estudios. |
 | `/artist/applications` | Artista | `public/artist/applications/index.html` | Postulaciones del artista unificadas (job board + spots) con detalle y contraofertas (rediseño 2026). |
 | `/artist/inbox` | Artista | `public/artist/inbox/index.html` | Inbox unificado del artista fiel a Figma `144:1250`: clientes, cotizaciones, soporte, invitaciones, Spots, Job Board, estudios y viajes; lectura, favorito, archivo, realtime, mensajes y adjuntos persistentes. |
 | `/artist/travel` | Artista | `public/artist/travel/index.html` | Giras del artista fieles a los nueve estados Figma: dashboard, alta, éxito, detalle, edición, fechas, vínculo, compartir y cancelar; persiste viajes, contactos, checklist, documentos y cronología. |
 | `/artist/account` | Artista | `public/artist/account/index.html` | Centro de la cuenta del artista: 9 secciones con sidebar (rediseño 2026). |
+| `/artist/store/` | Artista | `public/artist/store/index.html` | Store del artista: diseños con licencia y merch, editor con checklist de publicación, pedidos (confirmar pago, envío, reembolso) y ajustes del vendedor. Estados por query `?tab=disenos\|merch\|pedidos\|ajustes`, `?nuevo=`, `?editar=`, `?pedido=`. Detrás de `features.store`. |
+| `/store/?artist=<username>` | Público | `public/store/index.html` | Vitrina pública de la Store de un artista (`get_public_storefront`): diseños y merch activos con badges; respeta `allow_search_indexing`. Detrás de `features.store`. |
+| `/store/item/?id=` | Público | `public/store/item/index.html` | Ficha de producto: niveles de licencia (Personal, Artista, Exclusiva) o variantes de merch, envío o retiro y términos. |
+| `/store/checkout/?item=&license=&variant=&qty=` | Cliente/Artista | `public/store/checkout/index.html` | Checkout con ingreso inline (`returnTo`), titular de la licencia, envío o retiro, aceptación de términos e instrucciones de pago manual. |
+| `/store/purchases/` | Cliente/Artista | `public/store/purchases/index.html` | Mis compras: pedidos, «Ya pagué», descargas firmadas, licencia usada, seguimiento y «Ya lo recibí». `?pedido=` abre el detalle. |
+| `/store/license/?id=` · `?verificar=WOL-…` | Titular/Público | `public/store/license/index.html` | Certificado imprimible de la licencia (`?id=`) y verificación pública por código (`?verificar=`; nunca `?code=`). |
 | `/travel/t/:slug` | Público | `public/travel/share/index.html` | Itinerario de solo lectura resuelto por slug mediante un RPC de columnas permitidas; no habilita lectura pública de `artist_trips`. `/travel/share?slug=` queda como compatibilidad de enlaces anteriores. |
-| `/my-quotations` | Artista/admin operativo | `public/my-quotations/index.html` | Gestion de cotizaciones asignadas, drawer, notas, sesiones, chat y estados. |
+| `/my-quotations` | Artista/admin operativo | `public/my-quotations/index.html` | Gestion de cotizaciones asignadas, drawer, notas, sesiones, chat y estados. Las archivadas y los borradores son alcances del listado (`?alcance=archivadas`). |
+| `/my-quotations/new` | Artista | `public/my-quotations/new/index.html` | Cotización manual (Figma final, oct 2026): para un cliente que llegó por fuera de la plataforma o una cita ya acordada (`?origen=cliente\|cita`). |
+| `/my-quotations/detail` | Artista | `public/my-quotations/detail/index.html` | Expediente de una cotización: propuesta, acuerdo, sesiones, disputa, notas de trabajo e historial. |
 | `/my-quotations/statistics` | Artista/admin operativo | `public/my-quotations/statistics/index.html` | Estadisticas de cotizaciones. |
 | `/calendar` | Artista/admin operativo | `public/calendar/index.html` | Calendario de sesiones/cotizaciones con FullCalendar. |
-| `/archive` | Artista/admin operativo | `public/archive/index.html` | Cotizaciones archivadas. |
-| `/tutorial` | Artista/admin operativo | `public/tutorial/index.html` | Tour del panel de cotizaciones. |
 | `/studio/register` | Estudio | `public/studio/register/index.html` | Registro de estudio en 5 pasos: cuenta, identidad, sedes, fotos, confirmar. |
 | `/studio/login` | Estudio | `public/studio/login/index.html` | Login de estudio. |
 | `/studio/dashboard` | Estudio | `public/studio/dashboard/index.html` | Panel de estudio: perfil, sedes, roster, spots, operaciones, inventario, proveedores, sponsors y analytics. |
@@ -126,6 +131,19 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/support/dashboard` | Soporte | `public/support/dashboard/index.html` | Dashboard de soporte para artistas, cotizaciones, tickets, sesiones, chats y acciones operativas. |
 | `/backoffice/login` | Admin | `public/backoffice/login/index.html` | Login de superadmin/backoffice. |
 | `/backoffice` | Admin | `public/backoffice/index.html` | Backoffice global: cotizaciones, artistas, soporte, analytics, salud, backup, integraciones y configuracion. |
+
+### Rutas retiradas (Figma final del artista, oct 2026)
+
+Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se eliminaron. Su URL responde 301 al reemplazo mientras la carpeta no exista (`lib/legacy-routes.js`); el detalle frame ↔ ruta está en [docs/plans/2026-10-28-figma-final-artista-mapeo.md](plans/2026-10-28-figma-final-artista-mapeo.md).
+
+| Ruta retirada | Redirige a |
+| --- | --- |
+| `/artist/profile/details` | `/artist/account#perfil` |
+| `/artist/profile/gallery` | `/artist/profile` (conserva `?artist=`) |
+| `/artist/visitors` | `/my-quotations/statistics` |
+| `/archive` | `/my-quotations?alcance=archivadas` |
+| `/tutorial` | `/my-quotations?demo=1&tour=1` |
+| `/landing-tatuador` | `/bienvenida` |
 
 ## Rutas API
 
@@ -164,6 +182,14 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `GET` | `/api/instagram/proxy-thumb` | Proxy seguro para thumbnails de Instagram/Facebook CDN. | Allowlist CDN |
 | `POST` | `/api/instagram/preview` | Preview de perfil Instagram via Apify. En dashboard requiere auth; en signup permite modo limitado. | Apify, cache en memoria |
 | `POST` | `/api/instagram/commit` | Importa media seleccionada a Storage y actualiza artista/estudio. | Apify payload, Supabase Storage/REST |
+| `POST` | `/api/store/licenses/:licenseId/assets/:assetId/url` | URL firmada (300 s) para bajar el original o el stencil de una licencia; Bearer, titular o comprador, tope de 50 por licencia en 24 h. Limiter propio `storeDownloadLimiter` (60 cada 15 min por IP). El nombre de descarga es la base sanitizada más la extensión del MIME real del archivo. | `services/store-orders.js`, `lib/storage-sign.js`, bucket `store-design-files` |
+| `POST` | `/api/store/orders/:id/checkout` | Inicia el pago con el adaptador del pedido (hoy solo `manual`, que el front no llama). | `services/store-payments.js` |
+| `POST` | `/api/store/maintenance` | Cron (`X-Cron-Token`): vencimientos, pagos informados vencidos, entregas automáticas y liberación de fondos. | RPC `run_store_maintenance` |
+| `POST` | `/api/store/payments/webhook/:provider` | Aviso de pago de un proveedor real (body crudo antes de `express.json`, limiter propio). Sin adaptador registrado responde 404. Si el pedido venció y no se puede reabrir (`store:cannot_reopen`), responde 422 y deja un log de error «COBRO HUÉRFANO» con pedido, proveedor y referencia. | `services/store-payments.js`, RPC `confirm_store_order_payment_as_provider` |
+| `GET`/`POST` | `/api/artist/onboarding` | Estado del onboarding del artista (sugerencia del demo, demo automático, modo asistido y sus 8 pasos). | Bearer de artista, `user_preferences`, `artists_db` |
+| `GET`/`POST` | `/api/artist/instagram-verification` | Estado de la validación de Instagram y generación del código por email (POST máx. 5/hora). | Bearer de artista, `artist_instagram_verifications`, email `instagram_verification_code` |
+| `POST` | `/api/instagram-verification/inbound` | Webhook de la automatización de DMs de @weotzi que valida el código. | Header `X-Weotzi-Webhook-Token` (`IG_VERIFY_WEBHOOK_SECRET`) |
+| `GET`/`POST` | `/api/support/instagram-verifications` (+ `/:id/confirm`, `/:id/reject`) | Cola de validaciones de Instagram para soporte. | Agente activo en `support_users_db` |
 
 ### APIs referenciadas por frontend pero no implementadas en `server.js`
 
@@ -188,18 +214,20 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Ver cotizaciones propias, ocultarlas del dashboard, chatear y responder estados desde `/client/dashboard`.
 - Publicar solicitudes abiertas en `/job-board/request`.
 - Revisar postulaciones de artistas y aceptar una; la aceptacion crea una fila en `quotations_db`.
+- Comprar en la Store de un artista (`/store/*`, detrás de `features.store`): licencias de diseños y merch, informar el pago, bajar archivos, verificar licencias y seguir envíos desde `/store/purchases/` (link «Compras» en la topbar de cliente y, como esa nav no se ve en el celular, «Mis compras» en «Tu actividad» del dashboard).
 
 ### Artista
 
 - Registrarse en `/register-artist` o beta cerrada.
 - Importar bio, link, ubicacion, fotos y reels desde Instagram durante registro o dashboard.
 - Administrar perfil, ubicaciones, estilos, galeria, QR y datos de sesion en `/artist/dashboard`.
-- Publicar perfil y galeria en `/artist/profile` y `/artist/profile/gallery`.
+- Publicar perfil y galeria en `/artist/profile` (la galeria publica vive dentro del perfil).
 - Recibir y gestionar cotizaciones en `/my-quotations`, con notas, sesiones, chat, rating y estados.
-- Consultar calendario y archivo.
+- Consultar calendario y cotizaciones archivadas (`/my-quotations?alcance=archivadas`).
 - Ver solicitudes publicas de job board y postular.
 - Ver/aceptar/rechazar invitaciones de estudios en `/artist/invitations`.
 - Aplicar a spots abiertos de estudios desde `/studio-spots`.
+- Vender en su Store desde `/artist/store/` (detrás de `features.store`): diseños con licencia de uso y merch, confirmar pagos, despachar, reembolsar y, si cobra directo y venció el plazo de un pago informado que no llegó, cancelar el pedido («No recibí el pago»). El perfil público muestra la banda «Store» con hasta 6 productos (solo si la vitrina es del mismo `user_id` del perfil, porque `username` todavía no es único) y el menú Ö suma «Mi Store», «Mis compras» y el contador «Pedidos de la Store» (el aviso «Pago informado» solo para pedidos que cobra el vendedor).
 - Gestionar Travel desde `/artist/travel`: crear viajes, editar datos y fechas, vincular estudios, completar tareas, conservar documentos y cronología, compartir un itinerario público limitado y cancelar/reactivar.
 
 ### Estudio
@@ -223,6 +251,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Actualizar campos operativos de artistas, cotizaciones y tickets.
 - Asignar, liberar, cerrar y responder conversaciones de soporte.
 - Acceder a vistas de actividad/errores/sesiones para diagnostico.
+- Pestaña STORE (`support-dashboard-store.js`, detrás de `features.store`): pedidos que cobra We Ötzi por confirmar, marcados `needs_support` (incluidos los vencidos con pago informado) o con fondos retenidos, y los vencidos de los últimos 7 días con el filtro «Vencidos» (`listRecentExpiredOrders`; no suman al contador). En el drawer: confirmar pago (o reabrir y confirmar un vencido), cancelar un pendiente aunque tenga pago informado, reembolsar, retener o liberar fondos (solo en pedidos que pasan por el wallet), «Marcar como revisado» (`resolveOrderFlag`; un duplicado o un informado vencido, nunca un pendiente) y las notas internas del pedido (`listSupportNotes`: retención, reembolso, reapertura, marca revisada y errores del mantenimiento).
 
 ### Admin / Backoffice
 
@@ -297,6 +326,27 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `trip_events` | Cronología persistida del viaje. |
 | `artist_travel_passport_stamps` | Sellos históricos de Tattoo Passport, separados de los viajes activos. |
 
+### Store del artista
+
+> **Migración aplicada el 31 oct 2026** en el proyecto vivo: `supabase/migrations/20261030150000_store_core.sql` (reversa en `supabase/rollbacks/20261030150000_store_core.down.sql`), después de `20261028150000_artist_wallet.sql` (aplicada el mismo día). La UI se enciende con `features.store: true` en `public/shared/js/app-config.json` y además verifica que `store_products` exista (`WeotziData.Store.isAvailable()`). El mantenimiento horario lo dispara el workflow de n8n «We Otzi Store · Mantenimiento horario». Contrato: [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30-store-artista.md).
+>
+> **`features.store` es solo un gate de UI**: ninguna RPC ni policy lo consulta. Con la migración aplicada, cualquier artista con registro completo puede publicar productos por PostgREST, `get_public_storefront` / `get_public_store_product` responden a `anon` y `create_store_order` acepta pedidos (con las instrucciones de pago del vendedor) aunque la UI diga que la Store no está disponible. La migración ya está aplicada y el flag encendido; un gate propio en el SQL queda pendiente. La migración arranca con `lock_timeout = '5s'` (si espera por un lock, falla y se reintenta) y siembra las claves `store_*` de `app_settings` privadas (`is_public = false`) con valores neutros, sin pisar un valor que ya exista.
+
+| Entidad | Proposito |
+| --- | --- |
+| `store_products` | Diseños (`design`: precios por nivel de licencia, medidas y estilo) y merch (`merch`: precio base, envío y retiro) de un vendedor `artist` o `studio`; estados `draft`, `active`, `paused` y `retired`. Imágenes como `[{path, alt}]` del bucket `store-previews`. |
+| `store_product_variants` | Variantes de merch: talle, color, SKU, precio propio y stock (el stock cambia solo por `adjust_store_variant_stock`). |
+| `store_design_assets` | Archivos privados de un diseño: `original` y `stencil` en `store-design-files`. |
+| `store_seller_settings` | Ajustes del vendedor: tagline, contacto, instrucciones de pago, políticas, dirección de retiro privada y declaración de autoría. |
+| `store_orders` | Pedidos `ST-…` (online o POS): comprador, estado, entrega, montos, cobrador esperado (`seller`, `platform` o `provider`), pago informado, vencimiento y fondos (`funds_release_at`, `funds_hold`). |
+| `store_order_items` | Ítem del pedido (v1: uno por pedido) con snapshots, nivel de licencia, titular y términos aceptados. |
+| `store_payments` | Registros de pago (`succeeded`, `refunded`, `duplicate`…); authenticated lee solo columnas acotadas. |
+| `store_licenses` | Licencias emitidas con código `WOL-XXXX-XXXX`, titular, uso único (`used_at`) y revocación. `metadata_json` guarda las medidas del diseño al emitirla (`design_width_cm`, `design_height_cm`) para «Imprimir a escala real». |
+| `store_download_events` | Descargas firmadas por licencia (solo las escribe el servidor). |
+| `store_order_support_notes` | Notas internas de soporte por pedido (`funds_hold`, `funds_release`, `refund`, `reopen`, `flag_resolved`, `maintenance_error`) con nota y autor. Las escriben solo las RPC y las lee solo soporte: el comprador y el vendedor ven `metadata_json` del pedido, donde quedan solo las fechas. |
+
+RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_order_payment`, `update_store_order_fulfillment`, `confirm_store_order_received`, `cancel_store_order`, `refund_store_order`, `set_store_order_funds_hold` y `resolve_store_order_flag` (soporte), `mark_store_license_used`, `adjust_store_variant_stock` y `get_store_sales_report`; públicas `get_public_storefront`, `get_public_store_product` y `verify_store_license`; de servicio `run_store_maintenance`, `release_store_order_funds` y `confirm_store_order_payment_as_provider`. Las ventas que cobra We Ötzi (`platform` o `provider`) acreditan `artist_wallet_movements` con `metadata_json.source = 'store'` y `booking_reference = ST-…`; las que cobra el vendedor (el default) no tocan el wallet.
+
 ### Vistas y funciones SQL importantes
 
 - `artists_with_location`: fuente unificada para mapa/explore; combina ubicacion propia de artista con sede primaria del estudio.
@@ -326,6 +376,8 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - `studio-photos`: publico; imagenes de perfil, portada, galeria y sponsors de estudios.
 - `studio-documents`: privado; documentos subidos por estudios.
 - `studio-spot-attachments`: publico; adjuntos de spots publicados por estudios.
+- `store-previews`: publico; imagenes de productos de la Store (jpeg, webp o png de hasta 3 MB, sin SVG) bajo `<seller_id>/<product_id>/`. Migración no aplicada.
+- `store-design-files`: privado; originales y stencils de diseños (hasta 50 MB). Los compradores descargan solo con URL firmada por el servidor. Migración no aplicada.
 - `artist-trip-docs`: privado; documentos de Travel bajo una ruta propiedad del artista, con límite de 10 MiB y MIME PDF/JPEG/PNG/WEBP. Una limpieza fallida deja sólo un objeto privado reintentable, no un metadato activo sin archivo.
 - Media importada desde Instagram tambien puede actualizar `artists_db.gallery_feed_items` o `studios.photo_feed_items`.
 
@@ -408,15 +460,22 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `public/shared/js/artist-travel.js` | Workspace autenticado de Travel y sus nueve estados de interfaz. |
 | `public/shared/js/data/travel-repo.js` | Acceso de dominio a viajes, satélites, Passport y RPCs de Travel. |
 | `public/shared/js/travel-share.js` | Vista pública de solo lectura por slug. |
+| `public/shared/js/store-model.js` + `store-watermark.js` + `store-shell.js` | Store: lógica pura (precios, licencias, estados, checklist), marca de agua de las previews y shell de las páginas `/store/*`. |
+| `public/shared/js/data/store-repo.js` | `window.WeotziData.Store`: único acceso a datos de la Store (incluye el gate `featureEnabled()` / `isAvailable()`). |
+| `public/shared/js/store-entry.js` | Muestra los links `[data-store-entry]` (por ejemplo «Compras» en las topbars de cliente) solo con el gate de la Store. |
+| `public/shared/js/support-dashboard-store.js` | Pestaña STORE del dashboard de soporte: cola de pedidos, acciones (confirmar, cancelar, reembolsar, retener, marcar como revisado) y notas internas. |
+| `services/store-orders.js` + `services/store-payments.js` + `lib/repos/store.js` + `lib/storage-sign.js` | Store en el servidor: descargas firmadas, checkout, mantenimiento por cron, webhook y adaptadores de pago. |
 | `public/shared/js/wo-demo.js` + `wo-demo-postgrest.js` + `wo-demo-fixtures.js` | **Modo demo del artista:** con `?demo=1` parchea `fetch` y resuelve `/rest/v1/*` en memoria con datos de ejemplo (emulador PostgREST + fixtures), sin escribir en Supabase. Ver `docs/MODO-DEMO-TOUR.md`. |
-| `public/shared/js/wo-tour.js` + `wo-tour-steps.js` | **Recorrido guiado** narrado por voz sobre el modo demo: trece capítulos (una página cada uno) con velo + marco sobre la sección enfocada. |
+| `public/shared/js/wo-tour.js` + `wo-tour-steps.js` | **Recorrido guiado** narrado por voz sobre el modo demo: trece capítulos (una página cada uno) con velo + marco sobre la sección enfocada; narrador robusto con control de velocidad (`WoTour.narrator`). |
+| `public/shared/js/wo-assist.js` + `services/artist-onboarding.js` | **Modo asistido:** panel que guía la configuración del perfil en ocho pasos con datos reales y cierra con una bienvenida. Ver `docs/MODO-ASISTIDO.md`. |
+| `public/shared/js/gallery-visibility.js` + `services/instagram-verification.js` + `support-dashboard-instagram.js` | **Validación de Instagram:** regla de visibilidad pública de fotos importadas, código por email + DM a @weotzi, webhook y cola de soporte. Ver `docs/VALIDACION-INSTAGRAM.md`. |
 
 ## Notas de alcance y riesgos
 
 - La fuente de verdad usada para este mapa es el codigo local y las migraciones locales. Si la base remota de Supabase tiene migraciones aplicadas fuera del repo, este documento no las ve.
 - Hay tablas legacy o documentadas por codigo pero no creadas en las migraciones recientes del repo (`clients_db`, `support_users_db`, `feedback_tickets`, `chat_messages`, `quotation_*`, `job_board_*`, `app_settings`). Existen como dependencias reales del codigo y probablemente vienen de migraciones anteriores o de estado historico de Supabase.
 - `app-config.json` contiene configuracion publica y URLs de webhooks; los secretos operativos deben vivir en variables de entorno o en `app_settings` privado.
-- Algunos modulos siguen compartiendo convenciones heredadas de "admin operativo" (`/my-quotations`, `/archive`, `/calendar`) aunque hoy tambien funcionan para artistas.
+- Algunos modulos siguen compartiendo convenciones heredadas de "admin operativo" (`/my-quotations`, `/calendar`) aunque hoy tambien funcionan para artistas.
 
 Actualización posterior del 21/09/2026: [marketplace conectado a Supabase y cotizador validado](MARKETPLACE-QUOTATION-20260921.md).
 

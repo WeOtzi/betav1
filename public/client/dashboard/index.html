@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/store-entry.js" defer></script>
     <link rel="stylesheet" href="/shared/css/client.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
 </head>
@@ -32,6 +33,7 @@
                 <a class="wo-topbar-item" href="/client/chats">Chats</a>
                 <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
                 <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+                <a class="wo-topbar-item" href="/store/purchases/" data-store-entry hidden>Compras</a>
             </nav>
         </div>
         <div class="wo-topbar-right">
@@ -80,6 +82,8 @@
                             <span class="client-counter-label">Propuestas recibidas</span>
                             <span class="client-counter-value" id="stat-proposals">0</span>
                         </button>
+                        <!-- Store: la nav de la topbar no se ve en el celular; esta es la entrada visible siempre (gate de store-entry.js) -->
+                        <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/store/purchases/" data-store-entry hidden>Mis compras <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
                     </div>
                 </div>
             </section>

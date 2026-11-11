@@ -1,0 +1,261 @@
+/* ============================================================================
+   We Ötzi Wallet · /artist/account#cobros (prefijo wal-)
+   Figma final oct 2026: 801:568 Wallet y movimientos · 801:569 Agregar destino
+   de retiro · 801:570 We Ötzi Card (aviso de disponibilidad).
+   Solo tokens del DS. Grises del Figma sin token → token más cercano
+   (ver encabezado de artist-account-ds.css).
+   ========================================================================== */
+
+.aac-section--wallet{max-width:67.6rem}
+.wal-title{font-size:clamp(1.75rem,8vw,40px);letter-spacing:-0.01em}
+.wal-sub{font-size:14.5px;color:var(--text-muted);margin-bottom:var(--space-4)}
+.aac-section--wallet .aac-head{margin-bottom:0}
+
+/* ---------- Tipos comunes ---------- */
+.wal-eyebrow{display:block;font-family:var(--font-mono);font-size:10px;font-weight:400;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted)}
+.wal-eyebrow--dark{font-size:10.5px;letter-spacing:0.18em;color:var(--neutral-300)}
+.wal-h2{margin:0;font-family:var(--font-display);font-weight:400;font-size:21px;color:var(--text-heading)}
+.wal-h3{margin:0;font-family:var(--font-display);font-weight:400;font-size:16px;color:var(--text-heading)}
+
+/* ---------- Estado de la cuenta (chip blanco con 3 ítems) ---------- */
+.wal-status{display:inline-flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) 14px;min-height:40.8px;padding:var(--space-2) 18px;box-sizing:border-box;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle);max-width:100%}
+.wal-status-item{display:inline-flex;align-items:center;gap:var(--space-2);font-family:var(--font-body);font-size:13px;color:var(--text-muted)}
+.wal-status-item [data-wo-icon]{width:15px;height:15px;flex:none}
+.wal-status-item.is-ok [data-wo-icon]{color:var(--system-success)}
+.wal-status-item.is-alert [data-wo-icon]{color:var(--system-error)}
+.wal-status-item.is-info [data-wo-icon]{color:var(--blue-400)}
+.wal-status-item.is-muted [data-wo-icon]{color:var(--text-faint)}
+.wal-status-sep{font-size:16px;color:var(--border-subtle)}
+.wal-mode{margin:var(--space-3) 0 0;padding:var(--space-3) var(--space-4);background:var(--info-bg);font-family:var(--font-body);font-size:13px;line-height:1.45;color:var(--blue-300)}
+.wal-mode[hidden]{display:none}
+
+/* ---------- Saldo + 4 estados ---------- */
+.wal-balance{display:flex;flex-direction:column;margin-top:var(--space-6);padding:20px 1px 1px;border:var(--border-hairline) solid var(--border-subtle)}
+.wal-balance-main{display:flex;flex-direction:column;justify-content:space-between;gap:30px;box-sizing:border-box;padding:30px 32px 32px;background:var(--surface-inverse)}
+.wal-balance-copy{display:flex;flex-direction:column;gap:12px}
+.wal-balance-value{font-family:var(--font-display);font-weight:400;font-size:clamp(2rem,9vw,46px);line-height:1;letter-spacing:-0.01em;color:var(--yellow-300);overflow-wrap:anywhere}
+.wal-balance-sub{font-family:var(--font-body);font-size:13.5px;color:var(--neutral-300)}
+.wal-stats{display:grid;grid-template-columns:1fr;box-sizing:border-box;background:var(--figma-white)}
+.wal-stat{display:flex;flex-direction:column;gap:6px;padding:22px 24px;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.wal-stat-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-2)}
+.wal-dot{width:8px;height:8px;flex:none;margin-top:3px}
+.wal-dot--yellow{background:var(--yellow-300)}
+.wal-dot--blue{background:var(--blue-400)}
+.wal-dot--red{background:var(--system-error)}
+.wal-dot--green{background:var(--system-success)}
+.wal-stat-value{padding-top:6px;font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1.1;color:var(--text-heading)}
+.wal-stat-value--danger{color:var(--system-error)}
+.wal-stat-sub{font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
+
+/* Botón amarillo con flecha (Retirar fondos / Retirar ahora / CTA de modales) */
+.wal-cta{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);width:100%;min-height:52px;padding:0 22px;border:0;background:var(--yellow-300);font-family:var(--font-body);font-size:14.5px;font-weight:var(--weight-bold);color:var(--neutral-500);cursor:pointer;text-align:left}
+.wal-cta:hover:not(:disabled){background:var(--yellow-400)}
+.wal-cta:disabled{opacity:var(--opacity-disabled);cursor:not-allowed}
+.wal-cta--s{min-height:50px;padding:0 20px;font-size:14px}
+.wal-cta--center{justify-content:center;text-align:center;font-size:14px}
+.wal-cta--danger{background:var(--action-danger);color:var(--figma-white)}
+.wal-cta--danger:hover:not(:disabled){background:var(--action-danger-hover)}
+
+/* ---------- Columnas: liberaciones + actividad | retiro rápido + bloqueados ---------- */
+.wal-columns{display:flex;flex-direction:column;gap:var(--space-10);padding:28px 0 50px}
+.wal-main{flex:1;min-width:0}
+.wal-block-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding-bottom:13.6px;border-bottom:1.6px solid var(--border-strong)}
+.wal-block-head--tabs{align-items:center;margin-top:var(--space-10);padding-bottom:var(--space-2)}
+.wal-releases,.wal-activity{display:flex;flex-direction:column}
+
+.wal-release{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:var(--space-3) var(--space-4);padding:18px 0;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.wal-avatar{display:grid;place-items:center;width:42px;height:42px;font-family:var(--font-mono);font-size:12px;font-weight:var(--weight-bold);color:var(--figma-white);background:var(--neutral-500)}
+.wal-avatar--yellow{background:var(--yellow-300);color:var(--neutral-500)}
+.wal-avatar--blue{background:var(--blue-400)}
+.wal-release-who{display:flex;flex-direction:column;gap:var(--space-1);min-width:0;padding-left:2px}
+.wal-release-who strong{font-family:var(--font-body);font-size:14.5px;color:var(--text-heading);overflow-wrap:anywhere}
+.wal-mono-s{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);overflow-wrap:anywhere}
+.wal-release-amount,.wal-release-state{grid-column:2;display:flex;flex-direction:column;gap:5px;min-width:0}
+.wal-release-amount .wal-eyebrow{font-size:9.5px;letter-spacing:0.12em;color:var(--text-faint)}
+.wal-release-amount strong{font-family:var(--font-display);font-weight:400;font-size:16px;color:var(--text-heading)}
+.wal-release-state strong{font-family:var(--font-body);font-size:12.5px;color:var(--success-fg)}
+.wal-release-state strong.is-info{color:var(--blue-400)}
+.wal-release-state strong.is-danger{color:var(--system-error)}
+.wal-release-state .wal-mono-s{color:var(--text-muted)}
+
+.wal-tabs{display:flex;flex-wrap:wrap;gap:7px}
+.wal-tab{padding:6px 12px;border:var(--border-hairline) solid var(--border-subtle);background:var(--figma-white);font-family:var(--font-body);font-size:11.5px;font-weight:var(--weight-semibold);color:var(--text-muted);cursor:pointer}
+.wal-tab:hover{background:var(--neutral-200)}
+.wal-tab.is-active{background:var(--surface-inverse);border-color:var(--border-strong);color:var(--figma-white)}
+
+.wal-move{display:grid;grid-template-columns:33.6px minmax(0,1fr) auto;align-items:center;gap:14px;padding:14px 0;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.wal-move-icon{display:grid;place-items:center;width:33.6px;height:33.6px;box-sizing:border-box;border:var(--border-hairline) solid currentColor;font-family:var(--font-body);font-size:16px;line-height:1}
+.wal-move-main{display:flex;flex-direction:column;gap:var(--space-1);min-width:0}
+.wal-move-main strong{font-family:var(--font-body);font-size:14px;color:var(--text-heading);overflow-wrap:anywhere}
+.wal-move-side{display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-1);text-align:right}
+.wal-move-amount{font-family:var(--font-mono);font-size:13px;white-space:nowrap}
+.wal-move-status{font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap}
+.wal-tone-success{color:var(--system-success)}
+.wal-tone-info{color:var(--blue-400)}
+.wal-tone-ink{color:var(--text-muted)}
+.wal-tone-muted{color:var(--text-faint)}
+.wal-tone-danger{color:var(--system-error)}
+.wal-more{margin-top:14px}
+.wal-more[hidden]{display:none}
+.wal-empty{padding:var(--space-6) 0;font-family:var(--font-body);font-size:13.5px;color:var(--text-muted)}
+
+/* ---------- Retiro rápido ---------- */
+.wal-side{display:flex;flex-direction:column;gap:26px;width:100%}
+.wal-quick{display:flex;flex-direction:column;gap:var(--space-2);padding:23.6px;background:var(--figma-white);border:var(--border-hairline) solid var(--border-strong)}
+.wal-quick-head{display:flex;align-items:center;gap:9px}
+.wal-quick-head [data-wo-icon]{width:16px;height:16px;color:var(--yellow-300)}
+.wal-quick-label{padding-top:10px;font-size:9.5px;letter-spacing:0.14em}
+.wal-select,.wal-input{display:block;width:100%;box-sizing:border-box;height:44px;padding:0 14px;background:var(--figma-white);border:var(--border-hairline) solid var(--border-muted);border-radius:0;font-family:var(--font-body);font-size:13.5px;color:var(--text-body);outline:none}
+.wal-select{appearance:none;padding-right:var(--space-8);background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2324211D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+.wal-select--plain{padding-right:14px;background-image:none}
+.wal-select:focus-visible,.wal-input:focus-visible{border-color:var(--border-focus);box-shadow:var(--shadow-focus)}
+.wal-input::placeholder{color:var(--text-faint)}
+.wal-input--l{height:48px}
+.wal-textarea{height:auto;padding:12px 14px;resize:vertical}
+.wal-quick-hint{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint)}
+.wal-quick-hint:empty{display:none}
+.wal-amount{display:flex;align-items:center;gap:var(--space-2);height:47.6px;padding:0 12.8px;box-sizing:border-box;background:var(--figma-white);border:var(--border-hairline) solid var(--border-muted)}
+.wal-amount:focus-within{border-color:var(--border-focus);box-shadow:var(--shadow-focus)}
+.wal-amount-cur{font-family:var(--font-mono);font-size:12px;color:var(--text-muted)}
+.wal-amount-input{flex:1;min-width:0;height:100%;padding:0 2px;border:0;background:transparent;font-family:var(--font-body);font-size:15px;font-weight:var(--weight-semibold);color:var(--text-body);outline:none}
+.wal-amount-input::placeholder{color:var(--text-faint)}
+.wal-quick-available{padding-bottom:var(--space-2);font-family:var(--font-body);font-size:12px;color:var(--text-faint)}
+.wal-quick-error{margin:0;font-family:var(--font-body);font-size:12.5px;color:var(--text-danger)}
+.wal-quick-error[hidden]{display:none}
+
+/* ---------- Fondos bloqueados ---------- */
+.wal-blocked{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-1);padding:20.8px 20.8px 21.6px 24.8px;background:var(--figma-white);border:var(--border-hairline) solid var(--system-error);border-left-width:4.8px}
+.wal-blocked[hidden]{display:none}
+.wal-blocked-head{display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:14.5px;color:var(--text-heading)}
+.wal-blocked-head [data-wo-icon]{width:15px;height:15px;color:var(--system-error)}
+.wal-blocked-count{padding-top:10px;font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
+.wal-blocked-value{padding-top:var(--space-1);font-family:var(--font-display);font-weight:400;font-size:28px;color:var(--text-heading)}
+.wal-blocked-text{font-family:var(--font-body);font-size:12.5px;line-height:1.35;color:var(--text-muted)}
+.wal-blocked .aac-link-mono{margin-top:16.8px}
+
+/* ---------- Destinos de retiro ---------- */
+.wal-dest{display:flex;flex-direction:column;gap:var(--space-4);padding-top:27.6px;border-top:1.6px solid var(--border-strong)}
+.wal-dest-head{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-4)}
+.wal-dest-sub{margin:5px 0 0;font-family:var(--font-body);font-size:13.5px;color:var(--text-muted)}
+.wal-dest-head .aac-btn{background:var(--figma-white);gap:9px}
+.wal-dest-head .aac-btn [data-wo-icon]{width:15px;height:15px}
+.wal-dest-list{display:flex;flex-direction:column;padding:1px;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle)}
+.wal-dest-row{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:var(--space-3) 18px;padding:16px 20px;border-bottom:var(--border-hairline) solid var(--border-subtle);background:var(--figma-white)}
+.wal-dest-row.is-default{background:var(--neutral-100)}
+.wal-logo{display:grid;place-items:center;width:52px;height:34px;font-family:var(--font-mono);font-size:9.5px;font-weight:var(--weight-bold);letter-spacing:0.04em;background:var(--neutral-500);color:var(--yellow-300)}
+.wal-logo--sand{background:var(--sand-050);color:var(--text-muted)}
+.wal-logo--blue{background:var(--blue-400);color:var(--figma-white)}
+.wal-logo--red{background:var(--red-300);color:var(--figma-white)}
+.wal-logo--s{width:46px;height:30px;font-size:9px}
+.wal-dest-info{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) 20px;min-width:0;padding-left:var(--space-1)}
+.wal-dest-name{display:flex;flex-direction:column;gap:3px;min-width:min(13.125rem,100%)}
+.wal-dest-name strong{font-family:var(--font-body);font-size:14px;color:var(--text-heading)}
+.wal-dest-name span{font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
+.wal-dest-name .wal-mono-s{padding-top:1px;font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint)}
+.wal-verified{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-body);font-size:12px;color:var(--success-fg)}
+.wal-verified [data-wo-icon]{width:13px;height:13px}
+.wal-verified.is-pending{color:var(--warning-fg)}
+.wal-verified.is-rejected{color:var(--error-fg)}
+.wal-default-tag{display:inline-flex;padding:4px 8px;background:var(--success-bg);font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--success-fg)}
+.wal-text-link{padding:0;border:0;background:none;font-family:var(--font-body);font-size:12px;color:var(--blue-400);text-decoration:underline;cursor:pointer}
+.wal-text-link:hover{color:var(--blue-500)}
+.wal-dest-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:var(--space-2) 20px}
+.wal-dest-actions button{padding:0;border:0;background:none;font-family:var(--font-body);font-size:12px;color:var(--text-muted);cursor:pointer}
+.wal-dest-actions button:hover{color:var(--text-heading);text-decoration:underline}
+.wal-dest-actions button:disabled{opacity:var(--opacity-disabled);cursor:not-allowed}
+.wal-dest-add{display:flex;align-items:center;gap:18px;width:100%;padding:16px 20px;border:0;background:var(--neutral-100);text-align:left;cursor:pointer}
+.wal-dest-add:hover{background:var(--neutral-200)}
+.wal-dest-add-box{display:grid;place-items:center;width:53.6px;height:35.6px;box-sizing:border-box;border:var(--border-hairline) dashed var(--border-muted);font-family:var(--font-body);font-size:16px;color:var(--text-muted)}
+.wal-dest-add strong{display:block;font-family:var(--font-body);font-size:14px;color:var(--text-heading)}
+.wal-dest-add span:last-child span{display:block;margin-top:3px;font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
+.wal-dest-note{margin:0;padding:var(--space-4) 20px;font-family:var(--font-body);font-size:13px;color:var(--text-muted)}
+
+/* ---------- We Ötzi Card + Facturación ---------- */
+.wal-bottom{display:flex;flex-direction:column;gap:var(--space-10);padding-top:28px}
+.wal-card-promo{display:flex;flex-direction:column;gap:var(--space-6);padding:22.8px 26.8px;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle)}
+.wal-card-copy{display:flex;flex-direction:column;align-items:flex-start;gap:7.2px;max-width:27.5rem}
+.wal-tag{display:inline-flex;padding:4px 8px;background:var(--yellow-300);font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--neutral-500)}
+.wal-card-title{margin:0;padding-top:4.8px;font-family:var(--font-display);font-weight:400;font-size:22px;color:var(--text-heading)}
+.wal-card-text{margin:0 0 8.8px;font-family:var(--font-body);font-size:13.5px;line-height:1.5;color:var(--text-muted)}
+.wal-ink-btn{min-height:42px;padding:0 20px;border:0;background:var(--surface-inverse);font-family:var(--font-body);font-size:12.5px;font-weight:var(--weight-bold);letter-spacing:0.06em;text-transform:uppercase;color:var(--figma-white);cursor:pointer}
+.wal-ink-btn:hover{background:var(--black)}
+.wal-card-art{position:relative;display:flex;flex-direction:column;justify-content:space-between;width:196px;height:124px;flex:none;padding:14px 16px;box-sizing:border-box;background:var(--surface-inverse)}
+.wal-card-brand{font-family:var(--font-display);font-size:12px;letter-spacing:0.04em;color:var(--yellow-300)}
+.wal-card-ring{position:absolute;right:16px;top:26px;width:55.2px;height:55.2px;border:var(--border-hairline) solid var(--neutral-400);border-radius:var(--radius-pill)}
+.wal-card-foot{display:flex;align-items:flex-end;justify-content:space-between}
+.wal-card-debit{font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;color:var(--neutral-300)}
+.wal-card-dots{display:flex}
+.wal-card-dots span{width:20px;height:20px;border-radius:var(--radius-pill);background:var(--red-300)}
+.wal-card-dots span + span{margin-left:-8px;background:var(--yellow-300)}
+.wal-fiscal{display:flex;flex-direction:column;align-items:flex-start;gap:9.2px;padding:22.8px;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle)}
+.wal-fiscal .wal-eyebrow{font-size:9.5px}
+.wal-fiscal-text{margin:0;font-family:var(--font-body);font-size:13.5px;line-height:1.5;color:var(--text-muted)}
+.wal-fiscal .aac-link-mono{margin-top:11.6px}
+
+/* ---------- Modal: Agregar destino de retiro (801:569) ---------- */
+.wal-methods{display:flex;flex-direction:column;padding:1px;background:var(--figma-white);border:var(--border-hairline) solid var(--border-subtle)}
+.wal-method{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:0;border-bottom:var(--border-hairline) solid var(--border-subtle);background:var(--figma-white);text-align:left;cursor:pointer}
+.wal-method:last-child{border-bottom:0}
+.wal-method:hover{background:var(--neutral-100)}
+.wal-method[aria-checked="true"]{box-shadow:inset 0 0 0 1px var(--border-strong)}
+.wal-method:focus:not(:focus-visible){outline:none}
+.wal-method[aria-checked="true"]:focus-visible{box-shadow:inset 0 0 0 1px var(--border-strong),var(--shadow-focus)}
+.wal-method-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.wal-method-text strong{font-family:var(--font-body);font-size:14px;color:var(--text-heading)}
+.wal-method-text span{font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
+.wal-method-state{font-family:var(--font-body);font-size:12px;color:var(--success-fg)}
+.wal-form-row{display:grid;grid-template-columns:1fr;gap:var(--space-4);padding-top:12px}
+.wal-form-field{display:flex;flex-direction:column;gap:var(--space-2);min-width:0}
+.wal-form-field .wal-eyebrow{font-size:9.5px;letter-spacing:0.14em}
+.wal-form-help{margin:0;font-family:var(--font-body);font-size:12px;line-height:1.45;color:var(--text-muted)}
+.wal-soon-title{padding-top:14px;font-size:9.5px}
+.wal-soon{display:flex;flex-wrap:wrap;gap:var(--space-2) 10px;padding-bottom:var(--space-3)}
+.wal-soon-chip{display:inline-flex;align-items:center;gap:var(--space-2);padding:8.8px 12.8px;border:var(--border-hairline) dashed var(--border-muted);font-family:var(--font-body);font-size:12.5px;color:var(--text-muted)}
+.wal-soon-chip span{padding:3px 6px;background:var(--sand-050);font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted)}
+.wal-cancel{min-height:44px;border:0;background:none;font-family:var(--font-body);font-size:13px;color:var(--text-muted);cursor:pointer}
+.wal-cancel:hover{color:var(--text-heading);text-decoration:underline}
+.wal-details{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-3) var(--space-5);margin:0}
+.wal-details dt{font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted)}
+.wal-details dd{margin:0;font-family:var(--font-body);font-size:13.5px;color:var(--text-heading);overflow-wrap:anywhere}
+.wal-confirm-amount{margin:0;font-family:var(--font-display);font-size:28px;color:var(--text-heading)}
+.wal-confirm-text{margin:0;font-family:var(--font-body);font-size:14px;line-height:1.5;color:var(--text-muted)}
+
+/* ---------- Modal: We Ötzi Card (801:570) ---------- */
+.wal-card-dialog-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding-top:1.6px}
+.wal-card-dialog-title{margin:0;font-family:var(--font-display);font-weight:400;font-size:24px;color:var(--figma-white)}
+.wal-card-dialog-text{margin:0;font-family:var(--font-body);font-size:14px;line-height:1.6;color:var(--text-muted)}
+.wal-card-benefits{display:flex;flex-direction:column;gap:12px;margin:0;padding:18.8px 0;list-style:none;border-top:var(--border-hairline) solid var(--border-subtle);border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.wal-card-benefits li{display:flex;align-items:flex-start;gap:10px;font-family:var(--font-body);font-size:13.5px;color:var(--text-muted)}
+.wal-bullet{display:block;flex:none;width:10px;height:10px;margin-top:4px}
+.wal-bullet--square{background:var(--yellow-300)}
+.wal-bullet--triangle{background:var(--blue-400);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.wal-bullet--circle{background:var(--red-300);border-radius:var(--radius-pill)}
+.wal-card-done{margin:0;padding:var(--space-3) var(--space-4);background:var(--success-bg);font-family:var(--font-body);font-size:13px;font-weight:var(--weight-semibold);color:var(--success-fg)}
+.wal-card-done[hidden]{display:none}
+#wal-card-form .wal-cta{min-height:50px}
+
+/* ---------- Responsive progresivo ---------- */
+@media (min-width:40rem){
+  .wal-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wal-stat{border-left:var(--border-hairline) solid var(--border-subtle)}
+  .wal-stat:nth-child(n+3){border-bottom:0}
+  .wal-release{grid-template-columns:42px minmax(0,1fr) 8.125rem 11.875rem}
+  .wal-release-amount,.wal-release-state{grid-column:auto}
+  .wal-dest-row{grid-template-columns:52px minmax(0,1fr) auto}
+  .wal-dest-actions{grid-column:auto;justify-content:flex-end}
+  .wal-form-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wal-card-promo{flex-direction:row;align-items:center;justify-content:space-between}
+}
+
+@media (min-width:64rem){
+  .aac-section--wallet{margin-left:-6px;margin-right:-4px}
+  .wal-balance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wal-balance-main,.wal-stats{min-width:0}
+  .wal-stat:nth-child(odd){border-left:var(--border-hairline) solid var(--border-subtle)}
+  .wal-columns{flex-direction:row;align-items:flex-start}
+  .wal-side{width:316px;flex:none}
+  .wal-dest-head{flex-direction:row;align-items:flex-start;justify-content:space-between}
+  .wal-bottom{flex-direction:row;align-items:stretch}
+  .wal-card-promo{flex:1;min-width:0}
+  .wal-fiscal{width:316px;flex:none;box-sizing:border-box}
+}
