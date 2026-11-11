@@ -408,8 +408,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             resp = await WeotziData.Artists.listForMap(fallbackCols);
         }
         if (resp.error) {
-            console.error('[explore-globe] Supabase error:', resp.error);
-            return [];
+            throw new Error(resp.error.message || 'No se pudo cargar el directorio');
         }
         return (resp.data || []).map(a => Object.assign({}, a, {
             languages: a.languages || ['Español'],
@@ -535,6 +534,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     // Filter logic (mirrors /explore)
     // -------------------------------------------------------------
     function passesFilters(a, f) {
+        if (f.city && window.TattooGlobeModel && !window.TattooGlobeModel.matchesCity(a, f.city)) return false;
         if (f.style) {
             const styles = parseStyles(a.styles_array).map(s => s.toLowerCase());
             if (!styles.some(s => s.includes(f.style.toLowerCase()))) return false;
@@ -675,6 +675,10 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
 
     function clearFilters() {
         STATE.filters = { style: null, country: null, priceRange: null, language: null, experience: null };
+        const cityStatus = $('tg-atlas-status');
+        if (cityStatus) cityStatus.textContent = '';
+        const atlasTitle = $('tg-atlas-title');
+        if (atlasTitle) atlasTitle.textContent = 'Explorar tatuadores';
         ['globe-filter-country', 'globe-filter-price', 'globe-filter-language', 'globe-filter-experience']
             .forEach(id => { const el = $(id); if (el) el.value = ''; });
         document.querySelectorAll('.globe-filter-pills .filter-pill.is-active')
@@ -713,7 +717,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
                 : '';
             const isActive = STATE.selectedArtistId === a.user_id ? ' is-active' : '';
 
-            return `<article class="globe-card${isActive}" data-user-id="${escapeHtml(a.user_id)}" role="listitem">
+            return `<article class="globe-card${isActive}" data-user-id="${escapeHtml(a.user_id)}" role="listitem" tabindex="0" aria-label="Seleccionar ${escapeHtml(toTitleCase(a.name || a.username))}">
                 ${recBadge}
                 <div class="globe-card-img${coverClass}" ${cover}></div>
                 <div class="globe-card-body">
@@ -728,6 +732,11 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         }).join('');
 
         list.querySelectorAll('.globe-card').forEach(card => {
+            card.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                card.click();
+            });
             card.addEventListener('click', () => {
                 const id = card.dataset.userId;
                 const artist = STATE.artistsGeo.find(a => a.user_id === id);
@@ -1792,6 +1801,8 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
     function startNetworkAnimation() {
         const TICK_MS = 2400;
         setInterval(() => {
+            const atlas = $('tg-atlas');
+            if (atlas && !atlas.open) return;
             if (getViewMode() !== VIEW_GLOBAL) return;
             if (STATE.pointerDown) return;
             // Only re-render the markers/arcs payload, not the whole tree.
@@ -1807,6 +1818,11 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         let stopped = false;
         function frame() {
             if (stopped) return;
+            const atlas = $('tg-atlas');
+            if (atlas && !atlas.open) {
+                STATE.raf = requestAnimationFrame(frame);
+                return;
+            }
             stepCamera();
             if (STATE.globe) {
                 const update = {
@@ -2186,10 +2202,12 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         return null;
     }
 
+    let modalReturnFocus = null;
     function openArtistModal(artist) {
         if (!artist) return;
         const backdrop = $('globe-modal-backdrop');
         if (!backdrop) return;
+        modalReturnFocus = document.activeElement;
 
         try {
             const setText = (id, v) => { const el = $(id); if (el) el.textContent = v; };
@@ -2273,13 +2291,15 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
 
         backdrop.classList.remove('hidden');
         backdrop.setAttribute('aria-hidden', 'false');
+        $('globe-modal-close')?.focus();
     }
 
     function closeArtistModal() {
         const backdrop = $('globe-modal-backdrop');
-        if (!backdrop) return;
+        if (!backdrop || backdrop.classList.contains('hidden')) return;
         backdrop.classList.add('hidden');
         backdrop.setAttribute('aria-hidden', 'true');
+        if (modalReturnFocus?.isConnected) modalReturnFocus.focus();
     }
 
     function bindModalDismissers() {
@@ -2290,7 +2310,18 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             if (e.target === backdrop) closeArtistModal();
         });
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeArtistModal();
+            if (!backdrop || backdrop.classList.contains('hidden')) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeArtistModal();
+            }
+            if (e.key === 'Tab') {
+                const controls = [...backdrop.querySelectorAll('button:not(:disabled),a[href]')]
+                    .filter(control => control.offsetParent !== null);
+                const first = controls[0], last = controls[controls.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+            }
         });
     }
 
@@ -2323,7 +2354,13 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         bindSelectedCardActions();
 
         await waitForConfigManager();
-        STATE.artistsAll = await fetchArtists();
+        try {
+            STATE.artistsAll = await fetchArtists();
+        } catch (error) {
+            console.warn('[explore-globe] Could not load directory:', error.message);
+            document.dispatchEvent(new CustomEvent('tattoo-globe:error'));
+            STATE.artistsAll = [];
+        }
         STATE.artistsGeo = STATE.artistsAll.filter(a => {
             const lat = Number(a.latitude);
             const lng = Number(a.longitude);
@@ -2334,8 +2371,21 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
             STATE.artistsGeo.length, 'with coordinates');
 
         initFilterUI();
-        initGlobe();
+        try {
+            initGlobe();
+        } catch (_) {
+            // Artist discovery remains usable without WebGL.
+            const loading = $('globe-loading');
+            if (loading) loading.textContent = 'Globo 3D no disponible. Podés explorar la lista de tatuadores.';
+        }
         applyFilters();
+        document.addEventListener('tattoo-globe:city', event => {
+            clearSelection();
+            clearFilters();
+            STATE.filters.city = event.detail?.city || null;
+            applyFilters();
+        });
+        document.dispatchEvent(new CustomEvent('tattoo-globe:ready'));
         prewarmItineraries();
     }
 

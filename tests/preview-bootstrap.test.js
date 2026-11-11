@@ -161,3 +161,18 @@ test('fixture RPC row mutations persist across a preview reload', async () => {
     assert.equal(reloaded.runtime.getStore().rows('artist_payment_methods').find(method => method.id === selected.id).is_default, true);
     assert.equal(first.requests.length + reloaded.requests.length, 0);
 });
+
+test('pinned Feather SVG reads use only the local gateway; lookalikes and writes stay blocked', async () => {
+    const { win, runtime, requests } = browser();
+    await runtime.ready;
+    const cdn = 'https://unpkg.com/feather-icons@4.29.2/dist/icons/';
+    assert.equal((await win.fetch(cdn + 'search.svg')).status, 200);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].input, 'https://preview.weotzi.com/__preview/icons/search.svg');
+    assert.equal(requests[0].init.method, 'GET');
+    for (const url of [cdn + 'search.svg?api=1', cdn.replace('4.29.2', '4.29.3') + 'search.svg', 'https://unpkg.com.evil.invalid/feather-icons@4.29.2/dist/icons/search.svg']) {
+        assert.equal((await win.fetch(url)).status, 403);
+    }
+    assert.equal((await win.fetch(cdn + 'search.svg', { method: 'POST' })).status, 403);
+    assert.equal(requests.length, 1);
+});

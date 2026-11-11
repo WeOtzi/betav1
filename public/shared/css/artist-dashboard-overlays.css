@@ -1,0 +1,71 @@
+/* Pantalla 12 only: the shared artist menu keeps its default presentation on
+ * every other route. References: final file 801:559 and 801:558. */
+.artist-dashboard-page {
+  --dashboard-overlay-paper: #fff;
+  --dashboard-notification-unread: #f5f8ff;
+  --dashboard-overlay-black: #000;
+}
+.artist-dashboard-page .wo-oam-drop {
+  width: min(340px,calc(100vw - 24px));
+  min-height: 454px;
+  overflow-y: auto;
+  background: var(--dashboard-overlay-paper);
+  border: 1px solid var(--neutral-500);
+  box-shadow: 5px 5px 0 var(--neutral-500);
+}
+.artist-dashboard-page .wo-oam-head { gap: 12px; padding: 18px 22px 24px; min-height: 81px; }
+.artist-dashboard-page .wo-oam-avatar { width: 40.4px; height: 40.4px; font-size: 14.52px; }
+.artist-dashboard-page .wo-oam-user { font-family: var(--font-body); font-size: 14.5px; line-height: 18px; font-weight: 700; }
+.artist-dashboard-page .wo-oam-mail { margin-top: 0; font-size: 11.5px; line-height: 16px; overflow-wrap: anywhere; }
+.artist-dashboard-page .wo-oam-cap { padding: 20px 18px 4px; font-size: 10.5px; line-height: 14px; letter-spacing: .84px; }
+.artist-dashboard-page .wo-oam-row { gap: 12px; padding: 9px 18px; min-height: 37px; color: var(--ink); }
+.artist-dashboard-page .wo-oam-ic { width: 16px; height: 16px; }
+.artist-dashboard-page .wo-oam-ic svg { width: 16px; height: 16px; }
+.artist-dashboard-page .wo-oam-label { font-size: 14px; line-height: 17px; font-weight: 700; }
+.artist-dashboard-page .wo-oam-row.has-unread .wo-oam-label { max-width: 180px; }
+.artist-dashboard-page .wo-oam-n { min-width: 22px; padding: 2px 7px; font-size: 11px; line-height: 15px; }
+.artist-dashboard-page .wo-oam-unread { font-size: 9px; line-height: 12px; letter-spacing: .45px; font-weight: 700; }
+.artist-dashboard-page .wo-oam-dot { top: 1px; right: -3px; width: 4px; height: 4px; border-radius: 0; background: url('/shared/assets/figma/artist-dashboard/menu-unread.svg') center/4px 4px no-repeat; }
+.artist-dashboard-page #wo-oam-upd { min-height: 52px; }
+.artist-dashboard-page .wo-oam-sep { margin: 0; border-color: var(--border-subtle); }
+.artist-dashboard-page .wo-oam-links { padding: 8px 0 10px; }
+.artist-dashboard-page .wo-oam-link { padding: 9px 18px; gap: 12px; font-size: 14px; line-height: 17px; }
+.wo-app.artist-dashboard-page a.wo-oam-link { color: var(--neutral-500); text-decoration: none; }
+.artist-dashboard-page .wo-oam-profile-icon { flex: none; }
+.artist-dashboard-page .wo-oam-link:has(.wo-oam-profile-icon) .wo-oam-ic { width: 18px; height: 18px; }
+.artist-dashboard-page .wo-oam-scrim { top: 84px; background: rgba(26,26,26,.45); }
+.artist-dashboard-page .wo-oam-panel {
+  top: 84px; bottom: auto; width: min(440px,100%); height: min(944px,calc(100dvh - 84px));
+  background: var(--dashboard-overlay-paper); border-left: 1.6px solid var(--neutral-500);
+  box-shadow: 8px 8px 0 var(--neutral-500);
+}
+.artist-dashboard-page .wo-oam-ph { padding: 22px 24px 0; gap: 10px; }
+.artist-dashboard-page .wo-oam-ptitle { font-size: 22px; line-height: 28px; }
+.artist-dashboard-page .wo-oam-pcount { height: 22px; min-width: 22px; padding: 0 7.7px; font-size: 11px; line-height: 22px; }
+.artist-dashboard-page .wo-oam-x { width: 28px; height: 28px; padding: 4px; }
+.artist-dashboard-page .wo-oam-x [data-wo-icon],.artist-dashboard-page .wo-oam-x svg { width: 20px; height: 20px; }
+.artist-dashboard-page .wo-oam-mark { margin: 7.2px 24px 23.6px; font-size: 11.5px; line-height: 15px; letter-spacing: .575px; font-weight: 700; color: var(--dashboard-overlay-black); }
+.artist-dashboard-page .wo-oam-list { border-top: 1.6px solid var(--neutral-500); scrollbar-gutter: stable; }
+.artist-dashboard-page .wo-oam-item { gap: 14px; min-height: 86.75px; padding: 16px 24px 16.8px; border-bottom-width: .8px; }
+.artist-dashboard-page .wo-oam-item.is-unread { background: var(--dashboard-notification-unread); }
+.artist-dashboard-page .wo-oam-item.is-unread:hover { background: var(--blue-100); }
+.artist-dashboard-page .wo-oam-iic { margin-top: 2px; border: 0; width: 34px; height: 34px; background: var(--surface-media); }
+.artist-dashboard-page .wo-oam-ititle { gap: 7px; font-size: 14px; line-height: 17px; }
+.artist-dashboard-page .wo-oam-imark { width: 6px; height: 6px; background: var(--blue-400); }
+.artist-dashboard-page .wo-oam-idesc { margin: 1px 0 0; font-size: 13px; line-height: 17.55px; }
+.artist-dashboard-page .wo-oam-imeta { margin: 4px 0 0; font-size: 10.5px; line-height: 14px; text-transform: none; letter-spacing: 0; }
+.artist-dashboard-page .wo-oam-imeta b { margin-left: 8px; color: var(--dashboard-overlay-black) !important; font-size: 10px; letter-spacing: .4px; text-transform: uppercase; font-weight: 400; }
+.artist-dashboard-page.wo-dash-notifications-open { overflow: hidden; }
+.artist-dashboard-reference.wo-dash-menu-open .wo-org-product-nav__notification-badge { display: grid; }
+.artist-dashboard-reference.wo-dash-notifications-open .wo-org-product-nav__notification-badge { display: none; }
+@media (max-width: 600px) {
+  .artist-dashboard-page .wo-oam-panel { width: min(440px,100%); }
+  .artist-dashboard-page .wo-oam-item { padding-left: 18px; padding-right: 18px; }
+  .artist-dashboard-page .wo-oam-drop { min-height: 0; }
+}
+@media (max-width: 480px) {
+  .artist-dashboard-page .wo-oam-panel { top: 68px; height: calc(100dvh - 68px); }
+  .artist-dashboard-page .wo-oam-scrim { top: 68px; }
+  .artist-dashboard-page .wo-oam-ph { padding-left: 18px; padding-right: 18px; }
+  .artist-dashboard-page .wo-oam-mark { margin-left: 18px; margin-right: 18px; }
+}

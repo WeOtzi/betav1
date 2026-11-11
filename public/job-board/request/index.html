@@ -10,8 +10,13 @@
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/job-board-request-ds.css">
+    <link rel="stylesheet" href="/shared/css/job-board-inspiration-figma.css">
+    <link rel="stylesheet" href="/shared/css/job-board-form-figma.css">
+    <link rel="stylesheet" href="/shared/css/job-board-review-figma.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/ds/organisms.js" defer></script>
 
     <!-- Supabase + procesamiento de imágenes -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -42,10 +47,17 @@
     </script>
 </head>
 
-<body class="wo-app jbrq-body">
+<body class="wo-app jbrq-body jbrq-is-inspiration">
+
+    <!-- Pantalla 6 · navegación compartida, tal como figura en 801:1129. -->
+    <weotzi-product-nav id="jbrq-inspiration-nav" active="quotations"
+        menu-toggle-id="jbrq-inspiration-menu-toggle" menu-id="jbrq-inspiration-menu"
+        profile-href="/client/dashboard" profile-label="Ir a tu panel"
+        logout-id="jbrq-inspiration-logout" logout-handler="logoutInspiration">
+    </weotzi-product-nav>
 
     <!-- Topbar de cliente -->
-    <header class="wo-topbar">
+    <header class="wo-topbar" id="jbrq-client-nav" hidden>
         <div class="wo-topbar-left">
             <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
             <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">

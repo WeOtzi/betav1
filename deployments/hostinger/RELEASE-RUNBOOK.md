@@ -89,3 +89,19 @@ El rollback recupera código y dependencias; preserva el `.env`, uploads y regis
 Los scripts de `control/` son herramientas de administración. Se actualizan solamente desde una revisión aprobada de `main`, después de pasar las pruebas de `tests/release-pipeline.test.js`. Evitar copiar archivos de una rama junior a esa carpeta.
 
 Valentina necesita su GitHub y el entorno local con datos ficticios. Su trabajo se publica a través del repositorio y de CI; no necesita SSH, credenciales de Hostinger ni secretos de beta.
+
+## Rama permanente de Valentina (27/10/2026)
+
+La raíz de `preview.weotzi.chat` está asignada por el administrador a `valentina/rediseno-laura` mediante `control/root-preview.json` con `{ "ref": "valentina/rediseno-laura" }`. El gateway busca esa ref en el mapa de releases en cada petición; no fija una SHA ni omite CI. El índice anterior sigue en `/__preview/branches` y las previews antiguas conservan sus rutas.
+
+Al actualizar el controlador, conservar `preview-server.cjs`, `preview-bootstrap.js` y `feather-icons.json` juntos, con `FEATHER-LICENSE`. Los 287 SVG proceden de `feather-icons@4.29.2`, exactamente la versión de `wo-icons.js`. El adaptador redirige exclusivamente los GET/HEAD de esos iconos al gateway local; las APIs y demás peticiones externas siguen bloqueadas. La barra de prueba usa posición fija y se puede contraer sin modificar el layout.
+
+El script general de despliegue de beta no se usa para este cambio administrativo. Respaldar los archivos de control antes de instalarlos y reiniciar únicamente `weotzi-previews`. Para recuperar el controlador anterior, restaurar sus archivos desde el respaldo privado y reiniciar ese proceso. Las releases, datos y proceso de beta se conservan. Ver [guía de Valentina](../../docs/VALENTINA-PUBLICAR.md).
+
+## Auditoría de recursos y ojo flotante (27/10/2026)
+
+El gateway reescribe las referencias de Font Awesome 6.4.0, Quill 1.3.7 y el CSS de Flatpickr a la carpeta privada `control/preview-assets/`, con la lista permitida `preview-assets.json`. Instalar ambos junto con gateway/bootstrap. Los hashes y licencias se conservan en esa carpeta; solo se sirven archivos de la lista. Los iframes del catálogo se limitan al mismo origen.
+
+El ojo conserva posición en almacenamiento local del dominio, limita su posición y su panel al viewport y no se duplica en iframes. Las APIs reales siguen bloqueadas. La cabecera `Cache-Control: no-store, no-transform` debe llegar desde el proxy PHP público para impedir que el CDN cambie las imágenes: no basta con fijarla en Node porque el proxy establece su propia cabecera.
+
+Respaldo de esta tarea: `~/weotzi-deploy/backups/valen-eye-20261027/`, incluido el proxy público anterior. Restaurar gateway/bootstrap y proxy desde allí y reiniciar únicamente el gateway para volver al comportamiento previo. Ver la [matriz de 51 páginas](../../docs/auditoria-valentina/preview-recursos-20261027.md) para el alcance y los límites de la comparación.

@@ -32,6 +32,8 @@
     <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-3">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
+    <link rel="stylesheet" href="/shared/css/artist-dashboard-figma.css?v=20261102-12">
+    <link rel="stylesheet" href="/shared/css/artist-dashboard-overlays.css?v=20261103-12">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -68,7 +70,7 @@
     </script>
 </head>
 
-<body class="wo-app artist-dashboard-page wod-body">
+<body class="wo-app artist-dashboard-page wod-body" data-figma-node="24:1425">
 
     <!-- ============================ TOPBAR COMPARTIDA ============================ -->
     <weotzi-product-nav
@@ -128,6 +130,7 @@
                     <section class="wo-dash-section wo-dash-col--quotes" aria-label="Cotizaciones">
                         <header class="wo-dash-sechead">
                             <h2 class="wo-h2">Cotizaciones</h2>
+                            <a class="wo-dash-seclink" href="/my-quotations">VER TODO →</a>
                         </header>
                         <div class="wo-dash-quotestats">
                             <div class="wo-dash-quotestat">
@@ -206,7 +209,7 @@
                 </section>
                 <!-- Recordatorios · user_preferences.app_settings.reminders -->
                 <section class="wo-dash-reminders" id="wod-reminders" aria-label="Recordatorios" hidden>
-                    <p class="wo-eyebrow">RECORDATORIOS</p>
+                    <div class="wo-dash-reminder-head"><p class="wo-eyebrow">RECORDATORIOS</p><button class="wo-btn wo-btn--accent" id="wod-add-reminder" type="button">+ NUEVO RECORDATORIO</button></div>
                     <ul class="wo-dash-reminder-list" id="wod-reminder-list"></ul>
                 </section>
 
@@ -217,6 +220,8 @@
                         <a class="wo-btn wo-btn--ink wo-btn--hard wo-btn--block" id="wod-new-client" href="/quotation"><i data-wo-icon="plus" class="wo-icon-18"></i>NUEVO CLIENTE</a>
                         <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/calendar"><i data-wo-icon="calendar" class="wo-icon-18"></i>NUEVA CITA</a>
                         <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="wod-register-payment" href="/my-quotations"><i data-wo-icon="dollar-sign" class="wo-icon-18"></i>REGISTRAR PAGO</a>
+                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="wod-share-profile" type="button"><i data-wo-icon="share-2" class="wo-icon-18"></i>COMPARTIR MI PERFIL</button>
+                        <button class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="wod-generate-qr" type="button"><i data-wo-icon="grid" class="wo-icon-18"></i>GENERAR TARJETA QR</button>
                     </div>
                 </section>
             </aside>
@@ -670,8 +675,10 @@
     <script src="/shared/js/address-picker.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/dashboard.js?v=20260816-ds-dashboard-1"></script>
-    <script src="/shared/js/dashboard-redesign.js?v=20260816-ds-dashboard-3"></script>
-    <script src="/shared/js/wo-artist-menu.js" defer></script>
+    <script src="/shared/js/artist-dashboard-reference.js?v=20261102-12"></script>
+    <script src="/shared/js/dashboard-redesign.js?v=20261102-12"></script>
+    <script src="/shared/js/artist-dashboard-menu-model.js?v=20261103-12"></script>
+    <script src="/shared/js/wo-artist-menu.js?v=20261103-12" defer></script>
 </body>
 
 </html>
