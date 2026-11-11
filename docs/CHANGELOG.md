@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.7] - 2026-11-11
+
+- Flujo de artista fiel al Figma final (w3JA83CcP5ISKjyOu87mx1): integra feature/figma-final-artista (acceso, registro, recuperación, dashboard, cotizaciones y notas, calendario, cuenta y wallet, perfil, estadísticas, job board, postulaciones, spots, invitaciones, travel, inbox, store) sobre 2.2.6, con una ronda de ajustes visuales contra las 109 pantallas del Figma. favicon.ico para la app.
+- Migraciones aplicadas en flbgmlvfiejfttlawnfu (validadas antes con begin…rollback): 20261028100000 acceso_registro_extras, 110000 artist_reminders, 120000 quotation_manual_quotes, 130000 quotation_detail_figma, 140000 calendar_quote_links, 160000 artist_residency_country_waitlist, 170000 oportunidades_figma_final, 180000 invitaciones_estudios_contacto. Reversas en supabase/rollbacks/.
+- Validación: node --test 1280/1280; 109 pantallas capturadas a 1440 contra Figma (media 0,88; diferencias restantes listadas y aceptadas: modales fijos, datos de ejemplo, funciones fuera del Figma); sin errores de consola; sin scroll horizontal a 390 px en 107 rutas.
+- Rollback: controlador hacia la release 2.2.6 (6dbf31d6e37e4a86b739c3d8060ff33d0a61d95d). Las migraciones son aditivas y compatibles con 2.2.6; revertirlas solo si hace falta, con supabase/rollbacks/.
+
+
 ## [2.2.6] - 2026-11-10
 
 - Integrar en beta el rediseño publicado en preview (rama valentina/rediseno-laura, hasta 8aa0a37) sobre 2.2.5
