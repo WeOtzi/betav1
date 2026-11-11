@@ -2257,10 +2257,9 @@ async function deleteArtist(artistId) {
     const target = currentArtists.find(a => a.user_id === artistId || a.id === artistId);
     const label = target ? (target.name || target.username || artistId) : artistId;
 
-    if (!confirm(`¿Eliminar al artista "${label}"?\nEsta acción no se puede deshacer.`)) return;
-
     try {
         if (isDemo) {
+            if (!confirm(`¿Eliminar al artista "${label}"?\nEsta acción no se puede deshacer.`)) return;
             const currentDemoArtists = window.ConfigManager.getDemoArtists();
             const newList = currentDemoArtists.filter(a => a.userId !== artistId);
             window.ConfigManager.setValue('demoArtists', newList);
@@ -2283,12 +2282,31 @@ async function deleteArtist(artistId) {
                 throw new Error('No hay sesión de superadmin. Inicia sesión otra vez en /backoffice/login.');
             }
 
-            const response = await fetch('/api/admin/delete-artist', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify({ id: pkId, userId: uId })
-            });
-            const result = await response.json();
+            const callDelete = async (extra) => {
+                const r = await fetch('/api/admin/delete-artist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...headers },
+                    body: JSON.stringify({ id: pkId, userId: uId, ...extra })
+                });
+                return { response: r, result: await r.json() };
+            };
+
+            // 1) Vista previa: qué registros dependen de este artista.
+            const pre = await callDelete({ preview: true });
+            if (!pre.response.ok || !pre.result.success) {
+                throw new Error(pre.result.error || `Error del servidor (HTTP ${pre.response.status})`);
+            }
+            const relations = pre.result.relations || [];
+            let msg = `¿Eliminar al artista "${label}"?\nEsta acción no se puede deshacer.`;
+            if (relations.length) {
+                const lines = relations.map((r) => `• ${r.label}: ${r.count} — ${r.effectText}`);
+                msg = `⚠ El artista "${label}" tiene registros relacionados:\n\n${lines.join('\n')}\n\n` +
+                    '¿Eliminar de todos modos? Esta acción no se puede deshacer.';
+            }
+            if (!confirm(msg)) return;
+
+            // 2) Borrado (forzado si hay relaciones).
+            const { response, result } = await callDelete({ force: relations.length > 0 });
             if (!response.ok || !result.success) {
                 throw new Error(result.error || `Error del servidor (HTTP ${response.status})`);
             }
