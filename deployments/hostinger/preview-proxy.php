@@ -9,7 +9,7 @@ function weotziPreviewUnavailable(): void
 {
     http_response_code(503);
     header('Content-Type: text/plain; charset=utf-8');
-    header('Cache-Control: no-store');
+    header('Cache-Control: no-store, no-transform');
     echo 'La preview se está preparando. Volvé a intentar en unos minutos.';
     exit;
 }
@@ -22,7 +22,7 @@ function weotziPreviewAbsolutePath(string $value): bool
 
 header('X-Weotzi-Environment: preview');
 header('X-Content-Type-Options: nosniff');
-header('Cache-Control: no-store');
+header('Cache-Control: no-store, no-transform');
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (!in_array($method, ['GET', 'HEAD'], true)) {
     http_response_code(403);

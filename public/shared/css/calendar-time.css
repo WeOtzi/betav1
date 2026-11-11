@@ -1,0 +1,131 @@
+/* Calendario · Figma 801:544 (semana) y 801:545 (día).
+   Solo las dos vistas aprobadas; la mensual, Agenda y el editor no cambian.
+   La base de controles y lateral reutiliza calendar-month.css. */
+.cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-corner,
+.cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-head,
+.cal-shell[data-view="day"] .cal-day-board-title { background: var(--figma-sand); }
+.cal-shell[data-view="week"] .cal-time-head.is-selected { background: var(--yellow-100); }
+.cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-column .cal-event {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+}
+.cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-column .type-pending_request {
+    border: 1px dashed var(--yellow-500);
+    color: var(--neutral-500);
+}
+.cal-shell:is([data-view="week"], [data-view="day"]) .cal-legend { margin-left: 0; }
+.cal-shell[data-view="day"] .cal-date-nav { max-width: 100%; }
+.cal-shell[data-view="day"] .cal-date-nav h2 { overflow-wrap: anywhere; }
+
+@media (min-width: 80rem) {
+    .cal-shell:is([data-view="week"], [data-view="day"]) {
+        width: calc(100% - 32px);
+        max-width: 1408px;
+        padding-right: 44px;
+        padding-left: 44px;
+    }
+    .cal-shell[data-view="week"] { margin: -3px 0 0 16px; }
+    .cal-shell[data-view="day"] { margin: -10px 0 0 12px; }
+    .cal-shell[data-view="week"] .cal-controls { grid-template-columns: 250px minmax(0, 1fr) 276px; }
+    .cal-shell[data-view="week"] .cal-search { width: 276px; }
+    .cal-shell:is([data-view="week"], [data-view="day"]) .cal-legend { padding-top: 14.5px; padding-bottom: 17.5px; }
+
+    .cal-shell[data-view="week"] .cal-time-grid {
+        --hour-height: 52.8px;
+        --cal-label-height: 56.8px;
+        --cal-event-scale: 6.24px;
+        --cal-event-extra: 4px;
+        grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+        grid-template-rows: 58.4px calc(var(--cal-label-height) * 12);
+        border-top-width: 1.6px;
+        border-left-width: 1.6px;
+    }
+    .cal-shell[data-view="week"] .cal-time-corner,
+    .cal-shell[data-view="week"] .cal-time-head {
+        padding: 8px 8px 9.6px;
+        border-bottom-width: 1.6px;
+        border-right-width: 1.6px;
+    }
+    .cal-shell[data-view="week"] .cal-time-head span { font-size: 9px; line-height: 12px; letter-spacing: 0.54px; }
+    .cal-shell[data-view="week"] .cal-time-head strong { margin-top: 0; font-size: 22px; line-height: 25px; }
+
+    .cal-shell[data-view="day"] .cal-day-board-title {
+        height: 83.2px;
+        min-height: 83.2px;
+        aspect-ratio: auto;
+        padding: 17.6px 21.6px;
+        border: 1px solid var(--ink);
+    }
+    .cal-shell[data-view="day"] .cal-day-board-title span { font-size: 10px; line-height: 13px; letter-spacing: 0.8px; }
+    .cal-shell[data-view="day"] .cal-day-board-title strong { margin-top: 0; font-size: 32px; line-height: 35px; }
+    .cal-shell[data-view="day"] .cal-time-grid--day {
+        --hour-height: 64.8px;
+        --cal-label-height: 68.8px;
+        --cal-event-scale: 7.68px;
+        --cal-event-extra: 12px;
+        grid-template-columns: 56px minmax(0, 1fr);
+        grid-template-rows: calc(var(--cal-label-height) * 12);
+        margin-top: 8px;
+        border-top: 0;
+        border-left-width: 1.6px;
+    }
+
+    .cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-hours {
+        background: var(--figma-white);
+        border: 0;
+    }
+    .cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-hour-label {
+        height: var(--cal-label-height);
+        padding: 2px 6px 2.8px;
+        border-right: 1.6px solid var(--ink);
+        border-bottom: 0.8px solid var(--figma-sand-border);
+        font-size: 9px;
+        line-height: 12px;
+    }
+    .cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-column {
+        border-right-width: 1.6px;
+        background: repeating-linear-gradient(to bottom,
+            var(--figma-white) 0,
+            var(--figma-white) calc(var(--hour-height) - 0.8px),
+            var(--figma-sand-border) calc(var(--hour-height) - 0.8px),
+            var(--figma-sand-border) var(--hour-height));
+    }
+    .cal-shell[data-view="day"] .cal-time-column { border-right: 0; }
+    .cal-shell:is([data-view="week"], [data-view="day"]) .cal-time-column .cal-event {
+        /* Porcentajes calculados por el controlador desde las fechas reales.
+           La escala de eventos y la de rótulos difieren en el frame original. */
+        top: calc(var(--cal-event-start) * var(--cal-event-scale)) !important;
+        height: calc(var(--cal-event-span) * var(--cal-event-scale) + var(--cal-event-extra)) !important;
+        left: 2px;
+        right: 2px;
+        padding: 4px 6px;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 12px;
+    }
+    .cal-shell[data-view="week"] .cal-time-column .cal-event strong { margin-top: 0; font-size: 11px; font-weight: 600; line-height: 13px; }
+    .cal-shell[data-view="week"] .cal-time-column .type-pending_request { --cal-event-extra: 7.2px; padding: 5.6px 7.6px; }
+    .cal-shell[data-view="day"] .cal-time-column .cal-event { left: 8px; right: 8px; padding: 8px 12px; font-size: 10px; line-height: 13px; }
+    .cal-shell[data-view="day"] .cal-time-column .cal-event strong { margin-top: 0; font-size: 14px; font-weight: 600; line-height: 17px; }
+    .cal-shell[data-view="day"] .cal-time-column .cal-event small { margin-top: 0; font: 400 10px/13px var(--font-mono); }
+}
+
+@media (min-width: 90.0625rem) {
+    .cal-shell:is([data-view="week"], [data-view="day"]) { max-width: none; }
+    .cal-shell[data-view="week"] .cal-time-grid {
+        --hour-height: 5.387755cqw;
+        --cal-label-height: 5.795918cqw;
+        --cal-event-scale: 0.636735cqw;
+        grid-template-columns: 5.714286cqw repeat(7, minmax(0, 1fr));
+        grid-template-rows: 5.959184cqw calc(var(--cal-label-height) * 12);
+    }
+    .cal-shell[data-view="day"] .cal-time-grid--day {
+        --hour-height: 6.612245cqw;
+        --cal-label-height: 7.020408cqw;
+        --cal-event-scale: 0.783673cqw;
+        grid-template-columns: 5.714286cqw minmax(0, 1fr);
+        grid-template-rows: calc(var(--cal-label-height) * 12);
+    }
+}

@@ -10,10 +10,14 @@ We Ötzi conecta clientes, tatuadores y estudios. El runtime principal es Node.j
 
 - Trabaja en `C:\WeOtzi-Dev\weotzi-unified`, con el usuario Windows estándar `Dev`, su GitHub y su propia cuenta de ChatGPT/Codex. El checkout de Isaí en `C:\dev\weotzi-unified` contiene archivos privados y no es la copia compartida.
 - Usa `npm run dev:safe` y `http://localhost:4647`. La configuración segura usa datos ficticios. Comprueba que se identifica como entorno de prueba antes de interactuar.
-- Crea una rama `valentina/<tarea>` desde `main` actualizado. Valentina publica esa rama y abre un PR a `main`; Isaí revisa la integración.
-- El push de `valentina/*` ejecuta `Verify delivery`. El servidor publica la preview cuando comprueba el commit aprobado por CI. Abre el índice de previews y copia la URL de esa rama; no inventes el slug.
+- Trabaja siempre en `valentina/rediseno-laura`, con upstream `origin/valentina/rediseno-laura`. No crees una rama por pantalla ni por tarea. Publica los cambios en esta misma rama; Isaí revisa la integración a `main`. Lee `docs/VALENTINA-PUBLICAR.md`.
+- El push de `valentina/rediseno-laura` ejecuta `Verify delivery`. Después de CI aprobado, el controlador actualiza `https://preview.weotzi.chat/`, con las mismas rutas de beta: `/inicio/`, `/artist/login/`, etc. Comprueba la SHA en `/api/release`. El índice histórico está en `/__preview/branches`.
 - No copies `.env`, credenciales SSH, tokens, sesiones del propietario ni archivos de otros proyectos. El controlador del servidor descarga commits aprobados por CI con permisos administrados por Isaí; GitHub Actions no recibe acceso SSH.
 - Las previews usan datos ficticios y servicios externos desactivados. La prueba de persistencia real, correos o integraciones requiere el entorno y las cuentas de prueba que indique Isaí.
+
+## Entrega automática de Valentina
+
+El propietario autoriza completar automáticamente cada tarea de código terminada con pruebas, versión/changelog, commit, push a la rama permanente y comprobación de CI y la SHA pública. No esperes otro mensaje de aprobación para esos pasos. Lee y aplica `docs/VALENTINA-AUTOENTREGA.md`; usa `node scripts/release/valentina-delivery.cjs publish` con archivos explícitos. No hagas commits para preguntas, planes o tareas que el usuario pida dejar sin publicar. La entrega personal se ejecuta únicamente desde Windows Dev con GitHub valen-rozes. Conserva el trabajo ajeno y detente ante un fallo real; no crees ramas ni mezcles a main.
 
 ## Método de trabajo
 

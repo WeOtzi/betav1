@@ -544,6 +544,72 @@ body[data-travel-view="detail"] .tvl-footer-inner{display:none}
   .tvd-grid{grid-template-columns:minmax(0,776px) minmax(0,360px);gap:48px}
 }
 
+/* Pantalla 10 · Figma 801:1081 / 173:27451.
+   Medidas del modal exacto; no altera el detalle ni los otros diálogos de Travel. */
+#tv-modal-link .tvm--link{
+  border-width:1px;
+  padding:.6px;
+  background:var(--figma-white);
+  box-shadow:none;
+  transform:none;
+}
+#tv-modal-link .tvm-title{line-height:24px}
+#tv-modal-link .tvm-body{gap:20px;flex:none}
+#tv-modal-link .tvm-search{flex:none}
+#tv-modal-link .tvm-search-icon{position:absolute;left:17.6px;top:50%;transform:translateY(-50%);pointer-events:none}
+#tv-modal-link .tvm-search-input{
+  width:100%;
+  padding-left:43.6px;
+  border-width:1px;
+  background:var(--surface-input);
+  font:400 16px/normal var(--font-body);
+}
+#tv-modal-link .tvm-search-input::placeholder{color:#757575;opacity:1}
+#tv-modal-link .tvm-link-filters{gap:10px;flex:none}
+#tv-modal-link .wo-select{
+  padding-left:17.6px;
+  border-width:1px;
+  font:400 16px/normal var(--font-body);
+  background-image:url('/shared/assets/figma/travel-link/chevron-down.svg');
+  background-size:18px 18px;
+  background-position:right 17.6px center;
+}
+#tv-modal-link .wo-select:has(option[value=""]:checked){color:var(--text-faint)}
+#tv-modal-link .wo-select option{color:var(--text-body)}
+#tv-modal-link .tvm-results{min-height:198px}
+#tv-modal-link .tvm-empty{
+  height:auto;
+  min-height:100%;
+  padding:32.3px 24px 53.5px;
+  gap:0;
+  justify-content:flex-start;
+}
+#tv-modal-link .tvm-empty [data-wo-icon]{width:26px;height:26px;flex:none;color:var(--neutral-500)}
+#tv-modal-link .tvm-empty .wo-empty-title{
+  margin:15.3px 0 0;
+  font:700 15px/22.5px var(--font-body);
+}
+#tv-modal-link .tvm-empty p{
+  max-width:360px;
+  margin:7.225px 0 0;
+  font:400 13.5px/20.25px var(--font-body);
+  color:var(--text-muted);
+}
+#tv-modal-link .tvm-foot--bar{border-top-width:1px;padding-top:16.6px}
+#tv-modal-link .tvm-foot .wo-btn{
+  padding-inline:20.6px;
+  border-width:1px;
+  font:700 14px/14px var(--font-body);
+  letter-spacing:1.12px;
+}
+#tv-modal-link #tvl-submit{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--surface-page)}
+#tv-modal-link .tvm-foot .wo-btn--ghost{border-color:var(--black)}
+#tv-modal-link #tvl-submit:not(:disabled):hover{background:var(--black);border-color:var(--black)}
+@media (min-width:769px){
+  #tv-modal-link .tvm-body{height:366.325px}
+  #tv-modal-link .tvm-results{min-height:0}
+}
+
 @media (min-width:1296px){
   .tvd-shell{left:8px}
 }

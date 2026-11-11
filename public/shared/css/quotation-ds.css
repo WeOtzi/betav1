@@ -149,6 +149,228 @@
 .q-footbar #continue-btn { margin-left: auto; }
 
 /* ---------- Confirmar artista ---------- */
+.q-confirm-nav, .q-confirm-user, .q-confirm-logout, .q-confirm-social { display: none; }
+
+/* Pantalla 14 · Figma 2105:7177. Estas medidas solo afectan la confirmación.
+   Los valores fraccionarios conservan la geometría del frame de 1469 px. */
+.q-artist-confirm-page .app-container { min-height: max(100vh, 1116px); }
+.q-artist-confirm-page #main-content {
+  max-width: 1305px;
+  width: calc(100% - 164px);
+  margin-left: max(60px, calc((100% - 1349px) / 2));
+  margin-right: auto;
+  padding: 0;
+}
+.q-artist-confirm-page .quotation-client-header {
+  box-sizing: border-box;
+  height: 78px;
+  min-height: 78px;
+  padding: 0 27px;
+  border-bottom: 2px solid var(--neutral-500);
+  background: var(--surface-page);
+  gap: 31px;
+}
+.q-artist-confirm-page .quotation-client-header .wo-topbar-left {
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 58px;
+}
+.q-artist-confirm-page .wo-topbar-brand {
+  padding: 0;
+  font-size: 18.961px;
+  letter-spacing: 1.1376px;
+  color: var(--neutral-500);
+  white-space: nowrap;
+}
+.q-artist-confirm-page .wo-marks,
+.q-artist-confirm-page .q-topbar-tag,
+.q-artist-confirm-page .q-client-actions > [data-account-mode-switch] { display: none; }
+.q-artist-confirm-page .q-confirm-nav { display: flex; align-self: stretch; gap: 0; }
+.q-artist-confirm-page .q-confirm-nav .wo-topbar-item {
+  display: flex;
+  align-items: center;
+  padding: 0 17.606px;
+  font-family: var(--font-body);
+  font-size: 13.543px;
+  font-weight: 700;
+  letter-spacing: 1.3543px;
+  line-height: normal;
+  color: var(--neutral-500);
+  border-bottom: 2.167px solid transparent;
+}
+.q-artist-confirm-page .q-confirm-nav .is-active { border-bottom-color: var(--yellow-300); }
+.q-artist-confirm-page .q-client-actions { gap: 31px; padding: 0; }
+.q-artist-confirm-page #header-user-btn {
+  width: 43.338px;
+  height: 43.338px;
+  background: var(--yellow-300);
+  border: 0;
+}
+.q-artist-confirm-page #header-user-btn [data-wo-icon] { display: none; }
+.q-artist-confirm-page .q-confirm-user { display: inline; font: 16.252px var(--font-display); }
+.q-artist-confirm-page .q-client-actions:has(#header-user-btn:not(.hidden)) .q-confirm-logout {
+  display: inline-flex;
+  height: 43.338px;
+  min-height: 0;
+  padding: 0 18.961px;
+  font-size: 13.543px;
+  letter-spacing: 1.3543px;
+  border: 0;
+}
+.q-artist-confirm-page #screen-artist { max-width: none; padding: 67px 0 47px; }
+.q-artist-confirm-page .q-screen-title { font-size: 56px; font-weight: 400; line-height: 62px; letter-spacing: -0.56px; }
+.q-artist-confirm-page .q-blocks { margin-top: 29px; }
+.q-artist-confirm-page .question-container { width: 900px; max-width: 100%; }
+.q-artist-confirm-page .q-artist-card {
+  padding: 40.6px 30.6px;
+  gap: 0;
+  background: var(--figma-white);
+  border: 1px solid var(--neutral-500);
+}
+.q-artist-confirm-page .q-artist-avatar {
+  box-sizing: border-box;
+  width: 152px;
+  height: 152px;
+  border: 1px solid var(--neutral-500);
+  border-radius: 0;
+  background: var(--figma-sand-border);
+}
+.q-artist-confirm-page .q-avatar-fallback { color: var(--neutral-400); }
+.q-artist-confirm-page .q-avatar-fallback [data-wo-icon],
+.q-artist-confirm-page .q-avatar-fallback svg { width: 28px; height: 28px; }
+.q-artist-confirm-page .q-artist-name { margin-top: 21.4px; font-size: 28px; font-weight: 400; line-height: 34px; }
+.q-artist-confirm-page .q-artist-meta {
+  margin-top: 14px;
+  gap: 11.2px;
+  font-size: 14px;
+  line-height: 18.4px;
+  letter-spacing: 2.8px;
+}
+.q-artist-confirm-page .q-artist-details { margin-top: 16px; padding-top: 16px; gap: 23.76px; }
+.q-artist-confirm-page .q-detail-item { gap: 10px; font-size: 17px; line-height: 22.4px; color: var(--ink); }
+.q-artist-confirm-page .q-detail-item [data-wo-icon],
+.q-artist-confirm-page .q-detail-item svg { width: 21px; height: 21px; }
+.q-artist-confirm-page .q-detail-item a { color: var(--blue-300); text-decoration: none; }
+.q-artist-confirm-page .q-detail-item a:hover { text-decoration: underline; }
+.q-artist-confirm-page .q-artist-price {
+  margin-top: 14px;
+  padding: 10px 20px;
+  font-size: 20px;
+  line-height: 27.2px;
+  letter-spacing: 1.6px;
+  color: var(--ink);
+}
+.q-artist-confirm-page .actions-row { gap: 15px; margin-top: 30px; }
+.q-artist-confirm-page .actions-row .wo-btn {
+  box-sizing: border-box;
+  min-height: 65px;
+  height: 65px;
+  padding: 0 26.6px 1.2px;
+  border: 1px solid var(--neutral-500);
+  font-size: 18px;
+  line-height: 18px;
+  letter-spacing: 0.72px;
+}
+.q-artist-confirm-page .actions-row .btn-primary,
+.q-artist-confirm-page #continue-btn { color: var(--neutral-100); }
+.q-artist-confirm-page .actions-row .btn-secondary { background: var(--figma-white); }
+.q-artist-confirm-page .q-footbar {
+  position: static;
+  max-width: none;
+  min-height: 0;
+  padding: 27px 0 0;
+}
+.q-artist-confirm-page #back-btn { display: none; }
+.q-artist-confirm-page #continue-btn {
+  min-height: 37px;
+  height: 37px;
+  padding: 0 28.6px;
+  gap: 8px;
+  border: 1px solid var(--neutral-500);
+  font-size: 17px;
+  line-height: 17px;
+  letter-spacing: 1.02px;
+}
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: auto 0 0 !important;
+  padding: 28px 24px !important;
+  min-height: 74px;
+  border: 0 !important;
+  background: var(--neutral-500) !important;
+  color: var(--neutral-100) !important;
+}
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-content { gap: 28px !important; flex-wrap: wrap !important; }
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-text,
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-copyright {
+  margin: 0 !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 1.5px !important;
+  line-height: 18px !important;
+  color: var(--neutral-100) !important;
+}
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-social { gap: 26px !important; }
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .social-icon { width: auto !important; height: 18px !important; color: var(--neutral-100) !important; }
+.q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .social-icon svg { width: 18px !important; height: 18px !important; }
+.q-artist-confirm-page .quotation-client-footer .social-icon:has(.q-confirm-social) svg { display: none; }
+.q-artist-confirm-page .q-confirm-social { display: block; }
+.q-artist-confirm-page #sc-fab {
+  width: 74px;
+  height: 74px;
+  right: 41px;
+  bottom: 100px;
+  border: 1px solid var(--neutral-500);
+  background: var(--yellow-300);
+  color: var(--ink);
+  box-shadow: none;
+  background-image: url('/shared/assets/quotation-confirm/support.svg');
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.q-artist-confirm-page #sc-fab svg { visibility: hidden; }
+
+@media (max-width: 1100px) {
+  .q-artist-confirm-page #main-content { width: calc(100% - 64px); margin: 0 32px; }
+  .q-artist-confirm-page .quotation-client-header { padding: 0 20px; gap: 16px; }
+  .q-artist-confirm-page .quotation-client-header .wo-topbar-left { gap: 20px; }
+  .q-artist-confirm-page .q-confirm-nav .wo-topbar-item { padding: 0 10px; font-size: 11px; }
+  .q-artist-confirm-page .q-client-actions { gap: 16px; }
+  .q-artist-confirm-page .actions-row .wo-btn { font-size: 16px; }
+  .q-artist-confirm-page #sc-fab { width: 54px; height: 54px; right: 16px; bottom: 24px; }
+}
+@media (min-width: 768px) and (max-width: 900px) {
+  .q-artist-confirm-page .wo-topbar-brand { font-size: 16px; }
+  .q-artist-confirm-page .quotation-client-header .wo-topbar-left { gap: 16px; }
+  .q-artist-confirm-page .q-confirm-nav .wo-topbar-item { padding: 0 8px; font-size: 10px; letter-spacing: 1px; }
+  .q-artist-confirm-page .q-client-actions { gap: 12px; }
+  .q-artist-confirm-page .q-client-actions:has(#header-user-btn:not(.hidden)) .q-confirm-logout { padding: 0 12px; font-size: 12px; }
+}
+@media (max-width: 767px) {
+  .q-artist-confirm-page .app-container { min-height: 100vh; }
+  .q-artist-confirm-page #main-content { width: calc(100% - 32px); margin: 0 16px; }
+  .q-artist-confirm-page .quotation-client-header { height: auto; min-height: 112px; flex-wrap: wrap; padding: 12px 16px; }
+  .q-artist-confirm-page .quotation-client-header .wo-topbar-left { display: contents; }
+  .q-artist-confirm-page .q-confirm-nav { order: 3; width: 100%; height: 36px; justify-content: space-between; }
+  .q-artist-confirm-page .q-confirm-nav .wo-topbar-item { padding: 0 4px; font-size: 9px; letter-spacing: 0.5px; }
+  .q-artist-confirm-page .q-client-actions { margin-left: auto; }
+  .q-artist-confirm-page #screen-artist { padding: 36px 0 32px; }
+  .q-artist-confirm-page .q-screen-title { font-size: clamp(28px, 6vw, 44px); line-height: 1.1; }
+  .q-artist-confirm-page .q-artist-card { padding: 32px 16px; }
+  .q-artist-confirm-page .q-artist-meta { font-size: 11px; letter-spacing: 1.6px; }
+  .q-artist-confirm-page .q-artist-name { font-size: 24px; overflow-wrap: anywhere; }
+  .q-artist-confirm-page .actions-row { flex-direction: column; align-items: stretch; }
+  .q-artist-confirm-page .actions-row .wo-btn { padding: 20px 12px; font-size: 14px; white-space: normal; }
+  .q-artist-confirm-page .q-footbar { margin-bottom: 48px; }
+  .q-artist-confirm-page #sc-fab { width: 54px; height: 54px; right: 16px; bottom: 24px; }
+  .q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-content { gap: 20px !important; }
+  .q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-text,
+  .q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-copyright { font-size: 10px !important; }
+  .q-artist-confirm-page .quotation-client-footer.bauhaus-footer-component .footer-social { order: 0 !important; }
+}
+
 .q-artist-card {
   display: flex;
   flex-direction: column;
