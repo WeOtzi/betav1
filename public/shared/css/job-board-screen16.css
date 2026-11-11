@@ -3,17 +3,7 @@
 html:has(.jbf-is-detail) { scrollbar-width: none; }
 .jbf-is-detail #sc-fab,
 .jbf-is-detail weotzi-product-footer { display: none !important; }
-.jbf-is-detail .wo-org-product-nav__link.is-active { border-bottom-color: transparent; }
-.jbf-is-detail .wo-org-product-nav__links > :first-child { border-bottom-color: var(--yellow-300); }
-.jbf-is-detail .wo-org-product-nav__notification-badge,
-.jbf-is-detail .wo-org-product-nav__badge,
-.jbf-is-detail .wo-mode-switch,
-.jbf-is-detail [data-account-mode-switch],
-.jbf-is-detail .wo-org-product-nav__spots-toggle { display: none; }
-.jbf-is-detail .wo-org-product-nav__account { gap: 31.149px; }
-.jbf-is-detail .wo-org-product-nav { padding-right: 33.1px; }
-.jbf-is-detail .wo-org-product-nav__item > .wo-org-product-nav__link { padding-inline: 17.606px; }
-.jbf-is-detail .wo-org-product-nav__profile-label { display: none; }
+/* Topbar compartida sin overrides (ver job-board-screen15.css). */
 .jbf-is-detail .jbf-shell { display: block; max-width: none; }
 .jbf-is-detail .jbf-main { padding: 32px 0 44px; }
 .jbf-is-detail .jbf-detail {

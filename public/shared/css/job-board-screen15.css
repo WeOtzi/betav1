@@ -7,17 +7,9 @@
 }
 .jbf-is-feed #sc-fab { display: none !important; }
 html:has(.jbf-is-feed) { scrollbar-width: none; }
-.jbf-is-feed .wo-org-product-nav__link.is-active { border-bottom-color: transparent; }
-.jbf-is-feed .wo-org-product-nav__links > :first-child { border-bottom-color: var(--yellow-300); }
-.jbf-is-feed .wo-org-product-nav__notification-badge,
-.jbf-is-feed .wo-org-product-nav__badge,
-.jbf-is-feed .wo-mode-switch,
-.jbf-is-feed [data-account-mode-switch],
-.jbf-is-feed .wo-org-product-nav__spots-toggle { display: none; }
-.jbf-is-feed .wo-org-product-nav__account { gap: 31.149px; }
-.jbf-is-feed .wo-org-product-nav { padding-right: 33.1px; }
-.jbf-is-feed .wo-org-product-nav__item > .wo-org-product-nav__link { padding-inline: 17.606px; }
-.jbf-is-feed .wo-org-product-nav__profile-label { display: none; }
+/* Topbar: se usa la barra compartida del artista tal cual (badge de notificaciones,
+   selector de modo y pestaña activa reales). El frame 801:1067 la dibuja estática
+   y con COTIZACIONES activa; no se calca para no ocultar funcionalidad. */
 .jbf-is-feed .jbf-main { overflow: hidden; }
 .jbf-is-feed .jbf-head { position: relative; margin-bottom: 28px; }
 .jbf-is-feed .jbf-head .wo-eyebrow { display: block; font-size: 12px; line-height: 16px; letter-spacing: 1.68px; color: var(--neutral-300); }

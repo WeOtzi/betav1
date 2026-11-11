@@ -2,17 +2,7 @@
 .jbf-is-sent { --surface-card: var(--figma-white); background: var(--surface-page); }
 html:has(.jbf-is-sent) { scrollbar-width: none; }
 .jbf-is-sent weotzi-product-footer { display: none; }
-.jbf-is-sent .wo-org-product-nav__link.is-active { border-bottom-color: transparent; }
-.jbf-is-sent .wo-org-product-nav__links > :first-child { border-bottom-color: var(--yellow-300); }
-.jbf-is-sent .wo-org-product-nav__notification-badge,
-.jbf-is-sent .wo-org-product-nav__badge,
-.jbf-is-sent .wo-mode-switch,
-.jbf-is-sent [data-account-mode-switch],
-.jbf-is-sent .wo-org-product-nav__spots-toggle,
-.jbf-is-sent .wo-org-product-nav__profile-label { display: none; }
-.jbf-is-sent .wo-org-product-nav__account { gap: 31.149px; }
-.jbf-is-sent .wo-org-product-nav { padding-right: 33.1px; }
-.jbf-is-sent .wo-org-product-nav__item > .wo-org-product-nav__link { padding-inline: 17.606px; }
+/* Topbar compartida sin overrides (ver job-board-screen15.css). */
 .jbf-is-sent .jbf-shell { display: block; max-width: none; }
 .jbf-is-sent .jbf-shell .jbf-main { max-width: none; min-height: calc(100vh - 76px); padding: 92px 32px 120px; }
 .jbf-is-sent .jbf-sent { width: min(100%, 576px); padding: 0; }
