@@ -49,7 +49,7 @@ test('calendar expands proportionally beyond the Figma desktop width', () => {
   assert.match(css, /\.cal-month-weekday\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*1/);
   assert.match(css, /\.cal-month-day\s*\{[\s\S]*aspect-ratio:\s*14\s*\/\s*13;[\s\S]*min-height:\s*0/);
   assert.match(css, /\.cal-time-grid\s*\{[\s\S]*--hour-height:\s*5\.306122cqw/);
-  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{[\s\S]*--hour-height:\s*6\.938776cqw/);
+  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{[\s\S]*--hour-height:\s*6\.612245cqw/);
   assert.match(css, /\.cal-editor-shell\s*\{[\s\S]*max-width:\s*none/);
   assert.match(css, /\.cal-editor-layout\s*\{\s*grid-template-columns:\s*minmax\(0, 2\.428fr\) minmax\(0, 1fr\);\s*gap:\s*3\.114877%/);
 });
@@ -69,11 +69,11 @@ test('calendar controller renders all views and wires real CRUD plus conflict pr
   assert.doesNotMatch(calendarJs, /state\.view === 'week' \? mondayOfWeek\(state\.currentDate\) : startOfDay\(state\.currentDate\)/);
 });
 
-test('calendar reproduces the Figma desktop geometry and every named editor state', () => {
+test('calendar reproduces the Figma final desktop geometry (801:542…554) and every named editor state', () => {
   assert.match(css, /@media \(min-width: 80rem\)[\s\S]*\.cal-shell\s*\{[\s\S]*max-width:\s*1408px;[\s\S]*padding:\s*44px 44px 110px/);
   assert.match(css, /\.cal-shell\[data-view="week"\],[\s\S]*\.cal-shell\[data-view="day"\][\s\S]*padding-right:\s*64px;\s*padding-left:\s*24px/);
   assert.match(css, /\.cal-layout\s*\{\s*grid-template-columns:\s*minmax\(0, 980px\) minmax\(0, 300px\);\s*gap:\s*40px/);
-  assert.match(css, /\.cal-month-day\s*\{\s*min-height:\s*130px/);
+  assert.match(css, /\.cal-month-day\s*\{\s*min-height:\s*129\.6px/);
   assert.match(css, /\.cal-editor-layout\s*\{\s*grid-template-columns:\s*881\.28px 362\.88px;\s*gap:\s*40px/);
   assert.match(css, /\.cal-type-picker button\s*\{\s*height:\s*65\.6px/);
   assert.match(calendarJs, /class="cal-day-board-title"/);
@@ -88,9 +88,9 @@ test('calendar reproduces the Figma desktop geometry and every named editor stat
   assert.match(calendarJs, /p\. m\./);
   assert.match(calendarJs, /textInput\('event-client',[\s\S]*'user'\)/);
   assert.match(calendarJs, /textInput\('event-title',[\s\S]*'briefcase'\)/);
-  assert.match(calendarJs, /if \(state\.selectedType\) payload = readFormPayload\(\)/);
+  assert.match(calendarJs, /if \(state\.selectedType\) payload = readFormPayload\(\{ lenient: true \}\)/);
   assert.doesNotMatch(calendarJs, /function localProjectedConflicts\(payload\)\s*\{\s*if \(!BLOCKING_TYPES/);
-  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{\s*--hour-height:\s*68px;\s*grid-template-rows:/);
+  assert.match(css, /\.cal-time-grid\.cal-time-grid--day\s*\{\s*--hour-height:\s*64\.8px;\s*grid-template-rows:/);
 });
 
 test('calendar editor heading belongs to the main column while the summary starts beside it', () => {

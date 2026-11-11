@@ -1,5 +1,130 @@
-<h2>Recuperá tu acceso a We Ötzi</h2>
-<p>Ingresá este código en la pantalla de recuperación:</p>
-<p style="font-size:28px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
-<p>También podés <a href="{{ .ConfirmationURL }}">continuar desde este enlace seguro</a>.</p>
-<p>Si no solicitaste recuperar tu acceso, ignorá este correo. No compartas este código.</p>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Tu código para recuperar el acceso a We Ötzi</title>
+<!--
+  Supabase Auth · plantilla "Reset Password" (Authentication → Emails → Reset Password).
+  Figma final del flujo de artista (oct 2026): 801:1116 "Correo - Código para recuperar acceso".
+  Asunto sugerido: Tu código para recuperar el acceso a We Ötzi
+  Variables de Supabase (Go templates):
+    {{ .Token }}            código OTP de 6 dígitos que /recover valida con verifyOtp(type:'recovery')
+    {{ .ConfirmationURL }}  enlace seguro; vuelve a /recover?recovery=1 y abre el paso "Nueva contraseña"
+    {{ .SiteURL }}          URL del sitio configurada en Supabase (links del pie)
+    {{ .Data.full_name }}   nombre guardado en user_metadata (si existe)
+  "Este código vence en 10 minutos": configurar Email OTP Expiration = 600 s en Supabase
+  (Authentication → Providers → Email) para que el texto sea exacto.
+  Solo estilos inline y tablas: compatible con Gmail, Outlook y Apple Mail.
+-->
+<style>
+@media only screen and (max-width: 620px) {
+  .wo-card { width: 100% !important; }
+  .wo-pad { padding: 28px 20px !important; }
+  .wo-h1 { font-size: 28px !important; line-height: 32px !important; }
+  .wo-code { font-size: 32px !important; letter-spacing: 8px !important; padding-left: 8px !important; }
+}
+</style>
+</head>
+<body style="margin:0;padding:0;background:#E8E3D7;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#E8E3D7;">Usá este código para recuperar el acceso a tu cuenta de We Ötzi.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#E8E3D7;">
+<tr>
+<td align="center" style="padding:40px 12px;">
+<table class="wo-card" role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#FAF8F3;border:1px solid #24211D;">
+
+<!-- Cabecera ink: marca + figuras Bauhaus (570:258 · 20/30, figuras de 13 separadas 9) -->
+<tr>
+<td style="background:#24211D;padding:20px 30px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="font-family:'Archivo Black',Arial Black,Arial,Helvetica,sans-serif;font-size:20px;line-height:27px;font-weight:900;letter-spacing:0.6px;color:#FAF8F3;">WE &Ouml;TZI</td>
+<td align="right" style="font-size:0;line-height:0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+<tr>
+<td style="width:13px;height:13px;background:#E42121;font-size:0;line-height:0;">&nbsp;</td>
+<td style="width:9px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="width:13px;height:13px;background:#F2B519;border-radius:50%;font-size:0;line-height:0;">&nbsp;</td>
+<td style="width:9px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:13px;color:#4C86FF;">&#9650;</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Cuerpo (570:265 · pt 34, columnas de 40, ritmo 7.2) -->
+<tr>
+<td class="wo-pad" style="padding:34px 40px 28px;">
+<p style="margin:0 0 18px;font-family:'JetBrains Mono',Consolas,'Courier New',monospace;font-size:11px;line-height:15px;letter-spacing:1.98px;text-transform:uppercase;color:#6B6559;">SEGURIDAD DE LA CUENTA</p>
+<p style="margin:0 0 7px;font-family:Inter,Arial,Helvetica,sans-serif;font-size:15px;line-height:18px;color:#3B3730;">{{ if .Data.full_name }}Hola, {{ .Data.full_name }}.{{ else }}Hola.{{ end }}</p>
+<h1 class="wo-h1" style="margin:0 0 14px;font-family:'Archivo Black',Arial Black,Arial,Helvetica,sans-serif;font-size:32px;line-height:36px;font-weight:900;letter-spacing:-0.32px;color:#001125;">Recuperá tu acceso</h1>
+<p style="margin:0 0 78px;max-width:519px;font-family:Inter,Arial,Helvetica,sans-serif;font-size:15px;line-height:23.25px;color:#3B3730;">Recibimos una solicitud para restablecer la contraseña de tu cuenta de We Ötzi.</p>
+
+<!-- Código (570:274 · 26/20/24, label → código 11.2, código → vencimiento 12) -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#24211D;">
+<tr>
+<td align="center" style="padding:26px 20px 24px;">
+<p style="margin:0 0 11px;font-family:'JetBrains Mono',Consolas,'Courier New',monospace;font-size:11px;line-height:14.4px;letter-spacing:2.64px;text-transform:uppercase;color:#F2B519;">TU CÓDIGO DE VERIFICACIÓN</p>
+<p class="wo-code" style="margin:0 0 12px;padding-left:12.88px;font-family:'JetBrains Mono',Consolas,'Courier New',monospace;font-size:46px;line-height:55.2px;font-weight:700;letter-spacing:12.88px;color:#F2B519;">{{ .Token }}</p>
+<p style="margin:0;font-family:Inter,Arial,Helvetica,sans-serif;font-size:13px;line-height:16px;color:#F4F0E6;">Este código vence en 10 minutos.</p>
+</td>
+</tr>
+</table>
+
+<!-- Aviso (570:281 · pt 16, cuadro rojo de 11 + 11 de aire, texto 13.5/20.25) -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 0;">
+<tr>
+<td valign="top" style="width:22px;padding-top:5px;"><div style="width:11px;height:11px;background:#E42121;font-size:0;line-height:0;">&nbsp;</div></td>
+<td style="font-family:Inter,Arial,Helvetica,sans-serif;font-size:13.5px;line-height:20.25px;color:#3B3730;">No compartas este código con nadie. Nadie del equipo de We Ötzi te lo va a pedir.</td>
+</tr>
+</table>
+
+<!-- CTA (570:287 · 16/26, texto 14 bold tracking 1.26, flecha a 12) -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 34px;">
+<tr>
+<td style="background:#F2B519;">
+<a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:16px 26px;font-family:Inter,Arial,Helvetica,sans-serif;font-size:14px;line-height:16.8px;font-weight:700;letter-spacing:1.26px;text-transform:uppercase;color:#24211D;text-decoration:none;">CONTINUAR RECUPERACIÓN<span style="padding-left:12px;letter-spacing:0;">&rarr;</span></a>
+</td>
+</tr>
+</table>
+
+<!-- ¿No solicitaste este cambio? (570:291 · filete ink, 23.6/22/22, gap 10) -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F2EFE6;border-top:2px solid #24211D;">
+<tr>
+<td style="padding:23px 22px 22px;">
+<p style="margin:0 0 10px;font-family:'Archivo Black',Arial Black,Arial,Helvetica,sans-serif;font-size:16px;line-height:20.8px;font-weight:900;color:#001125;">¿No solicitaste este cambio?</p>
+<p style="margin:0;font-family:Inter,Arial,Helvetica,sans-serif;font-size:14px;line-height:21.7px;color:#3B3730;">Podés ignorar este mensaje. Tu contraseña continuará siendo la misma y no se realizará ningún cambio en tu cuenta.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Pie (570:296 · filete arena, pt 22.8, gap 8) -->
+<tr>
+<td class="wo-pad" style="padding:0 40px 37px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #DCD6C9;">
+<tr>
+<td style="padding-top:23px;">
+<p style="margin:0 0 8px;font-family:'Archivo Black',Arial Black,Arial,Helvetica,sans-serif;font-size:13px;line-height:16px;font-weight:900;letter-spacing:0.65px;color:#001125;">WE &Ouml;TZI</p>
+<p style="margin:0 0 14px;font-family:'JetBrains Mono',Consolas,'Courier New',monospace;font-size:11px;line-height:15px;letter-spacing:1.32px;text-transform:uppercase;color:#6B6559;">ESTE ES UN MENSAJE AUTOMÁTICO DE WE ÖTZI</p>
+<p style="margin:0 0 14px;font-family:Inter,Arial,Helvetica,sans-serif;font-size:12.5px;line-height:15px;color:#B4AEA1;">
+<a href="https://weotzi.com/faqs" style="color:#0044CC;text-decoration:underline;">Centro de ayuda</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="{{ .SiteURL }}/legal/privacy" style="color:#0044CC;text-decoration:underline;">Privacidad</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="mailto:soporte@weotzi.com" style="color:#0044CC;text-decoration:underline;">soporte@weotzi.com</a>
+</p>
+<p style="margin:0;font-family:'JetBrains Mono',Consolas,'Courier New',monospace;font-size:11px;line-height:15px;color:#6B6559;">&copy; 2026 We Ötzi. Todos los derechos reservados.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>

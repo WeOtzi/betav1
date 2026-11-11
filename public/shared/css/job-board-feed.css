@@ -1234,3 +1234,103 @@ body.wo-app.jbf-is-sent #sc-fab { display: none !important; }
     .jbf-sent { padding-top: 16px; }
     .jbf-client-card { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 }
+
+/* ============================================================================
+   Figma final (oct 2026) · 801:1067 · 801:1068 · 801:1069
+   La geometría literal del feed y del detalle vive en job-board-screen15.css y
+   job-board-screen16.css (versión 2.2.6). Esta capa solo agrega lo que esas
+   hojas no cubren: estados funcionales (filtro rápido activo, "ya enviaste tu
+   propuesta") y la confirmación 801:1069.
+   ========================================================================== */
+
+/* ---------- Feed · filtro rápido activo ---------- */
+/* El Figma no muestra ningún filtro rápido activo; cuando el artista elige uno,
+   la fila lo marca para que el filtro aplicado sea visible. */
+body.jbf-is-feed .jbf-quick-item.is-active {
+    background: var(--neutral-200);
+    font-weight: var(--weight-bold);
+}
+
+/* ---------- Detalle · tarjetas y título (medidas del Figma) ---------- */
+.jbf-detail-title {
+    max-width: 42.5rem;
+    margin: 0 0 .75rem;
+    line-height: 1.1;
+}
+@media (min-width: 48.0625rem) {
+    .jbf-refs { row-gap: 93px; }
+}
+.jbf-refs + .jbf-sum-label { margin-top: 13px; }
+.jbf-card-body {
+    box-sizing: border-box;
+    min-height: 13.4375rem;
+    gap: .625rem;
+}
+.jbf-card-apply {
+    box-sizing: border-box;
+    height: 2.25rem;
+    padding-block: 0;
+}
+
+/* ---------- Detalle · propuesta ya enviada ---------- */
+.jbf-applied-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+    padding: var(--space-3) 0;
+    border-top: var(--border-hairline) solid var(--border-subtle);
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+}
+.jbf-is-detail .jbf-detail-aside > .wo-btn { height: 52px; }
+
+/* ---------- Propuesta enviada (801:1069) ---------- */
+.jbf-sent-check { position: relative; display: block; width: 32px; height: 32px; }
+.jbf-sent-check img { position: absolute; left: 4px; top: 6.6667px; max-width: none; }
+.jbf-sent > .wo-eyebrow { color: var(--neutral-300); }
+.jbf-sent-sub { max-width: 28.5rem; margin-inline: auto; }
+.jbf-summary { border: var(--border-hairline) solid var(--border-strong); }
+.jbf-summary-head .wo-meta-s { color: var(--neutral-100); }
+.jbf-client-avatar,
+.jbf-summary-avatar { background: var(--blue-400); }
+.jbf-summary-val { font-weight: var(--weight-bold); color: var(--ink); }
+.jbf-summary-client strong { font-weight: var(--weight-bold); }
+.jbf-sent-actions .wo-btn--secondary { border: var(--border-hairline) solid var(--border-strong); }
+@media (min-width: 48.0625rem) {
+    .jbf-summary-row { grid-template-columns: max-content minmax(0, 1fr); }
+}
+
+/* Resumen: cabecera de 48 px (14 px + badge de 20 px), cuerpo con 20 px de aire
+   en los cuatro lados y filas de 12 px arriba/abajo. */
+.jbf-summary-head {
+    box-sizing: border-box;
+    min-height: 3rem;
+    padding: .875rem 1.25rem;
+}
+.jbf-summary-head .wo-meta-s {
+    font-size: 11px;
+    letter-spacing: 1.1px;
+    line-height: normal;
+}
+.jbf-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 1.25rem;
+    padding: 0 .5rem;
+    font-weight: var(--weight-bold);
+    letter-spacing: .8px;
+    line-height: normal;
+}
+.jbf-summary-body { padding: 1.25rem; }
+.jbf-summary-row {
+    min-height: 0;
+    padding: .75rem 0;
+    align-items: center;
+}
+.jbf-summary-key { letter-spacing: .66px; line-height: normal; }
+.jbf-summary-val { line-height: 1.2; }
+.jbf-summary-val.wo-mono-num { font-size: 1rem; line-height: 1.3; }
+.jbf-sent-actions { margin-top: 2.25rem; }
+.jbf-sent-actions .wo-btn { box-sizing: border-box; height: 3.25rem; min-height: 3.25rem; }

@@ -1,0 +1,73 @@
+/* Figma w3JA83CcP5ISKjyOu87mx1 · 801:1120.
+   Scope only the visible first step; later wizard screens keep their styles. */
+body.cw-page:has(.cw-step[data-step="1"]:not([hidden])){margin:0}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])){
+  min-height:calc(100vh - 49.2px);
+  --cw-field-shadow:3px 3px 0 var(--border-strong);
+}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-topbar{height:72px;min-height:72px;box-sizing:border-box}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-topbar-left{gap:10px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .wo-marks{gap:6px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .wo-mark-square,
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .wo-mark-circle{width:16px;height:16px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .wo-mark-triangle{border-bottom-width:16px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-topbar-label{font-size:11px;letter-spacing:1.1px;color:var(--text-faint)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-topbar-right{gap:var(--space-5)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-progress-note{gap:7px;font-size:10px;letter-spacing:.8px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-progress-note .dot{width:7px;height:7px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-step-count{font-size:11px;letter-spacing:.88px;color:var(--text-faint)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-close{width:44px;height:44px;color:var(--text-body)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-close svg{width:20px;height:20px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-progressbar{gap:6px;padding-top:14px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-seg.is-done{border-color:var(--ink)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-tabs{gap:34px;padding-top:14px;padding-bottom:0}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-tab{padding:0;font-size:10px;line-height:13px;letter-spacing:1px;color:var(--text-muted);font-weight:400}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-tab .num{color:var(--figma-sand-border)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-tab.is-active{color:var(--ink)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-tab.is-active .num{color:var(--yellow-300)}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-main{max-width:980px;padding:116px var(--space-8) 92px}
+.cw-step[data-step="1"] .cw-step-head{display:grid;grid-template-columns:auto 1fr;column-gap:18px;row-gap:14px;margin-bottom:44px}
+.cw-step[data-step="1"] .cw-step-head>div{display:contents}
+.cw-step[data-step="1"] .cw-step-ghost{font-size:14px;color:var(--figma-sand-border)}
+.cw-step[data-step="1"] .cw-title{font-size:44px;line-height:46.2px;letter-spacing:0;font-weight:400}
+.cw-step[data-step="1"] .cw-sub{grid-column:1/-1;font-size:16px;line-height:19.2px;margin:0;max-width:none}
+.cw-step[data-step="1"] .cw-s1-grid{grid-template-columns:180px minmax(0,1fr);gap:44px}
+.cw-step[data-step="1"] .cw-photo-col{align-items:flex-start;gap:var(--space-3)}
+.cw-step[data-step="1"] .cw-photo-col .wo-label{font-size:10px;line-height:13px;letter-spacing:.8px}
+.cw-step[data-step="1"] .cw-photo-drop{width:130px;height:128px;box-sizing:border-box;border:1px dashed color-mix(in srgb,var(--text-body) 35%,transparent);background:rgba(127,127,127,.08)}
+.cw-step[data-step="1"] .cw-photo-empty{gap:4.9px;padding:var(--space-3);font-family:'Segoe UI',sans-serif;color:var(--text-body)}
+.cw-step[data-step="1"] .cw-photo-empty>.cw-frame-icon{width:28px;height:29.1px;object-fit:contain}
+.cw-step[data-step="1"] .cw-photo-empty strong{font-family:'Segoe UI',sans-serif;font-size:13px;line-height:16.9px;letter-spacing:.13px;font-weight:600;opacity:.75}
+.cw-step[data-step="1"] .cw-photo-empty .browse{font-size:11px;line-height:14.3px;color:var(--text-body);opacity:.75;text-decoration:none}
+.cw-step[data-step="1"] .cw-photo-empty .browse u{text-underline-offset:1px}
+.cw-step[data-step="1"] .cw-photo-opt{letter-spacing:.6px;line-height:13px}
+.cw-step[data-step="1"] .cw-fields-col{gap:26px;min-width:0}
+.cw-step[data-step="1"] .wo-field{min-width:0;gap:var(--space-2)}
+.cw-step[data-step="1"] .wo-label{font-size:12px;line-height:14.4px;letter-spacing:.96px;color:var(--text-muted)}
+.cw-step[data-step="1"] .wo-label .req{color:var(--system-error)}
+.cw-step[data-step="1"] .cw-inputwrap .wo-input{height:44px;min-height:44px;padding:0 17px;background:var(--surface-page);border-width:1px;box-shadow:var(--cw-field-shadow);font-size:16px;line-height:normal;border-radius:0}
+.cw-step[data-step="1"] .cw-inputwrap--icon .wo-input,.cw-step[data-step="1"] .cw-inputwrap--at .wo-input{padding-left:44px}
+.cw-step[data-step="1"] .cw-inputwrap .wo-input:focus-visible{box-shadow:var(--shadow-focus),var(--cw-field-shadow)}
+.cw-step[data-step="1"] .wo-help{font-size:14px;line-height:18.2px;color:var(--text-faint)}
+.cw-step[data-step="1"] .cw-alt{display:none}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer{padding:18px var(--space-8);border-top-width:1px}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer-right{margin-left:auto}
+#cw-shell:has(.cw-step[data-step="1"]:not([hidden])) #cw-next{width:164.66px;height:44px;min-height:44px;padding:0;gap:var(--space-2);border-width:1px;line-height:14px;letter-spacing:1.12px;color:var(--surface-page)}
+.cw-frame-icon{display:block;flex:none;position:relative;z-index:1;pointer-events:none}
+.cw-inputwrap>.cw-frame-icon{position:absolute;left:18px}
+/* Keep the existing support action clear of the primary registration action. */
+body.cw-page:has(.cw-step[data-step="1"]:not([hidden])) #sc-fab{bottom:140px}
+@media(min-width:1100px){
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-main{transform:translateX(5px)}
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer{padding-right:27px}
+}
+@media(max-width:768px){
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])){min-height:100vh}
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-main{padding:var(--space-12) var(--space-4)}
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer{padding:var(--space-4)}
+  .cw-step[data-step="1"] .cw-step-head{column-gap:var(--space-3);margin-bottom:var(--space-8)}
+  .cw-step[data-step="1"] .cw-title{font-size:clamp(28px,5.7vw,44px);line-height:1.05}
+  .cw-step[data-step="1"] .cw-s1-grid{grid-template-columns:1fr;gap:var(--space-8)}
+  .cw-step[data-step="1"] .cw-row-2{grid-template-columns:minmax(0,1fr)}
+  #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-step-count{white-space:nowrap}
+}

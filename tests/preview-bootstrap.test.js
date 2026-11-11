@@ -80,6 +80,20 @@ test('external HTTP, unknown RPC/table/API and Storage writes fail visibly witho
     assert.equal(requests.length, 0);
 });
 
+test('only GET of the pinned Feather icon SVGs used by the design system reaches the network', async () => {
+    const { win, runtime, requests } = browser();
+    await runtime.ready;
+    const icon = await win.fetch('https://unpkg.com/feather-icons@4.29.2/dist/icons/calendar.svg');
+    assert.equal(icon.status, 200);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].init.credentials, 'omit');
+    assert.equal((await win.fetch('https://unpkg.com/feather-icons@4.29.2/dist/icons/calendar.svg', { method: 'POST', body: '{}' })).status, 403);
+    assert.equal((await win.fetch('https://unpkg.com/other-package@1.0.0/index.js')).status, 403);
+    assert.equal((await win.fetch('https://unpkg.com/feather-icons@4.29.2/dist/feather.min.js')).status, 403);
+    assert.equal((await win.fetch('https://evil.example/feather-icons@4.29.2/dist/icons/x.svg')).status, 403);
+    assert.equal(requests.length, 1);
+});
+
 test('auth fixtures survive logout/reload and do not verify passwords or accept real OAuth tokens', async () => {
     const shared = storage();
     const { win, runtime, requests } = browser({ storage: shared });
@@ -160,4 +174,19 @@ test('fixture RPC row mutations persist across a preview reload', async () => {
     await reloaded.runtime.ready;
     assert.equal(reloaded.runtime.getStore().rows('artist_payment_methods').find(method => method.id === selected.id).is_default, true);
     assert.equal(first.requests.length + reloaded.requests.length, 0);
+});
+
+test('pinned Feather SVG reads use only the local gateway; lookalikes and writes stay blocked', async () => {
+    const { win, runtime, requests } = browser();
+    await runtime.ready;
+    const cdn = 'https://unpkg.com/feather-icons@4.29.2/dist/icons/';
+    assert.equal((await win.fetch(cdn + 'search.svg')).status, 200);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].input, 'https://preview.weotzi.com/__preview/icons/search.svg');
+    assert.equal(requests[0].init.method, 'GET');
+    for (const url of [cdn + 'search.svg?api=1', cdn.replace('4.29.2', '4.29.3') + 'search.svg', 'https://unpkg.com.evil.invalid/feather-icons@4.29.2/dist/icons/search.svg']) {
+        assert.equal((await win.fetch(url)).status, 403);
+    }
+    assert.equal((await win.fetch(cdn + 'search.svg', { method: 'POST' })).status, 403);
+    assert.equal(requests.length, 1);
 });

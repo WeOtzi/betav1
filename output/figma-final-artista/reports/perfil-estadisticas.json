@@ -1,0 +1,192 @@
+{
+  "area": "perfil-estadisticas",
+  "frames": [
+    {
+      "node": "801:1108",
+      "name": "Artista / Perfil público - Artista y portafolio",
+      "route": "/artist/profile?artist=<username>",
+      "result": "rediseñada",
+      "summary": "Se ajustó la composición existente al frame final: franja de estilos sin filete inferior, entrada de portafolio de 138px con chips de estilo ('Todo' en contorno), chips de la grilla con el activo amarillo y sombra de 3px, slots vacíos punteados ('Foto de portafolio'), residencias con país en línea y estados Agenda abierta / Lista de espera / Próximamente (une artist_tattoo_locations con los viajes confirmados de Travel), banda roja en grilla 1.3fr/1fr con chips de mes, citas de reseñas con el autor pegado al texto y enlace subrayado, barra de acción con reserva amarilla. Se corrigió el color de los botones-enlace (heredaban el azul de `.wo-app a`) y el estiramiento de bandas en ventanas altas. Ronda 1 de corrección (auditoría): panel Estudio centrado con la fila de datos (ARTISTAS «6 residentes»: roster activo + el propio artista), enlace «Ver el estudio →» con filete amarillo y triángulo de 96px; autor de cada reseña en dos líneas y avatares cuadrado · círculo · cuadrado en Archivo Black 12; círculo del panel de reseñas de 150px en ink al 12%; CTA del hero y de la banda roja de 52px con +1.12px y borde #24211d; ficha «8 años tatuando» / «$180 USD» con etiquetas Mono 9 y valores SemiBold; nombre del hero sin cortes a mitad de palabra a 390px; copy con acentos en el widget de reseñas.",
+      "figma_png": "output/figma-final-artista/frames/801-1108_perfil-publico-artista.png",
+      "impl_png": "output/figma-final-artista/shots/perfil-estadisticas/801-1108.png",
+      "state_url": "/artist/profile/?artist=valentina-preview.wo (estados: &estilo=blackwork filtra el portafolio · &resenas=1 abre todas las reseñas)",
+      "fidelity": "alta",
+      "fidelity_notes": "Layout, orden, tipografía, colores, bordes e íconos coinciden con el frame. Diferencias que quedan: (1) datos reales del preview en lugar de Sofía Rossi (bio corta, 2 estilos, 3 obras + 6 slots, 4 residencias, 2 ciudades, 3 reseñas), por eso cambian alturas y la banda azul no tiene el párrafo largo; (2) «Tatuadora» / «Verificada» se muestran como «Tatuador» / «Verificado» (no hay dato de género) y el sello Verificado no aparece porque el artista del preview no está verificado; (3) el panel Estudio muestra solo ARTISTAS: AMBIENTE y ACCESOS no tienen columna en studios; (4) «COTIZACIÓN» de la barra va en crema al 60% (en el Figma es #24211d sobre #001125, ilegible); (5) los CTA miden 233/250px contra 230.8/247.6 (render de la tipografía) y el nombre del hero no se tocó en esta ronda; (6) la topbar agrega MODO CLIENTE y contadores (componente del área Dashboard). 801:1155 (vista cliente) es idéntico a 801:1108.",
+      "impl_png_states": [
+        "output/figma-final-artista/shots/perfil-estadisticas/801-1108-resenas.png"
+      ]
+    },
+    {
+      "node": "801:543",
+      "name": "Artista / Estadísticas - Actividad y conversión",
+      "route": "/my-quotations/statistics",
+      "result": "rediseñada",
+      "summary": "Main de 1280px con 48px de aire y contenido de 1184px ubicado como en el frame (filete de cabecera +48px); botón Exportar con ícono external-link; etiquetas de KPI a 8px del número; ingresos en formato Figma ('$3,15M', 'US$4.820'); embudo con 14px de aire; tablist con filete inferior y chips de métrica mono con el activo amarillo + sombra dura; eje del gráfico en mayúsculas; actividad reciente con textos del Figma (visita por Nª vez, solicitud con ciudad, cotización aceptada con monto, reserva con fecha, invitaciones, spots y job board) y horas 'Hace 1 hora' / 'Ayer, 18:40'; oportunidades con filas separadas por 2px e íconos del Figma; visitantes con nombre + tipo en una línea, ciudad debajo, última visita en mono tenue ('Hace 1 día') y contador de visitas. El cliente Supabase sale del singleton (espera ConfigManager.ready) en vez de crearse en la página. Ronda 1 de corrección (auditoría): los seis KPI a 40px (ingresos compactos «US$4,9K» / «$3,15M») con las etiquetas alineadas; flechas de tendencia Feather de 12px; eyebrow «ESTADÍSTICAS · Octubre 2026» con +1.44px; número de visitas al portfolio en negro; embudo con tasas topadas en 100%; chip «Ingresos (miles)» con la serie en miles; línea del gráfico de 3px; etiquetas de Rendimiento en Mono Regular 11 (+1.1px), contador de trabajos en Mono 13 gris oscuro, subgrilla Horarios/Clientes en mitades iguales con filas de 30px; oportunidades que dicen lo que se mide; Chart.js fijado en 4.4.1; a 390px el botón Exportar va después de la bajada y los KPI en dos columnas.",
+      "figma_png": "output/figma-final-artista/frames/801-543_estadisticas.png",
+      "impl_png": "output/figma-final-artista/shots/perfil-estadisticas/801-543.png",
+      "state_url": "/my-quotations/statistics/ (estados: ?periodo=semana|mes|anio · &metrica=visitas|solicitudes|reservas|ingresos · &visitantes=todos|clientes|estudios)",
+      "fidelity": "alta",
+      "fidelity_notes": "Layout, jerarquía, tipografía, colores e íconos coinciden con el frame. Diferencias que quedan: (1) cifras, tendencias (+4100%), actividad, oportunidades y visitantes (20 en lugar de 12) salen de las fixtures del preview; (2) «US$4,9K» a 40px es más ancho que la columna (como «$3,15M» en el Figma) y sobresale unos 16px hacia el margen derecho; (3) la flecha de baja replica el ↖ del mock (Feather arrow-up-left); (4) la topbar marca ESTADÍSTICAS (en el Figma queda subrayado COTIZACIONES, error del mock) y suma MODO CLIENTE y contadores, y el footer compartido <weotzi-product-footer> sigue debajo del frame: ambos son componentes de otras áreas y no se tocaron.",
+      "impl_png_states": [
+        "output/figma-final-artista/shots/perfil-estadisticas/801-543-ingresos.png"
+      ]
+    }
+  ],
+  "removed_in_page": [
+    "/artist/profile: fila de redes del hero (#hero-socials: Instagram / TikTok / sitio web) — no está en 801:1108; se borraron también renderPublicSocials() y el CSS .hero-socials",
+    "/artist/profile: botón 'Ver la galería completa →' (#gallery-view-all-btn) que llevaba a /artist/profile/gallery; ahora la grilla muestra todas las obras (mínimo 9 celdas, sin tope de 12)",
+    "/artist/profile: celdas vacías con ilustración 'Disponible · Slot libre' → reemplazadas por el slot punteado del Figma ('Foto de portafolio')",
+    "/artist/profile: la ubicación base sin fechas ya no aparece en 'Próximas residencias' (sigue en el eyebrow, el badge del retrato y 'Dónde tatué'); 'Dónde tatué' ya no lista residencias futuras",
+    "/artist/profile: venue (nombre del estudio) bajo la ciudad de cada residencia → pasa a tooltip de la fila; la fila muestra el país como en el Figma",
+    "/my-quotations/statistics: ítems de actividad de visitas anónimas ('Una persona visitó tu perfil') — el Figma solo muestra visitantes identificados (siguen sumando en KPIs y gráfico)"
+  ],
+  "routes_to_delete": [
+    {
+      "route": "/artist/visitors",
+      "reason": "No tiene frame en el Figma final. Su información queda cubierta por /my-quotations/statistics: visitas al perfil y al portfolio (KPIs + evolución), ciudades con más visitas, horarios, visitantes identificados con filtro clientes/estudios y actividad reciente. Se pierden el mapa, el total de países y el feed en vivo (no están en el diseño). Archivos: public/artist/visitors/ y public/shared/js/visitors-map.js; el link 'VISITANTES' vive en public/shared/js/ds/organisms.js (área Dashboard). lib/legacy-routes.js ya tiene el mapeo.",
+      "redirect_to": "/my-quotations/statistics"
+    },
+    {
+      "route": "/artist/profile/gallery",
+      "reason": "Sin frame; el perfil público ya no la enlaza y su grilla ahora muestra todas las obras con filtros. OJO: la redirección actual del mapa legacy (/artist/account#portafolio) sirve al artista, pero un cliente que llega con ?artist=<u> debería ir a /artist/profile?artist=<u> conservando la query. Comparte public/shared/css/artist-profile.css (los cambios de este bloque pueden alterarla mientras exista).",
+      "redirect_to": "/artist/profile (conservando ?artist=) · /artist/account#portafolio solo para el propio artista"
+    }
+  ],
+  "missing_functions": [
+    {
+      "title": "Editor de residencias: país y 'Lista de espera'",
+      "detail": "La migración 20261028160000 agrega artist_tattoo_locations.country y el estado 'waitlist'; el perfil ya los muestra, pero el editor de residencias (dashboard.js / cuenta) todavía no permite cargarlos. Mientras tanto el país se completa con el viaje de Travel o con la ciudad base.",
+      "severity": "media"
+    },
+    {
+      "title": "Estudio: AMBIENTE y ACCESOS",
+      "detail": "El panel de estudio del Figma muestra Ambiente ('Privado, con cita') y Accesos ('Subte D · Plaza Italia'); la tabla studios no tiene esos campos. Solo se pinta ARTISTAS (roster activo).",
+      "severity": "baja"
+    },
+    {
+      "title": "Copy con género (Tatuadora / Verificada / Retrato de la artista)",
+      "detail": "artists_db no guarda género ni pronombre; se usa la forma neutra/masculina existente.",
+      "severity": "baja"
+    },
+    {
+      "title": "Reseñas: ciudad del cliente",
+      "detail": "El Figma muestra 'BUENOS AIRES · 2025'; verified_reviews solo expone reviewer_country, así que se muestra país · año.",
+      "severity": "baja"
+    },
+    {
+      "title": "Dónde tatué: historial completo",
+      "detail": "Se arma con ciudad base + ubicaciones vigentes + viajes de Travel confirmados ya iniciados (proyección pública artist_public_travel_presences). Los sellos del pasaporte (artist_travel_passport_stamps) no tienen proyección pública.",
+      "severity": "baja"
+    },
+    {
+      "title": "Embudo con cohorte común",
+      "detail": "Cada etapa del embudo sale de una fuente distinta (visitas diarias de perfil/portfolio y cotizaciones de todo el histórico); una solicitud puede no pasar por el portfolio, así que la tasa se topa en 100%. Un embudo exacto necesita registrar la solicitud con el evento de visita que la originó.",
+      "severity": "baja"
+    },
+    {
+      "title": "Oportunidades de crecimiento y de conversión",
+      "detail": "Los textos del Figma («X es el estilo con mayor crecimiento en tus visitas», «Los clientes de X convierten mejor que el resto») no se pueden calcular con los datos actuales (las visitas no traen estilo; no hay conversión por ciudad). Se reescribieron para decir lo que se mide: «X es el estilo más pedido en tus solicitudes», «X es la ciudad que más te escribe».",
+      "severity": "baja"
+    }
+  ],
+  "backend": [
+    {
+      "migration": "supabase/migrations/20261028160000_artist_residency_country_waitlist.sql",
+      "rollback": "supabase/rollbacks/20261028160000_artist_residency_country_waitlist.down.sql",
+      "purpose": "artist_tattoo_locations: columna opcional country y agenda_status admite 'waitlist' (estados y país de 'Próximas residencias'). Aditiva e idempotente; RLS existente (lectura pública, escritura del dueño) se mantiene. El repo reintenta sin 'country' si la migración no está aplicada.",
+      "applied": false
+    }
+  ],
+  "copy_fixes": [
+    "TATUADORA → Tatuador (sin dato de género; se mantiene la forma existente)",
+    "VERIFICADA → Verificado (ídem)",
+    "Retrato de la artista → Retrato del artista (ídem)",
+    "'or browse files' (cromo del slot de imagen de Figma) → omitido en slots de retrato, portafolio y especialidades",
+    "Chip de entrada 'TODO' y chip de grilla 'TODOS' se copiaron literales (el Figma usa ambos)",
+    "Widget compartido de reseñas (reviews.js): 'Reputacion publica' → 'Reputación pública', 'N resenas' → 'N reseñas', 'Filtrar resenas por calificacion' → 'Filtrar reseñas por calificación', 'Paginacion de resenas' → 'Paginación de reseñas', 'Pagina' → 'Página', 'Cargando resenas...' → 'Cargando reseñas…', '1 estrellas' → '1 estrella', 'Pais no indicado' → 'País no indicado' y el resto de los textos del modal (Calificación, Contá cómo fue la experiencia, Qué destacarías, Enviar a moderación, Completá tu perfil público…). Las etiquetas guardadas (REVIEW_TAGS, p. ej. 'Atencion rapida') no se tocaron porque son datos ya grabados en verified_reviews.",
+    "Estadísticas · oportunidades: 'X es el estilo con mayor crecimiento en tus visitas' → 'X es el estilo más pedido en tus solicitudes'; 'Los clientes de X convierten mejor que el resto' → 'X es la ciudad que más te escribe' (no se mide crecimiento ni conversión).",
+    "Estadísticas · eyebrow: 'ESTADÍSTICAS · Julio 2026' se respeta tal cual (mes con mayúscula inicial; ya no se fuerza todo en mayúsculas).",
+    "Recorrido guiado (wo-tour-steps.js): 'filtrable por categoría' → 'filtrable por estilo'; 'desde la visita hasta la reserva' → 'desde la visita hasta el trabajo realizado'."
+  ],
+  "missing_assets": [
+    "Retrato de la artista (slot 801:1108 hero) → foto real del artista o slot punteado del DS",
+    "Fotos de especialidades (slots 'Fine line / Blackwork / Botánico / Minimalista') → primera obra real etiquetada con ese estilo",
+    "Foto del estudio → cover_image / photo_feed_items reales del estudio",
+    "Fotos de portafolio → gallery_feed_items reales; celdas vacías con slot punteado"
+  ],
+  "files_changed": [
+    "public/artist/profile/index.html",
+    "public/shared/css/artist-profile.css",
+    "public/shared/js/artist-profile.js",
+    "public/shared/js/artist-profile-presentation.js",
+    "public/my-quotations/statistics/index.html",
+    "public/shared/css/statistics.css",
+    "public/shared/js/statistics.js",
+    "public/shared/js/demo-fixtures/perfil-estadisticas.js",
+    "tests/artist-public-preferences.test.js",
+    "public/shared/js/reviews.js",
+    "public/shared/js/wo-tour-steps.js",
+    "tests/statistics-figma.test.js"
+  ],
+  "files_created": [
+    "public/shared/js/data/profile-public-repo.js",
+    "public/shared/js/statistics-format.js",
+    "supabase/migrations/20261028160000_artist_residency_country_waitlist.sql",
+    "supabase/rollbacks/20261028160000_artist_residency_country_waitlist.down.sql",
+    "tests/figma-final-perfil-estadisticas.test.js",
+    "output/figma-final-artista/frames/801-1108_perfil-publico-artista.png",
+    "output/figma-final-artista/frames/801-543_estadisticas.png",
+    "output/figma-final-artista/frames/801-1155_clientes-perfil-artista.png",
+    "output/figma-final-artista/frames/801-1152_clientes-presentacion-portafolio.png",
+    "output/figma-final-artista/shots/perfil-estadisticas/801-1108.png",
+    "output/figma-final-artista/shots/perfil-estadisticas/801-543.png",
+    "output/figma-final-artista/shots/perfil-estadisticas/before-profile.png",
+    "output/figma-final-artista/shots/perfil-estadisticas/before-stats.png",
+    "output/figma-final-artista/reports/perfil-estadisticas.json",
+    "output/figma-final-artista/reports/perfil-estadisticas.md",
+    "output/figma-final-artista/shots/perfil-estadisticas/801-1108-resenas.png",
+    "output/figma-final-artista/shots/perfil-estadisticas/801-543-ingresos.png"
+  ],
+  "tests": "node --test \"tests/*.test.js\": 560 tests, 553 pass, 6 fail. Fallas: 3 de PowerShell 7 preexistentes, 2 del área registro (\"el CSS del registro usa solo tokens del design system\", \"registro: Behance, portfolio y panel de estilos del Figma final\") y base-path-routing (\"profile visit endpoint…\": fetch failed bajo la carga de la suite completa; corrido solo pasa 3/3). Área: figma-final-perfil-estadisticas 17/17; statistics-figma, artist-public-*, verified-reviews-frontend y legacy-routes en verde (43/43 en total).",
+  "notes": [
+    "Datos: todo sale de la capa PostgREST (WeotziData.Quotations/ArtistVisits/StudioMemberships/StudioSpots + el repo nuevo WeotziData.ProfilePublic: preferencias públicas, residencias con fallback sin 'country', presencias públicas de Travel y postulaciones al job board). El perfil ya no llama _supabase.rpc suelto; estadísticas ya no crea su propio cliente Supabase.",
+    "Métricas de estadísticas: visualizaciones/visitas al portfolio = artist_profile_visits_daily (fallback artist_profile_visits); solicitudes/cotizaciones/reservas/trabajos/ingresos = quotations_db; ciudades/horarios/visitantes = artist_profile_visits identificadas; trabajos más vistos = artist_artwork_view_counts; tendencias = últimos 30 días vs. 30 anteriores; 'Ingresos (miles)' muestra el monto, no miles. Sin fuente: ninguna métrica del frame queda sin dato.",
+    "DS: el Figma usa dos botones accent en la vista (banda roja y barra de acción) y sombra dura en reposo para el chip activo; se respetó el Figma y queda en tensión con las reglas 2 y 8 del DS.",
+    "Preview: las fixtures del área enriquecen artists_db (idiomas + estudio La Aguja Negra), suman París en lista de espera a artist_tattoo_locations y generan artist_public_travel_presences desde los viajes confirmados/finalizados con estudio confirmado. Como el adaptador del preview reasigna esas tablas después de build(), se interceptan al asignarse (mismo patrón que demo-fixtures/cuenta.js, encadenado). El preview comparte localStorage entre pestañas: un volcado viejo de 'tables' puede ocultar las fixtures nuevas hasta 'Reiniciar datos' (las capturas headless usan perfil limpio). Durante la verificación se usó una vez 'Reiniciar datos' en el pane compartido.",
+    "Bug corregido en el perfil: los botones <a class=\"wo-btn\"> salían con texto azul porque `.wo-app a` (components.css) le gana a `.wo-btn`; se corrigió en artist-profile.css. Otras páginas con botones-enlace pueden tener el mismo problema (no es de esta área).",
+    "Responsive: a 390px no hay scroll horizontal en ninguna de las dos páginas (scrollWidth = innerWidth, verificado en el navegador integrado). shot.sh no sirve para 390px (Chrome headless impone un ancho mínimo mayor).",
+    "wo-tour-steps.js: los selectores de estas páginas no cambiaron; en la ronda 1 se corrigieron dos textos (portafolio filtrable por estilo; embudo hasta el trabajo realizado).",
+    "Ronda 1 · avatares de reseñas: se respetó el Figma (cuadrado · círculo · cuadrado). No choca con la regla 1 del DS: radius 0 es el default y el avatar circular es la excepción permitida. Si Isaí prefiere todos circulares, alcanza con quitar la clase .is-round en artist-profile.js.",
+    "Ronda 1 · panel Estudio: en el Figma el bloque va centrado en vertical (127.7px arriba y abajo), no anclado abajo como sugería la auditoría; se implementó centrado con el ritmo 16/10/26/30 del frame.",
+    "Ronda 1 · fixtures: perfil-estadisticas.js suma 5 membresías activas (role resident) de La Aguja Negra, con sus artistas en artists_db_roster_demo (tabla del roster de la extensión invitaciones). La invitación pendiente del artista a ese estudio no se tocó. Puede cambiar el conteo de roster que muestre el área Invitaciones para La Aguja Negra.",
+    "Ronda 1 · chip «Ingresos (miles)»: se mantuvo el literal del Figma y la serie del gráfico pasó a miles (1,6 = US$1.600); el titular y el tooltip la muestran compacta (US$3,8K).",
+    "Ronda 1 · no se tocó el footer de producto ni los contadores de la topbar (componentes compartidos); queda para el orquestador decidir si el footer sigue en el flujo del artista.",
+    "Ronda 1 · estrellas del panel amarillo: se ven todas en contorno aunque el promedio sea 4.7 (Feather star no tiene relleno); el Figma también las muestra en contorno."
+  ],
+  "audit_round_1": {
+    "fixed": [
+      "801:1108 P1 panel Estudio (fila ARTISTAS + layout centrado)",
+      "801:1108 P1 autor de reseña en dos líneas",
+      "801:1108 P2 avatares de reseñas",
+      "801:1108 P2 círculo del panel de reseñas",
+      "801:1108 P2 CTA hero y banda roja",
+      "801:1108 P2 enlace Ver el estudio",
+      "801:1108 P2 ficha Sobre el artista",
+      "801:1108 P2 nombre del hero a 390px",
+      "801:1108 P2 copy del widget de reseñas",
+      "801:543 P2 KPI ingresos a 40px",
+      "801:543 P2 flechas de tendencia Feather",
+      "801:543 P2 etiquetas de Rendimiento",
+      "801:543 P2 subgrilla Horarios/Clientes",
+      "801:543 P2 embudo >100% y oportunidades",
+      "801:543 P2 chip Ingresos (miles)",
+      "801:543 P2 eyebrow, número negro y línea del gráfico",
+      "801:543 P2 responsive 390px",
+      "801:543 P2 Chart.js sin versión",
+      "801:1108/801:543 P2 textos del recorrido guiado"
+    ],
+    "not_fixed": [
+      "801:543 P2 footer <weotzi-product-footer> y contadores de la topbar: componentes compartidos de otras áreas (BRIEF: anotar, no tocar)"
+    ]
+  }
+}

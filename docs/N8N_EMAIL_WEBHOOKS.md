@@ -16,6 +16,7 @@ We Otzi utiliza webhooks de n8n para enviar notificaciones por email en diferent
 | `client_registration_completed` | Registro de Cliente Completado | Se dispara cuando un cliente crea su cuenta |
 | `password_reset_temp` | Restablecimiento de Contrasena | Se dispara cuando un usuario solicita recuperar su contrasena |
 | `client_quotation_submitted` | Cotizacion de Cliente Enviada | Se dispara cuando un cliente envia una cotizacion |
+| `instagram_verification_code` | Código de validación de Instagram | Solo servidor (`POST /api/artist/instagram-verification`). Variables finales: `artist_email`, `artist_name`, `verification_code`, `instagram_handle`, `expires_label`, `weotzi_instagram`, `dm_url`. Nodo n8n esperado: "Codigo Validacion Instagram" (plantilla `instagram-verification`). Ver `docs/VALIDACION-INSTAGRAM.md`. |
 
 ## Configuracion en el Backoffice
 

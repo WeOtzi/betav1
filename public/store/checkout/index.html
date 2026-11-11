@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Modo demo (debe ir antes de cualquier otro script) -->
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
+    <title>Checkout · Store · We Ötzi</title>
+    <meta name="description" content="Confirmá tu compra en la Store de un artista de We Ötzi: diseños con licencia de uso y merch.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus + Store -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/store-ds.css">
+    <link rel="stylesheet" href="/shared/css/store-buyer.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="wo-app sts-page">
+    <div id="store-topbar"></div>
+
+    <main class="sts-shell" id="stb-main">
+        <header class="sts-header">
+            <p class="sts-eyebrow" id="stb-eyebrow">Store · Checkout</p>
+            <h1 class="sts-title" id="stb-title" tabindex="-1">Confirmá tu compra</h1>
+            <p class="sts-sub" id="stb-sub">Revisá el pedido y confirmalo. Después vas a ver cómo pagarlo.</p>
+        </header>
+
+        <!-- Cargando -->
+        <section class="stb-state" id="stb-loading" aria-live="polite">
+            <div class="stb-loading-box"><span class="wo-spinner" aria-hidden="true"></span> Cargando el pedido</div>
+        </section>
+
+        <!-- Mensajes: Store apagada, producto no disponible, parámetros inválidos -->
+        <section class="stb-state" id="stb-message" hidden aria-live="polite"></section>
+
+        <!-- Sin sesión: ingreso inline -->
+        <section class="stb-state" id="stb-auth" hidden aria-labelledby="stb-auth-title">
+            <div class="stb-layout">
+                <aside class="stb-aside" aria-label="Lo que vas a comprar">
+                    <div class="sts-panel" id="stb-auth-summary"></div>
+                </aside>
+                <div class="stb-main">
+                    <div class="sts-panel">
+                        <div class="stb-block">
+                            <h2 class="stb-block-title" id="stb-auth-title">Ingresá para comprar</h2>
+                            <p class="stb-block-sub">Usá tu cuenta de We Ötzi: sirve la de cliente o la de artista. Guardamos lo que elegiste para que sigas desde acá.</p>
+                            <form class="stb-form" id="stb-login-form" novalidate>
+                                <div class="wo-field">
+                                    <label class="wo-label" for="stb-login-email">Email</label>
+                                    <input class="wo-input" id="stb-login-email" name="email" type="email" autocomplete="email" inputmode="email" required>
+                                </div>
+                                <div class="wo-field">
+                                    <label class="wo-label" for="stb-login-password">Contraseña</label>
+                                    <input class="wo-input" id="stb-login-password" name="password" type="password" autocomplete="current-password" required>
+                                </div>
+                                <p class="wo-error-msg" id="stb-login-error" role="alert" hidden></p>
+                                <div class="stb-actions">
+                                    <button class="wo-btn wo-btn--hard" type="submit" id="stb-login-submit">Ingresar y seguir →</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="stb-block">
+                            <ul class="stb-auth-links">
+                                <li>¿No tenés cuenta? <a class="stb-link" id="stb-link-register" href="/client/register">Creá tu cuenta →</a></li>
+                                <li><a class="stb-link" id="stb-link-artist" href="/artist/login">¿Sos artista? Ingresá →</a></li>
+                                <li><a class="stb-link" id="stb-link-recover" href="/recover?from=client">Olvidé mi contraseña →</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Con sesión: formulario del pedido -->
+        <section class="stb-state" id="stb-checkout" hidden aria-label="Datos del pedido">
+            <form class="stb-layout" id="stb-checkout-form" novalidate>
+                <aside class="stb-aside" aria-label="Resumen del pedido">
+                    <div class="sts-panel" id="stb-summary"></div>
+                </aside>
+                <div class="stb-main">
+                    <div class="wo-alert wo-alert--error stb-errors" id="stb-form-errors" role="alert" tabindex="-1" hidden></div>
+                    <div class="sts-panel">
+                        <div class="stb-form" id="stb-fields"></div>
+                    </div>
+                    <div class="stb-actions">
+                        <button class="wo-btn wo-btn--accent wo-btn--hard" type="submit" id="stb-submit">Confirmar pedido →</button>
+                    </div>
+                    <p class="stb-text stb-text--s stb-muted" id="stb-submit-help">Al confirmar se crea el pedido y lo reservamos 24 horas mientras pagás.</p>
+                    <!-- Anuncia el total cuando cambia el nivel, la opción, la cantidad o la entrega -->
+                    <p class="wo-sr-only" id="stb-total-live" aria-live="polite" aria-atomic="true"></p>
+                </div>
+            </form>
+        </section>
+
+        <!-- Pedido creado -->
+        <section class="stb-state" id="stb-done" hidden aria-label="Pedido creado"></section>
+    </main>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/store-model.js"></script>
+    <script src="/shared/js/data/store-repo.js"></script>
+    <script src="/shared/js/store-shell.js"></script>
+    <script src="/shared/js/store-checkout.js"></script>
+</body>
+</html>

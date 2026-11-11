@@ -31,7 +31,8 @@
         finalizado: 'wo-tag wo-tag--archived',
         cancelado: 'wo-tag wo-tag--urgent',
     };
-    const DOC_ICONS = { pasaje: 'file-text', reserva_hotel: 'home', contrato: 'file', otro: 'paperclip' };
+    // Figma 801:1079: Pasaje y Contrato usan 'copy'; Reserva de hotel, 'home'.
+    const DOC_ICONS = { pasaje: 'copy', reserva_hotel: 'home', contrato: 'copy', otro: 'paperclip' };
     const DOC_LABELS = { pasaje: 'Pasaje', reserva_hotel: 'Reserva de hotel', contrato: 'Contrato', otro: 'Otro' };
     const MONTHS_AB = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     const REGION_LABELS = { sudamerica: 'Sudamérica', europa: 'Europa', norteamerica: 'Norteamérica', otro: 'Otras regiones' };
@@ -76,7 +77,9 @@
     let linkedStudioInfo = null; // fila de studios del link principal (dirección)
     let lastCreated = null;
     const filters = { region: 'global', year: 'all', status: 'all', type: 'all', origin: 'all' };
-    let sortAsc = true;
+    // Figma 801:1076: la cronología arranca por los más recientes y el botón
+    // ofrece la acción inversa ("Más antiguos primero").
+    let sortAsc = false;
     let selectedStudio = null;   // modal vincular
     let linkDirectoryRows = [];
     let searchTimer = null;
@@ -87,8 +90,9 @@
     let travelStudioCoordinates = [];
     let travelCityCoordinates = TRAVEL_CITY_COORDINATES.map((row) => ({ ...row }));
     let selectedGlobeTripId = null;
-    let destinationNavigator = null;
-    let selectedHeroTripId = null;
+    // Parada que eligió el artista (?parada=, agenda, cronología o globo). Si un
+    // filtro la oculta, el globo resalta la próxima y la recupera al volver.
+    let explicitGlobeTripId = null;
     const createFormState = window.TravelFormModel?.createTravelFormState?.() || null;
     let createCityPicker = null;
     let createCountryPicker = null;
@@ -111,6 +115,30 @@
 
     function refreshIcons(root = document) {
         window.WoIcons?.hydrate(root);
+    }
+
+    // Aviso breve y accesible (role=status) para resultados de acciones.
+    function notify(message, tone = 'info') {
+        let toast = document.querySelector('.tvl-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'tvl-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        toast.className = `tvl-toast is-${tone}`;
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(toast._hideTimer);
+        toast._hideTimer = setTimeout(() => { toast.hidden = true; }, 4200);
+    }
+
+    function showModalError(id, message) {
+        const node = $(id);
+        if (!node) return;
+        node.textContent = message;
+        node.hidden = !message;
     }
 
     function esc(s) {
@@ -205,9 +233,15 @@
         return best ? best.studio_name : (t.studio_name_hint || null);
     }
 
+    // Conserva cualquier prefijo de montaje (p. ej. el preview local
+    // /preview/<sesión>/artist/travel/) al reescribir la URL.
+    function travelPrefix() {
+        const index = location.pathname.indexOf('/artist/travel');
+        return index > 0 ? location.pathname.slice(0, index) : '';
+    }
     function travelPath(tripId = null) {
-        return window.TravelDashboardModel?.canonicalTravelPath?.(tripId)
-            || `/artist/travel/${tripId ? `?trip=${encodeURIComponent(String(tripId))}` : ''}`;
+        return travelPrefix() + (window.TravelDashboardModel?.canonicalTravelPath?.(tripId)
+            || `/artist/travel/${tripId ? `?trip=${encodeURIComponent(String(tripId))}` : ''}`);
     }
 
     function destroyTravelGlobe() {
@@ -228,6 +262,7 @@
         const stop = $('tv-globe')?.selectTrip?.(String(id), { focus, emit: false });
         if (!stop) return null;
         selectedGlobeTripId = String(stop.id);
+        explicitGlobeTripId = selectedGlobeTripId;
         syncTravelSelectionDom();
         return stop;
     }
@@ -242,35 +277,92 @@
         window.scrollTo(0, 0);
     }
 
-    function routeFromUrl() {
-        const id = new URLSearchParams(location.search).get('trip');
+    // Estados direccionables (QA y enlaces profundos):
+    //   ?modal=crear                      → modal "Crear viaje" sobre el dashboard
+    //   ?agregado=<trip_id>               → vista "Viaje agregado" de ese viaje
+    //   ?trip=<id>&modal=editar|fechas|vincular|compartir|cancelar|adjuntar
+    //   ?parada=<trip_id>                 → dashboard con esa parada resaltada en
+    //                                       el globo y la agenda (Figma 801:1076: Madrid)
+    const MODAL_PARAMS = {
+        crear: 'tv-modal-create',
+        editar: 'tv-modal-edit',
+        fechas: 'tv-modal-dates',
+        vincular: 'tv-modal-link',
+        compartir: 'tv-modal-share',
+        cancelar: 'tv-modal-cancel',
+        adjuntar: 'tv-modal-doc',
+    };
+    const DETAIL_MODAL_TRIGGERS = {
+        editar: 'open-edit',
+        fechas: 'open-dates',
+        vincular: 'open-link',
+        compartir: 'open-share',
+        cancelar: 'open-cancel',
+        adjuntar: 'doc-add',
+    };
+
+    function syncModalParam(modalId) {
+        const url = new URL(window.location.href);
+        const key = Object.keys(MODAL_PARAMS).find((name) => MODAL_PARAMS[name] === modalId) || null;
+        if ((url.searchParams.get('modal') || null) === key) return;
+        if (key) url.searchParams.set('modal', key);
+        else url.searchParams.delete('modal');
+        history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    async function routeFromUrl() {
+        const params = new URLSearchParams(location.search);
+        const id = params.get('trip');
+        const created = params.get('agregado');
+        const modal = params.get('modal');
+        if (created) {
+            let trip = null;
+            try { trip = await D.Travel.getById(created); } catch (err) { trip = null; }
+            if (trip) {
+                lastCreated = trip;
+                fillSuccess(trip);
+                showView('success');
+                return;
+            }
+        }
         if (id) {
-            openTrip(id, { push: false });
+            await openTrip(id, { push: false });
+            const trigger = DETAIL_MODAL_TRIGGERS[modal];
+            if (trigger && currentTrip) $('tv-detail-root').querySelector(`[data-act="${trigger}"]`)?.click();
         } else {
             currentTrip = null;
+            const stop = params.get('parada');
+            if (stop) explicitGlobeTripId = stop;
             renderDashboard();
             showView('dashboard');
+            if (modal === 'crear') openCreate();
         }
     }
 
     // ---------- Modales ----------
+    // La topbar (<weotzi-product-nav>) es estática: el overlay arranca donde
+    // termina la nav en pantalla, o en 0 si la página está scrolleada.
+    function syncOverlayTop(overlay) {
+        if (!overlay) return;
+        const nav = document.querySelector('weotzi-product-nav .wo-topbar') || document.querySelector('weotzi-product-nav');
+        const bottom = nav ? nav.getBoundingClientRect().bottom : 0;
+        overlay.style.setProperty('--tvm-top', `${Math.max(0, Math.round(bottom))}px`);
+    }
+
     function openModal(id) {
         const overlay = $(id);
         if (!overlay) return;
         lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         activeModal = overlay;
+        syncOverlayTop(overlay);
         overlay.hidden = false;
         document.body.classList.add('tvm-open');
-        if (['tv-modal-edit', 'tv-modal-dates', 'tv-modal-link', 'tv-modal-share', 'tv-modal-cancel'].includes(id)) {
-            setDetailHeaderStatus('confirmado');
-        }
+        syncModalParam(id);
         const dialog = overlay.querySelector('[role="dialog"]');
-        requestAnimationFrame(() => {
-            const initial = dialog?.querySelector('[data-modal-initial-focus]')
-                || dialog?.querySelector(FOCUSABLE_SELECTOR)
-                || dialog;
-            initial?.focus();
-        });
+        // Figma 801:1077–801:1084: el diálogo abre sin campos enfocados. El foco
+        // va al propio diálogo (aria-labelledby anuncia el título) y Tab entra
+        // en el primer control.
+        requestAnimationFrame(() => dialog?.focus({ preventScroll: true }));
     }
     function closeModal(id, { restoreFocus = true } = {}) {
         const overlay = $(id);
@@ -278,7 +370,7 @@
         overlay.hidden = true;
         if (activeModal === overlay) activeModal = null;
         document.body.classList.remove('tvm-open');
-        if (currentTrip) setDetailHeaderStatus(detailStatusForTrip(currentTrip));
+        syncModalParam(null);
         const returnFocus = lastFocusedElement;
         lastFocusedElement = null;
         if (restoreFocus && returnFocus?.isConnected) requestAnimationFrame(() => returnFocus.focus());
@@ -293,13 +385,10 @@
         const primary = primaryStudioLink(trip);
         return primary?.status === 'esperando_confirmacion' ? 'pendiente' : dStatus(trip);
     }
-    function setDetailHeaderStatus(status) {
-        const tag = $('tvd-status-tag');
-        if (!tag || !STATUS_LABELS[status]) return;
-        tag.className = STATUS_TAG_CLASS[status];
-        tag.textContent = STATUS_LABELS[status];
-    }
     function wireModals() {
+        window.addEventListener('resize', () => {
+            if (activeModal && !activeModal.hidden) syncOverlayTop(activeModal);
+        });
         document.querySelectorAll('[data-close]').forEach((btn) => {
             btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
         });
@@ -326,7 +415,7 @@
             }
             const first = focusables[0];
             const last = focusables[focusables.length - 1];
-            if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+            if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog || !dialog.contains(document.activeElement))) {
                 e.preventDefault();
                 last.focus();
             } else if (!e.shiftKey && document.activeElement === last) {
@@ -437,7 +526,7 @@
         const queries = model.buildMissingDestinationQueries(
             normalizedTrips,
             travelCityCoordinates,
-            { today: today() }
+            { today: today(), includePast: true }
         ).slice(0, 24);
         for (const destination of queries) {
             const point = await geocoder.geocodeQuery(destination.query);
@@ -512,20 +601,6 @@
     // ============================================
     function wireDashboard() {
         $('tv-btn-create').addEventListener('click', openCreate);
-        $('tv-hero-previous').addEventListener('click', () => {
-            const trip = destinationNavigator?.previous?.();
-            if (!trip) return;
-            selectedHeroTripId = String(trip.id);
-            renderHero();
-            renderHeadline();
-        });
-        $('tv-hero-next').addEventListener('click', () => {
-            const trip = destinationNavigator?.next?.();
-            if (!trip) return;
-            selectedHeroTripId = String(trip.id);
-            renderHero();
-            renderHeadline();
-        });
         $('tv-f-year').addEventListener('change', (e) => { filters.year = e.target.value; renderDashboard(); });
         $('tv-f-status').addEventListener('change', (e) => { filters.status = e.target.value; renderDashboard(); });
         $('tv-f-type').addEventListener('change', (e) => { filters.type = e.target.value; renderDashboard(); });
@@ -537,8 +612,9 @@
         });
         $('tv-sort-toggle').addEventListener('click', () => {
             sortAsc = !sortAsc;
-            $('tv-sort-label').textContent = sortAsc ? 'Más antiguos primero' : 'Más recientes primero';
+            syncSortControl();
             renderTimeline(filteredTrips());
+            syncTravelSelectionDom();
         });
         $('tv-region-tabs').addEventListener('click', (e) => {
             const tab = e.target.closest('[data-region]');
@@ -571,6 +647,7 @@
         $('tv-timeline').addEventListener('focusin', previewTravelSelection);
         $('tv-globe').addEventListener('travel-stop-select', (event) => {
             selectedGlobeTripId = String(event.detail?.id || '');
+            explicitGlobeTripId = selectedGlobeTripId || explicitGlobeTripId;
             syncTravelSelectionDom();
         });
         $('tv-globe').addEventListener('travel-view-trip', (event) => {
@@ -580,6 +657,13 @@
         $('tv-passport-grid').addEventListener('click', (e) => {
             if (e.target.closest('[data-act="next-stamp"]')) openCreate();
         });
+    }
+
+    // El botón nombra la acción que aplica (Figma: "Más antiguos primero" con la
+    // cronología en orden descendente); el estado real se anuncia aparte.
+    function syncSortControl() {
+        $('tv-sort-label').textContent = sortAsc ? 'Más recientes primero' : 'Más antiguos primero';
+        $('tv-sort-state').textContent = `Orden actual: ${sortAsc ? 'más antiguos' : 'más recientes'} primero.`;
     }
 
     function filteredTrips() {
@@ -600,10 +684,8 @@
             trips.map((trip) => ({ ...trip, status: dStatus(trip) })),
             { today: today() }
         );
-        const retainedId = selectedHeroTripId || destinationNavigator?.selected?.id || null;
-        destinationNavigator = model.createDestinationNavigator(rows, retainedId);
-        selectedHeroTripId = destinationNavigator.selected?.id ? String(destinationNavigator.selected.id) : null;
-        return destinationNavigator.selected;
+        // Figma 801:1076: el hero muestra siempre el próximo destino (sin flechas).
+        return rows[0] || null;
     }
 
     function renderDashboard() {
@@ -612,6 +694,7 @@
         renderRegionTabs();
         renderYearOptions();
         syncFilterControls();
+        syncSortControl();
         const list = filteredTrips();
         renderCounters(list);
         renderGlobe(list);
@@ -636,13 +719,6 @@
         $('tv-stat-climate').textContent = metrics.climateCelsius == null ? '—' : `${metrics.climateCelsius}°`;
         $('tv-stat-climate-city').textContent = t.city || '—';
         $('tv-stat-studios').textContent = metrics.confirmedStudioCount == null ? '—' : String(metrics.confirmedStudioCount);
-        const position = destinationNavigator.selectedIndex + 1;
-        const total = destinationNavigator.canNext || destinationNavigator.canPrevious
-            ? window.TravelDashboardModel.buildUpcomingDestinations(trips.map((trip) => ({ ...trip, status: dStatus(trip) })), { today: today() }).length
-            : 1;
-        $('tv-hero-position').textContent = `${position} / ${total}`;
-        $('tv-hero-previous').disabled = !destinationNavigator.canPrevious;
-        $('tv-hero-next').disabled = !destinationNavigator.canNext;
     }
 
     function renderHeadline() {
@@ -696,9 +772,12 @@
         $('tv-counters').textContent = txt;
     }
 
+    // Figma 801:1076: el globo dibuja todas las paradas de la vista filtrada
+    // (confirmadas en tinta, pendientes punteadas y finalizadas en gris); la
+    // agenda resumida sigue mostrando solo los próximos destinos.
     function renderGlobe(list) {
         const globalGlobe = $('tv-globe');
-        const routeTrips = window.TravelDashboardModel.buildUpcomingDestinations(
+        const routeTrips = window.TravelDashboardModel.buildGlobeDestinations(
             list.map((trip) => ({ ...trip, status: dStatus(trip) })),
             { today: today() }
         );
@@ -710,7 +789,7 @@
             })),
             studioLocations: travelStudioCoordinates.map((location) => ({ ...location, studio_id: location.id })),
             cityCoordinates: travelCityCoordinates,
-            selectedStopId: selectedGlobeTripId,
+            selectedStopId: explicitGlobeTripId || '',
         });
         selectedGlobeTripId = globalGlobe.selectedId;
         syncTravelSelectionDom();
@@ -736,26 +815,24 @@
         }
         box.innerHTML = upcoming.map((t) => {
             const st = dStatus(t);
-            const studio = tripStudioName(t) || t.event_name;
-            const line2 = `${fmtRange(t)}${studio ? ' · ' + esc(studio) : ''}`;
+            const studio = t.trip_type === 'convencion' ? (t.event_name || tripStudioName(t)) : (tripStudioName(t) || t.event_name);
+            const line3 = `${fmtShortHero(t.start_date)} – ${fmtShortHero(t.end_date)}${studio ? ' · ' + esc(studio) : ''}`;
             const selected = String(t.id) === String(selectedGlobeTripId || '') ? ' is-selected' : '';
             const current = selected ? ' aria-current="true"' : '';
             return `
                 <div class="tvl-agenda-row${selected}" data-trip="${t.id}" role="link" tabindex="0"${current} aria-label="Ver viaje a ${esc(t.city)}">
                     <span class="tvl-agenda-dot tvl-dot--${st === 'confirmado' ? 'confirmado' : st === 'finalizado' ? 'finalizado' : 'pendiente'}"></span>
-                    <div>
+                    <div class="tvl-agenda-copy">
                         <span class="tvl-agenda-city">${esc(t.city)}</span>
                         <span class="tvl-agenda-sub">${esc(t.country)} · ${esc(TYPE_LABELS[t.trip_type] || t.trip_type)}</span>
-                        <span class="tvl-agenda-sub">${line2}</span>
+                        <span class="tvl-agenda-sub tvl-agenda-sub--faint">${line3}</span>
                     </div>
                 </div>`;
         }).join('');
     }
 
     function renderTimeline(list) {
-        const figmaDemo = list.length > 0 && list.every(isFigmaDemoTrip);
-        const effectiveAsc = figmaDemo ? !sortAsc : sortAsc;
-        const sorted = [...list].sort((a, b) => effectiveAsc
+        const sorted = [...list].sort((a, b) => sortAsc
             ? pd(a.start_date) - pd(b.start_date)
             : pd(b.start_date) - pd(a.start_date));
         const box = $('tv-timeline');
@@ -769,7 +846,7 @@
             const current = selected ? ' aria-current="true"' : '';
             return `
                 <button type="button" class="tvl-tl-item tvl-tl-item--${st}${selected}" data-trip="${t.id}"${current}>
-                    <span class="tvl-tl-date">${fmtShort(t.start_date)}</span>
+                    <span class="tvl-tl-date">${fmtShortHero(t.start_date)}</span>
                     <span class="tvl-tl-city">${esc(t.city)}</span>
                     <span class="tvl-tl-type">${esc(TYPE_LABELS[t.trip_type] || t.trip_type)}</span>
                     <span class="tvl-tl-status tvl-tl-status--${st}">${esc(TL_STATUS_LABELS[st])}</span>
@@ -818,8 +895,8 @@
         });
         cards.push(`
             <button type="button" class="tvl-stamp tvl-stamp--next" data-act="next-stamp" aria-label="Crear un viaje nuevo">
-                <span class="tvl-stamp-plus">+</span>
-                <span class="wo-meta-s">Next stamp</span>
+                <span class="tvl-stamp-plus"><i data-wo-icon="plus" aria-hidden="true"></i></span>
+                <span class="tvl-stamp-next-label">Next stamp</span>
             </button>`);
         $('tv-passport-grid').innerHTML = cards.join('');
     }
@@ -886,7 +963,7 @@
         closeCreateStudioResults();
         input.value = '';
         if (convention) {
-            label.textContent = 'Lugar';
+            label.textContent = 'Lugar (opcional)';
             input.placeholder = 'Buscá el lugar en Google Maps';
             input.setAttribute('aria-autocomplete', 'both');
             input.removeAttribute('aria-controls');
@@ -906,7 +983,7 @@
             }) || null;
         } else {
             label.textContent = 'Estudio (opcional)';
-            input.placeholder = 'Buscá un estudio registrado';
+            input.placeholder = 'Nombre del estudio, si ya lo tenés';
             input.setAttribute('aria-autocomplete', 'list');
             input.setAttribute('aria-controls', 'tvc-studio-results');
             help.textContent = 'Solo podés elegir estudios activos registrados en We Ötzi.';
@@ -1048,6 +1125,9 @@
             lastCreated = creationResult.trip;
             closeModal('tv-modal-create', { restoreFocus: false });
             fillSuccess(creationResult.trip, creationResult.pendingAction);
+            if (creationResult.trip?.id) {
+                history.pushState({}, '', `${travelPrefix()}/artist/travel/?agregado=${encodeURIComponent(String(creationResult.trip.id))}`);
+            }
             showView('success');
             focusViewTarget('tv-s-title');
             try {
@@ -1082,6 +1162,7 @@
             showView('dashboard');
         });
         $('tv-s-another').addEventListener('click', () => {
+            history.pushState({}, '', travelPath());
             renderDashboard();
             showView('dashboard');
             openCreate();
@@ -1136,6 +1217,9 @@
             ? [t.city, t.country].filter(Boolean).join(', ')
             : ((primary && primary.address_snapshot) || (linkedStudioInfo && linkedStudioInfo.formatted_address) || '—');
         const waiting = primary?.status === 'esperando_confirmacion';
+        // Solicitudes de vínculo adicionales todavía sin respuesta (p. ej. un
+        // segundo estudio pedido mientras el principal sigue pendiente).
+        const pendingLinks = links.filter((link) => link !== primary && link.status === 'esperando_confirmacion');
         const detailStatus = detailStatusForTrip(t);
         const contactName = (primary && primary.contact_name) || t.contact_name || '—';
         const contactDetail = (primary && primary.contact_details) || t.contact_details || '—';
@@ -1143,7 +1227,7 @@
         const future = pd(t.start_date) > n;
         const countdown = st === 'cancelado' || st === 'finalizado' ? ''
             : isOngoing(t) ? '<span class="tvd-countdown">En curso</span>'
-                : future ? `<span class="tvd-countdown">Faltan ${daysDiff(n, pd(t.start_date))} días</span>` : '';
+                : future ? `<span class="tvd-countdown">${daysDiff(n, pd(t.start_date)) === 1 ? 'Falta 1 día' : `Faltan ${daysDiff(n, pd(t.start_date))} días`}</span>` : '';
 
         const checklist = [...(t.trip_checklist_items || [])].sort((a, b) => (a.sort_order - b.sort_order) || String(a.id).localeCompare(String(b.id)));
         const doneCount = checklist.filter((c) => c.is_done).length;
@@ -1156,7 +1240,7 @@
 
             <div class="tvd-tags">
                 <span class="${STATUS_TAG_CLASS[detailStatus]}" id="tvd-status-tag">${esc(STATUS_LABELS[detailStatus])}</span>
-                <span class="wo-tag wo-tag--filled">${esc(TYPE_LABELS[t.trip_type] || t.trip_type)}</span>
+                <span class="wo-tag tvd-type-tag">${esc(TYPE_LABELS[t.trip_type] || t.trip_type)}</span>
                 ${countdown}
             </div>
             <h1 class="wo-h1 tvd-title" id="tvd-title" tabindex="-1">${esc(t.city)}, ${esc(t.country)}</h1>
@@ -1166,7 +1250,7 @@
                 <div class="tvd-stat"><span class="tvd-stat-v">${daysDiff(pd(t.start_date), pd(t.end_date))} días</span><span class="tvd-stat-l">Duración</span></div>
                 <div class="tvd-stat"><span class="tvd-stat-v">${esc(t.city)}</span><span class="tvd-stat-l">Ciudad</span></div>
                 <div class="tvd-stat"><span class="tvd-stat-v">${esc(t.country)}</span><span class="tvd-stat-l">País</span></div>
-                <div class="tvd-stat"><span class="tvd-stat-v">${esc(venueName)}</span><span class="tvd-stat-l">${venueLabel}</span></div>
+                <div class="tvd-stat"><span class="tvd-stat-v">${esc(venueName)}</span><span class="tvd-stat-l">${isConvention ? 'Lugar' : 'Estudio vinculado'}</span></div>
                 <div class="tvd-stat"><span class="tvd-stat-v">${esc(TYPE_LABELS[t.trip_type] || t.trip_type)}</span><span class="tvd-stat-l">Tipo de viaje</span></div>
                 <div class="tvd-stat"><span class="tvd-stat-v">${esc(STATUS_LABELS[detailStatus])}</span><span class="tvd-stat-l">Estado</span></div>
             </div>
@@ -1206,6 +1290,13 @@
                                 <span class="tvd-info-l">Teléfono / contacto</span>
                                 <div class="tvd-info-v">${esc(contactDetail)}</div>
                             </div>
+                            ${pendingLinks.length ? `
+                            <div class="tvd-info-cell tvd-info-cell--full" data-pending-links>
+                                <span class="tvd-info-l">Otras solicitudes de vinculación</span>
+                                <ul class="tvd-pending-links">
+                                    ${pendingLinks.map((link) => `<li>${esc(link.studio_name || 'Estudio')}<span class="wo-tag wo-tag--highlight tvd-link-status">Esperando confirmación</span></li>`).join('')}
+                                </ul>
+                            </div>` : ''}
                             ${editableCell('agreed_conditions', 'Condiciones acordadas', t.agreed_conditions)}
                             ${editableCell('personal_notes', 'Tus notas', visibleTripNotes(t))}
                         </div>
@@ -1300,12 +1391,12 @@
 
     function renderEvents(t) {
         const EVENT_META = {
-            creado: { label: 'Viaje creado', color: 'var(--neutral-500)' },
+            creado: { label: 'Viaje creado', color: 'var(--neutral-400)' },
             estudio_confirmado: { label: 'Estudio confirmado', color: 'var(--blue-400)' },
             pasajes_agregados: { label: 'Pasajes agregados', color: 'var(--system-success)' },
             cancelado: { label: 'Viaje cancelado', color: 'var(--red-300)' },
             inicio: { label: 'Inicio del viaje', color: 'var(--yellow-300)' },
-            fin: { label: 'Fin del viaje', color: 'var(--neutral-300)' },
+            fin: { label: 'Fin del viaje', color: 'var(--figma-sand-border)' },
         };
         const items = (t.trip_events || []).map((ev) => {
             const meta = EVENT_META[ev.event_type];
@@ -1323,7 +1414,7 @@
         if (!(t.trip_events || []).some((event) => event.event_type === 'fin')) {
             items.push({
                 label: 'Fin del viaje',
-                color: pd(t.end_date) < today() ? 'var(--neutral-500)' : 'var(--neutral-300)',
+                color: pd(t.end_date) < today() ? 'var(--neutral-400)' : 'var(--figma-sand-border)',
                 date: t.end_date,
             });
         }
@@ -1356,6 +1447,7 @@
                     $('tve-country').value = t.country;
                     $('tve-type').value = t.trip_type;
                     $('tve-notes').value = visibleTripNotes(t);
+                    showModalError('tve-error', '');
                     openModal('tv-modal-edit');
                 } else if (act === 'open-dates') {
                     $('tvf-start').value = t.start_date;
@@ -1368,6 +1460,7 @@
                 } else if (act === 'open-share') {
                     await openShare();
                 } else if (act === 'open-cancel') {
+                    showModalError('tvx-error', '');
                     openModal('tv-modal-cancel');
                 } else if (act === 'reactivate') {
                     const links = t.trip_studio_links || [];
@@ -1441,6 +1534,7 @@
                 }
             } catch (err) {
                 console.error('[travel] acción falló:', act, err);
+                notify('No pudimos completar la acción. Probá de nuevo.', 'error');
             }
         });
 
@@ -1461,6 +1555,7 @@
             } catch (err) {
                 console.error('[travel] checklist:', err);
                 cb.checked = !cb.checked;
+                notify('No pudimos actualizar la tarea. Probá de nuevo.', 'error');
             }
         });
 
@@ -1476,6 +1571,7 @@
         // Editar viaje (submit)
         $('tv-edit-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            showModalError('tve-error', '');
             try {
                 await D.Travel.update(currentTrip.id, {
                     city: $('tve-city').value.trim(),
@@ -1491,6 +1587,7 @@
                 focusViewTarget('tvd-title');
             } catch (err) {
                 console.error('[travel] editar:', err);
+                showModalError('tve-error', 'No pudimos guardar los cambios. Probá de nuevo.');
             }
         });
 
@@ -1528,6 +1625,7 @@
 
         // Cancelar viaje (confirmación)
         $('tv-cancel-confirm').addEventListener('click', async () => {
+            showModalError('tvx-error', '');
             try {
                 const reasonInput = $('tv-cancel-reason');
                 const reason = reasonInput?.value.trim() || null;
@@ -1538,6 +1636,7 @@
                 focusViewTarget('tvd-title');
             } catch (err) {
                 console.error('[travel] cancelar:', err);
+                showModalError('tvx-error', 'No pudimos cancelar el viaje. Probá de nuevo.');
             }
         });
     }
@@ -1550,6 +1649,7 @@
         $('tvl-city').innerHTML = '<option value="">Ciudad</option>';
         $('tvl-country').innerHTML = '<option value="">País</option>';
         $('tvl-specialty').value = '';
+        showModalError('tvl-error', '');
         renderLinkPrompt();
         syncLinkSubmit();
         loadLinkDirectory('', false);
@@ -1588,16 +1688,25 @@
         $('tvl-submit').addEventListener('click', async () => {
             const t = currentTrip;
             if (!selectedStudio || !selectedStudio.id) return;
+            const studioName = selectedStudio.name || 'el estudio';
             $('tvl-submit').disabled = true;
+            showModalError('tvl-error', '');
             try {
                 await D.Travel.requestStudioLink({ tripId: t.id, studioId: selectedStudio.id });
-                closeModal('tv-modal-link', { restoreFocus: false });
-                await refreshDetail();
-                focusViewTarget('tvd-title');
             } catch (err) {
                 console.error('[travel] vincular estudio:', err);
+                showModalError('tvl-error', 'No pudimos enviar la solicitud. Probá de nuevo.');
                 $('tvl-submit').disabled = false;
+                return;
             }
+            closeModal('tv-modal-link', { restoreFocus: false });
+            notify(`Solicitud enviada a ${studioName}. Te avisamos cuando el estudio responda.`);
+            try {
+                await refreshDetail();
+            } catch (refreshError) {
+                console.error('[travel] solicitud enviada; no se pudo actualizar el detalle:', refreshError);
+            }
+            focusViewTarget('tvd-title');
         });
     }
 
@@ -1685,22 +1794,28 @@
     }
 
     // ---------- Modal compartir itinerario ----------
+    // URL pública servida por la app (server.js → /travel/t/:slug). Se arma con
+    // el origen actual y el prefijo de montaje (p. ej. el preview local), no con
+    // el sitio corporativo weotzi.com, que no sirve esta ruta.
     function shareUrl(slug) {
-        return `https://weotzi.com/travel/t/${slug}`;
+        return `${window.location.origin}${travelPrefix()}/travel/t/${encodeURIComponent(slug)}`;
     }
 
+    // Figma 801:1083: el enlace se muestra completo desde que se abre el
+    // diálogo. Sigue sin publicarse hasta una acción explícita (Copiar, Email o
+    // WhatsApp); mientras tanto el campo queda deshabilitado para que no se
+    // copie a mano una URL todavía inactiva.
     function syncShareModal() {
         const t = currentTrip;
         const url = shareUrl(pendingShareSlug);
         const isEnabled = Boolean(t.share_enabled && t.share_slug === pendingShareSlug);
         const urlInput = $('tvs-url');
-        urlInput.value = isEnabled ? url : 'El enlace se activará al copiar';
+        urlInput.value = url;
         urlInput.disabled = !isEnabled;
         $('tvs-copy-label').textContent = 'Copiar';
         const msg = `Itinerario de mi viaje a ${t.city}: ${url}`;
-        $('tvs-email').href = isEnabled
-            ? `mailto:?subject=${encodeURIComponent(`Itinerario · ${t.city}`)}&body=${encodeURIComponent(msg)}` : '#';
-        $('tvs-wa').href = isEnabled ? `https://wa.me/?text=${encodeURIComponent(msg)}` : '#';
+        $('tvs-email').href = `mailto:?subject=${encodeURIComponent(`Itinerario · ${t.city}`)}&body=${encodeURIComponent(msg)}`;
+        $('tvs-wa').href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
         $('tvs-disable').hidden = !t.share_enabled;
     }
 
@@ -1713,8 +1828,10 @@
             syncShareModal();
         } catch (err) {
             console.error('[travel] preparar enlace:', err);
+            notify('No pudimos preparar el enlace para compartir.', 'error');
             return;
         }
+        showModalError('tvs-error', '');
         openModal('tv-modal-share');
     }
 
@@ -1733,6 +1850,8 @@
         return shareUrl(pendingShareSlug);
     }
 
+    // Revocación explícita del enlace público (privacidad). No está en el Figma
+    // final; el botón solo se muestra cuando el itinerario ya es público.
     async function disableShare() {
         const t = currentTrip;
         if (!t.share_slug || !t.share_enabled) return;
@@ -1762,8 +1881,25 @@
     async function copyEnabledShareUrl() {
         const t = currentTrip;
         if (!t.share_enabled || t.share_slug !== pendingShareSlug) {
-            // Primer click: publicar de forma segura. Copiar en un segundo click conserva
-            // el gesto de usuario sin exponer un slug todavía inactivo.
+            // Un solo click: el portapapeles recibe una promesa que se resuelve
+            // recién cuando el enlace quedó activo (ClipboardItem conserva el
+            // gesto del usuario). Sin ClipboardItem se mantiene el flujo seguro
+            // de dos pasos: activar primero y copiar en el segundo click.
+            const ClipboardItemCtor = window.ClipboardItem;
+            if (ClipboardItemCtor && navigator.clipboard?.write) {
+                const activation = ensureShareEnabled();
+                const blob = activation.then((url) => new Blob([url], { type: 'text/plain' }));
+                const writing = navigator.clipboard.write([new ClipboardItemCtor({ 'text/plain': blob })]);
+                await activation;
+                try {
+                    await writing;
+                } catch (clipboardError) {
+                    // El enlace ya quedó activo: se deja seleccionado para copiarlo a mano.
+                    $('tvs-url').select();
+                    throw clipboardError;
+                }
+                return true;
+            }
             await ensureShareEnabled();
             $('tvs-copy-label').textContent = 'Copiar ahora';
             return false;
@@ -1783,6 +1919,7 @@
             } catch (err) {
                 console.error('[travel] no pudimos activar o copiar el enlace:', err);
                 $('tvs-copy-label').textContent = 'No disponible';
+                showModalError('tvs-error', 'No pudimos activar o copiar el enlace. Probá de nuevo.');
             }
         });
         $('tvs-email').addEventListener('click', async (event) => {
@@ -1792,6 +1929,7 @@
                 window.location.href = $('tvs-email').href;
             } catch (err) {
                 console.error('[travel] compartir por email:', err);
+                showModalError('tvs-error', 'No pudimos activar el enlace. Probá de nuevo.');
             }
         });
         $('tvs-wa').addEventListener('click', async (event) => {
@@ -1805,13 +1943,16 @@
             } catch (err) {
                 popup?.close();
                 console.error('[travel] compartir por WhatsApp:', err);
+                showModalError('tvs-error', 'No pudimos abrir WhatsApp. Habilitá las ventanas emergentes e intentá de nuevo.');
             }
         });
         $('tvs-disable').addEventListener('click', async () => {
             try {
                 await disableShare();
+                $('tvs-copy').focus();
             } catch (err) {
                 console.error('[travel] desactivar enlace:', err);
+                showModalError('tvs-error', 'No pudimos desactivar el enlace. Probá de nuevo.');
             }
         });
     }

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
-    <script src="/shared/js/wo-demo.js?v=20260903-1"></script>
+    <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>WE ÖTZI | Dashboard</title>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
@@ -29,9 +29,10 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
-    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20260816-ds-dashboard-3">
+    <link rel="stylesheet" href="/shared/css/dashboard-redesign.css?v=20261028-figma-final-r1">
+    <link rel="stylesheet" href="/shared/css/dashboard-figma-final.css?v=20261030-ig-review-1">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
-    <link rel="stylesheet" href="/shared/css/instagram-import.css">
+    <link rel="stylesheet" href="/shared/css/instagram-import.css?v=20261028-figma-final-r2">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -44,6 +45,7 @@
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/account-repo.js"></script>
+    <script src="/shared/js/data/reminders-repo.js?v=20261028-figma-final"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -100,7 +102,7 @@
             <div class="wo-dash-main">
 
                 <!-- Agenda del día -->
-                <section class="wo-dash-section" aria-label="Agenda">
+                <section class="wo-dash-section wo-dash-section--agenda" aria-label="Agenda">
                     <header class="wo-dash-sechead">
                         <h2 class="wo-h2" id="wod-agenda-cap">Agenda del día</h2>
                         <a class="wo-dash-seclink" href="/calendar">ABRIR CALENDARIO →</a>
@@ -113,7 +115,7 @@
                 <hr class="wo-divider wo-divider--strong">
 
                 <!-- Diseños en proceso · cotizaciones confirmadas del artista + sus sesiones -->
-                <section class="wo-dash-section" id="wod-designs-section" aria-label="Diseños en proceso" hidden>
+                <section class="wo-dash-section wo-dash-section--designs" id="wod-designs-section" aria-label="Diseños en proceso" hidden>
                     <header class="wo-dash-sechead">
                         <h2 class="wo-h2">Diseños en proceso</h2>
                         <a class="wo-dash-seclink" href="/my-quotations">VER TODOS →</a>
@@ -204,19 +206,29 @@
                         </div>
                     </div>
                 </section>
-                <!-- Recordatorios · user_preferences.app_settings.reminders -->
-                <section class="wo-dash-reminders" id="wod-reminders" aria-label="Recordatorios" hidden>
-                    <p class="wo-eyebrow">RECORDATORIOS</p>
-                    <ul class="wo-dash-reminder-list" id="wod-reminder-list"></ul>
+                <!-- Recordatorios · public.artist_reminders (Figma 24:1425 / 801:563 / 801:560 / 801:1109)
+                     QA: ?modal=nuevo-recordatorio · ?modal=recordatorio[&id=] · ?modal=editar-recordatorio[&id=][&iconos=1] -->
+                <section class="wo-dash-reminders wod-rem" id="wod-reminders" aria-label="Recordatorios">
+                    <div class="wod-rem-head">
+                        <p class="wo-eyebrow wod-rail-cap">RECORDATORIOS</p>
+                        <button type="button" class="wod-rem-new" id="wod-reminder-new" aria-haspopup="dialog">+ NUEVO RECORDATORIO</button>
+                    </div>
+                    <ul class="wo-dash-reminder-list wod-rem-list" id="wod-reminder-list" aria-live="polite">
+                        <li class="wod-rem-empty">Cargando recordatorios…</li>
+                    </ul>
                 </section>
 
-                <!-- Acciones rápidas -->
+                <!-- Acciones rápidas (Figma 516:5975). Nuevo cliente / Nueva cita abren la
+                     cotización manual con el origen; compartir y QR abren los paneles laterales
+                     (QA: ?panel=compartir · ?panel=qr[&destino=galeria]). -->
                 <section class="wo-dash-quick" aria-label="Acciones rápidas">
-                    <p class="wo-eyebrow">ACCIONES RÁPIDAS</p>
-                    <div class="wo-dash-quick-list">
-                        <a class="wo-btn wo-btn--ink wo-btn--hard wo-btn--block" id="wod-new-client" href="/quotation"><i data-wo-icon="plus" class="wo-icon-18"></i>NUEVO CLIENTE</a>
-                        <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/calendar"><i data-wo-icon="calendar" class="wo-icon-18"></i>NUEVA CITA</a>
-                        <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" id="wod-register-payment" href="/my-quotations"><i data-wo-icon="dollar-sign" class="wo-icon-18"></i>REGISTRAR PAGO</a>
+                    <p class="wo-eyebrow wod-rail-cap">ACCIONES RÁPIDAS</p>
+                    <div class="wo-dash-quick-list wod-quick">
+                        <a class="wod-quick-btn is-ink" id="wod-new-client" href="/my-quotations/new?origen=cliente">+&nbsp; NUEVO CLIENTE</a>
+                        <a class="wod-quick-btn" id="wod-new-appointment" href="/my-quotations/new?origen=cita"><i data-wo-icon="calendar" aria-hidden="true"></i>NUEVA CITA</a>
+                        <a class="wod-quick-btn" id="wod-register-payment" href="/artist/account#cobros"><i data-wo-icon="dollar-sign" aria-hidden="true"></i>REGISTRAR PAGO</a>
+                        <button class="wod-quick-btn" id="wod-share-profile" type="button" aria-haspopup="dialog"><i data-wo-icon="share-2" aria-hidden="true"></i>COMPARTIR MI PERFIL</button>
+                        <button class="wod-quick-btn" id="wod-qr-card" type="button" aria-haspopup="dialog"><i data-wo-icon="grid" aria-hidden="true"></i>GENERAR TARJETA QR</button>
                     </div>
                 </section>
             </aside>
@@ -228,7 +240,6 @@
     <section class="wo-dash-gallery block-gallery-admin" aria-label="Galería de trabajos">
         <div class="wo-container">
             <div class="wo-dash-gallery-frame">
-                <p class="wo-meta wo-dash-gallery-preview">VISTA PREVIA</p>
                 <header class="wo-dash-gallery-head">
                     <h2 class="wo-dash-gallery-title">Galería de trabajos <span class="wo-dash-gallery-count" id="wod-gallery-count">— 0</span></h2>
                     <div class="wo-dash-gallery-tools">
@@ -236,9 +247,13 @@
                     </div>
                 </header>
                 <div class="wo-dash-gallery-stage">
+                    <!-- Figma 2003:875: reglas a la izquierda; contador real + ayuda de reorden a la derecha. -->
                     <div class="wo-dash-gallery-bar">
-                        <span class="wo-meta-s">MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span>
-                        <span class="wo-meta-s wo-dash-gallery-hint"><i data-wo-icon="move" class="wo-icon-18"></i>ARRASTRÁ PARA REORDENAR</span>
+                        <span class="wo-dash-gallery-rules">MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span>
+                        <span class="wo-dash-gallery-side">
+                            <span class="wo-dash-gallery-quota" id="wod-gallery-quota" aria-live="polite">0/12 ARCHIVOS · 0/2 VIDEOS</span>
+                            <span class="wo-dash-gallery-hint"><span aria-hidden="true">▲</span> ARRASTRÁ PARA REORDENAR</span>
+                        </span>
                     </div>
                     <!-- La grilla es `display:contents`: sus celdas y la card "subiendo"
                          comparten el mismo grid del wrapper, como en el Figma. -->
@@ -278,62 +293,98 @@
         <a class="wod-bottombar__tab" href="/my-quotations"><span class="wod-bottombar__ic"><i data-wo-icon="mail" class="wo-icon-18"></i></span><span class="wod-bottombar__l">Cotiz</span><span class="wod-bottombar__badge" id="wod-bb-cotiz" hidden>0</span></a>
         <a class="wod-bottombar__tab" href="/studio-spots"><span class="wod-bottombar__ic"><i data-wo-icon="map-pin" class="wo-icon-18"></i></span><span class="wod-bottombar__l">Spots</span></a>
         <a class="wod-bottombar__tab" href="/calendar"><span class="wod-bottombar__ic"><i data-wo-icon="calendar" class="wo-icon-18"></i></span><span class="wod-bottombar__l">Agenda</span></a>
-        <a class="wod-bottombar__tab" href="/artist/profile/details"><span class="wod-bottombar__ic"><i data-wo-icon="user" class="wo-icon-18"></i></span><span class="wod-bottombar__l">Perfil</span></a>
+        <a class="wod-bottombar__tab" href="/artist/account"><span class="wod-bottombar__ic"><i data-wo-icon="user" class="wo-icon-18"></i></span><span class="wod-bottombar__l">Perfil</span></a>
     </nav>
 
     <!-- ============================================================
          HIDDEN HOOK CLUSTER — the complete legacy profile form +
          identity/social/quote hooks live here so dashboard.js runs
          100% unmodified on the dashboard page (no null crashes).
-         The user-facing editable copy is the /artist/profile/details
+         The user-facing editable copy is the /artist/account#perfil
          page. Do not surface this block visually.
          ============================================================ -->
     <div class="wod-hook-hidden" aria-hidden="true">
         <!-- Banner de onboarding/verificacion: fuera del flujo visible (el Figma
              24:1424 no lo tiene). Se conserva aca porque dashboard.js cablea sus
              ids sin guardas; moverlo evita null-crashes. -->
-        <!-- ===================== ONBOARDING / VERIFICATION BANNER ===================== -->    
-        <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">    
-            <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">    
-                <div class="banner-top-row">    
-                    <div class="banner-notice-switch" role="tablist" aria-label="Avisos del dashboard">    
-                        <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">Inicio</button>    
-                        <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">Verificación</button>    
-                    </div>    
-                    <div class="banner-actions">    
-                        <button class="banner-nav-btn" id="banner-prev-btn" type="button" aria-label="Aviso anterior">    
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>    
-                        </button>    
-                        <button class="banner-nav-btn" id="banner-next-btn" type="button" aria-label="Siguiente aviso">    
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>    
-                        </button>    
-                        <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button" aria-expanded="false" aria-controls="banner-expanded-content">    
-                            <span id="banner-toggle-label">Ver tareas</span>    
-                            <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>    
-                        </button>    
-                    </div>    
-                </div>    
-                <div class="banner-summary" id="banner-summary">    
-                    <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE ÖTZI</p>    
-                    <p class="banner-summary-meta" id="banner-summary-meta">0/4 TAREAS</p>    
-                    <p class="banner-summary-note" id="banner-summary-note">Un perfil sólido te ayuda a destacarte y atraer mejores oportunidades.</p>    
-                    <div class="banner-progress-track"><div class="banner-progress-fill" id="banner-progress-fill"></div></div>    
-                </div>    
-                <div class="banner-expanded-content" id="banner-expanded-content" hidden>    
-                    <section class="banner-panel banner-panel-onboarding" id="banner-panel-onboarding">    
-                        <ul class="banner-checklist" id="banner-onboarding-checklist"></ul>    
-                    </section>    
-                    <section class="banner-panel banner-panel-verification" id="banner-panel-verification" hidden>    
-                        <ul class="banner-checklist" id="banner-verification-checklist"></ul>    
-                    </section>    
-                </div>    
-            </div>    
+        <!-- ===================== ONBOARDING / VERIFICATION BANNER ===================== -->
+    
+        <div class="verification-pending-banner" id="verification-pending-banner" style="display: none;">
+    
+            <div class="banner-shell" id="banner-shell" data-expanded="false" data-active-notice="onboarding">
+    
+                <div class="banner-top-row">
+    
+                    <div class="banner-notice-switch" role="tablist" aria-label="Avisos del dashboard">
+    
+                        <button class="banner-switch-btn is-active" id="banner-tab-onboarding" data-notice="onboarding" role="tab" aria-selected="true">Inicio</button>
+    
+                        <button class="banner-switch-btn" id="banner-tab-verification" data-notice="verification" role="tab" aria-selected="false">Verificación</button>
+    
+                    </div>
+    
+                    <div class="banner-actions">
+    
+                        <button class="banner-nav-btn" id="banner-prev-btn" type="button" aria-label="Aviso anterior">
+    
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    
+                        </button>
+    
+                        <button class="banner-nav-btn" id="banner-next-btn" type="button" aria-label="Siguiente aviso">
+    
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    
+                        </button>
+    
+                        <button class="banner-toggle-btn" id="verification-banner-toggle-btn" type="button" aria-expanded="false" aria-controls="banner-expanded-content">
+    
+                            <span id="banner-toggle-label">Ver tareas</span>
+    
+                            <svg class="banner-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    
+                        </button>
+    
+                    </div>
+    
+                </div>
+    
+                <div class="banner-summary" id="banner-summary">
+    
+                    <p class="banner-summary-title" id="banner-summary-title">EMPIEZA CON WE ÖTZI</p>
+    
+                    <p class="banner-summary-meta" id="banner-summary-meta">0/4 TAREAS</p>
+    
+                    <p class="banner-summary-note" id="banner-summary-note">Un perfil sólido te ayuda a destacarte y atraer mejores oportunidades.</p>
+    
+                    <div class="banner-progress-track"><div class="banner-progress-fill" id="banner-progress-fill"></div></div>
+    
+                </div>
+    
+                <div class="banner-expanded-content" id="banner-expanded-content" hidden>
+    
+                    <section class="banner-panel banner-panel-onboarding" id="banner-panel-onboarding">
+    
+                        <ul class="banner-checklist" id="banner-onboarding-checklist"></ul>
+    
+                    </section>
+    
+                    <section class="banner-panel banner-panel-verification" id="banner-panel-verification" hidden>
+    
+                        <ul class="banner-checklist" id="banner-verification-checklist"></ul>
+    
+                    </section>
+    
+                </div>
+    
+            </div>
+    
         </div>
 
         <!-- Controles de cuenta que el frame del Figma no dibuja en el rail.
              Siguen acá SOLO como hooks: dashboard.js los cablea por id y los
              modales (QR / contraseña / verificación) siguen operativos. La UI
-             visible de estas acciones vive en /artist/profile/details. -->
+             visible de estas acciones vive en /artist/account#perfil. -->
         <button id="preview-profile-btn" type="button">VER PERFIL PÚBLICO</button>
         <button id="request-verification-btn" type="button">VERIFICAR PERFIL</button>
         <button id="share-profile-btn" type="button">COMPARTIR PERFIL</button>
@@ -481,7 +532,7 @@
     <!-- ============================================================
          HIDDEN HOOK CLUSTER 2 — bio / portfolio hooks that dashboard.js
          wires on this page. The editable bio UI lives on
-         /artist/profile/details; here the hooks only need to exist.
+         /artist/account#perfil; here the hooks only need to exist.
          ============================================================ -->
     <div class="wod-hook-hidden" aria-hidden="true">
         <button id="edit-bio-btn" type="button">Editar</button>
@@ -583,27 +634,10 @@
         </div>
     </div>
 
-    <!-- QR Code Modal -->
-    <div id="qr-modal" class="modal-overlay" onclick="closeQRModalOnOverlay(event)">
-        <div class="modal-container qr-modal-container">
-            <button class="modal-close" onclick="closeQRModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
-            <h2 class="qr-modal-title">QR de perfil</h2>
-            <div class="qr-destination-tabs">
-                <button class="qr-tab active" data-dest="profile">PERFIL</button>
-                <button class="qr-tab" data-dest="gallery">GALERÍA</button>
-            </div>
-            <div class="qr-canvas-wrapper"><canvas id="qr-canvas"></canvas></div>
-            <p class="qr-url-display" id="qr-url-display"></p>
-            <div class="qr-actions">
-                <button type="button" class="qr-action-btn qr-action-primary" onclick="downloadQRPNG()"><i data-wo-icon="download" class="wo-icon-18"></i>PNG</button>
-                <button type="button" class="qr-action-btn" onclick="downloadQRSVG()"><i data-wo-icon="download" class="wo-icon-18"></i>SVG</button>
-                <button type="button" class="qr-action-btn" id="qr-copy-btn" onclick="copyQRUrl()"><i data-wo-icon="copy" class="wo-icon-18"></i>Copiar URL</button>
-                <button type="button" class="qr-action-btn qr-action-share" id="qr-share-btn" onclick="shareQRUrl()" style="display:none"><i data-wo-icon="share-2" class="wo-icon-18"></i>Compartir</button>
-            </div>
-        </div>
-    </div>
+    <!-- El modal QR legacy se reemplazó por los paneles laterales del Figma
+         (801:561 / 801:562) que monta /shared/js/dashboard-share.js. -->
 
-    <!-- Styles Selector Modal (legacy hook; used on /artist/profile/details) -->
+    <!-- Styles Selector Modal (legacy hook; used on /artist/account#perfil) -->
     <div id="styles-modal" class="modal-overlay" onclick="closeStylesModalOnOverlay(event)">
         <div class="modal-container styles-modal-container">
             <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
@@ -621,7 +655,7 @@
         </div>
     </div>
 
-    <!-- Upcoming Travel Modal (legacy hook; used on /artist/profile/details) -->
+    <!-- Upcoming Travel Modal (legacy hook; used on /artist/account#perfil) -->
     <div id="upcoming-travel-modal" class="modal-overlay" onclick="closeUpcomingTravelModalOnOverlay(event)">
         <div class="modal-container upcoming-travel-modal-container">
             <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
@@ -669,9 +703,13 @@
     <script src="/shared/js/geocoder.js"></script>
     <script src="/shared/js/address-picker.js"></script>
     <script src="/shared/js/instagram-import.js"></script>
-    <script src="/shared/js/dashboard.js?v=20260816-ds-dashboard-1"></script>
-    <script src="/shared/js/dashboard-redesign.js?v=20260816-ds-dashboard-3"></script>
-    <script src="/shared/js/wo-artist-menu.js" defer></script>
+    <script src="/shared/js/gallery-visibility.js?v=20261030-ig-visibility"></script>
+    <script src="/shared/js/dashboard-gallery.js?v=20261030-ig-visibility"></script>
+    <script src="/shared/js/dashboard.js?v=20261030-ig-visibility"></script>
+    <script src="/shared/js/dashboard-redesign.js?v=20261028-figma-final-r1"></script>
+    <script src="/shared/js/dashboard-reminders.js?v=20261028-figma-final"></script>
+    <script src="/shared/js/dashboard-share.js?v=20261028-figma-final-r1"></script>
+    <script src="/shared/js/wo-artist-menu.js?v=20261028-figma-final-r1" defer></script>
 </body>
 
 </html>

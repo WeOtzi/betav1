@@ -87,7 +87,23 @@ html.wo-tour-active .wo-demo-bar{display:none}
 .wo-tour-card__tools{display:inline-flex;gap:var(--space-2)}
 .wo-tour-card__tools .wo-iconbtn{color:var(--neutral-500)}
 .wo-tour-card__tools .wo-iconbtn.is-off{color:var(--text-faint)}
-.wo-tour-card__nav{display:inline-flex;gap:var(--space-2);margin-left:auto}
+/* Velocidad de la voz: etiqueta mono "1×"…"2×", ancho fijo para que no salte al cambiar */
+.wo-tour-card__tools .wo-tour-card__rate{
+  width:calc(5ch + var(--space-4));min-width:var(--tap-target-min);padding:0 var(--space-2);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);font-weight:var(--weight-bold);letter-spacing:0;
+  font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap;color:var(--text-heading)
+}
+/* Navegación, mobile primero: la fila ocupa todo el ancho, los botones se la
+   reparten (o bajan a otra línea) y un label largo ("EMPEZAR EL RECORRIDO →",
+   "IR A CENTRO DE LA CUENTA →") parte dentro del botón en vez de desbordar la
+   tarjeta a 320 px. Desde 768 px vuelve a la derecha con labels en una línea;
+   si no entran, los botones bajan a otra línea dentro de la tarjeta. */
+.wo-tour-card__nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-2);flex:1 1 100%;min-width:0;margin-left:auto}
+.wo-tour-card__nav .wo-btn{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;text-align:center}
+@media (min-width:48rem){
+  .wo-tour-card__nav{flex:0 1 auto}
+  .wo-tour-card__nav .wo-btn{flex:0 0 auto;white-space:nowrap}
+}
 .wo-tour-card__skip{
   display:inline-block;margin-top:var(--space-3);background:none;border:0;padding:0;cursor:pointer;
   font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;
@@ -108,6 +124,8 @@ html.wo-tour-active .wo-tour-invite{display:none}
   }
   .wo-tour-root.is-clear .wo-tour-card,.wo-tour-root.is-centered.is-clear .wo-tour-card{transform:translateY(6px)}
   .wo-tour-card__title{font-size:18px}
+  .wo-tour-card__tools{flex-wrap:wrap}
+  .wo-tour-card__tools .wo-tour-card__rate{min-height:var(--tap-target-min)}
   .wo-demo-bar{left:var(--space-3);right:var(--space-3);bottom:var(--space-3);transform:none;max-width:none;flex-wrap:wrap;justify-content:center;gap:var(--space-2)}
   .wo-demo-bar__text{white-space:normal;text-align:center}
   .wo-demo-bar__actions{flex-wrap:wrap;justify-content:center}

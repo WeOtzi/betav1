@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@page { size: A4; margin: 16mm 14mm 18mm; }
+:root { --ink: #14110f; --cream: #f7f5ef; --paper: #fbfaf6; --muted: #6b645c; --rule: #d9d3c7; --red: #e3241b; --yellow: #f2b51c; --blue: #0b4ee0; --green: #1f8a5b; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font: 10pt/1.5 Inter, Arial, sans-serif; color: var(--ink); background: var(--paper); }
+h1, h2, h3 { font-family: 'Archivo Black', Arial, sans-serif; font-weight: 400; line-height: 1.1; margin: 0 0 8pt; }
+h1 { font-size: 34pt; }
+h2 { font-size: 18pt; border-bottom: 3px solid var(--ink); padding-bottom: 6pt; margin-top: 4pt; }
+h3 { font-size: 12pt; margin-top: 14pt; }
+p { margin: 0 0 7pt; }
+code, pre { font-family: 'JetBrains Mono', monospace; font-size: 8pt; }
+pre { background: var(--ink); color: var(--cream); padding: 10pt; white-space: pre-wrap; }
+section { page-break-before: always; }
+section.cover { page-break-before: auto; min-height: 250mm; display: flex; flex-direction: column; justify-content: center; }
+.marks { display: flex; gap: 8pt; margin-bottom: 18pt; }
+.marks span { display: inline-block; width: 18pt; height: 18pt; }
+.marks .sq { background: var(--red); }
+.marks .ci { background: var(--yellow); border-radius: 50%; }
+.marks .tr { width: 0; height: 0; border-left: 10pt solid transparent; border-right: 10pt solid transparent; border-bottom: 18pt solid var(--blue); }
+.eyebrow { font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .08em; font-size: 8pt; color: var(--muted); }
+.hl { background: var(--yellow); padding: 0 4pt; }
+.lead { font-size: 12pt; max-width: 150mm; margin: 12pt 0 18pt; }
+table { border-collapse: collapse; width: 100%; }
+table.kv th { text-align: left; font-family: 'JetBrains Mono', monospace; font-weight: 400; text-transform: uppercase; font-size: 7.5pt; color: var(--muted); width: 45mm; padding: 4pt 0; vertical-align: top; }
+table.kv td { padding: 4pt 0; border-bottom: 1px solid var(--rule); }
+table.grid { font-size: 8.5pt; margin-bottom: 10pt; }
+table.grid th { text-align: left; font-family: 'JetBrains Mono', monospace; font-weight: 600; text-transform: uppercase; font-size: 7pt; letter-spacing: .05em; border-bottom: 2px solid var(--ink); padding: 4pt 5pt; }
+table.grid td { border-bottom: 1px solid var(--rule); padding: 4pt 5pt; vertical-align: top; }
+table.grid tr { page-break-inside: avoid; }
+.sub { color: var(--muted); font-size: 7.5pt; margin-top: 2pt; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 2px solid var(--ink); margin: 6pt 0 14pt; }
+.stats div { padding: 10pt; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.stats b { display: block; font-family: 'Archivo Black', sans-serif; font-weight: 400; font-size: 24pt; }
+.stats span { font-family: 'JetBrains Mono', monospace; font-size: 7.5pt; text-transform: uppercase; color: var(--muted); }
+.tag { font-family: 'JetBrains Mono', monospace; font-size: 7pt; text-transform: uppercase; padding: 1pt 4pt; border: 1px solid var(--ink); white-space: nowrap; }
+.tag-creada, .tag-estado-nuevo { background: var(--yellow); }
+.tag-rediseñada { background: #dce6fb; }
+.tag-sin-cambios { background: #e3f1ea; }
+.sev { font-family: 'JetBrains Mono', monospace; font-size: 7pt; text-transform: uppercase; padding: 1pt 4pt; color: #fff; }
+.sev-alta { background: var(--red); }
+.sev-media { background: var(--yellow); color: var(--ink); }
+.sev-baja { background: var(--muted); }
+ul { margin: 0 0 8pt; padding-left: 14pt; }
+li { margin-bottom: 3pt; }
+.pair { margin: 0 0 10pt; page-break-inside: avoid; }
+.pair figcaption { font-size: 8pt; margin-bottom: 4pt; }
+.pair > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6pt; }
+.pair img { width: 100%; border: 1px solid var(--rule); display: block; }
+.noimg { border: 1px dashed var(--rule); color: var(--muted); font-size: 8pt; padding: 20pt; text-align: center; }

@@ -647,7 +647,9 @@ const LoggingService = (function() {
 
         try {
             const supabase = window.ConfigManager?.getSupabaseClient() || window._supabase;
-            if (!supabase) {
+            // session_logs solo acepta escrituras autenticadas (RLS): sin sesión
+            // el insert devuelve 401 y ensucia la consola de páginas públicas.
+            if (!supabase || !userIdentifiers.userId) {
                 isPersisting = false;
                 return;
             }
